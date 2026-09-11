@@ -152,24 +152,14 @@ mod tests {
     use super::*;
     use crate::catalog::open_catalog_at;
     use crate::library::Library;
-    use std::env;
+    use crate::test_util;
     use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU32, Ordering};
     use std::io::Write;
     use zip::write::SimpleFileOptions;
     use zip::ZipWriter;
 
-    static COUNTER: AtomicU32 = AtomicU32::new(0);
-
     fn temp_root(name: &str) -> PathBuf {
-        let dir = env::temp_dir()
-            .join("jarogor-booklib-tests")
-            .join(format!("{name}-{}", COUNTER.fetch_add(1, Ordering::SeqCst)));
-        if dir.exists() {
-            fs::remove_dir_all(&dir).expect("очистка временной директории");
-        }
-        fs::create_dir_all(&dir).expect("создание временной директории");
-        dir
+        test_util::test_root(name)
     }
 
     fn make_minimal_epub(

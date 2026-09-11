@@ -135,19 +135,15 @@ impl Library {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
+    use crate::test_util;
 
     /// Получение временной директории для теста.
     fn temp_library_root(name: &str) -> PathBuf {
-      env::temp_dir()
-        .join("jarogor-booklib-tests")
-        .join(name)
+        test_util::test_root(name)
     }
 
     fn remove_dir_contents(path: &Path) {
-      if path.exists() {
-        fs::remove_dir_all(path).expect("очистка временной директории");
-      }
+      test_util::cleanup(path);
     }
 
     #[test]

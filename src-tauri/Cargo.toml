@@ -22,6 +22,8 @@ uuid = { version = "1", features = ["v4"] }
 epub = { version = "2", features = ["mock"] }
 base64 = "0.22"
 extism = "1.30"
+tauri-plugin-dialog = "2"
+toml = { version = "0.8", default-features = false, features = ["parse"] }
 
 [dev-dependencies]
 zip = { version = "3", default-features = false, features = ["deflate"] }

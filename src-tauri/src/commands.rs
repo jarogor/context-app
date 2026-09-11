@@ -19,6 +19,17 @@ pub struct BookContent {
     pub text: String,
 }
 
+/// Импорт книги из EPUB-файла в библиотеку.
+#[tauri::command]
+pub fn import_book(
+    state: State<'_, Mutex<Library>>,
+    source_path: String,
+) -> Result<Book, String> {
+    let mut library = state.lock().map_err(|e| e.to_string())?;
+    crate::import::import_book(&mut library, std::path::Path::new(&source_path))
+        .map_err(|e| e.to_string())
+}
+
 /// Получение полного списка книг со всеми связями.
 #[tauri::command]
 pub fn list_books(

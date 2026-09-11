@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { open } from '@tauri-apps/plugin-dialog';
   import type { Book, BookFile } from '../types';
 
   interface Props {
@@ -14,6 +15,8 @@
   let books: BookWithCover[] = $state([]);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
+  let importing: boolean = $state(false);
+  let importError: string | null = $state(null);
 
   function coverFile(book: Book): BookFile | undefined {
     return book.files.find((f) => f.kind === 'cover');
@@ -41,11 +44,39 @@
     }
   }
 
+  async function importFile() {
+    importing = true;
+    importError = null;
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'EPUB', extensions: ['epub'] }],
+      });
+      if (typeof selected === 'string') {
+        await invoke('import_book', { sourcePath: selected });
+        await load();
+      }
+    } catch (e) {
+      importError = String(e);
+    } finally {
+      importing = false;
+    }
+  }
+
   onMount(load);
 </script>
 
 <div class="library">
-  <h1>Библиотека</h1>
+  <div class="header">
+    <h1>Библиотека</h1>
+    <button class="import-button" type="button" onclick={importFile} disabled={importing}>
+      {importing ? 'Импорт...' : 'Добавить EPUB'}
+    </button>
+  </div>
+
+  {#if importError}
+    <p class="state error">{importError}</p>
+  {/if}
 
   {#if loading}
     <p class="state">Загрузка...</p>
@@ -84,8 +115,31 @@
   .library {
     padding: 24px;
   }
-  h1 {
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     margin-bottom: 16px;
+  }
+  .import-button {
+    padding: 8px 14px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #333;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+  }
+  .import-button:hover:not(:disabled) {
+    background: #000;
+  }
+  .import-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  h1 {
+    margin-bottom: 0;
   }
   .state {
     color: #888;

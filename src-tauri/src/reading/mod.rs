@@ -108,10 +108,10 @@ fn decode_entities(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
+    use crate::test_util;
     use std::fs;
     use std::io::Write;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU32, Ordering};
     use zip::write::SimpleFileOptions;
     use zip::ZipWriter;
@@ -119,13 +119,12 @@ mod tests {
     static COUNTER: AtomicU32 = AtomicU32::new(0);
 
     fn temp_dir(name: &str) -> PathBuf {
-        let dir = env::temp_dir()
-            .join("jarogor-booklib-tests")
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("_tmp")
+            .join("tests")
             .join(format!("{name}-{}", COUNTER.fetch_add(1, Ordering::SeqCst)));
-        if dir.exists() {
-            fs::remove_dir_all(&dir).expect("очистка временной директории");
-        }
-        fs::create_dir_all(&dir).expect("создание временной директории");
+        test_util::reset(&dir);
         dir
     }
 

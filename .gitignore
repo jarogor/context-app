@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Временные данные разработки и тестов (внутри рабочей директории)
+_tmp
+dev_data
+
 # Rust build artifacts
 target
 src-tauri/target

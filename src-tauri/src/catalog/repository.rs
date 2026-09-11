@@ -419,18 +419,11 @@ mod tests {
     use super::*;
     use crate::catalog::open_catalog_at;
     use crate::catalog::NewFile;
-    use std::env;
-    use std::fs;
+    use crate::test_util;
     use std::path::PathBuf;
 
     fn temp_db(name: &str) -> PathBuf {
-        let dir = env::temp_dir()
-            .join("jarogor-booklib-tests")
-            .join(name);
-        if dir.exists() {
-            fs::remove_dir_all(&dir).expect("очистка временной директории");
-        }
-        fs::create_dir_all(&dir).expect("создание временной директории");
+        let dir = test_util::test_root(name);
         dir.join("library.db")
     }
 
@@ -485,10 +478,7 @@ mod tests {
             .iter()
             .any(|f| f.kind == FileKind::Cover && f.path == "covers/1.jpg"));
 
-        fs::remove_dir_all(
-            env::temp_dir().join("jarogor-booklib-tests").join("save-and-load"),
-        )
-        .expect("очистка");
+        test_util::cleanup(db_path.parent().expect("каталог теста"));
     }
 
     #[test]
@@ -516,10 +506,7 @@ mod tests {
             .expect("число серий");
         assert_eq!(count_series, 1, "серия переиспользована");
 
-        fs::remove_dir_all(
-            env::temp_dir().join("jarogor-booklib-tests").join("reuse-relations"),
-        )
-        .expect("очистка");
+        test_util::cleanup(db_path.parent().expect("каталог теста"));
     }
 
     #[test]
@@ -549,10 +536,7 @@ mod tests {
             .iter()
             .any(|b| b.authors[0].name == "Фёдор Достоевский"));
 
-        fs::remove_dir_all(
-            env::temp_dir().join("jarogor-booklib-tests").join("list-books"),
-        )
-        .expect("очистка");
+        test_util::cleanup(db_path.parent().expect("каталог теста"));
     }
 
     #[test]
@@ -563,9 +547,6 @@ mod tests {
         let result = get_book(&connection, 999).expect("запрос отсутствующей книги");
         assert!(result.is_none(), "отсутствующая книга не возвращается");
 
-        fs::remove_dir_all(
-            env::temp_dir().join("jarogor-booklib-tests").join("missing-book"),
-        )
-        .expect("очистка");
+        test_util::cleanup(db_path.parent().expect("каталог теста"));
     }
 }

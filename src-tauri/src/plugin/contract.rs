@@ -95,22 +95,13 @@ impl PluginManifest {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::env;
+  use crate::test_util;
   use std::fs;
   use std::path::PathBuf;
-  use std::sync::atomic::{AtomicU32, Ordering};
-
-  static COUNTER: AtomicU32 = AtomicU32::new(0);
 
   /// Создание временной директории с манифестом.
   fn write_manifest(content: &str) -> PathBuf {
-    let dir = env::temp_dir()
-      .join("jarogor-booklib-tests")
-      .join(format!("plugin-contract-{}", COUNTER.fetch_add(1, Ordering::SeqCst)));
-    if dir.exists() {
-      fs::remove_dir_all(&dir).expect("очистка временной директории");
-    }
-    fs::create_dir_all(&dir).expect("создание временной директории");
+    let dir = test_util::test_root("plugin-contract");
     let path = dir.join(MANIFEST_FILE_NAME);
     fs::write(&path, content).expect("запись манифеста");
     path

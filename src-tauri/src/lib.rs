@@ -1,5 +1,9 @@
+#[cfg(test)]
+pub mod test_util;
+
 pub mod catalog;
 pub mod commands;
+pub mod config;
 pub mod import;
 pub mod library;
 pub mod plugin;
@@ -12,6 +16,7 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 use crate::catalog::open_catalog;
+use crate::config::AppConfig;
 use crate::library::Library;
 use crate::plugin::PluginRuntime;
 
@@ -21,9 +26,10 @@ const DEMO_PLUGIN_DIR: &str = "demo-plugin";
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let data_dir = app.path().app_data_dir()?;
-            let library_root = data_dir.join("library");
+            let config = AppConfig::load()?;
+            let library_root = config.library_dir;
             let mut library = Library::open(&library_root)?;
             open_catalog(library.connection_mut())?;
             seed_demo_plugin(&library)?;
@@ -44,6 +50,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::import_book,
             commands::list_books,
             commands::get_cover,
             commands::get_book_content,

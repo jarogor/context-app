@@ -202,12 +202,8 @@ fn host_log(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::env;
+  use crate::test_util;
   use std::path::PathBuf;
-  use std::sync::atomic::Ordering;
-
-  static COUNTER: std::sync::atomic::AtomicU32 =
-    std::sync::atomic::AtomicU32::new(0);
 
   /// WAT-модуль, экспортирующий функцию `invoke`, возвращающую код 0.
   const WAT_WITH_INVOKE: &str = r#"
@@ -234,12 +230,7 @@ mod tests {
 
   /// Создание корня плагинов с одной директорией плагина.
   fn setup_plugins_root(name: &str, wasm: &[u8]) -> PathBuf {
-    let dir = env::temp_dir()
-      .join("jarogor-booklib-tests")
-      .join(format!("plugin-runtime-{}-{}", name, COUNTER.fetch_add(1, Ordering::SeqCst)));
-    if dir.exists() {
-      fs::remove_dir_all(&dir).expect("очистка временной директории");
-    }
+    let dir = test_util::test_root(&format!("plugin-runtime-{name}"));
     let plugin_dir = dir.join("test-plugin");
     fs::create_dir_all(&plugin_dir).expect("создание директории плагина");
     fs::write(plugin_dir.join(MANIFEST_FILE_NAME), MANIFEST_JSON).expect("манифест");
@@ -256,7 +247,7 @@ mod tests {
     let dir = setup_plugins_root("with-invoke", &compile_wat(WAT_WITH_INVOKE));
     let runtime = PluginRuntime::load(&dir).expect("загрузка runtime");
     assert_eq!(runtime.plugin_names(), vec!["test-plugin"], "плагин загружен");
-    fs::remove_dir_all(&dir).expect("очистка");
+    test_util::cleanup(&dir);
   }
 
   #[test]
@@ -267,7 +258,7 @@ mod tests {
       runtime.plugin_names().is_empty(),
       "плагин без invoke отбракован"
     );
-    fs::remove_dir_all(&dir).expect("очистка");
+    test_util::cleanup(&dir);
   }
 
   #[test]
@@ -278,32 +269,21 @@ mod tests {
       .invoke("test-plugin", "привет")
       .expect("вызов плагина");
     assert_eq!(output, "", "модуль возвращает пустой вывод");
-    fs::remove_dir_all(&dir).expect("очистка");
+    test_util::cleanup(&dir);
   }
 
   #[test]
   fn empty_dir_produces_no_plugins() {
-    let dir = env::temp_dir()
-      .join("jarogor-booklib-tests")
-      .join(format!("plugin-runtime-empty-{}", COUNTER.fetch_add(1, Ordering::SeqCst)));
-    if dir.exists() {
-      fs::remove_dir_all(&dir).expect("очистка временной директории");
-    }
-    fs::create_dir_all(&dir).expect("создание");
+    let dir = test_util::test_root("plugin-runtime-empty");
 
     let runtime = PluginRuntime::load(&dir).expect("загрузка пустого каталога");
     assert!(runtime.plugin_names().is_empty(), "нет плагинов в пустой папке");
-    fs::remove_dir_all(&dir).expect("очистка");
+    test_util::cleanup(&dir);
   }
 
   #[test]
   fn loads_and_invokes_bundled_demo_plugin() {
-    let root = env::temp_dir()
-      .join("jarogor-booklib-tests")
-      .join(format!("plugin-runtime-demo-{}", COUNTER.fetch_add(1, Ordering::SeqCst)));
-    if root.exists() {
-      fs::remove_dir_all(&root).expect("очистка временной директории");
-    }
+    let root = test_util::test_root("plugin-runtime-demo");
     let plugin_dir = root.join("demo-plugin");
     fs::create_dir_all(&plugin_dir).expect("создание директории плагина");
     let resources = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -330,6 +310,6 @@ mod tests {
       "host-функция log передала сообщение приложению"
     );
 
-    fs::remove_dir_all(&root).expect("очистка");
+    test_util::cleanup(&root);
   }
 }
