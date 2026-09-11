@@ -10,9 +10,7 @@ use std::path::Path;
 ///
 /// Последовательно проходится spine (линейные главы), из каждого документа
 /// удаляется разметка HTML, главы разделяются переводом строки.
-pub fn extract_book_text(
-    epub_path: &Path,
-) -> Result<String, ReadingError> {
+pub fn extract_book_text(epub_path: &Path) -> Result<String, ReadingError> {
     let mut doc = epub::doc::EpubDoc::new(epub_path)
         .map_err(|_| ReadingError::InvalidEpub(epub_path.to_path_buf()))?;
 
@@ -72,8 +70,7 @@ fn is_block_break(tag: &str) -> bool {
         .trim_end_matches('/');
     matches!(
         name,
-        "p"
-            | "div"
+        "p" | "div"
             | "section"
             | "article"
             | "aside"
@@ -134,7 +131,8 @@ mod tests {
         let options = SimpleFileOptions::default();
 
         let container = "<?xml version=\"1.0\"?><container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles><rootfile full-path=\"OEBPS/content.opf\" media-type=\"application/oebps-package+xml\"/></rootfiles></container>";
-        zip.start_file("META-INF/container.xml", options).expect("container.xml");
+        zip.start_file("META-INF/container.xml", options)
+            .expect("container.xml");
         zip.write_all(container.as_bytes()).expect("запись");
 
         let mut spine_refs = String::new();
@@ -160,14 +158,16 @@ mod tests {
   </spine>
 </package>"#
         );
-        zip.start_file("OEBPS/content.opf", options).expect("content.opf");
+        zip.start_file("OEBPS/content.opf", options)
+            .expect("content.opf");
         zip.write_all(opf.as_bytes()).expect("запись");
 
         for (id, content) in chapters {
             let page = format!(
                 "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body>{content}</body></html>"
             );
-            zip.start_file(format!("OEBPS/{id}.xhtml"), options).expect("глава");
+            zip.start_file(format!("OEBPS/{id}.xhtml"), options)
+                .expect("глава");
             zip.write_all(page.as_bytes()).expect("запись");
         }
 
@@ -181,15 +181,24 @@ mod tests {
         write_epub(
             &epub,
             &[
-                ("c1".to_string(), "<h1>Глава 1</h1><p>Первый абзац</p>".to_string()),
-                ("c2".to_string(), "<p>Второй абзац &amp; конец</p>".to_string()),
+                (
+                    "c1".to_string(),
+                    "<h1>Глава 1</h1><p>Первый абзац</p>".to_string(),
+                ),
+                (
+                    "c2".to_string(),
+                    "<p>Второй абзац &amp; конец</p>".to_string(),
+                ),
             ],
         );
 
         let text = extract_book_text(&epub).expect("извлечение текста");
         assert!(text.contains("Глава 1"), "заголовок главы извлечён");
         assert!(text.contains("Первый абзац"), "текст извлечён");
-        assert!(text.contains("Второй абзац & конец"), "сущности декодированы");
+        assert!(
+            text.contains("Второй абзац & конец"),
+            "сущности декодированы"
+        );
         assert!(text.contains("\n\n"), "главы разделены");
         assert!(!text.contains('<'), "разметка удалена");
 

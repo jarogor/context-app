@@ -9,60 +9,64 @@ use crate::library::LibraryError;
 /// Ошибка, возникающая при импорте книги.
 #[derive(Debug)]
 pub enum ImportError {
-  /// Исходный файл не является корректным EPUB.
-  InvalidEpub(PathBuf, String),
-  /// Ошибка копирования файла.
-  Io(io::Error),
-  /// Ошибка слоя библиотеки.
-  Library(LibraryError),
-  /// Ошибка каталога.
-  Catalog(CatalogError),
+    /// Исходный файл не является корректным EPUB.
+    InvalidEpub(PathBuf, String),
+    /// Ошибка копирования файла.
+    Io(io::Error),
+    /// Ошибка слоя библиотеки.
+    Library(LibraryError),
+    /// Ошибка каталога.
+    Catalog(CatalogError),
 }
 
 impl From<io::Error> for ImportError {
-  fn from(value: io::Error) -> Self {
-    Self::Io(value)
-  }
+    fn from(value: io::Error) -> Self {
+        Self::Io(value)
+    }
 }
 
 impl From<rusqlite::Error> for ImportError {
-  fn from(value: rusqlite::Error) -> Self {
-    Self::Catalog(CatalogError::Database(value))
-  }
+    fn from(value: rusqlite::Error) -> Self {
+        Self::Catalog(CatalogError::Database(value))
+    }
 }
 
 impl From<LibraryError> for ImportError {
-  fn from(value: LibraryError) -> Self {
-    Self::Library(value)
-  }
+    fn from(value: LibraryError) -> Self {
+        Self::Library(value)
+    }
 }
 
 impl From<CatalogError> for ImportError {
-  fn from(value: CatalogError) -> Self {
-    Self::Catalog(value)
-  }
+    fn from(value: CatalogError) -> Self {
+        Self::Catalog(value)
+    }
 }
 
 impl std::fmt::Display for ImportError {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      Self::InvalidEpub(path, reason) => {
-        write!(f, "файл {} не является корректным EPUB: {reason}", path.display())
-      }
-      Self::Io(err) => write!(f, "ошибка ввода-вывода: {err}"),
-      Self::Library(err) => write!(f, "ошибка библиотеки: {err}"),
-      Self::Catalog(err) => write!(f, "ошибка каталога: {err}"),
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidEpub(path, reason) => {
+                write!(
+                    f,
+                    "файл {} не является корректным EPUB: {reason}",
+                    path.display()
+                )
+            }
+            Self::Io(err) => write!(f, "ошибка ввода-вывода: {err}"),
+            Self::Library(err) => write!(f, "ошибка библиотеки: {err}"),
+            Self::Catalog(err) => write!(f, "ошибка каталога: {err}"),
+        }
     }
-  }
 }
 
 impl std::error::Error for ImportError {
-  fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-    match self {
-      Self::InvalidEpub(_, _) => None,
-      Self::Io(err) => Some(err),
-      Self::Library(err) => Some(err),
-      Self::Catalog(err) => Some(err),
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidEpub(_, _) => None,
+            Self::Io(err) => Some(err),
+            Self::Library(err) => Some(err),
+            Self::Catalog(err) => Some(err),
+        }
     }
-  }
 }

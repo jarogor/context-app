@@ -5,8 +5,8 @@ pub mod error;
 pub mod runtime;
 
 pub use contract::{
-  CONTRACT_VERSION, EXPORT_FUNCTION, HOST_FUNCTIONS, HOST_LOG_FUNCTION,
-  MANIFEST_FILE_NAME, PluginManifest,
+    PluginManifest, CONTRACT_VERSION, EXPORT_FUNCTION, HOST_FUNCTIONS, HOST_LOG_FUNCTION,
+    MANIFEST_FILE_NAME,
 };
 pub use error::PluginError;
 pub use runtime::{HostSink, LoadedPlugin, PluginRuntime};

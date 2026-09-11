@@ -21,10 +21,7 @@ pub struct BookContent {
 
 /// Импорт книги из EPUB-файла в библиотеку.
 #[tauri::command]
-pub fn import_book(
-    state: State<'_, Mutex<Library>>,
-    source_path: String,
-) -> Result<Book, String> {
+pub fn import_book(state: State<'_, Mutex<Library>>, source_path: String) -> Result<Book, String> {
     let mut library = state.lock().map_err(|e| e.to_string())?;
     crate::import::import_book(&mut library, std::path::Path::new(&source_path))
         .map_err(|e| e.to_string())
@@ -32,9 +29,7 @@ pub fn import_book(
 
 /// Получение полного списка книг со всеми связями.
 #[tauri::command]
-pub fn list_books(
-    state: State<'_, Mutex<Library>>,
-) -> Result<Vec<Book>, String> {
+pub fn list_books(state: State<'_, Mutex<Library>>) -> Result<Vec<Book>, String> {
     let library = state.lock().map_err(|e| e.to_string())?;
     repository::list_books(library.connection()).map_err(|e| e.to_string())
 }
@@ -44,21 +39,14 @@ pub fn list_books(
 /// Возвращает `Some(data_uri)` для книг с обложкой или `None`,
 /// если обложка отсутствует.
 #[tauri::command]
-pub fn get_cover(
-    state: State<'_, Mutex<Library>>,
-    book_id: i64,
-) -> Result<Option<String>, String> {
+pub fn get_cover(state: State<'_, Mutex<Library>>, book_id: i64) -> Result<Option<String>, String> {
     let library = state.lock().map_err(|e| e.to_string())?;
-    let Some(book) = repository::get_book(library.connection(), book_id)
-        .map_err(|e| e.to_string())?
+    let Some(book) =
+        repository::get_book(library.connection(), book_id).map_err(|e| e.to_string())?
     else {
         return Ok(None);
     };
-    let cover = match book
-        .files
-        .iter()
-        .find(|f| f.kind == FileKind::Cover)
-    {
+    let cover = match book.files.iter().find(|f| f.kind == FileKind::Cover) {
         Some(c) => c,
         None => return Ok(None),
     };
@@ -81,8 +69,8 @@ pub fn get_book_content(
     book_id: i64,
 ) -> Result<BookContent, String> {
     let library = state.lock().map_err(|e| e.to_string())?;
-    let Some(book) = repository::get_book(library.connection(), book_id)
-        .map_err(|e| e.to_string())?
+    let Some(book) =
+        repository::get_book(library.connection(), book_id).map_err(|e| e.to_string())?
     else {
         return Err("Книга не найдена".to_string());
     };
@@ -92,8 +80,7 @@ pub fn get_book_content(
         .find(|f| f.kind == FileKind::Book)
         .ok_or_else(|| "Файл книги не найден".to_string())?;
     let abs_path = library.root().join(&file.path);
-    let text =
-        reading::extract_book_text(&abs_path).map_err(|e| e.to_string())?;
+    let text = reading::extract_book_text(&abs_path).map_err(|e| e.to_string())?;
     Ok(BookContent {
         title: book.title,
         authors: book.authors.iter().map(|a| a.name.clone()).collect(),

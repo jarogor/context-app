@@ -33,11 +33,9 @@ fn ensure_schema_version_table(connection: &Connection) -> rusqlite::Result<()> 
 /// Текущая версия схемы (0, если миграции ещё не применялись).
 fn current_version(connection: &Connection) -> rusqlite::Result<i64> {
     let current: i64 = connection
-        .query_row(
-            "SELECT MAX(version) FROM schema_version;",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT MAX(version) FROM schema_version;", [], |row| {
+            row.get(0)
+        })
         .unwrap_or(0);
     Ok(current)
 }
@@ -178,28 +176,21 @@ mod tests {
             .execute("INSERT INTO authors (name) VALUES ('Лев Толстой');", [])
             .expect("вставка автора");
 
-        let duplicate = connection.execute(
-            "INSERT INTO authors (name) VALUES ('Лев Толстой');",
-            [],
-        );
+        let duplicate =
+            connection.execute("INSERT INTO authors (name) VALUES ('Лев Толстой');", []);
         assert!(duplicate.is_err(), "дубль имени автора отклоняется");
 
         connection
             .execute("INSERT INTO series (name) VALUES ('Война и мир');", [])
             .expect("вставка серии");
-        let duplicate_series = connection.execute(
-            "INSERT INTO series (name) VALUES ('Война и мир');",
-            [],
-        );
+        let duplicate_series =
+            connection.execute("INSERT INTO series (name) VALUES ('Война и мир');", []);
         assert!(duplicate_series.is_err(), "дубль имени серии отклоняется");
 
         connection
             .execute("INSERT INTO tags (name) VALUES ('классика');", [])
             .expect("вставка тега");
-        let duplicate_tag = connection.execute(
-            "INSERT INTO tags (name) VALUES ('классика');",
-            [],
-        );
+        let duplicate_tag = connection.execute("INSERT INTO tags (name) VALUES ('классика');", []);
         assert!(duplicate_tag.is_err(), "дубль имени тега отклоняется");
     }
 }

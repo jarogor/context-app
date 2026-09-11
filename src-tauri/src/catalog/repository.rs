@@ -4,10 +4,8 @@ use rusqlite::{Connection, Transaction};
 
 use crate::catalog::FileKind;
 
+use super::entities::{Author, Book, BookFile, NewBook, Series, SeriesLink, Tag};
 use super::error::CatalogError;
-use super::entities::{
-  Author, Book, BookFile, NewBook, Series, SeriesLink, Tag,
-};
 
 /// Вставка базовой строки книги в транзакции.
 pub(crate) fn insert_book(
@@ -41,10 +39,7 @@ pub(crate) fn insert_file(
 /// Сохранение новой книги вместе с авторами, сериями, тегами и файлами.
 ///
 /// Операция выполняется транзакционно: при ошибке изменения не сохраняются.
-pub fn save_book(
-    connection: &mut Connection,
-    new_book: NewBook,
-) -> Result<Book, CatalogError> {
+pub fn save_book(connection: &mut Connection, new_book: NewBook) -> Result<Book, CatalogError> {
     let transaction = connection.transaction()?;
 
     let uuid = uuid::Uuid::new_v4().to_string();
@@ -59,26 +54,16 @@ pub fn save_book(
     link_tags(&transaction, book_id, &tag_ids)?;
 
     for file in &new_book.files {
-        insert_file(
-            &transaction,
-            book_id,
-            file.kind,
-            &file.path,
-            &file.format,
-        )?;
+        insert_file(&transaction, book_id, file.kind, &file.path, &file.format)?;
     }
 
     transaction.commit()?;
 
-    get_book(connection, book_id)
-        .map(|book| book.expect("только что созданная книга существует"))
+    get_book(connection, book_id).map(|book| book.expect("только что созданная книга существует"))
 }
 
 /// Поиск книги по идентификатору со всеми связями.
-pub fn get_book(
-    connection: &Connection,
-    book_id: i64,
-) -> Result<Option<Book>, CatalogError> {
+pub fn get_book(connection: &Connection, book_id: i64) -> Result<Option<Book>, CatalogError> {
     let book = load_book_row(connection, book_id)?;
     let Some(mut book) = book else {
         return Ok(None);
@@ -142,10 +127,7 @@ pub(crate) fn get_or_create_author(
     if let Some(id) = find_id(transaction, "authors", "name", trimmed)? {
         return Ok(id);
     }
-    transaction.execute(
-        "INSERT INTO authors (name) VALUES (?1);",
-        [trimmed],
-    )?;
+    transaction.execute("INSERT INTO authors (name) VALUES (?1);", [trimmed])?;
     Ok(transaction.last_insert_rowid())
 }
 
@@ -158,10 +140,7 @@ pub(crate) fn get_or_create_series(
     if let Some(id) = find_id(transaction, "series", "name", trimmed)? {
         return Ok(id);
     }
-    transaction.execute(
-        "INSERT INTO series (name) VALUES (?1);",
-        [trimmed],
-    )?;
+    transaction.execute("INSERT INTO series (name) VALUES (?1);", [trimmed])?;
     Ok(transaction.last_insert_rowid())
 }
 
@@ -174,10 +153,7 @@ pub(crate) fn get_or_create_tag(
     if let Some(id) = find_id(transaction, "tags", "name", trimmed)? {
         return Ok(id);
     }
-    transaction.execute(
-        "INSERT INTO tags (name) VALUES (?1);",
-        [trimmed],
-    )?;
+    transaction.execute("INSERT INTO tags (name) VALUES (?1);", [trimmed])?;
     Ok(transaction.last_insert_rowid())
 }
 
@@ -188,9 +164,7 @@ fn find_id(
     column: &str,
     value: &str,
 ) -> Result<Option<i64>, CatalogError> {
-    let sql = format!(
-        "SELECT id FROM {table} WHERE {column} = ?1;"
-    );
+    let sql = format!("SELECT id FROM {table} WHERE {column} = ?1;");
     let mut statement = connection.prepare(&sql)?;
     let mut rows = statement.query_map([value], |row| row.get(0))?;
     match rows.next() {
@@ -223,10 +197,7 @@ fn resolve_series_ids(
 }
 
 /// Разрешение всех тегов в идентификаторы.
-fn resolve_tag_ids(
-    transaction: &Transaction,
-    names: &[String],
-) -> Result<Vec<i64>, CatalogError> {
+fn resolve_tag_ids(transaction: &Transaction, names: &[String]) -> Result<Vec<i64>, CatalogError> {
     names
         .iter()
         .map(|name| get_or_create_tag(transaction, name))
@@ -268,11 +239,7 @@ fn link_series(
 }
 
 /// Связывание книги с тегами.
-fn link_tags(
-    transaction: &Transaction,
-    book_id: i64,
-    tag_ids: &[i64],
-) -> Result<(), CatalogError> {
+fn link_tags(transaction: &Transaction, book_id: i64, tag_ids: &[i64]) -> Result<(), CatalogError> {
     for tag_id in tag_ids {
         transaction.execute(
             "INSERT INTO book_tags (book_id, tag_id) VALUES (?1, ?2);",
@@ -283,10 +250,7 @@ fn link_tags(
 }
 
 /// Чтение базовой строки книги без связей.
-fn load_book_row(
-    connection: &Connection,
-    book_id: i64,
-) -> Result<Option<Book>, CatalogError> {
+fn load_book_row(connection: &Connection, book_id: i64) -> Result<Option<Book>, CatalogError> {
     let mut statement = connection.prepare(
         "SELECT id, uuid, title, created_at, updated_at
          FROM books WHERE id = ?1;",
@@ -313,10 +277,7 @@ fn load_book_row(
 }
 
 /// Чтение авторов книги.
-fn load_authors(
-    connection: &Connection,
-    book_id: i64,
-) -> Result<Vec<Author>, CatalogError> {
+fn load_authors(connection: &Connection, book_id: i64) -> Result<Vec<Author>, CatalogError> {
     let mut statement = connection.prepare(
         "SELECT a.id, a.name
          FROM authors a
@@ -336,10 +297,7 @@ fn load_authors(
 }
 
 /// Чтение серий книги с порядковыми номерами.
-fn load_series(
-    connection: &Connection,
-    book_id: i64,
-) -> Result<Vec<SeriesLink>, CatalogError> {
+fn load_series(connection: &Connection, book_id: i64) -> Result<Vec<SeriesLink>, CatalogError> {
     let mut statement = connection.prepare(
         "SELECT s.id, s.name, bs.series_index
          FROM series s
@@ -362,10 +320,7 @@ fn load_series(
 }
 
 /// Чтение тегов книги.
-fn load_tags(
-    connection: &Connection,
-    book_id: i64,
-) -> Result<Vec<Tag>, CatalogError> {
+fn load_tags(connection: &Connection, book_id: i64) -> Result<Vec<Tag>, CatalogError> {
     let mut statement = connection.prepare(
         "SELECT t.id, t.name
          FROM tags t
@@ -385,10 +340,7 @@ fn load_tags(
 }
 
 /// Чтение файлов книги.
-fn load_files(
-    connection: &Connection,
-    book_id: i64,
-) -> Result<Vec<BookFile>, CatalogError> {
+fn load_files(connection: &Connection, book_id: i64) -> Result<Vec<BookFile>, CatalogError> {
     let mut statement = connection.prepare(
         "SELECT id, book_id, kind, path, format
          FROM files
@@ -529,9 +481,7 @@ mod tests {
 
         let books = list_books(&connection).expect("список книг");
         assert_eq!(books.len(), 2, "обе книги в списке");
-        assert!(books
-            .iter()
-            .any(|b| b.authors[0].name == "Лев Толстой"));
+        assert!(books.iter().any(|b| b.authors[0].name == "Лев Толстой"));
         assert!(books
             .iter()
             .any(|b| b.authors[0].name == "Фёдор Достоевский"));

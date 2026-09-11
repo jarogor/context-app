@@ -10,9 +10,7 @@ pub mod error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::catalog::repository::{
-  get_or_create_author, insert_book, insert_file, link_authors,
-};
+use crate::catalog::repository::{get_or_create_author, insert_book, insert_file, link_authors};
 use crate::catalog::{CatalogError, FileKind};
 use crate::library::Library;
 
@@ -21,9 +19,9 @@ use self::error::ImportError;
 
 /// Хранилище данных импортированной книги на диске.
 struct WrittenFiles {
-  book_relative_path: String,
-  cover_relative_path: Option<String>,
-  cover_format: Option<String>,
+    book_relative_path: String,
+    cover_relative_path: Option<String>,
+    cover_format: Option<String>,
 }
 
 /// Импорт книги в библиотеку из файла EPUB.
@@ -93,9 +91,7 @@ pub fn import_book(
 
     crate::catalog::repository::get_book(connection, book_id)
         .map_err(ImportError::Catalog)?
-        .ok_or_else(|| {
-            ImportError::Catalog(CatalogError::NotFound)
-        })
+        .ok_or_else(|| ImportError::Catalog(CatalogError::NotFound))
 }
 
 /// Название книги по имени исходного файла (для EPUB без метаданных).
@@ -153,8 +149,8 @@ mod tests {
     use crate::catalog::open_catalog_at;
     use crate::library::Library;
     use crate::test_util;
-    use std::path::PathBuf;
     use std::io::Write;
+    use std::path::PathBuf;
     use zip::write::SimpleFileOptions;
     use zip::ZipWriter;
 
@@ -172,7 +168,9 @@ mod tests {
         let mut zip = ZipWriter::new(file);
         let options = SimpleFileOptions::default();
 
-        let title_entry = title.map(|t| format!("<dc:title>{t}</dc:title>")).unwrap_or_default();
+        let title_entry = title
+            .map(|t| format!("<dc:title>{t}</dc:title>"))
+            .unwrap_or_default();
         let creator_entry = creator
             .map(|c| format!("<dc:creator>{c}</dc:creator>"))
             .unwrap_or_default();
@@ -180,16 +178,14 @@ mod tests {
             .map(|(id, _)| format!(r#"<meta name="cover" content="{id}"/>"#))
             .unwrap_or_default();
         let cover_item = cover
-            .map(|(id, _)| {
-                format!(
-                    r#"<item id="{id}" media-type="image/jpeg" href="{id}.jpg"/>"#
-                )
-            })
+            .map(|(id, _)| format!(r#"<item id="{id}" media-type="image/jpeg" href="{id}.jpg"/>"#))
             .unwrap_or_default();
 
         let container = "<?xml version=\"1.0\"?><container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles><rootfile full-path=\"OEBPS/content.opf\" media-type=\"application/oebps-package+xml\"/></rootfiles></container>";
-        zip.start_file("META-INF/container.xml", options).expect("запись container");
-        zip.write_all(container.as_bytes()).expect("запись содержимого");
+        zip.start_file("META-INF/container.xml", options)
+            .expect("запись container");
+        zip.write_all(container.as_bytes())
+            .expect("запись содержимого");
 
         let opf = format!(
             r#"<?xml version="1.0"?>
@@ -209,15 +205,19 @@ mod tests {
   </spine>
 </package>"#
         );
-        zip.start_file("OEBPS/content.opf", options).expect("запись opf");
+        zip.start_file("OEBPS/content.opf", options)
+            .expect("запись opf");
         zip.write_all(opf.as_bytes()).expect("запись содержимого");
 
         let content = r#"<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><p>Hello</p></body></html>"#;
-        zip.start_file("OEBPS/content.xhtml", options).expect("запись xhtml");
-        zip.write_all(content.as_bytes()).expect("запись содержимого");
+        zip.start_file("OEBPS/content.xhtml", options)
+            .expect("запись xhtml");
+        zip.write_all(content.as_bytes())
+            .expect("запись содержимого");
 
         if let Some((id, data)) = cover {
-            zip.start_file(format!("OEBPS/{id}.jpg"), options).expect("запись обложки");
+            zip.start_file(format!("OEBPS/{id}.jpg"), options)
+                .expect("запись обложки");
             zip.write_all(data).expect("запись содержимого");
         }
 
@@ -240,16 +240,22 @@ mod tests {
 
         let library_root = root.join("library");
         let mut library = Library::open(&library_root).expect("открытие библиотеки");
-        open_catalog_at(&library_root.join("library.db"))
-            .expect("открытие каталога");
+        open_catalog_at(&library_root.join("library.db")).expect("открытие каталога");
 
         let book = import_book(&mut library, &epub_path).expect("импорт книги");
 
         let expected_name = format!("{}.epub", book.id);
         let expected_path = library_root.join("books").join(&expected_name);
-        assert!(expected_path.exists(), "файл скопирован с префиксом book_id");
+        assert!(
+            expected_path.exists(),
+            "файл скопирован с префиксом book_id"
+        );
         assert_eq!(
-            book.files.iter().find(|f| f.kind == FileKind::Book).unwrap().path,
+            book.files
+                .iter()
+                .find(|f| f.kind == FileKind::Book)
+                .unwrap()
+                .path,
             format!("books/{expected_name}")
         );
 
@@ -283,8 +289,7 @@ mod tests {
 
         let library_root = root.join("library");
         let mut library = Library::open(&library_root).expect("открытие библиотеки");
-        open_catalog_at(&library_root.join("library.db"))
-            .expect("открытие каталога");
+        open_catalog_at(&library_root.join("library.db")).expect("открытие каталога");
 
         let book = import_book(&mut library, &epub_path).expect("импорт книги");
         assert_eq!(book.title, "Заголовок");
@@ -298,7 +303,10 @@ mod tests {
             .expect("обложка в записях файлов");
         let cover_abs = library_root.join(&cover_file.path);
         assert!(cover_abs.exists(), "файл обложки создан");
-        assert_eq!(fs::read(&cover_abs).expect("чтение обложки").as_slice(), cover_bytes);
+        assert_eq!(
+            fs::read(&cover_abs).expect("чтение обложки").as_slice(),
+            cover_bytes
+        );
 
         fs::remove_dir_all(&library_root).expect("очистка");
     }
@@ -311,8 +319,7 @@ mod tests {
 
         let library_root = root.join("library");
         let mut library = Library::open(&library_root).expect("открытие библиотеки");
-        open_catalog_at(&library_root.join("library.db"))
-            .expect("открытие каталога");
+        open_catalog_at(&library_root.join("library.db")).expect("открытие каталога");
 
         let book = import_book(&mut library, &epub_path).expect("импорт книги");
         assert_eq!(book.title, "Без заголовка", "название из имени файла");
@@ -333,14 +340,13 @@ mod tests {
 
         let library_root = root.join("library");
         let mut library = Library::open(&library_root).expect("открытие библиотеки");
-        open_catalog_at(&library_root.join("library.db"))
-            .expect("открытие каталога");
+        open_catalog_at(&library_root.join("library.db")).expect("открытие каталога");
 
         let result = import_book(&mut library, &broken_path);
         assert!(result.is_err(), "битый файл отклоняется");
 
-        let connection = open_catalog_at(&library_root.join("library.db"))
-            .expect("повторное открытие каталога");
+        let connection =
+            open_catalog_at(&library_root.join("library.db")).expect("повторное открытие каталога");
         let count: i64 = connection
             .query_row("SELECT COUNT(*) FROM books;", [], |row| row.get(0))
             .expect("число записей");

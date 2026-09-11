@@ -8,24 +8,22 @@ use crate::library::LibraryError;
 
 /// Извлечённые из EPUB метаданные книги.
 pub struct ExtractedMetadata {
-  pub title: Option<String>,
-  pub authors: Vec<String>,
-  pub cover: Option<CoverData>,
+    pub title: Option<String>,
+    pub authors: Vec<String>,
+    pub cover: Option<CoverData>,
 }
 
 /// Данные обложки, извлечённой из EPUB.
 pub struct CoverData {
-  pub bytes: Vec<u8>,
-  pub format: String,
+    pub bytes: Vec<u8>,
+    pub format: String,
 }
 
 /// Извлечение метаданных из файла EPUB.
 ///
 /// Возвращает `None` для отсутствующих значений; повреждённый файл
 /// приводит к ошибке.
-pub fn extract_metadata(
-    epub_path: &Path,
-) -> Result<ExtractedMetadata, LibraryError> {
+pub fn extract_metadata(epub_path: &Path) -> Result<ExtractedMetadata, LibraryError> {
     let doc = epub::doc::EpubDoc::new(epub_path).map_err(|_| {
         LibraryError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
