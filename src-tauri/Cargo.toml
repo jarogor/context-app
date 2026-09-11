@@ -1,0 +1,25 @@
+[package]
+name = "jarogor-booklib"
+version = "0.1.0"
+description = "Personal book library with portable storage"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "jarogor_booklib_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+uuid = { version = "1", features = ["v4"] }
+epub = { version = "2", features = ["mock"] }
+
+[dev-dependencies]
+zip = { version = "3", default-features = false, features = ["deflate"] }
