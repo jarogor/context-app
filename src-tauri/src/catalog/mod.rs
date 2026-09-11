@@ -35,6 +35,15 @@ impl FileKind {
     }
 }
 
+impl serde::Serialize for FileKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
 /// Подключение каталога к базе данных библиотеки с применением миграций.
 ///
 /// Работает с любым соединением `rusqlite`; миграции выполняются

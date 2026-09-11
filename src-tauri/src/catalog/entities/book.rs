@@ -6,6 +6,7 @@ use super::series_link::SeriesLink;
 use super::tag::Tag;
 
 /// Полная модель книги с авторами, сериями, тегами и файлами.
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Book {
   pub id: i64,
   pub uuid: String,
