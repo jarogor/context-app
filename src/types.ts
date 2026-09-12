@@ -28,7 +28,7 @@ export interface Tag {
 export interface BookFile {
     id: number;
     book_id: number;
-    kind: "book" | "cover";
+    kind: 'book' | 'cover';
     path: string;
     format: string;
 }

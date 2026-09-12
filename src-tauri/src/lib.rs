@@ -4,6 +4,7 @@ pub mod test_util;
 pub mod catalog;
 pub mod commands;
 pub mod config;
+pub mod constants;
 pub mod import;
 pub mod library;
 pub mod plugin;
@@ -17,11 +18,9 @@ use tauri::Manager;
 
 use crate::catalog::open_catalog;
 use crate::config::AppConfig;
+use crate::constants::DEMO_PLUGIN_DIR;
 use crate::library::Library;
 use crate::plugin::PluginRuntime;
-
-/// Имя папки demo-плагина, помещаемой в библиотеку при первом старте.
-const DEMO_PLUGIN_DIR: &str = "demo-plugin";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
