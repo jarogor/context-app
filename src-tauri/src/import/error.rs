@@ -22,30 +22,35 @@ pub enum ImportError {
 }
 
 impl From<io::Error> for ImportError {
+    /// Преобразование ошибки ввода-вывода в ошибку импорта.
     fn from(value: io::Error) -> Self {
         Self::Io(value)
     }
 }
 
 impl From<rusqlite::Error> for ImportError {
+    /// Преобразование ошибки SQLite в ошибку импорта.
     fn from(value: rusqlite::Error) -> Self {
         Self::Catalog(CatalogError::Database(value))
     }
 }
 
 impl From<LibraryError> for ImportError {
+    /// Преобразование ошибки библиотеки в ошибку импорта.
     fn from(value: LibraryError) -> Self {
         Self::Library(value)
     }
 }
 
 impl From<CatalogError> for ImportError {
+    /// Преобразование ошибки каталога в ошибку импорта.
     fn from(value: CatalogError) -> Self {
         Self::Catalog(value)
     }
 }
 
 impl std::fmt::Display for ImportError {
+    /// Форматирование ошибки для пользователя.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidEpub(path, reason) => {
@@ -64,6 +69,7 @@ impl std::fmt::Display for ImportError {
 }
 
 impl std::error::Error for ImportError {
+    /// Возврат исходной ошибки, если она есть.
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::InvalidEpub(_, _) => None,

@@ -3,12 +3,16 @@
 pub(crate) mod catalog;
 pub(crate) mod index;
 pub(crate) mod metadata;
+pub(crate) mod models;
 pub(crate) mod scanner;
 
 use std::fs;
 use std::path::Path;
 
 /// Проверка типовой структуры Calibre без полного сканирования библиотеки.
+///
+/// Библиотекой считается директория с файлом `metadata.db` либо с вложенной
+/// парой папок «автор/книга», содержащей `metadata.opf`.
 pub(crate) fn looks_like_library(root: &Path) -> bool {
     if root.join("metadata.db").is_file() {
         return true;
@@ -31,6 +35,7 @@ pub(crate) fn looks_like_library(root: &Path) -> bool {
     })
 }
 
+/// Проверка, что имя начинается с точки (скрытый элемент).
 fn is_hidden(name: &[u8]) -> bool {
     name.first() == Some(&b'.')
 }

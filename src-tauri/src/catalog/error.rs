@@ -10,12 +10,14 @@ pub enum CatalogError {
 }
 
 impl From<rusqlite::Error> for CatalogError {
+    /// Преобразование ошибки SQLite в ошибку каталога.
     fn from(value: rusqlite::Error) -> Self {
         Self::Database(value)
     }
 }
 
 impl std::fmt::Display for CatalogError {
+    /// Форматирование ошибки для пользователя.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotFound => write!(f, "запись не найдена"),
@@ -25,6 +27,7 @@ impl std::fmt::Display for CatalogError {
 }
 
 impl std::error::Error for CatalogError {
+    /// Возврат исходной ошибки базы данных.
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::NotFound => None,

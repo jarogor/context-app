@@ -20,6 +20,7 @@ pub(crate) fn insert_book(
     Ok(transaction.last_insert_rowid())
 }
 
+/// Вставка базовой строки книги с заранее заданным идентификатором.
 pub(crate) fn insert_book_with_id(
     transaction: &Transaction,
     id: i64,

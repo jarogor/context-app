@@ -7,14 +7,18 @@ use std::path::Path;
 use crate::catalog::{self, repository, FileKind, NewBook, NewFile};
 use crate::library::LibraryError;
 
-use super::scanner::{ScannedBook, ScannedFileKind};
+use super::models::{ScannedBook, ScannedFileKind};
 
+/// Построение каталога в памяти по загруженному индексу.
 pub(crate) fn build_catalog_from_index(
     index: &super::index::LibraryIndex,
 ) -> Result<Connection, LibraryError> {
     build_catalog_from_books(index.scanned_books())
 }
 
+/// Открытие ранее сохранённого SQLite-каталога.
+///
+/// Возвращает `None`, если файла каталога нет.
 pub(crate) fn open_cached_catalog(path: &Path) -> Result<Option<Connection>, LibraryError> {
     if !path.is_file() {
         return Ok(None);
@@ -24,6 +28,10 @@ pub(crate) fn open_cached_catalog(path: &Path) -> Result<Option<Connection>, Lib
     Ok(Some(connection))
 }
 
+/// Построение файлового каталога по результатам сканирования.
+///
+/// Запись выполняется во временный файл с последующим переименованием,
+/// чтобы не оставить частично записанный каталог.
 pub(crate) fn build_catalog_at(
     path: &Path,
     scanned: Vec<ScannedBook>,
@@ -43,6 +51,7 @@ pub(crate) fn build_catalog_at(
     Ok(connection)
 }
 
+/// Построение каталога в памяти по результатам сканирования.
 pub(crate) fn build_catalog_from_books(
     scanned: Vec<ScannedBook>,
 ) -> Result<Connection, LibraryError> {
@@ -52,6 +61,7 @@ pub(crate) fn build_catalog_from_books(
     Ok(connection)
 }
 
+/// Сохранение книг сканирования в каталог одним пакетом.
 fn save_scanned_books(
     connection: &mut Connection,
     scanned: Vec<ScannedBook>,
@@ -86,6 +96,10 @@ fn save_scanned_books(
     Ok(())
 }
 
+/// Стабильный идентификатор книги по пути её файла.
+///
+/// Ограничивается диапазоном безопасных чисел JavaScript, чтобы идентификатор
+/// не терял точность на фронтенде.
 fn stable_id(path: &str) -> i64 {
     let digest = Sha256::digest(path.as_bytes());
     let mut bytes = [0_u8; 8];
@@ -94,38 +108,5 @@ fn stable_id(path: &str) -> i64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::fs;
-
-    use super::build_catalog_from_books;
-    use crate::calibre::scanner;
-    use crate::catalog::repository;
-    use crate::test_util;
-
-    #[test]
-    fn builds_books_with_relative_paths() {
-        let root = test_util::test_root("calibre-catalog");
-        test_util::cleanup(&root);
-        let book = root.join("Автор").join("Книга (11)");
-        fs::create_dir_all(&book).expect("создание папки книги");
-        fs::write(
-            book.join("metadata.opf"),
-            r#"<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata>
-                <dc:title>Каталог</dc:title><dc:creator>Автор OPF</dc:creator>
-            </metadata></package>"#,
-        )
-        .expect("запись OPF");
-        fs::write(book.join("book.epub"), "epub").expect("запись книги");
-        fs::write(book.join("cover.jpg"), "cover").expect("запись обложки");
-
-        let connection = build_catalog_from_books(scanner::scan(&root).expect("сканирование"))
-            .expect("построение каталога");
-        let books = repository::list_books(&connection).expect("чтение каталога");
-
-        assert_eq!(books.len(), 1);
-        assert_eq!(books[0].authors[0].name, "Автор OPF");
-        assert_eq!(books[0].files[0].path, "Автор/Книга (11)/book.epub");
-
-        test_util::cleanup(&root);
-    }
-}
+#[path = "catalog_tests.rs"]
+mod tests;

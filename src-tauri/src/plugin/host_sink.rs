@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 /// Приёмник сообщений плагинов, приходящих через host-функцию `log`.
 #[derive(Clone, Default)]
 pub struct HostSink {
+    /// Общий буфер сообщений, доступный из host-функции и приложения.
     inner: Arc<Mutex<Vec<String>>>,
 }
 

@@ -7,6 +7,7 @@ use super::models::FileConfig;
 /// Конфигурация приложения.
 #[derive(Debug)]
 pub struct AppConfig {
+    /// Путь к директории библиотеки.
     pub library_dir: PathBuf,
 }
 

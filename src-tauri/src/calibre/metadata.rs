@@ -5,18 +5,12 @@ use std::path::Path;
 use quick_xml::events::Event;
 use quick_xml::Reader;
 
-#[derive(Debug, Default)]
-pub(crate) struct Metadata {
-    pub title: Option<String>,
-    pub authors: Vec<String>,
-    pub tags: Vec<String>,
-    pub language: Option<String>,
-    pub cover: Option<String>,
-    pub series: Option<(String, i64)>,
-}
+use super::models::Metadata;
 
-/// Чтение поддерживаемых полей OPF. Ошибка разбора оставляется вызывающему,
-/// чтобы сканер мог перейти к значениям из структуры каталогов.
+/// Чтение поддерживаемых полей OPF.
+///
+/// Ошибка разбора оставляется вызывающему, чтобы сканер мог перейти к
+/// значениям из структуры каталогов.
 pub(crate) fn parse(path: &Path) -> Result<Metadata, String> {
     let data = std::fs::read(path).map_err(|err| err.to_string())?;
     let mut reader = Reader::from_reader(data.as_slice());
@@ -102,42 +96,5 @@ pub(crate) fn parse(path: &Path) -> Result<Metadata, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::fs;
-
-    use super::parse;
-    use crate::test_util;
-
-    #[test]
-    fn parses_opf_metadata() {
-        let root = test_util::test_root("calibre-metadata");
-        test_util::cleanup(&root);
-        fs::create_dir_all(&root).expect("создание каталога теста");
-        let path = root.join("metadata.opf");
-        fs::write(
-            &path,
-            r#"<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata>
-                <dc:title>Название</dc:title>
-                <dc:creator>Автор 1</dc:creator>
-                <dc:creator>Автор 2</dc:creator>
-                <dc:subject>Фантастика</dc:subject>
-                <dc:language>ru</dc:language>
-                <meta name="cover" content="cover.png"/>
-                <meta name="calibre:series" content="Серия"/>
-                <meta name="calibre:series_index" content="2"/>
-            </metadata></package>"#,
-        )
-        .expect("запись OPF");
-
-        let metadata = parse(&path).expect("разбор OPF");
-
-        assert_eq!(metadata.title.as_deref(), Some("Название"));
-        assert_eq!(metadata.authors, ["Автор 1", "Автор 2"]);
-        assert_eq!(metadata.tags, ["Фантастика"]);
-        assert_eq!(metadata.language.as_deref(), Some("ru"));
-        assert_eq!(metadata.cover.as_deref(), Some("cover.png"));
-        assert_eq!(metadata.series, Some(("Серия".to_string(), 2)));
-
-        test_util::cleanup(&root);
-    }
-}
+#[path = "metadata_tests.rs"]
+mod tests;

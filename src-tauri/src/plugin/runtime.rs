@@ -14,7 +14,9 @@ use crate::plugin::{HostSink, LoadedPlugin, PluginError, PluginManifest};
 
 /// Плагинная подсистема приложения.
 pub struct PluginRuntime {
+    /// Загруженные плагины в порядке обнаружения.
     plugins: Vec<LoadedPlugin>,
+    /// Приёмник сообщений плагинов.
     sink: HostSink,
 }
 

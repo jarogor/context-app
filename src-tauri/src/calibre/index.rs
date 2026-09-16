@@ -7,55 +7,32 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use super::scanner::{ScannedBook, ScannedFile, ScannedFileKind};
+use super::models::{
+    CachedLibrary, IndexedBook, IndexedFile, IndexedFileKind, ScannedBook, ScannedFile,
+    ScannedFileKind,
+};
 
+/// Версия формата локального индекса. При несовпадении индекс пересобирается.
 const INDEX_VERSION: u32 = 3;
+/// Имя папки с индексами рядом с исполняемым файлом приложения.
 const INDEX_DIRECTORY: &str = ".booklib";
 
+/// Локальный индекс одной библиотеки Calibre.
+///
+/// Хранит версию формата и канонический корневой путь для инвалидации,
+/// а также проиндексированные книги.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct LibraryIndex {
+    /// Версия формата индекса.
     version: u32,
+    /// Канонический корневой путь библиотеки.
     root: String,
+    /// Проиндексированные книги.
     pub books: Vec<IndexedBook>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct CachedLibrary {
-    pub path: String,
-    pub index_path: PathBuf,
-    pub catalog_path: PathBuf,
-    pub available: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct IndexedBook {
-    #[serde(default)]
-    pub directory: String,
-    #[serde(default)]
-    pub metadata_modified: u128,
-    pub title: String,
-    pub authors: Vec<String>,
-    pub tags: Vec<String>,
-    pub series: Vec<(String, i64)>,
-    pub files: Vec<IndexedFile>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct IndexedFile {
-    pub kind: IndexedFileKind,
-    pub path: String,
-    pub format: String,
-    pub modified: u128,
-    pub size: u64,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub(crate) enum IndexedFileKind {
-    Book,
-    Cover,
-}
-
 impl LibraryIndex {
+    /// Построение индекса по результатам полного сканирования.
     pub(crate) fn from_scanned(root: &Path, books: Vec<ScannedBook>) -> Self {
         Self {
             version: INDEX_VERSION,
@@ -67,14 +44,19 @@ impl LibraryIndex {
         }
     }
 
+    /// Проверка, что индекс соответствует текущей версии и корню.
     pub(crate) fn validate_root(&self, root: &Path) -> bool {
         self.version == INDEX_VERSION && self.root == canonical_string(root)
     }
 
+    /// Преобразование всех проиндексированных книг в результаты сканирования.
     pub(crate) fn scanned_books(&self) -> Vec<ScannedBook> {
         self.books.iter().map(IndexedBook::scanned).collect()
     }
 
+    /// Определение папок книг, содержимое которых изменилось.
+    ///
+    /// Используется только в тестах частичного обновления индекса.
     #[cfg(test)]
     pub(crate) fn changed_directories(&self, root: &Path) -> std::collections::HashSet<PathBuf> {
         let mut changed = std::collections::HashSet::new();
@@ -101,6 +83,9 @@ impl LibraryIndex {
         changed
     }
 
+    /// Замена в индексе только указанных папок книг.
+    ///
+    /// Используется только в тестах частичного обновления индекса.
     #[cfg(test)]
     pub(crate) fn replace_directories(
         &mut self,
@@ -124,6 +109,10 @@ impl LibraryIndex {
         Ok(())
     }
 
+    /// Загрузка индекса из файла с проверкой версии и корневого пути.
+    ///
+    /// Возвращает `None`, если файла нет или индекс несовместим. Для записей
+    /// старых форматов дозаполняются отсутствующие поля.
     pub(crate) fn load(path: &Path, root: &Path) -> io::Result<Option<Self>> {
         let contents = match fs::read(path) {
             Ok(contents) => contents,
@@ -152,6 +141,7 @@ impl LibraryIndex {
         Ok(Some(index))
     }
 
+    /// Атомарное сохранение индекса через временный файл.
     pub(crate) fn save_atomic(&self, path: &Path) -> io::Result<()> {
         let directory = path
             .parent()
@@ -166,6 +156,7 @@ impl LibraryIndex {
 }
 
 impl IndexedBook {
+    /// Построение записи индекса по результату сканирования.
     fn from_scanned(root: &Path, book: ScannedBook) -> Self {
         let files = book
             .files
@@ -187,6 +178,7 @@ impl IndexedBook {
         }
     }
 
+    /// Преобразование записи индекса в результат сканирования.
     pub(crate) fn scanned(&self) -> ScannedBook {
         ScannedBook {
             title: self.title.clone(),
@@ -199,6 +191,7 @@ impl IndexedBook {
 }
 
 impl IndexedFile {
+    /// Построение записи файла индекса по результату сканирования.
     fn from_scanned(root: &Path, file: ScannedFile) -> Self {
         let absolute = root.join(&file.path);
         let metadata = fs::metadata(&absolute).ok();
@@ -219,6 +212,7 @@ impl IndexedFile {
         }
     }
 
+    /// Преобразование записи файла индекса в результат сканирования.
     fn scanned(&self) -> ScannedFile {
         ScannedFile {
             kind: match self.kind {
@@ -231,6 +225,10 @@ impl IndexedFile {
     }
 }
 
+/// Путь к JSON-файлу индекса для указанного корня библиотеки.
+///
+/// Индекс кладётся в папку `.booklib` рядом с исполняемым файлом приложения,
+/// имя файла — хеш канонического пути библиотеки.
 pub(crate) fn index_path(root: &Path) -> PathBuf {
     let application_directory = std::env::current_exe()
         .ok()
@@ -241,10 +239,15 @@ pub(crate) fn index_path(root: &Path) -> PathBuf {
         .join(format!("{}.json", path_hash(root)))
 }
 
+/// Путь к SQLite-файлу виртуального каталога для указанного корня библиотеки.
 pub(crate) fn catalog_path(root: &Path) -> PathBuf {
     index_path(root).with_extension("db")
 }
 
+/// Перечисление всех сохранённых индексов библиотек.
+///
+/// Для каждой записи отмечается, доступна ли исходная директория. Список
+/// отсортирован по пути.
 pub(crate) fn cached_libraries() -> io::Result<Vec<CachedLibrary>> {
     let directory = index_path(Path::new(".")).parent().map(Path::to_path_buf);
     let Some(directory) = directory else {
@@ -278,12 +281,14 @@ pub(crate) fn cached_libraries() -> io::Result<Vec<CachedLibrary>> {
     Ok(libraries)
 }
 
+/// SHA-256 хеш канонического пути библиотеки в hex-виде.
 fn path_hash(root: &Path) -> String {
     let mut hasher = Sha256::new();
     hasher.update(canonical_string(root).as_bytes());
     format!("{:x}", hasher.finalize())
 }
 
+/// Канонический строковый путь; при ошибке — исходный путь без изменений.
 fn canonical_string(path: &Path) -> String {
     path.canonicalize()
         .unwrap_or_else(|_| path.to_path_buf())
@@ -291,6 +296,7 @@ fn canonical_string(path: &Path) -> String {
         .into_owned()
 }
 
+/// Время изменения файла в наносекундах; 0, если метаданные недоступны.
 fn file_modified(path: &Path) -> u128 {
     fs::metadata(path)
         .ok()
@@ -300,65 +306,5 @@ fn file_modified(path: &Path) -> u128 {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::fs;
-
-    use super::{index_path, LibraryIndex};
-    use crate::calibre::scanner;
-    use crate::test_util;
-
-    #[test]
-    fn uses_stable_hash_for_same_root() {
-        let root = test_util::test_root("index-path");
-        assert_eq!(index_path(&root), index_path(&root));
-        assert!(index_path(&root).to_string_lossy().contains(".booklib"));
-    }
-
-    #[test]
-    fn saves_and_loads_index_atomically() {
-        let root = test_util::test_root("index-roundtrip");
-        test_util::cleanup(&root);
-        let book = root.join("Автор").join("Книга (1)");
-        fs::create_dir_all(&book).expect("создание книги");
-        fs::write(book.join("book.epub"), "epub").expect("создание файла");
-        let index = LibraryIndex::from_scanned(&root, scanner::scan(&root).expect("сканирование"));
-        let path = root.join("cache").join("index.json");
-        index.save_atomic(&path).expect("сохранение индекса");
-        let loaded = LibraryIndex::load(&path, &root)
-            .expect("чтение индекса")
-            .expect("индекс существует");
-        assert_eq!(loaded.books.len(), 1);
-        fs::write(&path, "broken").expect("повреждение индекса");
-        assert!(LibraryIndex::load(&path, &root).is_err());
-        test_util::cleanup(&root);
-    }
-
-    #[test]
-    fn replaces_only_changed_book_directory() {
-        let root = test_util::test_root("index-partial-update");
-        test_util::cleanup(&root);
-        let first = root.join("Автор").join("Первая (1)");
-        let second = root.join("Автор").join("Вторая (2)");
-        fs::create_dir_all(&first).expect("создание первой книги");
-        fs::create_dir_all(&second).expect("создание второй книги");
-        fs::write(first.join("first.epub"), "first").expect("первая книга");
-        fs::write(second.join("second.epub"), "second").expect("вторая книга");
-        let mut index = LibraryIndex::from_scanned(
-            &root,
-            scanner::scan(&root).expect("первичное сканирование"),
-        );
-        fs::remove_file(first.join("first.epub")).expect("удаление первой книги");
-        fs::write(first.join("replacement.epub"), "replacement").expect("новый файл");
-        let changed = index.changed_directories(&root);
-        index
-            .replace_directories(&root, &changed)
-            .expect("частичное обновление");
-        assert_eq!(index.books.len(), 2);
-        assert!(index.books.iter().any(|book| {
-            book.files
-                .iter()
-                .any(|file| file.path.ends_with("replacement.epub"))
-        }));
-        test_util::cleanup(&root);
-    }
-}
+#[path = "index_tests.rs"]
+mod tests;

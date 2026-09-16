@@ -25,12 +25,14 @@ pub enum PluginError {
 }
 
 impl From<io::Error> for PluginError {
+    /// Преобразование ошибки ввода-вывода в ошибку плагинной подсистемы.
     fn from(value: io::Error) -> Self {
         Self::Io(value)
     }
 }
 
 impl std::fmt::Display for PluginError {
+    /// Форматирование ошибки для пользователя.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(err) => write!(f, "ошибка ввода-вывода: {err}"),
@@ -71,6 +73,7 @@ impl std::fmt::Display for PluginError {
 }
 
 impl std::error::Error for PluginError {
+    /// Возврат исходной ошибки ввода-вывода.
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io(err) => Some(err),

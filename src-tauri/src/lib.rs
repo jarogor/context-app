@@ -23,6 +23,7 @@ use crate::constants::DEMO_PLUGIN_DIR;
 use crate::library::Library;
 use crate::plugin::PluginRuntime;
 
+/// Точка входа Tauri-приложения: конфигурация, библиотека и плагины.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()

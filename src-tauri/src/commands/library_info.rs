@@ -9,8 +9,11 @@ use crate::library::Library;
 
 #[derive(Serialize)]
 pub struct LibraryInfo {
+    /// Тип открытой библиотеки: `portable` или `calibre`.
     pub kind: String,
+    /// Признак выполняющейся фоновой индексации.
     pub indexing: bool,
+    /// Текущий этап загрузки библиотеки.
     pub stage: String,
 }
 

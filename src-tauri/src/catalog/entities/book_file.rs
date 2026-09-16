@@ -7,9 +7,14 @@ use crate::catalog::FileKind;
 /// Путь хранится относительно корня портируемой директории библиотеки.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BookFile {
+    /// Идентификатор файла в базе данных.
     pub id: i64,
+    /// Идентификатор связанной книги.
     pub book_id: i64,
+    /// Назначение файла: содержимое или обложка.
     pub kind: FileKind,
+    /// Путь к файлу относительно корня библиотеки.
     pub path: String,
+    /// Расширение файла.
     pub format: String,
 }

@@ -21,30 +21,35 @@ pub enum LibraryError {
 }
 
 impl From<io::Error> for LibraryError {
+    /// Преобразование ошибки ввода-вывода в ошибку библиотеки.
     fn from(value: io::Error) -> Self {
         Self::Io(value)
     }
 }
 
 impl From<rusqlite::Error> for LibraryError {
+    /// Преобразование ошибки SQLite в ошибку библиотеки.
     fn from(value: rusqlite::Error) -> Self {
         Self::Database(value)
     }
 }
 
 impl From<CatalogError> for LibraryError {
+    /// Преобразование ошибки каталога в ошибку библиотеки.
     fn from(value: CatalogError) -> Self {
         Self::Catalog(value)
     }
 }
 
 impl From<notify::Error> for LibraryError {
+    /// Преобразование ошибки наблюдателя в ошибку библиотеки.
     fn from(value: notify::Error) -> Self {
         Self::Watcher(value.to_string())
     }
 }
 
 impl std::fmt::Display for LibraryError {
+    /// Форматирование ошибки для пользователя.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotADirectory(path) => {
@@ -59,6 +64,7 @@ impl std::fmt::Display for LibraryError {
 }
 
 impl std::error::Error for LibraryError {
+    /// Возврат исходной ошибки, если она есть.
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::NotADirectory(_) => None,

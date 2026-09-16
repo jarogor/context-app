@@ -2,7 +2,8 @@
 
 use tauri::command;
 
-use crate::calibre::index::{cached_libraries, CachedLibrary};
+use crate::calibre::index::cached_libraries;
+use crate::calibre::models::CachedLibrary;
 
 /// Получение сохранённых индексов и состояния исходных директорий.
 #[command]

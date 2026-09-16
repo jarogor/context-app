@@ -31,15 +31,25 @@ use self::layout::Layout;
 
 /// Открытая портируемая директория библиотеки.
 pub struct Library {
+    /// Корневой путь библиотеки.
     root: PathBuf,
+    /// Имена служебных каталогов библиотеки.
     layout: Layout,
+    /// Соединение с базой данных каталога.
     connection: Connection,
+    /// Режим источника книг.
     mode: LibraryMode,
+    /// Локальный индекс внешней Calibre-библиотеки.
     index: Option<LibraryIndex>,
+    /// Признак наличия изменений файловой системы.
     dirty: Option<Arc<AtomicBool>>,
+    /// Активный наблюдатель файловой системы Calibre.
     _watcher: Option<notify::RecommendedWatcher>,
+    /// Накопленные пути изменённых файлов.
     changed_paths: Option<Arc<StdMutex<Vec<PathBuf>>>>,
+    /// Признак выполняющейся фоновой индексации.
     indexing: bool,
+    /// Текущий этап загрузки библиотеки.
     stage: String,
 }
 
@@ -56,6 +66,7 @@ impl Library {
         Self::open(root)
     }
 
+    /// Создание временного состояния до завершения фоновой индексации.
     fn create_provisional_state(root: PathBuf) -> Result<Self, LibraryError> {
         Ok(Self {
             root,
@@ -113,6 +124,7 @@ impl Library {
         })
     }
 
+    /// Создание состояния виртуальной Calibre-библиотеки.
     fn create_calibre_state(root: PathBuf, connection: Connection) -> Result<Self, LibraryError> {
         let dirty = Arc::new(AtomicBool::new(false));
         let callback_dirty = Arc::clone(&dirty);
@@ -133,6 +145,7 @@ impl Library {
         })
     }
 
+    /// Запуск наблюдения за файловой системой Calibre.
     fn start_watcher(&mut self) -> Result<(), LibraryError> {
         let started = std::time::Instant::now();
         let Some(dirty) = self.dirty.as_ref() else {
@@ -171,6 +184,7 @@ impl Library {
         Ok(())
     }
 
+    /// Публикация готового Calibre-каталога после фоновой индексации.
     pub(crate) fn promote_calibre(
         &mut self,
         connection: Connection,
@@ -188,6 +202,7 @@ impl Library {
         self.start_watcher()
     }
 
+    /// Публикация готовой портируемой библиотеки.
     pub(crate) fn install_portable(&mut self, connection: Connection) {
         self.mode = LibraryMode::Portable;
         self.connection = connection;
@@ -199,24 +214,33 @@ impl Library {
         self.stage = "ready".to_string();
     }
 
+    /// Подготовка портируемой библиотеки и открытие её базы данных.
     pub(crate) fn prepare_portable(root: &Path) -> Result<Connection, LibraryError> {
         let layout = Layout::default();
         Self::ensure_structure(root, &layout)?;
         Ok(Connection::open(root.join(DATABASE_FILE_NAME))?)
     }
 
+    /// Признак выполняющейся фоновой индексации.
     pub(crate) fn is_indexing(&self) -> bool {
         self.indexing
     }
 
+    /// Текущий этап загрузки библиотеки.
     pub(crate) fn stage(&self) -> &str {
         &self.stage
     }
 
+    /// Установка текущего этапа загрузки библиотеки.
     pub(crate) fn set_stage(&mut self, stage: &str) {
         self.stage = stage.to_string();
     }
 
+    /// Подготовка выбранной директории к открытию.
+    ///
+    /// Если для директории есть совместимый кэш, используется он; иначе
+    /// выполняется сканирование Calibre. Пустая директория открывается как
+    /// портируемая библиотека.
     pub(crate) fn prepare_selected(
         root: &Path,
     ) -> Result<(bool, Connection, Option<LibraryIndex>), LibraryError> {
@@ -345,6 +369,7 @@ impl Library {
         Ok(())
     }
 
+    /// Признак наличия необработанных изменений файловой системы.
     pub fn is_dirty(&self) -> bool {
         self.dirty
             .as_ref()
@@ -423,6 +448,7 @@ impl Library {
     }
 }
 
+/// Определение папок книг, затронутых изменениями файлов.
 fn affected_book_directories(root: &Path, paths: &[PathBuf]) -> std::collections::HashSet<PathBuf> {
     paths
         .iter()
