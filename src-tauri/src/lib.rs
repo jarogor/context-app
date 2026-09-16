@@ -1,6 +1,7 @@
 #[cfg(test)]
 pub mod test_util;
 
+pub(crate) mod calibre;
 pub mod catalog;
 pub mod commands;
 pub mod config;
@@ -31,9 +32,12 @@ pub fn run() {
             let library_root = config.library_dir;
             let mut library = Library::open(&library_root)?;
             open_catalog(library.connection_mut())?;
-            seed_demo_plugin(&library)?;
-
-            let mut runtime = PluginRuntime::load(library.plugins_dir_abs().as_path())?;
+            let mut runtime = if library.mode() == crate::library::LibraryMode::Portable {
+                seed_demo_plugin(&library)?;
+                PluginRuntime::load(library.plugins_dir_abs().as_path())?
+            } else {
+                PluginRuntime::empty()
+            };
             for name in runtime.plugin_names() {
                 println!("[plugins] загружен плагин: {name}");
             }
@@ -53,6 +57,10 @@ pub fn run() {
             commands::list_books,
             commands::get_cover,
             commands::get_book_content,
+            commands::get_library_info,
+            commands::open_book_in_system,
+            commands::open_library,
+            commands::search_books,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

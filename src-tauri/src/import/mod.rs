@@ -27,6 +27,9 @@ pub fn import_book(
     library: &mut Library,
     source_path: &Path,
 ) -> Result<crate::catalog::Book, ImportError> {
+    if library.mode() == crate::library::LibraryMode::CalibreVirtual {
+        return Err(ImportError::ReadOnly);
+    }
     let metadata = extract_metadata(source_path)?;
 
     let title = metadata

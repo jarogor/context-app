@@ -16,6 +16,11 @@ pub fn get_book_content(
     book_id: i64,
 ) -> Result<BookContent, String> {
     let library = state.lock().map_err(|e| e.to_string())?;
+    if library.mode() == crate::library::LibraryMode::CalibreVirtual {
+        return Err(
+            "Для Calibre-библиотеки используйте открытие во внешнем приложении".to_string(),
+        );
+    }
     let Some(book) =
         repository::get_book(library.connection(), book_id).map_err(|e| e.to_string())?
     else {

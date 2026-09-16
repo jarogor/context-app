@@ -125,6 +125,25 @@ fn import_copies_file_with_book_id_prefix_and_no_overwrite_on_conflict() {
 }
 
 #[test]
+fn import_is_rejected_for_calibre_library() {
+    let root = test_util::test_root("import-calibre-read-only");
+    test_util::cleanup(&root);
+    let book = root.join("Автор").join("Книга (1)");
+    fs::create_dir_all(&book).expect("создание папки книги");
+    fs::write(book.join("metadata.opf"), "<package><metadata/></package>").expect("запись OPF");
+    fs::write(book.join("book.epub"), "epub").expect("запись книги");
+    let source = root.join("source.epub");
+    fs::write(&source, "source").expect("запись источника");
+
+    let mut library = Library::open(&root).expect("открытие Calibre-библиотеки");
+    let result = import_book(&mut library, &source);
+
+    assert!(matches!(result, Err(ImportError::ReadOnly)));
+    assert!(!root.join("books").exists());
+    test_util::cleanup(&root);
+}
+
+#[test]
 fn import_extracts_metadata_and_cover() {
     let root = temp_root("import-metadata");
     let epub_path = root.join("book.epub");

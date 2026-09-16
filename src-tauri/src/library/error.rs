@@ -3,6 +3,8 @@
 use std::io;
 use std::path::PathBuf;
 
+use crate::catalog::CatalogError;
+
 /// Ошибка, возникающая при работе с портируемой директорией библиотеки.
 #[derive(Debug)]
 pub enum LibraryError {
@@ -12,6 +14,8 @@ pub enum LibraryError {
     Io(io::Error),
     /// Ошибка при работе с базой данных.
     Database(rusqlite::Error),
+    /// Ошибка заполнения каталога.
+    Catalog(CatalogError),
 }
 
 impl From<io::Error> for LibraryError {
@@ -26,6 +30,12 @@ impl From<rusqlite::Error> for LibraryError {
     }
 }
 
+impl From<CatalogError> for LibraryError {
+    fn from(value: CatalogError) -> Self {
+        Self::Catalog(value)
+    }
+}
+
 impl std::fmt::Display for LibraryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -34,6 +44,7 @@ impl std::fmt::Display for LibraryError {
             }
             Self::Io(err) => write!(f, "ошибка ввода-вывода: {err}"),
             Self::Database(err) => write!(f, "ошибка базы данных: {err}"),
+            Self::Catalog(err) => write!(f, "ошибка каталога: {err}"),
         }
     }
 }
@@ -44,6 +55,7 @@ impl std::error::Error for LibraryError {
             Self::NotADirectory(_) => None,
             Self::Io(err) => Some(err),
             Self::Database(err) => Some(err),
+            Self::Catalog(err) => Some(err),
         }
     }
 }

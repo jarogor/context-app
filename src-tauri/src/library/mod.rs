@@ -5,14 +5,18 @@
 
 pub mod error;
 mod layout;
+mod mode;
 
 pub use error::LibraryError;
+pub use mode::LibraryMode;
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 
+use crate::calibre;
+use crate::calibre::catalog::build_virtual_catalog;
 use crate::constants::DATABASE_FILE_NAME;
 
 use self::layout::Layout;
@@ -22,6 +26,7 @@ pub struct Library {
     root: PathBuf,
     layout: Layout,
     connection: Connection,
+    mode: LibraryMode,
 }
 
 impl Library {
@@ -32,6 +37,16 @@ impl Library {
     /// валидируется и открывается без изменений.
     pub fn open(root: impl Into<PathBuf>) -> Result<Self, LibraryError> {
         let root = root.into();
+        if calibre::looks_like_library(&root) && !root.join(DATABASE_FILE_NAME).exists() {
+            let connection = build_virtual_catalog(&root)?;
+            return Ok(Self {
+                root,
+                layout: Layout::default(),
+                connection,
+                mode: LibraryMode::CalibreVirtual,
+            });
+        }
+
         let layout = Layout::default();
         Self::ensure_structure(&root, &layout)?;
         let database_path = root.join(DATABASE_FILE_NAME);
@@ -40,7 +55,13 @@ impl Library {
             root,
             layout,
             connection,
+            mode: LibraryMode::Portable,
         })
+    }
+
+    /// Формат открытого источника книг.
+    pub fn mode(&self) -> LibraryMode {
+        self.mode
     }
 
     /// Корневой путь библиотеки.

@@ -129,3 +129,31 @@ fn get_missing_book_returns_none() {
 
     test_util::cleanup(db_path.parent().expect("каталог теста"));
 }
+
+#[test]
+fn search_books_matches_title_and_author_case_insensitively() {
+    let db_path = temp_db("search-books");
+    let mut connection = open_catalog_at(&db_path).expect("открытие каталога");
+    save_book(&mut connection, new_book_fixture()).expect("сохранение первой книги");
+    save_book(
+        &mut connection,
+        NewBook {
+            title: "Анна Каренина".to_string(),
+            authors: vec!["Фёдор Достоевский".to_string()],
+            series: vec![],
+            tags: vec![],
+            files: vec![],
+        },
+    )
+    .expect("сохранение второй книги");
+
+    let by_title = search_books(&connection, "ВОЙНА").expect("поиск по названию");
+    let by_author = search_books(&connection, "толстой").expect("поиск по автору");
+    let empty = search_books(&connection, "отсутствует").expect("пустой поиск");
+
+    assert_eq!(by_title.len(), 1);
+    assert_eq!(by_author.len(), 1);
+    assert_eq!(empty.len(), 0);
+
+    test_util::cleanup(db_path.parent().expect("каталог теста"));
+}

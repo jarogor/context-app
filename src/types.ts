@@ -45,3 +45,8 @@ export interface Book {
     tags: Tag[];
     files: BookFile[];
 }
+
+/** Режим открытой библиотеки. */
+export interface LibraryInfo {
+    kind: 'portable' | 'calibre';
+}

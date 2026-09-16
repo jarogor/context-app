@@ -17,6 +17,8 @@ pub enum ImportError {
     Library(LibraryError),
     /// Ошибка каталога.
     Catalog(CatalogError),
+    /// Изменение внешней библиотеки запрещено.
+    ReadOnly,
 }
 
 impl From<io::Error> for ImportError {
@@ -56,6 +58,7 @@ impl std::fmt::Display for ImportError {
             Self::Io(err) => write!(f, "ошибка ввода-вывода: {err}"),
             Self::Library(err) => write!(f, "ошибка библиотеки: {err}"),
             Self::Catalog(err) => write!(f, "ошибка каталога: {err}"),
+            Self::ReadOnly => write!(f, "библиотека доступна только для чтения"),
         }
     }
 }
@@ -67,6 +70,7 @@ impl std::error::Error for ImportError {
             Self::Io(err) => Some(err),
             Self::Library(err) => Some(err),
             Self::Catalog(err) => Some(err),
+            Self::ReadOnly => None,
         }
     }
 }

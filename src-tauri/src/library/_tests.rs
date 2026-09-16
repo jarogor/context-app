@@ -66,3 +66,45 @@ fn open_path_is_a_file_reports_error() {
 
     remove_dir_contents(&root);
 }
+
+#[test]
+fn open_calibre_library_without_writing_to_it() {
+    let root = temp_library_root("open-calibre");
+    remove_dir_contents(&root);
+    let book = root.join("Автор").join("Книга (7)");
+    fs::create_dir_all(&book).expect("создание папки Calibre-книги");
+    fs::write(book.join("metadata.opf"), "<package><metadata/></package>").expect("запись OPF");
+    fs::write(book.join("book.epub"), "epub").expect("запись книги");
+    fs::write(book.join("cover.jpg"), "cover").expect("запись обложки");
+
+    let library = Library::open(&root).expect("открытие Calibre-библиотеки");
+
+    assert_eq!(library.mode(), LibraryMode::CalibreVirtual);
+    assert!(!root.join(DATABASE_FILE_NAME).exists());
+    assert!(!root.join(BOOKS_DIR_NAME).exists());
+    let books = crate::catalog::repository::list_books(library.connection()).unwrap();
+    assert_eq!(books.len(), 1);
+    let cover = books[0]
+        .files
+        .iter()
+        .find(|file| file.kind == crate::catalog::FileKind::Cover)
+        .expect("обложка Calibre-книги");
+    assert_eq!(cover.path, "Автор/Книга (7)/cover.jpg");
+    assert_eq!(fs::read(root.join(&cover.path)).unwrap(), b"cover");
+
+    remove_dir_contents(&root);
+}
+
+#[test]
+fn directory_without_calibre_markers_stays_portable() {
+    let root = temp_library_root("open-not-calibre");
+    remove_dir_contents(&root);
+    fs::create_dir_all(root.join("Author").join("Book (1)")).expect("создание каталогов");
+
+    let library = Library::open(&root).expect("открытие собственной библиотеки");
+
+    assert_eq!(library.mode(), LibraryMode::Portable);
+    assert!(root.join(DATABASE_FILE_NAME).exists());
+
+    remove_dir_contents(&root);
+}

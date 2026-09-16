@@ -118,6 +118,21 @@ pub fn list_books(connection: &Connection) -> Result<Vec<Book>, CatalogError> {
     Ok(books)
 }
 
+/// Поиск книг по названию или имени автора без учёта регистра.
+pub fn search_books(connection: &Connection, query: &str) -> Result<Vec<Book>, CatalogError> {
+    let query = query.trim().to_lowercase();
+    Ok(list_books(connection)?
+        .into_iter()
+        .filter(|book| {
+            book.title.to_lowercase().contains(&query)
+                || book
+                    .authors
+                    .iter()
+                    .any(|author| author.name.to_lowercase().contains(&query))
+        })
+        .collect())
+}
+
 /// Получение или создание записи автора по имени.
 pub(crate) fn get_or_create_author(
     transaction: &Transaction,

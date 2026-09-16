@@ -19,6 +19,14 @@ pub struct PluginRuntime {
 }
 
 impl PluginRuntime {
+    /// Создание пустого runtime для внешней read-only библиотеки.
+    pub fn empty() -> Self {
+        Self {
+            plugins: Vec::new(),
+            sink: HostSink::new(),
+        }
+    }
+
     /// Загрузка всех плагинов из папки `plugins/`.
     ///
     /// Некорректные плагины отбраковываются с ошибкой: каждый плагин
