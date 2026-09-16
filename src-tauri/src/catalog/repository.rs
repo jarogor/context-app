@@ -20,6 +20,19 @@ pub(crate) fn insert_book(
     Ok(transaction.last_insert_rowid())
 }
 
+pub(crate) fn insert_book_with_id(
+    transaction: &Transaction,
+    id: i64,
+    uuid: &str,
+    title: &str,
+) -> Result<i64, CatalogError> {
+    transaction.execute(
+        "INSERT INTO books (id, uuid, title) VALUES (?1, ?2, ?3);",
+        rusqlite::params![id, uuid, title.trim()],
+    )?;
+    Ok(id)
+}
+
 /// Вставка записи файла книги в транзакции.
 pub(crate) fn insert_file(
     transaction: &Transaction,
@@ -60,6 +73,32 @@ pub fn save_book(connection: &mut Connection, new_book: NewBook) -> Result<Book,
     transaction.commit()?;
 
     get_book(connection, book_id).map(|book| book.expect("только что созданная книга существует"))
+}
+
+/// Массовое сохранение книг одной транзакцией для построения виртуального каталога.
+pub(crate) fn save_books(
+    connection: &mut Connection,
+    books: impl IntoIterator<Item = NewBook>,
+) -> Result<(), CatalogError> {
+    let transaction = connection.transaction()?;
+    for new_book in books {
+        let uuid = uuid::Uuid::new_v4().to_string();
+        let author_ids = resolve_author_ids(&transaction, &new_book.authors)?;
+        let series_ids = resolve_series_ids(&transaction, &new_book.series)?;
+        let tag_ids = resolve_tag_ids(&transaction, &new_book.tags)?;
+        let book_id = new_book.stable_id.map_or_else(
+            || insert_book(&transaction, &uuid, &new_book.title),
+            |id| insert_book_with_id(&transaction, id, &uuid, &new_book.title),
+        )?;
+        link_authors(&transaction, book_id, &author_ids)?;
+        link_series(&transaction, book_id, &series_ids, &new_book.series)?;
+        link_tags(&transaction, book_id, &tag_ids)?;
+        for file in new_book.files {
+            insert_file(&transaction, book_id, file.kind, &file.path, &file.format)?;
+        }
+    }
+    transaction.commit()?;
+    Ok(())
 }
 
 /// Поиск книги по идентификатору со всеми связями.

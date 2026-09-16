@@ -1,6 +1,7 @@
 //! Чтение внешней библиотеки Calibre.
 
 pub(crate) mod catalog;
+pub(crate) mod index;
 pub(crate) mod metadata;
 pub(crate) mod scanner;
 

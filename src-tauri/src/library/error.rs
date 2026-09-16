@@ -16,6 +16,8 @@ pub enum LibraryError {
     Database(rusqlite::Error),
     /// Ошибка заполнения каталога.
     Catalog(CatalogError),
+    /// Ошибка наблюдения за файловой системой.
+    Watcher(String),
 }
 
 impl From<io::Error> for LibraryError {
@@ -36,6 +38,12 @@ impl From<CatalogError> for LibraryError {
     }
 }
 
+impl From<notify::Error> for LibraryError {
+    fn from(value: notify::Error) -> Self {
+        Self::Watcher(value.to_string())
+    }
+}
+
 impl std::fmt::Display for LibraryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -45,6 +53,7 @@ impl std::fmt::Display for LibraryError {
             Self::Io(err) => write!(f, "ошибка ввода-вывода: {err}"),
             Self::Database(err) => write!(f, "ошибка базы данных: {err}"),
             Self::Catalog(err) => write!(f, "ошибка каталога: {err}"),
+            Self::Watcher(err) => write!(f, "ошибка наблюдения за библиотекой: {err}"),
         }
     }
 }
@@ -56,6 +65,7 @@ impl std::error::Error for LibraryError {
             Self::Io(err) => Some(err),
             Self::Database(err) => Some(err),
             Self::Catalog(err) => Some(err),
+            Self::Watcher(_) => None,
         }
     }
 }

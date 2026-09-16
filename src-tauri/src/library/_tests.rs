@@ -1,4 +1,5 @@
 use super::*;
+use crate::calibre::index::index_path;
 use crate::constants::{BOOKS_DIR_NAME, COVERS_DIR_NAME, PLUGINS_DIR_NAME};
 use crate::test_util;
 
@@ -105,6 +106,43 @@ fn directory_without_calibre_markers_stays_portable() {
 
     assert_eq!(library.mode(), LibraryMode::Portable);
     assert!(root.join(DATABASE_FILE_NAME).exists());
+
+    remove_dir_contents(&root);
+}
+
+#[test]
+fn reopens_calibre_from_index_and_updates_changed_metadata() {
+    let root = temp_library_root(&format!("open-calibre-indexed-{}", std::process::id()));
+    remove_dir_contents(&root);
+    let _ = fs::remove_file(index_path(&root));
+    let book = root.join("Автор").join("Книга (21)");
+    fs::create_dir_all(&book).expect("создание папки книги");
+    fs::write(
+        book.join("metadata.opf"),
+        "<package xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><metadata><dc:title>Старое название</dc:title></metadata></package>",
+    )
+    .expect("запись metadata.opf");
+    fs::write(book.join("book.epub"), "epub").expect("запись книги");
+
+    let first = Library::open(&root).expect("первое открытие");
+    let first_books =
+        crate::catalog::repository::list_books(first.connection()).expect("первый список");
+    assert_eq!(first_books[0].title, "Старое название");
+    drop(first);
+
+    let mut second = Library::open(&root).expect("повторное открытие");
+    fs::write(
+        book.join("metadata.opf"),
+        "<package xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><metadata><dc:title>Новое название</dc:title></metadata></package>",
+    )
+    .expect("обновление metadata.opf");
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    second
+        .sync_if_needed()
+        .expect("синхронизация после повторного открытия");
+    let second_books =
+        crate::catalog::repository::list_books(second.connection()).expect("второй список");
+    assert_eq!(second_books[0].title, "Новое название");
 
     remove_dir_contents(&root);
 }

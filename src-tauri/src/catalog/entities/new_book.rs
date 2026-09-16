@@ -11,6 +11,7 @@ pub struct NewFile {
 
 /// Данные новой книги: базовые атрибуты и набора связей.
 pub struct NewBook {
+    pub stable_id: Option<i64>,
     pub title: String,
     pub authors: Vec<String>,
     pub series: Vec<(String, i64)>,

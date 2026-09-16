@@ -24,6 +24,7 @@ src-tauri/target
 .vscode/*
 !.vscode/extensions.json
 .idea
+.booklib
 .DS_Store
 *.suo
 *.ntvs*

@@ -1,20 +1,63 @@
 //! Построение виртуального SQLite-каталога для Calibre.
 
-use std::path::Path;
-
 use rusqlite::Connection;
+use sha2::{Digest, Sha256};
+use std::path::Path;
 
 use crate::catalog::{self, repository, FileKind, NewBook, NewFile};
 use crate::library::LibraryError;
 
-use super::scanner::{self, ScannedFileKind};
+use super::scanner::{ScannedBook, ScannedFileKind};
 
-pub(crate) fn build_virtual_catalog(root: &Path) -> Result<Connection, LibraryError> {
+pub(crate) fn build_catalog_from_index(
+    index: &super::index::LibraryIndex,
+) -> Result<Connection, LibraryError> {
+    build_catalog_from_books(index.scanned_books())
+}
+
+pub(crate) fn open_cached_catalog(path: &Path) -> Result<Option<Connection>, LibraryError> {
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let mut connection = Connection::open(path)?;
+    catalog::open_catalog(&mut connection)?;
+    Ok(Some(connection))
+}
+
+pub(crate) fn build_catalog_at(
+    path: &Path,
+    scanned: Vec<ScannedBook>,
+) -> Result<Connection, LibraryError> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let temporary = path.with_extension("db.tmp");
+    let _ = std::fs::remove_file(&temporary);
+    let mut connection = Connection::open(&temporary)?;
+    catalog::open_catalog(&mut connection)?;
+    save_scanned_books(&mut connection, scanned)?;
+    drop(connection);
+    std::fs::rename(&temporary, path)?;
+    let mut connection = Connection::open(path)?;
+    catalog::open_catalog(&mut connection)?;
+    Ok(connection)
+}
+
+pub(crate) fn build_catalog_from_books(
+    scanned: Vec<ScannedBook>,
+) -> Result<Connection, LibraryError> {
     let mut connection = Connection::open_in_memory()?;
     catalog::open_catalog(&mut connection)?;
-    let scanned = scanner::scan(root)?;
-    for book in scanned {
-        let files = book
+    save_scanned_books(&mut connection, scanned)?;
+    Ok(connection)
+}
+
+fn save_scanned_books(
+    connection: &mut Connection,
+    scanned: Vec<ScannedBook>,
+) -> Result<(), LibraryError> {
+    let books = scanned.into_iter().map(|book| {
+        let files: Vec<NewFile> = book
             .files
             .into_iter()
             .map(|file| NewFile {
@@ -26,25 +69,36 @@ pub(crate) fn build_virtual_catalog(root: &Path) -> Result<Connection, LibraryEr
                 format: file.format,
             })
             .collect();
-        repository::save_book(
-            &mut connection,
-            NewBook {
-                title: book.title,
-                authors: book.authors,
-                series: book.series,
-                tags: book.tags,
-                files,
-            },
-        )?;
-    }
-    Ok(connection)
+        let stable_id = files
+            .iter()
+            .find(|file| file.kind == FileKind::Book)
+            .map(|file| stable_id(&file.path));
+        NewBook {
+            stable_id,
+            title: book.title,
+            authors: book.authors,
+            series: book.series,
+            tags: book.tags,
+            files,
+        }
+    });
+    repository::save_books(connection, books)?;
+    Ok(())
+}
+
+fn stable_id(path: &str) -> i64 {
+    let digest = Sha256::digest(path.as_bytes());
+    let mut bytes = [0_u8; 8];
+    bytes.copy_from_slice(&digest[..8]);
+    (i64::from_be_bytes(bytes) & 9_007_199_254_740_991).max(1)
 }
 
 #[cfg(test)]
 mod tests {
     use std::fs;
 
-    use super::build_virtual_catalog;
+    use super::build_catalog_from_books;
+    use crate::calibre::scanner;
     use crate::catalog::repository;
     use crate::test_util;
 
@@ -64,7 +118,8 @@ mod tests {
         fs::write(book.join("book.epub"), "epub").expect("запись книги");
         fs::write(book.join("cover.jpg"), "cover").expect("запись обложки");
 
-        let connection = build_virtual_catalog(&root).expect("построение каталога");
+        let connection = build_catalog_from_books(scanner::scan(&root).expect("сканирование"))
+            .expect("построение каталога");
         let books = repository::list_books(&connection).expect("чтение каталога");
 
         assert_eq!(books.len(), 1);

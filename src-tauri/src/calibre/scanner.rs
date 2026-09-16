@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use super::metadata;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ScannedBook {
     pub title: String,
     pub authors: Vec<String>,
@@ -14,7 +14,7 @@ pub(crate) struct ScannedBook {
     pub files: Vec<ScannedFile>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ScannedFile {
     pub kind: ScannedFileKind,
     pub path: PathBuf,
@@ -139,6 +139,14 @@ fn scan_book(
         series,
         files,
     }))
+}
+
+pub(crate) fn scan_book_directory(
+    root: &Path,
+    author: &str,
+    path: &Path,
+) -> Result<Option<ScannedBook>, std::io::Error> {
+    scan_book(root, author, path)
 }
 
 fn title_from_folder(folder: &str) -> String {

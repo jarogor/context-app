@@ -16,12 +16,41 @@
   let { bookId, onNavigate }: Props = $props();
 
   let content: BookContent | null = $state(null);
+  let calibreBook: { title: string; authors: { name: string }[] } | null = $state(null);
+  let libraryKind: string = $state('portable');
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
+  let opening: boolean = $state(false);
+
+  async function openInSystem() {
+    opening = true;
+    error = null;
+    try {
+      await invoke('open_book_in_system', { bookId });
+    } catch (e) {
+      error = `Не удалось открыть файл: ${String(e)}`;
+    } finally {
+      opening = false;
+    }
+  }
 
   onMount(async () => {
     try {
-      content = (await invoke('get_book_content', { bookId })) as BookContent;
+      const info = (await invoke('get_library_info')) as { kind: string };
+      libraryKind = info.kind;
+      if (libraryKind === 'calibre') {
+        const books = (await invoke('list_books')) as Array<{
+          id: number;
+          title: string;
+          authors: { name: string }[];
+        }>;
+        calibreBook = books.find((book) => book.id === bookId) ?? null;
+        if (!calibreBook) {
+          throw new Error('Книга не найдена');
+        }
+      } else {
+        content = (await invoke('get_book_content', { bookId })) as BookContent;
+      }
     } catch (e) {
       error = String(e);
     } finally {
@@ -44,6 +73,14 @@
         ← Список книг
       </button>
     </div>
+  {:else if libraryKind === 'calibre' && calibreBook}
+    <header>
+      <h1>{calibreBook.title}</h1>
+      <p class="authors">{calibreBook.authors.map((author) => author.name).join(', ')}</p>
+    </header>
+    <button class="open-btn" onclick={openInSystem} disabled={opening}>
+      {opening ? 'Открытие...' : 'Открыть в системе'}
+    </button>
   {:else if content}
     <header>
       <h1>{content.title}</h1>
@@ -87,5 +124,14 @@
     white-space: pre-wrap;
     line-height: 1.5;
     text-align: justify;
+  }
+  .open-btn {
+    padding: 8px 14px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #333;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
   }
 </style>

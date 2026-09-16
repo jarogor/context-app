@@ -10,7 +10,8 @@ use crate::library::Library;
 /// Открытие файла книги внешним приложением по умолчанию.
 #[tauri::command]
 pub fn open_book_in_system(state: State<'_, Mutex<Library>>, book_id: i64) -> Result<(), String> {
-    let library = state.lock().map_err(|e| e.to_string())?;
+    let mut library = state.lock().map_err(|e| e.to_string())?;
+    library.sync_if_needed().map_err(|e| e.to_string())?;
     let book = repository::get_book(library.connection(), book_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Книга не найдена".to_string())?;

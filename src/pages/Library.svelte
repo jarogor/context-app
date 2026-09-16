@@ -2,15 +2,18 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { open } from '@tauri-apps/plugin-dialog';
-  import type { Book, BookFile, LibraryInfo } from '../types';
+  import { listen } from '@tauri-apps/api/event';
+  import type { Book, BookFile, CachedLibrary, LibraryInfo } from '../types';
 
   interface Props {
     onNavigate: (page: string, bookId?: number) => void;
+    books: Book[];
+    onBooksChange: (books: Book[]) => void;
   }
 
   type BookWithCover = Book & { coverUri?: string };
 
-  let { onNavigate }: Props = $props();
+  let { onNavigate, books: cachedBooks, onBooksChange }: Props = $props();
 
   let books: BookWithCover[] = $state([]);
   let loading: boolean = $state(true);
@@ -20,9 +23,39 @@
   let searchQuery: string = $state('');
   let libraryKind: LibraryInfo['kind'] = $state('portable');
   let openingLibrary: boolean = $state(false);
+  let indexingLibrary: boolean = $state(false);
+  let progressText: string = $state('');
+  let cachedLibraries: CachedLibrary[] = $state([]);
+  let missingLibrary: string | null = $state(null);
+
+  function stageLabel(stage: LibraryInfo['stage']): string {
+    if (stage === 'opening') return 'Открытие библиотеки...';
+    if (stage === 'scanning') return 'Сканирование книг...';
+    if (stage === 'indexing') return 'Создание индекса...';
+    if (stage === 'error') return 'Ошибка загрузки библиотеки';
+    return '';
+  }
 
   function coverFile(book: Book): BookFile | undefined {
-    return book.files.find((f) => f.kind === 'cover');
+    return book.files.find((file) => file.kind === 'cover');
+  }
+
+  async function loadCovers(list: Book[]) {
+    for (const book of list) {
+      if (!coverFile(book)) {
+        continue;
+      }
+      try {
+        const coverUri = (await invoke('get_cover', { bookId: book.id })) as string | null;
+        if (coverUri) {
+          books = books.map((current) =>
+            current.id === book.id ? { ...current, coverUri } : current,
+          );
+        }
+      } catch {
+        // A missing or temporarily unavailable cover must not block the catalog.
+      }
+    }
   }
 
   async function load() {
@@ -32,16 +65,10 @@
       const list: Book[] = searchQuery.trim()
         ? await invoke('search_books', { query: searchQuery })
         : await invoke('list_books');
-      const withCovers = await Promise.all(
-        list.map(async (book): Promise<BookWithCover> => {
-          if (!coverFile(book)) {
-            return book;
-          }
-          const coverUri = (await invoke('get_cover', { bookId: book.id })) as string | null;
-          return coverUri ? { ...book, coverUri } : book;
-        }),
-      );
-      books = withCovers;
+      // Catalog loading must not wait for every cover request.
+      books = list;
+      onBooksChange(list);
+      void loadCovers(list);
     } catch (e) {
       error = String(e);
     } finally {
@@ -53,12 +80,50 @@
     try {
       const info = (await invoke('get_library_info')) as LibraryInfo;
       libraryKind = info.kind;
+      indexingLibrary = info.indexing;
+      progressText = stageLabel(info.stage);
     } catch (e) {
       error = String(e);
     }
   }
 
+  async function loadCachedLibraries() {
+    try {
+      cachedLibraries = (await invoke('list_cached_libraries')) as CachedLibrary[];
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function chooseCachedLibrary(path: string) {
+    await openLibraryPath(path);
+  }
+
+  async function openLibraryPath(path: string) {
+    openingLibrary = true;
+    indexingLibrary = true;
+    progressText = 'Открытие сохранённого индекса...';
+    missingLibrary = null;
+    try {
+      const kind = (await invoke('open_library', { path })) as string;
+      searchQuery = '';
+      await loadLibraryInfo();
+      openingLibrary = kind === 'loading';
+      if (!indexingLibrary) {
+        await load();
+      }
+    } catch (e) {
+      missingLibrary = path;
+      importError = `Библиотека недоступна: ${path}. Выберите её заново.`;
+      openingLibrary = false;
+      indexingLibrary = false;
+    }
+  }
+
   async function updateSearch() {
+    if (indexingLibrary) {
+      return;
+    }
     await load();
   }
 
@@ -72,10 +137,6 @@
   }
 
   function openBook(bookId: number) {
-    if (libraryKind === 'calibre') {
-      void openInSystem(bookId);
-      return;
-    }
     onNavigate('reading', bookId);
   }
 
@@ -85,15 +146,14 @@
     try {
       const selected = await open({ directory: true, multiple: false });
       if (typeof selected === 'string') {
-        await invoke('open_library', { path: selected });
-        searchQuery = '';
-        await loadLibraryInfo();
-        await load();
+        await openLibraryPath(selected);
       }
     } catch (e) {
       importError = String(e);
     } finally {
-      openingLibrary = false;
+      if (!openingLibrary) {
+        openingLibrary = false;
+      }
     }
   }
 
@@ -116,9 +176,39 @@
     }
   }
 
-  onMount(async () => {
-    await loadLibraryInfo();
-    await load();
+  onMount(() => {
+    let unlisten: (() => void) | undefined;
+    let unlistenProgress: (() => void) | undefined;
+    void (async () => {
+      unlisten = await listen('library-catalog-changed', () => {
+        openingLibrary = false;
+        indexingLibrary = false;
+        progressText = '';
+        void load();
+      });
+      unlistenProgress = await listen<string>('library-progress', (event) => {
+        indexingLibrary = event.payload !== 'ready';
+        progressText = event.payload === 'scanning'
+          ? 'Сканирование книг...'
+          : event.payload === 'indexing'
+            ? 'Создание индекса...'
+            : '';
+      });
+      await loadLibraryInfo();
+      await loadCachedLibraries();
+      if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {
+        books = cachedBooks;
+        loading = false;
+        void loadCovers(cachedBooks);
+      }
+      if (!indexingLibrary && books.length === 0) {
+        await load();
+      }
+    })();
+    return () => {
+      unlisten?.();
+      unlistenProgress?.();
+    };
   });
 </script>
 
@@ -126,8 +216,8 @@
   <div class="header">
     <h1>Библиотека</h1>
     <div class="header-actions">
-      <button class="open-library-button" type="button" onclick={openLibrary} disabled={openingLibrary}>
-        {openingLibrary ? 'Открытие...' : 'Открыть библиотеку'}
+      <button class="open-library-button" type="button" onclick={openLibrary} disabled={openingLibrary || indexingLibrary}>
+        {openingLibrary || indexingLibrary ? 'Индексация...' : 'Открыть библиотеку'}
       </button>
       {#if libraryKind === 'portable'}
         <button class="import-button" type="button" onclick={importFile} disabled={importing}>
@@ -139,11 +229,32 @@
 
   <label class="search">
     <span>Поиск</span>
-    <input bind:value={searchQuery} oninput={updateSearch} placeholder="Название или автор" />
+    <input bind:value={searchQuery} oninput={updateSearch} disabled={indexingLibrary} placeholder="Название или автор" />
   </label>
 
   {#if importError}
     <p class="state error">{importError}</p>
+  {/if}
+
+  {#if cachedLibraries.length > 0 && !indexingLibrary && books.length === 0}
+    <section class="cached-libraries">
+      <h2>Сохранённые библиотеки</h2>
+      {#each cachedLibraries as cached}
+        <button
+          class="cached-library"
+          type="button"
+          disabled={!cached.available}
+          onclick={() => chooseCachedLibrary(cached.path)}
+        >
+          <strong>{cached.available ? 'Открыть' : 'Недоступна'}</strong>
+          <span>{cached.path}</span>
+        </button>
+      {/each}
+    </section>
+  {/if}
+
+  {#if indexingLibrary}
+    <p class="state">{progressText || 'Открытие библиотеки...'}</p>
   {/if}
 
   {#if loading}
@@ -154,6 +265,8 @@
     <p class="state empty-state">
       Библиотека пуста. Добавьте EPUB-файлы в папку библиотеки.
     </p>
+  {:else if indexingLibrary}
+    <p class="state">{progressText || 'Загрузка библиотеки...'}</p>
   {:else}
     <ul class="book-list">
       {#each books as book (book.id)}
@@ -161,7 +274,9 @@
           <button
             class="book-card"
             type="button"
-            onclick={() => openBook(book.id)}
+             onclick={() => {
+               if (!indexingLibrary) openBook(book.id);
+             }}
           >
             {#if book.coverUri}
               <img class="cover" src={book.coverUri} alt="" />
@@ -319,5 +434,34 @@
   }
   .open-link:hover {
     text-decoration: underline;
+  }
+  .cached-libraries {
+    display: grid;
+    gap: 8px;
+    margin: 24px 0;
+  }
+  .cached-libraries h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+  .cached-library {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    background: #fff;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+  }
+  .cached-library:disabled {
+    color: #999;
+    cursor: not-allowed;
+  }
+  .cached-library span {
+    overflow-wrap: anywhere;
+    color: #666;
+    font-size: 12px;
   }
 </style>

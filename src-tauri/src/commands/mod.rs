@@ -3,6 +3,7 @@
 //! Логика каждой команды вынесена в собственный подмодуль; здесь —
 //! компактный перечень команд и переэкспорт их для `generate_handler!`.
 
+pub mod cached_libraries;
 pub mod content;
 pub mod get_book_content;
 pub mod get_cover;
@@ -13,6 +14,7 @@ pub mod open_book_in_system;
 pub mod open_library;
 pub mod search_books;
 
+pub use cached_libraries::list_cached_libraries;
 pub use content::BookContent;
 pub use get_book_content::get_book_content;
 pub use get_cover::get_cover;
@@ -27,6 +29,8 @@ pub use search_books::search_books;
 // переэкспортируются, чтобы `tauri::generate_handler!` нашёл их
 // в модуле `commands`.
 
+pub use cached_libraries::__cmd__list_cached_libraries;
+pub use cached_libraries::__tauri_command_name_list_cached_libraries;
 pub use get_book_content::__cmd__get_book_content;
 pub use get_book_content::__tauri_command_name_get_book_content;
 pub use get_cover::__cmd__get_cover;

@@ -15,7 +15,11 @@ use crate::library::Library;
 /// если обложка отсутствует.
 #[tauri::command]
 pub fn get_cover(state: State<'_, Mutex<Library>>, book_id: i64) -> Result<Option<String>, String> {
-    let library = state.lock().map_err(|e| e.to_string())?;
+    let mut library = state.lock().map_err(|e| e.to_string())?;
+    if library.is_indexing() {
+        return Ok(None);
+    }
+    library.sync_if_needed().map_err(|e| e.to_string())?;
     let Some(book) =
         repository::get_book(library.connection(), book_id).map_err(|e| e.to_string())?
     else {

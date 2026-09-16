@@ -10,6 +10,8 @@ use crate::library::Library;
 #[derive(Serialize)]
 pub struct LibraryInfo {
     pub kind: String,
+    pub indexing: bool,
+    pub stage: String,
 }
 
 /// Получение типа текущей библиотеки для UI.
@@ -18,5 +20,7 @@ pub fn get_library_info(state: State<'_, Mutex<Library>>) -> Result<LibraryInfo,
     let library = state.lock().map_err(|e| e.to_string())?;
     Ok(LibraryInfo {
         kind: library.mode().as_str().to_string(),
+        indexing: library.is_indexing(),
+        stage: library.stage().to_string(),
     })
 }
