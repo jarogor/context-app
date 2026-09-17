@@ -54,33 +54,46 @@ impl LibraryIndex {
         self.books.iter().map(IndexedBook::scanned).collect()
     }
 
+    /// Определение папок из набора кандидатов, содержимое которых реально
+    /// отличается от последнего состояния в индексе.
+    ///
+    /// Чтение файлов (atime) и события без изменения содержимого не считаются
+    /// изменением. Папка, отсутствующая в индексе (новая книга), считается
+    /// изменённой; папка удалённой книги исчезла с диска — тоже изменённой.
+    pub(crate) fn filter_changed(
+        &self,
+        root: &Path,
+        candidates: &std::collections::HashSet<PathBuf>,
+    ) -> std::collections::HashSet<PathBuf> {
+        candidates
+            .iter()
+            .filter(|path| self.directory_changed(root, path))
+            .cloned()
+            .collect()
+    }
+
+    /// Проверка, что одна папка книги отличается от её записи в индексе.
+    fn directory_changed(&self, root: &Path, path: &Path) -> bool {
+        let Some(book) = self
+            .books
+            .iter()
+            .find(|book| root.join(&book.directory) == path)
+        else {
+            return true;
+        };
+        book_changed_on_disk(root, book)
+    }
+
     /// Определение папок книг, содержимое которых изменилось.
     ///
     /// Используется только в тестах частичного обновления индекса.
     #[cfg(test)]
     pub(crate) fn changed_directories(&self, root: &Path) -> std::collections::HashSet<PathBuf> {
-        let mut changed = std::collections::HashSet::new();
-        for book in &self.books {
-            let directory = root.join(&book.directory);
-            let metadata_changed =
-                file_modified(&directory.join("metadata.opf")) != book.metadata_modified;
-            let files_changed = book.files.iter().any(|file| {
-                let path = root.join(&file.path);
-                let Ok(metadata) = fs::metadata(path) else {
-                    return true;
-                };
-                let modified = metadata
-                    .modified()
-                    .ok()
-                    .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map_or(0, |value| value.as_nanos());
-                metadata.len() != file.size || modified != file.modified
-            });
-            if metadata_changed || files_changed || !directory.is_dir() {
-                changed.insert(directory);
-            }
-        }
-        changed
+        self.books
+            .iter()
+            .filter(|book| book_changed_on_disk(root, book))
+            .map(|book| root.join(&book.directory))
+            .collect()
     }
 
     /// Замена в индексе только указанных папок книг.
@@ -294,6 +307,31 @@ fn canonical_string(path: &Path) -> String {
         .unwrap_or_else(|_| path.to_path_buf())
         .to_string_lossy()
         .into_owned()
+}
+
+/// Сравнение текущего состояния папки книги с её последней записью в индексе.
+///
+/// Сравниваются наличие папки, время изменения `metadata.opf`, размер и время
+/// изменения каждого файла. Чтение файлов (atime) не влияет на результат.
+fn book_changed_on_disk(root: &Path, book: &IndexedBook) -> bool {
+    let directory = root.join(&book.directory);
+    if !directory.is_dir() {
+        return true;
+    }
+    if file_modified(&directory.join("metadata.opf")) != book.metadata_modified {
+        return true;
+    }
+    book.files.iter().any(|file| {
+        let Ok(metadata) = fs::metadata(root.join(&file.path)) else {
+            return true;
+        };
+        let modified = metadata
+            .modified()
+            .ok()
+            .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or(0, |value| value.as_nanos());
+        metadata.len() != file.size || modified != file.modified
+    })
 }
 
 /// Время изменения файла в наносекундах; 0, если метаданные недоступны.

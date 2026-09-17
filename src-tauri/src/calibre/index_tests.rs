@@ -61,3 +61,42 @@ fn replaces_only_changed_book_directory() {
     }));
     test_util::cleanup(&root);
 }
+
+/// `filter_changed` реагирует только на реальные изменения содержимого.
+#[test]
+fn filter_changed_detects_only_real_changes() {
+    let root = test_util::test_root("index-filter-changed");
+    test_util::cleanup(&root);
+    let first = root.join("Автор").join("Первая (1)");
+    let second = root.join("Автор").join("Вторая (2)");
+    fs::create_dir_all(&first).expect("создание первой книги");
+    fs::create_dir_all(&second).expect("создание второй книги");
+    fs::write(first.join("first.epub"), "first").expect("первая книга");
+    fs::write(second.join("second.epub"), "second").expect("вторая книга");
+    let index =
+        LibraryIndex::from_scanned(&root, scanner::scan(&root).expect("первичное сканирование"));
+
+    let unchanged: std::collections::HashSet<_> =
+        [first.clone(), second.clone()].into_iter().collect();
+    assert!(
+        index.filter_changed(&root, &unchanged).is_empty(),
+        "без изменений содержимого переиндексация не требуется"
+    );
+
+    fs::write(first.join("first.epub"), "first-modified-longer").expect("изменение книги");
+    let changed = index.filter_changed(&root, &unchanged);
+    assert_eq!(changed.len(), 1);
+    assert!(changed.contains(&first));
+
+    let new_book = root.join("Автор").join("Новая (3)");
+    fs::create_dir_all(&new_book).expect("создание новой книги");
+    fs::write(new_book.join("new.epub"), "new").expect("новая книга");
+    let candidates: std::collections::HashSet<_> = [new_book.clone()].into_iter().collect();
+    assert_eq!(
+        index.filter_changed(&root, &candidates),
+        candidates,
+        "новая папка книги считается изменением"
+    );
+
+    test_util::cleanup(&root);
+}

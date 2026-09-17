@@ -9,11 +9,12 @@
     onNavigate: (page: string, bookId?: number) => void;
     books: Book[];
     onBooksChange: (books: Book[]) => void;
+    unreadNotifications: number;
   }
 
   type BookWithCover = Book & { coverUri?: string };
 
-  let { onNavigate, books: cachedBooks, onBooksChange }: Props = $props();
+  let { onNavigate, books: cachedBooks, onBooksChange, unreadNotifications }: Props = $props();
 
   let books: BookWithCover[] = $state([]);
   let loading: boolean = $state(true);
@@ -213,19 +214,33 @@
 </script>
 
 <div class="library">
-  <div class="header">
-    <h1>Библиотека</h1>
-    <div class="header-actions">
-      <button class="open-library-button" type="button" onclick={openLibrary} disabled={openingLibrary || indexingLibrary}>
-        {openingLibrary || indexingLibrary ? 'Индексация...' : 'Открыть библиотеку'}
-      </button>
-      {#if libraryKind === 'portable'}
-        <button class="import-button" type="button" onclick={importFile} disabled={importing}>
-          {importing ? 'Импорт...' : 'Добавить EPUB'}
-        </button>
-      {/if}
-    </div>
-  </div>
+   <div class="header">
+     <h1>Библиотека</h1>
+     <div class="header-actions">
+       <button
+         class="open-library-button"
+         type="button"
+         onclick={openLibrary}
+         disabled={openingLibrary || indexingLibrary}
+       >
+         {openingLibrary || indexingLibrary ? 'Индексация...' : 'Открыть библиотеку'}
+       </button>
+       <button
+         class="notifications-counter"
+         type="button"
+         onclick={() => onNavigate('notifications')}
+         aria-label={`Уведомления: непрочитанных ${unreadNotifications}`}
+         title="Уведомления"
+       >
+         <span class="notifications-counter-count">{unreadNotifications}</span>
+       </button>
+       {#if libraryKind === 'portable'}
+         <button class="import-button" type="button" onclick={importFile} disabled={importing}>
+           {importing ? 'Импорт...' : 'Добавить EPUB'}
+         </button>
+       {/if}
+     </div>
+   </div>
 
   <label class="search">
     <span>Поиск</span>
@@ -350,6 +365,32 @@
   .open-library-button:disabled {
     opacity: 0.6;
     cursor: default;
+  }
+  .notifications-counter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid #5a8fda;
+    border-radius: 999px;
+    background: #fff;
+    color: #315f9e;
+    font: inherit;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .notifications-counter:hover {
+    background: #eef5ff;
+  }
+  .notifications-counter-count {
+    line-height: 1;
+  }
+  @media (min-width: 900px) {
+    .notifications-counter {
+      display: none;
+    }
   }
   .import-button:hover:not(:disabled) {
     background: #000;

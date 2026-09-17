@@ -97,6 +97,71 @@ fn open_calibre_library_without_writing_to_it() {
 }
 
 #[test]
+fn affected_directories_ignore_root_and_hidden_paths() {
+    let root = PathBuf::from("/library");
+    let paths = vec![
+        root.join("metadata.db"),
+        root.join(".booklib").join("index.json"),
+        root.join("Автор").join("Книга (1)").join("metadata.opf"),
+    ];
+
+    let affected = affected_book_directories(&root, &paths);
+
+    assert_eq!(affected.len(), 1);
+    assert!(affected.contains(&root.join("Автор").join("Книга (1)")));
+}
+
+#[test]
+fn startup_does_not_fire_index_update_notifications() {
+    use crate::journal::get_journal_handle;
+    use std::time::Duration;
+
+    let root = temp_library_root(&format!("startup-no-flood-{}", std::process::id()));
+    remove_dir_contents(&root);
+    let _ = fs::remove_file(index_path(&root));
+    for id in 0..4 {
+        let book = root.join("Автор").join(format!("Книга ({id})"));
+        fs::create_dir_all(&book).expect("создание папки книги");
+        fs::write(
+            book.join("metadata.opf"),
+            "<package xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><metadata><dc:title>Книга</dc:title></metadata></package>",
+        )
+        .expect("запись metadata.opf");
+        fs::write(book.join("book.epub"), "epub").expect("запись книги");
+    }
+
+    get_journal_handle().clear();
+    let mut library = Library::open_for_selection(&root).expect("проинициализировать состояние");
+    let prepared = Library::prepare_selected(&root).expect("подготовка каталога");
+    library
+        .promote_calibre(prepared.1, prepared.2.expect("индекс Calibre"))
+        .expect("перевод в боевое состояние");
+
+    std::thread::sleep(Duration::from_millis(150));
+    for _ in 0..40 {
+        library
+            .sync_if_needed()
+            .expect("синхронизация без реальных изменений");
+    }
+
+    let entries = get_journal_handle().all(None);
+    let updates: usize = entries
+        .iter()
+        .filter(|entry| {
+            entry.message == "Индекс библиотеки обновлён"
+                && entry.source == root.display().to_string()
+        })
+        .count();
+    assert_eq!(
+        updates, 0,
+        "при неизменной библиотеке не должно быть уведомлений об обновлении индекса: {:?}",
+        entries
+    );
+
+    remove_dir_contents(&root);
+}
+
+#[test]
 fn directory_without_calibre_markers_stays_portable() {
     let root = temp_library_root("open-not-calibre");
     remove_dir_contents(&root);

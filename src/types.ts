@@ -48,14 +48,32 @@ export interface Book {
 
 /** Режим открытой библиотеки. */
 export interface LibraryInfo {
-  kind: 'portable' | 'calibre';
-  indexing: boolean;
-  stage: 'opening' | 'scanning' | 'indexing' | 'ready' | 'error';
+    kind: 'portable' | 'calibre';
+    indexing: boolean;
+    stage: 'opening' | 'scanning' | 'indexing' | 'ready' | 'error';
 }
 
 export interface CachedLibrary {
-  path: string;
-  index_path: string;
-  catalog_path: string;
-  available: boolean;
+    path: string;
+    index_path: string;
+    catalog_path: string;
+    available: boolean;
+}
+
+/** Уровень записи в журнале. */
+export type Level = 'User' | 'Technical';
+
+/** Степень серьёзности записи. */
+export type Severity = 'Info' | 'Warn' | 'Error';
+
+/** Запись в журнале уведомлений. */
+export interface Entry {
+    id: number;
+    timestamp: number;
+    level: Level;
+    severity: Severity;
+    message: string;
+    source: string;
+    details: Record<string, unknown>;
+    read: boolean;
 }

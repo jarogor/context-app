@@ -26,6 +26,7 @@ use crate::calibre::catalog::{
 };
 use crate::calibre::index::{catalog_path, index_path, LibraryIndex};
 use crate::constants::DATABASE_FILE_NAME;
+use crate::journal::{get_journal_handle, Severity};
 
 use self::layout::Layout;
 
@@ -181,6 +182,12 @@ impl Library {
             started.elapsed(),
             self.root.display()
         );
+        let handle = get_journal_handle();
+        handle.add_technical(
+            "watcher ready",
+            self.root.display().to_string(),
+            serde_json::json!({ "duration_ms": started.elapsed().as_millis() }),
+        );
         Ok(())
     }
 
@@ -249,20 +256,38 @@ impl Library {
         let catalog_file = catalog_path(root);
         if let Some(index) = LibraryIndex::load(&index_file, root)? {
             if let Some(connection) = open_cached_catalog(&catalog_file)? {
-                eprintln!(
-                    "[library] cached catalog in {:?}: {}",
-                    started.elapsed(),
-                    root.display()
+                // Библиотека не менялась: индекс переиспользуется без изменений.
+                // Пользовательского уведомления не требуется — только техническая запись.
+                let handle = get_journal_handle();
+                handle.add_technical(
+                    "cached catalog",
+                    root.display().to_string(),
+                    serde_json::json!({ "duration_ms": started.elapsed().as_millis() }),
                 );
                 return Ok((true, connection, Some(index)));
             }
+            // Файл каталога отсутствует, но индекс есть: каталог пересобирается
+            // из индекса без повторного сканирования и без пользовательского
+            // уведомления о создании индекса.
+            let scanned = index.scanned_books();
+            let book_count = scanned.len();
+            let connection = build_catalog_at(&catalog_file, scanned)?;
+            let handle = get_journal_handle();
+            handle.add_technical(
+                "catalog rebuilt from index",
+                root.display().to_string(),
+                serde_json::json!({ "duration_ms": started.elapsed().as_millis(), "books": book_count }),
+            );
+            return Ok((true, connection, Some(index)));
         }
 
         let scanned = crate::calibre::scanner::scan(root)?;
-        eprintln!(
-            "[library] scan in {:?}: {} books",
-            started.elapsed(),
-            scanned.len()
+        let book_count = scanned.len();
+        let handle = get_journal_handle();
+        handle.add_technical(
+            "scan",
+            book_count.to_string(),
+            serde_json::json!({ "duration_ms": started.elapsed().as_millis(), "books": book_count }),
         );
         if scanned.is_empty() {
             return Ok((false, Self::prepare_portable(root)?, None));
@@ -271,10 +296,17 @@ impl Library {
         let index = LibraryIndex::from_scanned(root, scanned.clone());
         index.save_atomic(&index_file)?;
         let connection = build_catalog_at(&catalog_file, scanned)?;
-        eprintln!(
-            "[library] index in {:?}: {}",
-            started.elapsed(),
-            root.display()
+        handle.add_technical(
+            "index",
+            root.display().to_string(),
+            serde_json::json!({ "duration_ms": started.elapsed().as_millis() }),
+        );
+        // Создание индекса — ровно одно пользовательское событие.
+        handle.add_user(
+            "Индекс библиотеки создан",
+            Severity::Info,
+            root.display().to_string(),
+            serde_json::json!({ "books": book_count }),
         );
         Ok((true, connection, Some(index)))
     }
@@ -315,57 +347,72 @@ impl Library {
             })
             .unwrap_or_default();
         let affected = affected_book_directories(&self.root, &paths);
-        let scanned = if affected.is_empty() {
-            crate::calibre::scanner::scan(&self.root)?
-        } else {
-            let mut books = self
-                .index
-                .as_ref()
-                .map(|index| {
-                    index
-                        .books
-                        .iter()
-                        .filter(|book| !affected.contains(&self.root.join(&book.directory)))
-                        .map(|book| book.scanned())
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
-            for directory in &affected {
-                if let Some(author) = directory
-                    .parent()
-                    .and_then(|parent| parent.file_name())
-                    .and_then(|name| name.to_str())
-                {
-                    let mut book = None;
-                    for attempt in 0..3 {
-                        match crate::calibre::scanner::scan_book_directory(
-                            &self.root, author, directory,
-                        ) {
-                            Ok(value) => {
-                                book = value;
+        // События вне папок книг (метаданные, служебные файлы) не требуют
+        // переиндексации и не должны порождать уведомления.
+        if affected.is_empty() {
+            return Ok(());
+        }
+        let Some(index) = self.index.as_ref() else {
+            return Ok(());
+        };
+        // Переиндексация выполняется только при реальных изменениях содержимого:
+        // чтение файлов и события без изменения данных (например, atime при
+        // старте) не должны приводить к пересборке индекса и к уведомлениям.
+        let changed = index.filter_changed(&self.root, &affected);
+        if changed.is_empty() {
+            return Ok(());
+        }
+        let mut books = index
+            .books
+            .iter()
+            .filter(|book| !changed.contains(&self.root.join(&book.directory)))
+            .map(|book| book.scanned())
+            .collect::<Vec<_>>();
+        for directory in &changed {
+            if let Some(author) = directory
+                .parent()
+                .and_then(|parent| parent.file_name())
+                .and_then(|name| name.to_str())
+            {
+                let mut book = None;
+                for attempt in 0..3 {
+                    match crate::calibre::scanner::scan_book_directory(
+                        &self.root, author, directory,
+                    ) {
+                        Ok(value) => {
+                            book = value;
+                            break;
+                        }
+                        Err(error) if attempt < 2 => {
+                            std::thread::sleep(std::time::Duration::from_millis(50));
+                            if !directory.exists() {
                                 break;
                             }
-                            Err(error) if attempt < 2 => {
-                                std::thread::sleep(std::time::Duration::from_millis(50));
-                                if !directory.exists() {
-                                    break;
-                                }
-                                let _ = error;
-                            }
-                            Err(error) => return Err(error.into()),
+                            let _ = error;
                         }
-                    }
-                    if let Some(book) = book {
-                        books.push(book);
+                        Err(error) => return Err(error.into()),
                     }
                 }
+                if let Some(book) = book {
+                    books.push(book);
+                }
             }
-            books
-        };
-        let index = LibraryIndex::from_scanned(&self.root, scanned.clone());
+        }
+
+        let index = LibraryIndex::from_scanned(&self.root, books.clone());
         index.save_atomic(&index_path(&self.root))?;
-        self.connection = build_catalog_from_books(scanned)?;
+        self.connection = build_catalog_from_books(books.clone())?;
         self.index = Some(index);
+
+        // Одно агрегированное уведомление на пакет изменений.
+        let handle = get_journal_handle();
+        handle.add_user(
+            "Индекс библиотеки обновлён",
+            Severity::Info,
+            self.root.display().to_string(),
+            serde_json::json!({ "changed_books": changed.len(), "books": books.len() }),
+        );
+
         Ok(())
     }
 
@@ -449,15 +496,31 @@ impl Library {
 }
 
 /// Определение папок книг, затронутых изменениями файлов.
+///
+/// Служебные и скрытые каталоги (например, кэш `.booklib`) игнорируются,
+/// чтобы их запись не вызывала переиндексацию.
 fn affected_book_directories(root: &Path, paths: &[PathBuf]) -> std::collections::HashSet<PathBuf> {
     paths
         .iter()
         .filter_map(|path| path.strip_prefix(root).ok())
         .filter_map(|relative| {
-            let mut components = relative.components();
-            let author = components.next()?;
-            let book = components.next()?;
-            Some(root.join(author).join(book))
+            let components: Vec<_> = relative.components().collect();
+            if components.len() < 2 {
+                return None;
+            }
+            let hidden = components
+                .iter()
+                .any(|component| match component.as_os_str().to_str() {
+                    Some(name) => name.starts_with('.'),
+                    None => true,
+                });
+            if hidden {
+                return None;
+            }
+            Some(
+                root.join(components[0].as_os_str())
+                    .join(components[1].as_os_str()),
+            )
         })
         .collect()
 }

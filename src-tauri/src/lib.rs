@@ -7,6 +7,7 @@ pub mod commands;
 pub mod config;
 pub mod constants;
 pub mod import;
+pub mod journal;
 pub mod library;
 pub mod plugin;
 pub mod reading;
@@ -20,6 +21,7 @@ use tauri::Manager;
 use crate::catalog::open_catalog;
 use crate::config::AppConfig;
 use crate::constants::DEMO_PLUGIN_DIR;
+use crate::journal::Severity;
 use crate::library::Library;
 use crate::plugin::PluginRuntime;
 
@@ -29,6 +31,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            crate::journal::set_journal_handle(crate::journal::JournalHandle::new());
+            crate::journal::set_app_handle(app.handle().clone());
+
             let config = AppConfig::load()?;
             let library_root = config.library_dir;
             let mut library = if library_root.is_dir() {
@@ -44,47 +49,62 @@ pub fn run() {
                 PluginRuntime::empty()
             };
             for name in runtime.plugin_names() {
-                println!("[plugins] загружен плагин: {name}");
+                let handle = crate::journal::get_journal_handle();
+                handle.add_technical("plugin loaded", name, serde_json::json!({}));
             }
             if runtime.plugin_names().iter().any(|n| n == DEMO_PLUGIN_DIR) {
                 match runtime.invoke(DEMO_PLUGIN_DIR, r#"{"title":"BookLib"}"#) {
-                    Ok(output) => println!("[plugins] demo-plugin ответил: {output}"),
-                    Err(err) => println!("[plugins] demo-plugin завершился с ошибкой: {err}"),
+                    Ok(output) => {
+                        let handle = crate::journal::get_journal_handle();
+                        handle.add_user(
+                            "demo-plugin answered",
+                            Severity::Info,
+                            "plugin",
+                            serde_json::json!({ "output": output }),
+                        );
+                    }
+                    Err(err) => {
+                        let handle = crate::journal::get_journal_handle();
+                        handle.add_technical(
+                            "demo-plugin error",
+                            "demo-plugin",
+                            serde_json::json!({ "error": err.to_string() }),
+                        );
+                    }
                 }
             }
 
             app.manage(Mutex::new(library));
             app.manage(Mutex::new(runtime));
-            if library_root.is_dir() {
-                let handle = app.handle().clone();
-                let root = library_root.clone();
-                tauri::async_runtime::spawn_blocking(move || {
-                    use tauri::Emitter;
-                    if let Ok(mut current) = handle.state::<Mutex<Library>>().lock() {
-                        current.set_stage("scanning");
+
+            let app_clone = app.handle().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                use tauri::Emitter;
+                if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                    current.set_stage("scanning");
+                }
+                let _ = app_clone.emit("library-progress", "scanning");
+                let prepared = Library::prepare_selected(&library_root);
+                if let Ok((is_calibre, connection, index)) = prepared {
+                    if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                        current.set_stage("indexing");
                     }
-                    let _ = handle.emit("library-progress", "scanning");
-                    let prepared = Library::prepare_selected(&root);
-                    if let Ok((is_calibre, connection, index)) = prepared {
-                        if let Ok(mut current) = handle.state::<Mutex<Library>>().lock() {
-                            current.set_stage("indexing");
-                        }
-                        let _ = handle.emit("library-progress", "indexing");
-                        if let Ok(mut current) = handle.state::<Mutex<Library>>().lock() {
-                            let result = if is_calibre {
-                                current.promote_calibre(connection, index.expect("Calibre index"))
-                            } else {
-                                current.install_portable(connection);
-                                Ok(())
-                            };
-                            if result.is_ok() {
-                                let _ = handle.emit("library-progress", "ready");
-                                let _ = handle.emit("library-catalog-changed", ());
-                            }
+                    let _ = app_clone.emit("library-progress", "indexing");
+                    if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                        let result = if is_calibre {
+                            current.promote_calibre(connection, index.expect("Calibre index"))
+                        } else {
+                            current.install_portable(connection);
+                            Ok(())
+                        };
+                        if result.is_ok() {
+                            let _ = app_clone.emit("library-progress", "ready");
+                            let _ = app_clone.emit("library-catalog-changed", ());
                         }
                     }
-                });
-            }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -97,6 +117,10 @@ pub fn run() {
             commands::open_book_in_system,
             commands::open_library,
             commands::search_books,
+            crate::journal::commands::list_journal,
+            crate::journal::commands::mark_read,
+            crate::journal::commands::mark_all_read,
+            crate::journal::commands::clear_journal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
