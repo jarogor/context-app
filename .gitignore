@@ -20,6 +20,10 @@ dev_data
 target
 src-tauri/target
 
+# Генерируемые артефакты WASM-плагинов (сборка: scripts/build-wasm-plugins.sh)
+src-tauri/resources/plugins/*/*.wasm
+src-tauri/resources/plugins/*/plugin-manifest.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

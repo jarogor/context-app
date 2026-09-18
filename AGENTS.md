@@ -68,6 +68,7 @@
 Выполнять из корня проекта:
 
 ```bash
+scripts/build-wasm-plugins.sh        # генерация артефактов плагинов (в git не хранятся)
 cargo test --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
