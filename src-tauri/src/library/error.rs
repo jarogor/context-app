@@ -4,6 +4,7 @@ use std::io;
 use std::path::PathBuf;
 
 use crate::catalog::CatalogError;
+use crate::plugin::PluginError;
 
 /// Ошибка, возникающая при работе с портируемой директорией библиотеки.
 #[derive(Debug)]
@@ -18,6 +19,8 @@ pub enum LibraryError {
     Catalog(CatalogError),
     /// Ошибка наблюдения за файловой системой.
     Watcher(String),
+    /// Ошибка плагинной подсистемы при опросе источника.
+    Plugin(PluginError),
 }
 
 impl From<io::Error> for LibraryError {
@@ -48,6 +51,13 @@ impl From<notify::Error> for LibraryError {
     }
 }
 
+impl From<PluginError> for LibraryError {
+    /// Преобразование ошибки плагинной подсистемы в ошибку библиотеки.
+    fn from(value: PluginError) -> Self {
+        Self::Plugin(value)
+    }
+}
+
 impl std::fmt::Display for LibraryError {
     /// Форматирование ошибки для пользователя.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -59,6 +69,7 @@ impl std::fmt::Display for LibraryError {
             Self::Database(err) => write!(f, "ошибка базы данных: {err}"),
             Self::Catalog(err) => write!(f, "ошибка каталога: {err}"),
             Self::Watcher(err) => write!(f, "ошибка наблюдения за библиотекой: {err}"),
+            Self::Plugin(err) => write!(f, "ошибка плагинной подсистемы: {err}"),
         }
     }
 }
@@ -72,6 +83,7 @@ impl std::error::Error for LibraryError {
             Self::Database(err) => Some(err),
             Self::Catalog(err) => Some(err),
             Self::Watcher(_) => None,
+            Self::Plugin(err) => Some(err),
         }
     }
 }

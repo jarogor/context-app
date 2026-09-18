@@ -1,4 +1,4 @@
-//! Локальный индекс внешней библиотеки Calibre.
+//! Локальный индекс внешнего источника книг.
 
 use std::fs;
 use std::io;
@@ -8,50 +8,55 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::models::{
-    CachedLibrary, IndexedBook, IndexedFile, IndexedFileKind, ScannedBook, ScannedFile,
-    ScannedFileKind,
+    CachedLibrary, ExternalBook, ExternalFile, ExternalFileKind, IndexedBook, IndexedFile,
+    IndexedFileKind,
 };
 
 /// Версия формата локального индекса. При несовпадении индекс пересобирается.
-const INDEX_VERSION: u32 = 3;
+const INDEX_VERSION: u32 = 5;
 /// Имя папки с индексами рядом с исполняемым файлом приложения.
 const INDEX_DIRECTORY: &str = ".booklib";
 
-/// Локальный индекс одной библиотеки Calibre.
+/// Локальный индекс одной внешней библиотеки.
 ///
-/// Хранит версию формата и канонический корневой путь для инвалидации,
-/// а также проиндексированные книги.
+/// Хранит версию формата, канонический корневой путь и имя плагина-источника
+/// для инвалидации, а также проиндексированные книги.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct LibraryIndex {
     /// Версия формата индекса.
     version: u32,
     /// Канонический корневой путь библиотеки.
     root: String,
+    /// Имя плагина-источника, предоставившего книги.
+    source: String,
     /// Проиндексированные книги.
     pub books: Vec<IndexedBook>,
 }
 
 impl LibraryIndex {
-    /// Построение индекса по результатам полного сканирования.
-    pub(crate) fn from_scanned(root: &Path, books: Vec<ScannedBook>) -> Self {
+    /// Построение индекса по книгам внешнего источника.
+    pub(crate) fn from_external(root: &Path, source: String, books: Vec<ExternalBook>) -> Self {
         Self {
             version: INDEX_VERSION,
             root: canonical_string(root),
+            source,
             books: books
                 .into_iter()
-                .map(|book| IndexedBook::from_scanned(root, book))
+                .map(|book| IndexedBook::from_external(root, book))
                 .collect(),
         }
     }
 
-    /// Проверка, что индекс соответствует текущей версии и корню.
+    /// Проверка, что индекс соответствует текущей версии, корню и источнику.
     pub(crate) fn validate_root(&self, root: &Path) -> bool {
-        self.version == INDEX_VERSION && self.root == canonical_string(root)
+        self.version == INDEX_VERSION
+            && self.root == canonical_string(root)
+            && !self.source.is_empty()
     }
 
-    /// Преобразование всех проиндексированных книг в результаты сканирования.
-    pub(crate) fn scanned_books(&self) -> Vec<ScannedBook> {
-        self.books.iter().map(IndexedBook::scanned).collect()
+    /// Преобразование всех проиндексированных книг в книги источника.
+    pub(crate) fn external_books(&self) -> Vec<ExternalBook> {
+        self.books.iter().map(IndexedBook::external).collect()
     }
 
     /// Определение папок из набора кандидатов, содержимое которых реально
@@ -84,44 +89,6 @@ impl LibraryIndex {
         book_changed_on_disk(root, book)
     }
 
-    /// Определение папок книг, содержимое которых изменилось.
-    ///
-    /// Используется только в тестах частичного обновления индекса.
-    #[cfg(test)]
-    pub(crate) fn changed_directories(&self, root: &Path) -> std::collections::HashSet<PathBuf> {
-        self.books
-            .iter()
-            .filter(|book| book_changed_on_disk(root, book))
-            .map(|book| root.join(&book.directory))
-            .collect()
-    }
-
-    /// Замена в индексе только указанных папок книг.
-    ///
-    /// Используется только в тестах частичного обновления индекса.
-    #[cfg(test)]
-    pub(crate) fn replace_directories(
-        &mut self,
-        root: &Path,
-        directories: &std::collections::HashSet<PathBuf>,
-    ) -> io::Result<()> {
-        self.books
-            .retain(|book| !directories.contains(&root.join(&book.directory)));
-        for directory in directories {
-            let Some(author) = directory
-                .parent()
-                .and_then(|parent| parent.file_name())
-                .and_then(|name| name.to_str())
-            else {
-                continue;
-            };
-            if let Some(book) = super::scanner::scan_book_directory(root, author, directory)? {
-                self.books.push(IndexedBook::from_scanned(root, book));
-            }
-        }
-        Ok(())
-    }
-
     /// Загрузка индекса из файла с проверкой версии и корневого пути.
     ///
     /// Возвращает `None`, если файла нет или индекс несовместим. Для записей
@@ -142,10 +109,6 @@ impl LibraryIndex {
                     .first()
                     .and_then(|file| Path::new(&file.path).parent())
                     .map_or_else(String::new, |path| path.to_string_lossy().into_owned());
-            }
-            if book.metadata_modified == 0 {
-                book.metadata_modified =
-                    file_modified(&root.join(&book.directory).join("metadata.opf"));
             }
         }
         if !index.validate_root(root) {
@@ -169,19 +132,18 @@ impl LibraryIndex {
 }
 
 impl IndexedBook {
-    /// Построение записи индекса по результату сканирования.
-    fn from_scanned(root: &Path, book: ScannedBook) -> Self {
+    /// Построение записи индекса по книге внешнего источника.
+    fn from_external(root: &Path, book: ExternalBook) -> Self {
         let files = book
             .files
             .into_iter()
-            .map(|file| IndexedFile::from_scanned(root, file))
+            .map(|file| IndexedFile::from_external(root, file))
             .collect::<Vec<_>>();
         let directory = files
             .first()
             .and_then(|file| Path::new(&file.path).parent())
             .map_or_else(String::new, |path| path.to_string_lossy().into_owned());
         Self {
-            metadata_modified: file_modified(&root.join(&directory).join("metadata.opf")),
             directory,
             title: book.title,
             authors: book.authors,
@@ -191,21 +153,21 @@ impl IndexedBook {
         }
     }
 
-    /// Преобразование записи индекса в результат сканирования.
-    pub(crate) fn scanned(&self) -> ScannedBook {
-        ScannedBook {
+    /// Преобразование записи индекса в книгу внешнего источника.
+    pub(crate) fn external(&self) -> ExternalBook {
+        ExternalBook {
             title: self.title.clone(),
             authors: self.authors.clone(),
             tags: self.tags.clone(),
             series: self.series.clone(),
-            files: self.files.iter().map(IndexedFile::scanned).collect(),
+            files: self.files.iter().map(IndexedFile::external).collect(),
         }
     }
 }
 
 impl IndexedFile {
-    /// Построение записи файла индекса по результату сканирования.
-    fn from_scanned(root: &Path, file: ScannedFile) -> Self {
+    /// Построение записи файла индекса по файлу внешнего источника.
+    fn from_external(root: &Path, file: ExternalFile) -> Self {
         let absolute = root.join(&file.path);
         let metadata = fs::metadata(&absolute).ok();
         let modified = metadata
@@ -215,8 +177,8 @@ impl IndexedFile {
             .map_or(0, |value| value.as_nanos());
         Self {
             kind: match file.kind {
-                ScannedFileKind::Book => IndexedFileKind::Book,
-                ScannedFileKind::Cover => IndexedFileKind::Cover,
+                ExternalFileKind::Book => IndexedFileKind::Book,
+                ExternalFileKind::Cover => IndexedFileKind::Cover,
             },
             path: file.path.to_string_lossy().into_owned(),
             format: file.format,
@@ -225,12 +187,12 @@ impl IndexedFile {
         }
     }
 
-    /// Преобразование записи файла индекса в результат сканирования.
-    fn scanned(&self) -> ScannedFile {
-        ScannedFile {
+    /// Преобразование записи файла индекса в файл внешнего источника.
+    fn external(&self) -> ExternalFile {
+        ExternalFile {
             kind: match self.kind {
-                IndexedFileKind::Book => ScannedFileKind::Book,
-                IndexedFileKind::Cover => ScannedFileKind::Cover,
+                IndexedFileKind::Book => ExternalFileKind::Book,
+                IndexedFileKind::Cover => ExternalFileKind::Cover,
             },
             path: PathBuf::from(&self.path),
             format: self.format.clone(),
@@ -311,14 +273,11 @@ fn canonical_string(path: &Path) -> String {
 
 /// Сравнение текущего состояния папки книги с её последней записью в индексе.
 ///
-/// Сравниваются наличие папки, время изменения `metadata.opf`, размер и время
-/// изменения каждого файла. Чтение файлов (atime) не влияет на результат.
+/// Сравниваются наличие папки, размер и время изменения каждого файла. Чтение
+/// файлов (atime) не влияет на результат.
 fn book_changed_on_disk(root: &Path, book: &IndexedBook) -> bool {
     let directory = root.join(&book.directory);
     if !directory.is_dir() {
-        return true;
-    }
-    if file_modified(&directory.join("metadata.opf")) != book.metadata_modified {
         return true;
     }
     book.files.iter().any(|file| {
@@ -332,15 +291,6 @@ fn book_changed_on_disk(root: &Path, book: &IndexedBook) -> bool {
             .map_or(0, |value| value.as_nanos());
         metadata.len() != file.size || modified != file.modified
     })
-}
-
-/// Время изменения файла в наносекундах; 0, если метаданные недоступны.
-fn file_modified(path: &Path) -> u128 {
-    fs::metadata(path)
-        .ok()
-        .and_then(|value| value.modified().ok())
-        .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
-        .map_or(0, |value| value.as_nanos())
 }
 
 #[cfg(test)]

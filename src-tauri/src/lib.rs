@@ -1,7 +1,6 @@
 #[cfg(test)]
 pub mod test_util;
 
-pub(crate) mod calibre;
 pub mod catalog;
 pub mod commands;
 pub mod config;
@@ -11,9 +10,8 @@ pub mod journal;
 pub mod library;
 pub mod plugin;
 pub mod reading;
+pub(crate) mod sources;
 
-use std::fs;
-use std::path::PathBuf;
 use std::sync::Mutex;
 
 use tauri::Manager;
@@ -21,9 +19,8 @@ use tauri::Manager;
 use crate::catalog::open_catalog;
 use crate::config::AppConfig;
 use crate::constants::DEMO_PLUGIN_DIR;
-use crate::journal::Severity;
+use crate::journal::{get_journal_handle, Severity};
 use crate::library::Library;
-use crate::plugin::PluginRuntime;
 
 /// Точка входа Tauri-приложения: конфигурация, библиотека и плагины.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -42,18 +39,20 @@ pub fn run() {
                 Library::open(&library_root)?
             };
             open_catalog(library.connection_mut())?;
-            let mut runtime = if !library.is_indexing() {
-                seed_demo_plugin(&library)?;
-                PluginRuntime::load(library.plugins_dir_abs().as_path())?
-            } else {
-                PluginRuntime::empty()
-            };
-            for name in runtime.plugin_names() {
+            for name in library.runtime().plugin_names() {
                 let handle = crate::journal::get_journal_handle();
                 handle.add_technical("plugin loaded", name, serde_json::json!({}));
             }
-            if runtime.plugin_names().iter().any(|n| n == DEMO_PLUGIN_DIR) {
-                match runtime.invoke(DEMO_PLUGIN_DIR, r#"{"title":"BookLib"}"#) {
+            if library
+                .runtime()
+                .plugin_names()
+                .iter()
+                .any(|n| n == DEMO_PLUGIN_DIR)
+            {
+                match library
+                    .runtime_mut()
+                    .invoke(DEMO_PLUGIN_DIR, r#"{"title":"BookLib"}"#)
+                {
                     Ok(output) => {
                         let handle = crate::journal::get_journal_handle();
                         handle.add_user(
@@ -75,7 +74,6 @@ pub fn run() {
             }
 
             app.manage(Mutex::new(library));
-            app.manage(Mutex::new(runtime));
 
             let app_clone = app.handle().clone();
             tauri::async_runtime::spawn_blocking(move || {
@@ -85,14 +83,18 @@ pub fn run() {
                 }
                 let _ = app_clone.emit("library-progress", "scanning");
                 let prepared = Library::prepare_selected(&library_root);
-                if let Ok((is_calibre, connection, index)) = prepared {
+                if let Ok((is_external, connection, index, source)) = prepared {
                     if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
                         current.set_stage("indexing");
                     }
                     let _ = app_clone.emit("library-progress", "indexing");
                     if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
-                        let result = if is_calibre {
-                            current.promote_calibre(connection, index.expect("Calibre index"))
+                        let result = if is_external {
+                            current.promote_external(
+                                connection,
+                                index.expect("индекс внешней библиотеки"),
+                                source.expect("имя источника"),
+                            )
                         } else {
                             current.install_portable(connection);
                             Ok(())
@@ -100,8 +102,30 @@ pub fn run() {
                         if result.is_ok() {
                             let _ = app_clone.emit("library-progress", "ready");
                             let _ = app_clone.emit("library-catalog-changed", ());
+                        } else if let Err(error) = result {
+                            let handle = get_journal_handle();
+                            handle.add_technical(
+                                "open library error",
+                                library_root.display().to_string(),
+                                serde_json::json!({ "error": error.to_string() }),
+                            );
+                            if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                                current.set_stage("error");
+                            }
+                            let _ = app_clone.emit("library-open-error", error.to_string());
                         }
                     }
+                } else if let Err(error) = prepared {
+                    let handle = get_journal_handle();
+                    handle.add_technical(
+                        "open library error",
+                        library_root.display().to_string(),
+                        serde_json::json!({ "error": error.to_string() }),
+                    );
+                    if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                        current.set_stage("error");
+                    }
+                    let _ = app_clone.emit("library-open-error", error.to_string());
                 }
             });
 
@@ -124,25 +148,4 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-/// Копирование demo-плагина из ресурсов приложения в библиотеку
-/// при первом старте.
-fn seed_demo_plugin(library: &Library) -> Result<(), Box<dyn std::error::Error>> {
-    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join("plugins")
-        .join(DEMO_PLUGIN_DIR);
-    let destination = library.plugins_dir_abs().join(DEMO_PLUGIN_DIR);
-    if destination.exists() {
-        return Ok(());
-    }
-    fs::create_dir_all(&destination)?;
-    for file in ["plugin-manifest.json", "demo_plugin.wasm"] {
-        let file_path = source.join(file);
-        if file_path.exists() {
-            fs::copy(&file_path, destination.join(file))?;
-        }
-    }
-    Ok(())
 }

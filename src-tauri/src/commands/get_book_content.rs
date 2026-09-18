@@ -6,7 +6,7 @@ use tauri::State;
 
 use crate::catalog::{repository, FileKind};
 use crate::commands::BookContent;
-use crate::library::Library;
+use crate::library::{Library, LibraryMode};
 use crate::reading;
 
 /// Получение текстового содержимого книги для read-view.
@@ -16,9 +16,10 @@ pub fn get_book_content(
     book_id: i64,
 ) -> Result<BookContent, String> {
     let library = state.lock().map_err(|e| e.to_string())?;
-    if library.mode() == crate::library::LibraryMode::CalibreVirtual {
+    if library.mode() == LibraryMode::External {
         return Err(
-            "Для Calibre-библиотеки используйте открытие во внешнем приложении".to_string(),
+            "Внешняя библиотека доступна только для чтения, используйте открытие во внешнем приложении"
+                .to_string(),
         );
     }
     let Some(book) =

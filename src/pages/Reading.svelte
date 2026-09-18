@@ -16,7 +16,7 @@
   let { bookId, onNavigate }: Props = $props();
 
   let content: BookContent | null = $state(null);
-  let calibreBook: { title: string; authors: { name: string }[] } | null = $state(null);
+  let externalBook: { title: string; authors: { name: string }[] } | null = $state(null);
   let libraryKind: string = $state('portable');
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
@@ -38,14 +38,12 @@
     try {
       const info = (await invoke('get_library_info')) as { kind: string };
       libraryKind = info.kind;
-      if (libraryKind === 'calibre') {
-        const books = (await invoke('list_books')) as Array<{
-          id: number;
-          title: string;
-          authors: { name: string }[];
-        }>;
-        calibreBook = books.find((book) => book.id === bookId) ?? null;
-        if (!calibreBook) {
+      if (libraryKind === 'external') {
+        const books = await (invoke('list_books') as Promise<
+          Array<{ id: number; title: string; authors: { name: string }[] }>
+        >);
+        externalBook = books.find((book) => book.id === bookId) ?? null;
+        if (!externalBook) {
           throw new Error('Книга не найдена');
         }
       } else {
@@ -73,10 +71,10 @@
         ← Список книг
       </button>
     </div>
-  {:else if libraryKind === 'calibre' && calibreBook}
+  {:else if libraryKind === 'external' && externalBook}
     <header>
-      <h1>{calibreBook.title}</h1>
-      <p class="authors">{calibreBook.authors.map((author) => author.name).join(', ')}</p>
+      <h1>{externalBook.title}</h1>
+      <p class="authors">{externalBook.authors.map((author) => author.name).join(', ')}</p>
     </header>
     <button class="open-btn" onclick={openInSystem} disabled={opening}>
       {opening ? 'Открытие...' : 'Открыть в системе'}

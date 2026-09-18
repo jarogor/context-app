@@ -17,7 +17,8 @@ cp target/wasm32-unknown-unknown/release/demo_plugin.wasm "$OUT_DIR/demo_plugin.
 
 cat > "$OUT_DIR/plugin-manifest.json" <<'JSON'
 {
-  "contract_version": 1,
+  "contract_version": 2,
+  "kind": "extension",
   "name": "demo-plugin",
   "description": "Демонстрационный плагин: приветствие при старте приложения через host-функцию log",
   "module": "demo_plugin.wasm",

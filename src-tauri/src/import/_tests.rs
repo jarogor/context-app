@@ -125,8 +125,8 @@ fn import_copies_file_with_book_id_prefix_and_no_overwrite_on_conflict() {
 }
 
 #[test]
-fn import_is_rejected_for_calibre_library() {
-    let root = test_util::test_root("import-calibre-read-only");
+fn import_is_rejected_for_external_library() {
+    let root = test_util::test_root("import-external-read-only");
     test_util::cleanup(&root);
     let book = root.join("Автор").join("Книга (1)");
     fs::create_dir_all(&book).expect("создание папки книги");
@@ -135,7 +135,28 @@ fn import_is_rejected_for_calibre_library() {
     let source = root.join("source.epub");
     fs::write(&source, "source").expect("запись источника");
 
-    let mut library = Library::open(&root).expect("открытие Calibre-библиотеки");
+    let index = crate::sources::index::LibraryIndex::from_external(
+        &root,
+        "library".to_string(),
+        vec![crate::sources::models::ExternalBook {
+            title: "Книга".to_string(),
+            authors: vec!["Автор".to_string()],
+            tags: Vec::new(),
+            series: Vec::new(),
+            files: vec![crate::sources::models::ExternalFile {
+                kind: crate::sources::models::ExternalFileKind::Book,
+                path: std::path::PathBuf::from("Автор/Книга (1)/book.epub"),
+                format: "epub".to_string(),
+            }],
+        }],
+    );
+    let connection =
+        crate::sources::catalog::build_catalog_from_index(&index).expect("каталог источника");
+    let mut library = Library::open_for_selection(&root).expect("открытие внешней библиотеки");
+    library
+        .promote_external(connection, index, "library".to_string())
+        .expect("публикация внешней библиотеки");
+
     let result = import_book(&mut library, &source);
 
     assert!(matches!(result, Err(ImportError::ReadOnly)));

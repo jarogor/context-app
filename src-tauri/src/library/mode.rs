@@ -5,8 +5,8 @@
 pub enum LibraryMode {
     /// Собственная портируемая библиотека с файловой SQLite-базой.
     Portable,
-    /// Внешняя Calibre-библиотека с виртуальным каталогом в памяти.
-    CalibreVirtual,
+    /// Внешняя библиотека, читаемая source-плагином через виртуальный каталог.
+    External,
 }
 
 impl LibraryMode {
@@ -14,7 +14,7 @@ impl LibraryMode {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Portable => "portable",
-            Self::CalibreVirtual => "calibre",
+            Self::External => "external",
         }
     }
 }

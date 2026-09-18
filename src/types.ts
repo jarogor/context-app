@@ -48,7 +48,8 @@ export interface Book {
 
 /** Режим открытой библиотеки. */
 export interface LibraryInfo {
-    kind: 'portable' | 'calibre';
+    kind: 'portable' | 'external';
+    source_name: string | null;
     indexing: boolean;
     stage: 'opening' | 'scanning' | 'indexing' | 'ready' | 'error';
 }

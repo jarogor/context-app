@@ -8,10 +8,11 @@ pub mod plugin_manifest;
 pub mod runtime;
 
 pub use contract::{
-    CONTRACT_VERSION, EXPORT_FUNCTION, HOST_FUNCTIONS, HOST_LOG_FUNCTION, MANIFEST_FILE_NAME,
+    CONTRACT_VERSION, EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_TEXT, HOST_FUNCTIONS,
+    HOST_LOG_FUNCTION, MANIFEST_FILE_NAME,
 };
 pub use error::PluginError;
 pub use host_sink::HostSink;
 pub use loaded_plugin::LoadedPlugin;
-pub use plugin_manifest::PluginManifest;
+pub use plugin_manifest::{PluginKind, PluginManifest};
 pub use runtime::PluginRuntime;

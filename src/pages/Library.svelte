@@ -23,6 +23,7 @@
   let importError: string | null = $state(null);
   let searchQuery: string = $state('');
   let libraryKind: LibraryInfo['kind'] = $state('portable');
+  let sourceName: string | null = $state(null);
   let openingLibrary: boolean = $state(false);
   let indexingLibrary: boolean = $state(false);
   let progressText: string = $state('');
@@ -81,6 +82,7 @@
     try {
       const info = (await invoke('get_library_info')) as LibraryInfo;
       libraryKind = info.kind;
+      sourceName = info.source_name;
       indexingLibrary = info.indexing;
       progressText = stageLabel(info.stage);
     } catch (e) {
@@ -180,6 +182,7 @@
   onMount(() => {
     let unlisten: (() => void) | undefined;
     let unlistenProgress: (() => void) | undefined;
+    let unlistenError: (() => void) | undefined;
     void (async () => {
       unlisten = await listen('library-catalog-changed', () => {
         openingLibrary = false;
@@ -195,6 +198,12 @@
             ? 'Создание индекса...'
             : '';
       });
+      unlistenError = await listen<string>('library-open-error', (event) => {
+        openingLibrary = false;
+        indexingLibrary = false;
+        progressText = '';
+        importError = event.payload;
+      });
       await loadLibraryInfo();
       await loadCachedLibraries();
       if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {
@@ -209,14 +218,20 @@
     return () => {
       unlisten?.();
       unlistenProgress?.();
+      unlistenError?.();
     };
   });
 </script>
 
 <div class="library">
    <div class="header">
-     <h1>Библиотека</h1>
-     <div class="header-actions">
+<h1>Библиотека</h1>
+      {#if libraryKind === 'external' && sourceName}
+        <span class="source-badge" title="Внешний источник">
+          {sourceName}
+        </span>
+      {/if}
+      <div class="header-actions">
        <button
          class="open-library-button"
          type="button"
@@ -278,7 +293,9 @@
     <p class="state error">{error}</p>
   {:else if books.length === 0}
     <p class="state empty-state">
-      Библиотека пуста. Добавьте EPUB-файлы в папку библиотеки.
+      {libraryKind === 'external'
+        ? 'Источник не содержит книг, найденных сканером.'
+        : 'Библиотека пуста. Добавьте EPUB-файлы в папку библиотеки.'}
     </p>
   {:else if indexingLibrary}
     <p class="state">{progressText || 'Загрузка библиотеки...'}</p>
@@ -349,6 +366,15 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .source-badge {
+    padding: 4px 10px;
+    border: 1px solid #7f8c8d;
+    border-radius: 999px;
+    background: #ecf0f1;
+    color: #566573;
+    font-size: 12px;
+    font-weight: bold;
   }
   .open-library-button {
     padding: 8px 14px;

@@ -1,33 +1,17 @@
-//! Модели данных модуля Calibre.
+//! Модели данных внешнего источника книг.
 //!
 //! Содержит только структуры и перечисления без поведенческой логики.
-//! Разбор OPF, сканирование и работа с индексом живут в соседних модулях,
-//! а конвертации между представлениями индекса и сканера — в `index`.
+//! Разбор источников выполняется source-плагинами, работа с индексом живёт
+//! в соседних модулях, а конвертации между представлениями индекса и
+//! источника — в `index`.
 
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-/// Разобранные метаданные файла `metadata.opf`.
-#[derive(Debug, Default)]
-pub(crate) struct Metadata {
-    /// Название книги.
-    pub title: Option<String>,
-    /// Авторы в порядке объявления.
-    pub authors: Vec<String>,
-    /// Теги (subject).
-    pub tags: Vec<String>,
-    /// Язык книги.
-    pub language: Option<String>,
-    /// Имя файла обложки, объявленное в OPF.
-    pub cover: Option<String>,
-    /// Серия и порядковый номер книги внутри серии.
-    pub series: Option<(String, i64)>,
-}
-
-/// Книга, обнаруженная при сканировании директории Calibre.
-#[derive(Debug, Clone)]
-pub(crate) struct ScannedBook {
+/// Книга внешнего источника, возвращённая source-плагином.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ExternalBook {
     /// Название книги.
     pub title: String,
     /// Авторы книги.
@@ -37,23 +21,24 @@ pub(crate) struct ScannedBook {
     /// Серии книги с порядковыми номерами.
     pub series: Vec<(String, i64)>,
     /// Файлы книги: содержимое и обложка.
-    pub files: Vec<ScannedFile>,
+    pub files: Vec<ExternalFile>,
 }
 
-/// Файл, обнаруженный при сканировании папки книги.
-#[derive(Debug, Clone)]
-pub(crate) struct ScannedFile {
+/// Файл книги внешнего источника.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ExternalFile {
     /// Назначение файла: содержимое или обложка.
-    pub kind: ScannedFileKind,
+    pub kind: ExternalFileKind,
     /// Путь к файлу относительно корня библиотеки.
     pub path: PathBuf,
     /// Расширение файла в нижнем регистре.
     pub format: String,
 }
 
-/// Назначение файла в папке книги Calibre.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum ScannedFileKind {
+/// Назначение файла в папке книги внешнего источника.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ExternalFileKind {
     /// Файл содержимого книги.
     Book,
     /// Файл обложки.
@@ -66,9 +51,6 @@ pub(crate) struct IndexedBook {
     /// Путь к папке книги относительно корня библиотеки.
     #[serde(default)]
     pub directory: String,
-    /// Время изменения `metadata.opf` в наносекундах (0 — неизвестно).
-    #[serde(default)]
-    pub metadata_modified: u128,
     /// Название книги.
     pub title: String,
     /// Авторы книги.

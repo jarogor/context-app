@@ -9,20 +9,23 @@ use crate::library::Library;
 
 #[derive(Serialize)]
 pub struct LibraryInfo {
-    /// Тип открытой библиотеки: `portable` или `calibre`.
+    /// Тип открытой библиотеки: `portable` или `external`.
     pub kind: String,
+    /// Имя плагина-источника для внешней библиотеки.
+    pub source_name: Option<String>,
     /// Признак выполняющейся фоновой индексации.
     pub indexing: bool,
     /// Текущий этап загрузки библиотеки.
     pub stage: String,
 }
 
-/// Получение типа текущей библиотеки для UI.
+/// Получение режима текущей библиотеки для UI.
 #[tauri::command]
 pub fn get_library_info(state: State<'_, Mutex<Library>>) -> Result<LibraryInfo, String> {
     let library = state.lock().map_err(|e| e.to_string())?;
     Ok(LibraryInfo {
         kind: library.mode().as_str().to_string(),
+        source_name: library.source_name().map(str::to_string),
         indexing: library.is_indexing(),
         stage: library.stage().to_string(),
     })
