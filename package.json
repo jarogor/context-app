@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "tauri": "tauri",
-    "build": "vite build",
+    "build": "npm run build:plugins && vite build",
+    "build:plugins": "bash ./scripts/build-wasm-plugins.sh",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",

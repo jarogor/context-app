@@ -39,7 +39,7 @@ pub async fn open_library(
         }
         let _ = app.emit("library-progress", "scanning");
         let result = Library::prepare_selected(root, background_plugins_dir);
-        if let Ok((is_external, connection, index, source)) = result {
+        if let Ok((is_external, connection, source)) = result {
             if let Ok(mut current) = app.state::<Mutex<Library>>().lock() {
                 current.set_stage("indexing");
             }
@@ -47,11 +47,7 @@ pub async fn open_library(
             if let Ok(mut current) = app.state::<Mutex<Library>>().lock() {
                 if current.root() == root {
                     let installed = if is_external {
-                        current.promote_external(
-                            connection,
-                            index.expect("индекс внешней библиотеки"),
-                            source.expect("имя источника"),
-                        )
+                        current.promote_external(connection, source.expect("имя источника"))
                     } else {
                         current.install_portable(connection);
                         Ok(())

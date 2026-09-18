@@ -4,7 +4,8 @@
 //! host-функции приложения и экспортируемую функцию `invoke` по контракту.
 
 use crate::fs::Fs;
-use crate::models::ExternalBook;
+use crate::lifecycle;
+use crate::models::{ExternalBook, SourceCapabilities, SourceCatalog, SOURCE_PROTOCOL_VERSION};
 use crate::scanner;
 use extism_pdk::{host_fn, plugin_fn, FnResult};
 use serde::Deserialize;
@@ -15,6 +16,16 @@ use serde_json::json;
 extern "ExtismHost" {
     /// Перечисление имён записей директории относительно корня библиотеки.
     fn fs_list_dir(path: String) -> String;
+    /// Чтение бинарного файла в base64.
+    fn fs_read_bytes(path: String) -> String;
+    /// Открытие файла системным приложением.
+    fn open_file(path: String) -> String;
+    /// Чтение служебного состояния source-плагина.
+    fn state_read(key: String) -> String;
+    /// Запись служебного состояния source-плагина.
+    fn state_write(key: String, value: String) -> String;
+    /// Удаление служебного состояния source-плагина.
+    fn state_delete(key: String) -> String;
 }
 
 /// Реализация `Fs` поверх host-функций приложения.
@@ -25,16 +36,59 @@ impl Fs for HostFs {
         let payload = unsafe { fs_list_dir(path.to_string()).map_err(|error| error.to_string())? };
         serde_json::from_str(&payload).map_err(|error| error.to_string())
     }
+
+    fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
+        let payload =
+            unsafe { fs_read_bytes(path.to_string()).map_err(|error| error.to_string())? };
+        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, payload)
+            .map_err(|error| error.to_string())
+    }
+
+    fn open_file(&self, path: &str) -> Result<(), String> {
+        unsafe { open_file(path.to_string()) }
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
+        let value = unsafe { state_read(key.to_string()).map_err(|error| error.to_string())? };
+        if value.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(value))
+        }
+    }
+
+    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
+        unsafe { state_write(key.to_string(), value.to_string()) }
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    fn state_delete(&self, key: &str) -> Result<(), String> {
+        unsafe { state_delete(key.to_string()) }
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
 }
 
 /// Запрос от приложения по контракту.
 #[derive(Deserialize)]
 struct Request {
-    /// Действие плагина: `probe`, `scan` или `scan_book`.
+    /// Действие плагина source lifecycle.
     action: String,
-    /// Относительный путь папки книги для действия `scan_book`.
+    /// Данные операции.
     #[serde(default)]
-    path: String,
+    payload: serde_json::Value,
+}
+
+/// Ответ операции открытия source-сессии.
+#[derive(serde::Serialize)]
+struct OpenResponse {
+    /// Идентификатор source-сессии.
+    session_id: String,
+    /// Согласованный snapshot каталога.
+    catalog: SourceCatalog,
 }
 
 /// Точка расширения: диспетчеризация действий плагина.
@@ -43,17 +97,80 @@ pub fn invoke(input: String) -> FnResult<String> {
     let request: Request = serde_json::from_str(&input)?;
     let fs = HostFs;
     let payload = match request.action.as_str() {
+        "capabilities" => serde_json::to_string(&SourceCapabilities {
+            protocol_version: SOURCE_PROTOCOL_VERSION,
+            state_storage: true,
+            incremental_sync: true,
+        })?,
         "probe" => serde_json::to_string(&json!({
             "supported": scanner::probe(&fs).map_err(extism_pdk::Error::msg)?
         }))?,
-        "scan" => {
+        "open" => {
             let books: Vec<ExternalBook> = scanner::scan(&fs).map_err(extism_pdk::Error::msg)?;
+            serde_json::to_string(&OpenResponse {
+                session_id: "library".to_string(),
+                catalog: lifecycle::open(&fs, books).map_err(extism_pdk::Error::msg)?,
+            })?
+        }
+        "catalog" | "list" => {
+            let catalog = lifecycle::catalog().unwrap_or(SourceCatalog {
+                protocol_version: SOURCE_PROTOCOL_VERSION,
+                revision: 0,
+                books: Vec::new(),
+            });
+            serde_json::to_string(&json!({ "catalog": catalog }))?
+        }
+        "search" => {
+            let payload = lifecycle::catalog().unwrap_or(SourceCatalog {
+                protocol_version: SOURCE_PROTOCOL_VERSION,
+                revision: 0,
+                books: Vec::new(),
+            });
+            let query = request
+                .payload
+                .get("query")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            let books = payload
+                .books
+                .into_iter()
+                .filter(|book| {
+                    book.title.to_ascii_lowercase().contains(&query)
+                        || book
+                            .authors
+                            .iter()
+                            .any(|author| author.to_ascii_lowercase().contains(&query))
+                })
+                .collect::<Vec<_>>();
             serde_json::to_string(&json!({ "books": books }))?
         }
-        "scan_book" => {
-            let book =
-                scanner::scan_book_path(&fs, &request.path).map_err(extism_pdk::Error::msg)?;
-            serde_json::to_string(&json!({ "book": book }))?
+        "read" => {
+            let path = book_path(&fs, &request.payload, false)?;
+            let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
+            let text = String::from_utf8_lossy(&bytes).into_owned();
+            serde_json::to_string(&json!({ "text": text, "title": path, "authors": [] }))?
+        }
+        "cover" => {
+            let path = book_path(&fs, &request.payload, true)?;
+            let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
+            let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+            let format = std::path::Path::new(&path)
+                .extension()
+                .and_then(|value| value.to_str())
+                .unwrap_or("jpg");
+            serde_json::to_string(&json!({ "data": encoded, "format": format }))?
+        }
+        "open_external" => {
+            let path = book_path(&fs, &request.payload, false)?;
+            fs.open_file(&path).map_err(extism_pdk::Error::msg)?;
+            serde_json::to_string(&json!({ "opened": true }))?
+        }
+        "sync" => {
+            let books: Vec<ExternalBook> = scanner::scan(&fs).map_err(extism_pdk::Error::msg)?;
+            serde_json::to_string(&json!({
+                "catalog": lifecycle::sync(&fs, books).map_err(extism_pdk::Error::msg)?
+            }))?
         }
         other => {
             return Err(
@@ -62,4 +179,34 @@ pub fn invoke(input: String) -> FnResult<String> {
         }
     };
     Ok(payload)
+}
+
+/// Получение пути файла книги из opaque идентификатора или явного пути.
+fn book_path(
+    _fs: &impl crate::fs::Fs,
+    payload: &serde_json::Value,
+    cover: bool,
+) -> Result<String, extism_pdk::Error> {
+    if let Some(path) = payload.get("path").and_then(|value| value.as_str()) {
+        return Ok(path.to_string());
+    }
+    let id = payload
+        .get("book_id")
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| extism_pdk::Error::msg("не указан идентификатор книги"))?;
+    let catalog =
+        lifecycle::catalog().ok_or_else(|| extism_pdk::Error::msg("каталог не открыт"))?;
+    let book = catalog
+        .books
+        .iter()
+        .find(|book| book.id == id)
+        .ok_or_else(|| extism_pdk::Error::msg("книга не найдена"))?;
+    book.files
+        .iter()
+        .find(|file| {
+            (cover && matches!(file.kind, crate::models::ExternalFileKind::Cover))
+                || (!cover && matches!(file.kind, crate::models::ExternalFileKind::Book))
+        })
+        .map(|file| file.path.clone())
+        .ok_or_else(|| extism_pdk::Error::msg("файл книги не найден"))
 }

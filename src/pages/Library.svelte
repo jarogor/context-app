@@ -6,7 +6,7 @@
   import type { Book, BookFile, CachedLibrary, LibraryInfo } from '../types';
 
   interface Props {
-    onNavigate: (page: string, bookId?: number) => void;
+    onNavigate: (page: string, bookId?: number | string) => void;
     books: Book[];
     onBooksChange: (books: Book[]) => void;
     unreadNotifications: number;
@@ -130,7 +130,7 @@
     await load();
   }
 
-  async function openInSystem(bookId: number) {
+  async function openInSystem(bookId: number | string) {
     importError = null;
     try {
       await invoke('open_book_in_system', { bookId });
@@ -139,7 +139,7 @@
     }
   }
 
-  function openBook(bookId: number) {
+  function openBook(bookId: number | string) {
     onNavigate('reading', bookId);
   }
 

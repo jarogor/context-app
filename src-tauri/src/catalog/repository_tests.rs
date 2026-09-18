@@ -11,7 +11,6 @@ fn temp_db(name: &str) -> PathBuf {
 
 fn new_book_fixture() -> NewBook {
     NewBook {
-        stable_id: None,
         title: "Война и мир".to_string(),
         authors: vec!["Лев Толстой".to_string()],
         series: vec![("Большая проза".to_string(), 1)],
@@ -71,7 +70,6 @@ fn save_reuses_existing_author_series_tag() {
 
     save_book(&mut connection, new_book_fixture()).expect("сохранение первой книги");
     let second = NewBook {
-        stable_id: None,
         title: "Анна Каренина".to_string(),
         authors: vec!["Лев Толстой".to_string()],
         series: vec![("Большая проза".to_string(), 2)],
@@ -102,7 +100,6 @@ fn list_books_returns_all_books_with_relations() {
     save_book(
         &mut connection,
         NewBook {
-            stable_id: None,
             title: "Преступление и наказание".to_string(),
             authors: vec!["Фёдор Достоевский".to_string()],
             series: vec![],
@@ -141,7 +138,6 @@ fn search_books_matches_title_and_author_case_insensitively() {
     save_book(
         &mut connection,
         NewBook {
-            stable_id: None,
             title: "Анна Каренина".to_string(),
             authors: vec!["Фёдор Достоевский".to_string()],
             series: vec![],

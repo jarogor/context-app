@@ -6,6 +6,7 @@ pub mod host_sink;
 pub mod loaded_plugin;
 pub mod plugin_manifest;
 pub mod runtime;
+pub(crate) mod source_protocol;
 
 pub use contract::{
     CONTRACT_VERSION, EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_TEXT, HOST_FUNCTIONS,

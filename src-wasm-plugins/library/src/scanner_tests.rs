@@ -10,7 +10,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::scan;
 use crate::fs::Fs;
-use crate::models::ExternalFileKind;
+use crate::lifecycle;
+use crate::models::{ExternalBook, ExternalFileKind};
 
 /// Счётчик для уникальных имён временных папок каждого теста.
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
@@ -23,6 +24,11 @@ fn test_root() -> PathBuf {
 
 /// Локальное чтение временной папки с той же семантикой, что host-функции.
 struct NativeFs {
+    root: PathBuf,
+}
+
+/// Тестовая файловая система с отказом записи состояния.
+struct FailingStateFs {
     root: PathBuf,
 }
 
@@ -39,6 +45,73 @@ impl Fs for NativeFs {
         }
         names.sort();
         Ok(names)
+    }
+
+    fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
+        fs::read(
+            self.root
+                .join(path.replace('/', std::path::MAIN_SEPARATOR_STR)),
+        )
+        .map_err(|error| error.to_string())
+    }
+
+    fn open_file(&self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
+        let path = self.root.join(".state").join(key);
+        match fs::read_to_string(path) {
+            Ok(value) => Ok(Some(value)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
+    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
+        let directory = self.root.join(".state");
+        fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+        fs::write(directory.join(key), value).map_err(|error| error.to_string())
+    }
+
+    fn state_delete(&self, key: &str) -> Result<(), String> {
+        match fs::remove_file(self.root.join(".state").join(key)) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+}
+
+impl Fs for FailingStateFs {
+    fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
+        NativeFs {
+            root: self.root.clone(),
+        }
+        .list_dir(path)
+    }
+
+    fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
+        NativeFs {
+            root: self.root.clone(),
+        }
+        .read_bytes(path)
+    }
+
+    fn open_file(&self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn state_read(&self, _key: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+
+    fn state_write(&self, _key: &str, _value: &str) -> Result<(), String> {
+        Err("storage недоступен".to_string())
+    }
+
+    fn state_delete(&self, _key: &str) -> Result<(), String> {
+        Ok(())
     }
 }
 
@@ -157,9 +230,71 @@ fn scan_book_path_extracts_author_from_relative_path() {
     fs::write(book.join("book.epub"), "epub").expect("запись книги");
     let fs = NativeFs { root };
 
-    let scanned = super::scan_book_path(&fs, "Автор/Название (7)").expect("сканирование книги");
-
-    let scanned = scanned.expect("книга найдена");
+    let scanned = super::scan(&fs)
+        .expect("сканирование библиотеки")
+        .into_iter()
+        .find(|book| book.id == "Автор/Название (7)")
+        .expect("книга найдена");
     assert_eq!(scanned.title, "Название (7)");
     assert_eq!(scanned.authors, ["Автор"]);
+}
+
+/// Состояние каталога восстанавливается после повторного открытия.
+#[test]
+fn lifecycle_restores_saved_catalog() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("создание корня");
+    let native = NativeFs { root: root.clone() };
+    let book = ExternalBook {
+        id: "Автор/Книга".to_string(),
+        title: "Книга".to_string(),
+        authors: vec!["Автор".to_string()],
+        tags: Vec::new(),
+        series: Vec::new(),
+        files: Vec::new(),
+    };
+
+    let first = lifecycle::open(&native, vec![book.clone()]).expect("открытие");
+    let restored = lifecycle::open(&native, vec![book.clone()]).expect("восстановление");
+
+    assert_eq!(first.books, restored.books);
+    assert_eq!(restored.books, vec![book]);
+}
+
+/// Повреждённое состояние удаляется и заменяется новым каталогом.
+#[test]
+fn lifecycle_rebuilds_corrupted_state() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join(".state")).expect("создание storage");
+    fs::write(root.join(".state/library-state.json"), "broken").expect("повреждённое состояние");
+    let native = NativeFs { root };
+
+    let catalog = lifecycle::open(&native, Vec::new()).expect("перестроение");
+
+    assert!(catalog.books.is_empty());
+    assert_eq!(catalog.revision, 1);
+}
+
+/// Ошибка storage не заменяет последний согласованный каталог.
+#[test]
+fn lifecycle_keeps_last_catalog_when_storage_write_fails() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("создание корня");
+    let native = NativeFs { root: root.clone() };
+    let book = ExternalBook {
+        id: "Автор/Книга".to_string(),
+        title: "Книга".to_string(),
+        authors: vec!["Автор".to_string()],
+        tags: Vec::new(),
+        series: Vec::new(),
+        files: Vec::new(),
+    };
+    let previous = lifecycle::open(&native, vec![book.clone()]).expect("первое состояние");
+    let failing = FailingStateFs { root };
+
+    assert!(lifecycle::sync(&failing, vec![book]).is_err());
+    assert_eq!(lifecycle::catalog().expect("последний каталог"), previous);
 }

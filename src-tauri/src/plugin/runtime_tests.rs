@@ -18,9 +18,9 @@ const WAT_WITHOUT_INVOKE: &str = r#"
         i32.const 0))
   "#;
 
-/// Манифест плагина-расширения под контракт v2.
+/// Манифест плагина-расширения под контракт v3.
 const MANIFEST_JSON: &str = r#"{
-    "contract_version": 2,
+    "contract_version": 1,
     "name": "test-plugin",
     "description": "Тестовый плагин",
     "module": "plugin.wasm",
@@ -28,9 +28,9 @@ const MANIFEST_JSON: &str = r#"{
     "host_functions": ["log"]
   }"#;
 
-/// Манифест source-плагина под контракт v2.
+/// Манифест source-плагина под контракт v3.
 const MANIFEST_SOURCE_JSON: &str = r#"{
-    "contract_version": 2,
+    "contract_version": 1,
     "kind": "source",
     "name": "test-source",
     "description": "Тестовый source-плагин",
@@ -138,6 +138,20 @@ fn source_plugins_appear_in_source_names() {
 }
 
 #[test]
+fn rejects_legacy_source_lifecycle_response() {
+    let dir = setup_plugins_root(
+        "legacy-source",
+        &compile_wat(WAT_WITH_INVOKE),
+        MANIFEST_SOURCE_JSON,
+    );
+    let root = dir.clone();
+    let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    let result = runtime.source_capabilities("test-source");
+    assert!(result.is_err(), "legacy WAT без JSON отклонён");
+    cleanup(&root);
+}
+
+#[test]
 fn sandbox_resolves_paths_inside_root() {
     let root = test_util::test_root("plugin-sandbox-inside");
     cleanup(&root);
@@ -177,6 +191,21 @@ fn sandbox_rejects_paths_outside_root() {
     let missing = resolve_sandboxed(&sandbox_root, "no-such-dir");
     assert!(missing.is_err(), "отсутствующий путь отклоняется");
     cleanup(&parent);
+}
+
+#[test]
+fn storage_accepts_only_single_file_keys() {
+    let root = test_util::test_root("plugin-storage-root");
+    cleanup(&root);
+    fs::create_dir_all(&root).expect("создание storage");
+    let storage = Arc::new(Mutex::new(Some(root.clone())));
+
+    assert!(resolve_storage_key(&storage, "state.json").is_ok());
+    assert!(resolve_storage_key(&storage, "nested/state.json").is_err());
+    assert!(resolve_storage_key(&storage, "../state.json").is_err());
+    assert!(resolve_storage_key(&storage, "/tmp/state.json").is_err());
+
+    cleanup(&root);
 }
 
 #[test]

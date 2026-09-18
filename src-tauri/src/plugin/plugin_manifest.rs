@@ -50,6 +50,12 @@ pub struct PluginManifest {
     pub export: String,
     /// Имена host-функций, которые плагин может вызывать.
     pub host_functions: Vec<String>,
+    /// Возможности, предоставляемые плагином.
+    #[serde(default)]
+    pub provides: Vec<String>,
+    /// Возможности, требуемые плагином.
+    #[serde(default)]
+    pub requires: Vec<String>,
 }
 
 impl PluginManifest {
@@ -95,8 +101,24 @@ impl PluginManifest {
                 reason: "имя экспортируемой функции не указано".to_string(),
             });
         }
+        for capability in self.provides.iter().chain(self.requires.iter()) {
+            if !is_valid_capability(capability) {
+                return Err(PluginError::InvalidManifest {
+                    dir: dir.to_path_buf(),
+                    reason: format!("некорректная capability: {capability}"),
+                });
+            }
+        }
         Ok(())
     }
+}
+
+/// Проверка имени capability в формате `имя@версия`.
+fn is_valid_capability(value: &str) -> bool {
+    let Some((name, version)) = value.rsplit_once('@') else {
+        return false;
+    };
+    !name.trim().is_empty() && version.parse::<u32>().is_ok()
 }
 
 #[cfg(test)]

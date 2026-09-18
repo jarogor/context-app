@@ -15,7 +15,7 @@ fn write_manifest(content: &str) -> PathBuf {
 fn parses_valid_manifest() {
     let path = write_manifest(
         r#"{
-        "contract_version": 2,
+        "contract_version": 1,
         "name": "demo",
         "description": "Демонстрационный плагин",
         "module": "demo.wasm",
@@ -49,7 +49,7 @@ fn parses_valid_manifest() {
 fn parses_source_kind_manifest() {
     let path = write_manifest(
         r#"{
-        "contract_version": 2,
+        "contract_version": 1,
         "kind": "source",
         "name": "library-source",
         "description": "Поставщик библиотеки",
@@ -74,7 +74,7 @@ fn parses_source_kind_manifest() {
 fn unknown_kind_is_rejected() {
     let path = write_manifest(
         r#"{
-        "contract_version": 2,
+        "contract_version": 1,
         "kind": "obscure",
         "name": "plugin",
         "description": "x",
@@ -120,10 +120,34 @@ fn unknown_contract_version_is_rejected() {
 }
 
 #[test]
+fn parses_plugin_capabilities() {
+    let path = write_manifest(
+        r#"{
+        "contract_version": 1,
+        "name": "rating",
+        "description": "Рейтинг",
+        "module": "rating.wasm",
+        "export": "invoke",
+        "host_functions": [],
+        "provides": ["rating@1"],
+        "requires": ["library.catalog@1"]
+      }"#,
+    );
+
+    let manifest = PluginManifest::load(&path).expect("парсинг capabilities");
+    assert_eq!(manifest.provides, ["rating@1"]);
+    assert_eq!(manifest.requires, ["library.catalog@1"]);
+    manifest
+        .validate(path.parent().expect("директория"))
+        .expect("capabilities валидны");
+    fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
+}
+
+#[test]
 fn missing_fields_are_rejected() {
     let path = write_manifest(
         r#"{
-        "contract_version": 2,
+        "contract_version": 1,
         "name": "plugin"
       }"#,
     );

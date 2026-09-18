@@ -10,6 +10,10 @@ pub struct LoadedPlugin {
     pub name: String,
     /// Тип плагина: расширение или поставщик источника.
     pub kind: PluginKind,
+    /// Возможности, предоставляемые плагином.
+    pub provides: Vec<String>,
+    /// Возможности, требуемые плагином.
+    pub requires: Vec<String>,
     /// Имя экспортируемой функции.
     pub function: String,
     /// Инстанс плагина в Extism runtime.

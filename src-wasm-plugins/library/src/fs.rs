@@ -10,4 +10,19 @@ pub(crate) trait Fs {
     ///
     /// Для не-директории (файла) внутри песочницы возвращается пустой список.
     fn list_dir(&self, path: &str) -> Result<Vec<String>, String>;
+
+    /// Чтение бинарного файла относительно корня.
+    fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String>;
+
+    /// Открытие файла системным приложением.
+    fn open_file(&self, path: &str) -> Result<(), String>;
+
+    /// Чтение служебного состояния по ключу.
+    fn state_read(&self, key: &str) -> Result<Option<String>, String>;
+
+    /// Атомарная запись служебного состояния по ключу.
+    fn state_write(&self, key: &str, value: &str) -> Result<(), String>;
+
+    /// Удаление служебного состояния по ключу.
+    fn state_delete(&self, key: &str) -> Result<(), String>;
 }

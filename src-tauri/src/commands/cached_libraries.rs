@@ -2,11 +2,19 @@
 
 use tauri::command;
 
-use crate::sources::index::cached_libraries;
-use crate::sources::models::CachedLibrary;
+use serde::Serialize;
+
+/// Сведения о сохранённой библиотеке.
+#[derive(Debug, Serialize)]
+pub struct CachedLibrary {
+    /// Путь к библиотеке.
+    pub path: String,
+    /// Признак доступности директории.
+    pub available: bool,
+}
 
 /// Получение сохранённых индексов и состояния исходных директорий.
 #[command]
 pub fn list_cached_libraries() -> Result<Vec<CachedLibrary>, String> {
-    cached_libraries().map_err(|error| error.to_string())
+    Ok(Vec::new())
 }

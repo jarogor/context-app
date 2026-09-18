@@ -13,10 +13,13 @@ use std::sync::{Arc, Mutex};
 use extism::{Manifest, PluginBuilder, UserData, ValType, Wasm};
 
 use crate::plugin::contract::{
-    EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_TEXT, HOST_LOG_FUNCTION, MANIFEST_FILE_NAME,
+    EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT, HOST_LOG_FUNCTION,
+    HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE, MANIFEST_FILE_NAME,
+};
+use crate::plugin::source_protocol::{
+    SourceCapabilities, SourceOpenResponse, SourceProbeResponse, SOURCE_PROTOCOL_VERSION,
 };
 use crate::plugin::{HostSink, LoadedPlugin, PluginError, PluginKind, PluginManifest};
-use crate::sources::models::ExternalBook;
 
 /// Плагинная подсистема приложения.
 pub struct PluginRuntime {
@@ -26,6 +29,8 @@ pub struct PluginRuntime {
     sink: HostSink,
     /// Песочный корень для host-функций файловой системы.
     sandbox_root: Arc<Mutex<PathBuf>>,
+    /// Корень служебного хранилища source-плагина.
+    storage_root: Arc<Mutex<Option<PathBuf>>>,
 }
 
 /// Состояние host-функций runtime: приёмник сообщений и песочный корень.
@@ -36,6 +41,8 @@ pub struct PluginRuntime {
 struct HostState {
     /// Песочный корень библиотеки, за пределы которого чтение запрещено.
     sandbox_root: Arc<Mutex<PathBuf>>,
+    /// Корень служебного хранилища source-плагина.
+    storage_root: Arc<Mutex<Option<PathBuf>>>,
     /// Приёмник сообщений плагинов.
     sink: HostSink,
 }
@@ -47,6 +54,7 @@ impl PluginRuntime {
             plugins: Vec::new(),
             sink: HostSink::new(),
             sandbox_root: Arc::new(Mutex::new(PathBuf::from("."))),
+            storage_root: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -64,6 +72,7 @@ impl PluginRuntime {
         sandbox_root: impl Into<PathBuf>,
     ) -> Result<Self, PluginError> {
         let sandbox_root = Arc::new(Mutex::new(sandbox_root.into()));
+        let storage_root = Arc::new(Mutex::new(None));
         let sink = HostSink::new();
         let mut plugins = Vec::new();
         let mut seen = std::collections::HashSet::new();
@@ -77,7 +86,7 @@ impl PluginRuntime {
                     continue;
                 }
                 let dir = entry.path();
-                match Self::load_plugin_dir(&dir, &sink, &sandbox_root) {
+                match Self::load_plugin_dir(&dir, &sink, &sandbox_root, &storage_root) {
                     Ok(plugin) => {
                         // При загрузке из двух мест (plugins/ и ресурсы) один и тот
                         // же плагин не должен загружаться повторно.
@@ -89,17 +98,24 @@ impl PluginRuntime {
                 }
             }
         }
+        Self::resolve_dependencies(&mut plugins)?;
         Ok(Self {
             plugins,
             sink,
             sandbox_root,
+            storage_root,
         })
     }
 
     /// Создание host-состояния для регистрации host-функций.
-    fn host_state(sandbox_root: &Arc<Mutex<PathBuf>>, sink: &HostSink) -> HostState {
+    fn host_state(
+        sandbox_root: &Arc<Mutex<PathBuf>>,
+        storage_root: &Arc<Mutex<Option<PathBuf>>>,
+        sink: &HostSink,
+    ) -> HostState {
         HostState {
             sandbox_root: Arc::clone(sandbox_root),
+            storage_root: Arc::clone(storage_root),
             sink: sink.clone(),
         }
     }
@@ -109,6 +125,7 @@ impl PluginRuntime {
         dir: &Path,
         sink: &HostSink,
         sandbox_root: &Arc<Mutex<PathBuf>>,
+        storage_root: &Arc<Mutex<Option<PathBuf>>>,
     ) -> Result<LoadedPlugin, PluginError> {
         let manifest = PluginManifest::load(&dir.join(MANIFEST_FILE_NAME)).map_err(|e| {
             PluginError::InvalidManifest {
@@ -138,7 +155,7 @@ impl PluginRuntime {
 
         let extism_manifest = Manifest::new([Wasm::file(&wasm_path)]).disallow_all_hosts();
 
-        let host_state = Self::host_state(sandbox_root, sink);
+        let host_state = Self::host_state(sandbox_root, storage_root, sink);
         let plugin = PluginBuilder::new(extism_manifest)
             .with_wasi(false)
             .with_function(
@@ -159,8 +176,43 @@ impl PluginRuntime {
                 HOST_FS_READ_TEXT,
                 [ValType::I64],
                 [ValType::I64],
-                UserData::new(host_state),
+                UserData::new(host_state.clone()),
                 host_fs_read_text,
+            )
+            .with_function(
+                HOST_FS_READ_BYTES,
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_fs_read_bytes,
+            )
+            .with_function(
+                HOST_OPEN_FILE,
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_open_file,
+            )
+            .with_function(
+                HOST_STATE_READ,
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_state_read,
+            )
+            .with_function(
+                HOST_STATE_WRITE,
+                [ValType::I64, ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_state_write,
+            )
+            .with_function(
+                HOST_STATE_DELETE,
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state),
+                host_state_delete,
             )
             .build()
             .map_err(|e| PluginError::Build {
@@ -178,9 +230,64 @@ impl PluginRuntime {
         Ok(LoadedPlugin {
             name: manifest.name,
             kind: manifest.kind,
+            provides: manifest.provides,
+            requires: manifest.requires,
             function: manifest.export,
             plugin,
         })
+    }
+
+    /// Проверка и топологическая сортировка зависимостей плагинов.
+    fn resolve_dependencies(plugins: &mut Vec<LoadedPlugin>) -> Result<(), PluginError> {
+        let mut provided_by = std::collections::HashMap::new();
+        for plugin in plugins.iter() {
+            for capability in &plugin.provides {
+                if let Some(previous) = provided_by.insert(capability.clone(), plugin.name.clone())
+                {
+                    return Err(PluginError::Call {
+                        plugin: plugin.name.clone(),
+                        message: format!("capability {capability} уже предоставляется {previous}"),
+                    });
+                }
+            }
+        }
+        for plugin in plugins.iter() {
+            for capability in &plugin.requires {
+                if !provided_by.contains_key(capability) {
+                    return Err(PluginError::Dependency {
+                        plugin: plugin.name.clone(),
+                        capability: capability.clone(),
+                    });
+                }
+            }
+        }
+        let mut ordered = Vec::with_capacity(plugins.len());
+        let mut remaining = std::mem::take(plugins);
+        while !remaining.is_empty() {
+            let mut progressed = false;
+            let mut index = 0;
+            while index < remaining.len() {
+                let ready = remaining[index].requires.iter().all(|required| {
+                    let Some(provider) = provided_by.get(required) else {
+                        return false;
+                    };
+                    ordered
+                        .iter()
+                        .any(|plugin: &LoadedPlugin| &plugin.name == provider)
+                });
+                if ready {
+                    ordered.push(remaining.remove(index));
+                    progressed = true;
+                } else {
+                    index += 1;
+                }
+            }
+            if !progressed {
+                return Err(PluginError::DependencyCycle(remaining[0].name.clone()));
+            }
+        }
+        *plugins = ordered;
+        Ok(())
     }
 
     /// Установка песочного корня для host-функций файловой системы.
@@ -192,9 +299,37 @@ impl PluginRuntime {
         *current = root;
     }
 
+    /// Установка отдельного корня служебного хранилища source-плагинов.
+    pub fn set_storage_root(&mut self, root: PathBuf) {
+        let mut current = self
+            .storage_root
+            .lock()
+            .expect("не удалось захватить корень storage runtime");
+        *current = Some(root);
+    }
+
     /// Имена загруженных плагинов.
     pub fn plugin_names(&self) -> Vec<String> {
         self.plugins.iter().map(|p| p.name.clone()).collect()
+    }
+
+    /// Вызов плагина, предоставляющего указанную capability.
+    pub(crate) fn invoke_capability(
+        &mut self,
+        capability: &str,
+        operation: &str,
+        payload: serde_json::Value,
+    ) -> Result<String, PluginError> {
+        let provider = self
+            .plugins
+            .iter()
+            .find(|plugin| plugin.provides.iter().any(|value| value == capability))
+            .map(|plugin| plugin.name.clone())
+            .ok_or_else(|| PluginError::Dependency {
+                plugin: "runtime".to_string(),
+                capability: capability.to_string(),
+            })?;
+        self.invoke_source_operation(&provider, operation, payload)
     }
 
     /// Имена загруженных source-плагинов.
@@ -206,6 +341,58 @@ impl PluginRuntime {
             .collect()
     }
 
+    /// Получение возможностей source-плагина по новому lifecycle-протоколу.
+    pub(crate) fn source_capabilities(
+        &mut self,
+        name: &str,
+    ) -> Result<SourceCapabilities, PluginError> {
+        let value = self.invoke_json(name, serde_json::json!({ "action": "capabilities" }))?;
+        let capabilities: SourceCapabilities =
+            serde_json::from_value(value).map_err(|error| PluginError::Call {
+                plugin: name.to_string(),
+                message: format!("некорректные capabilities source-плагина: {error}"),
+            })?;
+        if capabilities.protocol_version != SOURCE_PROTOCOL_VERSION {
+            return Err(PluginError::Call {
+                plugin: name.to_string(),
+                message: format!(
+                    "неподдерживаемая версия source lifecycle: {}",
+                    capabilities.protocol_version
+                ),
+            });
+        }
+        Ok(capabilities)
+    }
+
+    /// Распознавание корня через lifecycle-протокол source-плагина.
+    pub(crate) fn source_probe(&mut self, name: &str) -> Result<bool, PluginError> {
+        let value = self.invoke_json(name, serde_json::json!({ "action": "probe" }))?;
+        let response: SourceProbeResponse =
+            serde_json::from_value(value).map_err(|error| PluginError::Call {
+                plugin: name.to_string(),
+                message: format!("некорректный ответ probe source-плагина: {error}"),
+            })?;
+        Ok(response.supported)
+    }
+
+    /// Открытие source-сессии и получение согласованного каталога.
+    pub(crate) fn source_open(&mut self, name: &str) -> Result<SourceOpenResponse, PluginError> {
+        let value = self.invoke_json(name, serde_json::json!({ "action": "open" }))?;
+        let response: SourceOpenResponse =
+            serde_json::from_value(value).map_err(|error| PluginError::Call {
+                plugin: name.to_string(),
+                message: format!("некорректный ответ open source-плагина: {error}"),
+            })?;
+        response
+            .catalog
+            .validate()
+            .map_err(|message| PluginError::Call {
+                plugin: name.to_string(),
+                message,
+            })?;
+        Ok(response)
+    }
+
     /// Вызов экспортируемой функции загруженного плагина по имени.
     pub fn invoke(&mut self, name: &str, input: &str) -> Result<String, PluginError> {
         self.plugins
@@ -215,66 +402,32 @@ impl PluginRuntime {
             .invoke(input)
     }
 
-    /// Опрос source-плагина о поддержке активного корня.
-    pub(crate) fn probe(&mut self, name: &str) -> Result<bool, PluginError> {
-        let output = self.invoke(name, r#"{"action":"probe"}"#)?;
-        let value: serde_json::Value =
-            serde_json::from_str(&output).map_err(|e| PluginError::Call {
-                plugin: name.to_string(),
-                message: e.to_string(),
-            })?;
-        value
-            .get("supported")
-            .and_then(|value| value.as_bool())
-            .ok_or_else(|| PluginError::Call {
-                plugin: name.to_string(),
-                message: "ответ probe не содержит supported".to_string(),
-            })
-    }
-
-    /// Полное сканирование внешнего источника source-плагином.
-    pub(crate) fn scan(&mut self, name: &str) -> Result<Vec<ExternalBook>, PluginError> {
-        let output = self.invoke(name, r#"{"action":"scan"}"#)?;
-        let value: serde_json::Value =
-            serde_json::from_str(&output).map_err(|e| PluginError::Call {
-                plugin: name.to_string(),
-                message: e.to_string(),
-            })?;
-        let books = value.get("books").ok_or_else(|| PluginError::Call {
-            plugin: name.to_string(),
-            message: "ответ scan не содержит books".to_string(),
-        })?;
-        serde_json::from_value(books.clone()).map_err(|e| PluginError::Call {
-            plugin: name.to_string(),
-            message: format!("некорректные книги источника: {e}"),
-        })
-    }
-
-    /// Частичное пересканирование книги source-плагином.
-    ///
-    /// `path` — путь к папке книги относительно корня библиотеки.
-    pub(crate) fn scan_book(
+    /// Выполнение произвольной операции source-плагина без интерпретации payload ядром.
+    pub(crate) fn invoke_source_operation(
         &mut self,
         name: &str,
-        path: &str,
-    ) -> Result<Option<ExternalBook>, PluginError> {
-        let request = serde_json::json!({ "action": "scan_book", "path": path });
+        operation: &str,
+        payload: serde_json::Value,
+    ) -> Result<String, PluginError> {
+        let mut request = serde_json::Map::new();
+        request.insert(
+            "action".to_string(),
+            serde_json::Value::String(operation.to_string()),
+        );
+        request.insert("payload".to_string(), payload);
+        self.invoke(name, &serde_json::Value::Object(request).to_string())
+    }
+
+    /// Вызов source-плагина с JSON-запросом и разбором JSON-ответа.
+    fn invoke_json(
+        &mut self,
+        name: &str,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value, PluginError> {
         let output = self.invoke(name, &request.to_string())?;
-        let value: serde_json::Value =
-            serde_json::from_str(&output).map_err(|e| PluginError::Call {
-                plugin: name.to_string(),
-                message: e.to_string(),
-            })?;
-        let book = value.get("book").ok_or_else(|| PluginError::Call {
+        serde_json::from_str(&output).map_err(|error| PluginError::Call {
             plugin: name.to_string(),
-            message: "ответ scan_book не содержит book".to_string(),
-        })?;
-        if book.is_null() {
-            return Ok(None);
-        }
-        serde_json::from_value(book.clone()).map_err(|e| PluginError::Call {
-            plugin: name.to_string(),
-            message: format!("некорректная книга источника: {e}"),
+            message: format!("некорректный JSON-ответ: {error}"),
         })
     }
 
@@ -365,6 +518,143 @@ fn host_fs_read_text(
     plugin
         .memory_set_val(&mut returns[0], &text)
         .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция чтения бинарного файла с возвратом base64.
+fn host_fs_read_bytes(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let relative: String = plugin.memory_get_val(&args[0])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let path = resolve_sandboxed(&state.sandbox_root, &relative)
+        .map_err(|_| extism::Error::msg("путь вне песочницы библиотеки"))?;
+    let bytes = fs::read(path).map_err(|_| extism::Error::msg("файл не читается"))?;
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+    plugin
+        .memory_set_val(&mut returns[0], &encoded)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция открытия безопасного относительного пути системным приложением.
+fn host_open_file(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let relative: String = plugin.memory_get_val(&args[0])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let path = resolve_sandboxed(&state.sandbox_root, &relative)
+        .map_err(|_| extism::Error::msg("путь вне песочницы библиотеки"))?;
+    open::that(path).map_err(|_| extism::Error::msg("файл не удалось открыть"))?;
+    plugin
+        .memory_set_val(&mut returns[0], "ok")
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Чтение служебного состояния по безопасному ключу.
+fn host_state_read(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let key: String = plugin.memory_get_val(&args[0])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("служебное хранилище недоступно"))?;
+    let path = resolve_storage_key(&state.storage_root, &key)
+        .map_err(|_| extism::Error::msg("служебное состояние недоступно"))?;
+    let value = fs::read_to_string(path).unwrap_or_default();
+    plugin
+        .memory_set_val(&mut returns[0], &value)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Атомарная запись служебного состояния по безопасному ключу.
+fn host_state_write(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let key: String = plugin.memory_get_val(&args[0])?;
+    let value: String = plugin.memory_get_val(&args[1])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("служебное хранилище недоступно"))?;
+    let path = resolve_storage_key(&state.storage_root, &key)
+        .map_err(|_| extism::Error::msg("служебное состояние недоступно"))?;
+    let root = state
+        .storage_root
+        .lock()
+        .map_err(|_| extism::Error::msg("служебное хранилище недоступно"))?
+        .clone()
+        .ok_or_else(|| extism::Error::msg("служебное хранилище не настроено"))?;
+    fs::create_dir_all(&root).map_err(|err| extism::Error::msg(err.to_string()))?;
+    let temporary = path.with_extension("tmp");
+    fs::write(&temporary, value).map_err(|err| extism::Error::msg(err.to_string()))?;
+    fs::rename(&temporary, &path).map_err(|err| extism::Error::msg(err.to_string()))?;
+    plugin
+        .memory_set_val(&mut returns[0], "ok")
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Удаление служебного состояния по безопасному ключу.
+fn host_state_delete(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let key: String = plugin.memory_get_val(&args[0])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("служебное хранилище недоступно"))?;
+    let path = resolve_storage_key(&state.storage_root, &key)
+        .map_err(|_| extism::Error::msg("служебное состояние недоступно"))?;
+    match fs::remove_file(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(extism::Error::msg(error.to_string())),
+    }
+    plugin
+        .memory_set_val(&mut returns[0], "ok")
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Разрешение ключа storage внутри отдельного корня состояния.
+fn resolve_storage_key(root: &Arc<Mutex<Option<PathBuf>>>, key: &str) -> io::Result<PathBuf> {
+    if key.is_empty()
+        || key == "."
+        || key == ".."
+        || key.contains('/')
+        || key.contains('\\')
+        || Path::new(key).is_absolute()
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "некорректный ключ storage",
+        ));
+    }
+    let root = root
+        .lock()
+        .map_err(|_| io::Error::other("служебное хранилище недоступно"))?
+        .clone()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::PermissionDenied, "storage не настроен"))?;
+    Ok(root.join(key))
 }
 
 /// Разрешение относительного пути внутри песочного корня.

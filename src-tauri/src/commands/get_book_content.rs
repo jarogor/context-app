@@ -13,15 +13,41 @@ use crate::reading;
 #[tauri::command]
 pub fn get_book_content(
     state: State<'_, Mutex<Library>>,
-    book_id: i64,
+    book_id: String,
 ) -> Result<BookContent, String> {
-    let library = state.lock().map_err(|e| e.to_string())?;
+    let mut library = state.lock().map_err(|e| e.to_string())?;
     if library.mode() == LibraryMode::External {
-        return Err(
-            "Внешняя библиотека доступна только для чтения, используйте открытие во внешнем приложении"
+        let response = library
+            .invoke_source_operation("read", serde_json::json!({ "book_id": book_id }))
+            .map_err(|error| error.to_string())?;
+        let value: serde_json::Value =
+            serde_json::from_str(&response).map_err(|error| error.to_string())?;
+        return Ok(BookContent {
+            title: value
+                .get("title")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default()
                 .to_string(),
-        );
+            authors: value
+                .get("authors")
+                .and_then(|value| value.as_array())
+                .map(|values| {
+                    values
+                        .iter()
+                        .filter_map(|value| value.as_str().map(str::to_string))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            text: value
+                .get("text")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default()
+                .to_string(),
+        });
     }
+    let book_id = book_id
+        .parse::<i64>()
+        .map_err(|_| "Некорректный идентификатор книги".to_string())?;
     let Some(book) =
         repository::get_book(library.connection(), book_id).map_err(|e| e.to_string())?
     else {

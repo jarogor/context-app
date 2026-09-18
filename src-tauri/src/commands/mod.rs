@@ -12,6 +12,7 @@ pub mod library_info;
 pub mod list_books;
 pub mod open_book_in_system;
 pub mod open_library;
+pub mod plugin_operation;
 pub mod search_books;
 
 pub use cached_libraries::list_cached_libraries;
@@ -23,6 +24,7 @@ pub use library_info::get_library_info;
 pub use list_books::list_books;
 pub use open_book_in_system::open_book_in_system;
 pub use open_library::open_library;
+pub use plugin_operation::invoke_library_operation;
 pub use search_books::search_books;
 
 // Сгенерированные макросом `#[tauri::command]` служебные макросы
@@ -45,5 +47,7 @@ pub use open_book_in_system::__cmd__open_book_in_system;
 pub use open_book_in_system::__tauri_command_name_open_book_in_system;
 pub use open_library::__cmd__open_library;
 pub use open_library::__tauri_command_name_open_library;
+pub use plugin_operation::__cmd__invoke_library_operation;
+pub use plugin_operation::__tauri_command_name_invoke_library_operation;
 pub use search_books::__cmd__search_books;
 pub use search_books::__tauri_command_name_search_books;

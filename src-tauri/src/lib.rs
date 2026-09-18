@@ -10,7 +10,6 @@ pub mod journal;
 pub mod library;
 pub mod plugin;
 pub mod reading;
-pub(crate) mod sources;
 
 use std::sync::Mutex;
 
@@ -84,18 +83,14 @@ pub fn run() {
                 }
                 let _ = app_clone.emit("library-progress", "scanning");
                 let prepared = Library::prepare_selected(&library_root, bundled_plugins_dir);
-                if let Ok((is_external, connection, index, source)) = prepared {
+                if let Ok((is_external, connection, source)) = prepared {
                     if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
                         current.set_stage("indexing");
                     }
                     let _ = app_clone.emit("library-progress", "indexing");
                     if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
                         let result = if is_external {
-                            current.promote_external(
-                                connection,
-                                index.expect("индекс внешней библиотеки"),
-                                source.expect("имя источника"),
-                            )
+                            current.promote_external(connection, source.expect("имя источника"))
                         } else {
                             current.install_portable(connection);
                             Ok(())
@@ -141,6 +136,7 @@ pub fn run() {
             commands::get_library_info,
             commands::open_book_in_system,
             commands::open_library,
+            commands::invoke_library_operation,
             commands::search_books,
             crate::journal::commands::list_journal,
             crate::journal::commands::mark_read,

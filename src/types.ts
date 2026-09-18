@@ -26,8 +26,8 @@ export interface Tag {
 
 /** Файл книги: содержимое или обложка. */
 export interface BookFile {
-    id: number;
-    book_id: number;
+    id: number | string;
+    book_id: number | string;
     kind: 'book' | 'cover';
     path: string;
     format: string;
@@ -35,7 +35,7 @@ export interface BookFile {
 
 /** Полная модель книги со связями. */
 export interface Book {
-    id: number;
+    id: number | string;
     uuid: string;
     title: string;
     created_at: string;

@@ -3,8 +3,8 @@
   import { invoke } from '@tauri-apps/api/core';
 
   interface Props {
-    bookId: number;
-    onNavigate: (page: string, bookId?: number) => void;
+    bookId: number | string;
+    onNavigate: (page: string, bookId?: number | string) => void;
   }
 
   interface BookContent {
@@ -40,7 +40,7 @@
       libraryKind = info.kind;
       if (libraryKind === 'external') {
         const books = await (invoke('list_books') as Promise<
-          Array<{ id: number; title: string; authors: { name: string }[] }>
+          Array<{ id: number | string; title: string; authors: { name: string }[] }>
         >);
         externalBook = books.find((book) => book.id === bookId) ?? null;
         if (!externalBook) {

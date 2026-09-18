@@ -137,28 +137,8 @@ fn import_is_rejected_for_external_library() {
     let source = root.join("source.epub");
     fs::write(&source, "source").expect("запись источника");
 
-    let index = crate::sources::index::LibraryIndex::from_external(
-        &root,
-        "library".to_string(),
-        vec![crate::sources::models::ExternalBook {
-            title: "Книга".to_string(),
-            authors: vec!["Автор".to_string()],
-            tags: Vec::new(),
-            series: Vec::new(),
-            files: vec![crate::sources::models::ExternalFile {
-                kind: crate::sources::models::ExternalFileKind::Book,
-                path: std::path::PathBuf::from("Автор/Книга (1)/book.epub"),
-                format: "epub".to_string(),
-            }],
-        }],
-    );
-    let connection =
-        crate::sources::catalog::build_catalog_from_index(&index).expect("каталог источника");
-    let mut library = Library::open_for_selection(&root, bundled_plugins_dir())
-        .expect("открытие внешней библиотеки");
-    library
-        .promote_external(connection, index, "library".to_string())
-        .expect("публикация внешней библиотеки");
+    let mut library =
+        Library::open(&root, bundled_plugins_dir()).expect("открытие внешней библиотеки");
 
     let result = import_book(&mut library, &source);
 

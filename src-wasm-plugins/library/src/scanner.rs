@@ -63,18 +63,6 @@ pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
     Ok(books)
 }
 
-/// Сканирование конкретной папки книги по известному пути.
-///
-/// Автор извлекается из первого сегмента относительного пути. Используется при
-/// частичном обновлении индекса после изменения файлов.
-pub(crate) fn scan_book_path(
-    fs: &impl Fs,
-    book_path: &str,
-) -> Result<Option<ExternalBook>, String> {
-    let author = book_path.split('/').next().unwrap_or("").to_string();
-    scan_book(fs, &author, book_path)
-}
-
 /// Сканирование одной папки книги.
 ///
 /// Возвращает `None`, если в папке нет ни одного файла содержимого книги.
@@ -130,6 +118,7 @@ fn scan_book(
         vec![folder_author.to_string()]
     };
     Ok(Some(ExternalBook {
+        id: book_path.to_string(),
         title,
         authors,
         tags: Vec::new(),

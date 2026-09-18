@@ -5,6 +5,7 @@
 //! чтение файловой системы заменяется локальной реализацией `Fs`.
 
 pub(crate) mod fs;
+pub(crate) mod lifecycle;
 pub(crate) mod models;
 pub(crate) mod scanner;
 

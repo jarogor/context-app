@@ -2,7 +2,7 @@
 //!
 //! Модуль отвечает за открытие и валидацию портируемой директории библиотеки,
 //! создание служебных папок и файла SQLite-базы при первом открытии, а также
-//! за внешние библиотеки, читаемые source-плагинами через виртуальный каталог.
+//! за выбор source-плагина для внешних read-only библиотек.
 
 pub mod error;
 mod layout;
@@ -11,24 +11,13 @@ mod mode;
 pub use error::LibraryError;
 pub use mode::LibraryMode;
 
+use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, Mutex as StdMutex,
-};
-
-use notify::{RecursiveMode, Watcher};
-use rusqlite::Connection;
 
 use crate::constants::DATABASE_FILE_NAME;
 use crate::journal::{get_journal_handle, Severity};
 use crate::plugin::PluginRuntime;
-use crate::sources::catalog::{
-    build_catalog_at, build_catalog_from_books, build_catalog_from_index, open_cached_catalog,
-};
-use crate::sources::index::{catalog_path, index_path, LibraryIndex};
-use crate::sources::{self};
 
 use self::layout::Layout;
 
@@ -44,14 +33,6 @@ pub struct Library {
     mode: LibraryMode,
     /// Имя плагина-источника для внешней библиотеки.
     source_name: Option<String>,
-    /// Локальный индекс внешней библиотеки.
-    index: Option<LibraryIndex>,
-    /// Признак наличия изменений файловой системы.
-    dirty: Option<Arc<AtomicBool>>,
-    /// Активный наблюдатель файловой системы внешней библиотеки.
-    _watcher: Option<notify::RecommendedWatcher>,
-    /// Накопленные пути изменённых файлов.
-    changed_paths: Option<Arc<StdMutex<Vec<PathBuf>>>>,
     /// Признак выполняющейся фоновой индексации.
     indexing: bool,
     /// Текущий этап загрузки библиотеки.
@@ -91,10 +72,6 @@ impl Library {
             connection: Connection::open_in_memory()?,
             mode: LibraryMode::Portable,
             source_name: None,
-            index: None,
-            dirty: None,
-            _watcher: None,
-            changed_paths: None,
             indexing: true,
             stage: "opening".to_string(),
             runtime: PluginRuntime::empty(),
@@ -116,26 +93,20 @@ impl Library {
         let root = root.into();
         let layout = Layout::default();
         let mut runtime = Self::load_runtime(&root, &layout, bundled_plugins_dir.clone())?;
-        if let Some(source) = sources::coordinator::probe(&mut runtime, &root)? {
-            let path = index_path(&root);
-            let (connection, index) = match LibraryIndex::load(&path, &root)? {
-                Some(index) => (build_catalog_from_index(&index)?, index),
-                None => {
-                    let scanned = sources::coordinator::scan(&mut runtime, &root, &source)?;
-                    let index = LibraryIndex::from_external(&root, source.clone(), scanned.clone());
-                    index.save_atomic(&path)?;
-                    (build_catalog_from_books(scanned)?, index)
-                }
-            };
+        if let Some(source) = Self::probe_source(&mut runtime, &root)? {
+            runtime.set_sandbox_root(root.clone());
+            let opened = runtime.source_open(&source)?;
+            let connection = Connection::open_in_memory()?;
             let mut library = Self::create_external_state(
-                root,
+                root.clone(),
                 connection,
                 runtime,
                 bundled_plugins_dir.clone(),
             )?;
-            library.index = Some(index);
             library.source_name = Some(source);
-            library.start_watcher()?;
+            if opened.catalog.books.is_empty() {
+                return Self::open(root, bundled_plugins_dir);
+            }
             return Ok(library);
         }
 
@@ -152,10 +123,6 @@ impl Library {
             connection,
             mode: LibraryMode::Portable,
             source_name: None,
-            index: None,
-            dirty: None,
-            _watcher: None,
-            changed_paths: None,
             indexing: false,
             stage: "ready".to_string(),
             runtime,
@@ -170,18 +137,12 @@ impl Library {
         runtime: PluginRuntime,
         bundled_plugins_dir: PathBuf,
     ) -> Result<Self, LibraryError> {
-        let dirty = Arc::new(AtomicBool::new(false));
-        let changed_paths = Arc::new(StdMutex::new(Vec::new()));
         Ok(Self {
             root,
             layout: Layout::default(),
             connection,
             mode: LibraryMode::External,
             source_name: None,
-            index: None,
-            dirty: Some(dirty),
-            _watcher: None,
-            changed_paths: Some(changed_paths),
             indexing: false,
             stage: "ready".to_string(),
             runtime,
@@ -200,74 +161,48 @@ impl Library {
     ) -> Result<PluginRuntime, LibraryError> {
         let mut directories = vec![root.join(layout.plugins)];
         directories.push(bundled_plugins_dir);
-        Ok(PluginRuntime::load(&directories, root)?)
+        let mut runtime = PluginRuntime::load(&directories, root)?;
+        let storage_root = root.with_extension("source-state");
+        runtime.set_storage_root(storage_root);
+        Ok(runtime)
     }
 
-    /// Запуск наблюдения за файловой системой внешней библиотеки.
-    fn start_watcher(&mut self) -> Result<(), LibraryError> {
-        let started = std::time::Instant::now();
-        let Some(dirty) = self.dirty.as_ref() else {
-            return Ok(());
-        };
-        let Some(changed_paths) = self.changed_paths.as_ref() else {
-            return Ok(());
-        };
-        let callback_dirty = Arc::clone(dirty);
-        let callback_paths = Arc::clone(changed_paths);
-        let mut watcher = notify::recommended_watcher(
-            move |result: notify::Result<notify::Event>| match result {
-                Ok(event) => {
-                    if let Ok(mut paths) = callback_paths.lock() {
-                        paths.extend(event.paths);
-                    }
-                    callback_dirty.store(true, Ordering::Release);
-                }
-                Err(_) => {
-                    callback_dirty.store(true, Ordering::Release);
-                }
-            },
-        )?;
-        watcher.watch(&self.root, RecursiveMode::Recursive)?;
-        std::thread::sleep(std::time::Duration::from_millis(25));
-        if let Ok(mut paths) = changed_paths.lock() {
-            paths.clear();
+    /// Выбор source-плагина, подтвердившего корень библиотеки.
+    fn probe_source(
+        runtime: &mut PluginRuntime,
+        root: &Path,
+    ) -> Result<Option<String>, LibraryError> {
+        if !root.exists() {
+            return Ok(None);
         }
-        dirty.store(false, Ordering::Release);
-        self._watcher = Some(watcher);
-        eprintln!(
-            "[library] watcher ready in {:?}: {}",
-            started.elapsed(),
-            self.root.display()
-        );
-        let handle = get_journal_handle();
-        handle.add_technical(
-            "watcher ready",
-            self.root.display().to_string(),
-            serde_json::json!({ "duration_ms": started.elapsed().as_millis() }),
-        );
-        Ok(())
+        runtime.set_sandbox_root(root.to_path_buf());
+        for name in runtime.source_names() {
+            runtime.source_capabilities(&name)?;
+            if runtime.source_probe(&name)? {
+                return Ok(Some(name));
+            }
+        }
+        Ok(None)
     }
 
     /// Публикация готового каталога внешнего источника после фоновой индексации.
     pub(crate) fn promote_external(
         &mut self,
         connection: Connection,
-        index: LibraryIndex,
         source_name: String,
     ) -> Result<(), LibraryError> {
-        let dirty = Arc::new(AtomicBool::new(false));
-        let changed_paths = Arc::new(StdMutex::new(Vec::new()));
         self.runtime =
             Self::load_runtime(&self.root, &self.layout, self.bundled_plugins_dir.clone())?;
+        self.runtime.set_sandbox_root(self.root.clone());
+        self.runtime.source_open(&source_name)?;
         self.mode = LibraryMode::External;
         self.source_name = Some(source_name);
-        self.dirty = Some(dirty);
-        self.changed_paths = Some(changed_paths);
         self.connection = connection;
-        self.index = Some(index);
         self.indexing = false;
         self.stage = "ready".to_string();
-        self.start_watcher()
+        // Внешний источник синхронизируется своим плагином. Ядро не следит
+        // за его файлами и не поддерживает второй индекс состояния.
+        Ok(())
     }
 
     /// Публикация готовой портируемой библиотеки.
@@ -279,10 +214,6 @@ impl Library {
         self.mode = LibraryMode::Portable;
         self.source_name = None;
         self.connection = connection;
-        self.index = None;
-        self.dirty = None;
-        self._watcher = None;
-        self.changed_paths = None;
         self.indexing = false;
         self.stage = "ready".to_string();
     }
@@ -317,187 +248,45 @@ impl Library {
     pub(crate) fn prepare_selected(
         root: &Path,
         bundled_plugins_dir: PathBuf,
-    ) -> Result<(bool, Connection, Option<LibraryIndex>, Option<String>), LibraryError> {
+    ) -> Result<(bool, Connection, Option<String>), LibraryError> {
         let started = std::time::Instant::now();
-        let index_file = index_path(root);
-        let catalog_file = catalog_path(root);
         let mut runtime = Self::load_runtime(root, &Layout::default(), bundled_plugins_dir)?;
-        let Some(source) = sources::coordinator::probe(&mut runtime, root)? else {
-            return Ok((false, Self::prepare_portable(root)?, None, None));
+        let Some(source) = Self::probe_source(&mut runtime, root)? else {
+            return Ok((false, Self::prepare_portable(root)?, None));
         };
-        if let Some(index) = LibraryIndex::load(&index_file, root)? {
-            if let Some(connection) = open_cached_catalog(&catalog_file)? {
-                // Библиотека не менялась: индекс переиспользуется без изменений.
-                // Пользовательского уведомления не требуется — только техническая запись.
-                let handle = get_journal_handle();
-                handle.add_technical(
-                    "cached catalog",
-                    root.display().to_string(),
-                    serde_json::json!({ "duration_ms": started.elapsed().as_millis() }),
-                );
-                return Ok((true, connection, Some(index), Some(source)));
-            }
-            // Файл каталога отсутствует, но индекс есть: каталог пересобирается
-            // из индекса без повторного сканирования и без пользовательского
-            // уведомления о создании индекса.
-            let scanned = index.external_books();
-            let book_count = scanned.len();
-            let connection = build_catalog_at(&catalog_file, scanned)?;
-            let handle = get_journal_handle();
-            handle.add_technical(
-                "catalog rebuilt from index",
-                root.display().to_string(),
-                serde_json::json!({ "duration_ms": started.elapsed().as_millis(), "books": book_count }),
-            );
-            return Ok((true, connection, Some(index), Some(source)));
-        }
-
-        let scanned = sources::coordinator::scan(&mut runtime, root, &source)?;
-        let book_count = scanned.len();
+        let opened = runtime.source_open(&source)?;
+        let book_count = opened.catalog.books.len();
         let handle = get_journal_handle();
         handle.add_technical(
             "scan",
             book_count.to_string(),
             serde_json::json!({ "duration_ms": started.elapsed().as_millis(), "books": book_count }),
         );
-        if scanned.is_empty() {
-            return Ok((false, Self::prepare_portable(root)?, None, None));
+        if book_count == 0 {
+            return Ok((false, Self::prepare_portable(root)?, None));
         }
 
-        let index = LibraryIndex::from_external(root, source.clone(), scanned.clone());
-        index.save_atomic(&index_file)?;
-        let connection = build_catalog_at(&catalog_file, scanned)?;
-        handle.add_technical(
-            "index",
-            root.display().to_string(),
-            serde_json::json!({ "duration_ms": started.elapsed().as_millis() }),
-        );
-        // Создание индекса — ровно одно пользовательское событие.
         handle.add_user(
             "Индекс библиотеки создан",
             Severity::Info,
             root.display().to_string(),
             serde_json::json!({ "books": book_count }),
         );
-        Ok((true, connection, Some(index), Some(source)))
-    }
-
-    /// Фоновая загрузка индекса внешнего источника и публикация его в каталоге.
-    pub fn build_external_index(&mut self) -> Result<(), LibraryError> {
-        let Some(source) = self.source_name.clone() else {
-            return Ok(());
-        };
-        let path = index_path(&self.root);
-        let (connection, index) = match LibraryIndex::load(&path, &self.root)? {
-            Some(index) => (build_catalog_from_index(&index)?, index),
-            None => {
-                let scanned = sources::coordinator::scan(&mut self.runtime, &self.root, &source)?;
-                let index = LibraryIndex::from_external(&self.root, source, scanned.clone());
-                index.save_atomic(&path)?;
-                (build_catalog_from_books(scanned)?, index)
-            }
-        };
-        self.connection = connection;
-        self.index = Some(index);
-        Ok(())
+        Ok((true, Connection::open_in_memory()?, Some(source)))
     }
 
     /// Обновление каталога внешнего источника после событий файловой системы.
     pub fn sync_if_needed(&mut self) -> Result<(), LibraryError> {
-        let Some(dirty) = self.dirty.as_ref() else {
-            return Ok(());
-        };
-        if !dirty.swap(false, Ordering::AcqRel) {
+        if self.mode == LibraryMode::External {
+            self.invoke_source_operation("sync", serde_json::json!({}))?;
             return Ok(());
         }
-        let paths = self
-            .changed_paths
-            .as_ref()
-            .and_then(|paths| {
-                paths
-                    .lock()
-                    .ok()
-                    .map(|mut paths| paths.drain(..).collect::<Vec<PathBuf>>())
-            })
-            .unwrap_or_default();
-        let affected = affected_book_directories(&self.root, &paths);
-        // События вне папок книг (метаданные, служебные файлы) не требуют
-        // переиндексации и не должны порождать уведомления.
-        if affected.is_empty() {
-            return Ok(());
-        }
-        let Some(index) = self.index.as_ref() else {
-            return Ok(());
-        };
-        // Переиндексация выполняется только при реальных изменениях содержимого:
-        // чтение файлов и события без изменения данных (например, atime при
-        // старте) не должны приводить к пересборке индекса и к уведомлениям.
-        let changed = index.filter_changed(&self.root, &affected);
-        if changed.is_empty() {
-            return Ok(());
-        }
-        let Some(source) = self.source_name.clone() else {
-            return Ok(());
-        };
-        let mut books = index
-            .books
-            .iter()
-            .filter(|book| !changed.contains(&self.root.join(&book.directory)))
-            .map(|book| book.external())
-            .collect::<Vec<_>>();
-        for directory in &changed {
-            if let Ok(relative) = directory.strip_prefix(&self.root) {
-                let mut book = None;
-                let relative_string = relative.to_string_lossy().into_owned();
-                for attempt in 0..3 {
-                    match sources::coordinator::scan_book(
-                        &mut self.runtime,
-                        &self.root,
-                        &source,
-                        &relative_string,
-                    ) {
-                        Ok(value) => {
-                            book = value;
-                            break;
-                        }
-                        Err(error) if attempt < 2 => {
-                            std::thread::sleep(std::time::Duration::from_millis(50));
-                            if !directory.exists() {
-                                break;
-                            }
-                            let _ = error;
-                        }
-                        Err(error) => return Err(error.into()),
-                    }
-                }
-                if let Some(book) = book {
-                    books.push(book);
-                }
-            }
-        }
-
-        let index = LibraryIndex::from_external(&self.root, source, books.clone());
-        index.save_atomic(&index_path(&self.root))?;
-        self.connection = build_catalog_from_books(books)?;
-        self.index = Some(index);
-
-        // Одно агрегированное уведомление на пакет изменений.
-        let handle = get_journal_handle();
-        handle.add_user(
-            "Индекс библиотеки обновлён",
-            Severity::Info,
-            self.root.display().to_string(),
-            serde_json::json!({ "changed_books": changed.len() }),
-        );
-
         Ok(())
     }
 
     /// Признак наличия необработанных изменений файловой системы.
     pub fn is_dirty(&self) -> bool {
-        self.dirty
-            .as_ref()
-            .is_some_and(|dirty| dirty.load(Ordering::Acquire))
+        false
     }
 
     /// Формат открытого источника книг.
@@ -510,9 +299,36 @@ impl Library {
         self.source_name.as_deref()
     }
 
+    /// Выполнение opaque-операции активного source-плагина.
+    pub(crate) fn invoke_source_operation(
+        &mut self,
+        operation: &str,
+        payload: serde_json::Value,
+    ) -> Result<String, LibraryError> {
+        self.runtime
+            .invoke_capability("library.catalog@1", operation, payload)
+            .map_err(LibraryError::Plugin)
+    }
+
     /// Корневой путь библиотеки.
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Разрешение относительного пути файла внутри активного корня библиотеки.
+    pub fn resolve_file_path(&self, relative: &str) -> Result<PathBuf, LibraryError> {
+        if relative.is_empty()
+            || std::path::Path::new(relative).is_absolute()
+            || relative.contains("..")
+        {
+            return Err(LibraryError::NotADirectory(PathBuf::from(relative)));
+        }
+        let root = self.root.canonicalize()?;
+        let candidate = root.join(relative).canonicalize()?;
+        if !candidate.starts_with(&root) || !candidate.is_file() {
+            return Err(LibraryError::NotADirectory(PathBuf::from(relative)));
+        }
+        Ok(candidate)
     }
 
     /// Относительный путь до папки книг.
@@ -621,37 +437,3 @@ fn seed_bundled_plugins(
     }
     Ok(())
 }
-
-/// Определение папок книг, затронутых изменениями файлов.
-///
-/// Служебные и скрытые каталоги (например, кэш `.booklib`) игнорируются,
-/// чтобы их запись не вызывала переиндексацию.
-fn affected_book_directories(root: &Path, paths: &[PathBuf]) -> std::collections::HashSet<PathBuf> {
-    paths
-        .iter()
-        .filter_map(|path| path.strip_prefix(root).ok())
-        .filter_map(|relative| {
-            let components: Vec<_> = relative.components().collect();
-            if components.len() < 2 {
-                return None;
-            }
-            let hidden = components
-                .iter()
-                .any(|component| match component.as_os_str().to_str() {
-                    Some(name) => name.starts_with('.'),
-                    None => true,
-                });
-            if hidden {
-                return None;
-            }
-            Some(
-                root.join(components[0].as_os_str())
-                    .join(components[1].as_os_str()),
-            )
-        })
-        .collect()
-}
-
-#[cfg(test)]
-#[path = "_tests.rs"]
-mod tests;

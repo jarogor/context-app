@@ -13,7 +13,7 @@
 
   let currentPage: string = $state('library');
   let returnPage: string = $state('library');
-  let currentBookId: number = $state(0);
+  let currentBookId: number | string = $state('');
   let cachedBooks: Book[] = $state([]);
   let notifications: Entry[] = $state([]);
   let technicalVisible: boolean = $state(readTechnicalVisible());
@@ -51,7 +51,7 @@
   });
 
   /** Переход между страницами приложения. */
-  function navigate(page: string, bookId?: number) {
+  function navigate(page: string, bookId?: number | string) {
     if (page === 'notifications') {
       returnPage = currentPage;
     }
