@@ -183,7 +183,7 @@ fn prepare_selected_detects_external_library() {
     fs::write(book.join("cover.jpg"), "cover").expect("запись обложки");
 
     let (is_external, connection, index, source) =
-        Library::prepare_selected(&root).expect("подготовка выбранной директории");
+        Library::prepare_selected(&root, None).expect("подготовка выбранной директории");
 
     assert!(is_external, "директория распознана как внешняя");
     assert_eq!(source.as_deref(), Some("library"));
@@ -209,8 +209,8 @@ fn prepare_selected_reuses_cached_index() {
     fs::create_dir_all(&book).expect("создание папки книги");
     fs::write(book.join("book.epub"), "epub").expect("запись книги");
 
-    let first = Library::prepare_selected(&root).expect("первая подготовка");
-    let second = Library::prepare_selected(&root).expect("вторая подготовка");
+    let first = Library::prepare_selected(&root, None).expect("первая подготовка");
+    let second = Library::prepare_selected(&root, None).expect("вторая подготовка");
 
     assert_eq!(first.0, second.0, "неизменная библиотека осталась внешней");
     assert_eq!(

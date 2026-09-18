@@ -4,6 +4,7 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager, State};
 
+use crate::constants::bundled_plugins_dir_app;
 use crate::journal::get_journal_handle;
 use crate::library::Library;
 
@@ -15,11 +16,14 @@ pub async fn open_library(
     path: String,
 ) -> Result<String, String> {
     let selected_path = path.clone();
-    let selected =
-        tauri::async_runtime::spawn_blocking(move || Library::open_for_selection(selected_path))
-            .await
-            .map_err(|error| error.to_string())?
-            .map_err(|error| error.to_string())?;
+    let bundled_plugins_dir = bundled_plugins_dir_app(Some(&app));
+    let background_plugins_dir = bundled_plugins_dir.clone();
+    let selected = tauri::async_runtime::spawn_blocking(move || {
+        Library::open_for_selection_with_plugins(selected_path, bundled_plugins_dir)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())?;
     {
         let mut current = state.lock().map_err(|error| error.to_string())?;
         *current = selected;
@@ -31,7 +35,7 @@ pub async fn open_library(
             current.set_stage("scanning");
         }
         let _ = app.emit("library-progress", "scanning");
-        let result = Library::prepare_selected(root);
+        let result = Library::prepare_selected(root, background_plugins_dir);
         if let Ok((is_external, connection, index, source)) = result {
             if let Ok(mut current) = app.state::<Mutex<Library>>().lock() {
                 current.set_stage("indexing");

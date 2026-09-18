@@ -21,7 +21,7 @@ use std::sync::{
 use notify::{RecursiveMode, Watcher};
 use rusqlite::Connection;
 
-use crate::constants::{bundled_plugins_dir, DATABASE_FILE_NAME};
+use crate::constants::{bundled_plugins_dir_app, DATABASE_FILE_NAME};
 use crate::journal::{get_journal_handle, Severity};
 use crate::plugin::PluginRuntime;
 use crate::sources::catalog::{
@@ -58,23 +58,36 @@ pub struct Library {
     stage: String,
     /// Плагинная подсистема библиотеки.
     runtime: PluginRuntime,
+    /// Путь к bundled-плагинам приложения.
+    bundled_plugins_dir: Option<PathBuf>,
 }
 
 impl Library {
     /// Быстрое создание состояния перед фоновой индексацией.
     pub fn open_for_selection(root: impl Into<PathBuf>) -> Result<Self, LibraryError> {
+        Self::open_for_selection_with_plugins(root, None)
+    }
+
+    /// Быстрое создание состояния с указанным путём к bundled-плагинам.
+    pub fn open_for_selection_with_plugins(
+        root: impl Into<PathBuf>,
+        bundled_plugins_dir: Option<PathBuf>,
+    ) -> Result<Self, LibraryError> {
         let root = root.into();
         if !root.exists() {
             return Err(LibraryError::NotADirectory(root));
         }
         if root.is_dir() {
-            return Self::create_provisional_state(root);
+            return Self::create_provisional_state(root, bundled_plugins_dir);
         }
-        Self::open(root)
+        Self::open_with_plugins(root, bundled_plugins_dir)
     }
 
     /// Создание временного состояния до завершения фоновой индексации.
-    fn create_provisional_state(root: PathBuf) -> Result<Self, LibraryError> {
+    fn create_provisional_state(
+        root: PathBuf,
+        bundled_plugins_dir: Option<PathBuf>,
+    ) -> Result<Self, LibraryError> {
         let layout = Layout::default();
         Ok(Self {
             root,
@@ -89,6 +102,7 @@ impl Library {
             indexing: true,
             stage: "opening".to_string(),
             runtime: PluginRuntime::empty(),
+            bundled_plugins_dir,
         })
     }
 
@@ -99,9 +113,17 @@ impl Library {
     /// а каталог строится поверх индексного кэша. Портируемая библиотека
     /// создаёт структуру директории и базу данных при первом открытии.
     pub fn open(root: impl Into<PathBuf>) -> Result<Self, LibraryError> {
+        Self::open_with_plugins(root, None)
+    }
+
+    /// Открытие библиотеки с указанным путём к bundled-плагинам.
+    pub fn open_with_plugins(
+        root: impl Into<PathBuf>,
+        bundled_plugins_dir: Option<PathBuf>,
+    ) -> Result<Self, LibraryError> {
         let root = root.into();
         let layout = Layout::default();
-        let mut runtime = Self::load_runtime(&root, &layout)?;
+        let mut runtime = Self::load_runtime(&root, &layout, bundled_plugins_dir.clone())?;
         if let Some(source) = sources::coordinator::probe(&mut runtime, &root)? {
             let path = index_path(&root);
             let (connection, index) = match LibraryIndex::load(&path, &root)? {
@@ -113,7 +135,12 @@ impl Library {
                     (build_catalog_from_books(scanned)?, index)
                 }
             };
-            let mut library = Self::create_external_state(root, connection, runtime)?;
+            let mut library = Self::create_external_state(
+                root,
+                connection,
+                runtime,
+                bundled_plugins_dir.clone(),
+            )?;
             library.index = Some(index);
             library.source_name = Some(source);
             library.start_watcher()?;
@@ -121,10 +148,10 @@ impl Library {
         }
 
         Self::ensure_structure(&root, &layout)?;
-        seed_bundled_plugins(&root, &layout)?;
+        seed_bundled_plugins(&root, &layout, bundled_plugins_dir.clone())?;
         // Перезагрузка плагинов, чтобы поставляемые плагины стали
         // доступны и из собственной папки `plugins/` библиотеки.
-        runtime = Self::load_runtime(&root, &layout)?;
+        runtime = Self::load_runtime(&root, &layout, bundled_plugins_dir.clone())?;
         let database_path = root.join(DATABASE_FILE_NAME);
         let connection = Connection::open(&database_path)?;
         Ok(Self {
@@ -140,6 +167,7 @@ impl Library {
             indexing: false,
             stage: "ready".to_string(),
             runtime,
+            bundled_plugins_dir,
         })
     }
 
@@ -148,6 +176,7 @@ impl Library {
         root: PathBuf,
         connection: Connection,
         runtime: PluginRuntime,
+        bundled_plugins_dir: Option<PathBuf>,
     ) -> Result<Self, LibraryError> {
         let dirty = Arc::new(AtomicBool::new(false));
         let changed_paths = Arc::new(StdMutex::new(Vec::new()));
@@ -164,6 +193,7 @@ impl Library {
             indexing: false,
             stage: "ready".to_string(),
             runtime,
+            bundled_plugins_dir,
         })
     }
 
@@ -171,8 +201,17 @@ impl Library {
     ///
     /// Песочный корень плагинов устанавливается в корень библиотеки, чтобы
     /// source-плагины читали только её файлы.
-    fn load_runtime(root: &Path, layout: &Layout) -> Result<PluginRuntime, LibraryError> {
-        let directories = vec![root.join(layout.plugins), bundled_plugins_dir()];
+    fn load_runtime(
+        root: &Path,
+        layout: &Layout,
+        bundled_plugins_dir: Option<PathBuf>,
+    ) -> Result<PluginRuntime, LibraryError> {
+        let mut directories = vec![root.join(layout.plugins)];
+        directories.push(
+            bundled_plugins_dir
+                .or_else(|| bundled_plugins_dir_app(None))
+                .expect("dev bundled plugins path"),
+        );
         Ok(PluginRuntime::load(&directories, root)?)
     }
 
@@ -230,7 +269,8 @@ impl Library {
     ) -> Result<(), LibraryError> {
         let dirty = Arc::new(AtomicBool::new(false));
         let changed_paths = Arc::new(StdMutex::new(Vec::new()));
-        self.runtime = Self::load_runtime(&self.root, &self.layout)?;
+        self.runtime =
+            Self::load_runtime(&self.root, &self.layout, self.bundled_plugins_dir.clone())?;
         self.mode = LibraryMode::External;
         self.source_name = Some(source_name);
         self.dirty = Some(dirty);
@@ -244,9 +284,10 @@ impl Library {
 
     /// Публикация готовой портируемой библиотеки.
     pub(crate) fn install_portable(&mut self, connection: Connection) {
-        let _ = seed_bundled_plugins(&self.root, &self.layout);
+        let _ = seed_bundled_plugins(&self.root, &self.layout, self.bundled_plugins_dir.clone());
         self.runtime =
-            Self::load_runtime(&self.root, &self.layout).unwrap_or_else(|_| PluginRuntime::empty());
+            Self::load_runtime(&self.root, &self.layout, self.bundled_plugins_dir.clone())
+                .unwrap_or_else(|_| PluginRuntime::empty());
         self.mode = LibraryMode::Portable;
         self.source_name = None;
         self.connection = connection;
@@ -287,11 +328,12 @@ impl Library {
     /// или неподдерживаемая директория открывается как портируемая библиотека.
     pub(crate) fn prepare_selected(
         root: &Path,
+        bundled_plugins_dir: Option<PathBuf>,
     ) -> Result<(bool, Connection, Option<LibraryIndex>, Option<String>), LibraryError> {
         let started = std::time::Instant::now();
         let index_file = index_path(root);
         let catalog_file = catalog_path(root);
-        let mut runtime = Self::load_runtime(root, &Layout::default())?;
+        let mut runtime = Self::load_runtime(root, &Layout::default(), bundled_plugins_dir)?;
         let Some(source) = sources::coordinator::probe(&mut runtime, root)? else {
             return Ok((false, Self::prepare_portable(root)?, None, None));
         };
@@ -562,8 +604,14 @@ impl Library {
 /// Вызывается только для портируемых библиотек: внешняя библиотека доступна
 /// только для чтения, и её плагины загружаются из ресурсов приложения.
 /// Уже существующие папки плагинов не перезаписываются.
-fn seed_bundled_plugins(root: &Path, layout: &Layout) -> Result<(), LibraryError> {
-    let bundled = bundled_plugins_dir();
+fn seed_bundled_plugins(
+    root: &Path,
+    layout: &Layout,
+    bundled_plugins_dir: Option<PathBuf>,
+) -> Result<(), LibraryError> {
+    let Some(bundled) = bundled_plugins_dir.or_else(|| bundled_plugins_dir_app(None)) else {
+        return Ok(());
+    };
     if !bundled.is_dir() {
         return Ok(());
     }

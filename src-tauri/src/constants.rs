@@ -6,6 +6,8 @@
 
 use std::path::PathBuf;
 
+use tauri::Manager;
+
 /// Имя demo-плагина — runtime-имя из манифеста, по которому он вызывается.
 pub const DEMO_PLUGIN_NAME: &str = "demo";
 
@@ -41,4 +43,18 @@ pub fn bundled_plugins_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
         .join("plugins")
+}
+
+/// Разрешение пути к bundled-плагинам: релизный (через resource_dir) или dev (путь из CARGO_MANIFEST_DIR).
+/// В тестах без AppHandle возвращается dev-путь.
+pub(crate) fn bundled_plugins_dir_app(app: Option<&tauri::AppHandle>) -> Option<PathBuf> {
+    if cfg!(debug_assertions) {
+        return Some(bundled_plugins_dir());
+    }
+
+    if let Some(app) = app {
+        Some(app.path().resource_dir().ok()?.join("plugins"))
+    } else {
+        Some(bundled_plugins_dir())
+    }
 }
