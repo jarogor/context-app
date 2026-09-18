@@ -180,28 +180,24 @@ fn sandbox_rejects_paths_outside_root() {
 }
 
 #[test]
-fn loads_and_invokes_bundled_demo_plugin() {
+fn loads_and_invokes_bundled_demo() {
     let root = test_util::test_root("plugin-runtime-demo");
-    let plugin_dir = root.join("demo-plugin");
+    let plugin_dir = root.join("demo");
     fs::create_dir_all(&plugin_dir).expect("создание директории плагина");
     let resources = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
         .join("plugins")
-        .join("demo-plugin");
-    for file in ["plugin-manifest.json", "demo_plugin.wasm"] {
+        .join("demo");
+    for file in ["plugin-manifest.json", "demo.wasm"] {
         fs::copy(resources.join(file), plugin_dir.join(file)).expect("копирование ресурса");
     }
 
     let root_copy = root.clone();
     let mut runtime = PluginRuntime::load(&[root], root_copy.clone()).expect("загрузка runtime");
-    assert_eq!(
-        runtime.plugin_names(),
-        vec!["demo-plugin"],
-        "demo-плагин загружен"
-    );
+    assert_eq!(runtime.plugin_names(), vec!["demo"], "demo-плагин загружен");
 
     let output = runtime
-        .invoke("demo-plugin", r#"{"title":"Тест"}"#)
+        .invoke("demo", r#"{"title":"Тест"}"#)
         .expect("вызов demo-плагина");
     let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON-ответ");
     let greeting = parsed["greeting"].as_str().expect("поле greeting");

@@ -1,9 +1,9 @@
 {
   "contract_version": 2,
   "kind": "extension",
-  "name": "demo-plugin",
+  "name": "demo",
   "description": "Демонстрационный плагин: приветствие при старте приложения через host-функцию log",
-  "module": "demo_plugin.wasm",
+  "module": "demo.wasm",
   "export": "invoke",
   "host_functions": ["log"]
 }

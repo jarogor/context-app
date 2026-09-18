@@ -3,7 +3,7 @@
   "kind": "source",
   "name": "library",
   "description": "Базовый плагин создания/открытия библиотеки: чтение структуры автор/книга через host-функции файловой системы",
-  "module": "library_plugin.wasm",
+  "module": "library.wasm",
   "export": "invoke",
   "host_functions": ["fs_list_dir"]
 }

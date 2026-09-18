@@ -67,7 +67,10 @@ pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
 ///
 /// Автор извлекается из первого сегмента относительного пути. Используется при
 /// частичном обновлении индекса после изменения файлов.
-pub(crate) fn scan_book_path(fs: &impl Fs, book_path: &str) -> Result<Option<ExternalBook>, String> {
+pub(crate) fn scan_book_path(
+    fs: &impl Fs,
+    book_path: &str,
+) -> Result<Option<ExternalBook>, String> {
     let author = book_path.split('/').next().unwrap_or("").to_string();
     scan_book(fs, &author, book_path)
 }
@@ -116,7 +119,11 @@ fn scan_book(
     if let Some(cover) = cover {
         files.push(cover);
     }
-    let title = book_path.rsplit('/').next().unwrap_or(book_path).to_string();
+    let title = book_path
+        .rsplit('/')
+        .next()
+        .unwrap_or(book_path)
+        .to_string();
     let authors = if folder_author.is_empty() {
         Vec::new()
     } else {
@@ -136,9 +143,7 @@ fn is_book_file(name: &String) -> bool {
     Path::new(name)
         .extension()
         .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| {
-            BOOK_FORMATS.contains(&extension.to_ascii_lowercase().as_str())
-        })
+        .is_some_and(|extension| BOOK_FORMATS.contains(&extension.to_ascii_lowercase().as_str()))
 }
 
 /// Объединение сегментов относительного пути через `/`.

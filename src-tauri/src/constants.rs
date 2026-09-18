@@ -6,8 +6,8 @@
 
 use std::path::PathBuf;
 
-/// Имя папки demo-плагина, помещаемой в библиотеку при первом старте.
-pub const DEMO_PLUGIN_DIR: &str = "demo-plugin";
+/// Имя demo-плагина — runtime-имя из манифеста, по которому он вызывается.
+pub const DEMO_PLUGIN_NAME: &str = "demo";
 
 /// Имя папки source-плагина библиотеки, поставляемого с приложением.
 pub const LIBRARY_PLUGIN_DIR: &str = "library";

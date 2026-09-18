@@ -47,19 +47,18 @@ pub fn invoke(input: String) -> FnResult<String> {
             "supported": scanner::probe(&fs).map_err(extism_pdk::Error::msg)?
         }))?,
         "scan" => {
-            let books: Vec<ExternalBook> =
-                scanner::scan(&fs).map_err(extism_pdk::Error::msg)?;
+            let books: Vec<ExternalBook> = scanner::scan(&fs).map_err(extism_pdk::Error::msg)?;
             serde_json::to_string(&json!({ "books": books }))?
         }
         "scan_book" => {
-            let book = scanner::scan_book_path(&fs, &request.path).map_err(extism_pdk::Error::msg)?;
+            let book =
+                scanner::scan_book_path(&fs, &request.path).map_err(extism_pdk::Error::msg)?;
             serde_json::to_string(&json!({ "book": book }))?
         }
         other => {
-            return Err(extism_pdk::Error::msg(format!(
-                "неизвестное действие плагина: {other}"
-            ))
-            .into())
+            return Err(
+                extism_pdk::Error::msg(format!("неизвестное действие плагина: {other}")).into(),
+            )
         }
     };
     Ok(payload)

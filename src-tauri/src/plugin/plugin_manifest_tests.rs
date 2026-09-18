@@ -16,9 +16,9 @@ fn parses_valid_manifest() {
     let path = write_manifest(
         r#"{
         "contract_version": 2,
-        "name": "demo-plugin",
+        "name": "demo",
         "description": "Демонстрационный плагин",
-        "module": "demo_plugin.wasm",
+        "module": "demo.wasm",
         "export": "invoke",
         "host_functions": ["log"]
       }"#,
@@ -30,8 +30,8 @@ fn parses_valid_manifest() {
         super::super::contract::CONTRACT_VERSION
     );
     assert_eq!(manifest.kind, PluginKind::Extension, "kind по умолчанию");
-    assert_eq!(manifest.name, "demo-plugin");
-    assert_eq!(manifest.module, "demo_plugin.wasm");
+    assert_eq!(manifest.name, "demo");
+    assert_eq!(manifest.module, "demo.wasm");
     assert_eq!(manifest.export, super::super::contract::EXPORT_FUNCTION);
     assert_eq!(
         manifest.host_functions,
@@ -53,7 +53,7 @@ fn parses_source_kind_manifest() {
         "kind": "source",
         "name": "library-source",
         "description": "Поставщик библиотеки",
-        "module": "library_plugin.wasm",
+        "module": "library.wasm",
         "export": "invoke",
         "host_functions": ["log", "fs_list_dir", "fs_read_text"]
       }"#,

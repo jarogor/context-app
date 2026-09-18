@@ -18,7 +18,7 @@ use tauri::Manager;
 
 use crate::catalog::open_catalog;
 use crate::config::AppConfig;
-use crate::constants::DEMO_PLUGIN_DIR;
+use crate::constants::DEMO_PLUGIN_NAME;
 use crate::journal::{get_journal_handle, Severity};
 use crate::library::Library;
 
@@ -47,16 +47,16 @@ pub fn run() {
                 .runtime()
                 .plugin_names()
                 .iter()
-                .any(|n| n == DEMO_PLUGIN_DIR)
+                .any(|n| n == DEMO_PLUGIN_NAME)
             {
                 match library
                     .runtime_mut()
-                    .invoke(DEMO_PLUGIN_DIR, r#"{"title":"BookLib"}"#)
+                    .invoke(DEMO_PLUGIN_NAME, r#"{"title":"BookLib"}"#)
                 {
                     Ok(output) => {
                         let handle = crate::journal::get_journal_handle();
                         handle.add_user(
-                            "demo-plugin answered",
+                            "demo answered",
                             Severity::Info,
                             "plugin",
                             serde_json::json!({ "output": output }),
@@ -65,8 +65,8 @@ pub fn run() {
                     Err(err) => {
                         let handle = crate::journal::get_journal_handle();
                         handle.add_technical(
-                            "demo-plugin error",
-                            "demo-plugin",
+                            "demo error",
+                            DEMO_PLUGIN_NAME,
                             serde_json::json!({ "error": err.to_string() }),
                         );
                     }

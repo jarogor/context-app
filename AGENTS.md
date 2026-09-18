@@ -57,9 +57,11 @@
 - Ядро `library/` не знает о конкретных источниках: распознавание корня
   (`probe`), сканирование (`scan`) и починку (`scan_book`) выполняет
   выбранный source-плагин.
-- Базовый плагин создания/открытия библиотеки живёт в
-  `src-tauri/library-plugin/` и поставляется в
-  `src-tauri/resources/plugins/library/`; сборка — `scripts/build-library-plugin.sh`.
+- Исходники WASM-плагинов живут в workspace `src-wasm-plugins/` (один плагин —
+  одна подпапка); сборка всех плагинов — `scripts/build-wasm-plugins.sh`,
+  поставляемые артефакты — в `src-tauri/resources/plugins/`.
+- Базовый плагин создания/открытия библиотеки живёт в `src-wasm-plugins/library/`
+  и поставляется в `src-tauri/resources/plugins/library/`.
 
 ## Проверки перед завершением задачи
 

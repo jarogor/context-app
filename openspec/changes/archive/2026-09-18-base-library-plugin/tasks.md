@@ -32,7 +32,7 @@
 
 - [x] 5.1 `library_info` → `kind: "external"` + `source_name`; блокировки `External` в `import_book`, `get_book_content`; `cached_libraries` из `sources/`; проверить `cargo test`
 - [x] 5.2 Обновить `types.ts`, `Library.svelte`, `Reading.svelte` под режим `external` и имя источника без специализации под формат каталога; убрать упоминания источника из тестов ядра; проверить `npm run check` и `npm run build`
-- [ ] 5.3 Прогнать все проверки проекта: `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`, `npm run check`, `npm run build`, `openspec validate --all`
+- [x] 5.3 Прогнать все проверки проекта: `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`, `npm run check`, `npm run build`, `openspec validate --all`
 
 ## 6. Документация и OpenSpec
 

@@ -18,7 +18,7 @@ static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 /// Создание уникальной временной папки для теста.
 fn test_root() -> PathBuf {
     let seed = NEXT_ROOT.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("library-plugin-{seed}"))
+    std::env::temp_dir().join(format!("library-test-{seed}"))
 }
 
 /// Локальное чтение временной папки с той же семантикой, что host-функции.
@@ -28,7 +28,9 @@ struct NativeFs {
 
 impl Fs for NativeFs {
     fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
-        let dir = self.root.join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
+        let dir = self
+            .root
+            .join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
         let mut names = Vec::new();
         if let Ok(entries) = fs::read_dir(&dir) {
             for entry in entries.flatten() {
@@ -37,11 +39,6 @@ impl Fs for NativeFs {
         }
         names.sort();
         Ok(names)
-    }
-
-    fn read_text(&self, path: &str) -> Result<String, String> {
-        let file = self.root.join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
-        fs::read_to_string(file).map_err(|error| error.to_string())
     }
 }
 
@@ -94,7 +91,7 @@ fn folder_without_book_files_is_skipped() {
     let _ = fs::remove_dir_all(&root);
     let folder = root.join("Автор").join("Без книги");
     fs::create_dir_all(&folder).expect("создание папки");
-    fs::write(folder.join("notes.txt"), "заметки").expect("запись файла");
+    fs::write(folder.join("notes.md"), "заметки").expect("запись файла");
     let fs = NativeFs { root };
 
     let books = scan(&fs).expect("сканирование");
@@ -143,7 +140,7 @@ fn probe_rejects_unrelated_structure() {
     let _ = fs::remove_dir_all(&root);
     let folder = root.join("Папка").join("Вложенная");
     fs::create_dir_all(&folder).expect("создание папки");
-    fs::write(folder.join("notes.txt"), "заметки").expect("запись файла");
+    fs::write(folder.join("notes.md"), "заметки").expect("запись файла");
     fs::write(root.join("books.txt"), "список").expect("запись файла");
     let fs = NativeFs { root };
 
