@@ -4,9 +4,8 @@
 //! настройкой, библиотекой и запуском приложения. Доменные контрактные
 //! константы (схема БД, контракт плагинов) остаются в своих модулях.
 
+#[cfg(test)]
 use std::path::PathBuf;
-
-use tauri::Manager;
 
 /// Имя demo-плагина — runtime-имя из манифеста, по которому он вызывается.
 pub const DEMO_PLUGIN_NAME: &str = "demo";
@@ -35,26 +34,10 @@ pub const COVERS_DIR_NAME: &str = "covers";
 /// Имя папки с плагинами.
 pub const PLUGINS_DIR_NAME: &str = "plugins";
 
-/// Путь к поставляемой папке плагинов приложения.
-///
-/// В разработке это `src-tauri/resources/plugins`; поставляемые плагины
-/// читаются отсюда напрямую, чтобы внешняя библиотека не требовала записи.
-pub fn bundled_plugins_dir() -> PathBuf {
+/// Путь к папке плагинов для нативных тестов.
+#[cfg(test)]
+pub(crate) fn bundled_plugins_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
         .join("plugins")
-}
-
-/// Разрешение пути к bundled-плагинам: релизный (через resource_dir) или dev (путь из CARGO_MANIFEST_DIR).
-/// В тестах без AppHandle возвращается dev-путь.
-pub(crate) fn bundled_plugins_dir_app(app: Option<&tauri::AppHandle>) -> Option<PathBuf> {
-    if cfg!(debug_assertions) {
-        return Some(bundled_plugins_dir());
-    }
-
-    if let Some(app) = app {
-        Some(app.path().resource_dir().ok()?.join("plugins"))
-    } else {
-        Some(bundled_plugins_dir())
-    }
 }

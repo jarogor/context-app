@@ -14,6 +14,20 @@ fn remove_dir_contents(path: &Path) {
     test_util::cleanup(path);
 }
 
+fn prepare_selected(
+    root: &PathBuf,
+) -> Result<(bool, Connection, Option<LibraryIndex>, Option<String>), LibraryError> {
+    Library::prepare_selected(&root, bundled_plugins_dir())
+}
+
+fn open_for_selection(root: &PathBuf) -> Result<Library, LibraryError> {
+    Library::open_for_selection(&root, bundled_plugins_dir())
+}
+
+fn open(root: &PathBuf) -> Result<Library, LibraryError> {
+    Library::open(&root, bundled_plugins_dir())
+}
+
 /// Признак наличия поставляемого source-плагина библиотеки.
 ///
 /// Тесты распознавания внешней библиотеки опираются на реальный плагин из
@@ -52,7 +66,7 @@ fn open_creates_portable_structure() {
     remove_dir_contents(&root);
     fs::create_dir_all(&root).expect("создание корня теста");
 
-    let library = Library::open(&root).expect("открытие библиотеки");
+    let library = open(&root).expect("открытие библиотеки");
 
     assert!(root.join(DATABASE_FILE_NAME).exists(), "файл БД создан");
     assert!(root.join(BOOKS_DIR_NAME).is_dir(), "папка books создана");
@@ -79,7 +93,7 @@ fn open_existing_library_keeps_structure() {
     fs::create_dir_all(root.join("plugins")).expect("создание plugins");
     Connection::open(root.join(DATABASE_FILE_NAME)).expect("создание БД");
 
-    let library = Library::open(&root).expect("открытие существующей библиотеки");
+    let library = open(&root).expect("открытие существующей библиотеки");
     assert!(
         root.join(DATABASE_FILE_NAME).exists(),
         "БД осталась на месте"
@@ -97,7 +111,7 @@ fn open_path_is_a_file_reports_error() {
     let not_a_dir = root.join("plain-file.txt");
     fs::write(&not_a_dir, "not a dir").expect("запись файла");
 
-    let result = Library::open(&not_a_dir);
+    let result = Library::open(&not_a_dir, bundled_plugins_dir());
     assert!(result.is_err(), "путь к файлу не является библиотекой");
 
     remove_dir_contents(&root);
@@ -114,7 +128,7 @@ fn external_state_does_not_write_to_library() {
 
     let index = LibraryIndex::from_external(&root, "library".to_string(), vec![external_book1()]);
     let connection = build_catalog_from_index(&index).expect("каталог внешнего источника");
-    let mut library = Library::open_for_selection(&root).expect("состояние перед индексацией");
+    let mut library = open_for_selection(&root).expect("состояние перед индексацией");
     library
         .promote_external(connection, index, "library".to_string())
         .expect("публикация внешней библиотеки");
@@ -148,7 +162,7 @@ fn open_external_library_without_writing_to_it() {
     fs::write(book.join("book.epub"), "epub").expect("запись книги");
     fs::write(book.join("cover.jpg"), "cover").expect("запись обложки");
 
-    let library = Library::open(&root).expect("открытие внешней библиотеки");
+    let library = open(&root).expect("открытие внешней библиотеки");
 
     assert_eq!(library.mode(), LibraryMode::External);
     assert!(library.source_name().is_some(), "источник определён");
@@ -183,7 +197,7 @@ fn prepare_selected_detects_external_library() {
     fs::write(book.join("cover.jpg"), "cover").expect("запись обложки");
 
     let (is_external, connection, index, source) =
-        Library::prepare_selected(&root, None).expect("подготовка выбранной директории");
+        prepare_selected(&root).expect("подготовка выбранной директории");
 
     assert!(is_external, "директория распознана как внешняя");
     assert_eq!(source.as_deref(), Some("library"));
@@ -209,8 +223,8 @@ fn prepare_selected_reuses_cached_index() {
     fs::create_dir_all(&book).expect("создание папки книги");
     fs::write(book.join("book.epub"), "epub").expect("запись книги");
 
-    let first = Library::prepare_selected(&root, None).expect("первая подготовка");
-    let second = Library::prepare_selected(&root, None).expect("вторая подготовка");
+    let first = prepare_selected(&root).expect("первая подготовка");
+    let second = prepare_selected(&root).expect("вторая подготовка");
 
     assert_eq!(first.0, second.0, "неизменная библиотека осталась внешней");
     assert_eq!(
@@ -267,7 +281,7 @@ fn startup_does_not_fire_index_update_notifications() {
     let index = LibraryIndex::from_external(&root, "library".to_string(), books);
     let connection = build_catalog_from_index(&index).expect("каталог внешнего источника");
     get_journal_handle().clear();
-    let mut library = Library::open_for_selection(&root).expect("проинициализировать состояние");
+    let mut library = open_for_selection(&root).expect("проинициализировать состояние");
     library
         .promote_external(connection, index, "library".to_string())
         .expect("перевод в боевое состояние");
@@ -302,7 +316,7 @@ fn directory_without_external_markers_stays_portable() {
     remove_dir_contents(&root);
     fs::create_dir_all(root.join("Author").join("Book (1)")).expect("создание каталогов");
 
-    let library = Library::open(&root).expect("открытие собственной библиотеки");
+    let library = open(&root).expect("открытие собственной библиотеки");
 
     assert_eq!(library.mode(), LibraryMode::Portable);
     assert!(root.join(DATABASE_FILE_NAME).exists());
@@ -322,14 +336,14 @@ fn reopens_library_from_index_and_updates_renamed_book() {
     fs::create_dir_all(&book).expect("создание папки книги");
     fs::write(book.join("book.epub"), "epub").expect("запись книги");
 
-    let first = Library::open(&root).expect("первое открытие");
+    let first = open(&root).expect("первое открытие");
     let first_books =
         crate::catalog::repository::list_books(first.connection()).expect("первый список");
     assert_eq!(first_books[0].title, "Книга (21)");
     drop(first);
 
     let new_book = root.join("Автор").join("Книга (22)");
-    let mut second = Library::open(&root).expect("повторное открытие");
+    let mut second = open(&root).expect("повторное открытие");
     fs::rename(&book, &new_book).expect("переименование папки книги");
     std::thread::sleep(std::time::Duration::from_millis(100));
     second

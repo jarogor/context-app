@@ -4,7 +4,6 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::constants::bundled_plugins_dir_app;
 use crate::journal::get_journal_handle;
 use crate::library::Library;
 
@@ -16,10 +15,14 @@ pub async fn open_library(
     path: String,
 ) -> Result<String, String> {
     let selected_path = path.clone();
-    let bundled_plugins_dir = bundled_plugins_dir_app(Some(&app));
+    let bundled_plugins_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|error| error.to_string())?
+        .join("plugins");
     let background_plugins_dir = bundled_plugins_dir.clone();
     let selected = tauri::async_runtime::spawn_blocking(move || {
-        Library::open_for_selection_with_plugins(selected_path, bundled_plugins_dir)
+        Library::open_for_selection(selected_path, bundled_plugins_dir)
     })
     .await
     .map_err(|error| error.to_string())?

@@ -1,5 +1,6 @@
 use super::*;
 use crate::catalog::open_catalog_at;
+use crate::constants::bundled_plugins_dir;
 use crate::library::Library;
 use crate::test_util;
 use std::io::Write;
@@ -88,7 +89,8 @@ fn import_copies_file_with_book_id_prefix_and_no_overwrite_on_conflict() {
     make_minimal_epub(&epub_path, Some("Книга"), Some("Автор"), None);
 
     let library_root = root.join("library");
-    let mut library = Library::open(&library_root).expect("открытие библиотеки");
+    let mut library =
+        Library::open(&library_root, bundled_plugins_dir()).expect("открытие библиотеки");
     open_catalog_at(&library_root.join("library.db")).expect("открытие каталога");
 
     let book = import_book(&mut library, &epub_path).expect("импорт книги");
@@ -152,7 +154,8 @@ fn import_is_rejected_for_external_library() {
     );
     let connection =
         crate::sources::catalog::build_catalog_from_index(&index).expect("каталог источника");
-    let mut library = Library::open_for_selection(&root).expect("открытие внешней библиотеки");
+    let mut library = Library::open_for_selection(&root, bundled_plugins_dir())
+        .expect("открытие внешней библиотеки");
     library
         .promote_external(connection, index, "library".to_string())
         .expect("публикация внешней библиотеки");
@@ -177,7 +180,8 @@ fn import_extracts_metadata_and_cover() {
     );
 
     let library_root = root.join("library");
-    let mut library = Library::open(&library_root).expect("открытие библиотеки");
+    let mut library =
+        Library::open(&library_root, bundled_plugins_dir()).expect("открытие библиотеки");
     open_catalog_at(&library_root.join("library.db")).expect("открытие каталога");
 
     let book = import_book(&mut library, &epub_path).expect("импорт книги");
@@ -207,7 +211,8 @@ fn import_without_metadata_uses_defaults() {
     make_minimal_epub(&epub_path, None, None, None);
 
     let library_root = root.join("library");
-    let mut library = Library::open(&library_root).expect("открытие библиотеки");
+    let mut library =
+        Library::open(&library_root, bundled_plugins_dir()).expect("открытие библиотеки");
     open_catalog_at(&library_root.join("library.db")).expect("открытие каталога");
 
     let book = import_book(&mut library, &epub_path).expect("импорт книги");
@@ -228,7 +233,8 @@ fn import_broken_file_keeps_database_unchanged() {
     make_broken_file(&broken_path);
 
     let library_root = root.join("library");
-    let mut library = Library::open(&library_root).expect("открытие библиотеки");
+    let mut library =
+        Library::open(&library_root, bundled_plugins_dir()).expect("открытие библиотеки");
     open_catalog_at(&library_root.join("library.db")).expect("открытие каталога");
 
     let result = import_book(&mut library, &broken_path);

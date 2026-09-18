@@ -18,7 +18,7 @@ use tauri::Manager;
 
 use crate::catalog::open_catalog;
 use crate::config::AppConfig;
-use crate::constants::{bundled_plugins_dir_app, DEMO_PLUGIN_NAME};
+use crate::constants::DEMO_PLUGIN_NAME;
 use crate::journal::{get_journal_handle, Severity};
 use crate::library::Library;
 
@@ -33,14 +33,11 @@ pub fn run() {
 
             let config = AppConfig::load()?;
             let library_root = config.library_dir;
-            let bundled_plugins_dir = bundled_plugins_dir_app(Some(app.handle()));
+            let bundled_plugins_dir = app.path().resource_dir()?.join("plugins");
             let mut library = if library_root.is_dir() {
-                Library::open_for_selection_with_plugins(
-                    &library_root,
-                    bundled_plugins_dir.clone(),
-                )?
+                Library::open_for_selection(&library_root, bundled_plugins_dir.clone())?
             } else {
-                Library::open_with_plugins(&library_root, bundled_plugins_dir.clone())?
+                Library::open(&library_root, bundled_plugins_dir.clone())?
             };
             open_catalog(library.connection_mut())?;
             for name in library.runtime().plugin_names() {

@@ -21,7 +21,7 @@ use std::sync::{
 use notify::{RecursiveMode, Watcher};
 use rusqlite::Connection;
 
-use crate::constants::{bundled_plugins_dir_app, DATABASE_FILE_NAME};
+use crate::constants::DATABASE_FILE_NAME;
 use crate::journal::{get_journal_handle, Severity};
 use crate::plugin::PluginRuntime;
 use crate::sources::catalog::{
@@ -59,19 +59,15 @@ pub struct Library {
     /// Плагинная подсистема библиотеки.
     runtime: PluginRuntime,
     /// Путь к bundled-плагинам приложения.
-    bundled_plugins_dir: Option<PathBuf>,
+    bundled_plugins_dir: PathBuf,
 }
 
 impl Library {
     /// Быстрое создание состояния перед фоновой индексацией.
-    pub fn open_for_selection(root: impl Into<PathBuf>) -> Result<Self, LibraryError> {
-        Self::open_for_selection_with_plugins(root, None)
-    }
-
     /// Быстрое создание состояния с указанным путём к bundled-плагинам.
-    pub fn open_for_selection_with_plugins(
+    pub fn open_for_selection(
         root: impl Into<PathBuf>,
-        bundled_plugins_dir: Option<PathBuf>,
+        bundled_plugins_dir: PathBuf,
     ) -> Result<Self, LibraryError> {
         let root = root.into();
         if !root.exists() {
@@ -80,13 +76,13 @@ impl Library {
         if root.is_dir() {
             return Self::create_provisional_state(root, bundled_plugins_dir);
         }
-        Self::open_with_plugins(root, bundled_plugins_dir)
+        Self::open(root, bundled_plugins_dir)
     }
 
     /// Создание временного состояния до завершения фоновой индексации.
     fn create_provisional_state(
         root: PathBuf,
-        bundled_plugins_dir: Option<PathBuf>,
+        bundled_plugins_dir: PathBuf,
     ) -> Result<Self, LibraryError> {
         let layout = Layout::default();
         Ok(Self {
@@ -112,14 +108,10 @@ impl Library {
     /// плагин, подтвердивший поддержку корня, становится источником книг,
     /// а каталог строится поверх индексного кэша. Портируемая библиотека
     /// создаёт структуру директории и базу данных при первом открытии.
-    pub fn open(root: impl Into<PathBuf>) -> Result<Self, LibraryError> {
-        Self::open_with_plugins(root, None)
-    }
-
     /// Открытие библиотеки с указанным путём к bundled-плагинам.
-    pub fn open_with_plugins(
+    pub fn open(
         root: impl Into<PathBuf>,
-        bundled_plugins_dir: Option<PathBuf>,
+        bundled_plugins_dir: PathBuf,
     ) -> Result<Self, LibraryError> {
         let root = root.into();
         let layout = Layout::default();
@@ -176,7 +168,7 @@ impl Library {
         root: PathBuf,
         connection: Connection,
         runtime: PluginRuntime,
-        bundled_plugins_dir: Option<PathBuf>,
+        bundled_plugins_dir: PathBuf,
     ) -> Result<Self, LibraryError> {
         let dirty = Arc::new(AtomicBool::new(false));
         let changed_paths = Arc::new(StdMutex::new(Vec::new()));
@@ -204,14 +196,10 @@ impl Library {
     fn load_runtime(
         root: &Path,
         layout: &Layout,
-        bundled_plugins_dir: Option<PathBuf>,
+        bundled_plugins_dir: PathBuf,
     ) -> Result<PluginRuntime, LibraryError> {
         let mut directories = vec![root.join(layout.plugins)];
-        directories.push(
-            bundled_plugins_dir
-                .or_else(|| bundled_plugins_dir_app(None))
-                .expect("dev bundled plugins path"),
-        );
+        directories.push(bundled_plugins_dir);
         Ok(PluginRuntime::load(&directories, root)?)
     }
 
@@ -328,7 +316,7 @@ impl Library {
     /// или неподдерживаемая директория открывается как портируемая библиотека.
     pub(crate) fn prepare_selected(
         root: &Path,
-        bundled_plugins_dir: Option<PathBuf>,
+        bundled_plugins_dir: PathBuf,
     ) -> Result<(bool, Connection, Option<LibraryIndex>, Option<String>), LibraryError> {
         let started = std::time::Instant::now();
         let index_file = index_path(root);
@@ -607,16 +595,13 @@ impl Library {
 fn seed_bundled_plugins(
     root: &Path,
     layout: &Layout,
-    bundled_plugins_dir: Option<PathBuf>,
+    bundled_plugins_dir: PathBuf,
 ) -> Result<(), LibraryError> {
-    let Some(bundled) = bundled_plugins_dir.or_else(|| bundled_plugins_dir_app(None)) else {
-        return Ok(());
-    };
-    if !bundled.is_dir() {
+    if !bundled_plugins_dir.is_dir() {
         return Ok(());
     }
     let destination = root.join(layout.plugins);
-    for entry in fs::read_dir(&bundled)? {
+    for entry in fs::read_dir(&bundled_plugins_dir)? {
         let entry = entry?;
         if !entry.file_type()?.is_dir() {
             continue;
