@@ -77,8 +77,11 @@ pub async fn open_library(
             }
             if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                 if current.root() == root {
+                    if let Err(error) = remember_library(&app, root.to_string_lossy().as_ref()) {
+                        set_open_error(&app, error);
+                        return;
+                    }
                     *current = opened;
-                    let _ = remember_library(&app, root.to_string_lossy().as_ref());
                     let _ = app.emit("library-catalog-changed", ());
                 }
             }

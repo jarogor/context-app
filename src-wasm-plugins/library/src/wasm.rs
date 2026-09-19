@@ -135,9 +135,15 @@ pub fn invoke(input: String) -> FnResult<String> {
             state_storage: true,
             incremental_sync: true,
         })?,
-        "probe" => serde_json::to_string(&json!({
-            "supported": scanner::probe(&fs).map_err(extism_pdk::Error::msg)?
-        }))?,
+        "probe" => {
+            let supported = scanner::probe(&fs).map_err(extism_pdk::Error::msg)?;
+            emit_notification(
+                "technical",
+                "Проверка source завершена",
+                json!({ "supported": supported }),
+            );
+            serde_json::to_string(&json!({ "supported": supported }))?
+        }
         "open" => {
             let portable = request
                 .payload
@@ -149,6 +155,7 @@ pub fn invoke(input: String) -> FnResult<String> {
             } else {
                 scanner::scan(&fs).map_err(extism_pdk::Error::msg)?
             };
+            let book_count = books.len();
             let response = serde_json::to_string(&OpenResponse {
                 session_id: "library".to_string(),
                 catalog: if portable {
@@ -161,6 +168,11 @@ pub fn invoke(input: String) -> FnResult<String> {
                 "user",
                 "Индексация библиотеки завершена",
                 json!({ "mode": if portable { "portable" } else { "source" } }),
+            );
+            emit_notification(
+                "technical",
+                "Индексация source завершена",
+                json!({ "mode": if portable { "portable" } else { "source" }, "items": book_count }),
             );
             response
         }

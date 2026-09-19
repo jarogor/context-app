@@ -1,6 +1,7 @@
 //! Команда перечисления сохранённых индексов библиотек.
 
 use std::fs;
+use std::path::Path;
 
 use tauri::{command, AppHandle, Manager};
 
@@ -25,11 +26,14 @@ pub fn list_cached_libraries(app: AppHandle) -> Result<Vec<CachedLibrary>, Strin
         .app_data_dir()
         .map_err(|error| error.to_string())?
         .join(CACHE_FILE);
-    let paths: Vec<String> = match fs::read_to_string(file) {
+    let mut paths: Vec<String> = match fs::read_to_string(file) {
         Ok(value) => serde_json::from_str(&value).unwrap_or_default(),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
         Err(error) => return Err(error.to_string()),
     };
+    paths.extend(legacy_cached_paths());
+    paths.sort();
+    paths.dedup();
     Ok(paths
         .into_iter()
         .map(|path| CachedLibrary {
@@ -37,6 +41,30 @@ pub fn list_cached_libraries(app: AppHandle) -> Result<Vec<CachedLibrary>, Strin
             path,
         })
         .collect())
+}
+
+fn legacy_cached_paths() -> Vec<String> {
+    let Some(directory) = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf))
+        .map(|path| path.join(".booklib"))
+    else {
+        return Vec::new();
+    };
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .filter_map(|entry| {
+            let path = entry.path();
+            if path.extension().and_then(|value| value.to_str()) != Some("json") {
+                return None;
+            }
+            let value: serde_json::Value = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
+            value.get("root")?.as_str().map(str::to_string)
+        })
+        .collect()
 }
 
 /// Сохранение успешно открытой директории в app-local списке последних библиотек.
