@@ -2,25 +2,22 @@
 
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::State;
 
 use crate::plugin::PluginSession;
 use serde_json::Value;
 
 /// Получение полного списка книг со всеми связями.
 #[tauri::command]
-pub fn list_books(app: AppHandle, state: State<'_, Mutex<PluginSession>>) -> Result<Value, String> {
+pub fn list_books(state: State<'_, Mutex<PluginSession>>) -> Result<Value, String> {
     let mut library = state.lock().map_err(|e| e.to_string())?;
     if library.is_indexing() {
         return Ok(Value::Array(Vec::new()));
     }
-    library.sync().map_err(|e| e.to_string())?;
     let response = library
         .invoke("list", serde_json::json!({}))
         .map_err(|error| error.to_string())?;
     let books = source_books(&response)?;
-    app.emit("library-catalog-changed", ())
-        .map_err(|e| e.to_string())?;
     Ok(books)
 }
 

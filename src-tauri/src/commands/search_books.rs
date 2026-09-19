@@ -18,7 +18,6 @@ pub fn search_books(
     if library.is_indexing() {
         return Ok(Value::Array(Vec::new()));
     }
-    library.sync().map_err(|e| e.to_string())?;
     let response = library
         .invoke("search", serde_json::json!({ "query": query }))
         .map_err(|error| error.to_string())?;

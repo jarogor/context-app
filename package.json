@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run build:frontend-plugins && vite",
     "tauri": "tauri",
     "build": "npm run build:plugins && npm run build:frontend-plugins && vite build",
     "build:plugins": "bash ./scripts/build-wasm-plugins.sh",

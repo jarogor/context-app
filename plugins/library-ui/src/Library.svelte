@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
-  import { open } from '@tauri-apps/plugin-dialog';
-  import { listen } from '@tauri-apps/api/event';
+  import { invoke, listen, openDialog } from './bridge';
   import type { Book, BookFile, CachedLibrary, LibraryInfo } from './types';
 
   interface Props {
@@ -17,7 +15,7 @@
   let { onNavigate, books: cachedBooks, onBooksChange, unreadNotifications }: Props = $props();
 
   let books: BookWithCover[] = $state([]);
-  let loading: boolean = $state(true);
+  let loading: boolean = $state(false);
   let error: string | null = $state(null);
   let importing: boolean = $state(false);
   let importError: string | null = $state(null);
@@ -29,12 +27,14 @@
   let progressText: string = $state('');
   let cachedLibraries: CachedLibrary[] = $state([]);
   let missingLibrary: string | null = $state(null);
+  let librarySelected = $state(false);
 
   function stageLabel(stage: LibraryInfo['stage']): string {
     if (stage === 'opening') return 'Открытие библиотеки...';
     if (stage === 'scanning') return 'Сканирование книг...';
     if (stage === 'indexing') return 'Создание индекса...';
     if (stage === 'error') return 'Ошибка загрузки библиотеки';
+    if (stage === 'idle') return 'Выберите библиотеку';
     return '';
   }
 
@@ -61,6 +61,11 @@
   }
 
   async function load() {
+    if (!librarySelected) {
+      loading = false;
+      books = [];
+      return;
+    }
     loading = true;
     error = null;
     try {
@@ -83,8 +88,9 @@
       const info = (await invoke('get_library_info')) as LibraryInfo;
       libraryKind = info.kind;
       sourceName = info.source_name;
-      indexingLibrary = info.indexing;
+      indexingLibrary = info.stage === 'scanning' || info.stage === 'indexing';
       progressText = stageLabel(info.stage);
+      librarySelected = info.stage === 'ready' || info.stage === 'scanning' || info.stage === 'indexing';
     } catch (e) {
       error = String(e);
     }
@@ -95,8 +101,9 @@
       const info = (await invoke('get_library_info')) as LibraryInfo;
       libraryKind = info.kind;
       sourceName = info.source_name;
-      indexingLibrary = info.indexing;
+      indexingLibrary = info.stage === 'scanning' || info.stage === 'indexing';
       progressText = stageLabel(info.stage);
+      librarySelected = info.stage === 'ready' || info.stage === 'scanning' || info.stage === 'indexing';
       if (info.stage === 'ready' || info.stage === 'error') {
         return info.stage;
       }
@@ -119,23 +126,35 @@
 
   async function openLibraryPath(path: string) {
     openingLibrary = true;
-    indexingLibrary = true;
-    progressText = 'Открытие сохранённого индекса...';
+    indexingLibrary = false;
+    progressText = 'Открытие библиотеки...';
     missingLibrary = null;
     try {
-      const kind = (await invoke('open_library', { path })) as string;
+      await invoke('open_library', { path });
       searchQuery = '';
       await loadLibraryInfo();
-      openingLibrary = kind === 'loading';
-      if (!indexingLibrary) {
-        await load();
+      if (!librarySelected) {
+        loading = false;
       }
+      if (infoNeedsWait()) {
+        const stage = await waitForLibraryReady();
+        if (stage === 'error') {
+          throw new Error('Не удалось открыть библиотеку');
+        }
+      }
+      openingLibrary = false;
+      indexingLibrary = false;
+      await load();
     } catch (e) {
       missingLibrary = path;
-      importError = `Библиотека недоступна: ${path}. Выберите её заново.`;
+      importError = String(e);
       openingLibrary = false;
       indexingLibrary = false;
     }
+  }
+
+  function infoNeedsWait(): boolean {
+    return openingLibrary || indexingLibrary;
   }
 
   async function updateSearch() {
@@ -159,19 +178,17 @@
   }
 
   async function openLibrary() {
-    openingLibrary = true;
+    if (openingLibrary) {
+      return;
+    }
     importError = null;
     try {
-      const selected = await open({ directory: true, multiple: false });
+      const selected = await openDialog({ directory: true, multiple: false });
       if (typeof selected === 'string') {
         await openLibraryPath(selected);
       }
     } catch (e) {
       importError = String(e);
-    } finally {
-      if (!openingLibrary) {
-        openingLibrary = false;
-      }
     }
   }
 
@@ -179,11 +196,14 @@
     importing = true;
     importError = null;
     try {
-      const selected = await open({
+      const selected = await openDialog({
         multiple: false,
         filters: [{ name: 'EPUB', extensions: ['epub'] }],
       });
       if (typeof selected === 'string') {
+        if (!librarySelected) {
+          throw new Error('Сначала выберите библиотеку');
+        }
         await invoke('import_book', { sourcePath: selected });
         await load();
       }
@@ -203,33 +223,37 @@
         openingLibrary = false;
         indexingLibrary = false;
         progressText = '';
-        void load();
       });
-      unlistenProgress = await listen<string>('library-progress', (event) => {
-        indexingLibrary = event.payload !== 'ready';
-        progressText = event.payload === 'scanning'
+      unlistenProgress = await listen<string>('library-progress', (value) => {
+        indexingLibrary = value !== 'ready';
+        progressText = value === 'scanning'
           ? 'Сканирование книг...'
-          : event.payload === 'indexing'
+          : value === 'indexing'
             ? 'Создание индекса...'
             : '';
       });
-      unlistenError = await listen<string>('library-open-error', (event) => {
+      unlistenError = await listen<string>('library-open-error', (value) => {
         openingLibrary = false;
         indexingLibrary = false;
         progressText = '';
-        importError = event.payload;
+        importError = value;
       });
       await loadLibraryInfo();
       if (indexingLibrary) {
-        await waitForLibraryReady();
+        const stage = await waitForLibraryReady();
+        if (stage === 'error') {
+          importError = 'Не удалось открыть библиотеку';
+        }
       }
-      await loadCachedLibraries();
+      if (librarySelected) {
+        await loadCachedLibraries();
+      }
       if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {
         books = cachedBooks;
         loading = false;
         void loadCovers(cachedBooks);
       }
-      if (!indexingLibrary && books.length === 0) {
+      if (librarySelected && !indexingLibrary && books.length === 0) {
         await load();
       }
     })();
@@ -250,14 +274,13 @@
         </span>
       {/if}
       <div class="header-actions">
-       <button
-         class="open-library-button"
-         type="button"
-         onclick={openLibrary}
-         disabled={openingLibrary || indexingLibrary}
-       >
-         {openingLibrary || indexingLibrary ? 'Индексация...' : 'Открыть библиотеку'}
-       </button>
+         <button
+          class="open-library-button"
+          type="button"
+          onclick={openLibrary}
+        >
+          Открыть библиотеку
+        </button>
        <button
          class="notifications-counter"
          type="button"
@@ -301,11 +324,11 @@
     </section>
   {/if}
 
-  {#if indexingLibrary}
+  {#if !librarySelected && !loading}
+    <p class="state empty-state">Выберите библиотеку для начала работы.</p>
+  {:else if indexingLibrary}
     <p class="state">{progressText || 'Открытие библиотеки...'}</p>
-  {/if}
-
-  {#if loading}
+  {:else if loading && !indexingLibrary}
     <p class="state">Загрузка...</p>
   {:else if error}
     <p class="state error">{error}</p>
@@ -315,8 +338,6 @@
         ? 'Источник не содержит книг, найденных сканером.'
         : 'Библиотека пуста. Добавьте EPUB-файлы в папку библиотеки.'}
     </p>
-  {:else if indexingLibrary}
-    <p class="state">{progressText || 'Загрузка библиотеки...'}</p>
   {:else}
     <ul class="book-list">
       {#each books as book (book.id)}

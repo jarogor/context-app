@@ -12,15 +12,9 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    /// Загрузка конфигурации из окружения и файла.
+    /// Загрузка конфигурации из файла или фиксированного пути разработки.
     pub fn load() -> Result<Self, String> {
         let project_root = project_root();
-
-        if let Ok(value) = std::env::var(crate::constants::LIBRARY_DIR_ENV) {
-            return Ok(Self {
-                library_dir: resolve(&project_root, Path::new(&value)),
-            });
-        }
 
         let config_path = project_root.join(crate::constants::CONFIG_FILE_NAME);
         if let Ok(contents) = std::fs::read_to_string(&config_path) {

@@ -20,9 +20,15 @@ pub async fn open_library(
         .resource_dir()
         .map_err(|error| error.to_string())?
         .join("plugins");
+    let storage_root = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("source-state");
     let background_plugins_dir = bundled_plugins_dir.clone();
+    let background_storage_root = storage_root.clone();
     let selected = tauri::async_runtime::spawn_blocking(move || {
-        PluginSession::open_for_selection(selected_path, bundled_plugins_dir)
+        PluginSession::open_for_selection(selected_path, bundled_plugins_dir, storage_root)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -38,33 +44,44 @@ pub async fn open_library(
             current.set_stage("scanning");
         }
         let _ = app.emit("library-progress", "scanning");
-        let result = PluginSession::prepare_selected(root, background_plugins_dir);
+        let probe_plugins_dir = background_plugins_dir.clone();
+        let probe_storage_root = background_storage_root.clone();
+        let result = PluginSession::prepare_selected(root, probe_plugins_dir, probe_storage_root);
         if let Ok((is_external, source)) = result {
+            if !is_external {
+                let error = "выбранная директория не распознана как поддерживаемая библиотека";
+                if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
+                    current.set_stage("error");
+                }
+                let _ = app.emit("library-open-error", error);
+                return;
+            }
             if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                 current.set_stage("indexing");
             }
             let _ = app.emit("library-progress", "indexing");
+            let provider = source.expect("имя источника");
+            let open_plugins_dir = background_plugins_dir.clone();
+            let open_storage_root = background_storage_root.clone();
+            let mut opened = match PluginSession::open_for_selection(
+                root,
+                open_plugins_dir,
+                open_storage_root,
+            ) {
+                Ok(session) => session,
+                Err(error) => {
+                    set_open_error(&app, root, error.to_string());
+                    return;
+                }
+            };
+            if let Err(error) = opened.promote_provider(provider) {
+                set_open_error(&app, root, error.to_string());
+                return;
+            }
             if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                 if current.root() == root {
-                    let installed = if is_external {
-                        current.promote_provider(source.expect("имя источника"))
-                    } else {
-                        current.install_portable()
-                    };
-                    if installed.is_ok() {
-                        let _ = app.emit("library-catalog-changed", ());
-                    } else if let Err(error) = installed {
-                        let handle = get_journal_handle();
-                        handle.add_technical(
-                            "open library error",
-                            root.display().to_string(),
-                            serde_json::json!({ "error": error.to_string() }),
-                        );
-                        if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
-                            current.set_stage("error");
-                        }
-                        let _ = app.emit("library-open-error", error.to_string());
-                    }
+                    *current = opened;
+                    let _ = app.emit("library-catalog-changed", ());
                 }
             }
         } else if let Err(error) = result {
@@ -81,4 +98,17 @@ pub async fn open_library(
         }
     });
     Ok("loading".to_string())
+}
+
+fn set_open_error(app: &AppHandle, root: &std::path::Path, message: String) {
+    let handle = get_journal_handle();
+    handle.add_technical(
+        "open library error",
+        root.display().to_string(),
+        serde_json::json!({ "error": message }),
+    );
+    if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
+        current.set_stage("error");
+    }
+    let _ = app.emit("library-open-error", message);
 }

@@ -48,8 +48,6 @@
 
   /** Переход между страницами приложения. */
   function navigate(page: string) {
-    if (page === 'notifications') {
-    }
     showNotifications = page === 'notifications';
   }
 

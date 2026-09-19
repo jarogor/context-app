@@ -13,7 +13,7 @@ use tauri::Manager;
 
 use crate::config::AppConfig;
 use crate::constants::DEMO_PLUGIN_NAME;
-use crate::journal::{get_journal_handle, Severity};
+use crate::journal::Severity;
 use crate::plugin::PluginSession;
 
 /// Точка входа Tauri-приложения: конфигурация, библиотека и плагины.
@@ -28,11 +28,8 @@ pub fn run() {
             let config = AppConfig::load()?;
             let library_root = config.library_dir;
             let bundled_plugins_dir = app.path().resource_dir()?.join("plugins");
-            let mut library = if library_root.is_dir() {
-                PluginSession::open_for_selection(&library_root, bundled_plugins_dir.clone())?
-            } else {
-                PluginSession::open(&library_root, bundled_plugins_dir.clone())?
-            };
+            let storage_root = app.path().app_data_dir()?.join("source-state");
+            let mut library = PluginSession::idle(library_root, bundled_plugins_dir, storage_root);
             for name in library.runtime().plugin_names() {
                 let handle = crate::journal::get_journal_handle();
                 handle.add_technical("plugin loaded", name, serde_json::json!({}));
@@ -68,61 +65,6 @@ pub fn run() {
             }
 
             app.manage(Mutex::new(library));
-
-            let app_clone = app.handle().clone();
-            tauri::async_runtime::spawn_blocking(move || {
-                use tauri::Emitter;
-                if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
-                    current.set_stage("scanning");
-                }
-                let _ = app_clone.emit("library-progress", "scanning");
-                let prepared = if library_root.join("plugins").is_dir() {
-                    Ok((false, None))
-                } else {
-                    PluginSession::prepare_selected(&library_root, bundled_plugins_dir)
-                };
-                if let Ok((is_external, source)) = prepared {
-                    if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
-                        current.set_stage("indexing");
-                    }
-                    let _ = app_clone.emit("library-progress", "indexing");
-                    if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
-                        let result = if is_external {
-                            current.promote_provider(source.expect("имя источника"))
-                        } else {
-                            current.install_portable()
-                        };
-                        if result.is_ok() {
-                            let _ = app_clone.emit("library-progress", "ready");
-                            let _ = app_clone.emit("library-catalog-changed", ());
-                        } else if let Err(error) = result {
-                            let handle = get_journal_handle();
-                            handle.add_technical(
-                                "open library error",
-                                library_root.display().to_string(),
-                                serde_json::json!({ "error": error.to_string() }),
-                            );
-                            if let Ok(mut current) =
-                                app_clone.state::<Mutex<PluginSession>>().lock()
-                            {
-                                current.set_stage("error");
-                            }
-                            let _ = app_clone.emit("library-open-error", error.to_string());
-                        }
-                    }
-                } else if let Err(error) = prepared {
-                    let handle = get_journal_handle();
-                    handle.add_technical(
-                        "open library error",
-                        library_root.display().to_string(),
-                        serde_json::json!({ "error": error.to_string() }),
-                    );
-                    if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
-                        current.set_stage("error");
-                    }
-                    let _ = app_clone.emit("library-open-error", error.to_string());
-                }
-            });
 
             Ok(())
         })

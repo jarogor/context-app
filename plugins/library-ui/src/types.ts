@@ -25,7 +25,7 @@ export interface LibraryInfo {
   kind: 'portable' | 'external';
   source_name: string | null;
   indexing: boolean;
-  stage: 'opening' | 'scanning' | 'indexing' | 'ready' | 'error';
+  stage: 'idle' | 'opening' | 'scanning' | 'indexing' | 'ready' | 'error';
 }
 
 /** Legacy cache entry type retained only for plugin UI compatibility. */

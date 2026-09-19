@@ -1,6 +1,5 @@
 //! Generic состояние активной plugin-сессии.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::{PluginError, PluginRuntime};
@@ -14,13 +13,29 @@ pub struct PluginSession {
     stage: String,
     runtime: PluginRuntime,
     bundled_plugins_dir: PathBuf,
+    storage_root: PathBuf,
 }
 
 impl PluginSession {
+    /// Создание idle-сессии до явного выбора директории пользователем.
+    pub fn idle(root: PathBuf, bundled: PathBuf, storage_root: PathBuf) -> Self {
+        Self {
+            root,
+            kind: "portable".into(),
+            provider: None,
+            indexing: false,
+            stage: "idle".into(),
+            runtime: PluginRuntime::empty(),
+            bundled_plugins_dir: bundled,
+            storage_root,
+        }
+    }
+
     /// Создание временной сессии выбора директории.
     pub fn open_for_selection(
         root: impl Into<PathBuf>,
         bundled: PathBuf,
+        storage_root: PathBuf,
     ) -> Result<Self, PluginError> {
         let root = root.into();
         if !root.is_dir() {
@@ -29,21 +44,27 @@ impl PluginSession {
                 message: format!("путь не является директорией: {}", root.display()),
             });
         }
+        let runtime = Self::load_runtime(&root, &bundled, &storage_root)?;
         Ok(Self {
             root,
             kind: "portable".into(),
             provider: None,
-            indexing: true,
+            indexing: false,
             stage: "opening".into(),
-            runtime: PluginRuntime::empty(),
+            runtime,
             bundled_plugins_dir: bundled,
+            storage_root,
         })
     }
 
     /// Открытие директории и загрузка plugin runtime.
-    pub fn open(root: impl Into<PathBuf>, bundled: PathBuf) -> Result<Self, PluginError> {
+    pub fn open(
+        root: impl Into<PathBuf>,
+        bundled: PathBuf,
+        storage_root: PathBuf,
+    ) -> Result<Self, PluginError> {
         let root = root.into();
-        let runtime = Self::load_runtime(&root, &bundled)?;
+        let runtime = Self::load_runtime(&root, &bundled, &storage_root)?;
         Ok(Self {
             root,
             kind: "portable".into(),
@@ -52,6 +73,7 @@ impl PluginSession {
             stage: "ready".into(),
             runtime,
             bundled_plugins_dir: bundled,
+            storage_root,
         })
     }
 
@@ -59,19 +81,14 @@ impl PluginSession {
     pub fn prepare_selected(
         root: &Path,
         bundled: PathBuf,
+        storage_root: PathBuf,
     ) -> Result<(bool, Option<String>), PluginError> {
-        eprintln!("[session] loading runtime for {}", root.display());
-        let mut runtime = Self::load_runtime(root, &bundled)?;
-        eprintln!("[session] runtime loaded: {:?}", runtime.plugin_names());
+        let mut runtime = Self::load_runtime(root, &bundled, &storage_root)?;
         runtime.set_sandbox_root(root.to_path_buf());
         runtime.set_sandbox_writable(false);
         for name in runtime.source_names() {
-            eprintln!("[session] checking source capabilities: {name}");
             runtime.source_capabilities(&name)?;
-            eprintln!("[session] probing source: {name}");
             if runtime.source_probe(&name)? {
-                eprintln!("[session] opening source: {name}");
-                runtime.source_open(&name)?;
                 return Ok((true, Some(name)));
             }
         }
@@ -80,8 +97,10 @@ impl PluginSession {
 
     /// Публикация external provider session.
     pub fn promote_provider(&mut self, provider: String) -> Result<(), PluginError> {
-        self.runtime = Self::load_runtime(&self.root, &self.bundled_plugins_dir)?;
+        self.runtime =
+            Self::load_runtime(&self.root, &self.bundled_plugins_dir, &self.storage_root)?;
         self.runtime.set_sandbox_root(self.root.clone());
+        self.runtime.set_sandbox_writable(false);
         self.runtime.source_open(&provider)?;
         self.kind = "external".into();
         self.provider = Some(provider);
@@ -92,8 +111,8 @@ impl PluginSession {
 
     /// Публикация portable provider session.
     pub fn install_portable(&mut self) -> Result<(), PluginError> {
-        seed_plugins(&self.root, &self.bundled_plugins_dir)?;
-        self.runtime = Self::load_runtime(&self.root, &self.bundled_plugins_dir)?;
+        self.runtime =
+            Self::load_runtime(&self.root, &self.bundled_plugins_dir, &self.storage_root)?;
         self.runtime.set_sandbox_root(self.root.clone());
         self.runtime.set_sandbox_writable(true);
         self.runtime.invoke_capability(
@@ -162,36 +181,20 @@ impl PluginSession {
         &mut self.runtime
     }
 
-    fn load_runtime(root: &Path, bundled: &Path) -> Result<PluginRuntime, PluginError> {
-        let directories = vec![root.join("plugins"), bundled.to_path_buf()];
+    fn load_runtime(
+        root: &Path,
+        bundled: &Path,
+        storage_root: &Path,
+    ) -> Result<PluginRuntime, PluginError> {
+        let mut directories = vec![bundled.to_path_buf()];
+        let development_plugins = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("resources")
+            .join("plugins");
+        if development_plugins != *bundled && development_plugins.is_dir() {
+            directories.push(development_plugins);
+        }
         let mut runtime = PluginRuntime::load(&directories, root)?;
-        runtime.set_storage_root(root.with_extension("source-state"));
+        runtime.set_storage_root(storage_root.to_path_buf());
         Ok(runtime)
     }
-}
-
-fn seed_plugins(root: &Path, bundled: &Path) -> Result<(), PluginError> {
-    if !bundled.is_dir() {
-        return Ok(());
-    }
-    let destination = root.join("plugins");
-    fs::create_dir_all(&destination)?;
-    for entry in fs::read_dir(bundled)? {
-        let entry = entry?;
-        if !entry.file_type()?.is_dir() {
-            continue;
-        }
-        let target = destination.join(entry.file_name());
-        if target.exists() {
-            continue;
-        }
-        fs::create_dir_all(&target)?;
-        for file in fs::read_dir(entry.path())? {
-            let file = file?;
-            if file.file_type()?.is_file() {
-                fs::copy(file.path(), target.join(file.file_name()))?;
-            }
-        }
-    }
-    Ok(())
 }
