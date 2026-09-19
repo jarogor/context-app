@@ -31,7 +31,7 @@
   function toggle() {
     collapsed = !collapsed;
     if (!collapsed) {
-      markAllRead();
+      void markAllRead();
     }
   }
 </script>

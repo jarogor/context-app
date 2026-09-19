@@ -12,7 +12,7 @@
 
   let showNotifications = $state(false);
   let notifications: Entry[] = $state([]);
-  let technicalVisible: boolean = $state(true);
+  let technicalVisible: boolean = $state(false);
   let isMobile: boolean = $state(initialIsMobile());
   let panelCollapsed: boolean = $state(true);
 
@@ -20,15 +20,6 @@
   let unreadUser = $derived(
     notifications.filter((entry) => entry.level === 'User' && !entry.read).length,
   );
-
-  /** Чтение сохранённого флага технического уровня. */
-  function readTechnicalVisible(): boolean {
-    try {
-      return localStorage.getItem(TECHNICAL_VISIBLE_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  }
 
   /** Начальное значение признака мобильной раскладки. */
   function initialIsMobile(): boolean {
@@ -69,7 +60,7 @@
   async function markAllRead() {
     try {
       await invoke('mark_all_read');
-      await loadNotifications();
+      notifications = notifications.map((entry) => ({ ...entry, read: true }));
     } catch (error) {
       console.error('Failed to mark all read:', error);
     }

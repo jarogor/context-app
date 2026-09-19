@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { Entry } from '../types';
 
   interface Props {
@@ -27,9 +26,6 @@
     markAllRead();
   }
 
-  onMount(() => {
-    markAllRead();
-  });
 </script>
 
 <header class="notifications-header">
