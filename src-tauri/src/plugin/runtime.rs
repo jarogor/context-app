@@ -13,8 +13,9 @@ use std::sync::{Arc, Mutex};
 use extism::{Manifest, PluginBuilder, UserData, ValType, Wasm};
 
 use crate::plugin::contract::{
-    EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT, HOST_LOG_FUNCTION,
-    HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE, MANIFEST_FILE_NAME,
+    EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT, HOST_FS_WRITE_BYTES,
+    HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ,
+    HOST_STATE_WRITE, MANIFEST_FILE_NAME,
 };
 use crate::plugin::source_protocol::{
     SourceCapabilities, SourceOpenResponse, SourceProbeResponse, SOURCE_PROTOCOL_VERSION,
@@ -31,6 +32,8 @@ pub struct PluginRuntime {
     sandbox_root: Arc<Mutex<PathBuf>>,
     /// Корень служебного хранилища source-плагина.
     storage_root: Arc<Mutex<Option<PathBuf>>>,
+    /// Разрешена ли запись в sandbox.
+    sandbox_writable: Arc<Mutex<bool>>,
 }
 
 /// Состояние host-функций runtime: приёмник сообщений и песочный корень.
@@ -43,6 +46,8 @@ struct HostState {
     sandbox_root: Arc<Mutex<PathBuf>>,
     /// Корень служебного хранилища source-плагина.
     storage_root: Arc<Mutex<Option<PathBuf>>>,
+    /// Разрешена ли запись в sandbox.
+    sandbox_writable: Arc<Mutex<bool>>,
     /// Приёмник сообщений плагинов.
     sink: HostSink,
 }
@@ -55,6 +60,7 @@ impl PluginRuntime {
             sink: HostSink::new(),
             sandbox_root: Arc::new(Mutex::new(PathBuf::from("."))),
             storage_root: Arc::new(Mutex::new(None)),
+            sandbox_writable: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -73,6 +79,7 @@ impl PluginRuntime {
     ) -> Result<Self, PluginError> {
         let sandbox_root = Arc::new(Mutex::new(sandbox_root.into()));
         let storage_root = Arc::new(Mutex::new(None));
+        let sandbox_writable = Arc::new(Mutex::new(false));
         let sink = HostSink::new();
         let mut plugins = Vec::new();
         let mut seen = std::collections::HashSet::new();
@@ -86,7 +93,13 @@ impl PluginRuntime {
                     continue;
                 }
                 let dir = entry.path();
-                match Self::load_plugin_dir(&dir, &sink, &sandbox_root, &storage_root) {
+                match Self::load_plugin_dir(
+                    &dir,
+                    &sink,
+                    &sandbox_root,
+                    &storage_root,
+                    &sandbox_writable,
+                ) {
                     Ok(plugin) => {
                         // При загрузке из двух мест (plugins/ и ресурсы) один и тот
                         // же плагин не должен загружаться повторно.
@@ -104,6 +117,7 @@ impl PluginRuntime {
             sink,
             sandbox_root,
             storage_root,
+            sandbox_writable,
         })
     }
 
@@ -111,11 +125,13 @@ impl PluginRuntime {
     fn host_state(
         sandbox_root: &Arc<Mutex<PathBuf>>,
         storage_root: &Arc<Mutex<Option<PathBuf>>>,
+        sandbox_writable: &Arc<Mutex<bool>>,
         sink: &HostSink,
     ) -> HostState {
         HostState {
             sandbox_root: Arc::clone(sandbox_root),
             storage_root: Arc::clone(storage_root),
+            sandbox_writable: Arc::clone(sandbox_writable),
             sink: sink.clone(),
         }
     }
@@ -126,6 +142,7 @@ impl PluginRuntime {
         sink: &HostSink,
         sandbox_root: &Arc<Mutex<PathBuf>>,
         storage_root: &Arc<Mutex<Option<PathBuf>>>,
+        sandbox_writable: &Arc<Mutex<bool>>,
     ) -> Result<LoadedPlugin, PluginError> {
         let manifest = PluginManifest::load(&dir.join(MANIFEST_FILE_NAME)).map_err(|e| {
             PluginError::InvalidManifest {
@@ -155,7 +172,7 @@ impl PluginRuntime {
 
         let extism_manifest = Manifest::new([Wasm::file(&wasm_path)]).disallow_all_hosts();
 
-        let host_state = Self::host_state(sandbox_root, storage_root, sink);
+        let host_state = Self::host_state(sandbox_root, storage_root, sandbox_writable, sink);
         let plugin = PluginBuilder::new(extism_manifest)
             .with_wasi(false)
             .with_function(
@@ -185,6 +202,20 @@ impl PluginRuntime {
                 [ValType::I64],
                 UserData::new(host_state.clone()),
                 host_fs_read_bytes,
+            )
+            .with_function(
+                HOST_IMPORT_READ_BYTES,
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_import_read_bytes,
+            )
+            .with_function(
+                HOST_FS_WRITE_BYTES,
+                [ValType::I64, ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_fs_write_bytes,
             )
             .with_function(
                 HOST_OPEN_FILE,
@@ -306,6 +337,15 @@ impl PluginRuntime {
             .lock()
             .expect("не удалось захватить корень storage runtime");
         *current = Some(root);
+    }
+
+    /// Разрешение записи в активный корень portable-библиотеки.
+    pub fn set_sandbox_writable(&mut self, writable: bool) {
+        let mut state = self
+            .sandbox_writable
+            .lock()
+            .expect("не удалось захватить режим записи sandbox");
+        *state = writable;
     }
 
     /// Имена загруженных плагинов.
@@ -511,7 +551,7 @@ fn host_fs_read_text(
     let state = host
         .lock()
         .map_err(|_| extism::Error::msg("не удалось захватить состояние host-функций плагина"))?;
-    let path = resolve_sandboxed(&state.sandbox_root, &relative)
+    let path = resolve_sandboxed_for_write(&state.sandbox_root, &relative)
         .map_err(|_| extism::Error::msg("путь вне песочницы библиотеки"))?;
     let bytes = fs::read(&path).map_err(|_| extism::Error::msg("файл не читается"))?;
     let text = String::from_utf8_lossy(&bytes).into_owned();
@@ -538,6 +578,55 @@ fn host_fs_read_bytes(
     let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
     plugin
         .memory_set_val(&mut returns[0], &encoded)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция чтения файла, явно выбранного пользователем для импорта.
+fn host_import_read_bytes(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    _user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let path: String = plugin.memory_get_val(&args[0])?;
+    let bytes =
+        fs::read(Path::new(&path)).map_err(|_| extism::Error::msg("файл импорта не читается"))?;
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+    plugin
+        .memory_set_val(&mut returns[0], &encoded)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция записи portable-файла внутри активного sandbox.
+fn host_fs_write_bytes(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let relative: String = plugin.memory_get_val(&args[0])?;
+    let encoded: String = plugin.memory_get_val(&args[1])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let writable = *state
+        .sandbox_writable
+        .lock()
+        .map_err(|_| extism::Error::msg("режим записи sandbox недоступен"))?;
+    if !writable {
+        return Err(extism::Error::msg("запись в библиотеку запрещена"));
+    }
+    let path = resolve_sandboxed(&state.sandbox_root, &relative)
+        .map_err(|_| extism::Error::msg("путь вне песочницы библиотеки"))?;
+    let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)
+        .map_err(|_| extism::Error::msg("некорректные данные файла"))?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|_| extism::Error::msg("каталог записи недоступен"))?;
+    }
+    fs::write(path, bytes).map_err(|_| extism::Error::msg("файл не записан"))?;
+    plugin
+        .memory_set_val(&mut returns[0], "ok")
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 
@@ -679,6 +768,37 @@ fn resolve_sandboxed(root: &Arc<Mutex<PathBuf>>, relative: &str) -> io::Result<P
         )
     })?;
     if !candidate.starts_with(&root_path) {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "путь вне песочницы",
+        ));
+    }
+    Ok(candidate)
+}
+
+/// Разрешение пути записи внутри sandbox, включая новый файл.
+fn resolve_sandboxed_for_write(root: &Arc<Mutex<PathBuf>>, relative: &str) -> io::Result<PathBuf> {
+    if relative.is_empty()
+        || Path::new(relative).is_absolute()
+        || Path::new(relative)
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "путь вне песочницы",
+        ));
+    }
+    let root_path = root
+        .lock()
+        .map_err(|_| io::Error::other("песочный корень недоступен"))?
+        .canonicalize()?;
+    let candidate = root_path.join(relative);
+    let parent = candidate
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::PermissionDenied, "путь вне песочницы"))?
+        .canonicalize()?;
+    if !parent.starts_with(&root_path) {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             "путь вне песочницы",

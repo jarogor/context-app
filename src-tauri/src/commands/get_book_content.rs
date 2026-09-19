@@ -4,65 +4,41 @@ use std::sync::Mutex;
 
 use tauri::State;
 
-use crate::catalog::{repository, FileKind};
 use crate::commands::BookContent;
-use crate::library::{Library, LibraryMode};
-use crate::reading;
+use crate::plugin::PluginSession;
 
 /// Получение текстового содержимого книги для read-view.
 #[tauri::command]
 pub fn get_book_content(
-    state: State<'_, Mutex<Library>>,
+    state: State<'_, Mutex<PluginSession>>,
     book_id: String,
 ) -> Result<BookContent, String> {
     let mut library = state.lock().map_err(|e| e.to_string())?;
-    if library.mode() == LibraryMode::External {
-        let response = library
-            .invoke_source_operation("read", serde_json::json!({ "book_id": book_id }))
-            .map_err(|error| error.to_string())?;
-        let value: serde_json::Value =
-            serde_json::from_str(&response).map_err(|error| error.to_string())?;
-        return Ok(BookContent {
-            title: value
-                .get("title")
-                .and_then(|value| value.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            authors: value
-                .get("authors")
-                .and_then(|value| value.as_array())
-                .map(|values| {
-                    values
-                        .iter()
-                        .filter_map(|value| value.as_str().map(str::to_string))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            text: value
-                .get("text")
-                .and_then(|value| value.as_str())
-                .unwrap_or_default()
-                .to_string(),
-        });
-    }
-    let book_id = book_id
-        .parse::<i64>()
-        .map_err(|_| "Некорректный идентификатор книги".to_string())?;
-    let Some(book) =
-        repository::get_book(library.connection(), book_id).map_err(|e| e.to_string())?
-    else {
-        return Err("Книга не найдена".to_string());
-    };
-    let file = book
-        .files
-        .iter()
-        .find(|f| f.kind == FileKind::Book)
-        .ok_or_else(|| "Файл книги не найден".to_string())?;
-    let abs_path = library.root().join(&file.path);
-    let text = reading::extract_book_text(&abs_path).map_err(|e| e.to_string())?;
+    let response = library
+        .invoke("read", serde_json::json!({ "book_id": book_id }))
+        .map_err(|error| error.to_string())?;
+    let value: serde_json::Value =
+        serde_json::from_str(&response).map_err(|error| error.to_string())?;
     Ok(BookContent {
-        title: book.title,
-        authors: book.authors.iter().map(|a| a.name.clone()).collect(),
-        text,
+        title: value
+            .get("title")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        authors: value
+            .get("authors")
+            .and_then(|value| value.as_array())
+            .map(|values| {
+                values
+                    .iter()
+                    .filter_map(|value| value.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        text: value
+            .get("text")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default()
+            .to_string(),
     })
 }

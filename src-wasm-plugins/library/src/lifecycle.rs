@@ -31,9 +31,32 @@ pub(crate) fn sync(fs: &impl Fs, books: Vec<ExternalBook>) -> Result<SourceCatal
     save(fs, &build(books)?)
 }
 
+/// Сохранение явно обновлённого каталога плагина.
+pub(crate) fn replace(fs: &impl Fs, catalog: SourceCatalog) -> Result<SourceCatalog, String> {
+    save(fs, &catalog)
+}
+
 /// Получение последнего согласованного snapshot.
 pub(crate) fn catalog() -> Option<SourceCatalog> {
     CATALOG.with(|state| state.borrow().clone())
+}
+
+/// Восстановление последнего состояния без сканирования внешнего корня.
+pub(crate) fn restore(fs: &impl Fs) -> Result<SourceCatalog, String> {
+    if let Some(state) = load(fs)? {
+        CATALOG.with(|stored| {
+            *stored.borrow_mut() = Some(state.catalog.clone());
+        });
+        return Ok(state.catalog);
+    }
+    save(
+        fs,
+        &SourceCatalog {
+            protocol_version: SOURCE_PROTOCOL_VERSION,
+            revision: 0,
+            books: Vec::new(),
+        },
+    )
 }
 
 fn build(books: Vec<ExternalBook>) -> Result<SourceCatalog, String> {

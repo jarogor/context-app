@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use serde::Serialize;
 use tauri::State;
 
-use crate::library::Library;
+use crate::plugin::PluginSession;
 
 #[derive(Serialize)]
 pub struct LibraryInfo {
@@ -21,11 +21,11 @@ pub struct LibraryInfo {
 
 /// Получение режима текущей библиотеки для UI.
 #[tauri::command]
-pub fn get_library_info(state: State<'_, Mutex<Library>>) -> Result<LibraryInfo, String> {
+pub fn get_library_info(state: State<'_, Mutex<PluginSession>>) -> Result<LibraryInfo, String> {
     let library = state.lock().map_err(|e| e.to_string())?;
     Ok(LibraryInfo {
-        kind: library.mode().as_str().to_string(),
-        source_name: library.source_name().map(str::to_string),
+        kind: library.kind().to_string(),
+        source_name: library.provider().map(str::to_string),
         indexing: library.is_indexing(),
         stage: library.stage().to_string(),
     })

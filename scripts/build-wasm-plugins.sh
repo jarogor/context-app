@@ -45,4 +45,4 @@ JSON
 }
 
 deploy_plugin "demo" "extension" "Демонстрационный плагин: приветствие при старте приложения через host-функцию log" "demo.wasm" "invoke" '["log"]'
-deploy_plugin "library" "source" "Базовый плагин создания/открытия библиотеки: чтение структуры, содержимого и служебного состояния через host-функции" "library.wasm" "invoke" '["fs_list_dir", "fs_read_bytes", "open_file", "state_read", "state_write", "state_delete"]' '["library.catalog@1", "library.files@1"]'
+deploy_plugin "library" "source" "Плагин каталога, импорта и чтения библиотеки" "library.wasm" "invoke" '["fs_list_dir", "fs_read_bytes", "open_file", "import_read_bytes", "state_read", "state_write", "state_delete"]' '["library.catalog@1", "library.files@1"]'

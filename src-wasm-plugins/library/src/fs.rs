@@ -14,6 +14,12 @@ pub(crate) trait Fs {
     /// Чтение бинарного файла относительно корня.
     fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String>;
 
+    /// Чтение файла, выбранного пользователем для импорта.
+    fn import_read_bytes(&self, path: &str) -> Result<Vec<u8>, String>;
+
+    /// Запись файла в portable root.
+    fn write_bytes(&self, path: &str, bytes: &[u8]) -> Result<(), String>;
+
     /// Открытие файла системным приложением.
     fn open_file(&self, path: &str) -> Result<(), String>;
 

@@ -55,6 +55,16 @@ impl Fs for NativeFs {
         .map_err(|error| error.to_string())
     }
 
+    fn import_read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
+        fs::read(path).map_err(|error| error.to_string())
+    }
+
+    fn write_bytes(&self, path: &str, bytes: &[u8]) -> Result<(), String> {
+        let target = self.root.join(path);
+        if let Some(parent) = target.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
+        fs::write(target, bytes).map_err(|error| error.to_string())
+    }
+
     fn open_file(&self, _path: &str) -> Result<(), String> {
         Ok(())
     }
@@ -96,6 +106,14 @@ impl Fs for FailingStateFs {
             root: self.root.clone(),
         }
         .read_bytes(path)
+    }
+
+    fn import_read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
+        NativeFs { root: self.root.clone() }.import_read_bytes(path)
+    }
+
+    fn write_bytes(&self, path: &str, bytes: &[u8]) -> Result<(), String> {
+        NativeFs { root: self.root.clone() }.write_bytes(path, bytes)
     }
 
     fn open_file(&self, _path: &str) -> Result<(), String> {

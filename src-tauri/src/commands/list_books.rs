@@ -4,31 +4,24 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, State};
 
-use crate::catalog::repository;
-use crate::library::Library;
+use crate::plugin::PluginSession;
 use serde_json::Value;
 
 /// Получение полного списка книг со всеми связями.
 #[tauri::command]
-pub fn list_books(app: AppHandle, state: State<'_, Mutex<Library>>) -> Result<Value, String> {
+pub fn list_books(app: AppHandle, state: State<'_, Mutex<PluginSession>>) -> Result<Value, String> {
     let mut library = state.lock().map_err(|e| e.to_string())?;
     if library.is_indexing() {
         return Ok(Value::Array(Vec::new()));
     }
-    if library.mode() == crate::library::LibraryMode::External {
-        let response = library
-            .invoke_source_operation("list", serde_json::json!({}))
-            .map_err(|error| error.to_string())?;
-        return source_books(&response);
-    }
-    let was_dirty = library.is_dirty();
-    library.sync_if_needed().map_err(|e| e.to_string())?;
-    let books = repository::list_books(library.connection()).map_err(|e| e.to_string())?;
-    if was_dirty {
-        app.emit("library-catalog-changed", ())
-            .map_err(|e| e.to_string())?;
-    }
-    serde_json::to_value(books).map_err(|error| error.to_string())
+    library.sync().map_err(|e| e.to_string())?;
+    let response = library
+        .invoke("list", serde_json::json!({}))
+        .map_err(|error| error.to_string())?;
+    let books = source_books(&response)?;
+    app.emit("library-catalog-changed", ())
+        .map_err(|e| e.to_string())?;
+    Ok(books)
 }
 
 /// Извлечение списка книг из opaque-ответа source-плагина.

@@ -5,13 +5,13 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::journal::get_journal_handle;
-use crate::library::Library;
+use crate::plugin::PluginSession;
 
 /// Открытие библиотеки по выбранной пользователем директории.
 #[tauri::command]
 pub async fn open_library(
     app: AppHandle,
-    state: State<'_, Mutex<Library>>,
+    state: State<'_, Mutex<PluginSession>>,
     path: String,
 ) -> Result<String, String> {
     let selected_path = path.clone();
@@ -22,7 +22,7 @@ pub async fn open_library(
         .join("plugins");
     let background_plugins_dir = bundled_plugins_dir.clone();
     let selected = tauri::async_runtime::spawn_blocking(move || {
-        Library::open_for_selection(selected_path, bundled_plugins_dir)
+        PluginSession::open_for_selection(selected_path, bundled_plugins_dir)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -34,23 +34,22 @@ pub async fn open_library(
 
     tauri::async_runtime::spawn_blocking(move || {
         let root = std::path::Path::new(&path);
-        if let Ok(mut current) = app.state::<Mutex<Library>>().lock() {
+        if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
             current.set_stage("scanning");
         }
         let _ = app.emit("library-progress", "scanning");
-        let result = Library::prepare_selected(root, background_plugins_dir);
-        if let Ok((is_external, connection, source)) = result {
-            if let Ok(mut current) = app.state::<Mutex<Library>>().lock() {
+        let result = PluginSession::prepare_selected(root, background_plugins_dir);
+        if let Ok((is_external, source)) = result {
+            if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                 current.set_stage("indexing");
             }
             let _ = app.emit("library-progress", "indexing");
-            if let Ok(mut current) = app.state::<Mutex<Library>>().lock() {
+            if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                 if current.root() == root {
                     let installed = if is_external {
-                        current.promote_external(connection, source.expect("имя источника"))
+                        current.promote_provider(source.expect("имя источника"))
                     } else {
-                        current.install_portable(connection);
-                        Ok(())
+                        current.install_portable()
                     };
                     if installed.is_ok() {
                         let _ = app.emit("library-catalog-changed", ());
@@ -61,7 +60,7 @@ pub async fn open_library(
                             root.display().to_string(),
                             serde_json::json!({ "error": error.to_string() }),
                         );
-                        if let Ok(mut current) = app.state::<Mutex<Library>>().lock() {
+                        if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                             current.set_stage("error");
                         }
                         let _ = app.emit("library-open-error", error.to_string());
@@ -75,7 +74,7 @@ pub async fn open_library(
                 root.display().to_string(),
                 serde_json::json!({ "error": error.to_string() }),
             );
-            if let Ok(mut current) = app.state::<Mutex<Library>>().lock() {
+            if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                 current.set_stage("error");
             }
             let _ = app.emit("library-open-error", error.to_string());

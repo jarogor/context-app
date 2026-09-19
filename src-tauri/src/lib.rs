@@ -1,25 +1,20 @@
 #[cfg(test)]
 pub mod test_util;
 
-pub mod catalog;
 pub mod commands;
 pub mod config;
 pub mod constants;
-pub mod import;
 pub mod journal;
-pub mod library;
 pub mod plugin;
-pub mod reading;
 
 use std::sync::Mutex;
 
 use tauri::Manager;
 
-use crate::catalog::open_catalog;
 use crate::config::AppConfig;
 use crate::constants::DEMO_PLUGIN_NAME;
 use crate::journal::{get_journal_handle, Severity};
-use crate::library::Library;
+use crate::plugin::PluginSession;
 
 /// Точка входа Tauri-приложения: конфигурация, библиотека и плагины.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -34,11 +29,10 @@ pub fn run() {
             let library_root = config.library_dir;
             let bundled_plugins_dir = app.path().resource_dir()?.join("plugins");
             let mut library = if library_root.is_dir() {
-                Library::open_for_selection(&library_root, bundled_plugins_dir.clone())?
+                PluginSession::open_for_selection(&library_root, bundled_plugins_dir.clone())?
             } else {
-                Library::open(&library_root, bundled_plugins_dir.clone())?
+                PluginSession::open(&library_root, bundled_plugins_dir.clone())?
             };
-            open_catalog(library.connection_mut())?;
             for name in library.runtime().plugin_names() {
                 let handle = crate::journal::get_journal_handle();
                 handle.add_technical("plugin loaded", name, serde_json::json!({}));
@@ -78,22 +72,21 @@ pub fn run() {
             let app_clone = app.handle().clone();
             tauri::async_runtime::spawn_blocking(move || {
                 use tauri::Emitter;
-                if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
                     current.set_stage("scanning");
                 }
                 let _ = app_clone.emit("library-progress", "scanning");
-                let prepared = Library::prepare_selected(&library_root, bundled_plugins_dir);
-                if let Ok((is_external, connection, source)) = prepared {
-                    if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                let prepared = PluginSession::prepare_selected(&library_root, bundled_plugins_dir);
+                if let Ok((is_external, source)) = prepared {
+                    if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
                         current.set_stage("indexing");
                     }
                     let _ = app_clone.emit("library-progress", "indexing");
-                    if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                    if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
                         let result = if is_external {
-                            current.promote_external(connection, source.expect("имя источника"))
+                            current.promote_provider(source.expect("имя источника"))
                         } else {
-                            current.install_portable(connection);
-                            Ok(())
+                            current.install_portable()
                         };
                         if result.is_ok() {
                             let _ = app_clone.emit("library-progress", "ready");
@@ -105,7 +98,9 @@ pub fn run() {
                                 library_root.display().to_string(),
                                 serde_json::json!({ "error": error.to_string() }),
                             );
-                            if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                            if let Ok(mut current) =
+                                app_clone.state::<Mutex<PluginSession>>().lock()
+                            {
                                 current.set_stage("error");
                             }
                             let _ = app_clone.emit("library-open-error", error.to_string());
@@ -118,7 +113,7 @@ pub fn run() {
                         library_root.display().to_string(),
                         serde_json::json!({ "error": error.to_string() }),
                     );
-                    if let Ok(mut current) = app_clone.state::<Mutex<Library>>().lock() {
+                    if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
                         current.set_stage("error");
                     }
                     let _ = app_clone.emit("library-open-error", error.to_string());
