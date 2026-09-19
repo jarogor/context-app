@@ -15,6 +15,8 @@ pub const EXPORT_FUNCTION: &str = "invoke";
 
 /// Имя host-функции логирования, предоставляемой приложением.
 pub const HOST_LOG_FUNCTION: &str = "log";
+/// Имя host-функции публикации уведомления плагином.
+pub const HOST_NOTIFY_FUNCTION: &str = "notify";
 
 /// Имя host-функции перечисления содержимого директории библиотеки.
 pub const HOST_FS_LIST_DIR: &str = "fs_list_dir";
@@ -44,6 +46,7 @@ pub const HOST_STATE_DELETE: &str = "state_delete";
 /// Список host-функций, предоставляемых приложением.
 pub const HOST_FUNCTIONS: &[&str] = &[
     HOST_LOG_FUNCTION,
+    HOST_NOTIFY_FUNCTION,
     HOST_FS_LIST_DIR,
     HOST_FS_READ_TEXT,
     HOST_FS_READ_BYTES,

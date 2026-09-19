@@ -14,8 +14,8 @@ use extism::{Manifest, PluginBuilder, UserData, ValType, Wasm};
 
 use crate::plugin::contract::{
     EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT, HOST_FS_WRITE_BYTES,
-    HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ,
-    HOST_STATE_WRITE, MANIFEST_FILE_NAME,
+    HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION, HOST_OPEN_FILE,
+    HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE, MANIFEST_FILE_NAME,
 };
 use crate::plugin::source_protocol::{
     SourceCapabilities, SourceOpenResponse, SourceProbeResponse, SOURCE_PROTOCOL_VERSION,
@@ -181,6 +181,13 @@ impl PluginRuntime {
                 [],
                 UserData::new(host_state.clone()),
                 host_log,
+            )
+            .with_function(
+                HOST_NOTIFY_FUNCTION,
+                [ValType::I64, ValType::I64, ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_notify,
             )
             .with_function(
                 HOST_FS_LIST_DIR,
@@ -492,6 +499,32 @@ fn host_log(
         .map_err(|_| extism::Error::msg("не удалось захватить состояние host-функций плагина"))?;
     state.sink.push(&message);
     Ok(())
+}
+
+/// Host-функция публикации уведомления, сформированного плагином.
+fn host_notify(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    _user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let level: String = plugin.memory_get_val(&args[0])?;
+    let message: String = plugin.memory_get_val(&args[1])?;
+    let details: String = plugin.memory_get_val(&args[2])?;
+    let details = serde_json::from_str(&details).unwrap_or_else(|_| {
+        serde_json::json!({
+            "raw": details,
+        })
+    });
+    let journal = crate::journal::get_journal_handle();
+    if level == "user" {
+        journal.add_user(message, crate::journal::Severity::Info, "plugin", details);
+    } else {
+        journal.add_technical(message, "plugin", details);
+    }
+    plugin
+        .memory_set_val(&mut returns[0], "ok")
+        .map_err(|err| extism::Error::msg(err.to_string()))
 }
 
 /// Host-функция `fs_list_dir`: перечисление имён записей директории.

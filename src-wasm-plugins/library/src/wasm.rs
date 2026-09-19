@@ -34,10 +34,22 @@ extern "ExtismHost" {
     fn state_write(key: String, value: String) -> String;
     /// Удаление служебного состояния source-плагина.
     fn state_delete(key: String) -> String;
+    /// Публикация уведомления от source-плагина.
+    fn notify(level: String, message: String, details: String) -> String;
 }
 
 /// Реализация `Fs` поверх host-функций приложения.
 struct HostFs;
+
+fn emit_notification(level: &str, message: &str, details: serde_json::Value) {
+    let _ = unsafe {
+        notify(
+            level.to_string(),
+            message.to_string(),
+            details.to_string(),
+        )
+    };
+}
 
 impl Fs for HostFs {
     fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
@@ -137,14 +149,20 @@ pub fn invoke(input: String) -> FnResult<String> {
             } else {
                 scanner::scan(&fs).map_err(extism_pdk::Error::msg)?
             };
-            serde_json::to_string(&OpenResponse {
+            let response = serde_json::to_string(&OpenResponse {
                 session_id: "library".to_string(),
                 catalog: if portable {
                     lifecycle::restore(&fs).map_err(extism_pdk::Error::msg)?
                 } else {
                     lifecycle::open(&fs, books).map_err(extism_pdk::Error::msg)?
                 },
-            })?
+            })?;
+            emit_notification(
+                "user",
+                "Индексация библиотеки завершена",
+                json!({ "mode": if portable { "portable" } else { "source" } }),
+            );
+            response
         }
         "catalog" | "list" => {
             let catalog = lifecycle::catalog().unwrap_or(SourceCatalog {

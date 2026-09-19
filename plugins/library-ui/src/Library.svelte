@@ -221,9 +221,7 @@
           importError = 'Не удалось открыть библиотеку';
         }
       }
-      if (librarySelected) {
-        await loadCachedLibraries();
-      }
+       await loadCachedLibraries();
       if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {
         books = cachedBooks;
         loading = false;

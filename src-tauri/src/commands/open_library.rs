@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::journal::get_journal_handle;
+use crate::commands::cached_libraries::remember_library;
 use crate::plugin::PluginSession;
 
 /// Открытие библиотеки по выбранной пользователем директории.
@@ -44,31 +44,19 @@ pub async fn open_library(
             current.set_stage("scanning");
         }
         let _ = app.emit("library-progress", "scanning");
-        get_journal_handle().add_user(
-            "Сканирование библиотеки",
-            crate::journal::Severity::Info,
-            "library",
-            serde_json::json!({ "path": root.display().to_string() }),
-        );
         let probe_plugins_dir = background_plugins_dir.clone();
         let probe_storage_root = background_storage_root.clone();
         let result = PluginSession::prepare_selected(root, probe_plugins_dir, probe_storage_root);
         if let Ok((is_external, source)) = result {
             if !is_external {
                 let error = "выбранная директория не распознана как поддерживаемая библиотека";
-                set_open_error(&app, root, error.to_string());
+                set_open_error(&app, error.to_string());
                 return;
             }
             if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                 current.set_stage("indexing");
             }
             let _ = app.emit("library-progress", "indexing");
-            get_journal_handle().add_user(
-                "Создание индекса",
-                crate::journal::Severity::Info,
-                "library",
-                serde_json::json!({ "path": root.display().to_string() }),
-            );
             let provider = source.expect("имя источника");
             let open_plugins_dir = background_plugins_dir.clone();
             let open_storage_root = background_storage_root.clone();
@@ -79,49 +67,29 @@ pub async fn open_library(
             ) {
                 Ok(session) => session,
                 Err(error) => {
-                    set_open_error(&app, root, error.to_string());
+                    set_open_error(&app, error.to_string());
                     return;
                 }
             };
             if let Err(error) = opened.promote_provider(provider) {
-                set_open_error(&app, root, error.to_string());
+                set_open_error(&app, error.to_string());
                 return;
             }
             if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
                 if current.root() == root {
                     *current = opened;
-                    get_journal_handle().add_user(
-                        "Библиотека открыта",
-                        crate::journal::Severity::Info,
-                        "library",
-                        serde_json::json!({ "path": root.display().to_string() }),
-                    );
+                    let _ = remember_library(&app, root.to_string_lossy().as_ref());
                     let _ = app.emit("library-catalog-changed", ());
                 }
             }
         } else if let Err(error) = result {
-            set_open_error(&app, root, error.to_string());
+            set_open_error(&app, error.to_string());
         }
     });
     Ok("loading".to_string())
 }
 
-fn set_open_error(app: &AppHandle, root: &std::path::Path, message: String) {
-    let handle = get_journal_handle();
-    handle.add_user(
-        "Не удалось открыть библиотеку",
-        crate::journal::Severity::Error,
-        "library",
-        serde_json::json!({
-            "path": root.display().to_string(),
-            "error": message,
-        }),
-    );
-    handle.add_technical(
-        "open library error",
-        root.display().to_string(),
-        serde_json::json!({ "error": message }),
-    );
+fn set_open_error(app: &AppHandle, message: String) {
     if let Ok(mut current) = app.state::<Mutex<PluginSession>>().lock() {
         current.set_stage("error");
     }

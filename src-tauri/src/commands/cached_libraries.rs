@@ -1,6 +1,8 @@
 //! Команда перечисления сохранённых индексов библиотек.
 
-use tauri::command;
+use std::fs;
+
+use tauri::{command, AppHandle, Manager};
 
 use serde::Serialize;
 
@@ -13,8 +15,49 @@ pub struct CachedLibrary {
     pub available: bool,
 }
 
+const CACHE_FILE: &str = "recent-libraries.json";
+
 /// Получение сохранённых индексов и состояния исходных директорий.
 #[command]
-pub fn list_cached_libraries() -> Result<Vec<CachedLibrary>, String> {
-    Ok(Vec::new())
+pub fn list_cached_libraries(app: AppHandle) -> Result<Vec<CachedLibrary>, String> {
+    let file = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join(CACHE_FILE);
+    let paths: Vec<String> = match fs::read_to_string(file) {
+        Ok(value) => serde_json::from_str(&value).unwrap_or_default(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(error) => return Err(error.to_string()),
+    };
+    Ok(paths
+        .into_iter()
+        .map(|path| CachedLibrary {
+            available: std::path::Path::new(&path).is_dir(),
+            path,
+        })
+        .collect())
+}
+
+/// Сохранение успешно открытой директории в app-local списке последних библиотек.
+pub(crate) fn remember_library(app: &AppHandle, path: &str) -> Result<(), String> {
+    let directory = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let file = directory.join(CACHE_FILE);
+    let mut paths: Vec<String> = match fs::read_to_string(&file) {
+        Ok(value) => serde_json::from_str(&value).unwrap_or_default(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(error) => return Err(error.to_string()),
+    };
+    paths.retain(|current| current != path);
+    paths.insert(0, path.to_string());
+    paths.truncate(10);
+    fs::write(
+        file,
+        serde_json::to_string(&paths).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| error.to_string())
 }
