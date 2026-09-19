@@ -3,21 +3,11 @@
   import Reading from './Reading.svelte';
   import type { Book } from './types';
 
-  interface Props {
-    unreadNotifications: number;
-    onOpenNotifications: () => void;
-  }
-
-  let { unreadNotifications, onOpenNotifications }: Props = $props();
   let page: 'library' | 'reading' = $state('library');
   let bookId: number | string = $state('');
   let cachedBooks: Book[] = $state([]);
 
   function navigate(nextPage: string, nextBookId?: number | string) {
-    if (nextPage === 'notifications') {
-      onOpenNotifications();
-      return;
-    }
     page = nextPage === 'reading' ? 'reading' : 'library';
     if (nextBookId !== undefined) {
       bookId = nextBookId;
@@ -30,7 +20,6 @@
     onNavigate={navigate}
     books={cachedBooks}
     onBooksChange={(books: Book[]) => (cachedBooks = books)}
-    {unreadNotifications}
   />
 {:else}
   <Reading bookId={bookId} onNavigate={navigate} />

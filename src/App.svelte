@@ -12,7 +12,7 @@
 
   let showNotifications = $state(false);
   let notifications: Entry[] = $state([]);
-  let technicalVisible: boolean = $state(readTechnicalVisible());
+  let technicalVisible: boolean = $state(true);
   let isMobile: boolean = $state(initialIsMobile());
   let panelCollapsed: boolean = $state(true);
 
@@ -93,8 +93,8 @@
     };
     query.addEventListener('change', onChange);
     void (async () => {
-      unlisten = await listen('journal:added', () => {
-        void loadNotifications();
+      unlisten = await listen<Entry>('journal:added', (event) => {
+        notifications = [...notifications, event.payload];
       });
       await loadNotifications();
     })();

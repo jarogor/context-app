@@ -7,17 +7,15 @@
     onNavigate: (page: string, bookId?: number | string) => void;
     books: Book[];
     onBooksChange: (books: Book[]) => void;
-    unreadNotifications: number;
   }
 
   type BookWithCover = Book & { coverUri?: string };
 
-  let { onNavigate, books: cachedBooks, onBooksChange, unreadNotifications }: Props = $props();
+  let { onNavigate, books: cachedBooks, onBooksChange }: Props = $props();
 
   let books: BookWithCover[] = $state([]);
   let loading: boolean = $state(false);
   let error: string | null = $state(null);
-  let importing: boolean = $state(false);
   let importError: string | null = $state(null);
   let searchQuery: string = $state('');
   let libraryKind: LibraryInfo['kind'] = $state('portable');
@@ -192,28 +190,6 @@
     }
   }
 
-  async function importFile() {
-    importing = true;
-    importError = null;
-    try {
-      const selected = await openDialog({
-        multiple: false,
-        filters: [{ name: 'EPUB', extensions: ['epub'] }],
-      });
-      if (typeof selected === 'string') {
-        if (!librarySelected) {
-          throw new Error('Сначала выберите библиотеку');
-        }
-        await invoke('import_book', { sourcePath: selected });
-        await load();
-      }
-    } catch (e) {
-      importError = String(e);
-    } finally {
-      importing = false;
-    }
-  }
-
   onMount(() => {
     let unlisten: (() => void) | undefined;
     let unlistenProgress: (() => void) | undefined;
@@ -278,23 +254,10 @@
           class="open-library-button"
           type="button"
           onclick={openLibrary}
+          disabled={openingLibrary}
         >
           Открыть библиотеку
         </button>
-       <button
-         class="notifications-counter"
-         type="button"
-         onclick={() => onNavigate('notifications')}
-         aria-label={`Уведомления: непрочитанных ${unreadNotifications}`}
-         title="Уведомления"
-       >
-         <span class="notifications-counter-count">{unreadNotifications}</span>
-       </button>
-       {#if libraryKind === 'portable'}
-         <button class="import-button" type="button" onclick={importFile} disabled={importing}>
-           {importing ? 'Импорт...' : 'Добавить EPUB'}
-         </button>
-       {/if}
      </div>
    </div>
 
@@ -336,7 +299,7 @@
     <p class="state empty-state">
       {libraryKind === 'external'
         ? 'Источник не содержит книг, найденных сканером.'
-        : 'Библиотека пуста. Добавьте EPUB-файлы в папку библиотеки.'}
+        : 'Библиотека пуста.'}
     </p>
   {:else}
     <ul class="book-list">
@@ -392,15 +355,6 @@
     gap: 16px;
     margin-bottom: 16px;
   }
-  .import-button {
-    padding: 8px 14px;
-    border: 1px solid #333;
-    border-radius: 6px;
-    background: #333;
-    color: #fff;
-    font: inherit;
-    cursor: pointer;
-  }
   .header-actions {
     display: flex;
     flex-wrap: wrap;
@@ -428,39 +382,6 @@
     background: #eef5ff;
   }
   .open-library-button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  .notifications-counter {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 40px;
-    height: 34px;
-    padding: 0 10px;
-    border: 1px solid #5a8fda;
-    border-radius: 999px;
-    background: #fff;
-    color: #315f9e;
-    font: inherit;
-    font-weight: bold;
-    cursor: pointer;
-  }
-  .notifications-counter:hover {
-    background: #eef5ff;
-  }
-  .notifications-counter-count {
-    line-height: 1;
-  }
-  @media (min-width: 900px) {
-    .notifications-counter {
-      display: none;
-    }
-  }
-  .import-button:hover:not(:disabled) {
-    background: #000;
-  }
-  .import-button:disabled {
     opacity: 0.6;
     cursor: default;
   }
