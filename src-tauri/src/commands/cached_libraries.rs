@@ -3,9 +3,11 @@
 use std::fs;
 use std::path::Path;
 
-use tauri::{command, AppHandle, Manager};
+use tauri::{command, AppHandle};
 
 use serde::Serialize;
+
+use crate::config::app_state_dir;
 
 /// Сведения о сохранённой библиотеке.
 #[derive(Debug, Serialize)]
@@ -21,11 +23,7 @@ const CACHE_FILE: &str = "recent-libraries.json";
 /// Получение сохранённых индексов и состояния исходных директорий.
 #[command]
 pub fn list_cached_libraries(app: AppHandle) -> Result<Vec<CachedLibrary>, String> {
-    let file = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?
-        .join(CACHE_FILE);
+    let file = app_state_dir(&app)?.join(CACHE_FILE);
     let mut paths: Vec<String> = match fs::read_to_string(file) {
         Ok(value) => serde_json::from_str(&value).unwrap_or_default(),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
@@ -69,10 +67,7 @@ fn legacy_cached_paths() -> Vec<String> {
 
 /// Сохранение успешно открытой директории в app-local списке последних библиотек.
 pub(crate) fn remember_library(app: &AppHandle, path: &str) -> Result<(), String> {
-    let directory = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
+    let directory = app_state_dir(app)?;
     fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     let file = directory.join(CACHE_FILE);
     let mut paths: Vec<String> = match fs::read_to_string(&file) {

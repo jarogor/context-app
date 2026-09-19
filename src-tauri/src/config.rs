@@ -7,5 +7,7 @@
 
 mod app_config;
 mod models;
+mod paths;
 
 pub use app_config::AppConfig;
+pub(crate) use paths::app_state_dir;

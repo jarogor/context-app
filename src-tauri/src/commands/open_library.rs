@@ -20,11 +20,7 @@ pub async fn open_library(
         .resource_dir()
         .map_err(|error| error.to_string())?
         .join("plugins");
-    let storage_root = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?
-        .join("source-state");
+    let storage_root = crate::config::app_state_dir(&app)?.join("source-state");
     let background_plugins_dir = bundled_plugins_dir.clone();
     let background_storage_root = storage_root.clone();
     let selected = tauri::async_runtime::spawn_blocking(move || {

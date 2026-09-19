@@ -28,7 +28,7 @@ pub fn run() {
             let config = AppConfig::load()?;
             let library_root = config.library_dir;
             let bundled_plugins_dir = app.path().resource_dir()?.join("plugins");
-            let storage_root = app.path().app_data_dir()?.join("source-state");
+            let storage_root = crate::config::app_state_dir(app.handle())?.join("source-state");
             let mut library = PluginSession::idle(library_root, bundled_plugins_dir, storage_root);
             for name in library.runtime().plugin_names() {
                 let handle = crate::journal::get_journal_handle();
