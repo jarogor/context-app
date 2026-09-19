@@ -60,12 +60,17 @@ impl PluginSession {
         root: &Path,
         bundled: PathBuf,
     ) -> Result<(bool, Option<String>), PluginError> {
+        eprintln!("[session] loading runtime for {}", root.display());
         let mut runtime = Self::load_runtime(root, &bundled)?;
+        eprintln!("[session] runtime loaded: {:?}", runtime.plugin_names());
         runtime.set_sandbox_root(root.to_path_buf());
         runtime.set_sandbox_writable(false);
         for name in runtime.source_names() {
+            eprintln!("[session] checking source capabilities: {name}");
             runtime.source_capabilities(&name)?;
+            eprintln!("[session] probing source: {name}");
             if runtime.source_probe(&name)? {
+                eprintln!("[session] opening source: {name}");
                 runtime.source_open(&name)?;
                 return Ok((true, Some(name)));
             }

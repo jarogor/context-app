@@ -3,7 +3,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open } from '@tauri-apps/plugin-dialog';
   import { listen } from '@tauri-apps/api/event';
-  import type { Book, BookFile, CachedLibrary, LibraryInfo } from '../types';
+  import type { Book, BookFile, CachedLibrary, LibraryInfo } from './types';
 
   interface Props {
     onNavigate: (page: string, bookId?: number | string) => void;
@@ -88,6 +88,21 @@
     } catch (e) {
       error = String(e);
     }
+  }
+
+  async function waitForLibraryReady() {
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      const info = (await invoke('get_library_info')) as LibraryInfo;
+      libraryKind = info.kind;
+      sourceName = info.source_name;
+      indexingLibrary = info.indexing;
+      progressText = stageLabel(info.stage);
+      if (info.stage === 'ready' || info.stage === 'error') {
+        return info.stage;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error('Открытие библиотеки превысило время ожидания');
   }
 
   async function loadCachedLibraries() {
@@ -205,6 +220,9 @@
         importError = event.payload;
       });
       await loadLibraryInfo();
+      if (indexingLibrary) {
+        await waitForLibraryReady();
+      }
       await loadCachedLibraries();
       if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {
         books = cachedBooks;

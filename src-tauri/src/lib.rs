@@ -76,7 +76,11 @@ pub fn run() {
                     current.set_stage("scanning");
                 }
                 let _ = app_clone.emit("library-progress", "scanning");
-                let prepared = PluginSession::prepare_selected(&library_root, bundled_plugins_dir);
+                let prepared = if library_root.join("plugins").is_dir() {
+                    Ok((false, None))
+                } else {
+                    PluginSession::prepare_selected(&library_root, bundled_plugins_dir)
+                };
                 if let Ok((is_external, source)) = prepared {
                     if let Ok(mut current) = app_clone.state::<Mutex<PluginSession>>().lock() {
                         current.set_stage("indexing");

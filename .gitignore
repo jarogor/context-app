@@ -7,10 +7,25 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+node_modules/
+dist/
+dist-ssr/
 *.local
+
+# Кэш и временные артефакты инструментов сборки
+.cache/
+.vite/
+.svelte-kit/
+coverage/
+*.tsbuildinfo
+*.tmp
+*.temp
+*.source-state/
+
+# Сборка автономных frontend-плагинов
+plugins/*/node_modules/
+plugins/*/dist/
+public/plugins/
 
 # Временные данные разработки и тестов (внутри рабочей директории)
 _tmp
@@ -19,10 +34,10 @@ dev_data
 # Rust build artifacts
 target
 src-tauri/target
+src-wasm-plugins/target/
 
 # Генерируемые артефакты WASM-плагинов (сборка: scripts/build-wasm-plugins.sh)
-src-tauri/resources/plugins/*/*.wasm
-src-tauri/resources/plugins/*/plugin-manifest.json
+src-tauri/resources/plugins/
 
 # Editor directories and files
 .vscode/*

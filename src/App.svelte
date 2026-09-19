@@ -2,19 +2,15 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
-  import Library from './pages/Library.svelte';
-  import Reading from './pages/Reading.svelte';
+  import PluginFrame from './lib/PluginFrame.svelte';
   import Notifications from './pages/Notifications.svelte';
   import NotificationsPanel from './lib/NotificationsPanel.svelte';
-  import type { Book, Entry } from './types';
+  import type { Entry } from './types';
 
   const TECHNICAL_VISIBLE_KEY = 'notifications.technicalVisible';
   const MOBILE_QUERY = '(max-width: 899px)';
 
-  let currentPage: string = $state('library');
-  let returnPage: string = $state('library');
-  let currentBookId: number | string = $state('');
-  let cachedBooks: Book[] = $state([]);
+  let showNotifications = $state(false);
   let notifications: Entry[] = $state([]);
   let technicalVisible: boolean = $state(readTechnicalVisible());
   let isMobile: boolean = $state(initialIsMobile());
@@ -51,19 +47,15 @@
   });
 
   /** Переход между страницами приложения. */
-  function navigate(page: string, bookId?: number | string) {
+  function navigate(page: string) {
     if (page === 'notifications') {
-      returnPage = currentPage;
     }
-    currentPage = page;
-    if (bookId !== undefined) {
-      currentBookId = bookId;
-    }
+    showNotifications = page === 'notifications';
   }
 
   /** Возврат на страницу, с которой была открыта страница уведомлений. */
   function goBack() {
-    navigate(returnPage === 'notifications' ? 'library' : returnPage);
+    showNotifications = false;
   }
 
   /** Загрузка всех записей журнала. */
@@ -126,16 +118,7 @@
 {/if}
 
 <main class="app-content {!isMobile ? (panelCollapsed ? 'panel-collapsed' : 'panel-expanded') : ''}">
-  {#if currentPage === 'library'}
-    <Library
-      onNavigate={navigate}
-      books={cachedBooks}
-      onBooksChange={(books: Book[]) => (cachedBooks = books)}
-      unreadNotifications={unreadUser}
-    />
-  {:else if currentPage === 'reading'}
-    <Reading bookId={currentBookId} onNavigate={navigate} />
-  {:else if currentPage === 'notifications' && isMobile}
+  {#if showNotifications && isMobile}
     <div class="notifications-page">
       <Notifications
         entries={notifications}
@@ -145,13 +128,8 @@
         onBack={goBack}
       />
     </div>
-  {:else if currentPage === 'notifications'}
-    <Library
-      onNavigate={navigate}
-      books={cachedBooks}
-      onBooksChange={(books: Book[]) => (cachedBooks = books)}
-      unreadNotifications={unreadUser}
-    />
+  {:else}
+    <PluginFrame src="/plugins/library-ui/index.html" title="Library plugin" />
   {/if}
 </main>
 
