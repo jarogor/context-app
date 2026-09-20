@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke, listen, openDialog, operation, pluginOperation } from './bridge';
+  import { invoke, listen, openDialog, operation, pluginOperation, setPluginStorageRoot } from './bridge';
   import type { Book, BookFile, CachedLibrary, LibraryInfo } from './types';
 
   interface Props {
@@ -27,6 +27,18 @@
   let missingLibrary: string | null = $state(null);
   let librarySelected = $state(false);
 
+  async function configurePluginStorage(): Promise<void> {
+    const response = await fetch('./library-config.json', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Не удалось загрузить конфигурацию library plugin: ${response.status}`);
+    }
+    const config = (await response.json()) as { state_dir?: unknown };
+    if (typeof config.state_dir !== 'string' || config.state_dir.trim() === '') {
+      throw new Error('В конфигурации library plugin не указан state_dir');
+    }
+    setPluginStorageRoot(config.state_dir);
+  }
+
   function stageLabel(stage: LibraryInfo['stage']): string {
     if (stage === 'opening') return 'Открытие библиотеки...';
     if (stage === 'scanning') return 'Сканирование книг...';
@@ -38,21 +50,6 @@
 
   function coverFile(book: Book): BookFile | undefined {
     return book.files.find((file) => file.kind === 'cover');
-  }
-
-  async function configuredLibraryPath(): Promise<string> {
-    try {
-      const response = await fetch('/plugins/library-ui/library-config.json');
-      if (response.ok) {
-        const config = (await response.json()) as { library_dir?: string };
-        if (config.library_dir) {
-          return config.library_dir;
-        }
-      }
-    } catch {
-      // Конфигурация необязательна для production-сборки.
-    }
-    return 'dev_data/library';
   }
 
   function normalizeBook(book: Record<string, unknown>): Book {
@@ -149,12 +146,12 @@
 
   async function loadCachedLibraries() {
     try {
-      const stored = JSON.parse(localStorage.getItem('recent-source-roots') ?? '[]') as CachedLibrary[];
       const response = await pluginOperation<{ paths?: CachedLibrary[] }>('recent_list');
       const pluginPaths = response.paths ?? [];
-      const merged = [...pluginPaths, ...stored];
-      const unique = merged.filter((item, index) => merged.findIndex((current) => current.path === item.path) === index);
-      cachedLibraries = unique.slice(0, 10);
+      cachedLibraries = pluginPaths.filter(
+        (item): item is CachedLibrary =>
+          Boolean(item) && typeof item.path === 'string' && item.path.trim().length > 0,
+      );
     } catch (e) {
       error = String(e);
     }
@@ -173,20 +170,13 @@
       await operation('open', { mode: mode ?? 'external' }, { root: path, writable: mode === 'portable' });
       librarySelected = true;
       if (remember) {
-        cachedLibraries = [{ path, available: true }, ...cachedLibraries.filter((item) => item.path !== path)].slice(0, 10);
-        localStorage.setItem('recent-source-roots', JSON.stringify(cachedLibraries));
+        cachedLibraries = [{ path, available: true }, ...cachedLibraries.filter((item) => item.path !== path)];
         await operation('recent_remember', { path });
       }
       searchQuery = '';
       await loadLibraryInfo();
       if (!librarySelected) {
         loading = false;
-      }
-      if (infoNeedsWait()) {
-        const stage = await waitForLibraryReady();
-        if (stage === 'error') {
-          throw new Error('Не удалось открыть библиотеку');
-        }
       }
       openingLibrary = false;
       indexingLibrary = false;
@@ -264,27 +254,9 @@
         progressText = '';
         importError = value;
       });
+      await configurePluginStorage();
       await loadLibraryInfo();
       await loadCachedLibraries();
-      let openedSaved = false;
-      for (const saved of cachedLibraries) {
-        if (!saved.available) {
-          continue;
-        }
-        if (await openLibraryPath(saved.path)) {
-          openedSaved = true;
-          break;
-        }
-      }
-      if (!openedSaved && !librarySelected) {
-        await openLibraryPath(await configuredLibraryPath(), 'portable', false);
-      }
-      if (indexingLibrary) {
-        const stage = await waitForLibraryReady();
-        if (stage === 'error') {
-          importError = 'Не удалось открыть библиотеку';
-        }
-      }
       if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {
         books = cachedBooks;
         loading = false;

@@ -155,7 +155,6 @@ pub fn invoke(input: String) -> FnResult<String> {
             } else {
                 scanner::scan(&fs).map_err(extism_pdk::Error::msg)?
             };
-            let book_count = books.len();
             let response = serde_json::to_string(&OpenResponse {
                 session_id: "library".to_string(),
                 catalog: if portable {
@@ -171,8 +170,8 @@ pub fn invoke(input: String) -> FnResult<String> {
             );
             emit_notification(
                 "technical",
-                "Индексация source завершена",
-                json!({ "mode": if portable { "portable" } else { "source" }, "items": book_count }),
+                "Индекс каталога обновлён",
+                json!({ "mode": if portable { "portable" } else { "source" } }),
             );
             response
         }
@@ -268,11 +267,23 @@ pub fn invoke(input: String) -> FnResult<String> {
             let mut paths = recent_paths(&fs)?;
             paths.retain(|current| current != path);
             paths.insert(0, path.to_string());
-            paths.truncate(10);
             let value = serde_json::to_string(&paths)?;
             fs.state_write("recent-libraries.json", &value)
                 .map_err(extism_pdk::Error::msg)?;
             serde_json::to_string(&json!({ "saved": true }))?
+        }
+        "recent_forget" => {
+            let path = request
+                .payload
+                .get("path")
+                .and_then(|value| value.as_str())
+                .ok_or_else(|| extism_pdk::Error::msg("не указан путь каталога"))?;
+            let mut paths = recent_paths(&fs)?;
+            paths.retain(|current| current != path);
+            let value = serde_json::to_string(&paths)?;
+            fs.state_write("recent-libraries.json", &value)
+                .map_err(extism_pdk::Error::msg)?;
+            serde_json::to_string(&json!({ "removed": true }))?
         }
         "import" => {
             let path = request

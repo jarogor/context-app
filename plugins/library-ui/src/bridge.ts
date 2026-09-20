@@ -10,6 +10,7 @@ type Message = {
 };
 
 let sequence = 0;
+let pluginStorageRoot: string | undefined;
 const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 const listeners = new Map<string, Set<(value: unknown) => void>>();
 
@@ -43,7 +44,7 @@ export function invoke<T = unknown>(command: string, payload?: unknown): Promise
 export function operation<T = unknown>(
   action: string,
   payload: unknown = {},
-  options: { root?: string; writable?: boolean } = {},
+  options: { root?: string; writable?: boolean; storageRoot?: string } = {},
 ): Promise<T> {
   const requestPayload: Record<string, unknown> = { operation: action, payload };
   if (options.root) {
@@ -51,17 +52,30 @@ export function operation<T = unknown>(
     requestPayload.root = options.root;
     requestPayload.writable = options.writable;
   }
+  const storageRoot = options.storageRoot ?? pluginStorageRoot;
+  if (!storageRoot) {
+    return Promise.reject(new Error('Конфигурация plugin storage не загружена'));
+  }
+  requestPayload.storage_root = storageRoot;
   return invoke<T>('invoke_plugin_operation', {
     ...requestPayload,
   });
 }
 
+export function setPluginStorageRoot(path: string): void {
+  pluginStorageRoot = path;
+}
+
 export function pluginOperation<T = unknown>(
   action: string,
   payload: unknown = {},
-  options: { root?: string; writable?: boolean } = {},
+  options: { root?: string; writable?: boolean; storageRoot?: string } = {},
 ): Promise<T> {
-  return operation<T>(action, payload, { root: options.root ?? '.', writable: options.writable ?? false });
+  return operation<T>(action, payload, {
+    root: options.root ?? '.',
+    writable: options.writable ?? false,
+    storageRoot: options.storageRoot ?? pluginStorageRoot,
+  });
 }
 
 export function openDialog(options: unknown): Promise<string | string[] | null> {

@@ -10,18 +10,16 @@ pub struct PluginSession {
     active_plugin: Option<String>,
     runtime: PluginRuntime,
     bundled_plugins_dir: PathBuf,
-    storage_root: PathBuf,
 }
 
 impl PluginSession {
     /// Создание пустого plugin host состояния.
-    pub fn idle(root: PathBuf, bundled: PathBuf, storage_root: PathBuf) -> Self {
+    pub fn idle(root: PathBuf, bundled: PathBuf) -> Self {
         Self {
             root,
             active_plugin: None,
             runtime: PluginRuntime::empty(),
             bundled_plugins_dir: bundled,
-            storage_root,
         }
     }
 
@@ -31,6 +29,7 @@ impl PluginSession {
         root: impl Into<PathBuf>,
         plugin: String,
         writable: bool,
+        storage_root: Option<impl Into<PathBuf>>,
     ) -> Result<(), PluginError> {
         let root = root.into();
         let root = if root.is_absolute() {
@@ -53,7 +52,14 @@ impl PluginSession {
                 message: format!("путь не является директорией: {}", root.display()),
             });
         }
-        self.runtime = Self::load_runtime(&root, &self.bundled_plugins_dir, &self.storage_root)?;
+        let storage_root = storage_root
+            .map(Into::into)
+            .map(resolve_project_path)
+            .ok_or_else(|| PluginError::Call {
+                plugin: "runtime".into(),
+                message: "не указан storage root plugin-а".into(),
+            })?;
+        self.runtime = Self::load_runtime(&root, &self.bundled_plugins_dir, &storage_root)?;
         self.runtime.set_sandbox_root(root.clone());
         self.runtime.set_sandbox_writable(writable);
         self.root = root;
@@ -107,6 +113,18 @@ impl PluginSession {
         Ok(runtime)
     }
 }
+
+/// Разрешение относительного plugin storage от корня проекта.
+fn resolve_project_path(path: PathBuf) -> PathBuf {
+    if path.is_absolute() {
+        return path;
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("родитель папки src-tauri")
+        .join(path)
+}
+
 
 #[cfg(test)]
 #[path = "session_tests.rs"]

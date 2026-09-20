@@ -14,13 +14,14 @@ pub fn invoke_plugin_operation(
     plugin: Option<String>,
     root: Option<String>,
     writable: Option<bool>,
+    storage_root: Option<String>,
     operation: String,
     payload: Value,
 ) -> Result<Value, String> {
     let mut host = state.lock().map_err(|error| error.to_string())?;
     if let Some(plugin) = plugin {
         let root = root.ok_or_else(|| "не указан root plugin".to_string())?;
-        host.configure(root, plugin, writable.unwrap_or(false))
+        host.configure(root, plugin, writable.unwrap_or(false), storage_root)
             .map_err(|error| error.to_string())?;
     }
     let response = host

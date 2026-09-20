@@ -2,7 +2,6 @@
 pub mod test_util;
 
 pub mod commands;
-pub mod config;
 pub mod constants;
 pub mod journal;
 pub mod plugin;
@@ -26,8 +25,7 @@ pub fn run() {
 
             let root = std::path::PathBuf::from(".");
             let bundled_plugins_dir = app.path().resource_dir()?.join("plugins");
-            let storage_root = crate::config::app_state_dir(app.handle())?;
-            let mut host = PluginSession::idle(root, bundled_plugins_dir, storage_root);
+            let mut host = PluginSession::idle(root, bundled_plugins_dir);
             for name in host.runtime().plugin_names() {
                 let handle = crate::journal::get_journal_handle();
                 handle.add_technical("plugin loaded", name, serde_json::json!({}));
