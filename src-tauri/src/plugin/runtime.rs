@@ -2,8 +2,7 @@
 //!
 //! Сканирует папки плагинов, загружает
 //! плагины в Extism runtime без WASI и без доступа к сети и предоставляет
-//! host-функции, объявленные контрактом: `log`, а для source-плагинов — чтение
-//! файловой системы в песочнице активного source-корня.
+//! host-функции, объявленные общим контрактом plugin-ов.
 
 use std::fs;
 use std::io;
@@ -264,7 +263,6 @@ impl PluginRuntime {
 
         Ok(LoadedPlugin {
             name: manifest.name,
-            kind: manifest.kind,
             provides: manifest.provides,
             requires: manifest.requires,
             function: manifest.export,

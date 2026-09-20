@@ -29,7 +29,6 @@ fn parses_valid_manifest() {
         manifest.contract_version,
         super::super::contract::CONTRACT_VERSION
     );
-    assert_eq!(manifest.kind, PluginKind::Extension, "kind по умолчанию");
     assert_eq!(manifest.name, "demo");
     assert_eq!(manifest.module, "demo.wasm");
     assert_eq!(manifest.export, super::super::contract::EXPORT_FUNCTION);
@@ -42,52 +41,6 @@ fn parses_valid_manifest() {
     manifest
         .validate(dir)
         .expect("валидный манифест принимается");
-    fs::remove_dir_all(dir).expect("очистка");
-}
-
-#[test]
-fn parses_source_kind_manifest() {
-    let path = write_manifest(
-        r#"{
-        "contract_version": 1,
-        "kind": "source",
-        "name": "provider-plugin",
-        "description": "Поставщик данных",
-        "module": "provider.wasm",
-        "export": "invoke",
-        "host_functions": ["log", "fs_list_dir", "fs_read_text"]
-      }"#,
-    );
-
-    let manifest = PluginManifest::load(&path).expect("парсинг манифеста");
-    assert_eq!(manifest.kind, PluginKind::Source);
-    assert_eq!(manifest.kind.as_str(), "source");
-
-    let dir = path.parent().expect("директория");
-    manifest
-        .validate(dir)
-        .expect("валидный source-манифест принимается");
-    fs::remove_dir_all(dir).expect("очистка");
-}
-
-#[test]
-fn unknown_kind_is_rejected() {
-    let path = write_manifest(
-        r#"{
-        "contract_version": 1,
-        "kind": "obscure",
-        "name": "plugin",
-        "description": "x",
-        "module": "p.wasm",
-        "export": "invoke",
-        "host_functions": []
-      }"#,
-    );
-
-    let result = PluginManifest::load(&path);
-    assert!(result.is_err(), "манифест с неизвестным kind отклоняется");
-
-    let dir = path.parent().expect("директория");
     fs::remove_dir_all(dir).expect("очистка");
 }
 

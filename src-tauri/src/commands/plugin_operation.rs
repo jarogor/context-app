@@ -19,13 +19,17 @@ pub fn invoke_plugin_operation(
     payload: Value,
 ) -> Result<Value, String> {
     let mut host = state.lock().map_err(|error| error.to_string())?;
+
     if let Some(plugin) = plugin {
         let root = root.ok_or_else(|| "не указан root plugin".to_string())?;
+
         host.configure(root, plugin, writable.unwrap_or(false), storage_root)
             .map_err(|error| error.to_string())?;
     }
+
     let response = host
         .invoke(&operation, payload)
         .map_err(|error| error.to_string())?;
+
     serde_json::from_str(&response).map_err(|error| error.to_string())
 }

@@ -2,32 +2,11 @@
 
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::plugin::PluginError;
 
 use super::contract::CONTRACT_VERSION;
-
-/// Тип плагина: расширение или поставщик внешнего источника книг.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum PluginKind {
-    /// Обычное расширение приложения.
-    #[default]
-    Extension,
-    /// Поставщик внешнего источника книг с host-функциями файловой системы.
-    Source,
-}
-
-impl PluginKind {
-    /// Строковое представление типа плагина для контракта.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Extension => "extension",
-            Self::Source => "source",
-        }
-    }
-}
 
 /// Манифест плагина в формате `plugin-manifest.json`.
 ///
@@ -37,9 +16,6 @@ impl PluginKind {
 pub struct PluginManifest {
     /// Версия контракта, которой соответствует плагин.
     pub contract_version: u32,
-    /// Тип плагина: расширение или поставщик источника.
-    #[serde(default)]
-    pub kind: PluginKind,
     /// Уникальное имя плагина.
     pub name: String,
     /// Краткое описание назначения плагина.
