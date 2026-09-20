@@ -11,12 +11,7 @@ fn writable_root_is_created_before_plugin_configuration() {
     let mut session = PluginSession::idle(PathBuf::from("."), bundled);
 
     session
-        .configure(
-            &root,
-            "test-plugin".to_string(),
-            true,
-            Some(parent.join("state")),
-        )
+        .configure(&root, "test-plugin".to_string(), true, parent.join("state"))
         .expect("настройка writable plugin root");
 
     assert!(root.is_dir(), "writable root создан до настройки sandbox");
@@ -34,9 +29,12 @@ fn relative_storage_root_is_resolved_from_project_root() {
         &root,
         "test-plugin".to_string(),
         true,
-        Some(PathBuf::from("dev_data/app-state")),
+        PathBuf::from("dev_data/app-state"),
     );
 
-    assert!(result.is_ok(), "относительный storage root разрешён от корня проекта");
+    assert!(
+        result.is_ok(),
+        "относительный storage root разрешён от корня проекта"
+    );
     test_util::cleanup(&parent);
 }

@@ -29,7 +29,7 @@ impl PluginSession {
         root: impl Into<PathBuf>,
         plugin: String,
         writable: bool,
-        storage_root: Option<impl Into<PathBuf>>,
+        storage_root: impl Into<PathBuf>,
     ) -> Result<(), PluginError> {
         let root = root.into();
         let root = if root.is_absolute() {
@@ -52,13 +52,7 @@ impl PluginSession {
                 message: format!("путь не является директорией: {}", root.display()),
             });
         }
-        let storage_root = storage_root
-            .map(Into::into)
-            .map(resolve_project_path)
-            .ok_or_else(|| PluginError::Call {
-                plugin: "runtime".into(),
-                message: "не указан storage root plugin-а".into(),
-            })?;
+        let storage_root = resolve_project_path(storage_root.into());
         self.runtime = Self::load_runtime(&root, &self.bundled_plugins_dir, &storage_root)?;
         self.runtime.set_sandbox_root(root.clone());
         self.runtime.set_sandbox_writable(writable);
@@ -124,7 +118,6 @@ fn resolve_project_path(path: PathBuf) -> PathBuf {
         .expect("родитель папки src-tauri")
         .join(path)
 }
-
 
 #[cfg(test)]
 #[path = "session_tests.rs"]

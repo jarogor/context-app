@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke, listen, openDialog, operation, pluginOperation, setPluginStorageRoot } from './bridge';
+  import { invoke, listen, openDialog, operation, pluginOperation } from './bridge';
   import type { Book, BookFile, CachedLibrary, LibraryInfo } from './types';
 
   interface Props {
@@ -26,19 +26,6 @@
   let cachedLibraries: CachedLibrary[] = $state([]);
   let missingLibrary: string | null = $state(null);
   let librarySelected = $state(false);
-
-  async function configurePluginStorage(): Promise<void> {
-    const response = await fetch('./library-config.json', { cache: 'no-store' });
-    if (!response.ok) {
-      throw new Error(`Не удалось загрузить конфигурацию library plugin: ${response.status}`);
-    }
-    const config = (await response.json()) as { state_dir?: unknown };
-    if (typeof config.state_dir !== 'string' || config.state_dir.trim() === '') {
-      throw new Error('В конфигурации library plugin не указан state_dir');
-    }
-    setPluginStorageRoot(config.state_dir);
-  }
-
   function stageLabel(stage: LibraryInfo['stage']): string {
     if (stage === 'opening') return 'Открытие библиотеки...';
     if (stage === 'scanning') return 'Сканирование книг...';
@@ -254,7 +241,6 @@
         progressText = '';
         importError = value;
       });
-      await configurePluginStorage();
       await loadLibraryInfo();
       await loadCachedLibraries();
       if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {

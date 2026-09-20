@@ -14,7 +14,7 @@ pub fn invoke_plugin_operation(
     plugin: Option<String>,
     root: Option<String>,
     writable: Option<bool>,
-    storage_root: Option<String>,
+    storage_root: String,
     operation: String,
     payload: Value,
 ) -> Result<Value, String> {

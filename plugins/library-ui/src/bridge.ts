@@ -1,3 +1,5 @@
+import libraryConfig from './library-config.json';
+
 type Message = {
   channel: 'booklib-plugin';
   type: string;
@@ -10,7 +12,6 @@ type Message = {
 };
 
 let sequence = 0;
-let pluginStorageRoot: string | undefined;
 const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 const listeners = new Map<string, Set<(value: unknown) => void>>();
 
@@ -44,7 +45,7 @@ export function invoke<T = unknown>(command: string, payload?: unknown): Promise
 export function operation<T = unknown>(
   action: string,
   payload: unknown = {},
-  options: { root?: string; writable?: boolean; storageRoot?: string } = {},
+  options: { root?: string; writable?: boolean } = {},
 ): Promise<T> {
   const requestPayload: Record<string, unknown> = { operation: action, payload };
   if (options.root) {
@@ -52,29 +53,20 @@ export function operation<T = unknown>(
     requestPayload.root = options.root;
     requestPayload.writable = options.writable;
   }
-  const storageRoot = options.storageRoot ?? pluginStorageRoot;
-  if (!storageRoot) {
-    return Promise.reject(new Error('Конфигурация plugin storage не загружена'));
-  }
-  requestPayload.storage_root = storageRoot;
+  requestPayload.storageRoot = libraryConfig.state_dir;
   return invoke<T>('invoke_plugin_operation', {
     ...requestPayload,
   });
 }
 
-export function setPluginStorageRoot(path: string): void {
-  pluginStorageRoot = path;
-}
-
 export function pluginOperation<T = unknown>(
   action: string,
   payload: unknown = {},
-  options: { root?: string; writable?: boolean; storageRoot?: string } = {},
+  options: { root?: string; writable?: boolean } = {},
 ): Promise<T> {
   return operation<T>(action, payload, {
     root: options.root ?? '.',
     writable: options.writable ?? false,
-    storageRoot: options.storageRoot ?? pluginStorageRoot,
   });
 }
 
