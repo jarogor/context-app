@@ -181,7 +181,7 @@ fn sandbox_resolves_paths_inside_root() {
 fn sandbox_rejects_paths_outside_root() {
     let parent = test_util::test_root("plugin-sandbox-outside-parent");
     cleanup(&parent);
-    let root = parent.join("library");
+    let root = parent.join("source-root");
     let outside = parent.join("target");
     fs::create_dir_all(&outside).expect("создание внешней папки");
     let sandbox_root = Arc::new(Mutex::new(root));

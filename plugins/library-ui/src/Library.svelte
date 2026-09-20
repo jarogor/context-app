@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke, listen, openDialog } from './bridge';
+  import { invoke, listen, openDialog, operation } from './bridge';
   import type { Book, BookFile, CachedLibrary, LibraryInfo } from './types';
 
   interface Props {
@@ -40,13 +40,45 @@
     return book.files.find((file) => file.kind === 'cover');
   }
 
+  function normalizeBook(book: Record<string, unknown>): Book {
+    const id = String(book.id ?? '');
+    const authors = Array.isArray(book.authors)
+      ? book.authors.map((author, index) => ({ id: index, name: String(author) }))
+      : [];
+    const files = Array.isArray(book.files)
+      ? book.files.map((file, index) => {
+          const value = file as Record<string, unknown>;
+          return {
+            id: index,
+            book_id: id,
+            kind: value.kind === 'cover' ? 'cover' : 'book',
+            path: String(value.path ?? ''),
+            format: String(value.format ?? ''),
+          } satisfies BookFile;
+        })
+      : [];
+    return {
+      id,
+      uuid: id,
+      title: String(book.title ?? ''),
+      created_at: '',
+      updated_at: '',
+      authors,
+      series: [],
+      tags: [],
+      files,
+    };
+  }
+
   async function loadCovers(list: Book[]) {
     for (const book of list) {
       if (!coverFile(book)) {
         continue;
       }
       try {
-        const coverUri = (await invoke('get_cover', { bookId: book.id })) as string | null;
+        const value = (await operation('cover', { book_id: book.id })) as { data?: string; format?: string };
+        const mime = value.format === 'png' ? 'image/png' : value.format === 'webp' ? 'image/webp' : 'image/jpeg';
+        const coverUri = value.data ? `data:${mime};base64,${value.data}` : null;
         if (coverUri) {
           books = books.map((current) =>
             current.id === book.id ? { ...current, coverUri } : current,
@@ -67,9 +99,11 @@
     loading = true;
     error = null;
     try {
-      const list: Book[] = searchQuery.trim()
-        ? await invoke('search_books', { query: searchQuery })
-        : await invoke('list_books');
+      const response = searchQuery.trim()
+        ? await operation<{ catalog?: { books?: Record<string, unknown>[] }; books?: Record<string, unknown>[] }>('search', { query: searchQuery })
+        : await operation<{ catalog?: { books?: Record<string, unknown>[] }; books?: Record<string, unknown>[] }>('list');
+      const rawBooks = response.books ?? response.catalog?.books ?? [];
+      const list = rawBooks.map(normalizeBook);
       // Catalog loading must not wait for every cover request.
       books = list;
       onBooksChange(list);
@@ -83,7 +117,7 @@
 
   async function loadLibraryInfo() {
     try {
-      const info = (await invoke('get_library_info')) as LibraryInfo;
+      const info = (await invoke('get_source_info')) as LibraryInfo;
       libraryKind = info.kind;
       sourceName = info.source_name;
       indexingLibrary = info.stage === 'scanning' || info.stage === 'indexing';
@@ -96,7 +130,7 @@
 
   async function waitForLibraryReady() {
     for (let attempt = 0; attempt < 300; attempt += 1) {
-      const info = (await invoke('get_library_info')) as LibraryInfo;
+      const info = (await invoke('get_source_info')) as LibraryInfo;
       libraryKind = info.kind;
       sourceName = info.source_name;
       indexingLibrary = info.stage === 'scanning' || info.stage === 'indexing';
@@ -112,7 +146,7 @@
 
   async function loadCachedLibraries() {
     try {
-      cachedLibraries = (await invoke('list_cached_libraries')) as CachedLibrary[];
+      cachedLibraries = JSON.parse(localStorage.getItem('recent-source-roots') ?? '[]') as CachedLibrary[];
     } catch (e) {
       error = String(e);
     }
@@ -128,7 +162,9 @@
     progressText = 'Открытие библиотеки...';
     missingLibrary = null;
     try {
-      await invoke('open_library', { path });
+      await invoke('open_source', { path });
+      cachedLibraries = [{ path, available: true }, ...cachedLibraries.filter((item) => item.path !== path)].slice(0, 10);
+      localStorage.setItem('recent-source-roots', JSON.stringify(cachedLibraries));
       searchQuery = '';
       await loadLibraryInfo();
       if (!librarySelected) {
@@ -165,7 +201,7 @@
   async function openInSystem(bookId: number | string) {
     importError = null;
     try {
-      await invoke('open_book_in_system', { bookId });
+      await operation('open_external', { book_id: bookId });
     } catch (e) {
       importError = String(e);
     }
@@ -195,12 +231,12 @@
     let unlistenProgress: (() => void) | undefined;
     let unlistenError: (() => void) | undefined;
     void (async () => {
-      unlisten = await listen('library-catalog-changed', () => {
+      unlisten = await listen('source-catalog-changed', () => {
         openingLibrary = false;
         indexingLibrary = false;
         progressText = '';
       });
-      unlistenProgress = await listen<string>('library-progress', (value) => {
+      unlistenProgress = await listen<string>('source-progress', (value) => {
         indexingLibrary = value !== 'ready';
         progressText = value === 'scanning'
           ? 'Сканирование книг...'
@@ -208,7 +244,7 @@
             ? 'Создание индекса...'
             : '';
       });
-      unlistenError = await listen<string>('library-open-error', (value) => {
+      unlistenError = await listen<string>('source-open-error', (value) => {
         openingLibrary = false;
         indexingLibrary = false;
         progressText = '';

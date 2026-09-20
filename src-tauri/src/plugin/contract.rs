@@ -18,17 +18,17 @@ pub const HOST_LOG_FUNCTION: &str = "log";
 /// Имя host-функции публикации уведомления плагином.
 pub const HOST_NOTIFY_FUNCTION: &str = "notify";
 
-/// Имя host-функции перечисления содержимого директории библиотеки.
+/// Имя host-функции перечисления содержимого source-корня.
 pub const HOST_FS_LIST_DIR: &str = "fs_list_dir";
 
-/// Имя host-функции чтения текстового файла библиотеки.
+/// Имя host-функции чтения текстового файла source-корня.
 pub const HOST_FS_READ_TEXT: &str = "fs_read_text";
 
 /// Имя host-функции чтения бинарного файла в base64.
 pub const HOST_FS_READ_BYTES: &str = "fs_read_bytes";
 /// Имя host-функции чтения выбранного пользователем файла импорта.
 pub const HOST_IMPORT_READ_BYTES: &str = "import_read_bytes";
-/// Имя host-функции записи файла portable-библиотеки.
+/// Имя host-функции записи файла в source-корень.
 pub const HOST_FS_WRITE_BYTES: &str = "fs_write_bytes";
 
 /// Имя host-функции открытия файла системным приложением.

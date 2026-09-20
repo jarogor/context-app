@@ -40,6 +40,10 @@ export function invoke<T = unknown>(command: string, payload?: unknown): Promise
   return request<T>('invoke', { command, payload });
 }
 
+export function operation<T = unknown>(action: string, payload: unknown = {}): Promise<T> {
+  return invoke<T>('invoke_plugin_operation', { operation: action, payload });
+}
+
 export function openDialog(options: unknown): Promise<string | string[] | null> {
   return request('dialog.open', { payload: options });
 }

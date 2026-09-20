@@ -11,12 +11,11 @@ use std::sync::Mutex;
 
 use tauri::Manager;
 
-use crate::config::AppConfig;
 use crate::constants::DEMO_PLUGIN_NAME;
 use crate::journal::Severity;
-use crate::plugin::PluginSession;
+use crate::plugin::PluginHostSession;
 
-/// Точка входа Tauri-приложения: конфигурация, библиотека и плагины.
+/// Точка входа Tauri-приложения и generic plugin host.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -25,22 +24,21 @@ pub fn run() {
             crate::journal::set_journal_handle(crate::journal::JournalHandle::new());
             crate::journal::set_app_handle(app.handle().clone());
 
-            let config = AppConfig::load()?;
-            let library_root = config.library_dir;
+            let root = std::path::PathBuf::from(".");
             let bundled_plugins_dir = app.path().resource_dir()?.join("plugins");
             let storage_root = crate::config::app_state_dir(app.handle())?.join("source-state");
-            let mut library = PluginSession::idle(library_root, bundled_plugins_dir, storage_root);
-            for name in library.runtime().plugin_names() {
+            let mut host = PluginHostSession::idle(root, bundled_plugins_dir, storage_root);
+            for name in host.runtime().plugin_names() {
                 let handle = crate::journal::get_journal_handle();
                 handle.add_technical("plugin loaded", name, serde_json::json!({}));
             }
-            if library
+            if host
                 .runtime()
                 .plugin_names()
                 .iter()
                 .any(|n| n == DEMO_PLUGIN_NAME)
             {
-                match library
+                match host
                     .runtime_mut()
                     .invoke(DEMO_PLUGIN_NAME, r#"{"title":"BookLib"}"#)
                 {
@@ -64,20 +62,14 @@ pub fn run() {
                 }
             }
 
-            app.manage(Mutex::new(library));
+            app.manage(Mutex::new(host));
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::list_books,
-            commands::get_cover,
-            commands::get_book_content,
-            commands::list_cached_libraries,
-            commands::get_library_info,
-            commands::open_book_in_system,
-            commands::open_library,
-            commands::invoke_library_operation,
-            commands::search_books,
+            commands::invoke_plugin_operation,
+            commands::open_source,
+            commands::get_source_info,
             crate::journal::commands::list_journal,
             crate::journal::commands::mark_read,
             crate::journal::commands::mark_all_read,

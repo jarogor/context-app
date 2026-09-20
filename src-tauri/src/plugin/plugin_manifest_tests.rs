@@ -130,13 +130,13 @@ fn parses_plugin_capabilities() {
         "export": "invoke",
         "host_functions": [],
         "provides": ["rating@1"],
-        "requires": ["library.catalog@1"]
+        "requires": ["catalog.provider@1"]
       }"#,
     );
 
     let manifest = PluginManifest::load(&path).expect("парсинг capabilities");
     assert_eq!(manifest.provides, ["rating@1"]);
-    assert_eq!(manifest.requires, ["library.catalog@1"]);
+    assert_eq!(manifest.requires, ["catalog.provider@1"]);
     manifest
         .validate(path.parent().expect("директория"))
         .expect("capabilities валидны");

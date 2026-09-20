@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from './bridge';
+  import { invoke, operation } from './bridge';
 
   interface Props {
     bookId: number | string;
@@ -26,7 +26,7 @@
     opening = true;
     error = null;
     try {
-      await invoke('open_book_in_system', { bookId });
+      await operation('open_external', { book_id: bookId });
     } catch (e) {
       error = `Не удалось открыть файл: ${String(e)}`;
     } finally {
@@ -36,18 +36,20 @@
 
   onMount(async () => {
     try {
-      const info = (await invoke('get_library_info')) as { kind: string };
+      const info = (await invoke('get_source_info')) as { kind: string };
       libraryKind = info.kind;
       if (libraryKind === 'external') {
-        const books = await (invoke('list_books') as Promise<
-          Array<{ id: number | string; title: string; authors: { name: string }[] }>
-        >);
-        externalBook = books.find((book) => book.id === bookId) ?? null;
-        if (!externalBook) {
+        const response = await operation<{ catalog?: { books?: Array<{ id: string; title: string; authors: string[] }> } }>('list');
+        const book = response.catalog?.books?.find((item) => item.id === bookId);
+        if (!book) {
           throw new Error('Книга не найдена');
         }
+        externalBook = {
+          title: book.title,
+          authors: book.authors.map((name) => ({ name })),
+        };
       } else {
-        content = (await invoke('get_book_content', { bookId })) as BookContent;
+        content = (await operation('read', { book_id: bookId })) as BookContent;
       }
     } catch (e) {
       error = String(e);

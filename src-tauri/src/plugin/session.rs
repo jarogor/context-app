@@ -1,11 +1,11 @@
-//! Generic состояние активной plugin-сессии.
+//! Generic состояние активного source-плагина.
 
 use std::path::{Path, PathBuf};
 
 use super::{PluginError, PluginRuntime};
 
 /// Generic состояние директории, обслуживаемой plugin lifecycle.
-pub struct PluginSession {
+pub struct PluginHostSession {
     root: PathBuf,
     kind: String,
     provider: Option<String>,
@@ -16,8 +16,8 @@ pub struct PluginSession {
     storage_root: PathBuf,
 }
 
-impl PluginSession {
-    /// Создание idle-сессии до явного выбора директории пользователем.
+impl PluginHostSession {
+    /// Создание idle-сессии до явного выбора source-корня пользователем.
     pub fn idle(root: PathBuf, bundled: PathBuf, storage_root: PathBuf) -> Self {
         Self {
             root,
@@ -31,7 +31,7 @@ impl PluginSession {
         }
     }
 
-    /// Создание временной сессии выбора директории.
+    /// Создание временной сессии выбора source-корня.
     pub fn open_for_selection(
         root: impl Into<PathBuf>,
         bundled: PathBuf,
@@ -57,7 +57,7 @@ impl PluginSession {
         })
     }
 
-    /// Открытие директории и загрузка plugin runtime.
+    /// Открытие source-корня и загрузка plugin runtime.
     pub fn open(
         root: impl Into<PathBuf>,
         bundled: PathBuf,
@@ -95,7 +95,7 @@ impl PluginSession {
         Ok((false, None))
     }
 
-    /// Публикация external provider session.
+    /// Публикация внешней source-сессии.
     pub fn promote_provider(&mut self, provider: String) -> Result<(), PluginError> {
         self.runtime =
             Self::load_runtime(&self.root, &self.bundled_plugins_dir, &self.storage_root)?;
@@ -109,32 +109,18 @@ impl PluginSession {
         Ok(())
     }
 
-    /// Публикация portable provider session.
-    pub fn install_portable(&mut self) -> Result<(), PluginError> {
-        self.runtime =
-            Self::load_runtime(&self.root, &self.bundled_plugins_dir, &self.storage_root)?;
-        self.runtime.set_sandbox_root(self.root.clone());
-        self.runtime.set_sandbox_writable(true);
-        self.runtime.invoke_capability(
-            "library.catalog@1",
-            "open",
-            serde_json::json!({ "mode": "portable" }),
-        )?;
-        self.kind = "portable".into();
-        self.provider = None;
-        self.indexing = false;
-        self.stage = "ready".into();
-        Ok(())
-    }
-
-    /// Вызов opaque lifecycle operation.
+    /// Вызов opaque operation активного source-плагина.
     pub fn invoke(
         &mut self,
         operation: &str,
         payload: serde_json::Value,
     ) -> Result<String, PluginError> {
+        let provider = self.provider.clone().ok_or_else(|| PluginError::Call {
+            plugin: "runtime".into(),
+            message: "source-плагин не выбран".into(),
+        })?;
         self.runtime
-            .invoke_capability("library.catalog@1", operation, payload)
+            .invoke_source_operation(&provider, operation, payload)
     }
 
     /// Синхронизация состояния provider plugin.
@@ -179,6 +165,14 @@ impl PluginSession {
     /// Runtime для host actions.
     pub fn runtime_mut(&mut self) -> &mut PluginRuntime {
         &mut self.runtime
+    }
+
+    /// Установка состояния source-сессии после generic lifecycle-вызова.
+    pub fn set_source(&mut self, provider: String, kind: &str) {
+        self.provider = Some(provider);
+        self.kind = kind.to_string();
+        self.indexing = false;
+        self.stage = "ready".to_string();
     }
 
     fn load_runtime(

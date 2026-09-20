@@ -18,4 +18,4 @@ pub use host_sink::HostSink;
 pub use loaded_plugin::LoadedPlugin;
 pub use plugin_manifest::{PluginKind, PluginManifest};
 pub use runtime::PluginRuntime;
-pub use session::PluginSession;
+pub use session::PluginHostSession;

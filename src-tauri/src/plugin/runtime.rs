@@ -1,9 +1,9 @@
 //! Host-runtime для плагинов.
 //!
-//! Сканирует папки плагинов (библиотеки и поставляемые приложением), загружает
+//! Сканирует папки плагинов, загружает
 //! плагины в Extism runtime без WASI и без доступа к сети и предоставляет
 //! host-функции, объявленные контрактом: `log`, а для source-плагинов — чтение
-//! файловой системы в песочнице корня библиотеки.
+//! файловой системы в песочнице активного source-корня.
 
 use std::fs;
 use std::io;
@@ -28,7 +28,7 @@ pub struct PluginRuntime {
     plugins: Vec<LoadedPlugin>,
     /// Приёмник сообщений плагинов.
     sink: HostSink,
-    /// Песочный корень для host-функций файловой системы.
+    /// Песочный корень для host-функций файловой системы source-плагина.
     sandbox_root: Arc<Mutex<PathBuf>>,
     /// Корень служебного хранилища source-плагина.
     storage_root: Arc<Mutex<Option<PathBuf>>>,
@@ -39,10 +39,10 @@ pub struct PluginRuntime {
 /// Состояние host-функций runtime: приёмник сообщений и песочный корень.
 ///
 /// Root-поля разделяются через `Arc` между экземплярами host-функций и
-/// runtime, чтобы смена корня библиотеки отражалась во всех вызовах.
+/// runtime, чтобы смена source-корня отражалась во всех вызовах.
 #[derive(Clone)]
 struct HostState {
-    /// Песочный корень библиотеки, за пределы которого чтение запрещено.
+    /// Песочный корень source-плагина, за пределы которого чтение запрещено.
     sandbox_root: Arc<Mutex<PathBuf>>,
     /// Корень служебного хранилища source-плагина.
     storage_root: Arc<Mutex<Option<PathBuf>>>,
@@ -328,7 +328,7 @@ impl PluginRuntime {
         Ok(())
     }
 
-    /// Установка песочного корня для host-функций файловой системы.
+    /// Установка source-корня для host-функций файловой системы.
     pub fn set_sandbox_root(&mut self, root: PathBuf) {
         let mut current = self
             .sandbox_root
@@ -346,7 +346,7 @@ impl PluginRuntime {
         *current = Some(root);
     }
 
-    /// Разрешение записи в активный корень portable-библиотеки.
+    /// Разрешение записи в активный source-корень.
     pub fn set_sandbox_writable(&mut self, writable: bool) {
         let mut state = self
             .sandbox_writable
@@ -358,25 +358,6 @@ impl PluginRuntime {
     /// Имена загруженных плагинов.
     pub fn plugin_names(&self) -> Vec<String> {
         self.plugins.iter().map(|p| p.name.clone()).collect()
-    }
-
-    /// Вызов плагина, предоставляющего указанную capability.
-    pub(crate) fn invoke_capability(
-        &mut self,
-        capability: &str,
-        operation: &str,
-        payload: serde_json::Value,
-    ) -> Result<String, PluginError> {
-        let provider = self
-            .plugins
-            .iter()
-            .find(|plugin| plugin.provides.iter().any(|value| value == capability))
-            .map(|plugin| plugin.name.clone())
-            .ok_or_else(|| PluginError::Dependency {
-                plugin: "runtime".to_string(),
-                capability: capability.to_string(),
-            })?;
-        self.invoke_source_operation(&provider, operation, payload)
     }
 
     /// Имена загруженных source-плагинов.
