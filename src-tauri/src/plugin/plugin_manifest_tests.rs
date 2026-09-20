@@ -51,9 +51,9 @@ fn parses_source_kind_manifest() {
         r#"{
         "contract_version": 1,
         "kind": "source",
-        "name": "library-source",
-        "description": "Поставщик библиотеки",
-        "module": "library.wasm",
+        "name": "provider-plugin",
+        "description": "Поставщик данных",
+        "module": "provider.wasm",
         "export": "invoke",
         "host_functions": ["log", "fs_list_dir", "fs_read_text"]
       }"#,

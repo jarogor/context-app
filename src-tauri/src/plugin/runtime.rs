@@ -17,10 +17,7 @@ use crate::plugin::contract::{
     HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION, HOST_OPEN_FILE,
     HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE, MANIFEST_FILE_NAME,
 };
-use crate::plugin::source_protocol::{
-    SourceCapabilities, SourceOpenResponse, SourceProbeResponse, SOURCE_PROTOCOL_VERSION,
-};
-use crate::plugin::{HostSink, LoadedPlugin, PluginError, PluginKind, PluginManifest};
+use crate::plugin::{HostSink, LoadedPlugin, PluginError, PluginManifest};
 
 /// Плагинная подсистема приложения.
 pub struct PluginRuntime {
@@ -28,7 +25,7 @@ pub struct PluginRuntime {
     plugins: Vec<LoadedPlugin>,
     /// Приёмник сообщений плагинов.
     sink: HostSink,
-    /// Песочный корень для host-функций файловой системы source-плагина.
+    /// Песочный корень для host-функций файловой системы plugin-а.
     sandbox_root: Arc<Mutex<PathBuf>>,
     /// Корень служебного хранилища source-плагина.
     storage_root: Arc<Mutex<Option<PathBuf>>>,
@@ -39,12 +36,12 @@ pub struct PluginRuntime {
 /// Состояние host-функций runtime: приёмник сообщений и песочный корень.
 ///
 /// Root-поля разделяются через `Arc` между экземплярами host-функций и
-/// runtime, чтобы смена source-корня отражалась во всех вызовах.
+/// runtime, чтобы смена корня отражалась во всех вызовах.
 #[derive(Clone)]
 struct HostState {
-    /// Песочный корень source-плагина, за пределы которого чтение запрещено.
+    /// Песочный корень plugin-а, за пределы которого чтение запрещено.
     sandbox_root: Arc<Mutex<PathBuf>>,
-    /// Корень служебного хранилища source-плагина.
+    /// Корень служебного хранилища plugin-а.
     storage_root: Arc<Mutex<Option<PathBuf>>>,
     /// Разрешена ли запись в sandbox.
     sandbox_writable: Arc<Mutex<bool>>,
@@ -346,7 +343,7 @@ impl PluginRuntime {
         *current = Some(root);
     }
 
-    /// Разрешение записи в активный source-корень.
+    /// Разрешение записи в активный plugin-корень.
     pub fn set_sandbox_writable(&mut self, writable: bool) {
         let mut state = self
             .sandbox_writable
@@ -360,67 +357,6 @@ impl PluginRuntime {
         self.plugins.iter().map(|p| p.name.clone()).collect()
     }
 
-    /// Имена загруженных source-плагинов.
-    pub fn source_names(&self) -> Vec<String> {
-        self.plugins
-            .iter()
-            .filter(|plugin| plugin.kind == PluginKind::Source)
-            .map(|plugin| plugin.name.clone())
-            .collect()
-    }
-
-    /// Получение возможностей source-плагина по новому lifecycle-протоколу.
-    pub(crate) fn source_capabilities(
-        &mut self,
-        name: &str,
-    ) -> Result<SourceCapabilities, PluginError> {
-        let value = self.invoke_json(name, serde_json::json!({ "action": "capabilities" }))?;
-        let capabilities: SourceCapabilities =
-            serde_json::from_value(value).map_err(|error| PluginError::Call {
-                plugin: name.to_string(),
-                message: format!("некорректные capabilities source-плагина: {error}"),
-            })?;
-        if capabilities.protocol_version != SOURCE_PROTOCOL_VERSION {
-            return Err(PluginError::Call {
-                plugin: name.to_string(),
-                message: format!(
-                    "неподдерживаемая версия source lifecycle: {}",
-                    capabilities.protocol_version
-                ),
-            });
-        }
-        Ok(capabilities)
-    }
-
-    /// Распознавание корня через lifecycle-протокол source-плагина.
-    pub(crate) fn source_probe(&mut self, name: &str) -> Result<bool, PluginError> {
-        let value = self.invoke_json(name, serde_json::json!({ "action": "probe" }))?;
-        let response: SourceProbeResponse =
-            serde_json::from_value(value).map_err(|error| PluginError::Call {
-                plugin: name.to_string(),
-                message: format!("некорректный ответ probe source-плагина: {error}"),
-            })?;
-        Ok(response.supported)
-    }
-
-    /// Открытие source-сессии и получение согласованного каталога.
-    pub(crate) fn source_open(&mut self, name: &str) -> Result<SourceOpenResponse, PluginError> {
-        let value = self.invoke_json(name, serde_json::json!({ "action": "open" }))?;
-        let response: SourceOpenResponse =
-            serde_json::from_value(value).map_err(|error| PluginError::Call {
-                plugin: name.to_string(),
-                message: format!("некорректный ответ open source-плагина: {error}"),
-            })?;
-        response
-            .catalog
-            .validate()
-            .map_err(|message| PluginError::Call {
-                plugin: name.to_string(),
-                message,
-            })?;
-        Ok(response)
-    }
-
     /// Вызов экспортируемой функции загруженного плагина по имени.
     pub fn invoke(&mut self, name: &str, input: &str) -> Result<String, PluginError> {
         self.plugins
@@ -431,7 +367,7 @@ impl PluginRuntime {
     }
 
     /// Выполнение произвольной операции source-плагина без интерпретации payload ядром.
-    pub(crate) fn invoke_source_operation(
+    pub(crate) fn invoke_operation(
         &mut self,
         name: &str,
         operation: &str,
@@ -444,19 +380,6 @@ impl PluginRuntime {
         );
         request.insert("payload".to_string(), payload);
         self.invoke(name, &serde_json::Value::Object(request).to_string())
-    }
-
-    /// Вызов source-плагина с JSON-запросом и разбором JSON-ответа.
-    fn invoke_json(
-        &mut self,
-        name: &str,
-        request: serde_json::Value,
-    ) -> Result<serde_json::Value, PluginError> {
-        let output = self.invoke(name, &request.to_string())?;
-        serde_json::from_str(&output).map_err(|error| PluginError::Call {
-            plugin: name.to_string(),
-            message: format!("некорректный JSON-ответ: {error}"),
-        })
     }
 
     /// Сообщения, полученные от плагинов через host-функцию `log`.
@@ -611,7 +534,7 @@ fn host_import_read_bytes(
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 
-/// Host-функция записи portable-файла внутри активного sandbox.
+/// Host-функция записи файла внутри активного sandbox.
 fn host_fs_write_bytes(
     plugin: &mut extism::CurrentPlugin,
     args: &[extism::Val],

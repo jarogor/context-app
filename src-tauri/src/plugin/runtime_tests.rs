@@ -28,17 +28,6 @@ const MANIFEST_JSON: &str = r#"{
     "host_functions": ["log"]
   }"#;
 
-/// Манифест source-плагина под контракт v3.
-const MANIFEST_SOURCE_JSON: &str = r#"{
-    "contract_version": 1,
-    "kind": "source",
-    "name": "test-source",
-    "description": "Тестовый source-плагин",
-    "module": "plugin.wasm",
-    "export": "invoke",
-    "host_functions": ["log", "fs_list_dir", "fs_read_text"]
-  }"#;
-
 /// Создание корня плагинов с одной директорией плагина.
 fn setup_plugins_root(name: &str, wasm: &[u8], manifest: &str) -> PathBuf {
     let dir = test_util::test_root(&format!("plugin-runtime-{name}"));
@@ -118,37 +107,6 @@ fn missing_directory_is_skipped() {
         "отсутствующая директория не мешает загрузке"
     );
     cleanup(&dir);
-}
-
-#[test]
-fn source_plugins_appear_in_source_names() {
-    let dir = setup_plugins_root(
-        "source-kind",
-        &compile_wat(WAT_WITH_INVOKE),
-        MANIFEST_SOURCE_JSON,
-    );
-    let root = dir.clone();
-    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
-    assert_eq!(
-        runtime.source_names(),
-        vec!["test-source"],
-        "source-плагин распознан по типу"
-    );
-    cleanup(&root);
-}
-
-#[test]
-fn rejects_legacy_source_lifecycle_response() {
-    let dir = setup_plugins_root(
-        "legacy-source",
-        &compile_wat(WAT_WITH_INVOKE),
-        MANIFEST_SOURCE_JSON,
-    );
-    let root = dir.clone();
-    let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
-    let result = runtime.source_capabilities("test-source");
-    assert!(result.is_err(), "legacy WAT без JSON отклонён");
-    cleanup(&root);
 }
 
 #[test]

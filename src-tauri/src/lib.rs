@@ -13,7 +13,7 @@ use tauri::Manager;
 
 use crate::constants::DEMO_PLUGIN_NAME;
 use crate::journal::Severity;
-use crate::plugin::PluginHostSession;
+use crate::plugin::PluginSession;
 
 /// Точка входа Tauri-приложения и generic plugin host.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -26,8 +26,8 @@ pub fn run() {
 
             let root = std::path::PathBuf::from(".");
             let bundled_plugins_dir = app.path().resource_dir()?.join("plugins");
-            let storage_root = crate::config::app_state_dir(app.handle())?.join("source-state");
-            let mut host = PluginHostSession::idle(root, bundled_plugins_dir, storage_root);
+            let storage_root = crate::config::app_state_dir(app.handle())?;
+            let mut host = PluginSession::idle(root, bundled_plugins_dir, storage_root);
             for name in host.runtime().plugin_names() {
                 let handle = crate::journal::get_journal_handle();
                 handle.add_technical("plugin loaded", name, serde_json::json!({}));
@@ -68,8 +68,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::invoke_plugin_operation,
-            commands::open_source,
-            commands::get_source_info,
             crate::journal::commands::list_journal,
             crate::journal::commands::mark_read,
             crate::journal::commands::mark_all_read,

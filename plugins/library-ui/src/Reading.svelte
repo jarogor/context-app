@@ -36,8 +36,7 @@
 
   onMount(async () => {
     try {
-      const info = (await invoke('get_source_info')) as { kind: string };
-      libraryKind = info.kind;
+      libraryKind = 'external';
       if (libraryKind === 'external') {
         const response = await operation<{ catalog?: { books?: Array<{ id: string; title: string; authors: string[] }> } }>('list');
         const book = response.catalog?.books?.find((item) => item.id === bookId);

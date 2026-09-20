@@ -253,6 +253,27 @@ pub fn invoke(input: String) -> FnResult<String> {
                 }
             }))?
         }
+        "recent_list" => {
+            let paths = recent_paths(&fs)?;
+            serde_json::to_string(&json!({
+                "paths": paths.into_iter().map(|path| json!({ "path": path, "available": true })).collect::<Vec<_>>()
+            }))?
+        }
+        "recent_remember" => {
+            let path = request
+                .payload
+                .get("path")
+                .and_then(|value| value.as_str())
+                .ok_or_else(|| extism_pdk::Error::msg("не указан путь каталога"))?;
+            let mut paths = recent_paths(&fs)?;
+            paths.retain(|current| current != path);
+            paths.insert(0, path.to_string());
+            paths.truncate(10);
+            let value = serde_json::to_string(&paths)?;
+            fs.state_write("recent-libraries.json", &value)
+                .map_err(extism_pdk::Error::msg)?;
+            serde_json::to_string(&json!({ "saved": true }))?
+        }
         "import" => {
             let path = request
                 .payload
@@ -293,6 +314,17 @@ pub fn invoke(input: String) -> FnResult<String> {
         }
     };
     Ok(payload)
+}
+
+/// Чтение списка последних корней из plugin-owned state.
+fn recent_paths(fs: &impl crate::fs::Fs) -> Result<Vec<String>, extism_pdk::Error> {
+    let Some(value) = fs
+        .state_read("recent-libraries.json")
+        .map_err(extism_pdk::Error::msg)?
+    else {
+        return Ok(Vec::new());
+    };
+    Ok(serde_json::from_str(&value).unwrap_or_default())
 }
 
 /// Получение пути файла книги из opaque идентификатора или явного пути.

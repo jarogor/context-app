@@ -40,8 +40,28 @@ export function invoke<T = unknown>(command: string, payload?: unknown): Promise
   return request<T>('invoke', { command, payload });
 }
 
-export function operation<T = unknown>(action: string, payload: unknown = {}): Promise<T> {
-  return invoke<T>('invoke_plugin_operation', { operation: action, payload });
+export function operation<T = unknown>(
+  action: string,
+  payload: unknown = {},
+  options: { root?: string; writable?: boolean } = {},
+): Promise<T> {
+  const requestPayload: Record<string, unknown> = { operation: action, payload };
+  if (options.root) {
+    requestPayload.plugin = 'library';
+    requestPayload.root = options.root;
+    requestPayload.writable = options.writable;
+  }
+  return invoke<T>('invoke_plugin_operation', {
+    ...requestPayload,
+  });
+}
+
+export function pluginOperation<T = unknown>(
+  action: string,
+  payload: unknown = {},
+  options: { root?: string; writable?: boolean } = {},
+): Promise<T> {
+  return operation<T>(action, payload, { root: options.root ?? '.', writable: options.writable ?? false });
 }
 
 export function openDialog(options: unknown): Promise<string | string[] | null> {

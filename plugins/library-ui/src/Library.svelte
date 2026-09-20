@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke, listen, openDialog, operation } from './bridge';
+  import { invoke, listen, openDialog, operation, pluginOperation } from './bridge';
   import type { Book, BookFile, CachedLibrary, LibraryInfo } from './types';
 
   interface Props {
@@ -38,6 +38,21 @@
 
   function coverFile(book: Book): BookFile | undefined {
     return book.files.find((file) => file.kind === 'cover');
+  }
+
+  async function configuredLibraryPath(): Promise<string> {
+    try {
+      const response = await fetch('/plugins/library-ui/library-config.json');
+      if (response.ok) {
+        const config = (await response.json()) as { library_dir?: string };
+        if (config.library_dir) {
+          return config.library_dir;
+        }
+      }
+    } catch {
+      // Конфигурация необязательна для production-сборки.
+    }
+    return 'dev_data/library';
   }
 
   function normalizeBook(book: Record<string, unknown>): Book {
@@ -116,28 +131,16 @@
   }
 
   async function loadLibraryInfo() {
-    try {
-      const info = (await invoke('get_source_info')) as LibraryInfo;
-      libraryKind = info.kind;
-      sourceName = info.source_name;
-      indexingLibrary = info.stage === 'scanning' || info.stage === 'indexing';
-      progressText = stageLabel(info.stage);
-      librarySelected = info.stage === 'ready' || info.stage === 'scanning' || info.stage === 'indexing';
-    } catch (e) {
-      error = String(e);
-    }
+    libraryKind = 'portable';
+    sourceName = 'library';
+    indexingLibrary = false;
+    progressText = '';
   }
 
   async function waitForLibraryReady() {
     for (let attempt = 0; attempt < 300; attempt += 1) {
-      const info = (await invoke('get_source_info')) as LibraryInfo;
-      libraryKind = info.kind;
-      sourceName = info.source_name;
-      indexingLibrary = info.stage === 'scanning' || info.stage === 'indexing';
-      progressText = stageLabel(info.stage);
-      librarySelected = info.stage === 'ready' || info.stage === 'scanning' || info.stage === 'indexing';
-      if (info.stage === 'ready' || info.stage === 'error') {
-        return info.stage;
+      if (!openingLibrary && !indexingLibrary) {
+        return 'ready';
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -146,7 +149,12 @@
 
   async function loadCachedLibraries() {
     try {
-      cachedLibraries = JSON.parse(localStorage.getItem('recent-source-roots') ?? '[]') as CachedLibrary[];
+      const stored = JSON.parse(localStorage.getItem('recent-source-roots') ?? '[]') as CachedLibrary[];
+      const response = await pluginOperation<{ paths?: CachedLibrary[] }>('recent_list');
+      const pluginPaths = response.paths ?? [];
+      const merged = [...pluginPaths, ...stored];
+      const unique = merged.filter((item, index) => merged.findIndex((current) => current.path === item.path) === index);
+      cachedLibraries = unique.slice(0, 10);
     } catch (e) {
       error = String(e);
     }
@@ -156,15 +164,19 @@
     await openLibraryPath(path);
   }
 
-  async function openLibraryPath(path: string) {
+  async function openLibraryPath(path: string, mode?: 'portable', remember = true): Promise<boolean> {
     openingLibrary = true;
     indexingLibrary = false;
     progressText = 'Открытие библиотеки...';
     missingLibrary = null;
     try {
-      await invoke('open_source', { path });
-      cachedLibraries = [{ path, available: true }, ...cachedLibraries.filter((item) => item.path !== path)].slice(0, 10);
-      localStorage.setItem('recent-source-roots', JSON.stringify(cachedLibraries));
+      await operation('open', { mode: mode ?? 'external' }, { root: path, writable: mode === 'portable' });
+      librarySelected = true;
+      if (remember) {
+        cachedLibraries = [{ path, available: true }, ...cachedLibraries.filter((item) => item.path !== path)].slice(0, 10);
+        localStorage.setItem('recent-source-roots', JSON.stringify(cachedLibraries));
+        await operation('recent_remember', { path });
+      }
       searchQuery = '';
       await loadLibraryInfo();
       if (!librarySelected) {
@@ -179,11 +191,13 @@
       openingLibrary = false;
       indexingLibrary = false;
       await load();
+      return true;
     } catch (e) {
       missingLibrary = path;
       importError = String(e);
       openingLibrary = false;
       indexingLibrary = false;
+      return false;
     }
   }
 
@@ -251,13 +265,26 @@
         importError = value;
       });
       await loadLibraryInfo();
+      await loadCachedLibraries();
+      let openedSaved = false;
+      for (const saved of cachedLibraries) {
+        if (!saved.available) {
+          continue;
+        }
+        if (await openLibraryPath(saved.path)) {
+          openedSaved = true;
+          break;
+        }
+      }
+      if (!openedSaved && !librarySelected) {
+        await openLibraryPath(await configuredLibraryPath(), 'portable', false);
+      }
       if (indexingLibrary) {
         const stage = await waitForLibraryReady();
         if (stage === 'error') {
           importError = 'Не удалось открыть библиотеку';
         }
       }
-       await loadCachedLibraries();
       if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {
         books = cachedBooks;
         loading = false;

@@ -7,7 +7,6 @@ pub mod loaded_plugin;
 pub mod plugin_manifest;
 pub mod runtime;
 pub mod session;
-pub(crate) mod source_protocol;
 
 pub use contract::{
     CONTRACT_VERSION, EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_TEXT, HOST_FUNCTIONS,
@@ -18,4 +17,4 @@ pub use host_sink::HostSink;
 pub use loaded_plugin::LoadedPlugin;
 pub use plugin_manifest::{PluginKind, PluginManifest};
 pub use runtime::PluginRuntime;
-pub use session::PluginHostSession;
+pub use session::PluginSession;
