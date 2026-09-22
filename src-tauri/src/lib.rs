@@ -20,14 +20,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            crate::journal::set_journal_handle(crate::journal::JournalHandle::new());
-            crate::journal::set_app_handle(app.handle().clone());
+            journal::set_journal_handle(journal::JournalHandle::new());
+            journal::set_app_handle(app.handle().clone());
 
             let root = std::path::PathBuf::from(".");
             let bundled_plugins_dir = app.path().resource_dir()?.join("plugins");
             let mut host = PluginSession::idle(root, bundled_plugins_dir);
             for name in host.runtime().plugin_names() {
-                let handle = crate::journal::get_journal_handle();
+                let handle = journal::get_journal_handle();
                 handle.add_technical("plugin loaded", name, serde_json::json!({}));
             }
             if host
@@ -41,7 +41,7 @@ pub fn run() {
                     .invoke(DEMO_PLUGIN_NAME, r#"{"title":"BookLib"}"#)
                 {
                     Ok(output) => {
-                        let handle = crate::journal::get_journal_handle();
+                        let handle = journal::get_journal_handle();
                         handle.add_user(
                             "demo answered",
                             Severity::Info,
@@ -50,7 +50,7 @@ pub fn run() {
                         );
                     }
                     Err(err) => {
-                        let handle = crate::journal::get_journal_handle();
+                        let handle = journal::get_journal_handle();
                         handle.add_technical(
                             "demo error",
                             DEMO_PLUGIN_NAME,

@@ -1,7 +1,6 @@
-use std::path::PathBuf;
-
 use super::PluginSession;
 use crate::test_util;
+use std::path::PathBuf;
 
 #[test]
 fn writable_root_is_created_before_plugin_configuration() {

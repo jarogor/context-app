@@ -3,21 +3,22 @@
 //! Все временные данные тестов хранятся в `_tmp/tests/` внутри рабочей
 //! директории проекта. Ничего вне репозитория тесты не создают.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::{env, fs};
 
 static COUNTER: AtomicU32 = AtomicU32::new(0);
 
-/// Уникальная корневая директория теста внутри `_tmp/tests/`.
+/// Уникальная корневая директория теста
 pub fn test_root(name: &str) -> PathBuf {
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("_tmp")
+    let dir = env::temp_dir()
+        .join(env!("CARGO_PKG_NAME"))
         .join("tests")
         .join(format!("{name}-{}", COUNTER.fetch_add(1, Ordering::SeqCst)));
+
     reset(&dir);
-    dir
+
+    return dir;
 }
 
 /// Очистка и создание директории.

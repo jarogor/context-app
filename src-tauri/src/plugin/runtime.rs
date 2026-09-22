@@ -457,18 +457,26 @@ fn host_fs_list_dir(
         }
         Err(_) => return Err(extism::Error::msg("путь вне песочницы библиотеки")),
     };
-    let mut entries = Vec::new();
-    if let Ok(reader) = fs::read_dir(&path) {
-        for entry in reader.flatten() {
-            entries.push(entry.file_name().to_string_lossy().into_owned());
-        }
-    }
-    entries.sort();
+    let entries = read_directory_entries(&path);
     let payload = serde_json::to_string(&entries)
         .map_err(|_| extism::Error::msg("не удалось сериализовать список директории"))?;
     plugin
         .memory_set_val(&mut returns[0], &payload)
         .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+fn read_directory_entries(path: &PathBuf) -> Vec<String> {
+    let mut entries = Vec::new();
+
+    if let Ok(reader) = fs::read_dir(&path) {
+        for entry in reader.flatten() {
+            entries.push(entry.file_name().to_string_lossy().into_owned());
+        }
+
+        entries.sort();
+    }
+
+    return entries;
 }
 
 /// Host-функция `fs_read_text`: чтение содержимого файла как текста.
