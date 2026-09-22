@@ -32,6 +32,20 @@
     syncLayout();
   }
 
+  /** Загрузка настройки технического уровня из секции плагина уведомлений. */
+  async function loadSettings() {
+    try {
+      const data = await operation<{ values?: { technical_visible_default?: unknown } }>('get', {
+        section: 'notifications.notifications',
+      });
+      if (typeof data.values?.technical_visible_default === 'boolean') {
+        technicalVisible = data.values.technical_visible_default;
+      }
+    } catch {
+      // Отсутствие секции настроек не мешает панели уведомлений.
+    }
+  }
+
   /** Загрузка журнала уведомлений. */
   async function load() {
     try {
@@ -93,6 +107,7 @@
       unlisten = await listen<Entry>('notifications:added', (entry) => {
         entries = [...entries, entry];
       });
+      await loadSettings();
       await load();
     })();
     return () => {

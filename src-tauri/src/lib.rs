@@ -30,6 +30,11 @@ pub fn run() {
                 app_host.notify_technical("plugin loaded", name, serde_json::json!({}));
             }
 
+            let _ = app_host.refresh_settings_registry(&[]);
+            if app_host.welcome_notification_enabled() {
+                app_host.notify_user("Добро пожаловать в BookLib", "app", serde_json::json!({}));
+            }
+
             let root = PathBuf::from(".");
             let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let mut host = PluginSession::idle(root, bundled_plugins_dir);

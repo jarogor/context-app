@@ -232,6 +232,55 @@ fn routes_capability_to_provider() {
     cleanup(&root);
 }
 
+/// Манифест плагина с декларацией настроек.
+const MANIFEST_WITH_SETTINGS: &str = r#"{
+    "contract_version": 1,
+    "kind": "base",
+    "name": "notifications",
+    "description": "Уведомления",
+    "module": "plugin.wasm",
+    "export": "invoke",
+    "host_functions": [],
+    "settings": {
+      "title": "Уведомления",
+      "sections": [ { "id": "notifications", "title": "Журнал" } ]
+    }
+  }"#;
+
+#[test]
+fn reports_settings_sources_only_for_declared_plugins() {
+    let dir = setup_plugins_root(
+        "settings-source",
+        &compile_wat(WAT_WITH_INVOKE),
+        MANIFEST_WITH_SETTINGS,
+    );
+    let root = dir.clone();
+    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+
+    let sources = runtime.settings_sources();
+    assert_eq!(sources.len(), 1, "декларация настроек собрана");
+    assert_eq!(sources[0]["owner"], "notifications");
+    assert_eq!(sources[0]["kind"], "base");
+    assert_eq!(sources[0]["schema"]["sections"][0]["id"], "notifications");
+    cleanup(&root);
+}
+
+#[test]
+fn settings_sources_skips_plugins_without_declaration() {
+    let dir = setup_plugins_root(
+        "settings-absent",
+        &compile_wat(WAT_WITH_INVOKE),
+        MANIFEST_JSON,
+    );
+    let root = dir.clone();
+    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    assert!(
+        runtime.settings_sources().is_empty(),
+        "плагин без декларации не попадает в источники настроек"
+    );
+    cleanup(&root);
+}
+
 #[test]
 fn missing_capability_is_reported() {
     let dir = setup_plugins_root(

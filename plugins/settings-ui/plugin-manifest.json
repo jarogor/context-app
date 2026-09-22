@@ -1,0 +1,8 @@
+{
+  "contract_version": 1,
+  "kind": "ui",
+  "name": "settings-ui",
+  "description": "Автономный интерфейс базового плагина настроек",
+  "entry": "index.html",
+  "requires": ["settings.store@1"]
+}

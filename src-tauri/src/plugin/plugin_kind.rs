@@ -1,9 +1,9 @@
 //! Категория плагина.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Категория плагина, определяющая уровень его загрузки приложением.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PluginKind {
     /// Базовый плагин каркаса приложения (уведомления, настройки).

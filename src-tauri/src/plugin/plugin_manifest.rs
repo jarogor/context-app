@@ -36,6 +36,12 @@ pub struct PluginManifest {
     /// Возможности, требуемые плагином.
     #[serde(default)]
     pub requires: Vec<String>,
+    /// Декларация секций настроек плагина.
+    ///
+    /// Содержимое не интерпретируется ядром и передаётся базовому плагину
+    /// настроек как opaque-схема.
+    #[serde(default)]
+    pub settings: Option<serde_json::Value>,
 }
 
 impl PluginManifest {

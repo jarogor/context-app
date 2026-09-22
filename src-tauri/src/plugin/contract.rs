@@ -40,6 +40,9 @@ pub const HOST_EMIT_EVENT: &str = "emit_event";
 /// Capability журнала уведомлений, предоставляемая базовым плагином.
 pub const CAPABILITY_NOTIFICATIONS: &str = "notifications.journal@1";
 
+/// Capability реестра и хранилища настроек, предоставляемая базовым плагином.
+pub const CAPABILITY_SETTINGS: &str = "settings.store@1";
+
 /// Имя host-функции чтения служебного состояния source-плагина.
 pub const HOST_STATE_READ: &str = "state_read";
 

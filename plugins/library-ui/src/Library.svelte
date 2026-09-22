@@ -262,7 +262,6 @@
 
 <div class="library">
    <div class="header">
-<h1>Библиотека</h1>
       {#if libraryKind === 'external' && sourceName}
         <span class="source-badge" title="Внешний источник">
           {sourceName}
@@ -418,9 +417,6 @@
     border: 1px solid #d0d0d0;
     border-radius: 6px;
     font: inherit;
-  }
-  h1 {
-    margin-bottom: 0;
   }
   .state {
     color: #888;

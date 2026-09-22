@@ -8,11 +8,11 @@ use crate::lifecycle;
 use crate::models::{ExternalBook, SourceCapabilities, SourceCatalog, SOURCE_PROTOCOL_VERSION};
 use crate::scanner;
 use extism_pdk::{host_fn, plugin_fn, FnResult};
+use quick_xml::events::Event;
+use quick_xml::Reader;
 use serde::Deserialize;
 use serde_json::json;
 use std::io::{Cursor, Read};
-use quick_xml::events::Event;
-use quick_xml::Reader;
 use zip::ZipArchive;
 
 /// Host-функция `fs_list_dir`: перечисление имён записей директории.
@@ -42,13 +42,7 @@ extern "ExtismHost" {
 struct HostFs;
 
 fn emit_notification(level: &str, message: &str, details: serde_json::Value) {
-    let _ = unsafe {
-        notify(
-            level.to_string(),
-            message.to_string(),
-            details.to_string(),
-        )
-    };
+    let _ = unsafe { notify(level.to_string(), message.to_string(), details.to_string()) };
 }
 
 impl Fs for HostFs {
@@ -92,7 +86,8 @@ impl Fs for HostFs {
     }
 
     fn import_read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
-        let payload = unsafe { import_read_bytes(path.to_string()).map_err(|error| error.to_string())? };
+        let payload =
+            unsafe { import_read_bytes(path.to_string()).map_err(|error| error.to_string())? };
         base64::Engine::decode(&base64::engine::general_purpose::STANDARD, payload)
             .map_err(|error| error.to_string())
     }
@@ -145,11 +140,8 @@ pub fn invoke(input: String) -> FnResult<String> {
             serde_json::to_string(&json!({ "supported": supported }))?
         }
         "open" => {
-            let portable = request
-                .payload
-                .get("mode")
-                .and_then(|value| value.as_str())
-                == Some("portable");
+            let portable =
+                request.payload.get("mode").and_then(|value| value.as_str()) == Some("portable");
             let books: Vec<ExternalBook> = if portable {
                 Vec::new()
             } else {
@@ -234,11 +226,8 @@ pub fn invoke(input: String) -> FnResult<String> {
             serde_json::to_string(&json!({ "opened": true }))?
         }
         "sync" => {
-            let portable = request
-                .payload
-                .get("mode")
-                .and_then(|value| value.as_str())
-                == Some("portable");
+            let portable =
+                request.payload.get("mode").and_then(|value| value.as_str()) == Some("portable");
             let books: Vec<ExternalBook> = if portable {
                 Vec::new()
             } else {
@@ -307,7 +296,8 @@ pub fn invoke(input: String) -> FnResult<String> {
                     format: "epub".to_string(),
                 }],
             };
-            fs.write_bytes(&book_path, &bytes).map_err(extism_pdk::Error::msg)?;
+            fs.write_bytes(&book_path, &bytes)
+                .map_err(extism_pdk::Error::msg)?;
             let mut catalog = lifecycle::catalog().unwrap_or(SourceCatalog {
                 protocol_version: SOURCE_PROTOCOL_VERSION,
                 revision: 0,
@@ -372,7 +362,13 @@ fn book_path(
 fn sanitize_name(value: &str) -> String {
     value
         .chars()
-        .map(|character| if character.is_ascii_alphanumeric() { character } else { '_' })
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -422,7 +418,9 @@ fn all_text_between(bytes: &[u8], tag: &str) -> Vec<String> {
                 current.push_str(&String::from_utf8_lossy(event.as_ref()));
             }
             Ok(Event::End(_)) if active => {
-                if !current.is_empty() { values.push(current.clone()); }
+                if !current.is_empty() {
+                    values.push(current.clone());
+                }
                 active = false;
             }
             Ok(Event::Eof) => break,

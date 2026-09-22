@@ -90,6 +90,11 @@ impl PluginSession {
         &mut self.runtime
     }
 
+    /// Декларации настроек плагинов активной сессии.
+    pub fn settings_sources(&self) -> Vec<serde_json::Value> {
+        self.runtime.settings_sources()
+    }
+
     fn load_runtime(
         root: &Path,
         bundled: &Path,

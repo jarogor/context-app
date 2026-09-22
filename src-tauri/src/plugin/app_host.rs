@@ -6,8 +6,32 @@
 
 use std::path::PathBuf;
 
-use crate::plugin::contract::CAPABILITY_NOTIFICATIONS;
+use crate::plugin::contract::{CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS};
 use crate::plugin::{get_bus, PluginError, PluginEvent, PluginKind, PluginRuntime};
+
+/// Декларация собственной секции настроек приложения.
+///
+/// Схема передаётся базовому плагину настроек как opaque-декларация и не
+/// интерпретируется ядром, кроме собственного ключа приложения.
+const APP_SETTINGS_SCHEMA: &str = r#"{
+  "title": "Приложение",
+  "sections": [
+    {
+      "id": "general",
+      "title": "Общие",
+      "description": "Общие параметры приложения",
+      "fields": [
+        {
+          "key": "startup.welcome_notification",
+          "title": "Приветственное уведомление при запуске",
+          "type": "boolean",
+          "description": "Показывать приветствие при запуске приложения",
+          "default": true
+        }
+      ]
+    }
+  ]
+}"#;
 
 /// App-level runtime базовых плагинов.
 pub struct AppPluginHost {
@@ -97,6 +121,57 @@ impl AppPluginHost {
         details: serde_json::Value,
     ) {
         self.publish_event("technical", message.into(), source.into(), details);
+    }
+
+    /// Перерегистрация реестра настроек в базовом плагине настроек.
+    ///
+    /// Собирает декларации базовых плагинов, дополнительные декларации сессии
+    /// и собственную секцию приложения. При отсутствии провайдера capability
+    /// настроек выходит без ошибки, не нарушая работу остальных плагинов.
+    pub fn refresh_settings_registry(
+        &mut self,
+        session_sources: &[serde_json::Value],
+    ) -> Result<(), PluginError> {
+        if self.runtime.plugin_providing(CAPABILITY_SETTINGS).is_none() {
+            return Ok(());
+        }
+        let mut sources = self.runtime.settings_sources();
+        sources.extend(session_sources.iter().cloned());
+        let app_schema: serde_json::Value =
+            serde_json::from_str(APP_SETTINGS_SCHEMA).map_err(|error| PluginError::Call {
+                plugin: "runtime".to_string(),
+                message: format!("некорректная схема настроек приложения: {error}"),
+            })?;
+        sources.push(serde_json::json!({
+            "owner": "app",
+            "kind": "app",
+            "schema": app_schema,
+        }));
+        self.runtime.invoke_capability(
+            CAPABILITY_SETTINGS,
+            "register",
+            serde_json::json!({ "sources": sources }),
+        )?;
+        Ok(())
+    }
+
+    /// Признак необходимости приветственного уведомления при старте.
+    ///
+    /// Значение читается из собственной секции настроек приложения; при
+    /// отсутствии провайдера или значения используется значение по умолчанию
+    /// `true`.
+    pub fn welcome_notification_enabled(&mut self) -> bool {
+        let Ok(response) = self.runtime.invoke_capability(
+            CAPABILITY_SETTINGS,
+            "get",
+            serde_json::json!({ "section": "app.general" }),
+        ) else {
+            return true;
+        };
+        serde_json::from_str::<serde_json::Value>(&response)
+            .ok()
+            .and_then(|value| value["values"]["startup.welcome_notification"].as_bool())
+            .unwrap_or(true)
     }
 
     /// Публикация события в bus с последующей доставкой.

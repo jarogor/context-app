@@ -140,6 +140,57 @@ fn unknown_plugin_kind_is_rejected() {
 }
 
 #[test]
+fn manifest_without_settings_has_none() {
+    let path = write_manifest(
+        r#"{
+        "contract_version": 1,
+        "name": "notifications",
+        "description": "Уведомления",
+        "module": "notifications.wasm",
+        "export": "invoke",
+        "host_functions": []
+      }"#,
+    );
+
+    let manifest = PluginManifest::load(&path).expect("парсинг манифеста");
+    assert!(
+        manifest.settings.is_none(),
+        "поле настроек отсутствует при отсутствии декларации"
+    );
+    fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
+}
+
+#[test]
+fn parses_settings_declaration() {
+    let path = write_manifest(
+        r#"{
+        "contract_version": 1,
+        "name": "notifications",
+        "description": "Уведомления",
+        "module": "notifications.wasm",
+        "export": "invoke",
+        "host_functions": [],
+        "settings": {
+          "title": "Уведомления",
+          "sections": [
+            { "id": "notifications", "title": "Журнал", "defaults": { "technical_visible_default": false } }
+          ]
+        }
+      }"#,
+    );
+
+    let manifest = PluginManifest::load(&path).expect("парсинг декларации настроек");
+    let settings = manifest.settings.expect("декларация настроек");
+    assert_eq!(settings["title"], "Уведомления");
+    assert_eq!(settings["sections"][0]["id"], "notifications");
+    assert_eq!(
+        settings["sections"][0]["defaults"]["technical_visible_default"],
+        serde_json::json!(false)
+    );
+    fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
+}
+
+#[test]
 fn missing_fields_are_rejected() {
     let path = write_manifest(
         r#"{

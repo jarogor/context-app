@@ -16,8 +16,8 @@ pub use app_host::AppPluginHost;
 pub use app_state::AppState;
 pub use bus::{get_bus, EventBus, PluginEvent};
 pub use contract::{
-    CAPABILITY_NOTIFICATIONS, CONTRACT_VERSION, EXPORT_FUNCTION, HOST_FS_LIST_DIR,
-    HOST_FS_READ_TEXT, HOST_FUNCTIONS, HOST_LOG_FUNCTION, MANIFEST_FILE_NAME,
+    CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS, CONTRACT_VERSION, EXPORT_FUNCTION,
+    HOST_FS_LIST_DIR, HOST_FS_READ_TEXT, HOST_FUNCTIONS, HOST_LOG_FUNCTION, MANIFEST_FILE_NAME,
 };
 pub use error::PluginError;
 pub use loaded_plugin::LoadedPlugin;

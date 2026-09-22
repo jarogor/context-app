@@ -274,6 +274,7 @@ impl PluginRuntime {
             kind: manifest.kind,
             provides: manifest.provides,
             requires: manifest.requires,
+            settings: manifest.settings,
             function: manifest.export,
             plugin,
         })
@@ -387,6 +388,28 @@ impl PluginRuntime {
         );
         request.insert("payload".to_string(), payload);
         self.invoke(name, &serde_json::Value::Object(request).to_string())
+    }
+
+    /// Декларации настроек загруженных плагинов.
+    ///
+    /// Для каждого плагина с непустой декларацией возвращается источник
+    /// `{ owner, kind, schema }`, пригодный для opaque-передачи базовому
+    /// плагину настроек. Содержимое схемы ядро не интерпретирует.
+    pub(crate) fn settings_sources(&self) -> Vec<serde_json::Value> {
+        self.plugins
+            .iter()
+            .filter_map(|plugin| {
+                let schema = plugin.settings.as_ref()?;
+                if schema.is_null() {
+                    return None;
+                }
+                Some(serde_json::json!({
+                    "owner": plugin.name,
+                    "kind": plugin.kind,
+                    "schema": schema,
+                }))
+            })
+            .collect()
     }
 
     /// Имя плагина, предоставляющего указанную capability.

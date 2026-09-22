@@ -27,6 +27,9 @@ pub fn invoke_plugin_operation(
             .session
             .configure(root, plugin, writable.unwrap_or(false), storage_root)
             .map_err(|error| error.to_string())?;
+
+        let sources = state.session.settings_sources();
+        let _ = state.app_host.refresh_settings_registry(&sources);
     }
 
     let response = state

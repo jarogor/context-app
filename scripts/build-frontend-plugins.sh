@@ -23,3 +23,4 @@ build_plugin() {
 
 build_plugin "library-ui"
 build_plugin "notifications-ui"
+build_plugin "settings-ui"

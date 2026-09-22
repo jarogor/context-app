@@ -14,6 +14,8 @@ pub struct LoadedPlugin {
     pub provides: Vec<String>,
     /// Возможности, требуемые плагином.
     pub requires: Vec<String>,
+    /// Декларация секций настроек плагина (opaque-схема).
+    pub settings: Option<serde_json::Value>,
     /// Имя экспортируемой функции.
     pub function: String,
     /// Инстанс плагина в Extism runtime.
