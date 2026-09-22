@@ -4,6 +4,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+use crate::plugin::plugin_kind::PluginKind;
 use crate::plugin::PluginError;
 
 use super::contract::CONTRACT_VERSION;
@@ -16,6 +17,9 @@ use super::contract::CONTRACT_VERSION;
 pub struct PluginManifest {
     /// Версия контракта, которой соответствует плагин.
     pub contract_version: u32,
+    /// Категория плагина: базовый, source или extension.
+    #[serde(default)]
+    pub kind: PluginKind,
     /// Уникальное имя плагина.
     pub name: String,
     /// Краткое описание назначения плагина.

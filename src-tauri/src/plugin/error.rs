@@ -22,6 +22,8 @@ pub enum PluginError {
     Call { plugin: String, message: String },
     /// Плагин с указанным именем не загружен.
     UnknownPlugin(String),
+    /// Ни один загруженный плагин не предоставляет требуемую capability.
+    MissingCapability(String),
     /// Зависимость плагина не может быть разрешена.
     Dependency { plugin: String, capability: String },
     /// В графе зависимостей обнаружен цикл.
@@ -72,6 +74,12 @@ impl std::fmt::Display for PluginError {
                 write!(f, "вызов плагина {plugin} завершился ошибкой: {message}")
             }
             Self::UnknownPlugin(name) => write!(f, "плагин {name} не загружен"),
+            Self::MissingCapability(capability) => {
+                write!(
+                    f,
+                    "capability {capability} не предоставлена ни одним плагином"
+                )
+            }
             Self::Dependency { plugin, capability } => write!(
                 f,
                 "плагин {plugin} требует недоступную capability {capability}"

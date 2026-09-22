@@ -29,6 +29,11 @@ fn parses_valid_manifest() {
         manifest.contract_version,
         super::super::contract::CONTRACT_VERSION
     );
+    assert_eq!(
+        manifest.kind,
+        crate::plugin::PluginKind::Extension,
+        "категория по умолчанию"
+    );
     assert_eq!(manifest.name, "demo");
     assert_eq!(manifest.module, "demo.wasm");
     assert_eq!(manifest.export, super::super::contract::EXPORT_FUNCTION);
@@ -93,6 +98,44 @@ fn parses_plugin_capabilities() {
     manifest
         .validate(path.parent().expect("директория"))
         .expect("capabilities валидны");
+    fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
+}
+
+#[test]
+fn parses_base_plugin_kind() {
+    let path = write_manifest(
+        r#"{
+        "contract_version": 1,
+        "kind": "base",
+        "name": "notifications",
+        "description": "Уведомления",
+        "module": "notifications.wasm",
+        "export": "invoke",
+        "host_functions": ["emit_event"]
+      }"#,
+    );
+
+    let manifest = PluginManifest::load(&path).expect("парсинг базового плагина");
+    assert_eq!(manifest.kind, crate::plugin::PluginKind::Base);
+    fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
+}
+
+#[test]
+fn unknown_plugin_kind_is_rejected() {
+    let path = write_manifest(
+        r#"{
+        "contract_version": 1,
+        "kind": "unknown",
+        "name": "plugin",
+        "description": "x",
+        "module": "p.wasm",
+        "export": "invoke",
+        "host_functions": []
+      }"#,
+    );
+
+    let result = PluginManifest::load(&path);
+    assert!(result.is_err(), "неизвестная категория отклоняется");
     fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
 }
 

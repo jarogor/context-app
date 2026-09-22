@@ -18,7 +18,7 @@ pub fn test_root(name: &str) -> PathBuf {
 
     reset(&dir);
 
-    return dir;
+    dir
 }
 
 /// Очистка и создание директории.

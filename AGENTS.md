@@ -62,6 +62,18 @@
   поставляемые артефакты — в `src-tauri/resources/plugins/`.
 - Базовый плагин создания/открытия библиотеки живёт в `src-wasm-plugins/library/`
   и поставляется в `src-tauri/resources/plugins/library/`.
+- Каркас приложения держит базовые плагины отдельно от session-плагинов:
+  app-level `AppPluginHost` грузит плагины категории `kind: "base"` из
+  `src-tauri/resources/base-plugins/`, а per-library `PluginSession` — source и
+  extension-плагины из `resources/plugins/` и `plugins/` библиотеки.
+- Host-функции `log`/`notify` только публикуют событие в `plugin::bus`; его
+  доставляет app-level runtime плагину, предоставляющему capability
+  `notifications.journal@1`. Ядро не хранит журнал и не интерпретирует его модель.
+- Host-функция `emit_event(name, payload)` — generic relay прикладных событий
+  Tauri; базовые plugins используют её для live-обновления frontend-плагинов.
+- Базовый плагин уведомлений — `src-wasm-plugins/notifications/` +
+  frontend-плагин `plugins/notifications-ui/`; следующий базовый плагин
+  настроек/конфигов закладывается той же схемой, но вне текущего scope.
 
 ## Проверки перед завершением задачи
 

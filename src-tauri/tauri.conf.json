@@ -24,7 +24,8 @@
   "bundle": {
     "active": true,
     "resources": {
-      "resources/plugins": "plugins"
+      "resources/plugins": "plugins",
+      "resources/base-plugins": "base-plugins"
     },
     "targets": "all",
     "icon": [

@@ -2,12 +2,14 @@
 
 use extism::Plugin;
 
-use crate::plugin::PluginError;
+use crate::plugin::{PluginError, PluginKind};
 
 /// Загруженный плагин, готовый к вызову.
 pub struct LoadedPlugin {
     /// Имя плагина из манифеста.
     pub name: String,
+    /// Категория плагина из манифеста.
+    pub kind: PluginKind,
     /// Возможности, предоставляемые плагином.
     pub provides: Vec<String>,
     /// Возможности, требуемые плагином.

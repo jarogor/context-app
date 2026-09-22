@@ -9,6 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_DIR="$ROOT/src-wasm-plugins"
 RESOURCES_DIR="$ROOT/src-tauri/resources/plugins"
+BASE_RESOURCES_DIR="$ROOT/src-tauri/resources/base-plugins"
 WASM_DIR="$WORKSPACE_DIR/target/wasm32-unknown-unknown/release"
 
 cd "$WORKSPACE_DIR"
@@ -23,7 +24,11 @@ deploy_plugin() {
   local export_fn="$5"
   local host_functions_json="$6"
   local provides_json="${7:-[]}"
-  local out_dir="$RESOURCES_DIR/$name"
+  local base_dir="$RESOURCES_DIR"
+  if [ "$kind" = "base" ]; then
+    base_dir="$BASE_RESOURCES_DIR"
+  fi
+  local out_dir="$base_dir/$name"
 
   mkdir -p "$out_dir"
   cp "$WASM_DIR/$module" "$out_dir/$module"
@@ -44,5 +49,6 @@ JSON
   echo "собран плагин: $out_dir"
 }
 
+deploy_plugin "notifications" "base" "Базовый плагин уведомлений и технических логов" "notifications.wasm" "invoke" '["state_read", "state_write", "emit_event"]' '["notifications.journal@1"]'
 deploy_plugin "demo" "extension" "Демонстрационный плагин: приветствие при старте приложения через host-функцию log" "demo.wasm" "invoke" '["log"]'
 deploy_plugin "library" "source" "Плагин каталога, импорта и чтения библиотеки" "library.wasm" "invoke" '["fs_list_dir", "fs_read_bytes", "fs_write_bytes", "open_file", "import_read_bytes", "state_read", "state_write", "state_delete", "notify"]' '["library.catalog@1", "library.files@1"]'

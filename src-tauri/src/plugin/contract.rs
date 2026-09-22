@@ -34,6 +34,12 @@ pub const HOST_FS_WRITE_BYTES: &str = "fs_write_bytes";
 /// Имя host-функции открытия файла системным приложением.
 pub const HOST_OPEN_FILE: &str = "open_file";
 
+/// Имя host-функции публикации прикладного события плагином.
+pub const HOST_EMIT_EVENT: &str = "emit_event";
+
+/// Capability журнала уведомлений, предоставляемая базовым плагином.
+pub const CAPABILITY_NOTIFICATIONS: &str = "notifications.journal@1";
+
 /// Имя host-функции чтения служебного состояния source-плагина.
 pub const HOST_STATE_READ: &str = "state_read";
 
@@ -53,6 +59,7 @@ pub const HOST_FUNCTIONS: &[&str] = &[
     HOST_IMPORT_READ_BYTES,
     HOST_FS_WRITE_BYTES,
     HOST_OPEN_FILE,
+    HOST_EMIT_EVENT,
     HOST_STATE_READ,
     HOST_STATE_WRITE,
     HOST_STATE_DELETE,

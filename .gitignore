@@ -38,6 +38,7 @@ src-wasm-plugins/target/
 
 # Генерируемые артефакты WASM-плагинов (сборка: scripts/build-wasm-plugins.sh)
 src-tauri/resources/plugins/
+src-tauri/resources/base-plugins/
 
 # Editor directories and files
 .vscode/*

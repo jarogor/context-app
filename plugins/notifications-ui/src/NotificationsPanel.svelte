@@ -1,12 +1,13 @@
 <script lang="ts">
-  import type { Entry } from '../types';
+  import type { Entry } from './types';
 
   interface Props {
     entries: Entry[];
     technicalVisible: boolean;
-    collapsed?: boolean;
+    collapsed: boolean;
     markAllRead: () => void;
     clear: () => void;
+    onToggle: () => void;
   }
 
   let {
@@ -15,6 +16,7 @@
     collapsed = $bindable(true),
     markAllRead,
     clear,
+    onToggle,
   }: Props = $props();
 
   /** Отфильтрованные записи: без технического уровня показываем только User. */
@@ -23,16 +25,12 @@
   );
 
   /** Количество непрочитанных пользовательских уведомлений. */
-  let unreadUser = $derived(
-    entries.filter((entry) => entry.level === 'User' && !entry.read).length,
-  );
+  let unreadUser = $derived(entries.filter((entry) => entry.level === 'User' && !entry.read).length);
 
-  /** Разворачивание/сворачивание панели с отметкой видимых записей прочитанными. */
+  /** Разворачивание или сворачивание панели. */
   function toggle() {
     collapsed = !collapsed;
-    if (!collapsed) {
-      void markAllRead();
-    }
+    onToggle();
   }
 </script>
 
@@ -72,20 +70,16 @@
 
 <style>
   .notifications-panel {
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
+    box-sizing: border-box;
+    height: 100vh;
     background: #fff;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    transition: width 0.2s ease;
-    z-index: 1000;
+    overflow: hidden;
   }
 
   .notifications-panel.collapsed {
-    width: 40px;
+    width: 100%;
     align-items: center;
     justify-content: flex-start;
     gap: 8px;
@@ -106,8 +100,7 @@
   }
 
   .notifications-panel.expanded {
-    width: 400px;
-    max-width: 100vw;
+    width: 100%;
   }
 
   .count-badge {

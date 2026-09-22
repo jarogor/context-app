@@ -1,144 +1,78 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
-  import { listen } from '@tauri-apps/api/event';
   import PluginFrame from './lib/PluginFrame.svelte';
-  import Notifications from './pages/Notifications.svelte';
-  import NotificationsPanel from './lib/NotificationsPanel.svelte';
-  import type { Entry } from './types';
 
-  const TECHNICAL_VISIBLE_KEY = 'notifications.technicalVisible';
-  const MOBILE_QUERY = '(max-width: 899px)';
+  /** Состояние региона уведомлений, управляемое frontend-плагином. */
+  type LayoutState = 'collapsed' | 'expanded' | 'page';
 
-  let showNotifications = $state(false);
-  let notifications: Entry[] = $state([]);
-  let technicalVisible: boolean = $state(false);
-  let isMobile: boolean = $state(initialIsMobile());
-  let panelCollapsed: boolean = $state(true);
+  let layoutState: LayoutState = $state('collapsed');
 
-  /** Количество непрочитанных пользовательских уведомлений. */
-  let unreadUser = $derived(
-    notifications.filter((entry) => entry.level === 'User' && !entry.read).length,
-  );
-
-  /** Начальное значение признака мобильной раскладки. */
-  function initialIsMobile(): boolean {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    return window.matchMedia(MOBILE_QUERY).matches;
+  interface LayoutValue {
+    region: string;
+    state: string;
   }
 
-  $effect(() => {
-    try {
-      localStorage.setItem(TECHNICAL_VISIBLE_KEY, String(technicalVisible));
-    } catch {
-      // localStorage может быть недоступен — флаг просто не сохранится.
-    }
-  });
-
-  /** Переход между страницами приложения. */
-  function navigate(page: string) {
-    showNotifications = page === 'notifications';
-  }
-
-  /** Возврат на страницу, с которой была открыта страница уведомлений. */
-  function goBack() {
-    showNotifications = false;
-  }
-
-  /** Загрузка всех записей журнала. */
-  async function loadNotifications() {
-    try {
-      notifications = await invoke<Entry[]>('list_journal', { level: null });
-    } catch (error) {
-      console.error('Failed to load notifications:', error);
+  /** Обработка сообщения плагина о требуемом состоянии региона уведомлений. */
+  function handleLayout(value: LayoutValue) {
+    if (value.region !== 'notifications') return;
+    if (value.state === 'collapsed' || value.state === 'expanded' || value.state === 'page') {
+      layoutState = value.state;
     }
   }
-
-  /** Пометка всех записей прочитанными. */
-  async function markAllRead() {
-    try {
-      await invoke('mark_all_read');
-      notifications = notifications.map((entry) => ({ ...entry, read: true }));
-    } catch (error) {
-      console.error('Failed to mark all read:', error);
-    }
-  }
-
-  /** Полная очистка журнала. */
-  async function clearNotifications() {
-    try {
-      await invoke('clear_journal');
-      await loadNotifications();
-    } catch (error) {
-      console.error('Failed to clear notifications:', error);
-    }
-  }
-
-  onMount(() => {
-    let unlisten: (() => void) | undefined;
-    const query = window.matchMedia(MOBILE_QUERY);
-    const onChange = () => {
-      isMobile = query.matches;
-    };
-    query.addEventListener('change', onChange);
-    void (async () => {
-      unlisten = await listen<Entry>('journal:added', (event) => {
-        notifications = [...notifications, event.payload];
-      });
-      await loadNotifications();
-    })();
-    return () => {
-      unlisten?.();
-      query.removeEventListener('change', onChange);
-    };
-  });
 </script>
 
-{#if !isMobile}
-  <NotificationsPanel
-    entries={notifications}
-    bind:technicalVisible
-    bind:collapsed={panelCollapsed}
-    markAllRead={markAllRead}
-    clear={clearNotifications}
+<div class="notifications-region {layoutState}">
+  <PluginFrame
+    src="/plugins/notifications-ui/index.html"
+    title="Notifications plugin"
+    onLayout={handleLayout}
   />
-{/if}
+</div>
 
-<main class="app-content {!isMobile ? (panelCollapsed ? 'panel-collapsed' : 'panel-expanded') : ''}">
-  {#if showNotifications && isMobile}
-    <div class="notifications-page">
-      <Notifications
-        entries={notifications}
-        bind:technicalVisible
-        markAllRead={markAllRead}
-        clear={clearNotifications}
-        onBack={goBack}
-      />
-    </div>
-  {:else}
-    <PluginFrame src="/plugins/library-ui/index.html" title="Library plugin" />
-  {/if}
+<main class="app-content {layoutState}" class:hidden={layoutState === 'page'}>
+  <PluginFrame src="/plugins/library-ui/index.html" title="Library plugin" />
 </main>
 
 <style>
+  .notifications-region {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    transition: width 0.2s ease;
+  }
+
+  .notifications-region.collapsed {
+    width: 40px;
+  }
+
+  .notifications-region.expanded {
+    width: 400px;
+  }
+
+  .notifications-region.page {
+    width: 100vw;
+    height: 100vh;
+  }
+
   .app-content {
     min-height: 100vh;
     transition: margin-left 0.2s ease;
   }
 
-  /* Десктопная панель докнута слева: контент сдвигается на её ширину. */
-  .panel-collapsed {
+  .app-content.collapsed {
     margin-left: 40px;
   }
 
-  .panel-expanded {
+  .app-content.expanded {
     margin-left: 400px;
   }
 
-  .notifications-page {
-    height: 100vh;
-    overflow: hidden;
+  .app-content.page {
+    margin-left: 0;
+  }
+
+  .app-content.hidden {
+    display: none;
   }
 </style>

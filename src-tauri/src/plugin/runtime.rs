@@ -12,18 +12,16 @@ use std::sync::{Arc, Mutex};
 use extism::{Manifest, PluginBuilder, UserData, ValType, Wasm};
 
 use crate::plugin::contract::{
-    EXPORT_FUNCTION, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT, HOST_FS_WRITE_BYTES,
-    HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION, HOST_OPEN_FILE,
-    HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE, MANIFEST_FILE_NAME,
+    EXPORT_FUNCTION, HOST_EMIT_EVENT, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT,
+    HOST_FS_WRITE_BYTES, HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION,
+    HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE, MANIFEST_FILE_NAME,
 };
-use crate::plugin::{HostSink, LoadedPlugin, PluginError, PluginManifest};
+use crate::plugin::{get_bus, LoadedPlugin, PluginError, PluginEvent, PluginKind, PluginManifest};
 
 /// Плагинная подсистема приложения.
 pub struct PluginRuntime {
     /// Загруженные плагины в порядке обнаружения.
     plugins: Vec<LoadedPlugin>,
-    /// Приёмник сообщений плагинов.
-    sink: HostSink,
     /// Песочный корень для host-функций файловой системы plugin-а.
     sandbox_root: Arc<Mutex<PathBuf>>,
     /// Корень служебного хранилища source-плагина.
@@ -44,8 +42,6 @@ struct HostState {
     storage_root: Arc<Mutex<Option<PathBuf>>>,
     /// Разрешена ли запись в sandbox.
     sandbox_writable: Arc<Mutex<bool>>,
-    /// Приёмник сообщений плагинов.
-    sink: HostSink,
 }
 
 impl PluginRuntime {
@@ -53,7 +49,6 @@ impl PluginRuntime {
     pub fn empty() -> Self {
         Self {
             plugins: Vec::new(),
-            sink: HostSink::new(),
             sandbox_root: Arc::new(Mutex::new(PathBuf::from("."))),
             storage_root: Arc::new(Mutex::new(None)),
             sandbox_writable: Arc::new(Mutex::new(false)),
@@ -73,10 +68,21 @@ impl PluginRuntime {
         directories: &[PathBuf],
         sandbox_root: impl Into<PathBuf>,
     ) -> Result<Self, PluginError> {
+        Self::load_kinds(directories, sandbox_root, None)
+    }
+
+    /// Загрузка плагинов выбранных категорий из указанных директорий.
+    ///
+    /// `kinds` ограничивает набор загружаемых категорий; `None` загружает все.
+    /// Остальное поведение совпадает с [`PluginRuntime::load`].
+    pub fn load_kinds(
+        directories: &[PathBuf],
+        sandbox_root: impl Into<PathBuf>,
+        kinds: Option<&[PluginKind]>,
+    ) -> Result<Self, PluginError> {
         let sandbox_root = Arc::new(Mutex::new(sandbox_root.into()));
         let storage_root = Arc::new(Mutex::new(None));
         let sandbox_writable = Arc::new(Mutex::new(false));
-        let sink = HostSink::new();
         let mut plugins = Vec::new();
         let mut seen = std::collections::HashSet::new();
         for directory in directories {
@@ -89,14 +95,13 @@ impl PluginRuntime {
                     continue;
                 }
                 let dir = entry.path();
-                match Self::load_plugin_dir(
-                    &dir,
-                    &sink,
-                    &sandbox_root,
-                    &storage_root,
-                    &sandbox_writable,
-                ) {
+                match Self::load_plugin_dir(&dir, &sandbox_root, &storage_root, &sandbox_writable) {
                     Ok(plugin) => {
+                        if let Some(kinds) = kinds {
+                            if !kinds.contains(&plugin.kind) {
+                                continue;
+                            }
+                        }
                         // При загрузке из двух мест (plugins/ и ресурсы) один и тот
                         // же плагин не должен загружаться повторно.
                         if seen.insert(plugin.name.clone()) {
@@ -110,7 +115,6 @@ impl PluginRuntime {
         Self::resolve_dependencies(&mut plugins)?;
         Ok(Self {
             plugins,
-            sink,
             sandbox_root,
             storage_root,
             sandbox_writable,
@@ -122,20 +126,17 @@ impl PluginRuntime {
         sandbox_root: &Arc<Mutex<PathBuf>>,
         storage_root: &Arc<Mutex<Option<PathBuf>>>,
         sandbox_writable: &Arc<Mutex<bool>>,
-        sink: &HostSink,
     ) -> HostState {
         HostState {
             sandbox_root: Arc::clone(sandbox_root),
             storage_root: Arc::clone(storage_root),
             sandbox_writable: Arc::clone(sandbox_writable),
-            sink: sink.clone(),
         }
     }
 
     /// Загрузка одного плагина из его директории.
     fn load_plugin_dir(
         dir: &Path,
-        sink: &HostSink,
         sandbox_root: &Arc<Mutex<PathBuf>>,
         storage_root: &Arc<Mutex<Option<PathBuf>>>,
         sandbox_writable: &Arc<Mutex<bool>>,
@@ -168,7 +169,7 @@ impl PluginRuntime {
 
         let extism_manifest = Manifest::new([Wasm::file(&wasm_path)]).disallow_all_hosts();
 
-        let host_state = Self::host_state(sandbox_root, storage_root, sandbox_writable, sink);
+        let host_state = Self::host_state(sandbox_root, storage_root, sandbox_writable);
         let plugin = PluginBuilder::new(extism_manifest)
             .with_wasi(false)
             .with_function(
@@ -245,8 +246,15 @@ impl PluginRuntime {
                 HOST_STATE_DELETE,
                 [ValType::I64],
                 [ValType::I64],
-                UserData::new(host_state),
+                UserData::new(host_state.clone()),
                 host_state_delete,
+            )
+            .with_function(
+                HOST_EMIT_EVENT,
+                [ValType::I64, ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state),
+                host_emit_event,
             )
             .build()
             .map_err(|e| PluginError::Build {
@@ -263,6 +271,7 @@ impl PluginRuntime {
 
         Ok(LoadedPlugin {
             name: manifest.name,
+            kind: manifest.kind,
             provides: manifest.provides,
             requires: manifest.requires,
             function: manifest.export,
@@ -380,26 +389,44 @@ impl PluginRuntime {
         self.invoke(name, &serde_json::Value::Object(request).to_string())
     }
 
-    /// Сообщения, полученные от плагинов через host-функцию `log`.
-    pub fn logs(&self) -> Vec<String> {
-        self.sink.drain()
+    /// Имя плагина, предоставляющего указанную capability.
+    pub fn plugin_providing(&self, capability: &str) -> Option<String> {
+        self.plugins
+            .iter()
+            .find(|plugin| plugin.provides.iter().any(|value| value == capability))
+            .map(|plugin| plugin.name.clone())
+    }
+
+    /// Выполнение операции плагина, предоставляющего capability.
+    ///
+    /// Ядро маршрутизирует opaque-запрос провайдеру, не интерпретируя payload.
+    pub(crate) fn invoke_capability(
+        &mut self,
+        capability: &str,
+        operation: &str,
+        payload: serde_json::Value,
+    ) -> Result<String, PluginError> {
+        let name = self
+            .plugin_providing(capability)
+            .ok_or_else(|| PluginError::MissingCapability(capability.to_string()))?;
+        self.invoke_operation(&name, operation, payload)
     }
 }
 
-/// Host-функция `log`: получение строки из памяти плагина
-/// и сохранение её в приёмнике сообщений.
+/// Host-функция `log`: публикация технического сообщения плагина в bus.
 fn host_log(
     plugin: &mut extism::CurrentPlugin,
     args: &[extism::Val],
     _returns: &mut [extism::Val],
-    user_data: UserData<HostState>,
+    _user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
     let message: String = plugin.memory_get_val(&args[0])?;
-    let host = user_data.get()?;
-    let state = host
-        .lock()
-        .map_err(|_| extism::Error::msg("не удалось захватить состояние host-функций плагина"))?;
-    state.sink.push(&message);
+    get_bus().publish(PluginEvent {
+        level: "technical".to_string(),
+        message,
+        source: "plugin".to_string(),
+        details: serde_json::json!({}),
+    });
     Ok(())
 }
 
@@ -418,12 +445,31 @@ fn host_notify(
             "raw": details,
         })
     });
-    let journal = crate::journal::get_journal_handle();
-    if level == "user" {
-        journal.add_user(message, crate::journal::Severity::Info, "plugin", details);
-    } else {
-        journal.add_technical(message, "plugin", details);
-    }
+    get_bus().publish(PluginEvent {
+        level,
+        message,
+        source: "plugin".to_string(),
+        details,
+    });
+    plugin
+        .memory_set_val(&mut returns[0], "ok")
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `emit_event`: эмиссия именованного прикладного события в Tauri.
+///
+/// Payload парсится как JSON; при ошибке парсинга передаётся строкой, чтобы
+/// плагин не терял событие из-за некорректных данных.
+fn host_emit_event(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    _user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let name: String = plugin.memory_get_val(&args[0])?;
+    let payload: String = plugin.memory_get_val(&args[1])?;
+    let payload = serde_json::from_str(&payload).unwrap_or(serde_json::Value::String(payload));
+    crate::plugin::relay::emit(&name, payload);
     plugin
         .memory_set_val(&mut returns[0], "ok")
         .map_err(|err| extism::Error::msg(err.to_string()))
@@ -465,10 +511,10 @@ fn host_fs_list_dir(
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 
-fn read_directory_entries(path: &PathBuf) -> Vec<String> {
+fn read_directory_entries(path: &Path) -> Vec<String> {
     let mut entries = Vec::new();
 
-    if let Ok(reader) = fs::read_dir(&path) {
+    if let Ok(reader) = fs::read_dir(path) {
         for entry in reader.flatten() {
             entries.push(entry.file_name().to_string_lossy().into_owned());
         }
@@ -476,7 +522,7 @@ fn read_directory_entries(path: &PathBuf) -> Vec<String> {
         entries.sort();
     }
 
-    return entries;
+    entries
 }
 
 /// Host-функция `fs_read_text`: чтение содержимого файла как текста.

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Entry } from '../types';
+  import type { Entry } from './types';
 
   interface Props {
     entries: Entry[];
@@ -18,20 +18,13 @@
   );
 
   /** Количество непрочитанных пользовательских уведомлений. */
-  let unreadUser = $derived(
-    entries.filter((entry) => entry.level === 'User' && !entry.read).length,
-  );
-
-  function handleCounterClick() {
-    markAllRead();
-  }
-
+  let unreadUser = $derived(entries.filter((entry) => entry.level === 'User' && !entry.read).length);
 </script>
 
 <header class="notifications-header">
   <button class="back-button" type="button" onclick={onBack}>← Назад</button>
   <h1>Уведомления</h1>
-  <button class="notification-count" type="button" onclick={handleCounterClick} title="Прочитать все">
+  <button class="notification-count" type="button" onclick={markAllRead} title="Прочитать все">
     {unreadUser}
   </button>
 </header>

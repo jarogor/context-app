@@ -190,11 +190,65 @@ fn loads_and_invokes_bundled_demo() {
     let greeting = parsed["greeting"].as_str().expect("поле greeting");
     assert!(greeting.contains("Тест"), "ответ содержит переданное имя");
 
-    let logs = runtime.logs();
+    let events = crate::plugin::get_bus().drain();
     assert!(
-        logs.iter().any(|m| m.contains("Тест")),
-        "host-функция log передала сообщение приложению"
+        events
+            .iter()
+            .any(|event| event.message.contains("Тест") && event.level == "technical"),
+        "host-функция log опубликовала техническое событие"
     );
 
     cleanup(&root_copy);
+}
+
+/// Манифест плагина, предоставляющего capability.
+const MANIFEST_WITH_CAPABILITY: &str = r#"{
+    "contract_version": 1,
+    "name": "provider",
+    "description": "Провайдер capability",
+    "module": "plugin.wasm",
+    "export": "invoke",
+    "host_functions": [],
+    "provides": ["test.capability@1"]
+  }"#;
+
+#[test]
+fn routes_capability_to_provider() {
+    let dir = setup_plugins_root(
+        "capability",
+        &compile_wat(WAT_WITH_INVOKE),
+        MANIFEST_WITH_CAPABILITY,
+    );
+    let root = dir.clone();
+    let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    assert_eq!(
+        runtime.plugin_providing("test.capability@1"),
+        Some("provider".to_string())
+    );
+    let output = runtime
+        .invoke_capability("test.capability@1", "ping", serde_json::json!({}))
+        .expect("маршрутизация операции");
+    assert_eq!(output, "", "провайдер вызван");
+    cleanup(&root);
+}
+
+#[test]
+fn missing_capability_is_reported() {
+    let dir = setup_plugins_root(
+        "missing-capability",
+        &compile_wat(WAT_WITH_INVOKE),
+        MANIFEST_JSON,
+    );
+    let root = dir.clone();
+    let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    assert!(runtime.plugin_providing("none@1").is_none());
+    let result = runtime.invoke_capability("none@1", "ping", serde_json::json!({}));
+    assert!(
+        matches!(
+            result,
+            Err(crate::plugin::PluginError::MissingCapability(_))
+        ),
+        "отсутствие провайдера диагностируется"
+    );
+    cleanup(&root);
 }
