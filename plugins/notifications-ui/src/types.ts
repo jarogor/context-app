@@ -17,6 +17,3 @@ export interface Entry {
     details: Record<string, unknown>;
     read: boolean;
 }
-
-/** Состояние региона уведомлений в оболочке приложения. */
-export type LayoutState = 'collapsed' | 'expanded' | 'page';

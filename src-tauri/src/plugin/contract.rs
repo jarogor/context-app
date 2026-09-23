@@ -52,6 +52,9 @@ pub const HOST_STATE_WRITE: &str = "state_write";
 /// Имя host-функции удаления служебного состояния source-плагина.
 pub const HOST_STATE_DELETE: &str = "state_delete";
 
+/// Имя host-функции текущего времени Unix в миллисекундах.
+pub const HOST_NOW_FUNCTION: &str = "now_millis";
+
 /// Список host-функций, предоставляемых приложением.
 pub const HOST_FUNCTIONS: &[&str] = &[
     HOST_LOG_FUNCTION,
@@ -66,4 +69,5 @@ pub const HOST_FUNCTIONS: &[&str] = &[
     HOST_STATE_READ,
     HOST_STATE_WRITE,
     HOST_STATE_DELETE,
+    HOST_NOW_FUNCTION,
 ];

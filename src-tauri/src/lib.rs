@@ -26,8 +26,13 @@ pub fn run() {
             let bundled_base = resource_dir.join(BASE_PLUGINS_DIR_NAME);
             let mut app_host =
                 AppPluginHost::load(&base_plugin_directories(&bundled_base), base_storage_root())?;
+            let _ = app_host.reset_notifications();
             for name in app_host.plugin_names() {
-                app_host.notify_technical("plugin loaded", name, serde_json::json!({}));
+                app_host.notify_technical(
+                    format!("Базовый плагин загружен: {name}"),
+                    "plugins",
+                    serde_json::json!({ "plugin": name }),
+                );
             }
 
             let _ = app_host.refresh_settings_registry(&[]);
@@ -39,7 +44,11 @@ pub fn run() {
             let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let mut host = PluginSession::idle(root, bundled_plugins_dir);
             for name in host.runtime().plugin_names() {
-                app_host.notify_technical("plugin loaded", name, serde_json::json!({}));
+                app_host.notify_technical(
+                    format!("Плагин библиотеки загружен: {name}"),
+                    "plugins",
+                    serde_json::json!({ "plugin": name }),
+                );
             }
             if host
                 .runtime()

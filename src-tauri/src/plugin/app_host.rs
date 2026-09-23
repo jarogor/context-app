@@ -155,6 +155,24 @@ impl AppPluginHost {
         Ok(())
     }
 
+    /// Сброс журнала уведомлений при старте сессии приложения.
+    ///
+    /// Вызывает opaque-операцию `clear` у провайдера capability уведомлений,
+    /// чтобы журнал жил только в пределах текущего запуска. При отсутствии
+    /// провайдера вызов безвреден.
+    pub fn reset_notifications(&mut self) -> Result<(), PluginError> {
+        if self
+            .runtime
+            .plugin_providing(CAPABILITY_NOTIFICATIONS)
+            .is_none()
+        {
+            return Ok(());
+        }
+        self.runtime
+            .invoke_capability(CAPABILITY_NOTIFICATIONS, "clear", serde_json::json!({}))?;
+        Ok(())
+    }
+
     /// Признак необходимости приветственного уведомления при старте.
     ///
     /// Значение читается из собственной секции настроек приложения; при

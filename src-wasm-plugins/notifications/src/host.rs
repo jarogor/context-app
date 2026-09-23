@@ -11,4 +11,6 @@ pub trait Host {
     fn state_write(&self, key: &str, value: &str) -> Result<(), String>;
     /// Публикация именованного прикладного события.
     fn emit_event(&self, name: &str, payload: &str) -> Result<(), String>;
+    /// Текущее время Unix в миллисекундах.
+    fn now_millis(&self) -> i64;
 }

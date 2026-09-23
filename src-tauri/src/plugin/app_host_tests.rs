@@ -268,6 +268,57 @@ fn settings_registry_survives_restart() {
 }
 
 #[test]
+fn real_notifications_plugin_records_events() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-notifications-record");
+    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.notify_user("проверка", "test", serde_json::json!({}));
+
+    let output = host
+        .invoke_operation("notifications", "list", serde_json::json!({}))
+        .expect("список журнала");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON журнала");
+    let entries = parsed["entries"].as_array().expect("массив записей");
+    let recorded = entries
+        .iter()
+        .find(|entry| entry["message"] == "проверка")
+        .expect("пользовательское событие записано в журнал");
+    assert!(
+        recorded["timestamp"].as_i64().unwrap_or_default() > 0,
+        "метка времени получена от host-функции"
+    );
+    cleanup(&storage);
+}
+
+#[test]
+fn reset_notifications_clears_journal() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-notifications-reset");
+    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.notify_user("до сброса", "test", serde_json::json!({}));
+    host.reset_notifications().expect("сброс журнала");
+
+    let output = host
+        .invoke_operation("notifications", "list", serde_json::json!({}))
+        .expect("список журнала");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON журнала");
+    assert!(
+        parsed["entries"]
+            .as_array()
+            .expect("массив записей")
+            .is_empty(),
+        "журнал пуст после сброса"
+    );
+    cleanup(&storage);
+}
+
+#[test]
 fn drops_events_without_provider() {
     let dir = setup_plugin(
         "demo",

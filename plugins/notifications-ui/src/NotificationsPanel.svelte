@@ -4,20 +4,11 @@
   interface Props {
     entries: Entry[];
     technicalVisible: boolean;
-    collapsed: boolean;
     markAllRead: () => void;
     clear: () => void;
-    onToggle: () => void;
   }
 
-  let {
-    entries,
-    technicalVisible = $bindable(false),
-    collapsed = $bindable(true),
-    markAllRead,
-    clear,
-    onToggle,
-  }: Props = $props();
+  let { entries, technicalVisible = $bindable(false), markAllRead, clear }: Props = $props();
 
   /** Отфильтрованные записи: без технического уровня показываем только User. */
   let visibleEntries = $derived(
@@ -26,110 +17,86 @@
 
   /** Количество непрочитанных пользовательских уведомлений. */
   let unreadUser = $derived(entries.filter((entry) => entry.level === 'User' && !entry.read).length);
-
-  /** Разворачивание или сворачивание панели. */
-  function toggle() {
-    collapsed = !collapsed;
-    onToggle();
-  }
 </script>
 
-{#if collapsed}
-  <div class="notifications-panel collapsed" onclick={toggle} onkeydown={toggle} role="button" tabindex="0" title="Уведомления">
-    <span class="collapsed-label">Уведомления</span>
-    <span class="count-badge">{unreadUser}</span>
-  </div>
-{:else}
-  <div class="notifications-panel expanded">
-    <div class="panel-header">
-      <span>Уведомления</span>
-      <div class="panel-controls">
-        <label>
-          <input type="checkbox" bind:checked={technicalVisible} />
-          Технические
-        </label>
-        <button type="button" onclick={clear}>Очистить</button>
-        <button type="button" onclick={toggle} title="Свернуть">×</button>
-      </div>
-    </div>
-    <div class="notifications-list">
-      {#if visibleEntries.length === 0}
-        <div class="empty-state">Нет уведомлений</div>
-      {:else}
-        {#each visibleEntries as entry (entry.id)}
-          <div class="notification-item {entry.level} {entry.severity} {entry.read ? 'read' : ''}">
-            <span class="level-badge">{entry.level === 'User' ? 'User' : 'Tech'}</span>
-            <span class="message">{entry.message}</span>
-            <span class="timestamp">{new Date(entry.timestamp).toLocaleTimeString()}</span>
-          </div>
-        {/each}
-      {/if}
+<div class="notifications-panel">
+  <div class="panel-header">
+    <span class="panel-title">Уведомления</span>
+    <span class="count-badge" class:muted={unreadUser === 0}>{unreadUser}</span>
+    <div class="panel-controls">
+      <label>
+        <input type="checkbox" bind:checked={technicalVisible} />
+        Технические
+      </label>
+      <button type="button" onclick={markAllRead} disabled={unreadUser === 0}>Прочитать</button>
+      <button type="button" onclick={clear}>Очистить</button>
     </div>
   </div>
-{/if}
+  <div class="notifications-list">
+    {#if visibleEntries.length === 0}
+      <div class="empty-state">Нет уведомлений</div>
+    {:else}
+      {#each visibleEntries as entry (entry.id)}
+        <div class="notification-item {entry.level} {entry.severity} {entry.read ? 'read' : ''}">
+          <span class="level-badge">{entry.level === 'User' ? 'User' : 'Tech'}</span>
+          <span class="message">{entry.message}</span>
+          <span class="timestamp">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+        </div>
+      {/each}
+    {/if}
+  </div>
+</div>
 
 <style>
   .notifications-panel {
     box-sizing: border-box;
-    height: 100vh;
+    height: 100%;
     background: #fff;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
 
-  .notifications-panel.collapsed {
-    width: 100%;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    padding-top: 16px;
-    cursor: pointer;
-    background: #f0f0f0;
-  }
-
-  .notifications-panel.collapsed:hover {
-    background: #e4e4e4;
-  }
-
-  .collapsed-label {
-    writing-mode: vertical-rl;
-    font-size: 12px;
-    color: #555;
-    letter-spacing: 1px;
-  }
-
-  .notifications-panel.expanded {
-    width: 100%;
-  }
-
-  .count-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 24px;
-    height: 24px;
-    padding: 0 6px;
-    border-radius: 12px;
-    background: #4caf50;
-    color: #fff;
-    font-size: 13px;
-    font-weight: bold;
-  }
-
   .panel-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    gap: 8px;
     padding: 12px 16px;
     border-bottom: 1px solid #e0e0e0;
     background: #f8f8f8;
   }
 
   .panel-controls {
+    margin-left: auto;
     display: flex;
     gap: 8px;
     align-items: center;
+  }
+
+  .panel-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: #315f9e;
+  }
+
+  .count-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: #4caf50;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .count-badge.muted {
+    background: #d7dde3;
+    color: #5a6b7b;
   }
 
   label {

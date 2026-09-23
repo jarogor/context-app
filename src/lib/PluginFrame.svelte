@@ -3,18 +3,20 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import { listen } from '@tauri-apps/api/event';
 
-  interface LayoutValue {
-    region: string;
-    state: string;
+  /** Сообщение frontend-плагина без идентификатора запроса. */
+  interface PluginMessage {
+    type?: string;
+    value?: unknown;
+    event?: string;
   }
 
   interface Props {
     src: string;
     title: string;
-    onLayout?: (value: LayoutValue) => void;
+    onMessage?: (message: PluginMessage) => void;
   }
 
-  let { src, title, onLayout }: Props = $props();
+  let { src, title, onMessage }: Props = $props();
 
   let frame: HTMLIFrameElement;
   const subscriptions = new Map<string, () => void>();
@@ -35,10 +37,9 @@
   async function handleMessage(event: MessageEvent) {
     if (event.source !== frame?.contentWindow) return;
     const message = event.data;
-    if (!message || message.channel !== 'booklib-plugin' || !message.id) {
-      if (message?.channel === 'booklib-plugin' && message.type === 'layout') {
-        onLayout?.(message.value as LayoutValue);
-      }
+    if (!message || message.channel !== 'booklib-plugin') return;
+    if (!message.id) {
+      onMessage?.(message);
       return;
     }
     try {

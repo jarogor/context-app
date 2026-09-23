@@ -14,7 +14,8 @@ use extism::{Manifest, PluginBuilder, UserData, ValType, Wasm};
 use crate::plugin::contract::{
     EXPORT_FUNCTION, HOST_EMIT_EVENT, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT,
     HOST_FS_WRITE_BYTES, HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION,
-    HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE, MANIFEST_FILE_NAME,
+    HOST_NOW_FUNCTION, HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE,
+    MANIFEST_FILE_NAME,
 };
 use crate::plugin::{get_bus, LoadedPlugin, PluginError, PluginEvent, PluginKind, PluginManifest};
 
@@ -248,6 +249,13 @@ impl PluginRuntime {
                 [ValType::I64],
                 UserData::new(host_state.clone()),
                 host_state_delete,
+            )
+            .with_function(
+                HOST_NOW_FUNCTION,
+                [],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_now_millis,
             )
             .with_function(
                 HOST_EMIT_EVENT,
@@ -495,6 +503,25 @@ fn host_emit_event(
     crate::plugin::relay::emit(&name, payload);
     plugin
         .memory_set_val(&mut returns[0], "ok")
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `now_millis`: текущее время Unix в миллисекундах.
+///
+/// Плагины не могут использовать системное время внутри `wasm32-unknown-unknown`,
+/// поэтому получают его от приложения.
+fn host_now_millis(
+    plugin: &mut extism::CurrentPlugin,
+    _args: &[extism::Val],
+    returns: &mut [extism::Val],
+    _user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or_default();
+    plugin
+        .memory_set_val(&mut returns[0], millis.to_string())
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 

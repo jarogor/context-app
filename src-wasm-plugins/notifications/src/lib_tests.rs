@@ -26,6 +26,10 @@ impl Host for FakeHost {
             .push((name.to_string(), payload.to_string()));
         Ok(())
     }
+
+    fn now_millis(&self) -> i64 {
+        1_000
+    }
 }
 
 fn request(action: &str, payload: serde_json::Value) -> String {

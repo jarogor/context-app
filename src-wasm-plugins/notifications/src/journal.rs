@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 
 use serde::{Deserialize, Serialize};
 
-use crate::models::{now_millis, Entry, Level, Severity};
+use crate::models::{Entry, Level, Severity};
 
 /// Максимальное количество записей в журнале.
 pub(crate) const MAX_ENTRIES: usize = 500;
@@ -27,30 +27,40 @@ impl Journal {
         Self::default()
     }
 
-    /// Добавление события пользовательского уровня.
+    /// Добавление события пользовательского уровня с меткой времени.
     pub fn add_user(
         &mut self,
+        timestamp: i64,
         message: impl Into<String>,
         severity: Severity,
         source: impl Into<String>,
         details: serde_json::Value,
     ) -> Entry {
-        self.add(Level::User, message, severity, source, details)
+        self.add(timestamp, Level::User, message, severity, source, details)
     }
 
-    /// Добавление события технического уровня.
+    /// Добавление события технического уровня с меткой времени.
     pub fn add_technical(
         &mut self,
+        timestamp: i64,
         message: impl Into<String>,
         source: impl Into<String>,
         details: serde_json::Value,
     ) -> Entry {
-        self.add(Level::Technical, message, Severity::Info, source, details)
+        self.add(
+            timestamp,
+            Level::Technical,
+            message,
+            Severity::Info,
+            source,
+            details,
+        )
     }
 
-    /// Добавление события в журнал.
+    /// Добавление события в журнал с меткой времени.
     fn add(
         &mut self,
+        timestamp: i64,
         level: Level,
         message: impl Into<String>,
         severity: Severity,
@@ -61,7 +71,7 @@ impl Journal {
         self.next_id += 1;
         let entry = Entry {
             id,
-            timestamp: now_millis(),
+            timestamp,
             level,
             severity,
             message: message.into(),

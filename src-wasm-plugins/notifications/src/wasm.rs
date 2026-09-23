@@ -15,6 +15,8 @@ extern "ExtismHost" {
     fn state_write(key: String, value: String) -> String;
     /// Публикация именованного прикладного события.
     fn emit_event(name: String, payload: String) -> String;
+    /// Текущее время Unix в миллисекундах (строка с числом).
+    fn now_millis() -> String;
 }
 
 /// Реализация `Host` поверх host-функций приложения.
@@ -40,6 +42,13 @@ impl Host for HostEnv {
         unsafe { emit_event(name.to_string(), payload.to_string()) }
             .map(|_| ())
             .map_err(|error| error.to_string())
+    }
+
+    fn now_millis(&self) -> i64 {
+        unsafe { now_millis() }
+            .ok()
+            .and_then(|value| value.parse::<i64>().ok())
+            .unwrap_or_default()
     }
 }
 

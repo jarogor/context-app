@@ -75,11 +75,12 @@ fn publish(host: &impl Host, payload: &serde_json::Value) -> Result<String, Stri
         .unwrap_or(Severity::Info);
     let details = payload.get("details").cloned().unwrap_or_else(|| json!({}));
 
+    let timestamp = host.now_millis();
     let mut journal = load(host)?;
     let entry = if level == "user" {
-        journal.add_user(message, severity, source, details)
+        journal.add_user(timestamp, message, severity, source, details)
     } else {
-        journal.add_technical(message, source, details)
+        journal.add_technical(timestamp, message, source, details)
     };
     save(host, &journal)?;
 

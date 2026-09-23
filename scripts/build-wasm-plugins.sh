@@ -56,7 +56,7 @@ JSON
   echo "собран плагин: $out_dir"
 }
 
-deploy_plugin "notifications" "base" "Базовый плагин уведомлений и технических логов" "notifications.wasm" "invoke" '["state_read", "state_write", "emit_event"]' '["notifications.journal@1"]' '{
+deploy_plugin "notifications" "base" "Базовый плагин уведомлений и технических логов" "notifications.wasm" "invoke" '["state_read", "state_write", "emit_event", "now_millis"]' '["notifications.journal@1"]' '{
     "title": "Уведомления",
     "sections": [
       {

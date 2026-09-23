@@ -1,5 +1,3 @@
-import type { LayoutState } from './types';
-
 type Message = {
   channel: 'booklib-plugin';
   type: string;
@@ -11,19 +9,12 @@ type Message = {
   error?: string;
 };
 
-/** Размеры окна приложения, переданные оболочкой. */
-export interface Viewport {
-  width: number;
-  height: number;
-}
-
 let sequence = 0;
 const pending = new Map<
   string,
   { resolve: (value: unknown) => void; reject: (error: Error) => void }
 >();
 const listeners = new Map<string, Set<(value: unknown) => void>>();
-const viewportListeners = new Set<(value: Viewport) => void>();
 
 window.addEventListener('message', (event: MessageEvent<Message>) => {
   const message = event.data;
@@ -37,9 +28,6 @@ window.addEventListener('message', (event: MessageEvent<Message>) => {
   }
   if (message.type === 'event' && message.event) {
     listeners.get(message.event)?.forEach((listener) => listener(message.value));
-  }
-  if (message.type === 'viewport') {
-    viewportListeners.forEach((listener) => listener(message.value as Viewport));
   }
 });
 
@@ -72,23 +60,4 @@ export async function listen<T = unknown>(
   eventListeners.add(listener as (value: unknown) => void);
   await request('listen', { event });
   return () => eventListeners?.delete(listener as (value: unknown) => void);
-}
-
-/** Подписка на изменения размеров окна приложения. */
-export function onViewport(listener: (value: Viewport) => void): () => void {
-  viewportListeners.add(listener);
-  return () => viewportListeners.delete(listener);
-}
-
-/** Запрос текущих размеров окна приложения. */
-export function viewport(): Promise<Viewport> {
-  return request<Viewport>('viewport', {});
-}
-
-/** Сообщение оболочке о требуемом состоянии региона уведомлений. */
-export function setLayout(state: LayoutState) {
-  window.parent.postMessage(
-    { channel: 'booklib-plugin', type: 'layout', value: { region: 'notifications', state } },
-    '*',
-  );
 }
