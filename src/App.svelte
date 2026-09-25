@@ -7,11 +7,14 @@
     value?: unknown;
   }
 
+  /** Страница раздела настроек. */
+  type SettingsSection = 'general' | 'plugins';
+
   /** Открыт ли раздел настроек; состояние принадлежит оболочке. */
   let settingsOpen = $state(false);
 
-  /** Открыта ли страница стора плагинов; состояние принадлежит оболочке. */
-  let storeOpen = $state(false);
+  /** Выбранная страница раздела настроек. */
+  let settingsSection = $state<SettingsSection>('general');
 
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
@@ -19,20 +22,19 @@
   /** Число непрочитанных уведомлений, полученное от frontend-плагина. */
   let unreadCount = $state(0);
 
+  /** Название текущего раздела в верхней панели. */
+  const sectionTitle = $derived(
+    settingsOpen ? (settingsSection === 'plugins' ? 'Плагины' : 'Настройки') : 'Библиотека',
+  );
+
   /** Переключение между основным разделом и настройками. */
   function toggleSettings() {
     settingsOpen = !settingsOpen;
-    if (settingsOpen) {
-      storeOpen = false;
-    }
   }
 
-  /** Переключение между основным разделом и стором плагинов. */
-  function toggleStore() {
-    storeOpen = !storeOpen;
-    if (storeOpen) {
-      settingsOpen = false;
-    }
+  /** Выбор страницы раздела настроек. */
+  function selectSettingsSection(section: SettingsSection) {
+    settingsSection = section;
   }
 
   /** Переключение панели уведомлений. */
@@ -51,7 +53,7 @@
 <div class="app-root">
   <header class="app-header">
     <span class="app-title">BookLib</span>
-    <span class="app-section">{settingsOpen ? 'Настройки' : storeOpen ? 'Плагины' : 'Библиотека'}</span>
+    <span class="app-section">{sectionTitle}</span>
     <div class="header-actions">
       <button
         class="icon-button"
@@ -68,25 +70,58 @@
         </svg>
         <span class="count-badge" class:muted={unreadCount === 0}>{unreadCount}</span>
       </button>
-      <button class="settings-toggle" type="button" onclick={toggleStore}>
-        {storeOpen ? 'Назад' : 'Плагины'}
-      </button>
-      <button class="settings-toggle" type="button" onclick={toggleSettings}>
-        {settingsOpen ? 'Назад' : 'Настройки'}
+      <button
+        class="icon-button"
+        type="button"
+        onclick={toggleSettings}
+        title="Настройки"
+        aria-label="Настройки"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            d="M4 6h16M4 12h16M4 18h16"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            fill="none"
+          />
+        </svg>
       </button>
     </div>
   </header>
 
   <div class="app-body">
     <main class="app-content">
-      <div class="content-pane" class:hidden={settingsOpen || storeOpen}>
+      <div class="content-pane" class:hidden={settingsOpen}>
         <PluginFrame src="/plugins/library-ui/index.html" title="Library plugin" />
       </div>
-      <div class="content-pane" class:hidden={!storeOpen}>
-        <PluginFrame src="/plugins/plugin-store-ui/index.html" title="Plugin store" />
-      </div>
-      <div class="content-pane" class:hidden={!settingsOpen}>
-        <PluginFrame src="/plugins/settings-ui/index.html" title="Settings plugin" />
+      <div class="settings-view" class:hidden={!settingsOpen}>
+        <nav class="settings-menu" aria-label="Настройки">
+          <button
+            type="button"
+            class="settings-menu-item"
+            class:active={settingsSection === 'general'}
+            onclick={() => selectSettingsSection('general')}
+          >
+            Настройки
+          </button>
+          <button
+            type="button"
+            class="settings-menu-item"
+            class:active={settingsSection === 'plugins'}
+            onclick={() => selectSettingsSection('plugins')}
+          >
+            Плагины
+          </button>
+        </nav>
+        <div class="settings-pages">
+          <div class="settings-page" class:hidden={settingsSection !== 'general'}>
+            <PluginFrame src="/plugins/settings-ui/index.html" title="Settings plugin" />
+          </div>
+          <div class="settings-page" class:hidden={settingsSection !== 'plugins'}>
+            <PluginFrame src="/plugins/plugin-store-ui/index.html" title="Plugin store" />
+          </div>
+        </div>
       </div>
     </main>
     <aside class="notifications-panel-host" class:hidden={!notificationsOpen}>
@@ -175,25 +210,6 @@
     color: #5a6b7b;
   }
 
-  .settings-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 112px;
-    height: 36px;
-    padding: 0 14px;
-    border: 1px solid #5a8fda;
-    border-radius: 6px;
-    background: #fff;
-    color: #315f9e;
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .settings-toggle:hover {
-    background: #eef5ff;
-  }
-
   .app-body {
     flex: 1 1 auto;
     display: flex;
@@ -214,6 +230,65 @@
   }
 
   .content-pane.hidden {
+    display: none;
+  }
+
+  .settings-view {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+  }
+
+  .settings-view.hidden {
+    display: none;
+  }
+
+  .settings-menu {
+    flex: 0 0 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    border-right: 1px solid #e0e0e0;
+    background: #fafbfc;
+  }
+
+  .settings-menu-item {
+    text-align: left;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: #315f9e;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .settings-menu-item:hover {
+    background: #eef5ff;
+  }
+
+  .settings-menu-item.active {
+    background: #e6efff;
+    border-color: #b9cff2;
+    font-weight: bold;
+  }
+
+  .settings-pages {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+  }
+
+  .settings-page {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .settings-page.hidden {
     display: none;
   }
 
