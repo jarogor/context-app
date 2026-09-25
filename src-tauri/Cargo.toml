@@ -25,6 +25,7 @@ base64 = "0.22"
 tauri-plugin-dialog = "2"
 toml = { version = "0.8", default-features = false, features = ["parse"] }
 open = "5"
+zip = { version = "3", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 wat = "1"

@@ -15,9 +15,12 @@ use crate::plugin::contract::{
     EXPORT_FUNCTION, HOST_EMIT_EVENT, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT,
     HOST_FS_WRITE_BYTES, HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION,
     HOST_NOW_FUNCTION, HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE,
-    MANIFEST_FILE_NAME,
+    HOST_STORE_INSPECT, HOST_STORE_INSTALL, HOST_STORE_INSTALLED, HOST_STORE_UNINSTALL,
+    MANIFEST_FILE_NAME, STORE_HOST_FUNCTIONS,
 };
-use crate::plugin::{get_bus, LoadedPlugin, PluginError, PluginEvent, PluginKind, PluginManifest};
+use crate::plugin::{
+    get_bus, package, LoadedPlugin, PluginError, PluginEvent, PluginKind, PluginManifest,
+};
 
 /// Плагинная подсистема приложения.
 pub struct PluginRuntime {
@@ -27,6 +30,8 @@ pub struct PluginRuntime {
     sandbox_root: Arc<Mutex<PathBuf>>,
     /// Корень служебного хранилища source-плагина.
     storage_root: Arc<Mutex<Option<PathBuf>>>,
+    /// Корень пользовательского каталога плагинов для стора.
+    plugin_store_root: Arc<Mutex<Option<PathBuf>>>,
     /// Разрешена ли запись в sandbox.
     sandbox_writable: Arc<Mutex<bool>>,
 }
@@ -41,6 +46,8 @@ struct HostState {
     sandbox_root: Arc<Mutex<PathBuf>>,
     /// Корень служебного хранилища plugin-а.
     storage_root: Arc<Mutex<Option<PathBuf>>>,
+    /// Корень пользовательского каталога плагинов для стора.
+    plugin_store_root: Arc<Mutex<Option<PathBuf>>>,
     /// Разрешена ли запись в sandbox.
     sandbox_writable: Arc<Mutex<bool>>,
 }
@@ -52,6 +59,7 @@ impl PluginRuntime {
             plugins: Vec::new(),
             sandbox_root: Arc::new(Mutex::new(PathBuf::from("."))),
             storage_root: Arc::new(Mutex::new(None)),
+            plugin_store_root: Arc::new(Mutex::new(None)),
             sandbox_writable: Arc::new(Mutex::new(false)),
         }
     }
@@ -83,6 +91,7 @@ impl PluginRuntime {
     ) -> Result<Self, PluginError> {
         let sandbox_root = Arc::new(Mutex::new(sandbox_root.into()));
         let storage_root = Arc::new(Mutex::new(None));
+        let plugin_store_root = Arc::new(Mutex::new(None));
         let sandbox_writable = Arc::new(Mutex::new(false));
         let mut plugins = Vec::new();
         let mut seen = std::collections::HashSet::new();
@@ -96,7 +105,13 @@ impl PluginRuntime {
                     continue;
                 }
                 let dir = entry.path();
-                match Self::load_plugin_dir(&dir, &sandbox_root, &storage_root, &sandbox_writable) {
+                match Self::load_plugin_dir(
+                    &dir,
+                    &sandbox_root,
+                    &storage_root,
+                    &plugin_store_root,
+                    &sandbox_writable,
+                ) {
                     Ok(plugin) => {
                         if let Some(kinds) = kinds {
                             if !kinds.contains(&plugin.kind) {
@@ -118,6 +133,7 @@ impl PluginRuntime {
             plugins,
             sandbox_root,
             storage_root,
+            plugin_store_root,
             sandbox_writable,
         })
     }
@@ -126,11 +142,13 @@ impl PluginRuntime {
     fn host_state(
         sandbox_root: &Arc<Mutex<PathBuf>>,
         storage_root: &Arc<Mutex<Option<PathBuf>>>,
+        plugin_store_root: &Arc<Mutex<Option<PathBuf>>>,
         sandbox_writable: &Arc<Mutex<bool>>,
     ) -> HostState {
         HostState {
             sandbox_root: Arc::clone(sandbox_root),
             storage_root: Arc::clone(storage_root),
+            plugin_store_root: Arc::clone(plugin_store_root),
             sandbox_writable: Arc::clone(sandbox_writable),
         }
     }
@@ -140,6 +158,7 @@ impl PluginRuntime {
         dir: &Path,
         sandbox_root: &Arc<Mutex<PathBuf>>,
         storage_root: &Arc<Mutex<Option<PathBuf>>>,
+        plugin_store_root: &Arc<Mutex<Option<PathBuf>>>,
         sandbox_writable: &Arc<Mutex<bool>>,
     ) -> Result<LoadedPlugin, PluginError> {
         let manifest = PluginManifest::load(&dir.join(MANIFEST_FILE_NAME)).map_err(|e| {
@@ -170,8 +189,13 @@ impl PluginRuntime {
 
         let extism_manifest = Manifest::new([Wasm::file(&wasm_path)]).disallow_all_hosts();
 
-        let host_state = Self::host_state(sandbox_root, storage_root, sandbox_writable);
-        let plugin = PluginBuilder::new(extism_manifest)
+        let host_state = Self::host_state(
+            sandbox_root,
+            storage_root,
+            plugin_store_root,
+            sandbox_writable,
+        );
+        let mut builder = PluginBuilder::new(extism_manifest)
             .with_wasi(false)
             .with_function(
                 HOST_LOG_FUNCTION,
@@ -261,14 +285,51 @@ impl PluginRuntime {
                 HOST_EMIT_EVENT,
                 [ValType::I64, ValType::I64],
                 [ValType::I64],
-                UserData::new(host_state),
+                UserData::new(host_state.clone()),
                 host_emit_event,
-            )
-            .build()
-            .map_err(|e| PluginError::Build {
-                dir: dir.to_path_buf(),
-                message: e.to_string(),
-            })?;
+            );
+
+        for function in STORE_HOST_FUNCTIONS {
+            if !declares_host_function(&manifest, function) {
+                continue;
+            }
+            builder = match *function {
+                HOST_STORE_INSPECT => builder.with_function(
+                    HOST_STORE_INSPECT,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_store_inspect,
+                ),
+                HOST_STORE_INSTALL => builder.with_function(
+                    HOST_STORE_INSTALL,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_store_install,
+                ),
+                HOST_STORE_UNINSTALL => builder.with_function(
+                    HOST_STORE_UNINSTALL,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_store_uninstall,
+                ),
+                HOST_STORE_INSTALLED => builder.with_function(
+                    HOST_STORE_INSTALLED,
+                    [],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_store_installed,
+                ),
+                _ => builder,
+            };
+        }
+
+        let plugin = builder.build().map_err(|e| PluginError::Build {
+            dir: dir.to_path_buf(),
+            message: e.to_string(),
+        })?;
 
         if !plugin.function_exists(&manifest.export) {
             return Err(PluginError::MissingExport {
@@ -356,6 +417,15 @@ impl PluginRuntime {
             .storage_root
             .lock()
             .expect("не удалось захватить корень storage runtime");
+        *current = Some(root);
+    }
+
+    /// Установка корня пользовательского каталога плагинов для стора.
+    pub fn set_plugin_store_root(&mut self, root: PathBuf) {
+        let mut current = self
+            .plugin_store_root
+            .lock()
+            .expect("не удалось захватить корень стора плагинов");
         *current = Some(root);
     }
 
@@ -760,6 +830,107 @@ fn host_state_delete(
     }
     plugin
         .memory_set_val(&mut returns[0], "ok")
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Признак, что манифест объявил host-функцию.
+///
+/// Привилегированные host-функции регистрируются только для плагинов,
+/// объявивших их в `host_functions`.
+fn declares_host_function(manifest: &PluginManifest, function: &str) -> bool {
+    manifest
+        .host_functions
+        .iter()
+        .any(|value| value == function)
+}
+
+/// Получение корня пользовательского каталога плагинов для host-функций стора.
+fn store_root(state: &HostState) -> Result<PathBuf, extism::Error> {
+    state
+        .plugin_store_root
+        .lock()
+        .map_err(|_| extism::Error::msg("корень стора плагинов недоступен"))?
+        .clone()
+        .ok_or_else(|| extism::Error::msg("корень стора плагинов не настроен"))
+}
+
+/// Host-функция `store_inspect`: чтение манифеста из пакета без установки.
+fn host_store_inspect(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    _user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let path: String = plugin.memory_get_val(&args[0])?;
+    let manifest = package::inspect_package(Path::new(&path))
+        .map_err(|error| extism::Error::msg(error.to_string()))?;
+    let value = serde_json::to_string(&package::InstalledPlugin::from(&manifest))
+        .map_err(|error| extism::Error::msg(error.to_string()))?;
+    plugin
+        .memory_set_val(&mut returns[0], &value)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `store_install`: установка пакета в пользовательский каталог.
+fn host_store_install(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let path: String = plugin.memory_get_val(&args[0])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let root = store_root(&state)?;
+    let installed = package::install_package(Path::new(&path), &root)
+        .map_err(|error| extism::Error::msg(error.to_string()))?;
+    let value =
+        serde_json::to_string(&installed).map_err(|error| extism::Error::msg(error.to_string()))?;
+    plugin
+        .memory_set_val(&mut returns[0], &value)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `store_uninstall`: удаление установленного плагина по имени.
+fn host_store_uninstall(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let name: String = plugin.memory_get_val(&args[0])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let root = store_root(&state)?;
+    package::uninstall_package(&name, &root)
+        .map_err(|error| extism::Error::msg(error.to_string()))?;
+    plugin
+        .memory_set_val(&mut returns[0], "ok")
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `store_installed`: список установленных плагинов.
+fn host_store_installed(
+    plugin: &mut extism::CurrentPlugin,
+    _args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let root = store_root(&state)?;
+    let list =
+        package::installed_plugins(&root).map_err(|error| extism::Error::msg(error.to_string()))?;
+    let value =
+        serde_json::to_string(&list).map_err(|error| extism::Error::msg(error.to_string()))?;
+    plugin
+        .memory_set_val(&mut returns[0], &value)
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 

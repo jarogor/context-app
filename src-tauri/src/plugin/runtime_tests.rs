@@ -301,3 +301,125 @@ fn missing_capability_is_reported() {
     );
     cleanup(&root);
 }
+
+/// Манифест плагина, объявившего привилегированную host-функцию стора.
+const MANIFEST_STORE_DECLARED: &str = r#"{
+    "contract_version": 1,
+    "name": "test-plugin",
+    "description": "Тестовый плагин стора",
+    "module": "plugin.wasm",
+    "export": "invoke",
+    "host_functions": ["store_installed"]
+  }"#;
+
+/// Манифест плагина без объявления привилегированной host-функции.
+const MANIFEST_STORE_UNDECLARED: &str = r#"{
+    "contract_version": 1,
+    "name": "test-plugin",
+    "description": "Тестовый плагин без стора",
+    "module": "plugin.wasm",
+    "export": "invoke",
+    "host_functions": []
+  }"#;
+
+#[test]
+fn store_function_linked_only_when_declared() {
+    let declared: PluginManifest = serde_json::from_str(MANIFEST_STORE_DECLARED).expect("манифест");
+    let undeclared: PluginManifest =
+        serde_json::from_str(MANIFEST_STORE_UNDECLARED).expect("манифест");
+    assert!(
+        declares_host_function(&declared, HOST_STORE_INSTALLED),
+        "объявленная host-функция включает регистрацию"
+    );
+    for function in STORE_HOST_FUNCTIONS {
+        assert!(
+            !declares_host_function(&undeclared, function),
+            "без объявления привилегированная host-функция {function} не регистрируется"
+        );
+    }
+}
+
+#[test]
+fn plugin_store_root_reaches_host_state() {
+    let dir = test_util::test_root("plugin-runtime-store-root");
+    let mut runtime = PluginRuntime::empty();
+    runtime.set_plugin_store_root(dir.clone());
+    let state = PluginRuntime::host_state(
+        &runtime.sandbox_root,
+        &runtime.storage_root,
+        &runtime.plugin_store_root,
+        &runtime.sandbox_writable,
+    );
+    let resolved = store_root(&state).expect("корень стора доступен");
+    assert_eq!(resolved, dir, "корень доходит до host-функций стора");
+    cleanup(&dir);
+}
+
+#[test]
+fn plugin_store_root_absent_without_configuration() {
+    let runtime = PluginRuntime::empty();
+    let state = PluginRuntime::host_state(
+        &runtime.sandbox_root,
+        &runtime.storage_root,
+        &runtime.plugin_store_root,
+        &runtime.sandbox_writable,
+    );
+    assert!(
+        store_root(&state).is_err(),
+        "без настройки корень стора недоступен"
+    );
+}
+
+/// Манифест плагина, предоставляющего capability пользовательского плагина.
+const MANIFEST_CAP_USER: &str = r#"{
+    "contract_version": 1,
+    "name": "test-plugin",
+    "description": "Пользовательский плагин",
+    "module": "plugin.wasm",
+    "export": "invoke",
+    "host_functions": [],
+    "provides": ["user.cap@1"]
+  }"#;
+
+/// Манифест одноимённого поставляемого плагина с другой capability.
+const MANIFEST_CAP_BUNDLED: &str = r#"{
+    "contract_version": 1,
+    "name": "test-plugin",
+    "description": "Поставляемый плагин",
+    "module": "plugin.wasm",
+    "export": "invoke",
+    "host_functions": [],
+    "provides": ["bundled.cap@1"]
+  }"#;
+
+#[test]
+fn earlier_directory_wins_on_name_conflict() {
+    let user = setup_plugins_root(
+        "conflict-user",
+        &compile_wat(WAT_WITH_INVOKE),
+        MANIFEST_CAP_USER,
+    );
+    let bundled = setup_plugins_root(
+        "conflict-bundled",
+        &compile_wat(WAT_WITH_INVOKE),
+        MANIFEST_CAP_BUNDLED,
+    );
+    let root = user.clone();
+    let runtime =
+        PluginRuntime::load(&[user.clone(), bundled.clone()], root).expect("загрузка runtime");
+    assert_eq!(
+        runtime.plugin_names(),
+        vec!["test-plugin"],
+        "одноимённый плагин загружается один раз"
+    );
+    assert!(
+        runtime.plugin_providing("user.cap@1").is_some(),
+        "побеждает плагин из более приоритетной директории"
+    );
+    assert!(
+        runtime.plugin_providing("bundled.cap@1").is_none(),
+        "менее приоритетный одноимённый плагин не загружается"
+    );
+    cleanup(&user);
+    cleanup(&bundled);
+}

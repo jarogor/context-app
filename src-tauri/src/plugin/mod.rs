@@ -6,6 +6,7 @@ pub mod bus;
 pub mod contract;
 pub mod error;
 pub mod loaded_plugin;
+pub mod package;
 pub mod plugin_kind;
 pub mod plugin_manifest;
 pub mod relay;

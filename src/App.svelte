@@ -10,6 +10,9 @@
   /** Открыт ли раздел настроек; состояние принадлежит оболочке. */
   let settingsOpen = $state(false);
 
+  /** Открыта ли страница стора плагинов; состояние принадлежит оболочке. */
+  let storeOpen = $state(false);
+
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
 
@@ -19,6 +22,17 @@
   /** Переключение между основным разделом и настройками. */
   function toggleSettings() {
     settingsOpen = !settingsOpen;
+    if (settingsOpen) {
+      storeOpen = false;
+    }
+  }
+
+  /** Переключение между основным разделом и стором плагинов. */
+  function toggleStore() {
+    storeOpen = !storeOpen;
+    if (storeOpen) {
+      settingsOpen = false;
+    }
   }
 
   /** Переключение панели уведомлений. */
@@ -37,7 +51,7 @@
 <div class="app-root">
   <header class="app-header">
     <span class="app-title">BookLib</span>
-    <span class="app-section">{settingsOpen ? 'Настройки' : 'Библиотека'}</span>
+    <span class="app-section">{settingsOpen ? 'Настройки' : storeOpen ? 'Плагины' : 'Библиотека'}</span>
     <div class="header-actions">
       <button
         class="icon-button"
@@ -54,6 +68,9 @@
         </svg>
         <span class="count-badge" class:muted={unreadCount === 0}>{unreadCount}</span>
       </button>
+      <button class="settings-toggle" type="button" onclick={toggleStore}>
+        {storeOpen ? 'Назад' : 'Плагины'}
+      </button>
       <button class="settings-toggle" type="button" onclick={toggleSettings}>
         {settingsOpen ? 'Назад' : 'Настройки'}
       </button>
@@ -62,8 +79,11 @@
 
   <div class="app-body">
     <main class="app-content">
-      <div class="content-pane" class:hidden={settingsOpen}>
+      <div class="content-pane" class:hidden={settingsOpen || storeOpen}>
         <PluginFrame src="/plugins/library-ui/index.html" title="Library plugin" />
+      </div>
+      <div class="content-pane" class:hidden={!storeOpen}>
+        <PluginFrame src="/plugins/plugin-store-ui/index.html" title="Plugin store" />
       </div>
       <div class="content-pane" class:hidden={!settingsOpen}>
         <PluginFrame src="/plugins/settings-ui/index.html" title="Settings plugin" />

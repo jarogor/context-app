@@ -76,5 +76,6 @@ deploy_plugin "notifications" "base" "Базовый плагин уведомл
     ]
   }'
 deploy_plugin "settings" "base" "Базовый плагин настроек приложения и плагинов" "settings.wasm" "invoke" '["state_read", "state_write", "emit_event"]' '["settings.store@1"]'
+deploy_plugin "plugin-store" "base" "Базовый плагин файлового стора плагинов" "plugin_store.wasm" "invoke" '["state_read", "state_write", "emit_event", "import_read_bytes", "store_inspect", "store_install", "store_uninstall", "store_installed"]' '["plugin-store@1"]'
 deploy_plugin "demo" "extension" "Демонстрационный плагин: приветствие при старте приложения через host-функцию log" "demo.wasm" "invoke" '["log"]'
 deploy_plugin "library" "source" "Плагин каталога, импорта и чтения библиотеки" "library.wasm" "invoke" '["fs_list_dir", "fs_read_bytes", "fs_write_bytes", "open_file", "import_read_bytes", "state_read", "state_write", "state_delete", "notify"]' '["library.catalog@1", "library.files@1"]'

@@ -1,5 +1,5 @@
 [workspace]
-members = ["demo", "library", "notifications", "settings"]
+members = ["demo", "library", "notifications", "plugin-store", "settings"]
 resolver = "2"
 
 [profile.release]

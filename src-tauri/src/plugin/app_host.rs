@@ -69,6 +69,11 @@ impl AppPluginHost {
         &self.storage_root
     }
 
+    /// Установка корня пользовательского каталога плагинов для стора.
+    pub fn set_plugin_store_root(&mut self, root: PathBuf) {
+        self.runtime.set_plugin_store_root(root);
+    }
+
     /// Выполнение операции базового плагина без интерпретации payload ядром.
     pub fn invoke_operation(
         &mut self,

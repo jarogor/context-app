@@ -1,0 +1,220 @@
+//! Базовый плагин файлового стора плагинов Jarogor BookLib.
+//!
+//! Управляет установкой и удалением пакетов плагинов через привилегированные
+//! host-функции ядра, владеет реестром подключённых сторов и предоставляет
+//! контракт поставщика с файловым провайдером и заглушкой сетевого.
+
+pub mod host;
+pub mod models;
+
+#[cfg(target_arch = "wasm32")]
+mod wasm;
+
+use serde::Deserialize;
+use serde_json::json;
+
+use crate::host::Host;
+use crate::models::{Installed, Store, StoreIndex, StoreState};
+
+/// Ключ служебного состояния с реестром сторов.
+const STATE_KEY: &str = "stores.json";
+
+/// Версия контракта поставщика стора.
+const PROVIDER_CONTRACT: &str = "plugin-store.provider@1";
+
+/// Имя прикладного события об изменении состава установленных плагинов.
+const EVENT_CHANGED: &str = "plugin-store:changed";
+
+/// Запрос от приложения по контракту.
+#[derive(Deserialize)]
+struct Request {
+    /// Действие плагина стора.
+    action: String,
+    /// Данные операции.
+    #[serde(default)]
+    payload: serde_json::Value,
+}
+
+/// Диспетчеризация действий плагина стора.
+pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
+    let request: Request = serde_json::from_str(input).map_err(|error| error.to_string())?;
+    match request.action.as_str() {
+        "capabilities" => Ok(capabilities()),
+        "list" => list(host),
+        "install_file" => install_file(host, &request.payload),
+        "uninstall" => uninstall(host, &request.payload),
+        "stores_list" => stores_list(host),
+        "stores_add" => stores_add(host, &request.payload),
+        "stores_remove" => stores_remove(host, &request.payload),
+        "available" => available(host, &request.payload),
+        "install_from_store" => install_from_store(host, &request.payload),
+        other => Err(format!("неизвестное действие плагина стора: {other}")),
+    }
+}
+
+/// Описание возможностей плагина стора.
+fn capabilities() -> String {
+    json!({
+        "contract": PROVIDER_CONTRACT,
+        "providers": ["file", "network"],
+    })
+    .to_string()
+}
+
+/// Список установленных плагинов.
+fn list(host: &impl Host) -> Result<String, String> {
+    let plugins = host.store_installed()?;
+    Ok(json!({ "plugins": plugins }).to_string())
+}
+
+/// Установка пакета из выбранного пользователем zip-файла.
+fn install_file(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let path = required_str(payload, "path")?;
+    let plugin = host.store_install(&path)?;
+    emit_changed(host, &plugin)?;
+    Ok(json!({ "plugin": plugin }).to_string())
+}
+
+/// Удаление установленного плагина.
+fn uninstall(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let name = required_str(payload, "name")?;
+    host.store_uninstall(&name)?;
+    host.emit_event(EVENT_CHANGED, &json!({ "removed": name }).to_string())?;
+    Ok(json!({ "removed": name }).to_string())
+}
+
+/// Список подключённых сторов.
+fn stores_list(host: &impl Host) -> Result<String, String> {
+    let state = load_state(host)?;
+    Ok(json!({ "stores": state.stores }).to_string())
+}
+
+/// Добавление стора в реестр.
+fn stores_add(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let store: Store = payload
+        .get("store")
+        .cloned()
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(|error| format!("некорректный стор: {error}"))?
+        .ok_or_else(|| "не указан стор".to_string())?;
+    if store.id.trim().is_empty() {
+        return Err("идентификатор стора не может быть пустым".to_string());
+    }
+    if !matches!(store.kind.as_str(), "file" | "network") {
+        return Err(format!("неизвестный вид провайдера: {}", store.kind));
+    }
+    let mut state = load_state(host)?;
+    if state.stores.iter().any(|item| item.id == store.id) {
+        return Err(format!("стор с идентификатором {} уже подключён", store.id));
+    }
+    state.stores.push(store);
+    save_state(host, &state)?;
+    Ok(json!({ "stores": state.stores }).to_string())
+}
+
+/// Удаление стора из реестра.
+fn stores_remove(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let id = required_str(payload, "id")?;
+    let mut state = load_state(host)?;
+    state.stores.retain(|store| store.id != id);
+    save_state(host, &state)?;
+    Ok(json!({ "stores": state.stores }).to_string())
+}
+
+/// Список пакетов, предлагаемых стором.
+fn available(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let id = required_str(payload, "id")?;
+    let store = find_store(host, &id)?;
+    match store.kind.as_str() {
+        "network" => Ok(json!({ "supported": false }).to_string()),
+        "file" => {
+            let index = load_index(host, &store)?;
+            Ok(json!({ "supported": true, "packages": index.packages }).to_string())
+        }
+        other => Err(format!("неизвестный вид провайдера: {other}")),
+    }
+}
+
+/// Установка пакета, предлагаемого стором.
+fn install_from_store(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let id = required_str(payload, "id")?;
+    let name = required_str(payload, "name")?;
+    let store = find_store(host, &id)?;
+    if store.kind == "network" {
+        return Err("сетевой стор не поддерживается".to_string());
+    }
+    if store.kind != "file" {
+        return Err(format!("неизвестный вид провайдера: {}", store.kind));
+    }
+    let index = load_index(host, &store)?;
+    let package = index
+        .packages
+        .iter()
+        .find(|package| package.name == name)
+        .ok_or_else(|| format!("пакет {name} не найден в сторе {id}"))?;
+    let path = join_path(&store.location, &package.location);
+    let plugin = host.store_install(&path)?;
+    emit_changed(host, &plugin)?;
+    Ok(json!({ "plugin": plugin }).to_string())
+}
+
+/// Публикация события об изменении состава установленных плагинов.
+fn emit_changed(host: &impl Host, plugin: &Installed) -> Result<(), String> {
+    host.emit_event(EVENT_CHANGED, &json!({ "plugin": plugin }).to_string())
+}
+
+/// Поиск стора в реестре по идентификатору.
+fn find_store(host: &impl Host, id: &str) -> Result<Store, String> {
+    load_state(host)?
+        .stores
+        .into_iter()
+        .find(|store| store.id == id)
+        .ok_or_else(|| format!("стор {id} не найден"))
+}
+
+/// Загрузка индекса пакетов файлового стора.
+fn load_index(host: &impl Host, store: &Store) -> Result<StoreIndex, String> {
+    let path = join_path(&store.location, "store-index.json");
+    let text = host.read_file_text(&path)?;
+    serde_json::from_str(&text).map_err(|error| format!("некорректный индекс стора: {error}"))
+}
+
+/// Загрузка состояния из служебного хранилища.
+fn load_state(host: &impl Host) -> Result<StoreState, String> {
+    let Some(value) = host.state_read(STATE_KEY)? else {
+        return Ok(StoreState::default());
+    };
+    serde_json::from_str(&value).map_err(|error| error.to_string())
+}
+
+/// Сохранение состояния в служебное хранилище.
+fn save_state(host: &impl Host, state: &StoreState) -> Result<(), String> {
+    let value = serde_json::to_string(state).map_err(|error| error.to_string())?;
+    host.state_write(STATE_KEY, &value)
+}
+
+/// Извлечение обязательной строки из payload.
+fn required_str(payload: &serde_json::Value, key: &str) -> Result<String, String> {
+    payload
+        .get(key)
+        .and_then(|value| value.as_str())
+        .map(str::to_string)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| format!("не указано поле {key}"))
+}
+
+/// Соединение расположения стора и относительного пути пакета.
+fn join_path(base: &str, relative: &str) -> String {
+    let base = base.trim_end_matches(['/', '\\']);
+    let relative = relative.trim_start_matches(['/', '\\']);
+    if base.is_empty() {
+        relative.to_string()
+    } else {
+        format!("{base}/{relative}")
+    }
+}
+
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod tests;

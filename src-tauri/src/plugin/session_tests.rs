@@ -3,6 +3,32 @@ use crate::test_util;
 use std::path::PathBuf;
 
 #[test]
+fn plugin_directories_follow_priority() {
+    let root = PathBuf::from("/library");
+    let bundled = PathBuf::from("/bundled");
+    let user = PathBuf::from("/user");
+
+    let directories = super::plugin_directories(&root, &bundled, Some(&user));
+    assert_eq!(
+        directories[0],
+        root.join("plugins"),
+        "плагины библиотеки первые"
+    );
+    assert_eq!(directories[1], user, "затем пользовательский каталог");
+    assert_eq!(directories[2], bundled, "поставляемые ресурсы последние");
+}
+
+#[test]
+fn plugin_directories_without_user_catalog() {
+    let root = PathBuf::from("/library");
+    let bundled = PathBuf::from("/bundled");
+
+    let directories = super::plugin_directories(&root, &bundled, None);
+    assert_eq!(directories[0], root.join("plugins"));
+    assert_eq!(directories[1], bundled);
+}
+
+#[test]
 fn writable_root_is_created_before_plugin_configuration() {
     let parent = test_util::test_root("plugin-session-writable-root");
     let root = parent.join("nested").join("runtime-root");

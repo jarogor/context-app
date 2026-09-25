@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::constants::PLUGINS_DIR_NAME;
+
 use super::{PluginError, PluginRuntime};
 
 /// Generic состояние директории, обслуживаемой plugin lifecycle.
@@ -10,6 +12,7 @@ pub struct PluginSession {
     active_plugin: Option<String>,
     runtime: PluginRuntime,
     bundled_plugins_dir: PathBuf,
+    user_plugins_dir: Option<PathBuf>,
 }
 
 impl PluginSession {
@@ -20,7 +23,13 @@ impl PluginSession {
             active_plugin: None,
             runtime: PluginRuntime::empty(),
             bundled_plugins_dir: bundled,
+            user_plugins_dir: None,
         }
+    }
+
+    /// Настройка пользовательского каталога плагинов приложения.
+    pub fn set_user_plugins_dir(&mut self, dir: PathBuf) {
+        self.user_plugins_dir = Some(dir);
     }
 
     /// Настройка активного plugin и его sandbox.
@@ -53,7 +62,12 @@ impl PluginSession {
             });
         }
         let storage_root = resolve_project_path(storage_root.into());
-        self.runtime = Self::load_runtime(&root, &self.bundled_plugins_dir, &storage_root)?;
+        self.runtime = Self::load_runtime(
+            &root,
+            &self.bundled_plugins_dir,
+            &storage_root,
+            self.user_plugins_dir.as_deref(),
+        )?;
         self.runtime.set_sandbox_root(root.clone());
         self.runtime.set_sandbox_writable(writable);
         self.root = root;
@@ -99,18 +113,33 @@ impl PluginSession {
         root: &Path,
         bundled: &Path,
         storage_root: &Path,
+        user_plugins: Option<&Path>,
     ) -> Result<PluginRuntime, PluginError> {
-        let mut directories = vec![bundled.to_path_buf()];
-        let development_plugins = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("resources")
-            .join("plugins");
-        if development_plugins != *bundled && development_plugins.is_dir() {
-            directories.push(development_plugins);
-        }
+        let directories = plugin_directories(root, bundled, user_plugins);
         let mut runtime = PluginRuntime::load(&directories, root)?;
         runtime.set_storage_root(storage_root.to_path_buf());
         Ok(runtime)
     }
+}
+
+/// Директории загрузки плагинов в порядке приоритета.
+///
+/// При совпадении имён побеждает первый загруженный плагин, поэтому порядок
+/// задаёт приоритет: `plugins/` библиотеки, пользовательский каталог
+/// приложения, поставляемые ресурсы и dev-ресурсы.
+fn plugin_directories(root: &Path, bundled: &Path, user_plugins: Option<&Path>) -> Vec<PathBuf> {
+    let mut directories = vec![root.join(PLUGINS_DIR_NAME)];
+    if let Some(user) = user_plugins {
+        directories.push(user.to_path_buf());
+    }
+    directories.push(bundled.to_path_buf());
+    let development_plugins = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join(PLUGINS_DIR_NAME);
+    if development_plugins != *bundled && development_plugins.is_dir() {
+        directories.push(development_plugins);
+    }
+    directories
 }
 
 /// Разрешение относительного plugin storage от корня проекта.

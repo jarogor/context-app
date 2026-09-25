@@ -10,7 +10,9 @@ use std::sync::Mutex;
 
 use tauri::Manager;
 
-use crate::constants::{BASE_PLUGINS_DIR_NAME, DEMO_PLUGIN_NAME, PLUGINS_DIR_NAME};
+use crate::constants::{
+    resolve_user_plugins_root, BASE_PLUGINS_DIR_NAME, DEMO_PLUGIN_NAME, PLUGINS_DIR_NAME,
+};
 use crate::plugin::{AppPluginHost, AppState, PluginSession};
 
 /// Точка входа Tauri-приложения и generic plugin host.
@@ -22,10 +24,13 @@ pub fn run() {
             plugin::relay::set_app_handle(app.handle().clone());
 
             let resource_dir = app.path().resource_dir()?;
+            let user_plugins_dir =
+                resolve_user_plugins_root(app.path().app_data_dir().ok().as_deref());
 
             let bundled_base = resource_dir.join(BASE_PLUGINS_DIR_NAME);
             let mut app_host =
                 AppPluginHost::load(&base_plugin_directories(&bundled_base), base_storage_root())?;
+            app_host.set_plugin_store_root(user_plugins_dir.clone());
             let _ = app_host.reset_notifications();
             for name in app_host.plugin_names() {
                 app_host.notify_technical(
@@ -43,6 +48,7 @@ pub fn run() {
             let root = PathBuf::from(".");
             let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let mut host = PluginSession::idle(root, bundled_plugins_dir);
+            host.set_user_plugins_dir(user_plugins_dir);
             for name in host.runtime().plugin_names() {
                 app_host.notify_technical(
                     format!("Плагин библиотеки загружен: {name}"),

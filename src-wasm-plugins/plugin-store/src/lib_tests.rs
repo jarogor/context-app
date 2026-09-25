@@ -1,0 +1,279 @@
+use super::*;
+use crate::host::Host;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::path::Path;
+
+/// Подставное окружение плагина стора.
+struct FakeHost {
+    installed: RefCell<Vec<Installed>>,
+    installed_paths: RefCell<Vec<String>>,
+    state: RefCell<HashMap<String, String>>,
+    files: HashMap<String, String>,
+    events: RefCell<Vec<String>>,
+}
+
+impl FakeHost {
+    /// Создание окружения с заданными файлами.
+    fn new(files: Vec<(&str, &str)>) -> Self {
+        Self {
+            installed: RefCell::new(Vec::new()),
+            installed_paths: RefCell::new(Vec::new()),
+            state: RefCell::new(HashMap::new()),
+            files: files
+                .into_iter()
+                .map(|(path, text)| (path.to_string(), text.to_string()))
+                .collect(),
+            events: RefCell::new(Vec::new()),
+        }
+    }
+
+    /// Представление плагина, извлекаемое из пути к пакету.
+    fn artifact(path: &str) -> Installed {
+        let name = Path::new(path)
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+        Installed {
+            name,
+            kind: "extension".to_string(),
+            contract_version: 1,
+            description: String::new(),
+        }
+    }
+}
+
+impl Host for FakeHost {
+    fn store_inspect(&self, path: &str) -> Result<Installed, String> {
+        Ok(Self::artifact(path))
+    }
+
+    fn store_install(&self, path: &str) -> Result<Installed, String> {
+        self.installed_paths.borrow_mut().push(path.to_string());
+        let item = Self::artifact(path);
+        self.installed.borrow_mut().push(item.clone());
+        Ok(item)
+    }
+
+    fn store_uninstall(&self, name: &str) -> Result<(), String> {
+        let mut list = self.installed.borrow_mut();
+        let Some(position) = list.iter().position(|item| item.name == name) else {
+            return Err(format!("плагин {name} не установлен"));
+        };
+        list.remove(position);
+        Ok(())
+    }
+
+    fn store_installed(&self) -> Result<Vec<Installed>, String> {
+        Ok(self.installed.borrow().clone())
+    }
+
+    fn read_file_text(&self, path: &str) -> Result<String, String> {
+        self.files
+            .get(path)
+            .cloned()
+            .ok_or_else(|| format!("файл {path} не найден"))
+    }
+
+    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
+        Ok(self.state.borrow().get(key).cloned())
+    }
+
+    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
+        self.state
+            .borrow_mut()
+            .insert(key.to_string(), value.to_string());
+        Ok(())
+    }
+
+    fn emit_event(&self, name: &str, payload: &str) -> Result<(), String> {
+        self.events.borrow_mut().push(format!("{name}:{payload}"));
+        Ok(())
+    }
+}
+
+/// Вызов действия плагина и разбор JSON-ответа.
+fn call(host: &FakeHost, action: &str, payload: serde_json::Value) -> serde_json::Value {
+    let input = json!({ "action": action, "payload": payload }).to_string();
+    let output = handle(host, &input).expect("действие выполнено");
+    serde_json::from_str(&output).expect("JSON-ответ")
+}
+
+#[test]
+fn capabilities_lists_providers() {
+    let host = FakeHost::new(vec![]);
+    let response = call(&host, "capabilities", json!({}));
+    assert_eq!(response["contract"], PROVIDER_CONTRACT);
+    assert_eq!(response["providers"][0], "file");
+    assert_eq!(response["providers"][1], "network");
+}
+
+#[test]
+fn install_file_installs_and_emits() {
+    let host = FakeHost::new(vec![]);
+    let response = call(&host, "install_file", json!({ "path": "/tmp/sample.zip" }));
+    assert_eq!(response["plugin"]["name"], "sample");
+    assert_eq!(
+        host.installed_paths.borrow().as_slice(),
+        ["/tmp/sample.zip"]
+    );
+    assert!(
+        host.events
+            .borrow()
+            .iter()
+            .any(|event| event.contains(EVENT_CHANGED)),
+        "событие об изменении опубликовано"
+    );
+}
+
+#[test]
+fn install_file_requires_path() {
+    let host = FakeHost::new(vec![]);
+    let input = json!({ "action": "install_file", "payload": {} }).to_string();
+    assert!(
+        handle(&host, &input).is_err(),
+        "без пути установка отклоняется"
+    );
+}
+
+#[test]
+fn uninstall_removes_installed() {
+    let host = FakeHost::new(vec![]);
+    call(&host, "install_file", json!({ "path": "/tmp/sample.zip" }));
+    let response = call(&host, "uninstall", json!({ "name": "sample" }));
+    assert_eq!(response["removed"], "sample");
+    assert!(host.installed.borrow().is_empty(), "плагин удалён");
+
+    let input = json!({ "action": "uninstall", "payload": { "name": "missing" } }).to_string();
+    assert!(
+        handle(&host, &input).is_err(),
+        "удаление неизвестного отклоняется"
+    );
+}
+
+#[test]
+fn stores_add_list_remove_persists() {
+    let host = FakeHost::new(vec![]);
+    let store = json!({
+        "id": "local",
+        "kind": "file",
+        "title": "Локальный",
+        "location": "/store"
+    });
+    let response = call(&host, "stores_add", json!({ "store": store }));
+    assert_eq!(response["stores"][0]["id"], "local");
+    assert!(
+        host.state.borrow().contains_key(STATE_KEY),
+        "реестр сохранён в служебном состоянии"
+    );
+
+    let listed = call(&host, "stores_list", json!({}));
+    assert_eq!(listed["stores"].as_array().map(Vec::len), Some(1));
+
+    let removed = call(&host, "stores_remove", json!({ "id": "local" }));
+    assert_eq!(removed["stores"].as_array().map(Vec::len), Some(0));
+}
+
+#[test]
+fn stores_add_rejects_duplicate_and_bad_kind() {
+    let host = FakeHost::new(vec![]);
+    let store = json!({ "id": "local", "kind": "file", "title": "Л", "location": "/s" });
+    call(&host, "stores_add", json!({ "store": store.clone() }));
+
+    let duplicate = json!({ "action": "stores_add", "payload": { "store": store } }).to_string();
+    assert!(
+        handle(&host, &duplicate).is_err(),
+        "дубликат id отклоняется"
+    );
+
+    let bad = json!({
+        "action": "stores_add",
+        "payload": { "store": { "id": "x", "kind": "ftp", "title": "X", "location": "" } }
+    })
+    .to_string();
+    assert!(
+        handle(&host, &bad).is_err(),
+        "неизвестный вид провайдера отклоняется"
+    );
+}
+
+#[test]
+fn available_file_reads_index() {
+    let index = json!({
+        "packages": [
+            { "name": "sample", "version": "1.0", "kind": "extension", "description": "d", "location": "sample.zip" }
+        ]
+    })
+    .to_string();
+    let host = FakeHost::new(vec![("/store/store-index.json", &index)]);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "local", "kind": "file", "title": "L", "location": "/store" } }),
+    );
+
+    let response = call(&host, "available", json!({ "id": "local" }));
+    assert_eq!(response["supported"], true);
+    assert_eq!(response["packages"][0]["name"], "sample");
+}
+
+#[test]
+fn available_network_is_unsupported() {
+    let host = FakeHost::new(vec![]);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "remote", "kind": "network", "title": "R", "location": "https://example.com" } }),
+    );
+
+    let response = call(&host, "available", json!({ "id": "remote" }));
+    assert_eq!(response["supported"], false, "сетевой провайдер — заглушка");
+}
+
+#[test]
+fn install_from_store_file_uses_joined_path() {
+    let index = json!({
+        "packages": [
+            { "name": "sample", "location": "packages/sample.zip" }
+        ]
+    })
+    .to_string();
+    let host = FakeHost::new(vec![("/store/store-index.json", &index)]);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "local", "kind": "file", "title": "L", "location": "/store/" } }),
+    );
+
+    let response = call(
+        &host,
+        "install_from_store",
+        json!({ "id": "local", "name": "sample" }),
+    );
+    assert_eq!(response["plugin"]["name"], "sample");
+    assert_eq!(
+        host.installed_paths.borrow().as_slice(),
+        ["/store/packages/sample.zip"]
+    );
+}
+
+#[test]
+fn install_from_store_network_is_rejected() {
+    let host = FakeHost::new(vec![]);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "remote", "kind": "network", "title": "R", "location": "https://example.com" } }),
+    );
+
+    let input = json!({
+        "action": "install_from_store",
+        "payload": { "id": "remote", "name": "sample" }
+    })
+    .to_string();
+    assert!(
+        handle(&host, &input).is_err(),
+        "сетевая установка не поддерживается"
+    );
+}

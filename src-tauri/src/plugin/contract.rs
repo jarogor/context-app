@@ -55,6 +55,31 @@ pub const HOST_STATE_DELETE: &str = "state_delete";
 /// Имя host-функции текущего времени Unix в миллисекундах.
 pub const HOST_NOW_FUNCTION: &str = "now_millis";
 
+/// Имя привилегированной host-функции инспекции пакета плагина.
+pub const HOST_STORE_INSPECT: &str = "store_inspect";
+
+/// Имя привилегированной host-функции установки пакета плагина.
+pub const HOST_STORE_INSTALL: &str = "store_install";
+
+/// Имя привилегированной host-функции удаления установленного плагина.
+pub const HOST_STORE_UNINSTALL: &str = "store_uninstall";
+
+/// Имя привилегированной host-функции списка установленных плагинов.
+pub const HOST_STORE_INSTALLED: &str = "store_installed";
+
+/// Список привилегированных host-функций стора плагинов.
+///
+/// Функции выдаются только плагинам, объявившим их в `host_functions`.
+pub const STORE_HOST_FUNCTIONS: &[&str] = &[
+    HOST_STORE_INSPECT,
+    HOST_STORE_INSTALL,
+    HOST_STORE_UNINSTALL,
+    HOST_STORE_INSTALLED,
+];
+
+/// Capability стора плагинов, предоставляемая базовым плагином.
+pub const CAPABILITY_PLUGIN_STORE: &str = "plugin-store@1";
+
 /// Список host-функций, предоставляемых приложением.
 pub const HOST_FUNCTIONS: &[&str] = &[
     HOST_LOG_FUNCTION,
@@ -70,4 +95,8 @@ pub const HOST_FUNCTIONS: &[&str] = &[
     HOST_STATE_WRITE,
     HOST_STATE_DELETE,
     HOST_NOW_FUNCTION,
+    HOST_STORE_INSPECT,
+    HOST_STORE_INSTALL,
+    HOST_STORE_UNINSTALL,
+    HOST_STORE_INSTALLED,
 ];

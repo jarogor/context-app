@@ -22,6 +22,8 @@ pub enum PluginError {
     Call { plugin: String, message: String },
     /// Плагин с указанным именем не загружен.
     UnknownPlugin(String),
+    /// Ошибка работы с пакетом плагина.
+    Package { reason: String },
     /// Ни один загруженный плагин не предоставляет требуемую capability.
     MissingCapability(String),
     /// Зависимость плагина не может быть разрешена.
@@ -74,6 +76,7 @@ impl std::fmt::Display for PluginError {
                 write!(f, "вызов плагина {plugin} завершился ошибкой: {message}")
             }
             Self::UnknownPlugin(name) => write!(f, "плагин {name} не загружен"),
+            Self::Package { reason } => write!(f, "ошибка пакета плагина: {reason}"),
             Self::MissingCapability(capability) => {
                 write!(
                     f,
