@@ -40,6 +40,11 @@ src-wasm-plugins/target/
 src-tauri/resources/plugins/
 src-tauri/resources/base-plugins/
 
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

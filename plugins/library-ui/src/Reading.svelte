@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { Button } from '@booklib/ui';
   import { invoke, operation } from './bridge';
 
   interface Props {
@@ -58,79 +59,37 @@
   });
 </script>
 
-<div class="reading">
-  <button class="back-btn" onclick={() => onNavigate('library')}>
+<div class="mx-auto max-w-[760px] p-[var(--space-5)]">
+  <Button variant="ghost" size="sm" class="mb-[var(--space-4)]" onclick={() => onNavigate('library')}>
     ← К списку
-  </button>
+  </Button>
 
   {#if loading}
-    <p class="state">Загрузка...</p>
+    <p class="text-[var(--color-text-muted)]">Загрузка...</p>
   {:else if error}
-    <div class="error-block">
-      <p class="state error">Не удалось загрузить книгу: {error}</p>
-      <button class="back-btn" onclick={() => onNavigate('library')}>
+    <div>
+      <p class="text-[var(--color-danger)]">Не удалось загрузить книгу: {error}</p>
+      <Button variant="ghost" size="sm" onclick={() => onNavigate('library')}>
         ← Список книг
-      </button>
+      </Button>
     </div>
   {:else if libraryKind === 'external' && externalBook}
     <header>
-      <h1>{externalBook.title}</h1>
-      <p class="authors">{externalBook.authors.map((author) => author.name).join(', ')}</p>
+      <h1 class="text-xl font-semibold">{externalBook.title}</h1>
+      <p class="mt-[var(--space-1)] mb-[var(--space-4)] text-[var(--color-text-muted)]">
+        {externalBook.authors.map((author) => author.name).join(', ')}
+      </p>
     </header>
-    <button class="open-btn" onclick={openInSystem} disabled={opening}>
+    <Button variant="primary" disabled={opening} onclick={openInSystem}>
       {opening ? 'Открытие...' : 'Открыть в системе'}
-    </button>
+    </Button>
   {:else if content}
     <header>
-      <h1>{content.title}</h1>
-      <p class="authors">{content.authors.join(', ')}</p>
+      <h1 class="text-xl font-semibold">{content.title}</h1>
+      <p class="mt-[var(--space-1)] mb-[var(--space-4)] text-[var(--color-text-muted)]">
+        {content.authors.join(', ')}
+      </p>
     </header>
-    <div class="text">{content.text}</div>
+    <div class="whitespace-pre-wrap text-justify leading-normal">{content.text}</div>
   {/if}
 </div>
-
-<style>
-  .reading {
-    padding: 24px;
-    max-width: 760px;
-    margin: 0 auto;
-  }
-  .back-btn {
-    margin-bottom: 16px;
-    cursor: pointer;
-    background: none;
-    border: none;
-    color: #5a8fda;
-    font-size: 14px;
-  }
-  .back-btn:hover {
-    text-decoration: underline;
-  }
-  .state {
-    color: #888;
-  }
-  .error {
-    color: #c0392b;
-  }
-  header h1 {
-    margin: 0;
-  }
-  .authors {
-    color: #666;
-    margin: 4px 0 16px;
-  }
-  .text {
-    white-space: pre-wrap;
-    line-height: 1.5;
-    text-align: justify;
-  }
-  .open-btn {
-    padding: 8px 14px;
-    border: 1px solid #333;
-    border-radius: 6px;
-    background: #333;
-    color: #fff;
-    font: inherit;
-    cursor: pointer;
-  }
-</style>

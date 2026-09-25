@@ -108,6 +108,29 @@
   (читает ядро) и `notifications.notifications.technical_visible_default`
   (читает `notifications-ui`).
 
+## Фронтенд
+
+- Фронтенд собран на npm workspaces: корень — приложение оболочки, члены —
+  `plugins/*` (frontend-плагины) и `packages/*` (общие пакеты); один lock на весь
+  workspace.
+- Дизайн-система — `packages/ui` (`@booklib/ui`): компоненты (Button, Input,
+  Textarea, Select, Checkbox, Card, Badge, Spinner, Menu, MenuItem) и токены
+  оформления `tokens.css`. Оболочка и frontend-плагины строят UI только из этих
+  компонентов и токенов. Tailwind v4 подключается в каждом приложении, классы
+  пакета попадают в сборку через `@source`. Собственные `<style>`-блоки в
+  Svelte-компонентах не используются — только Tailwind-классы и токены
+  (иначе dev-сборка ломается на виртуальных CSS-модулях Svelte).
+- `packages/ui-schema` (`@booklib/ui-schema`) — скелет типов декларативного UI
+  (задел на будущее), без рендерера.
+- `packages/testing` (`@booklib/testing`) — мок моста Tauri (`invoke`,
+  `dialog.open`, `listen` с фикстурами); `src/lib/app-bridge.ts` переключает
+  реальный Tauri и мок по `VITE_MOCK_BRIDGE=1`.
+- Тесты: компонентные — Vitest + `@testing-library/svelte` (`npm test`),
+  браузерные — Playwright (`npm run test:e2e`: мок-мост, iframe через
+  `frameLocator`, визуальная регрессия).
+- Сборка frontend-плагинов — `scripts/build-frontend-plugins.sh` (workspace-aware,
+  артефакты в `public/plugins/`).
+
 ## Проверки перед завершением задачи
 
 Выполнять из корня проекта:
@@ -118,6 +141,8 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 npm run check
+npm test
+npm run test:e2e
 npm run build
 openspec validate --all
 ```

@@ -3,29 +3,45 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "plugins/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run build:frontend-plugins && vite",
+    "dev:test": "npm run build:frontend-plugins && VITE_MOCK_BRIDGE=1 vite",
     "tauri": "tauri",
     "build": "npm run build:plugins && npm run build:frontend-plugins && vite build",
     "build:plugins": "bash ./scripts/build-wasm-plugins.sh",
     "build:frontend-plugins": "bash ./scripts/build-frontend-plugins.sh",
     "preview": "vite preview",
+    "test": "npm run test:unit",
+    "test:unit": "npm test -w @booklib/ui",
+    "test:e2e": "playwright test",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",
     "check:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --check"
   },
   "devDependencies": {
+    "@booklib/testing": "*",
+    "@playwright/test": "^1.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.11.4",
+    "@testing-library/svelte": "^5.4.2",
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^24.13.3",
+    "jsdom": "^29.1.1",
     "prettier": "^3.9.6",
     "svelte": "^5.57.0",
     "svelte-check": "^4.7.6",
+    "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "vitest": "^5.0.2"
   },
   "dependencies": {
+    "@booklib/ui": "*",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.3"
   }

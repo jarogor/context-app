@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
-  import { open } from '@tauri-apps/plugin-dialog';
-  import { listen } from '@tauri-apps/api/event';
+  import { invokeCommand, listenEvent, openDialog } from './app-bridge';
 
   /** Сообщение frontend-плагина без идентификатора запроса. */
   interface PluginMessage {
@@ -45,18 +43,18 @@
     try {
       let value: unknown;
       if (message.type === 'invoke') {
-        value = await invoke(message.command, message.payload);
+        value = await invokeCommand(message.command, message.payload);
       } else if (message.type === 'dialog.open') {
-        value = await open(message.payload);
+        value = await openDialog(message.payload);
       } else if (message.type === 'viewport') {
         value = currentViewport();
       } else if (message.type === 'listen') {
         if (!subscriptions.has(message.event)) {
           subscriptions.set(
             message.event,
-            await listen(message.event, (event) => {
+            await listenEvent(message.event, (payload) => {
               frame.contentWindow?.postMessage(
-                { channel: 'booklib-plugin', type: 'event', event: message.event, value: event.payload },
+                { channel: 'booklib-plugin', type: 'event', event: message.event, value: payload },
                 '*',
               );
             }),
@@ -86,14 +84,10 @@
   });
 </script>
 
-<iframe bind:this={frame} class="plugin-frame" {src} {title} onload={postViewport}></iframe>
-
-<style>
-  .plugin-frame {
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    border: 0;
-    display: block;
-  }
-</style>
+<iframe
+  bind:this={frame}
+  class="block h-full min-h-0 w-full border-0"
+  {src}
+  {title}
+  onload={postViewport}
+></iframe>

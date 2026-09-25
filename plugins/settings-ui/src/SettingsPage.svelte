@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Badge, Button, Card, Checkbox, Input, Select, Textarea } from '@booklib/ui';
   import type { Field, Section } from './types';
 
   interface Props {
@@ -83,201 +84,89 @@
   }
 </script>
 
-<div class="settings-content">
+<div class="flex flex-col gap-[var(--space-4)] p-[var(--space-4)]">
   {#if sections.length === 0}
-    <div class="empty-state">Нет зарегистрированных настроек</div>
+    <div class="p-[var(--space-5)] text-center text-[var(--color-text-muted)]">
+      Нет зарегистрированных настроек
+    </div>
   {:else}
     {#each sections as section (section.id)}
-      <section class="settings-section">
-        <div class="section-header">
+      <Card>
+        <div class="flex items-start justify-between gap-[var(--space-3)]">
           <div>
-            <h2>{section.title}</h2>
-            <span class="owner-badge">{section.owner}</span>
+            <h2 class="mb-[var(--space-1)] text-base font-semibold">{section.title}</h2>
+            <Badge>{section.owner}</Badge>
           </div>
-          <button type="button" onclick={() => save(section)}>Сохранить</button>
+          <Button variant="secondary" onclick={() => save(section)}>Сохранить</Button>
         </div>
         {#if section.description}
-          <p class="description">{section.description}</p>
+          <p class="mb-[var(--space-3)] text-[13px] text-[var(--color-text-muted)]">
+            {section.description}
+          </p>
         {/if}
-        <div class="fields">
+        <div class="flex flex-col gap-[var(--space-3)]">
           {#each section.fields as field (field.key)}
-            <div class="field">
+            <div class="flex flex-col gap-[var(--space-1)]">
               {#if field.type === 'boolean'}
-                <label class="field-checkbox">
-                  <input
-                    type="checkbox"
+                <label class="flex items-center gap-[var(--space-2)] text-[13px]">
+                  <Checkbox
                     checked={drafts[section.id]?.[field.key] === 'true'}
                     onchange={(event) =>
-                      setDraft(section.id, field.key, event.currentTarget.checked ? 'true' : 'false')}
+                      setDraft(
+                        section.id,
+                        field.key,
+                        event.currentTarget.checked ? 'true' : 'false',
+                      )}
                   />
                   <span>{field.title}</span>
                 </label>
               {:else}
-                <label class="field-label" for="{section.id}-{field.key}">{field.title}</label>
+                <label class="text-[13px] text-[var(--color-text-muted)]" for={`${section.id}-${field.key}`}>
+                  {field.title}
+                </label>
                 {#if field.type === 'number'}
-                  <input
-                    id="{section.id}-{field.key}"
+                  <Input
+                    id={`${section.id}-${field.key}`}
                     type="number"
                     value={drafts[section.id]?.[field.key] ?? ''}
                     oninput={(event) => setDraft(section.id, field.key, event.currentTarget.value)}
                   />
                 {:else if field.type === 'select'}
-                  <select
-                    id="{section.id}-{field.key}"
+                  <Select
+                    id={`${section.id}-${field.key}`}
                     value={drafts[section.id]?.[field.key] ?? ''}
+                    class="max-w-[420px]"
                     onchange={(event) => setDraft(section.id, field.key, event.currentTarget.value)}
                   >
                     {#each field.options ?? [] as option}
                       <option value={String(option.value)}>{option.title}</option>
                     {/each}
-                  </select>
+                  </Select>
                 {:else if field.type === 'json'}
-                  <textarea
-                    id="{section.id}-{field.key}"
-                    spellcheck="false"
+                  <Textarea
+                    id={`${section.id}-${field.key}`}
+                    class="min-h-[100px] font-mono text-[13px]"
                     value={drafts[section.id]?.[field.key] ?? ''}
                     oninput={(event) => setDraft(section.id, field.key, event.currentTarget.value)}
-                  ></textarea>
+                  />
                 {:else}
-                  <input
-                    id="{section.id}-{field.key}"
-                    type="text"
+                  <Input
+                    id={`${section.id}-${field.key}`}
                     value={drafts[section.id]?.[field.key] ?? ''}
                     oninput={(event) => setDraft(section.id, field.key, event.currentTarget.value)}
                   />
                 {/if}
               {/if}
               {#if field.description}
-                <p class="field-description">{field.description}</p>
+                <p class="text-xs text-[var(--color-text-muted)]">{field.description}</p>
               {/if}
             </div>
           {/each}
         </div>
         {#if errors[section.id]}
-          <p class="error">{errors[section.id]}</p>
+          <p class="mt-[var(--space-2)] text-[13px] text-[var(--color-danger)]">{errors[section.id]}</p>
         {/if}
-      </section>
+      </Card>
     {/each}
   {/if}
 </div>
-
-<style>
-  .settings-content {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .settings-section {
-    padding: 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    background: #fff;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .section-header h2 {
-    margin: 0 0 4px;
-    font-size: 16px;
-  }
-
-  .owner-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #ecf0f1;
-    color: #566573;
-    font-size: 11px;
-  }
-
-  .section-header button {
-    padding: 6px 12px;
-    border: 1px solid #5a8fda;
-    border-radius: 6px;
-    background: #fff;
-    color: #315f9e;
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .section-header button:hover {
-    background: #eef5ff;
-  }
-
-  .description {
-    margin: 0 0 12px;
-    color: #666;
-    font-size: 13px;
-  }
-
-  .fields {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .field-label {
-    font-size: 13px;
-    color: #444;
-  }
-
-  .field-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #444;
-    cursor: pointer;
-  }
-
-  .field input[type='text'],
-  .field input[type='number'],
-  .field select,
-  .field textarea {
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 420px;
-    padding: 7px 9px;
-    border: 1px solid #d0d0d0;
-    border-radius: 6px;
-    font: inherit;
-  }
-
-  .field textarea {
-    min-height: 100px;
-    font-family: monospace;
-    font-size: 13px;
-    resize: vertical;
-  }
-
-  .field-description {
-    margin: 0;
-    color: #888;
-    font-size: 12px;
-  }
-
-  .error {
-    margin: 8px 0 0;
-    color: #c0392b;
-    font-size: 13px;
-  }
-
-  .empty-state {
-    text-align: center;
-    color: #999;
-    padding: 40px 16px;
-  }
-</style>

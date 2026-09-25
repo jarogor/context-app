@@ -8,6 +8,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
+    "@booklib/ui": "*",
     "@tauri-apps/api": "^2.11.1",
     "svelte": "^5.57.0"
   },

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { Badge, Button, Input } from '@booklib/ui';
   import { invoke, listen, openDialog, operation, pluginOperation } from './bridge';
   import type { Book, BookFile, CachedLibrary, LibraryInfo } from './types';
 
@@ -260,86 +261,94 @@
   });
 </script>
 
-<div class="library">
-   <div class="header">
-      {#if libraryKind === 'external' && sourceName}
-        <span class="source-badge" title="Внешний источник">
-          {sourceName}
-        </span>
-      {/if}
-      <div class="header-actions">
-         <button
-          class="open-library-button"
-          type="button"
-          onclick={openLibrary}
-          disabled={openingLibrary}
-        >
-          Открыть библиотеку
-        </button>
-     </div>
-   </div>
+<div class="p-[var(--space-5)]">
+  <div class="mb-[var(--space-4)] flex items-center justify-between gap-[var(--space-4)]">
+    {#if libraryKind === 'external' && sourceName}
+      <Badge>{sourceName}</Badge>
+    {/if}
+    <div class="flex flex-wrap gap-[var(--space-2)]">
+      <Button variant="secondary" disabled={openingLibrary} onclick={openLibrary}>
+        Открыть библиотеку
+      </Button>
+    </div>
+  </div>
 
-  <label class="search">
+  <label
+    class="mb-[var(--space-4)] flex flex-col gap-[var(--space-1)] text-[13px] text-[var(--color-text-muted)]"
+  >
     <span>Поиск</span>
-    <input bind:value={searchQuery} oninput={updateSearch} disabled={indexingLibrary} placeholder="Название или автор" />
+    <Input
+      bind:value={searchQuery}
+      oninput={updateSearch}
+      disabled={indexingLibrary}
+      placeholder="Название или автор"
+      class="max-w-[420px]"
+    />
   </label>
 
   {#if importError}
-    <p class="state error">{importError}</p>
+    <p class="text-[var(--color-danger)]">{importError}</p>
   {/if}
 
   {#if cachedLibraries.length > 0 && !indexingLibrary && books.length === 0}
-    <section class="cached-libraries">
-      <h2>Сохранённые библиотеки</h2>
+    <section class="my-[var(--space-5)] grid gap-[var(--space-2)]">
+      <h2 class="text-base font-semibold">Сохранённые библиотеки</h2>
       {#each cachedLibraries as cached}
         <button
-          class="cached-library"
+          class="grid gap-[3px] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[var(--space-2)] text-left [font:inherit] disabled:cursor-not-allowed disabled:text-[var(--color-text-muted)]"
           type="button"
           disabled={!cached.available}
           onclick={() => chooseCachedLibrary(cached.path)}
         >
           <strong>{cached.available ? 'Открыть' : 'Недоступна'}</strong>
-          <span>{cached.path}</span>
+          <span class="text-xs text-[var(--color-text-muted)] [overflow-wrap:anywhere]">{cached.path}</span>
         </button>
       {/each}
     </section>
   {/if}
 
   {#if !librarySelected && !loading}
-    <p class="state empty-state">Выберите библиотеку для начала работы.</p>
+    <p class="text-[var(--color-text-muted)]">Выберите библиотеку для начала работы.</p>
   {:else if indexingLibrary}
-    <p class="state">{progressText || 'Открытие библиотеки...'}</p>
+    <p class="text-[var(--color-text-muted)]">{progressText || 'Открытие библиотеки...'}</p>
   {:else if loading && !indexingLibrary}
-    <p class="state">Загрузка...</p>
+    <p class="text-[var(--color-text-muted)]">Загрузка...</p>
   {:else if error}
-    <p class="state error">{error}</p>
+    <p class="text-[var(--color-danger)]">{error}</p>
   {:else if books.length === 0}
-    <p class="state empty-state">
+    <p class="text-[var(--color-text-muted)]">
       {libraryKind === 'external'
         ? 'Источник не содержит книг, найденных сканером.'
         : 'Библиотека пуста.'}
     </p>
   {:else}
-    <ul class="book-list">
+    <ul
+      class="grid list-none gap-[var(--space-5)] p-0 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]"
+    >
       {#each books as book (book.id)}
         <li>
           <button
-            class="book-card"
+            class="flex w-full cursor-pointer flex-col gap-[var(--space-2)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-2)] text-left [font:inherit] hover:shadow-[var(--shadow-sm)]"
             type="button"
-             onclick={() => {
-               if (!indexingLibrary) openBook(book.id);
-             }}
+            onclick={() => {
+              if (!indexingLibrary) openBook(book.id);
+            }}
           >
             {#if book.coverUri}
-              <img class="cover" src={book.coverUri} alt="" />
+              <img class="aspect-[2/3] w-full rounded-[var(--radius-sm)] object-cover" src={book.coverUri} alt="" />
             {:else}
-              <div class="cover cover-placeholder" aria-hidden="true"></div>
+              <div
+                class="aspect-[2/3] w-full rounded-[var(--radius-sm)] bg-[var(--color-surface-muted)]"
+                aria-hidden="true"
+              ></div>
             {/if}
             <div class="book-info">
-              <h2>{book.title}</h2>
-              <p class="authors">{book.authors.map((a) => a.name).join(', ')}</p>
+              <h2 class="text-[15px] font-semibold">{book.title}</h2>
+              <p class="mt-[var(--space-1)] text-[13px] text-[var(--color-text-muted)]">
+                {book.authors.map((a) => a.name).join(', ')}
+              </p>
               <span
-                class="open-link"
+                class="mt-[var(--space-2)] inline-block cursor-pointer text-xs text-[var(--color-primary)] hover:underline"
                 role="button"
                 tabindex="0"
                 onclick={(event) => {
@@ -361,149 +370,3 @@
     </ul>
   {/if}
 </div>
-
-<style>
-  .library {
-    padding: 24px;
-  }
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-  .header-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .source-badge {
-    padding: 4px 10px;
-    border: 1px solid #7f8c8d;
-    border-radius: 999px;
-    background: #ecf0f1;
-    color: #566573;
-    font-size: 12px;
-    font-weight: bold;
-  }
-  .open-library-button {
-    padding: 8px 14px;
-    border: 1px solid #5a8fda;
-    border-radius: 6px;
-    background: #fff;
-    color: #315f9e;
-    font: inherit;
-    cursor: pointer;
-  }
-  .open-library-button:hover:not(:disabled) {
-    background: #eef5ff;
-  }
-  .open-library-button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  .search {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 16px;
-    color: #666;
-    font-size: 13px;
-  }
-  .search input {
-    width: min(100%, 420px);
-    padding: 9px 11px;
-    border: 1px solid #d0d0d0;
-    border-radius: 6px;
-    font: inherit;
-  }
-  .state {
-    color: #888;
-  }
-  .error {
-    color: #c0392b;
-  }
-  .book-list {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 20px;
-    padding: 0;
-    margin: 0;
-  }
-  .book-card {
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    background: #fff;
-    width: 100%;
-    text-align: left;
-    font: inherit;
-    transition: box-shadow 0.2s;
-  }
-  .book-card:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  }
-  .cover {
-    width: 100%;
-    aspect-ratio: 2 / 3;
-    object-fit: cover;
-    border-radius: 4px;
-  }
-  .cover-placeholder {
-    background: #dcdcdc;
-  }
-  .book-info h2 {
-    font-size: 15px;
-    margin: 0;
-  }
-  .authors {
-    margin: 4px 0 0;
-    font-size: 13px;
-    color: #666;
-  }
-  .open-link {
-    display: inline-block;
-    margin-top: 8px;
-    color: #5a8fda;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .open-link:hover {
-    text-decoration: underline;
-  }
-  .cached-libraries {
-    display: grid;
-    gap: 8px;
-    margin: 24px 0;
-  }
-  .cached-libraries h2 {
-    margin: 0;
-    font-size: 16px;
-  }
-  .cached-library {
-    display: grid;
-    gap: 3px;
-    padding: 10px 12px;
-    border: 1px solid #d0d0d0;
-    border-radius: 6px;
-    background: #fff;
-    text-align: left;
-    font: inherit;
-    cursor: pointer;
-  }
-  .cached-library:disabled {
-    color: #999;
-    cursor: not-allowed;
-  }
-  .cached-library span {
-    overflow-wrap: anywhere;
-    color: #666;
-    font-size: 12px;
-  }
-</style>

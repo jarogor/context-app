@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Badge, Button, Checkbox } from '@booklib/ui';
   import type { Entry } from './types';
 
   interface Props {
@@ -17,185 +18,65 @@
 
   /** Количество непрочитанных пользовательских уведомлений. */
   let unreadUser = $derived(entries.filter((entry) => entry.level === 'User' && !entry.read).length);
+
+  /** Цвет акцента записи по уровню и важности. */
+  function accent(entry: Entry): string {
+    if (entry.level === 'User') {
+      return 'var(--color-success)';
+    }
+    if (entry.severity === 'Error') {
+      return 'var(--color-danger)';
+    }
+    if (entry.severity === 'Warn') {
+      return 'var(--color-warning)';
+    }
+    return 'var(--color-primary)';
+  }
 </script>
 
-<div class="notifications-panel">
-  <div class="panel-header">
-    <span class="panel-title">Уведомления</span>
-    <span class="count-badge" class:muted={unreadUser === 0}>{unreadUser}</span>
-    <div class="panel-controls">
-      <label>
-        <input type="checkbox" bind:checked={technicalVisible} />
+<div class="flex h-full flex-col overflow-hidden bg-[var(--color-surface)]">
+  <div
+    class="flex items-center gap-[var(--space-2)] border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] px-[var(--space-4)] py-[var(--space-3)]"
+  >
+    <span class="text-[15px] font-bold text-[var(--color-primary)]">Уведомления</span>
+    <span
+      class="flex h-[22px] min-w-[22px] items-center justify-center rounded-[11px] px-[6px] text-xs font-bold text-[var(--color-primary-fg)]"
+      style:background={unreadUser === 0 ? 'var(--color-border-strong)' : 'var(--color-success)'}
+    >
+      {unreadUser}
+    </span>
+    <div class="ml-auto flex items-center gap-[var(--space-2)]">
+      <label class="flex cursor-pointer items-center gap-[var(--space-1)] text-[13px]">
+        <Checkbox bind:checked={technicalVisible} />
         Технические
       </label>
-      <button type="button" onclick={markAllRead} disabled={unreadUser === 0}>Прочитать</button>
-      <button type="button" onclick={clear}>Очистить</button>
+      <Button variant="secondary" size="sm" disabled={unreadUser === 0} onclick={markAllRead}>
+        Прочитать
+      </Button>
+      <Button variant="secondary" size="sm" onclick={clear}>Очистить</Button>
     </div>
   </div>
-  <div class="notifications-list">
+  <div class="flex-1 overflow-y-auto p-[var(--space-2)]">
     {#if visibleEntries.length === 0}
-      <div class="empty-state">Нет уведомлений</div>
+      <div class="p-[var(--space-5)] text-center text-[var(--color-text-muted)]">
+        Нет уведомлений
+      </div>
     {:else}
       {#each visibleEntries as entry (entry.id)}
-        <div class="notification-item {entry.level} {entry.severity} {entry.read ? 'read' : ''}">
-          <span class="level-badge">{entry.level === 'User' ? 'User' : 'Tech'}</span>
-          <span class="message">{entry.message}</span>
-          <span class="timestamp">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+        <div
+          class="mb-[var(--space-2)] rounded-[var(--radius-md)] border border-l-[3px] border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-2)]"
+          style:border-left-color={accent(entry)}
+          class:opacity-60={entry.read}
+        >
+          <Badge variant={entry.level === 'User' ? 'default' : 'muted'}>
+            {entry.level === 'User' ? 'User' : 'Tech'}
+          </Badge>
+          <span class="break-words">{entry.message}</span>
+          <span class="mt-[var(--space-1)] block text-[11px] text-[var(--color-text-muted)]">
+            {new Date(entry.timestamp).toLocaleTimeString()}
+          </span>
         </div>
       {/each}
     {/if}
   </div>
 </div>
-
-<style>
-  .notifications-panel {
-    box-sizing: border-box;
-    height: 100%;
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .panel-header {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    border-bottom: 1px solid #e0e0e0;
-    background: #f8f8f8;
-  }
-
-  .panel-controls {
-    margin-left: auto;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .panel-title {
-    font-size: 15px;
-    font-weight: bold;
-    color: #315f9e;
-  }
-
-  .count-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
-    border-radius: 11px;
-    background: #4caf50;
-    color: #fff;
-    font-size: 12px;
-    font-weight: bold;
-  }
-
-  .count-badge.muted {
-    background: #d7dde3;
-    color: #5a6b7b;
-  }
-
-  label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    cursor: pointer;
-  }
-
-  button {
-    padding: 4px 8px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-
-  button:hover {
-    background: #e0e0e0;
-  }
-
-  .notifications-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  }
-
-  .notification-item {
-    padding: 8px;
-    margin-bottom: 8px;
-    border-radius: 4px;
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    animation: notification-in 0.25s ease;
-  }
-
-  @keyframes notification-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .notification-item.read {
-    opacity: 0.6;
-  }
-
-  .notification-item.User {
-    border-left: 3px solid #4caf50;
-  }
-
-  .notification-item.Technical {
-    border-left: 3px solid #2196f3;
-  }
-
-  .notification-item.Error {
-    border-left: 3px solid #f44336;
-  }
-
-  .notification-item.Warn {
-    border-left: 3px solid #ff9800;
-  }
-
-  .level-badge {
-    display: inline-block;
-    padding: 2px 6px;
-    font-size: 10px;
-    font-weight: bold;
-    color: white;
-    background: #ccc;
-    margin-right: 8px;
-    border-radius: 2px;
-  }
-
-  .notification-item.User .level-badge {
-    background: #4caf50;
-  }
-
-  .notification-item.Technical .level-badge {
-    background: #2196f3;
-  }
-
-  .message {
-    word-break: break-word;
-  }
-
-  .timestamp {
-    display: block;
-    font-size: 11px;
-    color: #999;
-    margin-top: 4px;
-  }
-
-  .empty-state {
-    text-align: center;
-    color: #999;
-    padding: 24px 8px;
-  }
-</style>

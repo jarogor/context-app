@@ -1,9 +1,13 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [tailwindcss(), svelte()],
   base: './',
+  optimizeDeps: {
+    exclude: ['@booklib/ui'],
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

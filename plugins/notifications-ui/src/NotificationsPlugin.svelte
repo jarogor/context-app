@@ -82,20 +82,10 @@
 <NotificationsPanel {entries} bind:technicalVisible {markAllRead} clear={clearEntries} />
 
 {#if errorMessage}
-  <div class="plugin-error" role="alert">{errorMessage}</div>
+  <div
+    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-[var(--radius-md)] bg-[var(--color-danger-soft)] p-[var(--space-2)] text-xs text-[var(--color-danger)]"
+    role="alert"
+  >
+    {errorMessage}
+  </div>
 {/if}
-
-<style>
-  .plugin-error {
-    position: fixed;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    padding: 8px;
-    border-radius: 4px;
-    background: #fdecea;
-    color: #b3261e;
-    font-size: 12px;
-    z-index: 10;
-  }
-</style>

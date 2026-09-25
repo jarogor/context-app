@@ -1,5 +1,18 @@
+@import 'tailwindcss';
+@import '@booklib/ui/tokens.css';
+
+/* Классы компонентов дизайн-системы должны попадать в сборку плагина. */
+@source '../../../packages/ui/src';
+
+* {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
-  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
 }
