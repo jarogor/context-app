@@ -1,12 +1,22 @@
 <script lang="ts">
-  import { Button, Menu, MenuItem } from '@texture/ui';
+  import { onMount } from 'svelte';
+  import { Badge, Button, Menu, MenuItem } from '@texture/ui';
   import PluginFrame from './lib/PluginFrame.svelte';
   import LibrariesPage from './lib/LibrariesPage.svelte';
+  import { invokeCommand, listenEvent } from './lib/app-bridge';
 
   /** Сообщение frontend-плагина без идентификатора запроса. */
   interface PluginMessage {
     type?: string;
     value?: unknown;
+  }
+
+  /** Активная библиотека для отображения в шапке. */
+  interface ActiveLibrary {
+    /** Человекочитаемое имя провайдера. */
+    provider_name?: string;
+    /** Путь библиотеки. */
+    path?: string;
   }
 
   /** Страница раздела настроек. */
@@ -29,6 +39,23 @@
 
   /** Есть ли неприменённые изменения активности плагинов. */
   let activationPending = $state(false);
+
+  /** Активная библиотека для шапки. */
+  let activeLibrary: ActiveLibrary | null = $state(null);
+
+  /** Имя активной библиотеки по последнему сегменту пути. */
+  function libraryName(): string | null {
+    const library = activeLibrary;
+    if (!library?.path) {
+      return null;
+    }
+    return library.path.split(/[\\/]/).filter(Boolean).pop() ?? library.path;
+  }
+
+  /** Показывать ли в шапке название активной библиотеки (основной раздел). */
+  function showLibrary(): boolean {
+    return !settingsOpen && !librariesOpen && activeLibrary !== null;
+  }
 
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
@@ -74,6 +101,34 @@
       activationPending = Boolean(message.value);
     }
   }
+
+  /** Обновление сведений об активной библиотеке из ядра. */
+  async function refreshActiveLibrary() {
+    try {
+      const result = (await invokeCommand('active_library', {})) as ActiveLibrary | null;
+      activeLibrary = result?.path ? result : null;
+    } catch {
+      activeLibrary = null;
+    }
+  }
+
+  onMount(() => {
+    let unlisten: (() => void) | undefined;
+    void (async () => {
+      unlisten = await listenEvent('source-catalog-changed', (value) => {
+        const payload = value as ActiveLibrary | null;
+        if (payload?.path) {
+          activeLibrary = payload;
+        } else {
+          void refreshActiveLibrary();
+        }
+      });
+      await refreshActiveLibrary();
+    })();
+    return () => {
+      unlisten?.();
+    };
+  });
 </script>
 
 <div class="flex h-full flex-col">
@@ -81,17 +136,28 @@
     class="flex flex-[0_0_48px] items-center gap-[var(--space-3)] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-4)]"
   >
     <span class="text-base font-bold text-[var(--color-primary)]">Текстура</span>
-    <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
-    <div class="flex flex-1 justify-center">
+    {#if showLibrary()}
+      {#if activeLibrary?.provider_name}
+        <Badge>{activeLibrary.provider_name}</Badge>
+      {/if}
+      <span
+        class="max-w-[280px] truncate text-sm text-[var(--color-text-muted)]"
+        title={activeLibrary?.path ?? ''}
+      >
+        {libraryName()}
+      </span>
+    {:else}
+      <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
+    {/if}
+    <div class="ml-auto flex items-center gap-[var(--space-2)]">
       {#if activationPending}
         <span
-          class="rounded-[var(--radius-md)] border border-[var(--color-warning)] px-[var(--space-3)] py-[2px] text-[13px] text-[var(--color-warning)]"
+          class="whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--color-warning)] px-[var(--space-2)] py-[2px] text-[12px] text-[var(--color-warning)]"
+          title="Изменения плагинов применятся после перезапуска приложения или переоткрытия библиотеки"
         >
-          Изменения плагинов применятся после перезапуска приложения или переоткрытия библиотеки
+          Нужен перезапуск
         </span>
       {/if}
-    </div>
-    <div class="ml-auto flex items-center gap-[var(--space-2)]">
       <Button
         variant={notificationsOpen ? 'primary' : 'secondary'}
         size="icon"
@@ -160,7 +226,7 @@
         <PluginFrame src="/plugins/library-ui/index.html" title="Library plugin" />
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesOpen}>
-        <LibrariesPage />
+        <LibrariesPage onOpened={() => (librariesOpen = false)} />
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!settingsOpen}>
         <Menu

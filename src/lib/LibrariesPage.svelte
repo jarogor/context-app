@@ -4,6 +4,13 @@
   import { invokeCommand, openDialog } from './app-bridge';
   import appConfig from './app-config.json';
 
+  interface Props {
+    /** Вызывается после успешного открытия библиотеки. */
+    onOpened: () => void;
+  }
+
+  let { onOpened }: Props = $props();
+
   /** Запись истории открытых библиотек. */
   interface HistoryEntry {
     /** Путь библиотеки. */
@@ -34,7 +41,7 @@
 
   /** Имя библиотеки по последнему сегменту пути. */
   function libraryName(path: string): string {
-    return path.split('/').filter(Boolean).pop() ?? path;
+    return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
   }
 
   /** Время открытия в 24-часовом формате. */
@@ -101,6 +108,7 @@
         storageRoot: appConfig.state_dir,
       });
       activePath = path;
+      onOpened();
     } catch (e) {
       error = String(e);
     } finally {

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Badge, Input } from '@texture/ui';
-  import { listen, operation } from './bridge';
+  import { Input } from '@texture/ui';
+  import { invoke, listen, operation } from './bridge';
   import type { Book, BookFile } from './types';
 
   interface Props {
@@ -19,8 +19,6 @@
   let error: string | null = $state(null);
   let importError: string | null = $state(null);
   let searchQuery: string = $state('');
-  let sourceName: string | null = $state(null);
-  let libraryPath: string | null = $state(null);
   let librarySelected = $state(false);
 
   function coverFile(book: Book): BookFile | undefined {
@@ -118,28 +116,22 @@
     onNavigate('reading', bookId);
   }
 
-  /** Название библиотеки по последнему сегменту пути. */
-  function libraryName(): string {
-    if (!libraryPath) {
-      return 'Библиотека';
-    }
-    return libraryPath.split('/').filter(Boolean).pop() ?? libraryPath;
-  }
-
   onMount(() => {
     let unlisten: (() => void) | undefined;
     void (async () => {
-      unlisten = await listen<{ path?: string; provider_name?: string }>(
-        'source-catalog-changed',
-        (value) => {
-          librarySelected = true;
-          sourceName = value?.provider_name ?? sourceName;
-          libraryPath = value?.path ?? libraryPath;
-          searchQuery = '';
-          void load();
-        },
-      );
-      if (!librarySelected && books.length === 0 && cachedBooks.length > 0) {
+      unlisten = await listen('source-catalog-changed', () => {
+        librarySelected = true;
+        searchQuery = '';
+        void load();
+      });
+      // Компонент пересоздаётся при возврате из read-view — восстанавливаем активную библиотеку.
+      const active = (await invoke<{ path?: string } | null>('active_library', {})) as {
+        path?: string;
+      } | null;
+      if (active?.path) {
+        librarySelected = true;
+        await load();
+      } else if (books.length === 0 && cachedBooks.length > 0) {
         books = cachedBooks;
         loading = false;
         void loadCovers(cachedBooks);
@@ -153,13 +145,6 @@
 
 <div class="p-[var(--space-5)]">
   {#if librarySelected}
-    <div class="mb-[var(--space-4)] flex items-center gap-[var(--space-2)]">
-      {#if sourceName}
-        <Badge>{sourceName}</Badge>
-      {/if}
-      <strong class="text-base">{libraryName()}</strong>
-    </div>
-
     <label
       class="mb-[var(--space-4)] flex flex-col gap-[var(--space-1)] text-[13px] text-[var(--color-text-muted)]"
     >
