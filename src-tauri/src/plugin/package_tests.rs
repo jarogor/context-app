@@ -15,6 +15,11 @@ const WAT_WITH_INVOKE: &str = r#"
 /// Валидный WASM-заменитель: для установки достаточно существования файла.
 const FAKE_WASM: &[u8] = b"fake-wasm";
 
+/// Идентификатор тестового плагина `sample`.
+const SAMPLE_ID: &str = "b0000000-0000-4000-8000-000000000001";
+/// Идентификатор тестового плагина `settings`.
+const SETTINGS_ID: &str = "b0000000-0000-4000-8000-000000000002";
+
 /// Создание zip-пакета с указанными записями.
 fn write_package(path: &Path, entries: &[(&str, &[u8])]) {
     let file = File::create(path).expect("создание пакета");
@@ -27,12 +32,13 @@ fn write_package(path: &Path, entries: &[(&str, &[u8])]) {
     zip.finish().expect("завершение пакета");
 }
 
-/// Манифест extension-плагина с указанным именем и модулем.
-fn manifest(name: &str, module: &str) -> String {
+/// Манифест extension-плагина с указанным идентификатором, именем и модулем.
+fn manifest(id: &str, name: &str, module: &str) -> String {
     format!(
         r#"{{
           "contract_version": 1,
           "kind": "extension",
+          "id": "{id}",
           "name": "{name}",
           "description": "Тестовый пакет",
           "module": "{module}",
@@ -43,13 +49,13 @@ fn manifest(name: &str, module: &str) -> String {
 }
 
 /// Пакет с манифестом и модулем.
-fn valid_package(path: &Path, name: &str) {
+fn valid_package(path: &Path, id: &str, name: &str) {
     write_package(
         path,
         &[
             (
                 "plugin-manifest.json",
-                manifest(name, "plugin.wasm").as_bytes(),
+                manifest(id, name, "plugin.wasm").as_bytes(),
             ),
             ("plugin.wasm", FAKE_WASM),
         ],
@@ -60,9 +66,10 @@ fn valid_package(path: &Path, name: &str) {
 fn inspects_valid_package() {
     let root = test_util::test_root("plugin-package-inspect");
     let archive = root.join("pkg.zip");
-    valid_package(&archive, "sample");
+    valid_package(&archive, SAMPLE_ID, "sample");
 
     let manifest = inspect_package(&archive).expect("инспекция пакета");
+    assert_eq!(manifest.id, SAMPLE_ID);
     assert_eq!(manifest.name, "sample");
     assert_eq!(manifest.module, "plugin.wasm");
     test_util::cleanup(&root);
@@ -88,6 +95,7 @@ fn rejects_unsupported_contract_version() {
     let archive = root.join("pkg.zip");
     let body = r#"{
       "contract_version": 99,
+      "id": "b0000000-0000-4000-8000-000000000001",
       "name": "sample",
       "description": "Тест",
       "module": "plugin.wasm",
@@ -115,18 +123,20 @@ fn installs_and_lists_package() {
     let dir = test_util::test_root("plugin-package-install");
     let archive = dir.join("pkg.zip");
     let root = dir.join("app-plugins");
-    valid_package(&archive, "sample");
+    valid_package(&archive, SAMPLE_ID, "sample");
 
     let installed = install_package(&archive, &root).expect("установка пакета");
+    assert_eq!(installed.id, SAMPLE_ID);
     assert_eq!(installed.name, "sample");
     assert_eq!(installed.kind, "extension");
     assert!(
-        root.join("sample").join("plugin.wasm").is_file(),
-        "модуль распакован"
+        root.join(SAMPLE_ID).join("plugin.wasm").is_file(),
+        "модуль распакован под идентификатором"
     );
 
     let list = installed_plugins(&root).expect("список установленных");
     assert_eq!(list.len(), 1);
+    assert_eq!(list[0].id, SAMPLE_ID);
     assert_eq!(list[0].name, "sample");
     test_util::cleanup(&dir);
 }
@@ -136,7 +146,7 @@ fn rejects_duplicate_install() {
     let dir = test_util::test_root("plugin-package-duplicate");
     let archive = dir.join("pkg.zip");
     let root = dir.join("app-plugins");
-    valid_package(&archive, "sample");
+    valid_package(&archive, SAMPLE_ID, "sample");
     install_package(&archive, &root).expect("первая установка");
 
     let result = install_package(&archive, &root);
@@ -155,6 +165,7 @@ fn rejects_base_plugin_package() {
     let body = r#"{
       "contract_version": 1,
       "kind": "base",
+      "id": "b0000000-0000-4000-8000-000000000002",
       "name": "settings",
       "description": "Тест",
       "module": "plugin.wasm",
@@ -174,7 +185,7 @@ fn rejects_base_plugin_package() {
         matches!(result, Err(PluginError::Package { .. })),
         "базовый плагин через стор не устанавливается"
     );
-    assert!(!root.join("settings").exists(), "файлы не созданы");
+    assert!(!root.join(SETTINGS_ID).exists(), "файлы не созданы");
     test_util::cleanup(&dir);
 }
 
@@ -187,7 +198,7 @@ fn rejects_package_without_module() {
         &archive,
         &[(
             "plugin-manifest.json",
-            manifest("sample", "plugin.wasm").as_bytes(),
+            manifest(SAMPLE_ID, "sample", "plugin.wasm").as_bytes(),
         )],
     );
 
@@ -210,7 +221,7 @@ fn rejects_zip_slip_entry() {
         &[
             (
                 "plugin-manifest.json",
-                manifest("sample", "plugin.wasm").as_bytes(),
+                manifest(SAMPLE_ID, "sample", "plugin.wasm").as_bytes(),
             ),
             ("plugin.wasm", FAKE_WASM),
             ("../escaped.txt", b"escape"),
@@ -234,17 +245,17 @@ fn uninstalls_only_installed_plugin() {
     let dir = test_util::test_root("plugin-package-uninstall");
     let archive = dir.join("pkg.zip");
     let root = dir.join("app-plugins");
-    valid_package(&archive, "sample");
+    valid_package(&archive, SAMPLE_ID, "sample");
     install_package(&archive, &root).expect("установка");
 
-    uninstall_package("sample", &root).expect("удаление");
-    assert!(!root.join("sample").exists(), "каталог плагина удалён");
+    uninstall_package(SAMPLE_ID, &root).expect("удаление");
+    assert!(!root.join(SAMPLE_ID).exists(), "каталог плагина удалён");
     assert!(
         installed_plugins(&root).expect("список").is_empty(),
         "список пуст после удаления"
     );
 
-    let result = uninstall_package("settings", &root);
+    let result = uninstall_package(SETTINGS_ID, &root);
     assert!(
         matches!(result, Err(PluginError::Package { .. })),
         "неустановленный (базовый) плагин не удаляется"
@@ -271,7 +282,7 @@ fn install_does_not_modify_bundled_resources() {
     let before = fs::read(&bundled_manifest).expect("чтение до установки");
 
     let archive = dir.join("pkg.zip");
-    valid_package(&archive, "sample");
+    valid_package(&archive, SAMPLE_ID, "sample");
     let root = dir.join("app-plugins");
     install_package(&archive, &root).expect("установка пакета");
 
@@ -290,7 +301,7 @@ fn installed_plugin_loads_and_uninstall_removes() {
         &[
             (
                 "plugin-manifest.json",
-                manifest("sample", "plugin.wasm").as_bytes(),
+                manifest(SAMPLE_ID, "sample", "plugin.wasm").as_bytes(),
             ),
             ("plugin.wasm", &wasm),
         ],
@@ -305,7 +316,7 @@ fn installed_plugin_loads_and_uninstall_removes() {
         "установленный плагин загружается из пользовательского каталога"
     );
 
-    uninstall_package("sample", &root).expect("удаление пакета");
+    uninstall_package(SAMPLE_ID, &root).expect("удаление пакета");
     let runtime =
         PluginRuntime::load(std::slice::from_ref(&root), dir.clone()).expect("повторная загрузка");
     assert!(

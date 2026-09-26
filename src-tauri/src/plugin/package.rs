@@ -24,7 +24,9 @@ const MAX_TOTAL_BYTES: u64 = 256 * 1024 * 1024;
 /// Краткое описание установленного плагина.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct InstalledPlugin {
-    /// Имя плагина.
+    /// Идентификатор плагина.
+    pub id: String,
+    /// Человекочитаемое имя плагина.
     pub name: String,
     /// Категория плагина.
     pub kind: String,
@@ -38,6 +40,7 @@ impl From<&PluginManifest> for InstalledPlugin {
     /// Создание описания из манифеста.
     fn from(manifest: &PluginManifest) -> Self {
         Self {
+            id: manifest.id.clone(),
             name: manifest.name.clone(),
             kind: kind_name(manifest.kind),
             contract_version: manifest.contract_version,
@@ -62,8 +65,8 @@ pub fn inspect_package(archive: &Path) -> Result<PluginManifest, PluginError> {
 /// Установка пакета в пользовательский каталог плагинов.
 ///
 /// Пакет распаковывается в промежуточный каталог рядом с целью, проверяется и
-/// только затем атомарно переносится под именем плагина. Установка базового
-/// плагина и конфликт имени отклоняются.
+/// только затем атомарно переносится под идентификатором плагина. Установка
+/// базового плагина и конфликт идентификатора отклоняются.
 pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, PluginError> {
     fs::create_dir_all(root).map_err(package_error)?;
     let staging = tempfile::Builder::new()
@@ -77,11 +80,6 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
             reason: "базовые плагины не устанавливаются через стор".to_string(),
         });
     }
-    if !is_plain_name(&manifest.name) {
-        return Err(PluginError::Package {
-            reason: format!("некорректное имя плагина в манифесте: {}", manifest.name),
-        });
-    }
     if !is_safe_module(&manifest.module) {
         return Err(PluginError::Package {
             reason: format!("некорректный путь модуля в манифесте: {}", manifest.module),
@@ -92,10 +90,10 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
             reason: format!("модуль {} отсутствует в пакете", manifest.module),
         });
     }
-    let target = root.join(&manifest.name);
+    let target = root.join(&manifest.id);
     if target.exists() {
         return Err(PluginError::Package {
-            reason: format!("плагин {} уже установлен", manifest.name),
+            reason: format!("плагин {} уже установлен", manifest.id),
         });
     }
 
@@ -107,20 +105,21 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
     Ok(InstalledPlugin::from(&manifest))
 }
 
-/// Удаление установленного плагина из пользовательского каталога.
+/// Удаление установленного плагина из пользовательского каталога по
+/// идентификатору.
 ///
 /// Удаляются только плагины пользовательского каталога; базовые и поставляемые
 /// плагины в нём не лежат, поэтому операция для них завершается ошибкой.
-pub fn uninstall_package(name: &str, root: &Path) -> Result<(), PluginError> {
-    if !is_plain_name(name) {
+pub fn uninstall_package(id: &str, root: &Path) -> Result<(), PluginError> {
+    if uuid::Uuid::parse_str(id).is_err() {
         return Err(PluginError::Package {
-            reason: format!("некорректное имя плагина: {name}"),
+            reason: format!("некорректный идентификатор плагина: {id}"),
         });
     }
-    let target = root.join(name);
+    let target = root.join(id);
     if !target.is_dir() {
         return Err(PluginError::Package {
-            reason: format!("плагин {name} не установлен"),
+            reason: format!("плагин {id} не установлен"),
         });
     }
     fs::remove_dir_all(&target).map_err(package_error)?;
@@ -231,17 +230,6 @@ fn extract_package(archive: &Path, destination: &Path) -> Result<PluginManifest,
         })?;
     manifest.validate(destination)?;
     Ok(manifest)
-}
-
-/// Проверка, что имя является простым именем каталога без разделителей.
-fn is_plain_name(name: &str) -> bool {
-    if name.is_empty() || name == "." || name == ".." {
-        return false;
-    }
-    let path = Path::new(name);
-    !path.is_absolute()
-        && path.components().count() == 1
-        && matches!(path.components().next(), Some(Component::Normal(_)))
 }
 
 /// Проверка, что путь модуля относительный и не выходит за каталог плагина.

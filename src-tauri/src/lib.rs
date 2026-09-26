@@ -12,7 +12,7 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 use crate::constants::{
-    resolve_app_state_root, resolve_user_plugins_root, BASE_PLUGINS_DIR_NAME, DEMO_PLUGIN_NAME,
+    resolve_app_state_root, resolve_user_plugins_root, BASE_PLUGINS_DIR_NAME, DEMO_PLUGIN_ID,
     PLUGINS_DIR_NAME,
 };
 use crate::plugin::{AppPluginHost, AppState, PluginSession};
@@ -70,13 +70,13 @@ pub fn run() {
             }
             if host
                 .runtime()
-                .plugin_names()
+                .plugin_ids()
                 .iter()
-                .any(|n| n == DEMO_PLUGIN_NAME)
+                .any(|id| id == DEMO_PLUGIN_ID)
             {
                 match host
                     .runtime_mut()
-                    .invoke(DEMO_PLUGIN_NAME, r#"{"title":"BookLib"}"#)
+                    .invoke(DEMO_PLUGIN_ID, r#"{"title":"BookLib"}"#)
                 {
                     Ok(output) => {
                         app_host.notify_user(
@@ -88,7 +88,7 @@ pub fn run() {
                     Err(err) => {
                         app_host.notify_technical(
                             "demo error",
-                            DEMO_PLUGIN_NAME,
+                            DEMO_PLUGIN_ID,
                             serde_json::json!({ "error": err.to_string() }),
                         );
                     }

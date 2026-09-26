@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 /// Установленный плагин в представлении ядра.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Installed {
-    /// Имя плагина.
+    /// Идентификатор плагина.
+    pub id: String,
+    /// Человекочитаемое имя плагина.
     pub name: String,
     /// Категория плагина.
     pub kind: String,
@@ -53,7 +55,9 @@ pub struct Package {
 /// Запись перечня отключаемых плагинов.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PluginEntry {
-    /// Имя плагина.
+    /// Идентификатор плагина.
+    pub id: String,
+    /// Человекочитаемое имя плагина.
     pub name: String,
     /// Категория плагина.
     pub kind: String,

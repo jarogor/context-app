@@ -4,8 +4,9 @@
 
 use std::path::{Path, PathBuf};
 
-/// Имя demo-плагина — runtime-имя из манифеста, по которому он вызывается.
-pub const DEMO_PLUGIN_NAME: &str = "demo";
+/// Идентификатор demo-плагина — runtime-идентификатор из манифеста, по которому
+/// он вызывается.
+pub const DEMO_PLUGIN_ID: &str = "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c";
 
 /// Имя папки с плагинами.
 pub const PLUGINS_DIR_NAME: &str = "plugins";

@@ -77,17 +77,17 @@ fn plugins(host: &impl Host) -> Result<String, String> {
 
 /// Переключение активности плагина.
 fn set_enabled(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
-    let name = required_str(payload, "name")?;
+    let id = required_str(payload, "id")?;
     let enabled = payload
         .get("enabled")
         .and_then(|value| value.as_bool())
         .ok_or_else(|| "не указано поле enabled".to_string())?;
-    host.store_set_enabled(&name, enabled)?;
+    host.store_set_enabled(&id, enabled)?;
     host.emit_event(
         EVENT_CHANGED,
-        &json!({ "name": name, "enabled": enabled }).to_string(),
+        &json!({ "id": id, "enabled": enabled }).to_string(),
     )?;
-    Ok(json!({ "name": name, "enabled": enabled }).to_string())
+    Ok(json!({ "id": id, "enabled": enabled }).to_string())
 }
 
 /// Установка пакета из выбранного пользователем zip-файла.
@@ -100,10 +100,10 @@ fn install_file(host: &impl Host, payload: &serde_json::Value) -> Result<String,
 
 /// Удаление установленного плагина.
 fn uninstall(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
-    let name = required_str(payload, "name")?;
-    host.store_uninstall(&name)?;
-    host.emit_event(EVENT_CHANGED, &json!({ "removed": name }).to_string())?;
-    Ok(json!({ "removed": name }).to_string())
+    let id = required_str(payload, "id")?;
+    host.store_uninstall(&id)?;
+    host.emit_event(EVENT_CHANGED, &json!({ "removed": id }).to_string())?;
+    Ok(json!({ "removed": id }).to_string())
 }
 
 /// Список подключённых сторов.

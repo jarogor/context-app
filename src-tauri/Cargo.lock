@@ -2203,6 +2203,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tempfile",
  "toml 0.8.2",
+ "uuid",
  "wat",
  "zip",
 ]

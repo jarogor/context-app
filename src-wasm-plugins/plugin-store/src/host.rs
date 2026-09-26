@@ -11,14 +11,14 @@ pub trait Host {
     fn store_inspect(&self, path: &str) -> Result<Installed, String>;
     /// Установка пакета по пути к zip-файлу.
     fn store_install(&self, path: &str) -> Result<Installed, String>;
-    /// Удаление установленного плагина по имени.
-    fn store_uninstall(&self, name: &str) -> Result<(), String>;
+    /// Удаление установленного плагина по идентификатору.
+    fn store_uninstall(&self, id: &str) -> Result<(), String>;
     /// Список установленных плагинов.
     fn store_installed(&self) -> Result<Vec<Installed>, String>;
     /// Перечень отключаемых плагинов.
     fn store_plugins(&self) -> Result<Vec<PluginEntry>, String>;
-    /// Переключение активности плагина.
-    fn store_set_enabled(&self, name: &str, enabled: bool) -> Result<(), String>;
+    /// Переключение активности плагина по идентификатору.
+    fn store_set_enabled(&self, id: &str, enabled: bool) -> Result<(), String>;
     /// Чтение текстового файла по пути.
     fn read_file_text(&self, path: &str) -> Result<String, String>;
     /// Чтение служебного состояния по ключу.

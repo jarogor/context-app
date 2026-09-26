@@ -1,6 +1,7 @@
 {
   "contract_version": 1,
   "kind": "ui",
+  "id": "49159274-8fe4-4858-9338-c209b669bc79",
   "name": "settings-ui",
   "description": "Автономный интерфейс базового плагина настроек",
   "entry": "index.html",

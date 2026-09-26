@@ -4,6 +4,9 @@ use crate::test_util::cleanup;
 use std::fs;
 use std::path::PathBuf;
 
+/// Идентификатор базового плагина уведомлений.
+const NOTIFICATIONS_ID: &str = "313fbeb9-8537-48bc-bb5f-5296e7b1c81e";
+
 /// WAT-модуль, экспортирующий функцию `invoke`.
 const WAT_WITH_INVOKE: &str = r#"
     (module
@@ -34,6 +37,7 @@ fn loads_only_base_plugins() {
         r#"{
         "contract_version": 1,
         "kind": "base",
+        "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
         "name": "notifications",
         "description": "Уведомления",
         "module": "plugin.wasm",
@@ -48,6 +52,7 @@ fn loads_only_base_plugins() {
         r#"{
         "contract_version": 1,
         "kind": "extension",
+        "id": "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c",
         "name": "demo",
         "description": "Демо",
         "module": "plugin.wasm",
@@ -82,6 +87,7 @@ fn delivers_events_to_provider() {
         r#"{
         "contract_version": 1,
         "kind": "base",
+        "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
         "name": "notifications",
         "description": "Уведомления",
         "module": "plugin.wasm",
@@ -107,6 +113,7 @@ fn refresh_registry_without_provider_is_safe() {
         r#"{
         "contract_version": 1,
         "kind": "base",
+        "id": "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c",
         "name": "demo",
         "description": "Без настроек",
         "module": "plugin.wasm",
@@ -131,6 +138,7 @@ fn refresh_registry_with_provider_succeeds() {
         r#"{
         "contract_version": 1,
         "kind": "base",
+        "id": "69b39e5d-0c25-4cdb-8c3e-d3ba89147c24",
         "name": "settings",
         "description": "Настройки",
         "module": "plugin.wasm",
@@ -169,7 +177,7 @@ fn refresh_registry_includes_session_sources() {
     .expect("регистрация реестра");
 
     let output = host
-        .invoke_operation("settings", "list", serde_json::json!({}))
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
         .expect("список секций");
     let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
     let ids: Vec<String> = parsed["sections"]
@@ -200,7 +208,7 @@ fn settings_registry_survives_restart() {
 
     let section_ids = |host: &mut AppPluginHost| -> Vec<String> {
         let output = host
-            .invoke_operation("settings", "list", serde_json::json!({}))
+            .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
             .expect("список секций");
         let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
         parsed["sections"]
@@ -219,16 +227,17 @@ fn settings_registry_survives_restart() {
         ids.contains(&"app.general".to_string()),
         "секция приложения"
     );
+    let notifications_section = format!("{NOTIFICATIONS_ID}.notifications");
     assert!(
-        ids.contains(&"notifications.notifications".to_string()),
-        "секция уведомлений"
+        ids.contains(&notifications_section),
+        "секция уведомлений под идентификатором владельца"
     );
 
     let defaults = host
-        .invoke_operation(
-            "settings",
+        .invoke_capability(
+            CAPABILITY_SETTINGS,
             "get",
-            serde_json::json!({ "section": "notifications.notifications" }),
+            serde_json::json!({ "section": notifications_section }),
         )
         .expect("значения секции");
     let defaults: serde_json::Value = serde_json::from_str(&defaults).expect("JSON значений");
@@ -237,11 +246,11 @@ fn settings_registry_survives_restart() {
         "значение по умолчанию"
     );
 
-    host.invoke_operation(
-        "settings",
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
         "set",
         serde_json::json!({
-            "section": "notifications.notifications",
+            "section": notifications_section,
             "values": { "technical_visible_default": true }
         }),
     )
@@ -253,10 +262,10 @@ fn settings_registry_survives_restart() {
         .refresh_settings_registry(&[])
         .expect("регистрация");
     let restored = restarted
-        .invoke_operation(
-            "settings",
+        .invoke_capability(
+            CAPABILITY_SETTINGS,
             "get",
-            serde_json::json!({ "section": "notifications.notifications" }),
+            serde_json::json!({ "section": notifications_section }),
         )
         .expect("значения после перезапуска");
     let restored: serde_json::Value = serde_json::from_str(&restored).expect("JSON значений");
@@ -278,7 +287,7 @@ fn real_notifications_plugin_records_events() {
     host.notify_user("проверка", "test", serde_json::json!({}));
 
     let output = host
-        .invoke_operation("notifications", "list", serde_json::json!({}))
+        .invoke_capability(CAPABILITY_NOTIFICATIONS, "list", serde_json::json!({}))
         .expect("список журнала");
     let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON журнала");
     let entries = parsed["entries"].as_array().expect("массив записей");
@@ -305,7 +314,7 @@ fn reset_notifications_clears_journal() {
     host.reset_notifications().expect("сброс журнала");
 
     let output = host
-        .invoke_operation("notifications", "list", serde_json::json!({}))
+        .invoke_capability(CAPABILITY_NOTIFICATIONS, "list", serde_json::json!({}))
         .expect("список журнала");
     let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON журнала");
     assert!(
@@ -325,6 +334,7 @@ fn drops_events_without_provider() {
         r#"{
         "contract_version": 1,
         "kind": "base",
+        "id": "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c",
         "name": "demo",
         "description": "Без уведомлений",
         "module": "plugin.wasm",

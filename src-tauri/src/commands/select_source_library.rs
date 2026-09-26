@@ -21,6 +21,7 @@ pub fn select_source_library(
         .session
         .select_source(path.clone(), false, storage_root)
         .map_err(|error| error.to_string())?;
+    let provider_name = state.session.plugin_name(&provider).unwrap_or_default();
 
     state
         .session
@@ -42,5 +43,5 @@ pub fn select_source_library(
         serde_json::json!({ "reason": "session" }),
     );
 
-    Ok(serde_json::json!({ "provider": provider }))
+    Ok(serde_json::json!({ "provider": provider, "provider_name": provider_name }))
 }

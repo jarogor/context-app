@@ -165,7 +165,7 @@
     try {
       const selected = await selectSource(path);
       librarySelected = true;
-      sourceName = selected.provider;
+      sourceName = selected.provider_name;
       libraryPath = path;
       searchQuery = '';
       await loadHistory();
@@ -316,7 +316,7 @@
                   ? 'var(--color-success)'
                   : 'var(--color-border-strong)'}
               ></span>
-              <Badge>{entry.provider}</Badge>
+              <Badge>{entry.provider_name}</Badge>
               <strong>{entry.path.split('/').filter(Boolean).pop() ?? entry.path}</strong>
               <span class="text-xs text-[var(--color-text-muted)]">
                 {entry.available ? 'доступна' : 'недоступна'}

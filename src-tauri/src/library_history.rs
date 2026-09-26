@@ -1,13 +1,15 @@
 //! История открытых библиотек.
 //!
-//! Реестр принадлежит ядру: запись хранит путь и провайдера (имя source-
-//! плагина). В выдачу попадают только записи доступных провайдеров;
-//! недоступные сохраняются, но скрываются.
+//! Реестр принадлежит ядру: запись хранит путь и провайдера (идентификатор
+//! source-плагина). В выдачу попадают только записи доступных и включённых
+//! провайдеров; недоступные сохраняются, но скрываются.
 
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+
+use crate::plugin::SourceProvider;
 
 /// Имя файла истории в служебном каталоге состояния.
 const HISTORY_FILE_NAME: &str = "library-history.json";
@@ -17,7 +19,7 @@ const HISTORY_FILE_NAME: &str = "library-history.json";
 pub struct HistoryRecord {
     /// Путь библиотеки.
     pub path: String,
-    /// Имя source-плагина, которым открыта библиотека.
+    /// Идентификатор source-плагина, которым открыта библиотека.
     pub provider: String,
     /// Время добавления записи (Unix, мс).
     pub added_at_millis: u64,
@@ -36,35 +38,39 @@ struct HistoryFile {
 pub struct HistoryEntry {
     /// Путь библиотеки.
     pub path: String,
-    /// Провайдер библиотеки.
+    /// Идентификатор провайдера библиотеки.
     pub provider: String,
+    /// Человекочитаемое имя провайдера.
+    pub provider_name: String,
     /// Существует ли директория библиотеки.
     pub available: bool,
 }
 
 /// Список истории, отфильтрованный по доступным и включённым провайдерам.
 ///
-/// `available` — обнаруженные source-плагины; `disabled` — отключённые. Записи
-/// отключённых или отсутствующих провайдеров сохраняются, но не выдаются.
+/// `available` — обнаруженные source-плагины; `disabled` — отключённые
+/// идентификаторы. Записи отключённых или отсутствующих провайдеров
+/// сохраняются, но не выдаются.
 pub fn list(
     root: &Path,
-    available: &[String],
+    available: &[SourceProvider],
     disabled: &[String],
 ) -> Result<Vec<HistoryEntry>, String> {
     let file = load(root)?;
     Ok(file
         .entries
         .into_iter()
-        .filter(|record| {
-            available
-                .iter()
-                .any(|provider| provider == &record.provider)
-                && !disabled.iter().any(|provider| provider == &record.provider)
-        })
-        .map(|record| HistoryEntry {
-            available: Path::new(&record.path).is_dir(),
-            path: record.path,
-            provider: record.provider,
+        .filter_map(|record| {
+            let provider = available.iter().find(|item| item.id == record.provider)?;
+            if disabled.iter().any(|id| id == &record.provider) {
+                return None;
+            }
+            Some(HistoryEntry {
+                available: Path::new(&record.path).is_dir(),
+                path: record.path,
+                provider: record.provider,
+                provider_name: provider.name.clone(),
+            })
         })
         .collect())
 }

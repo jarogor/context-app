@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Badge, Button, Card, Checkbox, Input, Select, Textarea } from '@booklib/ui';
+  import { Button, Card, Checkbox, Input, Select, Textarea } from '@booklib/ui';
   import type { Field, Section } from './types';
 
   interface Props {
@@ -95,7 +95,6 @@
         <div class="flex items-start justify-between gap-[var(--space-3)]">
           <div>
             <h2 class="mb-[var(--space-1)] text-base font-semibold">{section.title}</h2>
-            <Badge>{section.owner}</Badge>
           </div>
           <Button variant="secondary" onclick={() => save(section)}>Сохранить</Button>
         </div>

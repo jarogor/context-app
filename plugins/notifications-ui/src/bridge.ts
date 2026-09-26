@@ -43,7 +43,7 @@ function request<T>(type: string, payload: Omit<Message, 'channel' | 'type'>): P
 export function operation<T = unknown>(action: string, payload: unknown = {}): Promise<T> {
   return request<T>('invoke', {
     command: 'invoke_base_plugin_operation',
-    payload: { plugin: 'notifications', operation: action, payload },
+    payload: { capability: 'notifications.journal@1', operation: action, payload },
   });
 }
 

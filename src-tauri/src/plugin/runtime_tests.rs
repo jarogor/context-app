@@ -18,9 +18,21 @@ const WAT_WITHOUT_INVOKE: &str = r#"
         i32.const 0))
   "#;
 
+/// Идентификатор тестового extension-плагина.
+const TEST_PLUGIN_ID: &str = "aaaaaaaa-0000-4000-8000-000000000001";
+/// Идентификатор плагина-провайдера capability.
+const PROVIDER_ID: &str = "aaaaaaaa-0000-4000-8000-000000000002";
+/// Идентификатор base-плагина с декларацией настроек.
+const NOTIFICATIONS_ID: &str = "313fbeb9-8537-48bc-bb5f-5296e7b1c81e";
+/// Идентификатор тестового base-плагина.
+const BASE_ID: &str = "aaaaaaaa-0000-4000-8000-000000000007";
+/// Идентификатор поставляемого demo-плагина.
+const DEMO_ID: &str = "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c";
+
 /// Манифест плагина-расширения под контракт v3.
 const MANIFEST_JSON: &str = r#"{
     "contract_version": 1,
+    "id": "aaaaaaaa-0000-4000-8000-000000000001",
     "name": "test-plugin",
     "description": "Тестовый плагин",
     "module": "plugin.wasm",
@@ -77,7 +89,7 @@ fn invokes_loaded_plugin() {
     let root = dir.clone();
     let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
     let output = runtime
-        .invoke("test-plugin", "привет")
+        .invoke(TEST_PLUGIN_ID, "привет")
         .expect("вызов плагина");
     assert_eq!(output, "", "модуль возвращает пустой вывод");
     cleanup(&root);
@@ -184,7 +196,7 @@ fn loads_and_invokes_bundled_demo() {
     assert_eq!(runtime.plugin_names(), vec!["demo"], "demo-плагин загружен");
 
     let output = runtime
-        .invoke("demo", r#"{"title":"Тест"}"#)
+        .invoke(DEMO_ID, r#"{"title":"Тест"}"#)
         .expect("вызов demo-плагина");
     let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON-ответ");
     let greeting = parsed["greeting"].as_str().expect("поле greeting");
@@ -204,6 +216,7 @@ fn loads_and_invokes_bundled_demo() {
 /// Манифест плагина, предоставляющего capability.
 const MANIFEST_WITH_CAPABILITY: &str = r#"{
     "contract_version": 1,
+    "id": "aaaaaaaa-0000-4000-8000-000000000002",
     "name": "provider",
     "description": "Провайдер capability",
     "module": "plugin.wasm",
@@ -223,7 +236,7 @@ fn routes_capability_to_provider() {
     let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
     assert_eq!(
         runtime.plugin_providing("test.capability@1"),
-        Some("provider".to_string())
+        Some(PROVIDER_ID.to_string())
     );
     let output = runtime
         .invoke_capability("test.capability@1", "ping", serde_json::json!({}))
@@ -236,6 +249,7 @@ fn routes_capability_to_provider() {
 const MANIFEST_WITH_SETTINGS: &str = r#"{
     "contract_version": 1,
     "kind": "base",
+    "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
     "name": "notifications",
     "description": "Уведомления",
     "module": "plugin.wasm",
@@ -259,7 +273,7 @@ fn reports_settings_sources_only_for_declared_plugins() {
 
     let sources = runtime.settings_sources();
     assert_eq!(sources.len(), 1, "декларация настроек собрана");
-    assert_eq!(sources[0]["owner"], "notifications");
+    assert_eq!(sources[0]["owner"], NOTIFICATIONS_ID);
     assert_eq!(sources[0]["kind"], "base");
     assert_eq!(sources[0]["schema"]["sections"][0]["id"], "notifications");
     cleanup(&root);
@@ -305,6 +319,7 @@ fn missing_capability_is_reported() {
 /// Манифест плагина, объявившего привилегированную host-функцию стора.
 const MANIFEST_STORE_DECLARED: &str = r#"{
     "contract_version": 1,
+    "id": "aaaaaaaa-0000-4000-8000-000000000005",
     "name": "test-plugin",
     "description": "Тестовый плагин стора",
     "module": "plugin.wasm",
@@ -315,6 +330,7 @@ const MANIFEST_STORE_DECLARED: &str = r#"{
 /// Манифест плагина без объявления привилегированной host-функции.
 const MANIFEST_STORE_UNDECLARED: &str = r#"{
     "contract_version": 1,
+    "id": "aaaaaaaa-0000-4000-8000-000000000005",
     "name": "test-plugin",
     "description": "Тестовый плагин без стора",
     "module": "plugin.wasm",
@@ -379,6 +395,7 @@ fn plugin_store_root_absent_without_configuration() {
 /// Манифест плагина, предоставляющего capability пользовательского плагина.
 const MANIFEST_CAP_USER: &str = r#"{
     "contract_version": 1,
+    "id": "aaaaaaaa-0000-4000-8000-000000000006",
     "name": "test-plugin",
     "description": "Пользовательский плагин",
     "module": "plugin.wasm",
@@ -387,9 +404,10 @@ const MANIFEST_CAP_USER: &str = r#"{
     "provides": ["user.cap@1"]
   }"#;
 
-/// Манифест одноимённого поставляемого плагина с другой capability.
+/// Манифест поставляемого плагина с тем же идентификатором и другой capability.
 const MANIFEST_CAP_BUNDLED: &str = r#"{
     "contract_version": 1,
+    "id": "aaaaaaaa-0000-4000-8000-000000000006",
     "name": "test-plugin",
     "description": "Поставляемый плагин",
     "module": "plugin.wasm",
@@ -399,7 +417,7 @@ const MANIFEST_CAP_BUNDLED: &str = r#"{
   }"#;
 
 #[test]
-fn earlier_directory_wins_on_name_conflict() {
+fn earlier_directory_wins_on_id_conflict() {
     let user = setup_plugins_root(
         "conflict-user",
         &compile_wat(WAT_WITH_INVOKE),
@@ -434,6 +452,7 @@ fn earlier_directory_wins_on_name_conflict() {
 const MANIFEST_BASE: &str = r#"{
     "contract_version": 1,
     "kind": "base",
+    "id": "aaaaaaaa-0000-4000-8000-000000000007",
     "name": "test-plugin",
     "description": "Тестовый базовый плагин",
     "module": "plugin.wasm",
@@ -450,7 +469,7 @@ fn disabled_plugin_is_skipped() {
         std::slice::from_ref(&dir),
         root.clone(),
         None,
-        &["test-plugin".to_string()],
+        &[TEST_PLUGIN_ID.to_string()],
     )
     .expect("загрузка runtime");
 
@@ -474,7 +493,7 @@ fn disabled_base_plugin_still_loads() {
         std::slice::from_ref(&dir),
         root.clone(),
         None,
-        &["test-plugin".to_string()],
+        &[BASE_ID.to_string()],
     )
     .expect("загрузка runtime");
 

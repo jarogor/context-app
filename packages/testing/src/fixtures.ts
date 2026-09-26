@@ -1,12 +1,17 @@
 import type { MockBridgeConfig } from './mock-bridge';
 
+/** Идентификатор тестового generic-провайдера. */
+const LIBRARY_ID = 'a692624f-1fa0-49a2-9015-9cb7361f9d47';
+/** Идентификатор тестового Calibre-провайдера. */
+const CALIBRE_ID = 'f7c8b139-887f-4a2f-84e8-fdcc89635a79';
+
 /** Ответ базового плагина на opaque-операцию в браузерных тестах. */
 function baseOperation(payload: unknown): unknown {
   const message = (payload ?? {}) as {
-    plugin?: string;
+    capability?: string;
     operation?: string;
   };
-  if (message.plugin === 'settings' && message.operation === 'list') {
+  if (message.capability === 'settings.store@1' && message.operation === 'list') {
     return {
       sections: [
         {
@@ -28,16 +33,17 @@ function baseOperation(payload: unknown): unknown {
       ],
     };
   }
-  if (message.plugin === 'settings' && message.operation === 'get') {
+  if (message.capability === 'settings.store@1' && message.operation === 'get') {
     return { values: {} };
   }
-  if (message.plugin === 'plugin-store' && message.operation === 'list') {
+  if (message.capability === 'plugin-store@1' && message.operation === 'list') {
     return { plugins: [] };
   }
-  if (message.plugin === 'plugin-store' && message.operation === 'plugins') {
+  if (message.capability === 'plugin-store@1' && message.operation === 'plugins') {
     return {
       plugins: [
         {
+          id: CALIBRE_ID,
           name: 'calibre',
           kind: 'source',
           description: 'Плагин библиотеки Calibre',
@@ -47,13 +53,13 @@ function baseOperation(payload: unknown): unknown {
       ],
     };
   }
-  if (message.plugin === 'plugin-store' && message.operation === 'set_enabled') {
+  if (message.capability === 'plugin-store@1' && message.operation === 'set_enabled') {
     return { enabled: true };
   }
-  if (message.plugin === 'plugin-store' && message.operation === 'stores_list') {
+  if (message.capability === 'plugin-store@1' && message.operation === 'stores_list') {
     return { stores: [] };
   }
-  if (message.plugin === 'notifications' && message.operation === 'list') {
+  if (message.capability === 'notifications.journal@1' && message.operation === 'list') {
     return { entries: [] };
   }
   return { sections: [], entries: [], plugins: [], stores: [] };
@@ -89,10 +95,17 @@ export function defaultMockConfig(): MockBridgeConfig {
     handlers: {
       invoke_base_plugin_operation: baseOperation,
       invoke_plugin_operation: pluginOperation,
-      select_source_library: () => ({ provider: 'library' }),
+      select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
       plugin_activation_pending: () => ({ pending: false }),
       library_history_list: () => ({
-        entries: [{ path: '/demo-library', provider: 'library', available: true }],
+        entries: [
+          {
+            path: '/demo-library',
+            provider: LIBRARY_ID,
+            provider_name: 'library',
+            available: true,
+          },
+        ],
       }),
       library_history_forget: () => ({ forgotten: true }),
     },

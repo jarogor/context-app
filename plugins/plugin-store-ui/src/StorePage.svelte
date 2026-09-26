@@ -8,8 +8,8 @@
     packages: StorePackage[];
     unsupported: string;
     onInstall: () => void;
-    onUninstall: (name: string) => void;
-    onSetEnabled: (name: string, enabled: boolean) => void;
+    onUninstall: (id: string) => void;
+    onSetEnabled: (id: string, enabled: boolean) => void;
     onAddStore: (store: { id: string; kind: string; title: string; location: string }) => void;
     onRemoveStore: (id: string) => void;
     onShowAvailable: (id: string) => void;
@@ -60,17 +60,20 @@
       </div>
     {:else}
       <ul class="flex list-none flex-col gap-[var(--space-2)] p-0">
-        {#each plugins as plugin (plugin.name)}
+        {#each plugins as plugin (plugin.id)}
           <li
             class="flex items-center justify-between gap-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)]"
           >
             <label class="flex min-w-0 items-center gap-[var(--space-2)]">
               <Checkbox
                 checked={plugin.enabled}
-                onchange={(event) => onSetEnabled(plugin.name, event.currentTarget.checked)}
+                onchange={(event) => onSetEnabled(plugin.id, event.currentTarget.checked)}
               />
               <span class="flex min-w-0 flex-col gap-[2px]">
-                <span class="text-sm font-bold">{plugin.name}</span>
+                <span class="flex flex-wrap items-baseline gap-[var(--space-2)]">
+                  <span class="text-sm font-bold">{plugin.name}</span>
+                  <span class="font-mono text-xs text-[var(--color-text-muted)]">{plugin.id}</span>
+                </span>
                 <span class="text-xs text-[var(--color-text-muted)]">{plugin.kind}</span>
                 {#if plugin.description}
                   <span class="text-xs text-[var(--color-text-muted)]">{plugin.description}</span>
@@ -78,7 +81,7 @@
               </span>
             </label>
             {#if plugin.removable}
-              <Button variant="danger" size="sm" onclick={() => onUninstall(plugin.name)}>
+              <Button variant="danger" size="sm" onclick={() => onUninstall(plugin.id)}>
                 Удалить
               </Button>
             {/if}

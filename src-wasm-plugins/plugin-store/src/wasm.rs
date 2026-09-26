@@ -25,13 +25,13 @@ extern "ExtismHost" {
     /// Установка пакета плагина.
     fn store_install(path: String) -> String;
     /// Удаление установленного плагина.
-    fn store_uninstall(name: String) -> String;
+    fn store_uninstall(id: String) -> String;
     /// Список установленных плагинов.
     fn store_installed() -> String;
     /// Перечень отключаемых плагинов.
     fn store_plugins() -> String;
     /// Переключение активности плагина.
-    fn store_set_enabled(name: String, enabled: String) -> String;
+    fn store_set_enabled(id: String, enabled: String) -> String;
 }
 
 /// Реализация `Host` поверх host-функций приложения.
@@ -50,8 +50,8 @@ impl Host for HostEnv {
         serde_json::from_str(&value).map_err(|error| error.to_string())
     }
 
-    fn store_uninstall(&self, name: &str) -> Result<(), String> {
-        unsafe { store_uninstall(name.to_string()) }
+    fn store_uninstall(&self, id: &str) -> Result<(), String> {
+        unsafe { store_uninstall(id.to_string()) }
             .map(|_| ())
             .map_err(|error| error.to_string())
     }
@@ -66,8 +66,8 @@ impl Host for HostEnv {
         serde_json::from_str(&value).map_err(|error| error.to_string())
     }
 
-    fn store_set_enabled(&self, name: &str, enabled: bool) -> Result<(), String> {
-        unsafe { store_set_enabled(name.to_string(), enabled.to_string()) }
+    fn store_set_enabled(&self, id: &str, enabled: bool) -> Result<(), String> {
+        unsafe { store_set_enabled(id.to_string(), enabled.to_string()) }
             .map(|_| ())
             .map_err(|error| error.to_string())
     }

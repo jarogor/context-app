@@ -5,6 +5,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Идентификатор тестового устанавливаемого плагина.
+const SAMPLE_ID: &str = "b0000000-0000-4000-8000-000000000001";
+/// Идентификатор тестового отключаемого плагина.
+const CALIBRE_ID: &str = "f7c8b139-887f-4a2f-84e8-fdcc89635a79";
+
 /// Подставное окружение плагина стора.
 struct FakeHost {
     installed: RefCell<Vec<Installed>>,
@@ -32,8 +37,9 @@ impl FakeHost {
     }
 
     /// Добавление плагина в перечень.
-    fn with_plugin(self, name: &str, enabled: bool, removable: bool) -> Self {
+    fn with_plugin(self, id: &str, name: &str, enabled: bool, removable: bool) -> Self {
         self.plugins.borrow_mut().push(PluginEntry {
+            id: id.to_string(),
             name: name.to_string(),
             kind: "source".to_string(),
             description: "тест".to_string(),
@@ -51,6 +57,7 @@ impl FakeHost {
             .unwrap_or("unknown")
             .to_string();
         Installed {
+            id: SAMPLE_ID.to_string(),
             name,
             kind: "extension".to_string(),
             contract_version: 1,
@@ -71,10 +78,10 @@ impl Host for FakeHost {
         Ok(item)
     }
 
-    fn store_uninstall(&self, name: &str) -> Result<(), String> {
+    fn store_uninstall(&self, id: &str) -> Result<(), String> {
         let mut list = self.installed.borrow_mut();
-        let Some(position) = list.iter().position(|item| item.name == name) else {
-            return Err(format!("плагин {name} не установлен"));
+        let Some(position) = list.iter().position(|item| item.id == id) else {
+            return Err(format!("плагин {id} не установлен"));
         };
         list.remove(position);
         Ok(())
@@ -88,10 +95,10 @@ impl Host for FakeHost {
         Ok(self.plugins.borrow().clone())
     }
 
-    fn store_set_enabled(&self, name: &str, enabled: bool) -> Result<(), String> {
+    fn store_set_enabled(&self, id: &str, enabled: bool) -> Result<(), String> {
         let mut plugins = self.plugins.borrow_mut();
-        let Some(entry) = plugins.iter_mut().find(|entry| entry.name == name) else {
-            return Err(format!("плагин {name} не отключаем"));
+        let Some(entry) = plugins.iter_mut().find(|entry| entry.id == id) else {
+            return Err(format!("плагин {id} не отключаем"));
         };
         entry.enabled = enabled;
         Ok(())
@@ -169,11 +176,11 @@ fn install_file_requires_path() {
 fn uninstall_removes_installed() {
     let host = FakeHost::new(vec![]);
     call(&host, "install_file", json!({ "path": "/tmp/sample.zip" }));
-    let response = call(&host, "uninstall", json!({ "name": "sample" }));
-    assert_eq!(response["removed"], "sample");
+    let response = call(&host, "uninstall", json!({ "id": SAMPLE_ID }));
+    assert_eq!(response["removed"], SAMPLE_ID);
     assert!(host.installed.borrow().is_empty(), "плагин удалён");
 
-    let input = json!({ "action": "uninstall", "payload": { "name": "missing" } }).to_string();
+    let input = json!({ "action": "uninstall", "payload": { "id": "missing" } }).to_string();
     assert!(
         handle(&host, &input).is_err(),
         "удаление неизвестного отклоняется"
@@ -308,10 +315,11 @@ fn install_from_store_network_is_rejected() {
 
 #[test]
 fn plugins_lists_catalog() {
-    let host = FakeHost::new(vec![]).with_plugin("calibre", true, false);
+    let host = FakeHost::new(vec![]).with_plugin(CALIBRE_ID, "calibre", true, false);
 
     let response = call(&host, "plugins", json!({}));
 
+    assert_eq!(response["plugins"][0]["id"], CALIBRE_ID);
     assert_eq!(response["plugins"][0]["name"], "calibre");
     assert_eq!(response["plugins"][0]["enabled"], true);
     assert_eq!(response["plugins"][0]["removable"], false);
@@ -319,15 +327,22 @@ fn plugins_lists_catalog() {
 
 #[test]
 fn set_enabled_toggles_and_emits() {
-    let host = FakeHost::new(vec![]).with_plugin("calibre", true, false);
+    let host = FakeHost::new(vec![]).with_plugin(CALIBRE_ID, "calibre", true, false);
 
-    let response = call(&host, "set_enabled", json!({ "name": "calibre", "enabled": false }));
+    let response = call(
+        &host,
+        "set_enabled",
+        json!({ "id": CALIBRE_ID, "enabled": false }),
+    );
 
     assert_eq!(response["enabled"], false);
     let listed = call(&host, "plugins", json!({}));
     assert_eq!(listed["plugins"][0]["enabled"], false);
     assert!(
-        host.events.borrow().iter().any(|event| event.contains(EVENT_CHANGED)),
+        host.events
+            .borrow()
+            .iter()
+            .any(|event| event.contains(EVENT_CHANGED)),
         "событие об изменении активности опубликовано"
     );
 }
@@ -337,7 +352,7 @@ fn set_enabled_unknown_is_error() {
     let host = FakeHost::new(vec![]);
     let input = json!({
         "action": "set_enabled",
-        "payload": { "name": "missing", "enabled": false }
+        "payload": { "id": "missing", "enabled": false }
     })
     .to_string();
 

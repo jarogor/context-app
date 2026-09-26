@@ -80,8 +80,8 @@ impl PluginSession {
     /// Выбор source-плагина для корня по `probe` с приоритетом.
     ///
     /// Опрашивает загруженные source-плагины и настраивает сессию на
-    /// подтвердивший корень с наибольшим приоритетом. Возвращает имя выбранного
-    /// провайдера.
+    /// подтвердивший корень с наибольшим приоритетом. Возвращает идентификатор
+    /// выбранного провайдера.
     pub fn select_source(
         &mut self,
         root: impl Into<PathBuf>,
@@ -92,9 +92,9 @@ impl PluginSession {
         self.install(&root, storage_root.into(), writable)?;
 
         let mut candidates = Vec::new();
-        for name in self.runtime.source_plugin_names() {
-            if let Ok(Some(priority)) = self.runtime.probe_priority(&name) {
-                candidates.push((name, priority));
+        for id in self.runtime.source_plugin_ids() {
+            if let Ok(Some(priority)) = self.runtime.probe_priority(&id) {
+                candidates.push((id, priority));
             }
         }
 
@@ -108,9 +108,14 @@ impl PluginSession {
         Ok(provider)
     }
 
-    /// Имя активного плагина сессии.
+    /// Идентификатор активного плагина сессии.
     pub fn active_plugin(&self) -> Option<&str> {
         self.active_plugin.as_deref()
+    }
+
+    /// Человекочитаемое имя плагина по идентификатору.
+    pub fn plugin_name(&self, id: &str) -> Option<String> {
+        self.runtime.plugin_name(id)
     }
 
     /// Вызов opaque operation активного plugin-а.
@@ -147,10 +152,10 @@ impl PluginSession {
         self.runtime.settings_sources()
     }
 
-    /// Имена доступных source-плагинов из директорий сессии.
+    /// Доступные source-плагины из директорий сессии.
     ///
     /// Плагины обнаруживаются по манифестам без загрузки WASM.
-    pub fn available_source_plugins(&self) -> Vec<String> {
+    pub fn available_source_plugins(&self) -> Vec<crate::plugin::SourceProvider> {
         let directories = plugin_directories(
             &self.root,
             &self.bundled_plugins_dir,

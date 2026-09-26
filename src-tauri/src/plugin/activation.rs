@@ -1,8 +1,8 @@
 //! Реестр активности плагинов.
 //!
-//! Хранит множество отключённых имён плагинов в служебном каталоге состояния
-//! приложения. Ядро применяет реестр при загрузке плагинов, а стор меняет его
-//! через привилегированные host-функции.
+//! Хранит множество отключённых идентификаторов плагинов в служебном каталоге
+//! состояния приложения. Ядро применяет реестр при загрузке плагинов, а стор
+//! меняет его через привилегированные host-функции.
 
 use std::path::{Path, PathBuf};
 
@@ -14,7 +14,7 @@ const FILE_NAME: &str = "disabled-plugins.json";
 /// Содержимое файла реестра.
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct ActivationFile {
-    /// Имена отключённых плагинов.
+    /// Идентификаторы отключённых плагинов.
     #[serde(default)]
     disabled: Vec<String>,
 }
@@ -32,17 +32,17 @@ pub fn load(root: &Path) -> Result<Vec<String>, String> {
     }
 }
 
-/// Признак, что плагин отключён.
-pub fn is_disabled(root: &Path, name: &str) -> Result<bool, String> {
-    Ok(load(root)?.iter().any(|current| current == name))
+/// Признак, что плагин с указанным идентификатором отключён.
+pub fn is_disabled(root: &Path, id: &str) -> Result<bool, String> {
+    Ok(load(root)?.iter().any(|current| current == id))
 }
 
 /// Установка активности плагина: `enabled = true` включает, `false` отключает.
-pub fn set_enabled(root: &Path, name: &str, enabled: bool) -> Result<(), String> {
+pub fn set_enabled(root: &Path, id: &str, enabled: bool) -> Result<(), String> {
     let mut disabled = load(root)?;
-    disabled.retain(|current| current != name);
+    disabled.retain(|current| current != id);
     if !enabled {
-        disabled.push(name.to_string());
+        disabled.push(id.to_string());
     }
     disabled.sort();
     disabled.dedup();

@@ -7,18 +7,18 @@ use tauri::State;
 
 use crate::plugin::AppState;
 
-/// Передача opaque-операции базовому плагину приложения.
+/// Передача opaque-операции базовому плагину, предоставляющему capability.
 #[tauri::command]
 pub fn invoke_base_plugin_operation(
     state: State<'_, Mutex<AppState>>,
-    plugin: String,
+    capability: String,
     operation: String,
     payload: Value,
 ) -> Result<Value, String> {
     let mut state = state.lock().map_err(|error| error.to_string())?;
     let response = state
         .app_host
-        .invoke_operation(&plugin, &operation, payload)
+        .invoke_capability(&capability, &operation, payload)
         .map_err(|error| error.to_string())?;
 
     // Стор мог изменить активность плагинов — обновляем набор сессии.

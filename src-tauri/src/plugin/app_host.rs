@@ -84,14 +84,16 @@ impl AppPluginHost {
         self.runtime.set_catalog_dirs(directories);
     }
 
-    /// Выполнение операции базового плагина без интерпретации payload ядром.
-    pub fn invoke_operation(
+    /// Выполнение операции плагина, предоставляющего capability, без
+    /// интерпретации payload ядром.
+    pub fn invoke_capability(
         &mut self,
-        plugin: &str,
+        capability: &str,
         operation: &str,
         payload: serde_json::Value,
     ) -> Result<String, PluginError> {
-        self.runtime.invoke_operation(plugin, operation, payload)
+        self.runtime
+            .invoke_capability(capability, operation, payload)
     }
 
     /// Доставка накопленных событий плагину, предоставляющему capability уведомлений.

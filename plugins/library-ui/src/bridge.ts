@@ -54,8 +54,8 @@ export function operation<T = unknown>(action: string, payload: unknown = {}): P
 }
 
 /** Выбор source-плагина и открытие библиотеки по пути. */
-export function selectSource(path: string): Promise<{ provider: string }> {
-  return invoke<{ provider: string }>('select_source_library', {
+export function selectSource(path: string): Promise<{ provider: string; provider_name: string }> {
+  return invoke<{ provider: string; provider_name: string }>('select_source_library', {
     path,
     storageRoot: libraryConfig.state_dir,
   });

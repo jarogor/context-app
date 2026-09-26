@@ -32,8 +32,10 @@ export interface LibraryInfo {
 export interface HistoryEntry {
   /** Путь библиотеки. */
   path: string;
-  /** Провайдер: имя source-плагина. */
+  /** Идентификатор провайдера (source-плагина). */
   provider: string;
+  /** Человекочитаемое имя провайдера. */
+  provider_name: string;
   /** Существует ли директория библиотеки. */
   available: boolean;
 }

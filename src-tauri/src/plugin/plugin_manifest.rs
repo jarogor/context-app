@@ -20,7 +20,9 @@ pub struct PluginManifest {
     /// Категория плагина: базовый, source или extension.
     #[serde(default)]
     pub kind: PluginKind,
-    /// Уникальное имя плагина.
+    /// Стабильный идентификатор плагина в формате UUID.
+    pub id: String,
+    /// Человекочитаемое название плагина для отображения.
     pub name: String,
     /// Краткое описание назначения плагина.
     pub description: String,
@@ -73,6 +75,12 @@ impl PluginManifest {
             return Err(PluginError::InvalidManifest {
                 dir: dir.to_path_buf(),
                 reason: "имя плагина не может быть пустым".to_string(),
+            });
+        }
+        if uuid::Uuid::parse_str(&self.id).is_err() {
+            return Err(PluginError::InvalidManifest {
+                dir: dir.to_path_buf(),
+                reason: format!("идентификатор плагина не является UUID: {}", self.id),
             });
         }
         if self.module.trim().is_empty() {

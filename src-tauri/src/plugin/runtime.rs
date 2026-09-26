@@ -141,7 +141,7 @@ impl PluginRuntime {
                 ) {
                     Ok(plugin) => {
                         if plugin.kind != PluginKind::Base
-                            && disabled.iter().any(|name| name == &plugin.name)
+                            && disabled.iter().any(|id| id == &plugin.id)
                         {
                             continue;
                         }
@@ -152,7 +152,7 @@ impl PluginRuntime {
                         }
                         // При загрузке из двух мест (plugins/ и ресурсы) один и тот
                         // же плагин не должен загружаться повторно.
-                        if seen.insert(plugin.name.clone()) {
+                        if seen.insert(plugin.id.clone()) {
                             plugins.push(plugin);
                         }
                     }
@@ -397,6 +397,7 @@ impl PluginRuntime {
         }
 
         Ok(LoadedPlugin {
+            id: manifest.id,
             name: manifest.name,
             kind: manifest.kind,
             provides: manifest.provides,
@@ -412,10 +413,9 @@ impl PluginRuntime {
         let mut provided_by = std::collections::HashMap::new();
         for plugin in plugins.iter() {
             for capability in &plugin.provides {
-                if let Some(previous) = provided_by.insert(capability.clone(), plugin.name.clone())
-                {
+                if let Some(previous) = provided_by.insert(capability.clone(), plugin.id.clone()) {
                     return Err(PluginError::Call {
-                        plugin: plugin.name.clone(),
+                        plugin: plugin.id.clone(),
                         message: format!("capability {capability} уже предоставляется {previous}"),
                     });
                 }
@@ -425,7 +425,7 @@ impl PluginRuntime {
             for capability in &plugin.requires {
                 if !provided_by.contains_key(capability) {
                     return Err(PluginError::Dependency {
-                        plugin: plugin.name.clone(),
+                        plugin: plugin.id.clone(),
                         capability: capability.clone(),
                     });
                 }
@@ -443,7 +443,7 @@ impl PluginRuntime {
                     };
                     ordered
                         .iter()
-                        .any(|plugin: &LoadedPlugin| &plugin.name == provider)
+                        .any(|plugin: &LoadedPlugin| &plugin.id == provider)
                 });
                 if ready {
                     ordered.push(remaining.remove(index));
@@ -453,7 +453,7 @@ impl PluginRuntime {
                 }
             }
             if !progressed {
-                return Err(PluginError::DependencyCycle(remaining[0].name.clone()));
+                return Err(PluginError::DependencyCycle(remaining[0].id.clone()));
             }
         }
         *plugins = ordered;
@@ -514,26 +514,39 @@ impl PluginRuntime {
         *state = writable;
     }
 
-    /// Имена загруженных плагинов.
+    /// Человекочитаемые имена загруженных плагинов.
     pub fn plugin_names(&self) -> Vec<String> {
         self.plugins.iter().map(|p| p.name.clone()).collect()
     }
 
-    /// Имена загруженных source-плагинов.
-    pub fn source_plugin_names(&self) -> Vec<String> {
+    /// Человекочитаемое имя плагина по идентификатору.
+    pub fn plugin_name(&self, id: &str) -> Option<String> {
+        self.plugins
+            .iter()
+            .find(|plugin| plugin.id == id)
+            .map(|plugin| plugin.name.clone())
+    }
+
+    /// Идентификаторы загруженных плагинов.
+    pub fn plugin_ids(&self) -> Vec<String> {
+        self.plugins.iter().map(|p| p.id.clone()).collect()
+    }
+
+    /// Идентификаторы загруженных source-плагинов.
+    pub fn source_plugin_ids(&self) -> Vec<String> {
         self.plugins
             .iter()
             .filter(|plugin| plugin.kind == PluginKind::Source)
-            .map(|plugin| plugin.name.clone())
+            .map(|plugin| plugin.id.clone())
             .collect()
     }
 
     /// Опрос source-плагина: приоритет поддержки корня или `None`.
-    pub(crate) fn probe_priority(&mut self, name: &str) -> Result<Option<i32>, PluginError> {
-        let output = self.invoke_operation(name, "probe", serde_json::json!({}))?;
+    pub(crate) fn probe_priority(&mut self, id: &str) -> Result<Option<i32>, PluginError> {
+        let output = self.invoke_operation(id, "probe", serde_json::json!({}))?;
         let value: serde_json::Value =
             serde_json::from_str(&output).map_err(|error| PluginError::Call {
-                plugin: name.to_string(),
+                plugin: id.to_string(),
                 message: error.to_string(),
             })?;
         let supported = value
@@ -550,19 +563,19 @@ impl PluginRuntime {
         Ok(Some(priority))
     }
 
-    /// Вызов экспортируемой функции загруженного плагина по имени.
-    pub fn invoke(&mut self, name: &str, input: &str) -> Result<String, PluginError> {
+    /// Вызов экспортируемой функции загруженного плагина по идентификатору.
+    pub fn invoke(&mut self, id: &str, input: &str) -> Result<String, PluginError> {
         self.plugins
             .iter_mut()
-            .find(|p| p.name == name)
-            .ok_or_else(|| PluginError::UnknownPlugin(name.to_string()))?
+            .find(|p| p.id == id)
+            .ok_or_else(|| PluginError::UnknownPlugin(id.to_string()))?
             .invoke(input)
     }
 
     /// Выполнение произвольной операции source-плагина без интерпретации payload ядром.
     pub(crate) fn invoke_operation(
         &mut self,
-        name: &str,
+        id: &str,
         operation: &str,
         payload: serde_json::Value,
     ) -> Result<String, PluginError> {
@@ -572,14 +585,15 @@ impl PluginRuntime {
             serde_json::Value::String(operation.to_string()),
         );
         request.insert("payload".to_string(), payload);
-        self.invoke(name, &serde_json::Value::Object(request).to_string())
+        self.invoke(id, &serde_json::Value::Object(request).to_string())
     }
 
     /// Декларации настроек загруженных плагинов.
     ///
     /// Для каждого плагина с непустой декларацией возвращается источник
     /// `{ owner, kind, schema }`, пригодный для opaque-передачи базовому
-    /// плагину настроек. Содержимое схемы ядро не интерпретирует.
+    /// плагину настроек. Владельцем выступает идентификатор плагина.
+    /// Содержимое схемы ядро не интерпретирует.
     pub(crate) fn settings_sources(&self) -> Vec<serde_json::Value> {
         self.plugins
             .iter()
@@ -589,7 +603,7 @@ impl PluginRuntime {
                     return None;
                 }
                 Some(serde_json::json!({
-                    "owner": plugin.name,
+                    "owner": plugin.id,
                     "kind": plugin.kind,
                     "schema": schema,
                 }))
@@ -597,12 +611,12 @@ impl PluginRuntime {
             .collect()
     }
 
-    /// Имя плагина, предоставляющего указанную capability.
+    /// Идентификатор плагина, предоставляющего указанную capability.
     pub fn plugin_providing(&self, capability: &str) -> Option<String> {
         self.plugins
             .iter()
             .find(|plugin| plugin.provides.iter().any(|value| value == capability))
-            .map(|plugin| plugin.name.clone())
+            .map(|plugin| plugin.id.clone())
     }
 
     /// Выполнение операции плагина, предоставляющего capability.
@@ -1000,20 +1014,21 @@ fn host_store_install(
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 
-/// Host-функция `store_uninstall`: удаление установленного плагина по имени.
+/// Host-функция `store_uninstall`: удаление установленного плагина по
+/// идентификатору.
 fn host_store_uninstall(
     plugin: &mut extism::CurrentPlugin,
     args: &[extism::Val],
     returns: &mut [extism::Val],
     user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
-    let name: String = plugin.memory_get_val(&args[0])?;
+    let id: String = plugin.memory_get_val(&args[0])?;
     let host = user_data.get()?;
     let state = host
         .lock()
         .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
     let root = store_root(&state)?;
-    package::uninstall_package(&name, &root)
+    package::uninstall_package(&id, &root)
         .map_err(|error| extism::Error::msg(error.to_string()))?;
     plugin
         .memory_set_val(&mut returns[0], "ok")
@@ -1079,14 +1094,15 @@ fn host_store_plugins(
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 
-/// Host-функция `store_set_enabled`: переключение активности плагина.
+/// Host-функция `store_set_enabled`: переключение активности плагина по
+/// идентификатору.
 fn host_store_set_enabled(
     plugin: &mut extism::CurrentPlugin,
     args: &[extism::Val],
     returns: &mut [extism::Val],
     user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
-    let name: String = plugin.memory_get_val(&args[0])?;
+    let id: String = plugin.memory_get_val(&args[0])?;
     let enabled_raw: String = plugin.memory_get_val(&args[1])?;
     let enabled = enabled_raw == "true";
     let host = user_data.get()?;
@@ -1098,7 +1114,7 @@ fn host_store_set_enabled(
         .lock()
         .map_err(|_| extism::Error::msg("директории плагинов недоступны"))?
         .clone();
-    if !discovery::is_disableable(&directories, &name) {
+    if !discovery::is_disableable(&directories, &id) {
         return Err(extism::Error::msg("плагин не отключаем или неизвестен"));
     }
     let root = state
@@ -1107,7 +1123,7 @@ fn host_store_set_enabled(
         .map_err(|_| extism::Error::msg("корень реестра активности недоступен"))?
         .clone()
         .ok_or_else(|| extism::Error::msg("реестр активности не настроен"))?;
-    activation::set_enabled(&root, &name, enabled).map_err(extism::Error::msg)?;
+    activation::set_enabled(&root, &id, enabled).map_err(extism::Error::msg)?;
     plugin
         .memory_set_val(&mut returns[0], "ok")
         .map_err(|err| extism::Error::msg(err.to_string()))

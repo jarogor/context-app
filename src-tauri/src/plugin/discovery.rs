@@ -10,12 +10,21 @@ use serde::Serialize;
 use crate::plugin::contract::MANIFEST_FILE_NAME;
 use crate::plugin::{PluginKind, PluginManifest};
 
-/// Имена доступных source-плагинов из указанных директорий.
+/// Доступный source-плагин, обнаруженный по манифесту.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceProvider {
+    /// Стабильный идентификатор плагина.
+    pub id: String,
+    /// Человекочитаемое имя плагина.
+    pub name: String,
+}
+
+/// Доступные source-плагины из указанных директорий.
 ///
-/// Некорректные и отсутствующие манифесты пропускаются; имена сортируются и
-/// дедуплицируются.
-pub fn discover_source_plugins(directories: &[PathBuf]) -> Vec<String> {
-    let mut names = Vec::new();
+/// Некорректные и отсутствующие манифесты пропускаются; плагины дедуплицируются
+/// по идентификатору и сортируются по идентификатору.
+pub fn discover_source_plugins(directories: &[PathBuf]) -> Vec<SourceProvider> {
+    let mut providers: Vec<SourceProvider> = Vec::new();
     for directory in directories {
         let Ok(entries) = std::fs::read_dir(directory) else {
             continue;
@@ -28,19 +37,27 @@ pub fn discover_source_plugins(directories: &[PathBuf]) -> Vec<String> {
             let Ok(manifest) = PluginManifest::load(&manifest_path) else {
                 continue;
             };
-            if manifest.kind == PluginKind::Source && !names.contains(&manifest.name) {
-                names.push(manifest.name);
+            if manifest.kind != PluginKind::Source
+                || providers.iter().any(|provider| provider.id == manifest.id)
+            {
+                continue;
             }
+            providers.push(SourceProvider {
+                id: manifest.id,
+                name: manifest.name,
+            });
         }
     }
-    names.sort();
-    names
+    providers.sort_by(|left, right| left.id.cmp(&right.id));
+    providers
 }
 
 /// Запись перечня отключаемых плагинов.
 #[derive(Debug, Clone, Serialize)]
 pub struct PluginEntry {
-    /// Имя плагина.
+    /// Идентификатор плагина.
+    pub id: String,
+    /// Человекочитаемое имя плагина.
     pub name: String,
     /// Категория плагина.
     pub kind: String,
@@ -55,7 +72,8 @@ pub struct PluginEntry {
 /// Перечень отключаемых плагинов из указанных директорий.
 ///
 /// Базовые плагины каркаса исключаются. `enabled` вычисляется по списку
-/// отключённых, `removable` — по наличию плагина в пользовательском каталоге.
+/// отключённых идентификаторов, `removable` — по расположению плагина в
+/// пользовательском каталоге.
 pub fn list_disableable(
     directories: &[PathBuf],
     user_root: Option<&Path>,
@@ -75,30 +93,31 @@ pub fn list_disableable(
             let Ok(manifest) = PluginManifest::load(&plugin_dir.join(MANIFEST_FILE_NAME)) else {
                 continue;
             };
-            if manifest.kind == PluginKind::Base || !seen.insert(manifest.name.clone()) {
+            if manifest.kind == PluginKind::Base || !seen.insert(manifest.id.clone()) {
                 continue;
             }
             let removable = user_root
-                .map(|root| root.join(&manifest.name).is_dir())
+                .map(|root| plugin_dir.starts_with(root))
                 .unwrap_or(false);
             entries.push(PluginEntry {
+                id: manifest.id.clone(),
                 name: manifest.name.clone(),
                 kind: kind_name(manifest.kind),
                 description: manifest.description.clone(),
-                enabled: !disabled.iter().any(|name| name == &manifest.name),
+                enabled: !disabled.iter().any(|id| id == &manifest.id),
                 removable,
             });
         }
     }
-    entries.sort_by(|left, right| left.name.cmp(&right.name));
+    entries.sort_by(|left, right| left.id.cmp(&right.id));
     entries
 }
 
-/// Признак, что в директориях есть отключаемый плагин с указанным именем.
-pub fn is_disableable(directories: &[PathBuf], name: &str) -> bool {
+/// Признак, что в директориях есть отключаемый плагин с указанным идентификатором.
+pub fn is_disableable(directories: &[PathBuf], id: &str) -> bool {
     list_disableable(directories, None, &[])
         .iter()
-        .any(|entry| entry.name == name)
+        .any(|entry| entry.id == id)
 }
 
 /// Строковое имя категории плагина.

@@ -38,9 +38,9 @@
   }
 
   /** Переключение активности плагина. */
-  async function setEnabled(name: string, enabled: boolean) {
+  async function setEnabled(id: string, enabled: boolean) {
     try {
-      await operation('set_enabled', { name, enabled });
+      await operation('set_enabled', { id, enabled });
       await load();
     } catch (error) {
       errorMessage = String(error);
@@ -60,9 +60,9 @@
   }
 
   /** Удаление установленного плагина. */
-  async function uninstall(name: string) {
+  async function uninstall(id: string) {
     try {
-      await operation('uninstall', { name });
+      await operation('uninstall', { id });
       await load();
     } catch (error) {
       errorMessage = String(error);

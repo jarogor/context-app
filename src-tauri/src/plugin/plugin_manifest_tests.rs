@@ -16,6 +16,7 @@ fn parses_valid_manifest() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
+        "id": "11111111-1111-4111-8111-111111111111",
         "name": "demo",
         "description": "Демонстрационный плагин",
         "module": "demo.wasm",
@@ -35,6 +36,7 @@ fn parses_valid_manifest() {
         "категория по умолчанию"
     );
     assert_eq!(manifest.name, "demo");
+    assert_eq!(manifest.id, "11111111-1111-4111-8111-111111111111");
     assert_eq!(manifest.module, "demo.wasm");
     assert_eq!(manifest.export, super::super::contract::EXPORT_FUNCTION);
     assert_eq!(
@@ -54,6 +56,7 @@ fn unknown_contract_version_is_rejected() {
     let path = write_manifest(
         r#"{
         "contract_version": 99,
+        "id": "22222222-2222-4222-8222-222222222222",
         "name": "plugin",
         "description": "x",
         "module": "p.wasm",
@@ -82,6 +85,7 @@ fn parses_plugin_capabilities() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
+        "id": "33333333-3333-4333-8333-333333333333",
         "name": "rating",
         "description": "Рейтинг",
         "module": "rating.wasm",
@@ -107,6 +111,7 @@ fn parses_base_plugin_kind() {
         r#"{
         "contract_version": 1,
         "kind": "base",
+        "id": "44444444-4444-4444-8444-444444444444",
         "name": "notifications",
         "description": "Уведомления",
         "module": "notifications.wasm",
@@ -126,6 +131,7 @@ fn unknown_plugin_kind_is_rejected() {
         r#"{
         "contract_version": 1,
         "kind": "unknown",
+        "id": "55555555-5555-4555-8555-555555555555",
         "name": "plugin",
         "description": "x",
         "module": "p.wasm",
@@ -144,6 +150,7 @@ fn manifest_without_settings_has_none() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
+        "id": "66666666-6666-4666-8666-666666666666",
         "name": "notifications",
         "description": "Уведомления",
         "module": "notifications.wasm",
@@ -165,6 +172,7 @@ fn parses_settings_declaration() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
+        "id": "77777777-7777-4777-8777-777777777777",
         "name": "notifications",
         "description": "Уведомления",
         "module": "notifications.wasm",
@@ -203,6 +211,51 @@ fn missing_fields_are_rejected() {
     assert!(
         result.is_err(),
         "манифест без обязательных полей отклоняется"
+    );
+
+    let dir = path.parent().expect("директория");
+    fs::remove_dir_all(dir).expect("очистка");
+}
+
+#[test]
+fn missing_id_is_rejected() {
+    let path = write_manifest(
+        r#"{
+        "contract_version": 1,
+        "name": "plugin",
+        "description": "x",
+        "module": "p.wasm",
+        "export": "invoke",
+        "host_functions": []
+      }"#,
+    );
+
+    let result = PluginManifest::load(&path);
+    assert!(result.is_err(), "манифест без id отклоняется");
+
+    let dir = path.parent().expect("директория");
+    fs::remove_dir_all(dir).expect("очистка");
+}
+
+#[test]
+fn invalid_id_is_rejected() {
+    let path = write_manifest(
+        r#"{
+        "contract_version": 1,
+        "id": "not-a-uuid",
+        "name": "plugin",
+        "description": "x",
+        "module": "p.wasm",
+        "export": "invoke",
+        "host_functions": []
+      }"#,
+    );
+
+    let manifest = PluginManifest::load(&path).expect("парсинг манифеста");
+    let result = manifest.validate(path.parent().expect("директория"));
+    assert!(
+        matches!(result, Err(PluginError::InvalidManifest { .. })),
+        "некорректный id отклоняется"
     );
 
     let dir = path.parent().expect("директория");
