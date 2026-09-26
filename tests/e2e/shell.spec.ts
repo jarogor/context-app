@@ -14,5 +14,5 @@ test('оболочка показывает панель и переключае
 
   await menu.getByRole('button', { name: 'Плагины' }).click();
   const store = page.frameLocator('iframe[title="Plugin store"]');
-  await expect(store.getByText('Установленные плагины')).toBeVisible();
+  await expect(store.getByRole('heading', { name: 'Плагины' })).toBeVisible();
 });

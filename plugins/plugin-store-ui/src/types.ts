@@ -1,13 +1,15 @@
-/** Описание установленного плагина, как его возвращает ядро. */
-export interface InstalledPlugin {
+/** Плагин в перечне стора с признаком активности. */
+export interface PluginEntry {
   /** Имя плагина. */
   name: string;
   /** Категория плагина. */
   kind: string;
-  /** Версия контракта плагина. */
-  contract_version: number;
   /** Описание плагина. */
   description: string;
+  /** Включён ли плагин. */
+  enabled: boolean;
+  /** Можно ли удалить плагин. */
+  removable: boolean;
 }
 
 /** Вид провайдера стора. */

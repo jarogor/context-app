@@ -15,11 +15,12 @@ use crate::plugin::contract::{
     EXPORT_FUNCTION, HOST_EMIT_EVENT, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT,
     HOST_FS_WRITE_BYTES, HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION,
     HOST_NOW_FUNCTION, HOST_OPEN_FILE, HOST_STATE_DELETE, HOST_STATE_READ, HOST_STATE_WRITE,
-    HOST_STORE_INSPECT, HOST_STORE_INSTALL, HOST_STORE_INSTALLED, HOST_STORE_UNINSTALL,
-    MANIFEST_FILE_NAME, STORE_HOST_FUNCTIONS,
+    HOST_STORE_INSPECT, HOST_STORE_INSTALL, HOST_STORE_INSTALLED, HOST_STORE_PLUGINS,
+    HOST_STORE_SET_ENABLED, HOST_STORE_UNINSTALL, MANIFEST_FILE_NAME, STORE_HOST_FUNCTIONS,
 };
 use crate::plugin::{
-    get_bus, package, LoadedPlugin, PluginError, PluginEvent, PluginKind, PluginManifest,
+    activation, discovery, get_bus, package, LoadedPlugin, PluginError, PluginEvent, PluginKind,
+    PluginManifest,
 };
 
 /// Плагинная подсистема приложения.
@@ -32,6 +33,10 @@ pub struct PluginRuntime {
     storage_root: Arc<Mutex<Option<PathBuf>>>,
     /// Корень пользовательского каталога плагинов для стора.
     plugin_store_root: Arc<Mutex<Option<PathBuf>>>,
+    /// Корень реестра активности плагинов.
+    activation_root: Arc<Mutex<Option<PathBuf>>>,
+    /// Директории, по которым строится перечень плагинов стора.
+    catalog_dirs: Arc<Mutex<Vec<PathBuf>>>,
     /// Разрешена ли запись в sandbox.
     sandbox_writable: Arc<Mutex<bool>>,
 }
@@ -48,6 +53,10 @@ struct HostState {
     storage_root: Arc<Mutex<Option<PathBuf>>>,
     /// Корень пользовательского каталога плагинов для стора.
     plugin_store_root: Arc<Mutex<Option<PathBuf>>>,
+    /// Корень реестра активности плагинов.
+    activation_root: Arc<Mutex<Option<PathBuf>>>,
+    /// Директории, из которых загружены плагины.
+    catalog_dirs: Arc<Mutex<Vec<PathBuf>>>,
     /// Разрешена ли запись в sandbox.
     sandbox_writable: Arc<Mutex<bool>>,
 }
@@ -60,6 +69,8 @@ impl PluginRuntime {
             sandbox_root: Arc::new(Mutex::new(PathBuf::from("."))),
             storage_root: Arc::new(Mutex::new(None)),
             plugin_store_root: Arc::new(Mutex::new(None)),
+            activation_root: Arc::new(Mutex::new(None)),
+            catalog_dirs: Arc::new(Mutex::new(Vec::new())),
             sandbox_writable: Arc::new(Mutex::new(false)),
         }
     }
@@ -77,7 +88,7 @@ impl PluginRuntime {
         directories: &[PathBuf],
         sandbox_root: impl Into<PathBuf>,
     ) -> Result<Self, PluginError> {
-        Self::load_kinds(directories, sandbox_root, None)
+        Self::load_filtered(directories, sandbox_root, None, &[])
     }
 
     /// Загрузка плагинов выбранных категорий из указанных директорий.
@@ -89,9 +100,23 @@ impl PluginRuntime {
         sandbox_root: impl Into<PathBuf>,
         kinds: Option<&[PluginKind]>,
     ) -> Result<Self, PluginError> {
+        Self::load_filtered(directories, sandbox_root, kinds, &[])
+    }
+
+    /// Загрузка плагинов с учётом отключённых.
+    ///
+    /// Отключённые плагины (кроме базовых каркаса) не загружаются.
+    pub(crate) fn load_filtered(
+        directories: &[PathBuf],
+        sandbox_root: impl Into<PathBuf>,
+        kinds: Option<&[PluginKind]>,
+        disabled: &[String],
+    ) -> Result<Self, PluginError> {
         let sandbox_root = Arc::new(Mutex::new(sandbox_root.into()));
         let storage_root = Arc::new(Mutex::new(None));
         let plugin_store_root = Arc::new(Mutex::new(None));
+        let activation_root = Arc::new(Mutex::new(None));
+        let catalog_dirs = Arc::new(Mutex::new(directories.to_vec()));
         let sandbox_writable = Arc::new(Mutex::new(false));
         let mut plugins = Vec::new();
         let mut seen = std::collections::HashSet::new();
@@ -110,9 +135,16 @@ impl PluginRuntime {
                     &sandbox_root,
                     &storage_root,
                     &plugin_store_root,
+                    &activation_root,
+                    &catalog_dirs,
                     &sandbox_writable,
                 ) {
                     Ok(plugin) => {
+                        if plugin.kind != PluginKind::Base
+                            && disabled.iter().any(|name| name == &plugin.name)
+                        {
+                            continue;
+                        }
                         if let Some(kinds) = kinds {
                             if !kinds.contains(&plugin.kind) {
                                 continue;
@@ -134,31 +166,41 @@ impl PluginRuntime {
             sandbox_root,
             storage_root,
             plugin_store_root,
+            activation_root,
+            catalog_dirs,
             sandbox_writable,
         })
     }
 
     /// Создание host-состояния для регистрации host-функций.
+    #[allow(clippy::too_many_arguments)]
     fn host_state(
         sandbox_root: &Arc<Mutex<PathBuf>>,
         storage_root: &Arc<Mutex<Option<PathBuf>>>,
         plugin_store_root: &Arc<Mutex<Option<PathBuf>>>,
+        activation_root: &Arc<Mutex<Option<PathBuf>>>,
+        catalog_dirs: &Arc<Mutex<Vec<PathBuf>>>,
         sandbox_writable: &Arc<Mutex<bool>>,
     ) -> HostState {
         HostState {
             sandbox_root: Arc::clone(sandbox_root),
             storage_root: Arc::clone(storage_root),
             plugin_store_root: Arc::clone(plugin_store_root),
+            activation_root: Arc::clone(activation_root),
+            catalog_dirs: Arc::clone(catalog_dirs),
             sandbox_writable: Arc::clone(sandbox_writable),
         }
     }
 
     /// Загрузка одного плагина из его директории.
+    #[allow(clippy::too_many_arguments)]
     fn load_plugin_dir(
         dir: &Path,
         sandbox_root: &Arc<Mutex<PathBuf>>,
         storage_root: &Arc<Mutex<Option<PathBuf>>>,
         plugin_store_root: &Arc<Mutex<Option<PathBuf>>>,
+        activation_root: &Arc<Mutex<Option<PathBuf>>>,
+        catalog_dirs: &Arc<Mutex<Vec<PathBuf>>>,
         sandbox_writable: &Arc<Mutex<bool>>,
     ) -> Result<LoadedPlugin, PluginError> {
         let manifest = PluginManifest::load(&dir.join(MANIFEST_FILE_NAME)).map_err(|e| {
@@ -193,6 +235,8 @@ impl PluginRuntime {
             sandbox_root,
             storage_root,
             plugin_store_root,
+            activation_root,
+            catalog_dirs,
             sandbox_writable,
         );
         let mut builder = PluginBuilder::new(extism_manifest)
@@ -322,6 +366,20 @@ impl PluginRuntime {
                     UserData::new(host_state.clone()),
                     host_store_installed,
                 ),
+                HOST_STORE_PLUGINS => builder.with_function(
+                    HOST_STORE_PLUGINS,
+                    [],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_store_plugins,
+                ),
+                HOST_STORE_SET_ENABLED => builder.with_function(
+                    HOST_STORE_SET_ENABLED,
+                    [ValType::I64, ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_store_set_enabled,
+                ),
                 _ => builder,
             };
         }
@@ -427,6 +485,24 @@ impl PluginRuntime {
             .lock()
             .expect("не удалось захватить корень стора плагинов");
         *current = Some(root);
+    }
+
+    /// Установка корня реестра активности плагинов.
+    pub fn set_activation_root(&mut self, root: PathBuf) {
+        let mut current = self
+            .activation_root
+            .lock()
+            .expect("не удалось захватить корень реестра активности");
+        *current = Some(root);
+    }
+
+    /// Установка директорий для перечня плагинов стора.
+    pub fn set_catalog_dirs(&mut self, directories: Vec<PathBuf>) {
+        let mut current = self
+            .catalog_dirs
+            .lock()
+            .expect("не удалось захватить директории перечня плагинов");
+        *current = directories;
     }
 
     /// Разрешение записи в активный plugin-корень.
@@ -962,6 +1038,78 @@ fn host_store_installed(
         serde_json::to_string(&list).map_err(|error| extism::Error::msg(error.to_string()))?;
     plugin
         .memory_set_val(&mut returns[0], &value)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `store_plugins`: перечень отключаемых плагинов.
+fn host_store_plugins(
+    plugin: &mut extism::CurrentPlugin,
+    _args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let directories = state
+        .catalog_dirs
+        .lock()
+        .map_err(|_| extism::Error::msg("директории плагинов недоступны"))?
+        .clone();
+    let user_root = state
+        .plugin_store_root
+        .lock()
+        .map_err(|_| extism::Error::msg("корень стора недоступен"))?
+        .clone();
+    let activation_root = state
+        .activation_root
+        .lock()
+        .map_err(|_| extism::Error::msg("корень реестра активности недоступен"))?
+        .clone();
+    let disabled = match activation_root {
+        Some(root) => activation::load(&root).map_err(extism::Error::msg)?,
+        None => Vec::new(),
+    };
+    let entries = discovery::list_disableable(&directories, user_root.as_deref(), &disabled);
+    let value =
+        serde_json::to_string(&entries).map_err(|error| extism::Error::msg(error.to_string()))?;
+    plugin
+        .memory_set_val(&mut returns[0], &value)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `store_set_enabled`: переключение активности плагина.
+fn host_store_set_enabled(
+    plugin: &mut extism::CurrentPlugin,
+    args: &[extism::Val],
+    returns: &mut [extism::Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let name: String = plugin.memory_get_val(&args[0])?;
+    let enabled_raw: String = plugin.memory_get_val(&args[1])?;
+    let enabled = enabled_raw == "true";
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let directories = state
+        .catalog_dirs
+        .lock()
+        .map_err(|_| extism::Error::msg("директории плагинов недоступны"))?
+        .clone();
+    if !discovery::is_disableable(&directories, &name) {
+        return Err(extism::Error::msg("плагин не отключаем или неизвестен"));
+    }
+    let root = state
+        .activation_root
+        .lock()
+        .map_err(|_| extism::Error::msg("корень реестра активности недоступен"))?
+        .clone()
+        .ok_or_else(|| extism::Error::msg("реестр активности не настроен"))?;
+    activation::set_enabled(&root, &name, enabled).map_err(extism::Error::msg)?;
+    plugin
+        .memory_set_val(&mut returns[0], "ok")
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 

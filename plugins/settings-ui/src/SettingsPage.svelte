@@ -111,12 +111,14 @@
                 <label class="flex items-center gap-[var(--space-2)] text-[13px]">
                   <Checkbox
                     checked={drafts[section.id]?.[field.key] === 'true'}
-                    onchange={(event) =>
+                    onchange={(event) => {
                       setDraft(
                         section.id,
                         field.key,
                         event.currentTarget.checked ? 'true' : 'false',
-                      )}
+                      );
+                      void save(section);
+                    }}
                   />
                   <span>{field.title}</span>
                 </label>
@@ -136,7 +138,10 @@
                     id={`${section.id}-${field.key}`}
                     value={drafts[section.id]?.[field.key] ?? ''}
                     class="max-w-[420px]"
-                    onchange={(event) => setDraft(section.id, field.key, event.currentTarget.value)}
+                    onchange={(event) => {
+                      setDraft(section.id, field.key, event.currentTarget.value);
+                      void save(section);
+                    }}
                   >
                     {#each field.options ?? [] as option}
                       <option value={String(option.value)}>{option.title}</option>

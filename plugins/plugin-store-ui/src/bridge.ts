@@ -58,6 +58,14 @@ export function pickPackage(): Promise<string | null> {
   });
 }
 
+/** Признак неприменённых изменений активности плагинов. */
+export function pendingChanges(): Promise<{ pending: boolean }> {
+  return request<{ pending: boolean }>('invoke', {
+    command: 'plugin_activation_pending',
+    payload: {},
+  });
+}
+
 /** Подписка на прикладное событие, транслируемое оболочкой. */
 export async function listen<T = unknown>(
   event: string,

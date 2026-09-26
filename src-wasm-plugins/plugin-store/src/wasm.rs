@@ -7,7 +7,7 @@ use base64::Engine;
 use extism_pdk::{host_fn, plugin_fn, FnResult};
 
 use crate::host::Host;
-use crate::models::Installed;
+use crate::models::{Installed, PluginEntry};
 
 /// Host-функции, доступные плагину стора.
 #[host_fn]
@@ -28,6 +28,10 @@ extern "ExtismHost" {
     fn store_uninstall(name: String) -> String;
     /// Список установленных плагинов.
     fn store_installed() -> String;
+    /// Перечень отключаемых плагинов.
+    fn store_plugins() -> String;
+    /// Переключение активности плагина.
+    fn store_set_enabled(name: String, enabled: String) -> String;
 }
 
 /// Реализация `Host` поверх host-функций приложения.
@@ -55,6 +59,17 @@ impl Host for HostEnv {
     fn store_installed(&self) -> Result<Vec<Installed>, String> {
         let value = unsafe { store_installed() }.map_err(|error| error.to_string())?;
         serde_json::from_str(&value).map_err(|error| error.to_string())
+    }
+
+    fn store_plugins(&self) -> Result<Vec<PluginEntry>, String> {
+        let value = unsafe { store_plugins() }.map_err(|error| error.to_string())?;
+        serde_json::from_str(&value).map_err(|error| error.to_string())
+    }
+
+    fn store_set_enabled(&self, name: &str, enabled: bool) -> Result<(), String> {
+        unsafe { store_set_enabled(name.to_string(), enabled.to_string()) }
+            .map(|_| ())
+            .map_err(|error| error.to_string())
     }
 
     fn read_file_text(&self, path: &str) -> Result<String, String> {

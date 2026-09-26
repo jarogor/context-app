@@ -38,3 +38,38 @@ fn missing_directory_is_skipped() {
     assert!(names.is_empty());
     test_util::cleanup(&dir);
 }
+
+#[test]
+fn lists_disableable_with_flags() {
+    let dir = test_util::test_root("plugin-discovery-list");
+    let bundled = dir.join("bundled");
+    let user = dir.join("user");
+    std::fs::create_dir_all(&bundled).expect("bundled");
+    std::fs::create_dir_all(&user).expect("user");
+    write_manifest(&bundled, "calibre", "source");
+    write_manifest(&bundled, "settings", "base");
+    write_manifest(&user, "demo", "extension");
+
+    let entries = list_disableable(
+        &[bundled.clone(), user.clone()],
+        Some(user.as_path()),
+        &["calibre".to_string()],
+    );
+
+    let names = entries
+        .iter()
+        .map(|entry| entry.name.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(names, vec!["calibre", "demo"], "базовые исключены");
+    let calibre = entries
+        .iter()
+        .find(|entry| entry.name == "calibre")
+        .unwrap();
+    assert_eq!(calibre.kind, "source");
+    assert!(!calibre.enabled, "отключён по реестру");
+    assert!(!calibre.removable, "поставляемый не удаляется");
+    let demo = entries.iter().find(|entry| entry.name == "demo").unwrap();
+    assert!(demo.enabled);
+    assert!(demo.removable, "пользовательский удаляется");
+    test_util::cleanup(&dir);
+}

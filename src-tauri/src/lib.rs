@@ -30,10 +30,16 @@ pub fn run() {
             let user_plugins_dir = resolve_user_plugins_root(app_data_dir.as_deref());
             let app_state_root = resolve_app_state_root(app_data_dir.as_deref());
 
+            let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let bundled_base = resource_dir.join(BASE_PLUGINS_DIR_NAME);
             let mut app_host =
                 AppPluginHost::load(&base_plugin_directories(&bundled_base), base_storage_root())?;
             app_host.set_plugin_store_root(user_plugins_dir.clone());
+            app_host.set_activation_root(app_state_root.clone());
+            app_host.set_catalog_dirs(session_plugin_directories(
+                &bundled_plugins_dir,
+                &user_plugins_dir,
+            ));
             let _ = app_host.reset_notifications();
             for name in app_host.plugin_names() {
                 app_host.notify_technical(
@@ -49,9 +55,12 @@ pub fn run() {
             }
 
             let root = PathBuf::from(".");
-            let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let mut host = PluginSession::idle(root, bundled_plugins_dir);
             host.set_user_plugins_dir(user_plugins_dir);
+            host.set_disabled_plugins(
+                crate::plugin::activation::load(&app_state_root).unwrap_or_default(),
+            );
+            host.mark_activation_applied();
             for name in host.runtime().plugin_names() {
                 app_host.notify_technical(
                     format!("Плагин библиотеки загружен: {name}"),
@@ -96,6 +105,7 @@ pub fn run() {
             commands::select_source_library,
             commands::library_history_list,
             commands::library_history_forget,
+            commands::plugin_activation_pending,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -120,4 +130,17 @@ fn base_storage_root() -> PathBuf {
         .expect("родитель папки src-tauri")
         .join("dev_data")
         .join(BASE_PLUGINS_DIR_NAME)
+}
+
+/// Директории session-плагинов для перечня стора: поставляемая, пользовательская
+/// и ресурсная для разработки.
+fn session_plugin_directories(bundled: &Path, user: &Path) -> Vec<PathBuf> {
+    let mut directories = vec![bundled.to_path_buf(), user.to_path_buf()];
+    let development = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join(PLUGINS_DIR_NAME);
+    if development != *bundled && development.is_dir() {
+        directories.push(development);
+    }
+    directories
 }

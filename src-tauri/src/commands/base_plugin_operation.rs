@@ -20,5 +20,10 @@ pub fn invoke_base_plugin_operation(
         .app_host
         .invoke_operation(&plugin, &operation, payload)
         .map_err(|error| error.to_string())?;
+
+    // Стор мог изменить активность плагинов — обновляем набор сессии.
+    let disabled = crate::plugin::activation::load(&state.app_state_root).unwrap_or_default();
+    state.session.set_disabled_plugins(disabled);
+
     serde_json::from_str(&response).map_err(|error| error.to_string())
 }

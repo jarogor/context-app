@@ -74,6 +74,16 @@ impl AppPluginHost {
         self.runtime.set_plugin_store_root(root);
     }
 
+    /// Установка корня реестра активности плагинов.
+    pub fn set_activation_root(&mut self, root: PathBuf) {
+        self.runtime.set_activation_root(root);
+    }
+
+    /// Установка директорий для перечня плагинов стора.
+    pub fn set_catalog_dirs(&mut self, directories: Vec<PathBuf>) {
+        self.runtime.set_catalog_dirs(directories);
+    }
+
     /// Выполнение операции базового плагина без интерпретации payload ядром.
     pub fn invoke_operation(
         &mut self,

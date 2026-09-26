@@ -1,5 +1,6 @@
 //! Плагинная подсистема на основе WASM и Extism host runtime.
 
+pub mod activation;
 pub mod app_host;
 pub mod app_state;
 pub mod bus;

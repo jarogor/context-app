@@ -42,16 +42,24 @@ pub struct HistoryEntry {
     pub available: bool,
 }
 
-/// Список истории, отфильтрованный по доступным провайдерам.
-pub fn list(root: &Path, providers: &[String]) -> Result<Vec<HistoryEntry>, String> {
+/// Список истории, отфильтрованный по доступным и включённым провайдерам.
+///
+/// `available` — обнаруженные source-плагины; `disabled` — отключённые. Записи
+/// отключённых или отсутствующих провайдеров сохраняются, но не выдаются.
+pub fn list(
+    root: &Path,
+    available: &[String],
+    disabled: &[String],
+) -> Result<Vec<HistoryEntry>, String> {
     let file = load(root)?;
     Ok(file
         .entries
         .into_iter()
         .filter(|record| {
-            providers
+            available
                 .iter()
                 .any(|provider| provider == &record.provider)
+                && !disabled.iter().any(|provider| provider == &record.provider)
         })
         .map(|record| HistoryEntry {
             available: Path::new(&record.path).is_dir(),

@@ -344,10 +344,13 @@ fn plugin_store_root_reaches_host_state() {
     let dir = test_util::test_root("plugin-runtime-store-root");
     let mut runtime = PluginRuntime::empty();
     runtime.set_plugin_store_root(dir.clone());
+    let plugin_dirs = Arc::new(Mutex::new(Vec::new()));
     let state = PluginRuntime::host_state(
         &runtime.sandbox_root,
         &runtime.storage_root,
         &runtime.plugin_store_root,
+        &runtime.activation_root,
+        &plugin_dirs,
         &runtime.sandbox_writable,
     );
     let resolved = store_root(&state).expect("корень стора доступен");
@@ -358,10 +361,13 @@ fn plugin_store_root_reaches_host_state() {
 #[test]
 fn plugin_store_root_absent_without_configuration() {
     let runtime = PluginRuntime::empty();
+    let plugin_dirs = Arc::new(Mutex::new(Vec::new()));
     let state = PluginRuntime::host_state(
         &runtime.sandbox_root,
         &runtime.storage_root,
         &runtime.plugin_store_root,
+        &runtime.activation_root,
+        &plugin_dirs,
         &runtime.sandbox_writable,
     );
     assert!(
@@ -422,4 +428,60 @@ fn earlier_directory_wins_on_name_conflict() {
     );
     cleanup(&user);
     cleanup(&bundled);
+}
+
+/// Манифест базового плагина для проверки фильтра активности.
+const MANIFEST_BASE: &str = r#"{
+    "contract_version": 1,
+    "kind": "base",
+    "name": "test-plugin",
+    "description": "Тестовый базовый плагин",
+    "module": "plugin.wasm",
+    "export": "invoke",
+    "host_functions": []
+  }"#;
+
+#[test]
+fn disabled_plugin_is_skipped() {
+    let dir = setup_plugins_root("disabled", &compile_wat(WAT_WITH_INVOKE), MANIFEST_JSON);
+    let root = dir.clone();
+
+    let runtime = PluginRuntime::load_filtered(
+        std::slice::from_ref(&dir),
+        root.clone(),
+        None,
+        &["test-plugin".to_string()],
+    )
+    .expect("загрузка runtime");
+
+    assert!(
+        runtime.plugin_names().is_empty(),
+        "отключённый плагин не загружается"
+    );
+    cleanup(&root);
+}
+
+#[test]
+fn disabled_base_plugin_still_loads() {
+    let dir = setup_plugins_root(
+        "disabled-base",
+        &compile_wat(WAT_WITH_INVOKE),
+        MANIFEST_BASE,
+    );
+    let root = dir.clone();
+
+    let runtime = PluginRuntime::load_filtered(
+        std::slice::from_ref(&dir),
+        root.clone(),
+        None,
+        &["test-plugin".to_string()],
+    )
+    .expect("загрузка runtime");
+
+    assert_eq!(
+        runtime.plugin_names(),
+        vec!["test-plugin"],
+        "базовый плагин загружается несмотря на реестр"
+    );
+    cleanup(&root);
 }

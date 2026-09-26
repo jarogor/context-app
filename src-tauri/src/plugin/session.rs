@@ -13,6 +13,8 @@ pub struct PluginSession {
     runtime: PluginRuntime,
     bundled_plugins_dir: PathBuf,
     user_plugins_dir: Option<PathBuf>,
+    disabled_plugins: Vec<String>,
+    applied_disabled: Vec<String>,
 }
 
 impl PluginSession {
@@ -24,12 +26,41 @@ impl PluginSession {
             runtime: PluginRuntime::empty(),
             bundled_plugins_dir: bundled,
             user_plugins_dir: None,
+            disabled_plugins: Vec::new(),
+            applied_disabled: Vec::new(),
         }
     }
 
     /// Настройка пользовательского каталога плагинов приложения.
     pub fn set_user_plugins_dir(&mut self, dir: PathBuf) {
         self.user_plugins_dir = Some(dir);
+    }
+
+    /// Настройка списка отключённых плагинов.
+    pub fn set_disabled_plugins(&mut self, disabled: Vec<String>) {
+        self.disabled_plugins = disabled;
+    }
+
+    /// Пометка текущего набора активности применённым.
+    ///
+    /// Используется на старте: сохранённый реестр уже действует, ждать
+    /// перезагрузки нечего.
+    pub fn mark_activation_applied(&mut self) {
+        self.applied_disabled = self.disabled_plugins.clone();
+    }
+
+    /// Есть ли не применённые изменения активности плагинов.
+    ///
+    /// Сравнивает желаемый набор отключённых с набором, применённым при
+    /// последней загрузке плагинов.
+    pub fn activation_pending(&self) -> bool {
+        let mut desired = self.disabled_plugins.clone();
+        let mut applied = self.applied_disabled.clone();
+        desired.sort();
+        desired.dedup();
+        applied.sort();
+        applied.dedup();
+        desired != applied
     }
 
     /// Настройка активного plugin и его sandbox.
@@ -163,10 +194,12 @@ impl PluginSession {
             &self.bundled_plugins_dir,
             &storage_root,
             self.user_plugins_dir.as_deref(),
+            &self.disabled_plugins,
         )?;
         self.runtime.set_sandbox_root(root.to_path_buf());
         self.runtime.set_sandbox_writable(writable);
         self.root = root.to_path_buf();
+        self.applied_disabled = self.disabled_plugins.clone();
         Ok(())
     }
 
@@ -175,9 +208,10 @@ impl PluginSession {
         bundled: &Path,
         storage_root: &Path,
         user_plugins: Option<&Path>,
+        disabled: &[String],
     ) -> Result<PluginRuntime, PluginError> {
         let directories = plugin_directories(root, bundled, user_plugins);
-        let mut runtime = PluginRuntime::load(&directories, root)?;
+        let mut runtime = PluginRuntime::load_filtered(&directories, root, None, disabled)?;
         runtime.set_storage_root(storage_root.to_path_buf());
         Ok(runtime)
     }

@@ -36,5 +36,11 @@ pub fn select_source_library(
 
     let _ = state.app_host.drain_and_deliver();
 
+    // Сессия перезагружена — сообщаем стору, что применённое состояние обновилось.
+    crate::plugin::relay::emit(
+        "plugin-store:changed",
+        serde_json::json!({ "reason": "session" }),
+    );
+
     Ok(serde_json::json!({ "provider": provider }))
 }

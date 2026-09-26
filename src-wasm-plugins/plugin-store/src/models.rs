@@ -50,6 +50,21 @@ pub struct Package {
     pub sha256: Option<String>,
 }
 
+/// Запись перечня отключаемых плагинов.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginEntry {
+    /// Имя плагина.
+    pub name: String,
+    /// Категория плагина.
+    pub kind: String,
+    /// Описание плагина.
+    pub description: String,
+    /// Включён ли плагин.
+    pub enabled: bool,
+    /// Можно ли удалить плагин.
+    pub removable: bool,
+}
+
 /// Индекс пакетов файлового стора.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StoreIndex {

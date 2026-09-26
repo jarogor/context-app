@@ -23,6 +23,9 @@
   /** Число непрочитанных уведомлений, полученное от frontend-плагина. */
   let unreadCount = $state(0);
 
+  /** Есть ли неприменённые изменения активности плагинов. */
+  let activationPending = $state(false);
+
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
     settingsOpen ? (settingsSection === 'plugins' ? 'Плагины' : 'Настройки') : 'Библиотека',
@@ -49,6 +52,13 @@
       unreadCount = message.value;
     }
   }
+
+  /** Обработка сообщений плагина стора. */
+  function handleStoreMessage(message: PluginMessage) {
+    if (message.type === 'activation-pending') {
+      activationPending = Boolean(message.value);
+    }
+  }
 </script>
 
 <div class="flex h-full flex-col">
@@ -57,6 +67,15 @@
   >
     <span class="text-base font-bold text-[var(--color-primary)]">BookLib</span>
     <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
+    <div class="flex flex-1 justify-center">
+      {#if activationPending}
+        <span
+          class="rounded-[var(--radius-md)] border border-[var(--color-warning)] px-[var(--space-3)] py-[2px] text-[13px] text-[var(--color-warning)]"
+        >
+          Изменения плагинов применятся после перезапуска приложения или переоткрытия библиотеки
+        </span>
+      {/if}
+    </div>
     <div class="ml-auto flex items-center gap-[var(--space-2)]">
       <Button
         variant="secondary"
@@ -123,7 +142,11 @@
             <PluginFrame src="/plugins/settings-ui/index.html" title="Settings plugin" />
           </div>
           <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'plugins'}>
-            <PluginFrame src="/plugins/plugin-store-ui/index.html" title="Plugin store" />
+            <PluginFrame
+              src="/plugins/plugin-store-ui/index.html"
+              title="Plugin store"
+              onMessage={handleStoreMessage}
+            />
           </div>
         </div>
       </div>

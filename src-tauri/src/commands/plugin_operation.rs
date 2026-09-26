@@ -30,6 +30,10 @@ pub fn invoke_plugin_operation(
 
         let sources = state.session.settings_sources();
         let _ = state.app_host.refresh_settings_registry(&sources);
+        crate::plugin::relay::emit(
+            "plugin-store:changed",
+            serde_json::json!({ "reason": "session" }),
+        );
     }
 
     let response = state

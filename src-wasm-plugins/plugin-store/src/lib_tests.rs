@@ -1,5 +1,6 @@
 use super::*;
 use crate::host::Host;
+use crate::models::PluginEntry;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
@@ -8,6 +9,7 @@ use std::path::Path;
 struct FakeHost {
     installed: RefCell<Vec<Installed>>,
     installed_paths: RefCell<Vec<String>>,
+    plugins: RefCell<Vec<PluginEntry>>,
     state: RefCell<HashMap<String, String>>,
     files: HashMap<String, String>,
     events: RefCell<Vec<String>>,
@@ -19,6 +21,7 @@ impl FakeHost {
         Self {
             installed: RefCell::new(Vec::new()),
             installed_paths: RefCell::new(Vec::new()),
+            plugins: RefCell::new(Vec::new()),
             state: RefCell::new(HashMap::new()),
             files: files
                 .into_iter()
@@ -26,6 +29,18 @@ impl FakeHost {
                 .collect(),
             events: RefCell::new(Vec::new()),
         }
+    }
+
+    /// Добавление плагина в перечень.
+    fn with_plugin(self, name: &str, enabled: bool, removable: bool) -> Self {
+        self.plugins.borrow_mut().push(PluginEntry {
+            name: name.to_string(),
+            kind: "source".to_string(),
+            description: "тест".to_string(),
+            enabled,
+            removable,
+        });
+        self
     }
 
     /// Представление плагина, извлекаемое из пути к пакету.
@@ -67,6 +82,19 @@ impl Host for FakeHost {
 
     fn store_installed(&self) -> Result<Vec<Installed>, String> {
         Ok(self.installed.borrow().clone())
+    }
+
+    fn store_plugins(&self) -> Result<Vec<PluginEntry>, String> {
+        Ok(self.plugins.borrow().clone())
+    }
+
+    fn store_set_enabled(&self, name: &str, enabled: bool) -> Result<(), String> {
+        let mut plugins = self.plugins.borrow_mut();
+        let Some(entry) = plugins.iter_mut().find(|entry| entry.name == name) else {
+            return Err(format!("плагин {name} не отключаем"));
+        };
+        entry.enabled = enabled;
+        Ok(())
     }
 
     fn read_file_text(&self, path: &str) -> Result<String, String> {
@@ -276,4 +304,42 @@ fn install_from_store_network_is_rejected() {
         handle(&host, &input).is_err(),
         "сетевая установка не поддерживается"
     );
+}
+
+#[test]
+fn plugins_lists_catalog() {
+    let host = FakeHost::new(vec![]).with_plugin("calibre", true, false);
+
+    let response = call(&host, "plugins", json!({}));
+
+    assert_eq!(response["plugins"][0]["name"], "calibre");
+    assert_eq!(response["plugins"][0]["enabled"], true);
+    assert_eq!(response["plugins"][0]["removable"], false);
+}
+
+#[test]
+fn set_enabled_toggles_and_emits() {
+    let host = FakeHost::new(vec![]).with_plugin("calibre", true, false);
+
+    let response = call(&host, "set_enabled", json!({ "name": "calibre", "enabled": false }));
+
+    assert_eq!(response["enabled"], false);
+    let listed = call(&host, "plugins", json!({}));
+    assert_eq!(listed["plugins"][0]["enabled"], false);
+    assert!(
+        host.events.borrow().iter().any(|event| event.contains(EVENT_CHANGED)),
+        "событие об изменении активности опубликовано"
+    );
+}
+
+#[test]
+fn set_enabled_unknown_is_error() {
+    let host = FakeHost::new(vec![]);
+    let input = json!({
+        "action": "set_enabled",
+        "payload": { "name": "missing", "enabled": false }
+    })
+    .to_string();
+
+    assert!(handle(&host, &input).is_err());
 }

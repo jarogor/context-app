@@ -3,7 +3,7 @@
 //! Позволяет держать логику стора независимой от host-функций и покрывать её
 //! тестами с подставным окружением.
 
-use crate::models::Installed;
+use crate::models::{Installed, PluginEntry};
 
 /// Операции приложения, доступные плагину стора.
 pub trait Host {
@@ -15,6 +15,10 @@ pub trait Host {
     fn store_uninstall(&self, name: &str) -> Result<(), String>;
     /// Список установленных плагинов.
     fn store_installed(&self) -> Result<Vec<Installed>, String>;
+    /// Перечень отключаемых плагинов.
+    fn store_plugins(&self) -> Result<Vec<PluginEntry>, String>;
+    /// Переключение активности плагина.
+    fn store_set_enabled(&self, name: &str, enabled: bool) -> Result<(), String>;
     /// Чтение текстового файла по пути.
     fn read_file_text(&self, path: &str) -> Result<String, String>;
     /// Чтение служебного состояния по ключу.

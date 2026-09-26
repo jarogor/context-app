@@ -3,6 +3,7 @@
 pub mod base_plugin_operation;
 pub mod library_history_forget;
 pub mod library_history_list;
+pub mod plugin_activation_pending;
 pub mod plugin_operation;
 pub mod select_source_library;
 
@@ -25,3 +26,7 @@ pub use library_history_list::library_history_list;
 pub use select_source_library::__cmd__select_source_library;
 pub use select_source_library::__tauri_command_name_select_source_library;
 pub use select_source_library::select_source_library;
+
+pub use plugin_activation_pending::__cmd__plugin_activation_pending;
+pub use plugin_activation_pending::__tauri_command_name_plugin_activation_pending;
+pub use plugin_activation_pending::plugin_activation_pending;

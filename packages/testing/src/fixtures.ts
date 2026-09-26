@@ -34,6 +34,22 @@ function baseOperation(payload: unknown): unknown {
   if (message.plugin === 'plugin-store' && message.operation === 'list') {
     return { plugins: [] };
   }
+  if (message.plugin === 'plugin-store' && message.operation === 'plugins') {
+    return {
+      plugins: [
+        {
+          name: 'calibre',
+          kind: 'source',
+          description: 'Плагин библиотеки Calibre',
+          enabled: true,
+          removable: false,
+        },
+      ],
+    };
+  }
+  if (message.plugin === 'plugin-store' && message.operation === 'set_enabled') {
+    return { enabled: true };
+  }
   if (message.plugin === 'plugin-store' && message.operation === 'stores_list') {
     return { stores: [] };
   }
@@ -74,6 +90,7 @@ export function defaultMockConfig(): MockBridgeConfig {
       invoke_base_plugin_operation: baseOperation,
       invoke_plugin_operation: pluginOperation,
       select_source_library: () => ({ provider: 'library' }),
+      plugin_activation_pending: () => ({ pending: false }),
       library_history_list: () => ({
         entries: [{ path: '/demo-library', provider: 'library', available: true }],
       }),

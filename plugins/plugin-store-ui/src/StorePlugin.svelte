@@ -1,24 +1,47 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { InstalledPlugin, Store, StorePackage } from './types';
-  import { listen, operation, pickPackage } from './bridge';
+  import type { PluginEntry, Store, StorePackage } from './types';
+  import { listen, operation, pendingChanges, pickPackage } from './bridge';
   import StorePage from './StorePage.svelte';
 
-  let plugins: InstalledPlugin[] = $state([]);
+  let plugins: PluginEntry[] = $state([]);
   let stores: Store[] = $state([]);
   let packages: StorePackage[] = $state([]);
   let unsupported: string = $state('');
   let errorMessage: string = $state('');
-  let notice: string = $state('');
 
-  /** Загрузка установленных плагинов и реестра сторов. */
+  /** Сообщение оболочке о наличии неприменённых изменений активности. */
+  async function publishPending() {
+    try {
+      const { pending } = await pendingChanges();
+      window.parent.postMessage(
+        { channel: 'booklib-plugin', type: 'activation-pending', value: pending },
+        '*',
+      );
+    } catch {
+      // Отсутствие признака не мешает работе страницы.
+    }
+  }
+
+  /** Загрузка перечня плагинов и реестра сторов. */
   async function load() {
     try {
-      const installed = await operation<{ plugins: InstalledPlugin[] }>('list', {});
-      plugins = installed.plugins;
+      const catalog = await operation<{ plugins: PluginEntry[] }>('plugins', {});
+      plugins = catalog.plugins;
       const registry = await operation<{ stores: Store[] }>('stores_list', {});
       stores = registry.stores;
       errorMessage = '';
+    } catch (error) {
+      errorMessage = String(error);
+    }
+    await publishPending();
+  }
+
+  /** Переключение активности плагина. */
+  async function setEnabled(name: string, enabled: boolean) {
+    try {
+      await operation('set_enabled', { name, enabled });
+      await load();
     } catch (error) {
       errorMessage = String(error);
     }
@@ -30,7 +53,6 @@
       const path = await pickPackage();
       if (!path) return;
       await operation('install_file', { path });
-      notice = 'Плагин установлен. Переоткройте библиотеку, чтобы он загрузился.';
       await load();
     } catch (error) {
       errorMessage = String(error);
@@ -107,9 +129,9 @@
   {stores}
   {packages}
   {unsupported}
-  {notice}
   onInstall={installFromFile}
   onUninstall={uninstall}
+  onSetEnabled={setEnabled}
   onAddStore={addStore}
   onRemoveStore={removeStore}
   onShowAvailable={showAvailable}

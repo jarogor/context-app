@@ -67,6 +67,12 @@ pub const HOST_STORE_UNINSTALL: &str = "store_uninstall";
 /// Имя привилегированной host-функции списка установленных плагинов.
 pub const HOST_STORE_INSTALLED: &str = "store_installed";
 
+/// Имя привилегированной host-функции перечня отключаемых плагинов.
+pub const HOST_STORE_PLUGINS: &str = "store_plugins";
+
+/// Имя привилегированной host-функции переключения активности плагина.
+pub const HOST_STORE_SET_ENABLED: &str = "store_set_enabled";
+
 /// Список привилегированных host-функций стора плагинов.
 ///
 /// Функции выдаются только плагинам, объявившим их в `host_functions`.
@@ -75,6 +81,8 @@ pub const STORE_HOST_FUNCTIONS: &[&str] = &[
     HOST_STORE_INSTALL,
     HOST_STORE_UNINSTALL,
     HOST_STORE_INSTALLED,
+    HOST_STORE_PLUGINS,
+    HOST_STORE_SET_ENABLED,
 ];
 
 /// Capability стора плагинов, предоставляемая базовым плагином.

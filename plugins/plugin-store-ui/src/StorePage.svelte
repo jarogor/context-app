@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { Badge, Button, Card, Input, Select } from '@booklib/ui';
-  import type { InstalledPlugin, Store, StorePackage } from './types';
+  import { Badge, Button, Card, Checkbox, Input, Select } from '@booklib/ui';
+  import type { PluginEntry, Store, StorePackage } from './types';
 
   interface Props {
-    plugins: InstalledPlugin[];
+    plugins: PluginEntry[];
     stores: Store[];
     packages: StorePackage[];
     unsupported: string;
-    notice: string;
     onInstall: () => void;
     onUninstall: (name: string) => void;
+    onSetEnabled: (name: string, enabled: boolean) => void;
     onAddStore: (store: { id: string; kind: string; title: string; location: string }) => void;
     onRemoveStore: (id: string) => void;
     onShowAvailable: (id: string) => void;
@@ -20,9 +20,9 @@
     stores,
     packages,
     unsupported,
-    notice,
     onInstall,
     onUninstall,
+    onSetEnabled,
     onAddStore,
     onRemoveStore,
     onShowAvailable,
@@ -51,15 +51,12 @@
 <div class="flex flex-col gap-[var(--space-4)] p-[var(--space-4)]">
   <Card>
     <div class="mb-[var(--space-3)] flex items-start justify-between gap-[var(--space-3)]">
-      <h2 class="text-base font-semibold">Установленные плагины</h2>
+      <h2 class="text-base font-semibold">Плагины</h2>
       <Button variant="secondary" onclick={onInstall}>Установить из файла</Button>
     </div>
-    {#if notice}
-      <p class="mb-[var(--space-3)] text-[13px] text-[var(--color-primary)]">{notice}</p>
-    {/if}
     {#if plugins.length === 0}
       <div class="p-[var(--space-4)] text-center text-[var(--color-text-muted)]">
-        Нет установленных плагинов
+        Нет плагинов
       </div>
     {:else}
       <ul class="flex list-none flex-col gap-[var(--space-2)] p-0">
@@ -67,18 +64,24 @@
           <li
             class="flex items-center justify-between gap-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)]"
           >
-            <div class="flex min-w-0 flex-col gap-[2px]">
-              <span class="text-sm font-bold">{plugin.name}</span>
-              <span class="text-xs text-[var(--color-text-muted)]">
-                {plugin.kind} · контракт v{plugin.contract_version}
+            <label class="flex min-w-0 items-center gap-[var(--space-2)]">
+              <Checkbox
+                checked={plugin.enabled}
+                onchange={(event) => onSetEnabled(plugin.name, event.currentTarget.checked)}
+              />
+              <span class="flex min-w-0 flex-col gap-[2px]">
+                <span class="text-sm font-bold">{plugin.name}</span>
+                <span class="text-xs text-[var(--color-text-muted)]">{plugin.kind}</span>
+                {#if plugin.description}
+                  <span class="text-xs text-[var(--color-text-muted)]">{plugin.description}</span>
+                {/if}
               </span>
-              {#if plugin.description}
-                <span class="text-xs text-[var(--color-text-muted)]">{plugin.description}</span>
-              {/if}
-            </div>
-            <Button variant="danger" size="sm" onclick={() => onUninstall(plugin.name)}>
-              Удалить
-            </Button>
+            </label>
+            {#if plugin.removable}
+              <Button variant="danger" size="sm" onclick={() => onUninstall(plugin.name)}>
+                Удалить
+              </Button>
+            {/if}
           </li>
         {/each}
       </ul>

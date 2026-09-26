@@ -41,6 +41,8 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
     match request.action.as_str() {
         "capabilities" => Ok(capabilities()),
         "list" => list(host),
+        "plugins" => plugins(host),
+        "set_enabled" => set_enabled(host, &request.payload),
         "install_file" => install_file(host, &request.payload),
         "uninstall" => uninstall(host, &request.payload),
         "stores_list" => stores_list(host),
@@ -65,6 +67,27 @@ fn capabilities() -> String {
 fn list(host: &impl Host) -> Result<String, String> {
     let plugins = host.store_installed()?;
     Ok(json!({ "plugins": plugins }).to_string())
+}
+
+/// Перечень отключаемых плагинов с активностью.
+fn plugins(host: &impl Host) -> Result<String, String> {
+    let plugins = host.store_plugins()?;
+    Ok(json!({ "plugins": plugins }).to_string())
+}
+
+/// Переключение активности плагина.
+fn set_enabled(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let name = required_str(payload, "name")?;
+    let enabled = payload
+        .get("enabled")
+        .and_then(|value| value.as_bool())
+        .ok_or_else(|| "не указано поле enabled".to_string())?;
+    host.store_set_enabled(&name, enabled)?;
+    host.emit_event(
+        EVENT_CHANGED,
+        &json!({ "name": name, "enabled": enabled }).to_string(),
+    )?;
+    Ok(json!({ "name": name, "enabled": enabled }).to_string())
 }
 
 /// Установка пакета из выбранного пользователем zip-файла.
