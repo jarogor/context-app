@@ -27,15 +27,22 @@ extern "ExtismHost" {
     /// Удаление служебного состояния source-плагина.
     fn state_delete(key: String) -> String;
     /// Публикация уведомления от source-плагина.
-    fn notify(level: String, message: String, details: String) -> String;
+    fn notify(level: String, severity: String, message: String, details: String) -> String;
 }
 
 /// Реализация `Fs` поверх host-функций приложения.
 struct HostFs;
 
 /// Публикация уведомления без прерывания операции.
-fn emit_notification(level: &str, message: &str, details: serde_json::Value) {
-    let _ = unsafe { notify(level.to_string(), message.to_string(), details.to_string()) };
+fn emit_notification(level: &str, severity: &str, message: &str, details: serde_json::Value) {
+    let _ = unsafe {
+        notify(
+            level.to_string(),
+            severity.to_string(),
+            message.to_string(),
+            details.to_string(),
+        )
+    };
 }
 
 impl Fs for HostFs {
@@ -109,31 +116,60 @@ pub fn invoke(input: String) -> FnResult<String> {
             state_storage: true,
             incremental_sync: true,
         })?,
-        "probe" => {
-            let priority = scanner::probe(&fs).map_err(extism_pdk::Error::msg)?;
-            let supported = priority.is_some();
-            emit_notification(
-                "technical",
-                "Проверка source Calibre завершена",
-                json!({ "supported": supported, "priority": priority }),
-            );
-            serde_json::to_string(&json!({
-                "supported": supported,
-                "priority": priority.unwrap_or(0),
-            }))?
-        }
+        "probe" => match scanner::probe(&fs) {
+            Ok(priority) => {
+                let supported = priority.is_some();
+                emit_notification(
+                    "technical",
+                    "info",
+                    "Проверка source Calibre завершена",
+                    json!({ "supported": supported, "priority": priority }),
+                );
+                serde_json::to_string(&json!({
+                    "supported": supported,
+                    "priority": priority.unwrap_or(0),
+                }))?
+            }
+            Err(error) => {
+                emit_notification(
+                    "technical",
+                    "error",
+                    "Проверка source Calibre не удалась",
+                    json!({ "error": error }),
+                );
+                return Err(extism_pdk::Error::msg(error).into());
+            }
+        },
         "open" => {
-            let books: Vec<ExternalBook> = scanner::scan(&fs).map_err(extism_pdk::Error::msg)?;
-            let response = serde_json::to_string(&OpenResponse {
-                session_id: "calibre".to_string(),
-                catalog: lifecycle::open(&fs, books).map_err(extism_pdk::Error::msg)?,
-            })?;
-            emit_notification(
-                "user",
-                "Индексация библиотеки Calibre завершена",
-                json!({ "mode": "source" }),
-            );
-            response
+            let (name, path) = library_label(&request.payload);
+            match open_catalog(&fs) {
+                Ok(catalog) => {
+                    let message = indexed_message(
+                        "Индексация библиотеки Calibre завершена",
+                        &name,
+                        &path,
+                    );
+                    emit_notification(
+                        "user",
+                        "info",
+                        &message,
+                        json!({ "mode": "source", "name": name, "path": path }),
+                    );
+                    serde_json::to_string(&OpenResponse {
+                        session_id: "calibre".to_string(),
+                        catalog,
+                    })?
+                }
+                Err(error) => {
+                    emit_notification(
+                        "technical",
+                        "error",
+                        "Индексация библиотеки Calibre не удалась",
+                        json!({ "error": error, "name": name, "path": path }),
+                    );
+                    return Err(extism_pdk::Error::msg(error).into());
+                }
+            }
         }
         "catalog" | "list" => {
             let catalog = current_catalog();
@@ -198,6 +234,36 @@ pub fn invoke(input: String) -> FnResult<String> {
         }
     };
     Ok(payload)
+}
+
+/// Сканирование и открытие каталога Calibre.
+fn open_catalog(fs: &impl Fs) -> Result<SourceCatalog, String> {
+    let books = scanner::scan(fs)?;
+    lifecycle::open(fs, books)
+}
+
+/// Название и путь библиотеки из payload открытия.
+fn library_label(payload: &serde_json::Value) -> (String, String) {
+    let path = payload
+        .get("path")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(path.as_str())
+        .to_string();
+    (name, path)
+}
+
+/// Сообщение об индексации с названием и путём библиотеки.
+fn indexed_message(base: &str, name: &str, path: &str) -> String {
+    if path.is_empty() {
+        base.to_string()
+    } else {
+        format!("{base}: {name} ({path})")
+    }
 }
 
 /// Последний согласованный каталог или пустой snapshot.

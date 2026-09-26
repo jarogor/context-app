@@ -4,7 +4,7 @@
 export type Level = 'User' | 'Technical';
 
 /** Степень серьёзности записи. */
-export type Severity = 'Info' | 'Warn' | 'Error';
+export type Severity = 'error' | 'warn' | 'info' | 'debug' | 'trace';
 
 /** Запись журнала уведомлений. */
 export interface Entry {

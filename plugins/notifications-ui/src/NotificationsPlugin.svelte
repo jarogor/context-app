@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Entry } from './types';
-  import { listen, operation } from './bridge';
+  import { listen, operation, settingsOperation } from './bridge';
   import NotificationsPanel from './NotificationsPanel.svelte';
 
   let entries: Entry[] = $state([]);
@@ -19,14 +19,20 @@
     );
   });
 
+  /** Локальный идентификатор секции настроек плагина уведомлений. */
+  const SETTINGS_SECTION_LOCAL_ID = 'notifications';
+
   /** Загрузка настройки технического уровня из секции плагина уведомлений. */
   async function loadSettings() {
     try {
-      const data = await operation<{ values?: { technical_visible_default?: unknown } }>('get', {
-        section: 'notifications.notifications',
-      });
-      if (typeof data.values?.technical_visible_default === 'boolean') {
-        technicalVisible = data.values.technical_visible_default;
+      const data = await settingsOperation<{
+        sections?: { id: string; values?: { technical_visible_default?: unknown } }[];
+      }>('list', {});
+      const section = data.sections?.find(
+        (item) => item.id.split('.').pop() === SETTINGS_SECTION_LOCAL_ID,
+      );
+      if (typeof section?.values?.technical_visible_default === 'boolean') {
+        technicalVisible = section.values.technical_visible_default;
       }
     } catch {
       // Отсутствие секции настроек не мешает панели уведомлений.
@@ -65,16 +71,21 @@
   }
 
   onMount(() => {
-    let unlisten: (() => void) | undefined;
+    let unlistenAdded: (() => void) | undefined;
+    let unlistenSettings: (() => void) | undefined;
     void (async () => {
-      unlisten = await listen<Entry>('notifications:added', (entry) => {
+      unlistenAdded = await listen<Entry>('notifications:added', (entry) => {
         entries = [...entries, entry];
+      });
+      unlistenSettings = await listen('settings:changed', () => {
+        void loadSettings();
       });
       await loadSettings();
       await load();
     })();
     return () => {
-      unlisten?.();
+      unlistenAdded?.();
+      unlistenSettings?.();
     };
   });
 </script>

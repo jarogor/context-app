@@ -47,6 +47,14 @@ export function operation<T = unknown>(action: string, payload: unknown = {}): P
   });
 }
 
+/** Вызов opaque-операции базового плагина настроек. */
+export function settingsOperation<T = unknown>(action: string, payload: unknown = {}): Promise<T> {
+  return request<T>('invoke', {
+    command: 'invoke_base_plugin_operation',
+    payload: { capability: 'settings.store@1', operation: action, payload },
+  });
+}
+
 /** Подписка на прикладное событие, транслируемое оболочкой. */
 export async function listen<T = unknown>(
   event: string,

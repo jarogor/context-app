@@ -17,7 +17,7 @@ pub mod session;
 
 pub use app_host::AppPluginHost;
 pub use app_state::AppState;
-pub use bus::{get_bus, EventBus, PluginEvent};
+pub use bus::{get_bus, set_log_level, EventBus, PluginEvent, Severity};
 pub use contract::{
     CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS, CONTRACT_VERSION, EXPORT_FUNCTION,
     HOST_FS_LIST_DIR, HOST_FS_READ_TEXT, HOST_FUNCTIONS, HOST_LOG_FUNCTION, MANIFEST_FILE_NAME,

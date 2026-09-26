@@ -31,14 +31,21 @@ extern "ExtismHost" {
     /// Удаление служебного состояния source-плагина.
     fn state_delete(key: String) -> String;
     /// Публикация уведомления от source-плагина.
-    fn notify(level: String, message: String, details: String) -> String;
+    fn notify(level: String, severity: String, message: String, details: String) -> String;
 }
 
 /// Реализация `Fs` поверх host-функций приложения.
 struct HostFs;
 
-fn emit_notification(level: &str, message: &str, details: serde_json::Value) {
-    let _ = unsafe { notify(level.to_string(), message.to_string(), details.to_string()) };
+fn emit_notification(level: &str, severity: &str, message: &str, details: serde_json::Value) {
+    let _ = unsafe {
+        notify(
+            level.to_string(),
+            severity.to_string(),
+            message.to_string(),
+            details.to_string(),
+        )
+    };
 }
 
 impl Fs for HostFs {
@@ -126,46 +133,65 @@ pub fn invoke(input: String) -> FnResult<String> {
             state_storage: true,
             incremental_sync: true,
         })?,
-        "probe" => {
-            let priority = scanner::probe(&fs).map_err(extism_pdk::Error::msg)?;
-            let supported = priority.is_some();
-            emit_notification(
-                "technical",
-                "Проверка source завершена",
-                json!({ "supported": supported, "priority": priority }),
-            );
-            serde_json::to_string(&json!({
-                "supported": supported,
-                "priority": priority.unwrap_or(0),
-            }))?
-        }
+        "probe" => match scanner::probe(&fs) {
+            Ok(priority) => {
+                let supported = priority.is_some();
+                emit_notification(
+                    "technical",
+                    "info",
+                    "Проверка source завершена",
+                    json!({ "supported": supported, "priority": priority }),
+                );
+                serde_json::to_string(&json!({
+                    "supported": supported,
+                    "priority": priority.unwrap_or(0),
+                }))?
+            }
+            Err(error) => {
+                emit_notification(
+                    "technical",
+                    "error",
+                    "Проверка source не удалась",
+                    json!({ "error": error }),
+                );
+                return Err(extism_pdk::Error::msg(error).into());
+            }
+        },
         "open" => {
             let portable =
                 request.payload.get("mode").and_then(|value| value.as_str()) == Some("portable");
-            let books: Vec<ExternalBook> = if portable {
-                Vec::new()
-            } else {
-                scanner::scan(&fs).map_err(extism_pdk::Error::msg)?
-            };
-            let response = serde_json::to_string(&OpenResponse {
-                session_id: "library".to_string(),
-                catalog: if portable {
-                    lifecycle::restore(&fs).map_err(extism_pdk::Error::msg)?
-                } else {
-                    lifecycle::open(&fs, books).map_err(extism_pdk::Error::msg)?
-                },
-            })?;
-            emit_notification(
-                "user",
-                "Индексация библиотеки завершена",
-                json!({ "mode": if portable { "portable" } else { "source" } }),
-            );
-            emit_notification(
-                "technical",
-                "Индекс каталога обновлён",
-                json!({ "mode": if portable { "portable" } else { "source" } }),
-            );
-            response
+            let mode = if portable { "portable" } else { "source" };
+            let (name, path) = library_label(&request.payload);
+            match open_catalog(&fs, portable) {
+                Ok(catalog) => {
+                    let message = indexed_message("Индексация библиотеки завершена", &name, &path);
+                    emit_notification(
+                        "user",
+                        "info",
+                        &message,
+                        json!({ "mode": mode, "name": name.clone(), "path": path.clone() }),
+                    );
+                    emit_notification(
+                        "technical",
+                        "info",
+                        "Индекс каталога обновлён",
+                        json!({ "mode": mode, "name": name, "path": path }),
+                    );
+                    serde_json::to_string(&OpenResponse {
+                        session_id: "library".to_string(),
+                        catalog,
+                    })?
+                }
+                Err(error) => {
+                    emit_notification(
+                        "technical",
+                        "error",
+                        "Индексация библиотеки не удалась",
+                        json!({ "error": error, "mode": mode, "name": name, "path": path }),
+                    );
+                    return Err(extism_pdk::Error::msg(error).into());
+                }
+            }
         }
         "catalog" | "list" => {
             let catalog = lifecycle::catalog().unwrap_or(SourceCatalog {
@@ -258,6 +284,40 @@ pub fn invoke(input: String) -> FnResult<String> {
         }
     };
     Ok(payload)
+}
+
+/// Открытие или восстановление каталога source-библиотеки.
+fn open_catalog(fs: &impl Fs, portable: bool) -> Result<SourceCatalog, String> {
+    if portable {
+        lifecycle::restore(fs)
+    } else {
+        let books = scanner::scan(fs)?;
+        lifecycle::open(fs, books)
+    }
+}
+
+/// Название и путь библиотеки из payload открытия.
+fn library_label(payload: &serde_json::Value) -> (String, String) {
+    let path = payload
+        .get("path")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(path.as_str())
+        .to_string();
+    (name, path)
+}
+
+/// Сообщение об индексации с названием и путём библиотеки.
+fn indexed_message(base: &str, name: &str, path: &str) -> String {
+    if path.is_empty() {
+        base.to_string()
+    } else {
+        format!("{base}: {name} ({path})")
+    }
 }
 
 /// Получение пути файла книги из opaque идентификатора или явного пути.

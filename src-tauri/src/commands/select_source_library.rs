@@ -25,7 +25,10 @@ pub fn select_source_library(
 
     state
         .session
-        .invoke("open", serde_json::json!({ "mode": "external" }))
+        .invoke(
+            "open",
+            serde_json::json!({ "mode": "external", "path": path }),
+        )
         .map_err(|error| error.to_string())?;
 
     let sources = state.session.settings_sources();

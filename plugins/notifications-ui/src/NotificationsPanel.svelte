@@ -24,13 +24,32 @@
     if (entry.level === 'User') {
       return 'var(--color-success)';
     }
-    if (entry.severity === 'Error') {
+    if (entry.severity === 'error') {
       return 'var(--color-danger)';
     }
-    if (entry.severity === 'Warn') {
+    if (entry.severity === 'warn') {
       return 'var(--color-warning)';
     }
     return 'var(--color-primary)';
+  }
+
+  /** Человекочитаемая подпись степени серьёзности. */
+  const severityLabels: Record<string, string> = {
+    error: 'ERROR',
+    warn: 'WARN',
+    info: 'INFO',
+    debug: 'DEBUG',
+    trace: 'TRACE',
+  };
+
+  /** Время записи в 24-часовом формате. */
+  function formatTime(timestamp: number): string {
+    return new Date(timestamp).toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
   }
 </script>
 
@@ -71,9 +90,19 @@
           <Badge variant={entry.level === 'User' ? 'default' : 'muted'}>
             {entry.level === 'User' ? 'User' : 'Tech'}
           </Badge>
+          <Badge
+            variant="muted"
+            class={entry.severity === 'error'
+              ? 'text-[var(--color-danger)]'
+              : entry.severity === 'warn'
+                ? 'text-[var(--color-warning)]'
+                : ''}
+          >
+            {severityLabels[entry.severity] ?? entry.severity}
+          </Badge>
           <span class="break-words">{entry.message}</span>
           <span class="mt-[var(--space-1)] block text-[11px] text-[var(--color-text-muted)]">
-            {new Date(entry.timestamp).toLocaleTimeString()}
+            {formatTime(entry.timestamp)}
           </span>
         </div>
       {/each}

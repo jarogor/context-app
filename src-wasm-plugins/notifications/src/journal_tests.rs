@@ -17,7 +17,7 @@ fn add_user_entry() {
 #[test]
 fn add_technical_entry() {
     let mut journal = Journal::new();
-    let entry = journal.add_technical(TS, "отладка", "test", serde_json::json!({}));
+    let entry = journal.add_technical(TS, "отладка", Severity::Info, "test", serde_json::json!({}));
     assert_eq!(entry.level, Level::Technical);
     assert_eq!(entry.severity, Severity::Info);
 }
@@ -26,7 +26,7 @@ fn add_technical_entry() {
 fn list_filters_by_level() {
     let mut journal = Journal::new();
     let _ = journal.add_user(TS, "u", Severity::Info, "test", serde_json::json!({}));
-    let _ = journal.add_technical(TS, "t", "test", serde_json::json!({}));
+    let _ = journal.add_technical(TS, "t", Severity::Info, "test", serde_json::json!({}));
     assert_eq!(journal.list(None).len(), 2);
     assert_eq!(journal.list(Some(Level::User)).len(), 1);
     assert_eq!(journal.list(Some(Level::Technical)).len(), 1);
@@ -47,7 +47,7 @@ fn mark_read_specific_ids() {
 fn mark_all_read_marks_every_entry() {
     let mut journal = Journal::new();
     let _ = journal.add_user(TS, "a", Severity::Info, "test", serde_json::json!({}));
-    let _ = journal.add_technical(TS, "b", "test", serde_json::json!({}));
+    let _ = journal.add_technical(TS, "b", Severity::Info, "test", serde_json::json!({}));
     journal.mark_all_read();
     assert!(journal.list(None).iter().all(|entry| entry.read));
 }
@@ -94,4 +94,12 @@ fn state_round_trip() {
     let restored: Journal = serde_json::from_str(&json).expect("десериализация");
     assert_eq!(journal.list(None), restored.list(None));
     assert_eq!(restored.len(), 1);
+}
+
+#[test]
+fn deserializes_legacy_severity_names() {
+    let json = r#"{"entries":[{"id":0,"timestamp":1,"level":"Technical","severity":"Info","message":"m","source":"s","details":{},"read":false}],"next_id":1}"#;
+    let journal: Journal = serde_json::from_str(json).expect("старый формат степени");
+    assert_eq!(journal.len(), 1);
+    assert_eq!(journal.list(None)[0].severity, Severity::Info);
 }

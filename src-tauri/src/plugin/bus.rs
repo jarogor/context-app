@@ -4,13 +4,92 @@
 //! runtime доставляет их плагину, предоставляющему capability уведомлений.
 //! Bus не хранит журнал и не интерпретирует предметный смысл события.
 
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+
+/// Степень серьёзности события: от важного к подробному.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
+    Default,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum Severity {
+    /// Неожиданная ошибка в критической секции.
+    Error,
+    /// Некритический сбой, после которого работа продолжается.
+    Warn,
+    /// Информационное событие.
+    #[default]
+    Info,
+    /// Отладочная информация.
+    Debug,
+    /// Подробная трасса вызовов.
+    Trace,
+}
+
+impl Severity {
+    /// Разбор степени из строки; регистр не важен. Неизвестное значение — `None`.
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.to_ascii_lowercase().as_str() {
+            "error" => Some(Self::Error),
+            "warn" | "warning" => Some(Self::Warn),
+            "info" => Some(Self::Info),
+            "debug" => Some(Self::Debug),
+            "trace" => Some(Self::Trace),
+            _ => None,
+        }
+    }
+
+    /// Допускает ли порог `threshold` событие этой степени.
+    pub fn allows(self, threshold: Self) -> bool {
+        self <= threshold
+    }
+
+    /// Числовое представление для атомарного хранения.
+    fn as_u8(self) -> u8 {
+        self as u8
+    }
+
+    /// Восстановление степени из числового представления.
+    fn from_u8(value: u8) -> Self {
+        match value {
+            0 => Self::Error,
+            1 => Self::Warn,
+            2 => Self::Info,
+            3 => Self::Debug,
+            _ => Self::Trace,
+        }
+    }
+}
+
+/// Текущий порог логирования технических событий.
+static LOG_LEVEL: AtomicU8 = AtomicU8::new(Severity::Info as u8);
+
+/// Текущий порог логирования технических событий.
+pub fn log_level() -> Severity {
+    Severity::from_u8(LOG_LEVEL.load(Ordering::Relaxed))
+}
+
+/// Установка порога логирования технических событий.
+pub fn set_log_level(severity: Severity) {
+    LOG_LEVEL.store(severity.as_u8(), Ordering::Relaxed);
+}
 
 /// Событие, опубликованное плагином для системы уведомлений.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PluginEvent {
-    /// Уровень события: `user` или `technical`.
+    /// Канал события: `user` для уведомлений пользователю или `technical` для диагностики.
     pub level: String,
+    /// Степень серьёзности события.
+    pub severity: Severity,
     /// Текстовое описание события.
     pub message: String,
     /// Источник события.
@@ -34,11 +113,50 @@ impl EventBus {
         Self::default()
     }
 
-    /// Публикация события в буфер.
+    /// Публикация события в буфер без фильтрации.
     pub fn publish(&self, event: PluginEvent) {
         if let Ok(mut events) = self.inner.lock() {
             events.push(event);
         }
+    }
+
+    /// Публикация технического события с учётом порога логирования.
+    ///
+    /// Событие со степенью ниже текущего порога отбрасывается.
+    pub fn publish_technical(
+        &self,
+        severity: Severity,
+        message: impl Into<String>,
+        source: impl Into<String>,
+        details: serde_json::Value,
+    ) {
+        if !severity.allows(log_level()) {
+            return;
+        }
+        self.publish(PluginEvent {
+            level: "technical".to_string(),
+            severity,
+            message: message.into(),
+            source: source.into(),
+            details,
+        });
+    }
+
+    /// Публикация пользовательского события без учёта порога логирования.
+    pub fn publish_user(
+        &self,
+        severity: Severity,
+        message: impl Into<String>,
+        source: impl Into<String>,
+        details: serde_json::Value,
+    ) {
+        self.publish(PluginEvent {
+            level: "user".to_string(),
+            severity,
+            message: message.into(),
+            source: source.into(),
+            details,
+        });
     }
 
     /// Извлечение всех накопленных событий.

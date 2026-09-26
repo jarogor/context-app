@@ -44,17 +44,11 @@ impl Journal {
         &mut self,
         timestamp: i64,
         message: impl Into<String>,
+        severity: Severity,
         source: impl Into<String>,
         details: serde_json::Value,
     ) -> Entry {
-        self.add(
-            timestamp,
-            Level::Technical,
-            message,
-            Severity::Info,
-            source,
-            details,
-        )
+        self.add(timestamp, Level::Technical, message, severity, source, details)
     }
 
     /// Добавление события в журнал с меткой времени.

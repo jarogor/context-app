@@ -1,4 +1,5 @@
 use super::*;
+use crate::plugin::{get_bus, set_log_level, Severity};
 use crate::test_util;
 use crate::test_util::cleanup;
 use std::fs;
@@ -501,6 +502,91 @@ fn disabled_base_plugin_still_loads() {
         runtime.plugin_names(),
         vec!["test-plugin"],
         "базовый плагин загружается несмотря на реестр"
+    );
+    cleanup(&root);
+}
+
+#[test]
+fn load_publishes_info_event() {
+    let dir = setup_plugins_root("load-event", &compile_wat(WAT_WITH_INVOKE), MANIFEST_JSON);
+    let root = dir.clone();
+    let _ = get_bus().drain();
+
+    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+
+    let events = get_bus().drain();
+    let event = events
+        .iter()
+        .find(|event| event.details["id"] == TEST_PLUGIN_ID)
+        .expect("событие загрузки плагина");
+    assert_eq!(event.level, "technical");
+    assert_eq!(event.severity, Severity::Info);
+    assert_eq!(event.details["name"], "test-plugin");
+    assert_eq!(event.details["kind"], "extension");
+
+    drop(runtime);
+    cleanup(&root);
+}
+
+#[test]
+fn skipped_plugin_publishes_warn() {
+    let dir = setup_plugins_root("skip-warn", &compile_wat(WAT_WITHOUT_INVOKE), MANIFEST_JSON);
+    let root = dir.clone();
+    let _ = get_bus().drain();
+
+    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+
+    assert!(runtime.plugin_names().is_empty(), "плагин отбракован");
+    let events = get_bus().drain();
+    assert!(
+        events
+            .iter()
+            .any(|event| event.severity == Severity::Warn && event.message.contains("пропущен")),
+        "пропуск плагина даёт предупреждение"
+    );
+    cleanup(&root);
+}
+
+#[test]
+fn invoke_publishes_trace_event() {
+    let dir = setup_plugins_root("trace", &compile_wat(WAT_WITH_INVOKE), MANIFEST_JSON);
+    let root = dir.clone();
+    let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    set_log_level(Severity::Trace);
+    let _ = get_bus().drain();
+
+    runtime
+        .invoke(TEST_PLUGIN_ID, "ping")
+        .expect("вызов плагина");
+
+    let events = get_bus().drain();
+    let trace = events
+        .iter()
+        .find(|event| event.severity == Severity::Trace)
+        .expect("трассировочное событие");
+    assert_eq!(trace.details["operation"], "invoke");
+    assert_eq!(trace.details["ok"], true);
+    assert_eq!(trace.details["request"], "ping");
+    set_log_level(Severity::Info);
+    cleanup(&root);
+}
+
+#[test]
+fn trace_suppressed_at_info_threshold() {
+    let dir = setup_plugins_root("trace-off", &compile_wat(WAT_WITH_INVOKE), MANIFEST_JSON);
+    let root = dir.clone();
+    let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    set_log_level(Severity::Info);
+    let _ = get_bus().drain();
+
+    runtime
+        .invoke(TEST_PLUGIN_ID, "ping")
+        .expect("вызов плагина");
+
+    let events = get_bus().drain();
+    assert!(
+        !events.iter().any(|event| event.severity == Severity::Trace),
+        "при пороге info трасса не публикуется"
     );
     cleanup(&root);
 }

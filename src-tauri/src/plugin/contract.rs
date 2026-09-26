@@ -13,9 +13,13 @@ pub const MANIFEST_FILE_NAME: &str = "plugin-manifest.json";
 /// Имя экспортируемой функции, ожидаемой от плагинов.
 pub const EXPORT_FUNCTION: &str = "invoke";
 
-/// Имя host-функции логирования, предоставляемой приложением.
+/// Имя host-функции технического логирования, предоставляемой приложением.
+///
+/// Сигнатура: `log(severity, message, details)`.
 pub const HOST_LOG_FUNCTION: &str = "log";
 /// Имя host-функции публикации уведомления плагином.
+///
+/// Сигнатура: `notify(level, severity, message, details)`.
 pub const HOST_NOTIFY_FUNCTION: &str = "notify";
 
 /// Имя host-функции перечисления содержимого source-корня.

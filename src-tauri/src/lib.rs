@@ -41,17 +41,15 @@ pub fn run() {
                 &user_plugins_dir,
             ));
             let _ = app_host.reset_notifications();
-            for name in app_host.plugin_names() {
-                app_host.notify_technical(
-                    format!("Базовый плагин загружен: {name}"),
-                    "plugins",
-                    serde_json::json!({ "plugin": name }),
-                );
-            }
-
             let _ = app_host.refresh_settings_registry(&[]);
+            app_host.refresh_log_level();
             if app_host.welcome_notification_enabled() {
-                app_host.notify_user("Добро пожаловать в BookLib", "app", serde_json::json!({}));
+                app_host.notify_user(
+                    crate::plugin::Severity::Info,
+                    "Добро пожаловать в BookLib",
+                    "app",
+                    serde_json::json!({}),
+                );
             }
 
             let root = PathBuf::from(".");
@@ -61,13 +59,6 @@ pub fn run() {
                 crate::plugin::activation::load(&app_state_root).unwrap_or_default(),
             );
             host.mark_activation_applied();
-            for name in host.runtime().plugin_names() {
-                app_host.notify_technical(
-                    format!("Плагин библиотеки загружен: {name}"),
-                    "plugins",
-                    serde_json::json!({ "plugin": name }),
-                );
-            }
             if host
                 .runtime()
                 .plugin_ids()
@@ -80,6 +71,7 @@ pub fn run() {
                 {
                     Ok(output) => {
                         app_host.notify_user(
+                            crate::plugin::Severity::Info,
                             "demo answered",
                             "plugin",
                             serde_json::json!({ "output": output }),
@@ -87,6 +79,7 @@ pub fn run() {
                     }
                     Err(err) => {
                         app_host.notify_technical(
+                            crate::plugin::Severity::Error,
                             "demo error",
                             DEMO_PLUGIN_ID,
                             serde_json::json!({ "error": err.to_string() }),

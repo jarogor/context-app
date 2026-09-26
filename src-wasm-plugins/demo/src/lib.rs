@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// Host-функция `log`, предоставляемая приложением.
 #[host_fn]
 extern "ExtismHost" {
-    fn log(message: String);
+    fn log(severity: String, message: String, details: String);
 }
 
 /// Входные данные вызова.
@@ -34,7 +34,8 @@ pub fn invoke(input: String) -> FnResult<String> {
         greeting: format!("Привет, {}! Demo-плагин загружен и работает.", parsed.title),
     };
     let payload = serde_json::to_string(&response)?;
-    unsafe { log(payload.clone())? };
+    let details = serde_json::json!({ "responded": true }).to_string();
+    unsafe { log("info".to_string(), payload.clone(), details)? };
     extism_pdk::info!("demo invoke: {payload}");
     Ok(payload)
 }

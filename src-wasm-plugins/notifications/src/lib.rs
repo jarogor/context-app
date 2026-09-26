@@ -80,7 +80,7 @@ fn publish(host: &impl Host, payload: &serde_json::Value) -> Result<String, Stri
     let entry = if level == "user" {
         journal.add_user(timestamp, message, severity, source, details)
     } else {
-        journal.add_technical(timestamp, message, source, details)
+        journal.add_technical(timestamp, message, severity, source, details)
     };
     save(host, &journal)?;
 

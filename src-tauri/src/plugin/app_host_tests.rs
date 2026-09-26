@@ -1,4 +1,5 @@
 use super::*;
+use crate::plugin::Severity;
 use crate::test_util;
 use crate::test_util::cleanup;
 use std::fs;
@@ -98,9 +99,10 @@ fn delivers_events_to_provider() {
     );
     let mut host =
         AppPluginHost::load(std::slice::from_ref(&dir), dir.join("storage")).expect("загрузка");
-    host.notify_user("привет", "test", serde_json::json!({}));
+    host.notify_user(Severity::Info, "привет", "test", serde_json::json!({}));
+    let remaining = get_bus().drain();
     assert!(
-        get_bus().is_empty(),
+        !remaining.iter().any(|event| event.message == "привет"),
         "событие доставлено провайдеру и извлечено из bus"
     );
     cleanup(&dir);
@@ -284,7 +286,7 @@ fn real_notifications_plugin_records_events() {
     let storage = test_util::test_root("app-host-notifications-record");
     let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
         .expect("загрузка базовых плагинов");
-    host.notify_user("проверка", "test", serde_json::json!({}));
+    host.notify_user(Severity::Info, "проверка", "test", serde_json::json!({}));
 
     let output = host
         .invoke_capability(CAPABILITY_NOTIFICATIONS, "list", serde_json::json!({}))
@@ -310,7 +312,7 @@ fn reset_notifications_clears_journal() {
     let storage = test_util::test_root("app-host-notifications-reset");
     let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
         .expect("загрузка базовых плагинов");
-    host.notify_user("до сброса", "test", serde_json::json!({}));
+    host.notify_user(Severity::Info, "до сброса", "test", serde_json::json!({}));
     host.reset_notifications().expect("сброс журнала");
 
     let output = host
@@ -344,7 +346,48 @@ fn drops_events_without_provider() {
     );
     let mut host =
         AppPluginHost::load(std::slice::from_ref(&dir), dir.join("storage")).expect("загрузка");
-    host.notify_technical("шум", "test", serde_json::json!({}));
-    assert!(get_bus().is_empty(), "событие отброшено без провайдера");
+    host.notify_technical(Severity::Info, "шум", "test", serde_json::json!({}));
+    let remaining = get_bus().drain();
+    assert!(
+        !remaining.iter().any(|event| event.message == "шум"),
+        "событие отброшено без провайдера"
+    );
     cleanup(&dir);
+}
+
+#[test]
+fn log_level_reads_setting_and_applies() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-log-level");
+    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+    assert_eq!(host.log_level(), Severity::Info, "порог по умолчанию");
+
+    host.invoke_capability(
+        crate::plugin::contract::CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "diagnostics.log_level": "trace" }
+        }),
+    )
+    .expect("сохранение порога");
+
+    assert_eq!(
+        host.log_level(),
+        Severity::Trace,
+        "порог прочитан из настроек"
+    );
+    host.refresh_log_level();
+    assert_eq!(
+        crate::plugin::bus::log_level(),
+        Severity::Trace,
+        "порог применён к шине"
+    );
+
+    crate::plugin::set_log_level(Severity::Info);
+    cleanup(&storage);
 }

@@ -82,3 +82,23 @@ fn relative_storage_root_is_resolved_from_project_root() {
     );
     test_util::cleanup(&parent);
 }
+
+#[test]
+fn select_source_warns_on_missing_path() {
+    let parent = test_util::test_root("plugin-session-missing-path");
+    let missing = parent.join("no-such-library");
+    let mut session = PluginSession::idle(PathBuf::from("."), parent.join("plugins"));
+    let _ = crate::plugin::get_bus().drain();
+
+    let result = session.select_source(&missing, false, parent.join("state"));
+
+    assert!(result.is_err(), "отсутствующий путь отклоняется");
+    let events = crate::plugin::get_bus().drain();
+    assert!(
+        events
+            .iter()
+            .any(|event| event.severity == crate::plugin::Severity::Warn),
+        "недоступная библиотека даёт предупреждение"
+    );
+    test_util::cleanup(&parent);
+}

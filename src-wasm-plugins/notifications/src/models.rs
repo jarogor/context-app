@@ -15,23 +15,40 @@ pub enum Level {
 }
 
 /// Степень серьёзности записи.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// Кроме стандартных имён в нижнем регистре принимаются прежние значения
+/// (`Info`, `Warn`, `Error`) — журнал сессионный и очищается при старте, но
+/// сохранённый файл прошлого запуска должен читаться без ошибки.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
 pub enum Severity {
-    /// Информационный уровень.
-    Info,
-    /// Предупреждение.
-    Warn,
-    /// Ошибка.
+    /// Неожиданная ошибка в критической секции.
+    #[serde(alias = "Error")]
     Error,
+    /// Некритический сбой, после которого работа продолжается.
+    #[serde(alias = "Warn", alias = "Warning")]
+    Warn,
+    /// Информационное событие.
+    #[default]
+    #[serde(alias = "Info")]
+    Info,
+    /// Отладочная информация.
+    #[serde(alias = "Debug")]
+    Debug,
+    /// Подробная трасса вызовов.
+    #[serde(alias = "Trace")]
+    Trace,
 }
 
 impl Severity {
-    /// Разбор степени серьёзности из строки.
+    /// Разбор степени серьёзности из строки; регистр не важен.
     pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "Info" => Some(Self::Info),
-            "Warn" => Some(Self::Warn),
-            "Error" => Some(Self::Error),
+        match value.to_ascii_lowercase().as_str() {
+            "error" => Some(Self::Error),
+            "warn" | "warning" => Some(Self::Warn),
+            "info" => Some(Self::Info),
+            "debug" => Some(Self::Debug),
+            "trace" => Some(Self::Trace),
             _ => None,
         }
     }

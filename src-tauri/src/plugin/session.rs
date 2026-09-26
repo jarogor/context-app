@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::constants::PLUGINS_DIR_NAME;
 
-use super::{PluginError, PluginRuntime};
+use super::{get_bus, PluginError, PluginRuntime, Severity};
 
 /// Generic состояние директории, обслуживаемой plugin lifecycle.
 pub struct PluginSession {
@@ -88,17 +88,51 @@ impl PluginSession {
         writable: bool,
         storage_root: impl Into<PathBuf>,
     ) -> Result<String, PluginError> {
-        let root = self.prepare(root.into(), writable)?;
-        self.install(&root, storage_root.into(), writable)?;
+        let root = match self.prepare(root.into(), writable) {
+            Ok(root) => root,
+            Err(error) => {
+                get_bus().publish_technical(
+                    Severity::Warn,
+                    format!("Библиотека недоступна: {error}"),
+                    "core",
+                    serde_json::json!({}),
+                );
+                return Err(error);
+            }
+        };
+        if let Err(error) = self.install(&root, storage_root.into(), writable) {
+            get_bus().publish_technical(
+                Severity::Warn,
+                format!("Не удалось загрузить плагины библиотеки: {error}"),
+                "core",
+                serde_json::json!({}),
+            );
+            return Err(error);
+        }
 
         let mut candidates = Vec::new();
         for id in self.runtime.source_plugin_ids() {
-            if let Ok(Some(priority)) = self.runtime.probe_priority(&id) {
-                candidates.push((id, priority));
+            match self.runtime.probe_priority(&id) {
+                Ok(Some(priority)) => candidates.push((id, priority)),
+                Ok(None) => {}
+                Err(error) => {
+                    get_bus().publish_technical(
+                        Severity::Warn,
+                        format!("Опрос source-плагина не удался: {error}"),
+                        "core",
+                        serde_json::json!({}),
+                    );
+                }
             }
         }
 
         let Some(provider) = pick_best(candidates) else {
+            get_bus().publish_technical(
+                Severity::Warn,
+                "Ни один source-плагин не подтвердил директорию",
+                "core",
+                serde_json::json!({}),
+            );
             return Err(PluginError::Call {
                 plugin: "runtime".into(),
                 message: "ни один source-плагин не подтвердил директорию".into(),

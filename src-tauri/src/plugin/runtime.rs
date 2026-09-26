@@ -19,9 +19,12 @@ use crate::plugin::contract::{
     HOST_STORE_SET_ENABLED, HOST_STORE_UNINSTALL, MANIFEST_FILE_NAME, STORE_HOST_FUNCTIONS,
 };
 use crate::plugin::{
-    activation, discovery, get_bus, package, LoadedPlugin, PluginError, PluginEvent, PluginKind,
-    PluginManifest,
+    activation, discovery, get_bus, package, LoadedPlugin, PluginError, PluginKind, PluginManifest,
+    Severity,
 };
+
+/// Лимит длины поля трассировочного события в байтах.
+const TRACE_FIELD_LIMIT: usize = 2048;
 
 /// Плагинная подсистема приложения.
 pub struct PluginRuntime {
@@ -153,10 +156,27 @@ impl PluginRuntime {
                         // При загрузке из двух мест (plugins/ и ресурсы) один и тот
                         // же плагин не должен загружаться повторно.
                         if seen.insert(plugin.id.clone()) {
+                            get_bus().publish_technical(
+                                Severity::Info,
+                                format!("Плагин загружен: {}", plugin.name),
+                                "core",
+                                serde_json::json!({
+                                    "id": plugin.id,
+                                    "name": plugin.name,
+                                    "kind": plugin.kind,
+                                }),
+                            );
                             plugins.push(plugin);
                         }
                     }
-                    Err(err) => println!("[plugins] плагин {} пропущен: {err}", dir.display()),
+                    Err(err) => {
+                        get_bus().publish_technical(
+                            Severity::Warn,
+                            format!("Плагин пропущен: {err}"),
+                            "core",
+                            serde_json::json!({ "dir": dir.display().to_string() }),
+                        );
+                    }
                 }
             }
         }
@@ -243,14 +263,14 @@ impl PluginRuntime {
             .with_wasi(false)
             .with_function(
                 HOST_LOG_FUNCTION,
-                [ValType::I64],
+                [ValType::I64, ValType::I64, ValType::I64],
                 [],
                 UserData::new(host_state.clone()),
                 host_log,
             )
             .with_function(
                 HOST_NOTIFY_FUNCTION,
-                [ValType::I64, ValType::I64, ValType::I64],
+                [ValType::I64, ValType::I64, ValType::I64, ValType::I64],
                 [ValType::I64],
                 UserData::new(host_state.clone()),
                 host_notify,
@@ -565,6 +585,15 @@ impl PluginRuntime {
 
     /// Вызов экспортируемой функции загруженного плагина по идентификатору.
     pub fn invoke(&mut self, id: &str, input: &str) -> Result<String, PluginError> {
+        let started = std::time::Instant::now();
+        let name = self.plugin_name(id).unwrap_or_else(|| id.to_string());
+        let result = self.invoke_raw(id, input);
+        self.trace_call(&name, "invoke", input, &result, started.elapsed());
+        result
+    }
+
+    /// Непосредственный вызов плагина без трассировки.
+    fn invoke_raw(&mut self, id: &str, input: &str) -> Result<String, PluginError> {
         self.plugins
             .iter_mut()
             .find(|p| p.id == id)
@@ -585,7 +614,60 @@ impl PluginRuntime {
             serde_json::Value::String(operation.to_string()),
         );
         request.insert("payload".to_string(), payload);
-        self.invoke(id, &serde_json::Value::Object(request).to_string())
+        let input = serde_json::Value::Object(request).to_string();
+        let started = std::time::Instant::now();
+        let name = self.plugin_name(id).unwrap_or_else(|| id.to_string());
+        let result = self.invoke_raw(id, &input);
+        self.trace_call(&name, operation, &input, &result, started.elapsed());
+        result
+    }
+
+    /// Публикация трассировочного события вызова плагина.
+    ///
+    /// Payload и результат усекаются до лимита, чтобы не раздувать журнал.
+    /// Ошибка вызова дополнительно публикуется со степенью `error`.
+    fn trace_call(
+        &self,
+        name: &str,
+        operation: &str,
+        request: &str,
+        result: &Result<String, PluginError>,
+        elapsed: std::time::Duration,
+    ) {
+        let mut details = serde_json::json!({
+            "plugin": name,
+            "operation": operation,
+            "duration_ms": elapsed.as_millis() as u64,
+            "ok": result.is_ok(),
+            "request": truncate(request, TRACE_FIELD_LIMIT),
+        });
+        match result {
+            Ok(response) => {
+                details["response"] =
+                    serde_json::Value::String(truncate(response, TRACE_FIELD_LIMIT));
+            }
+            Err(error) => {
+                details["error"] = serde_json::Value::String(error.to_string());
+            }
+        }
+        get_bus().publish_technical(
+            Severity::Trace,
+            format!("Вызов {operation}: {name}"),
+            "core",
+            details,
+        );
+        if let Err(error) = result {
+            get_bus().publish_technical(
+                Severity::Error,
+                format!("Вызов {operation} завершился ошибкой: {name}"),
+                "core",
+                serde_json::json!({
+                    "plugin": name,
+                    "operation": operation,
+                    "error": error.to_string(),
+                }),
+            );
+        }
     }
 
     /// Декларации настроек загруженных плагинов.
@@ -635,24 +717,38 @@ impl PluginRuntime {
     }
 }
 
+/// Усечение строки до лимита по границе символа.
+fn truncate(value: &str, limit: usize) -> String {
+    if value.len() <= limit {
+        return value.to_string();
+    }
+    let mut end = limit;
+    while end > 0 && !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}…", &value[..end])
+}
+
 /// Host-функция `log`: публикация технического сообщения плагина в bus.
+///
+/// Сигнатура: `log(severity, message, details)`.
 fn host_log(
     plugin: &mut extism::CurrentPlugin,
     args: &[extism::Val],
     _returns: &mut [extism::Val],
     _user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
-    let message: String = plugin.memory_get_val(&args[0])?;
-    get_bus().publish(PluginEvent {
-        level: "technical".to_string(),
-        message,
-        source: "plugin".to_string(),
-        details: serde_json::json!({}),
-    });
+    let severity_raw: String = plugin.memory_get_val(&args[0])?;
+    let message: String = plugin.memory_get_val(&args[1])?;
+    let details: String = plugin.memory_get_val(&args[2])?;
+    let severity = Severity::parse(&severity_raw).unwrap_or_default();
+    get_bus().publish_technical(severity, message, "plugin", parse_details(&details));
     Ok(())
 }
 
 /// Host-функция публикации уведомления, сформированного плагином.
+///
+/// Сигнатура: `notify(level, severity, message, details)`.
 fn host_notify(
     plugin: &mut extism::CurrentPlugin,
     args: &[extism::Val],
@@ -660,22 +756,28 @@ fn host_notify(
     _user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
     let level: String = plugin.memory_get_val(&args[0])?;
-    let message: String = plugin.memory_get_val(&args[1])?;
-    let details: String = plugin.memory_get_val(&args[2])?;
-    let details = serde_json::from_str(&details).unwrap_or_else(|_| {
-        serde_json::json!({
-            "raw": details,
-        })
-    });
-    get_bus().publish(PluginEvent {
-        level,
-        message,
-        source: "plugin".to_string(),
-        details,
-    });
+    let severity_raw: String = plugin.memory_get_val(&args[1])?;
+    let message: String = plugin.memory_get_val(&args[2])?;
+    let details: String = plugin.memory_get_val(&args[3])?;
+    let severity = Severity::parse(&severity_raw).unwrap_or_default();
+    let details = parse_details(&details);
+    if level == "user" {
+        get_bus().publish_user(severity, message, "plugin", details);
+    } else {
+        get_bus().publish_technical(severity, message, "plugin", details);
+    }
     plugin
         .memory_set_val(&mut returns[0], "ok")
         .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Разбор деталей события; некорректный JSON сохраняется как строка.
+fn parse_details(details: &str) -> serde_json::Value {
+    serde_json::from_str(details).unwrap_or_else(|_| {
+        serde_json::json!({
+            "raw": details,
+        })
+    })
 }
 
 /// Host-функция `emit_event`: эмиссия именованного прикладного события в Tauri.

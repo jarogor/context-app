@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use crate::plugin::contract::{CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS};
-use crate::plugin::{get_bus, PluginError, PluginEvent, PluginKind, PluginRuntime};
+use crate::plugin::{get_bus, set_log_level, PluginError, PluginKind, PluginRuntime, Severity};
 
 /// Декларация собственной секции настроек приложения.
 ///
@@ -27,6 +27,20 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "type": "boolean",
           "description": "Показывать приветствие при запуске приложения",
           "default": true
+        },
+        {
+          "key": "diagnostics.log_level",
+          "title": "Порог технических логов",
+          "type": "select",
+          "description": "Минимальная степень серьёзности технических записей: чем подробнее, тем больше записей",
+          "default": "info",
+          "options": [
+            { "value": "error", "title": "Только ошибки" },
+            { "value": "warn", "title": "Предупреждения и ошибки" },
+            { "value": "info", "title": "Информация и важнее" },
+            { "value": "debug", "title": "Отладка и важнее" },
+            { "value": "trace", "title": "Всё, включая трассу вызовов" }
+          ]
         }
       ]
     }
@@ -123,21 +137,25 @@ impl AppPluginHost {
     /// Публикация пользовательского события и его доставка плагину уведомлений.
     pub fn notify_user(
         &mut self,
+        severity: Severity,
         message: impl Into<String>,
         source: impl Into<String>,
         details: serde_json::Value,
     ) {
-        self.publish_event("user", message.into(), source.into(), details);
+        get_bus().publish_user(severity, message, source, details);
+        let _ = self.drain_and_deliver();
     }
 
     /// Публикация технического события и его доставка плагину уведомлений.
     pub fn notify_technical(
         &mut self,
+        severity: Severity,
         message: impl Into<String>,
         source: impl Into<String>,
         details: serde_json::Value,
     ) {
-        self.publish_event("technical", message.into(), source.into(), details);
+        get_bus().publish_technical(severity, message, source, details);
+        let _ = self.drain_and_deliver();
     }
 
     /// Перерегистрация реестра настроек в базовом плагине настроек.
@@ -154,21 +172,39 @@ impl AppPluginHost {
         }
         let mut sources = self.runtime.settings_sources();
         sources.extend(session_sources.iter().cloned());
-        let app_schema: serde_json::Value =
-            serde_json::from_str(APP_SETTINGS_SCHEMA).map_err(|error| PluginError::Call {
-                plugin: "runtime".to_string(),
-                message: format!("некорректная схема настроек приложения: {error}"),
-            })?;
+        let app_schema: serde_json::Value = match serde_json::from_str(APP_SETTINGS_SCHEMA) {
+            Ok(schema) => schema,
+            Err(error) => {
+                get_bus().publish_technical(
+                    Severity::Warn,
+                    format!("Некорректная схема настроек приложения: {error}"),
+                    "core",
+                    serde_json::json!({}),
+                );
+                return Err(PluginError::Call {
+                    plugin: "runtime".to_string(),
+                    message: format!("некорректная схема настроек приложения: {error}"),
+                });
+            }
+        };
         sources.push(serde_json::json!({
             "owner": "app",
             "kind": "app",
             "schema": app_schema,
         }));
-        self.runtime.invoke_capability(
+        if let Err(error) = self.runtime.invoke_capability(
             CAPABILITY_SETTINGS,
             "register",
             serde_json::json!({ "sources": sources }),
-        )?;
+        ) {
+            get_bus().publish_technical(
+                Severity::Warn,
+                format!("Не удалось обновить реестр настроек: {error}"),
+                "core",
+                serde_json::json!({}),
+            );
+            return Err(error);
+        }
         Ok(())
     }
 
@@ -196,34 +232,52 @@ impl AppPluginHost {
     /// отсутствии провайдера или значения используется значение по умолчанию
     /// `true`.
     pub fn welcome_notification_enabled(&mut self) -> bool {
+        self.app_setting_bool("startup.welcome_notification")
+            .unwrap_or(true)
+    }
+
+    /// Порог логирования технических событий из настроек приложения.
+    ///
+    /// При отсутствии провайдера или значения используется `info`.
+    pub fn log_level(&mut self) -> Severity {
         let Ok(response) = self.runtime.invoke_capability(
             CAPABILITY_SETTINGS,
             "get",
             serde_json::json!({ "section": "app.general" }),
         ) else {
-            return true;
+            return Severity::Info;
         };
         serde_json::from_str::<serde_json::Value>(&response)
             .ok()
-            .and_then(|value| value["values"]["startup.welcome_notification"].as_bool())
-            .unwrap_or(true)
+            .and_then(|value| {
+                value["values"]["diagnostics.log_level"]
+                    .as_str()
+                    .map(str::to_string)
+            })
+            .and_then(|value| Severity::parse(&value))
+            .unwrap_or(Severity::Info)
     }
 
-    /// Публикация события в bus с последующей доставкой.
-    fn publish_event(
-        &mut self,
-        level: &str,
-        message: String,
-        source: String,
-        details: serde_json::Value,
-    ) {
-        get_bus().publish(PluginEvent {
-            level: level.to_string(),
-            message,
-            source,
-            details,
-        });
-        let _ = self.drain_and_deliver();
+    /// Пересчёт текущего порога логирования и его применение к шине событий.
+    pub fn refresh_log_level(&mut self) {
+        set_log_level(self.log_level());
+    }
+
+    /// Чтение логического значения из секции настроек приложения.
+    fn app_setting_bool(&mut self, key: &str) -> Option<bool> {
+        let response = self
+            .runtime
+            .invoke_capability(
+                CAPABILITY_SETTINGS,
+                "get",
+                serde_json::json!({ "section": "app.general" }),
+            )
+            .ok()?;
+        serde_json::from_str::<serde_json::Value>(&response)
+            .ok()?
+            .get("values")
+            .and_then(|values| values.get(key))
+            .and_then(serde_json::Value::as_bool)
     }
 }
 

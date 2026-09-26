@@ -50,7 +50,7 @@ fn publish_user_creates_entry_and_event() {
     let entry: serde_json::Value = serde_json::from_str(&output).expect("JSON записи");
     assert_eq!(entry["level"], "User");
     assert_eq!(entry["message"], "готово");
-    assert_eq!(entry["severity"], "Info");
+    assert_eq!(entry["severity"], "info");
     assert_eq!(entry["read"], false);
 
     let events = host.events.borrow();
@@ -66,12 +66,13 @@ fn publish_technical_uses_technical_level() {
         &host,
         &request(
             "publish",
-            serde_json::json!({ "level": "technical", "message": "шум" }),
+            serde_json::json!({ "level": "technical", "message": "шум", "severity": "warn" }),
         ),
     )
     .expect("публикация");
     let entry: serde_json::Value = serde_json::from_str(&output).expect("JSON записи");
     assert_eq!(entry["level"], "Technical");
+    assert_eq!(entry["severity"], "warn", "техническая запись хранит степень");
     assert_eq!(entry["source"], "plugin", "источник по умолчанию");
 }
 
@@ -92,7 +93,7 @@ fn publish_reads_severity_and_details() {
     )
     .expect("публикация");
     let entry: serde_json::Value = serde_json::from_str(&output).expect("JSON записи");
-    assert_eq!(entry["severity"], "Error");
+    assert_eq!(entry["severity"], "error");
     assert_eq!(entry["details"]["path"], "book.epub");
 }
 
