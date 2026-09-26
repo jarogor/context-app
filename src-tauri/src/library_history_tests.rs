@@ -27,6 +27,7 @@ fn remembers_and_lists_entry() {
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].provider, PROVIDER);
     assert_eq!(entries[0].provider_name, PROVIDER_NAME);
+    assert!(entries[0].added_at_millis > 0, "время открытия в выдаче");
     assert!(entries[0].available);
     test_util::cleanup(&root);
 }

@@ -1,5 +1,4 @@
 import libraryConfig from './library-config.json';
-import type { HistoryEntry } from './types';
 
 type Message = {
   channel: 'texture-plugin';
@@ -51,28 +50,6 @@ export function operation<T = unknown>(action: string, payload: unknown = {}): P
     payload,
     storageRoot: libraryConfig.state_dir,
   });
-}
-
-/** Выбор source-плагина и открытие библиотеки по пути. */
-export function selectSource(path: string): Promise<{ provider: string; provider_name: string }> {
-  return invoke<{ provider: string; provider_name: string }>('select_source_library', {
-    path,
-    storageRoot: libraryConfig.state_dir,
-  });
-}
-
-/** История открытых библиотек, отфильтрованная по доступным провайдерам. */
-export function historyList(): Promise<{ entries: HistoryEntry[] }> {
-  return invoke<{ entries: HistoryEntry[] }>('library_history_list', {});
-}
-
-/** Удаление записи истории. */
-export function historyForget(path: string): Promise<unknown> {
-  return invoke('library_history_forget', { path });
-}
-
-export function openDialog(options: unknown): Promise<string | string[] | null> {
-  return request('dialog.open', { payload: options });
 }
 
 export async function listen<T = unknown>(event: string, listener: (value: T) => void): Promise<() => void> {

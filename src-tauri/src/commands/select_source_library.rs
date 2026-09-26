@@ -9,8 +9,11 @@ use crate::library_history;
 use crate::plugin::AppState;
 
 /// Выбор source-плагина для директории, настройка сессии и запись истории.
+///
+/// Команда асинхронная, чтобы тяжёлое открытие/индексация не блокировали
+/// главный поток и интерфейс мог отрисовать прогресс.
 #[tauri::command]
-pub fn select_source_library(
+pub async fn select_source_library(
     state: State<'_, Mutex<AppState>>,
     path: String,
     storage_root: String,
@@ -44,6 +47,16 @@ pub fn select_source_library(
     crate::plugin::relay::emit(
         "plugin-store:changed",
         serde_json::json!({ "reason": "session" }),
+    );
+
+    // Библиотека открыта — сообщаем интерфейсу, что активная библиотека сменилась.
+    crate::plugin::relay::emit(
+        "source-catalog-changed",
+        serde_json::json!({
+            "path": path,
+            "provider": provider.clone(),
+            "provider_name": provider_name.clone(),
+        }),
     );
 
     Ok(serde_json::json!({ "provider": provider, "provider_name": provider_name }))

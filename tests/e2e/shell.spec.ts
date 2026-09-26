@@ -16,3 +16,12 @@ test('оболочка показывает панель и переключае
   const store = page.frameLocator('iframe[title="Plugin store"]');
   await expect(store.getByRole('heading', { name: 'Плагины' })).toBeVisible();
 });
+
+test('оболочка открывает страницу библиотек', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByLabel('Библиотеки').click();
+
+  await expect(page.getByRole('heading', { name: 'Библиотеки' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /demo-library/ })).toBeVisible();
+});

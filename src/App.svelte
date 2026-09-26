@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button, Menu, MenuItem } from '@texture/ui';
   import PluginFrame from './lib/PluginFrame.svelte';
+  import LibrariesPage from './lib/LibrariesPage.svelte';
 
   /** Сообщение frontend-плагина без идентификатора запроса. */
   interface PluginMessage {
@@ -17,6 +18,9 @@
   /** Выбранная страница раздела настроек. */
   let settingsSection = $state<SettingsSection>('general');
 
+  /** Открыта ли страница «Библиотеки»; состояние принадлежит оболочке. */
+  let librariesOpen = $state(false);
+
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
 
@@ -28,12 +32,23 @@
 
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
-    settingsOpen ? (settingsSection === 'plugins' ? 'Плагины' : 'Настройки') : 'Библиотека',
+    librariesOpen ? 'Библиотеки' : settingsOpen ? (settingsSection === 'plugins' ? 'Плагины' : 'Настройки') : 'Библиотека',
   );
 
-  /** Переключение между основным разделом и настройками. */
+  /** Переключение раздела настроек; закрывает страницу библиотек. */
   function toggleSettings() {
     settingsOpen = !settingsOpen;
+    if (settingsOpen) {
+      librariesOpen = false;
+    }
+  }
+
+  /** Переключение страницы «Библиотеки»; закрывает настройки. */
+  function toggleLibraries() {
+    librariesOpen = !librariesOpen;
+    if (librariesOpen) {
+      settingsOpen = false;
+    }
   }
 
   /** Выбор страницы раздела настроек. */
@@ -78,10 +93,11 @@
     </div>
     <div class="ml-auto flex items-center gap-[var(--space-2)]">
       <Button
-        variant="secondary"
+        variant={notificationsOpen ? 'primary' : 'secondary'}
         size="icon"
         title="Уведомления"
         ariaLabel="Уведомления"
+        ariaPressed={notificationsOpen}
         class="relative"
         onclick={toggleNotifications}
       >
@@ -101,10 +117,28 @@
         </span>
       </Button>
       <Button
-        variant="secondary"
+        variant={librariesOpen ? 'primary' : 'secondary'}
+        size="icon"
+        title="Библиотеки"
+        ariaLabel="Библиотеки"
+        ariaPressed={librariesOpen}
+        onclick={toggleLibraries}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <rect x="4" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
+          <rect x="10" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
+          <path
+            d="M16.2 4.3a1 1 0 0 1 1.25.7l3.1 14.2a1 1 0 0 1-.75 1.2l-1.9.45a1 1 0 0 1-1.2-.75L13.6 5.9a1 1 0 0 1 .75-1.2Z"
+            fill="currentColor"
+          />
+        </svg>
+      </Button>
+      <Button
+        variant={settingsOpen ? 'primary' : 'secondary'}
         size="icon"
         title="Настройки"
         ariaLabel="Настройки"
+        ariaPressed={settingsOpen}
         onclick={toggleSettings}
       >
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -122,8 +156,11 @@
 
   <div class="flex min-h-0 flex-1 overflow-hidden">
     <main class="flex min-w-0 flex-1">
-      <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsOpen}>
+      <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsOpen || librariesOpen}>
         <PluginFrame src="/plugins/library-ui/index.html" title="Library plugin" />
+      </div>
+      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesOpen}>
+        <LibrariesPage />
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!settingsOpen}>
         <Menu

@@ -96,6 +96,7 @@ export function defaultMockConfig(): MockBridgeConfig {
       invoke_base_plugin_operation: baseOperation,
       invoke_plugin_operation: pluginOperation,
       select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
+      active_library: () => null,
       plugin_activation_pending: () => ({ pending: false }),
       library_history_list: () => ({
         entries: [
@@ -103,6 +104,7 @@ export function defaultMockConfig(): MockBridgeConfig {
             path: '/demo-library',
             provider: LIBRARY_ID,
             provider_name: 'library',
+            added_at_millis: 1_700_000_000_000,
             available: true,
           },
         ],

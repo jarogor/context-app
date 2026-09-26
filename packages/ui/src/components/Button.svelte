@@ -17,6 +17,8 @@
     title?: string;
     /** Метка доступности. */
     ariaLabel?: string;
+    /** Состояние нажатой (активной) кнопки. */
+    ariaPressed?: boolean;
     /** Обработчик нажатия. */
     onclick?: (event: MouseEvent) => void;
     /** Содержимое кнопки. */
@@ -31,6 +33,7 @@
     class: className = '',
     title,
     ariaLabel,
+    ariaPressed,
     onclick,
     children,
   }: Props = $props();
@@ -58,6 +61,7 @@
   {disabled}
   {title}
   aria-label={ariaLabel}
+  aria-pressed={ariaPressed}
   {onclick}
   class={cn(
     'inline-flex cursor-pointer items-center justify-center gap-[var(--space-1)] rounded-[var(--radius-md)] border [font:inherit] transition-colors disabled:cursor-not-allowed disabled:opacity-50',

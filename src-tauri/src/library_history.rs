@@ -42,6 +42,8 @@ pub struct HistoryEntry {
     pub provider: String,
     /// Человекочитаемое имя провайдера.
     pub provider_name: String,
+    /// Время открытия записи (Unix, мс).
+    pub added_at_millis: u64,
     /// Существует ли директория библиотеки.
     pub available: bool,
 }
@@ -70,6 +72,7 @@ pub fn list(
                 path: record.path,
                 provider: record.provider,
                 provider_name: provider.name.clone(),
+                added_at_millis: record.added_at_millis,
             })
         })
         .collect())

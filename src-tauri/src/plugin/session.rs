@@ -147,6 +147,16 @@ impl PluginSession {
         self.active_plugin.as_deref()
     }
 
+    /// Активная библиотека: путь, идентификатор и имя провайдера.
+    ///
+    /// Возвращает `None`, пока библиотека не открыта.
+    pub fn active_library(&self) -> Option<(String, String, String)> {
+        let provider = self.active_plugin.clone()?;
+        let path = self.root.to_string_lossy().to_string();
+        let provider_name = self.runtime.plugin_name(&provider).unwrap_or_default();
+        Some((path, provider, provider_name))
+    }
+
     /// Человекочитаемое имя плагина по идентификатору.
     pub fn plugin_name(&self, id: &str) -> Option<String> {
         self.runtime.plugin_name(id)

@@ -1,11 +1,16 @@
 //! Generic IPC-команды host-приложения.
 
+pub mod active_library;
 pub mod base_plugin_operation;
 pub mod library_history_forget;
 pub mod library_history_list;
 pub mod plugin_activation_pending;
 pub mod plugin_operation;
 pub mod select_source_library;
+
+pub use active_library::__cmd__active_library;
+pub use active_library::__tauri_command_name_active_library;
+pub use active_library::active_library;
 
 pub use base_plugin_operation::__cmd__invoke_base_plugin_operation;
 pub use base_plugin_operation::__tauri_command_name_invoke_base_plugin_operation;

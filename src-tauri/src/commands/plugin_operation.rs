@@ -8,8 +8,11 @@ use tauri::State;
 use crate::plugin::AppState;
 
 /// Передача opaque-операции активному plugin-у.
+///
+/// Команда асинхронная: операции источника (сканирование, чтение, обложки)
+/// могут быть тяжёлыми и не должны блокировать главный поток.
 #[tauri::command]
-pub fn invoke_plugin_operation(
+pub async fn invoke_plugin_operation(
     state: State<'_, Mutex<AppState>>,
     plugin: Option<String>,
     root: Option<String>,

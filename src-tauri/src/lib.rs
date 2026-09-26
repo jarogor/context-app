@@ -96,6 +96,7 @@ pub fn run() {
             commands::invoke_plugin_operation,
             commands::invoke_base_plugin_operation,
             commands::select_source_library,
+            commands::active_library,
             commands::library_history_list,
             commands::library_history_forget,
             commands::plugin_activation_pending,
