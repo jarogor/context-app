@@ -1,4 +1,4 @@
-//! Тесты сканирования каталога книг базового плагина.
+//! Тесты сканирования директории книг generic-источника.
 //!
 //! Сканер в WASM-окружении работает через host-функции, поэтому в нативных
 //! тестах вместо них используется локальное чтение временной папки через ту же
@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::scan;
 use crate::fs::Fs;
 use crate::lifecycle;
-use crate::models::{ExternalBook, ExternalFileKind};
+use crate::models::ExternalBook;
 
 /// Счётчик для уникальных имён временных папок каждого теста.
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
@@ -141,56 +141,52 @@ impl Fs for FailingStateFs {
     }
 }
 
-/// Сканирование находит книгу и игнорирует корневой шум.
+/// Каждый файл книги становится отдельной книгой, включая вложенные папки.
 #[test]
-fn scans_books_and_ignores_root_noise() {
+fn scans_nested_books_as_separate_files() {
     let root = test_root();
     let _ = fs::remove_dir_all(&root);
-    let book = root.join("Автор").join("Название (42)");
-    fs::create_dir_all(&book).expect("создание папки книги");
-    fs::write(book.join("book.epub"), "epub").expect("запись книги");
-    fs::write(book.join("cover.jpg"), "cover").expect("запись обложки");
-    fs::write(root.join("readme.txt"), "noise").expect("запись шума");
-    fs::create_dir_all(root.join(".hidden")).expect("создание скрытой папки");
+    fs::create_dir_all(root.join("a").join("b")).expect("создание папок");
+    fs::write(root.join("a").join("b").join("Первый.epub"), "epub").expect("книга");
+    fs::write(root.join("Второй.pdf"), "pdf").expect("книга");
+    fs::write(root.join("notes.md"), "заметки").expect("шум");
+    let fs = NativeFs { root };
+
+    let books = scan(&fs).expect("сканирование");
+
+    assert_eq!(books.len(), 2, "найдены обе книги");
+    let titles = books.iter().map(|book| book.title.clone()).collect::<Vec<_>>();
+    assert!(titles.contains(&"Первый".to_string()));
+    assert!(titles.contains(&"Второй".to_string()));
+}
+
+/// Название берётся из имени файла, автора и обложки нет.
+#[test]
+fn book_has_no_author_and_no_cover() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("создание корня");
+    fs::write(root.join("Название книги.fb2"), "fb2").expect("книга");
+    fs::write(root.join("cover.jpg"), "cover").expect("обложка");
     let fs = NativeFs { root };
 
     let books = scan(&fs).expect("сканирование");
 
     assert_eq!(books.len(), 1);
-    assert_eq!(books[0].title, "Название (42)");
-    assert_eq!(books[0].authors, ["Автор"]);
-    assert_eq!(books[0].files.len(), 2);
+    assert_eq!(books[0].title, "Название книги");
+    assert!(books[0].authors.is_empty());
+    assert_eq!(books[0].files.len(), 1);
+    assert_eq!(books[0].files[0].format, "fb2");
 }
 
-/// Файл обложки с именем `cover.*` распознаётся в составе книги.
+/// Скрытые папки и элементы пропускаются.
 #[test]
-fn uses_cover_file_with_default_name() {
+fn skips_hidden_entries() {
     let root = test_root();
     let _ = fs::remove_dir_all(&root);
-    let book = root.join("Автор").join("Книга");
-    fs::create_dir_all(&book).expect("создание папки книги");
-    fs::write(book.join("book.epub"), "epub").expect("запись книги");
-    fs::write(book.join("cover.png"), "cover").expect("запись обложки");
-    let fs = NativeFs { root };
-
-    let books = scan(&fs).expect("сканирование");
-
-    assert_eq!(books.len(), 1);
-    assert_eq!(books[0].files.len(), 2);
-    assert!(books[0]
-        .files
-        .iter()
-        .any(|file| matches!(file.kind, ExternalFileKind::Cover)));
-}
-
-/// Папка без файла книги не становится книгой.
-#[test]
-fn folder_without_book_files_is_skipped() {
-    let root = test_root();
-    let _ = fs::remove_dir_all(&root);
-    let folder = root.join("Автор").join("Без книги");
-    fs::create_dir_all(&folder).expect("создание папки");
-    fs::write(folder.join("notes.md"), "заметки").expect("запись файла");
+    fs::create_dir_all(root.join(".hidden")).expect("скрытая папка");
+    fs::write(root.join(".hidden").join("Скрытая.epub"), "epub").expect("книга");
+    fs::write(root.join(".secret.epub"), "epub").expect("скрытый файл");
     let fs = NativeFs { root };
 
     let books = scan(&fs).expect("сканирование");
@@ -198,71 +194,29 @@ fn folder_without_book_files_is_skipped() {
     assert!(books.is_empty());
 }
 
-/// Сканирование находит несколько авторов и книг.
+/// Probe находит книгу во вложенной папке.
 #[test]
-fn scans_multiple_authors_and_books() {
+fn probe_detects_book_in_nested_folder() {
     let root = test_root();
     let _ = fs::remove_dir_all(&root);
-    for (author, title) in [
-        ("Автор 1", "Книга 1"),
-        ("Автор 1", "Книга 2"),
-        ("Автор 2", "Книга 3"),
-    ] {
-        let book = root.join(author).join(format!("{title} (1)"));
-        fs::create_dir_all(&book).expect("создание папки книги");
-        fs::write(book.join("book.epub"), "epub").expect("запись книги");
-    }
+    fs::create_dir_all(root.join("level").join("deep")).expect("папки");
+    fs::write(root.join("level").join("deep").join("book.epub"), "epub").expect("книга");
     let fs = NativeFs { root };
 
-    let books = scan(&fs).expect("сканирование");
-
-    assert_eq!(books.len(), 3);
+    assert_eq!(super::probe(&fs).expect("проверка"), Some(super::PROBE_PRIORITY));
 }
 
-/// Структура «автор/книга» с файлом книги распознаётся как библиотека.
+/// Директория без файлов книг не подтверждается.
 #[test]
-fn probe_detects_library_by_author_book_structure() {
+fn probe_rejects_directory_without_books() {
     let root = test_root();
     let _ = fs::remove_dir_all(&root);
-    let book = root.join("Автор").join("Книга (1)");
-    fs::create_dir_all(&book).expect("создание папки книги");
-    fs::write(book.join("book.epub"), "epub").expect("запись книги");
+    fs::create_dir_all(root.join("Папка")).expect("папка");
+    fs::write(root.join("readme.log"), "текст").expect("файл");
+    fs::write(root.join("Папка").join("notes.md"), "заметки").expect("файл");
     let fs = NativeFs { root };
 
-    assert!(super::probe(&fs).expect("проверка структуры"));
-}
-
-/// Структура без файлов книг не считается библиотекой.
-#[test]
-fn probe_rejects_unrelated_structure() {
-    let root = test_root();
-    let _ = fs::remove_dir_all(&root);
-    let folder = root.join("Папка").join("Вложенная");
-    fs::create_dir_all(&folder).expect("создание папки");
-    fs::write(folder.join("notes.md"), "заметки").expect("запись файла");
-    fs::write(root.join("books.txt"), "список").expect("запись файла");
-    let fs = NativeFs { root };
-
-    assert!(!super::probe(&fs).expect("проверка структуры"));
-}
-
-/// Сканирование конкретной книги по относительному пути извлекает автора.
-#[test]
-fn scan_book_path_extracts_author_from_relative_path() {
-    let root = test_root();
-    let _ = fs::remove_dir_all(&root);
-    let book = root.join("Автор").join("Название (7)");
-    fs::create_dir_all(&book).expect("создание папки книги");
-    fs::write(book.join("book.epub"), "epub").expect("запись книги");
-    let fs = NativeFs { root };
-
-    let scanned = super::scan(&fs)
-        .expect("сканирование библиотеки")
-        .into_iter()
-        .find(|book| book.id == "Автор/Название (7)")
-        .expect("книга найдена");
-    assert_eq!(scanned.title, "Название (7)");
-    assert_eq!(scanned.authors, ["Автор"]);
+    assert_eq!(super::probe(&fs).expect("проверка"), None);
 }
 
 /// Состояние каталога восстанавливается после повторного открытия.
@@ -273,9 +227,9 @@ fn lifecycle_restores_saved_catalog() {
     fs::create_dir_all(&root).expect("создание корня");
     let native = NativeFs { root: root.clone() };
     let book = ExternalBook {
-        id: "Автор/Книга".to_string(),
+        id: "Книга.epub".to_string(),
         title: "Книга".to_string(),
-        authors: vec!["Автор".to_string()],
+        authors: Vec::new(),
         tags: Vec::new(),
         series: Vec::new(),
         files: Vec::new(),
@@ -311,9 +265,9 @@ fn lifecycle_keeps_last_catalog_when_storage_write_fails() {
     fs::create_dir_all(&root).expect("создание корня");
     let native = NativeFs { root: root.clone() };
     let book = ExternalBook {
-        id: "Автор/Книга".to_string(),
+        id: "Книга.epub".to_string(),
         title: "Книга".to_string(),
-        authors: vec!["Автор".to_string()],
+        authors: Vec::new(),
         tags: Vec::new(),
         series: Vec::new(),
         files: Vec::new(),

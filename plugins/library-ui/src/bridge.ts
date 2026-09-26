@@ -1,4 +1,5 @@
 import libraryConfig from './library-config.json';
+import type { HistoryEntry } from './types';
 
 type Message = {
   channel: 'booklib-plugin';
@@ -38,36 +39,36 @@ function request<T>(type: string, payload: Omit<Message, 'channel' | 'type'>): P
   });
 }
 
+/** Вызов произвольной команды приложения. */
 export function invoke<T = unknown>(command: string, payload?: unknown): Promise<T> {
   return request<T>('invoke', { command, payload });
 }
 
-export function operation<T = unknown>(
-  action: string,
-  payload: unknown = {},
-  options: { root?: string; writable?: boolean } = {},
-): Promise<T> {
-  const requestPayload: Record<string, unknown> = { operation: action, payload };
-  if (options.root) {
-    requestPayload.plugin = 'library';
-    requestPayload.root = options.root;
-    requestPayload.writable = options.writable;
-  }
-  requestPayload.storageRoot = libraryConfig.state_dir;
+/** Opaque-операция активного source-плагина сессии. */
+export function operation<T = unknown>(action: string, payload: unknown = {}): Promise<T> {
   return invoke<T>('invoke_plugin_operation', {
-    ...requestPayload,
+    operation: action,
+    payload,
+    storageRoot: libraryConfig.state_dir,
   });
 }
 
-export function pluginOperation<T = unknown>(
-  action: string,
-  payload: unknown = {},
-  options: { root?: string; writable?: boolean } = {},
-): Promise<T> {
-  return operation<T>(action, payload, {
-    root: options.root ?? '.',
-    writable: options.writable ?? false,
+/** Выбор source-плагина и открытие библиотеки по пути. */
+export function selectSource(path: string): Promise<{ provider: string }> {
+  return invoke<{ provider: string }>('select_source_library', {
+    path,
+    storageRoot: libraryConfig.state_dir,
   });
+}
+
+/** История открытых библиотек, отфильтрованная по доступным провайдерам. */
+export function historyList(): Promise<{ entries: HistoryEntry[] }> {
+  return invoke<{ entries: HistoryEntry[] }>('library_history_list', {});
+}
+
+/** Удаление записи истории. */
+export function historyForget(path: string): Promise<unknown> {
+  return invoke('library_history_forget', { path });
 }
 
 export function openDialog(options: unknown): Promise<string | string[] | null> {

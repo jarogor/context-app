@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Badge, Button, Input } from '@booklib/ui';
-  import { invoke, listen, openDialog, operation, pluginOperation } from './bridge';
-  import type { Book, BookFile, CachedLibrary, LibraryInfo } from './types';
+  import { historyForget, historyList, listen, openDialog, operation, selectSource } from './bridge';
+  import type { Book, BookFile, HistoryEntry, LibraryInfo } from './types';
 
   interface Props {
     onNavigate: (page: string, bookId?: number | string) => void;
@@ -24,7 +24,8 @@
   let openingLibrary: boolean = $state(false);
   let indexingLibrary: boolean = $state(false);
   let progressText: string = $state('');
-  let cachedLibraries: CachedLibrary[] = $state([]);
+  let history: HistoryEntry[] = $state([]);
+  let libraryPath: string | null = $state(null);
   let missingLibrary: string | null = $state(null);
   let librarySelected = $state(false);
   function stageLabel(stage: LibraryInfo['stage']): string {
@@ -116,8 +117,7 @@
   }
 
   async function loadLibraryInfo() {
-    libraryKind = 'portable';
-    sourceName = 'library';
+    libraryKind = 'external';
     indexingLibrary = false;
     progressText = '';
   }
@@ -132,40 +132,43 @@
     throw new Error('Открытие библиотеки превысило время ожидания');
   }
 
-  async function loadCachedLibraries() {
+  async function loadHistory() {
     try {
-      const response = await pluginOperation<{ paths?: CachedLibrary[] }>('recent_list');
-      const pluginPaths = response.paths ?? [];
-      cachedLibraries = pluginPaths.filter(
-        (item): item is CachedLibrary =>
-          Boolean(item) && typeof item.path === 'string' && item.path.trim().length > 0,
-      );
+      const response = await historyList();
+      history = response.entries ?? [];
     } catch (e) {
       error = String(e);
     }
   }
 
-  async function chooseCachedLibrary(path: string) {
-    await openLibraryPath(path);
+  async function removeFromHistory(path: string) {
+    try {
+      await historyForget(path);
+      await loadHistory();
+    } catch (e) {
+      error = String(e);
+    }
   }
 
-  async function openLibraryPath(path: string, mode?: 'portable', remember = true): Promise<boolean> {
+  async function openFromHistory(entry: HistoryEntry) {
+    if (!entry.available) {
+      return;
+    }
+    await openLibraryPath(entry.path);
+  }
+
+  async function openLibraryPath(path: string): Promise<boolean> {
     openingLibrary = true;
     indexingLibrary = false;
     progressText = 'Открытие библиотеки...';
     missingLibrary = null;
     try {
-      await operation('open', { mode: mode ?? 'external' }, { root: path, writable: mode === 'portable' });
+      const selected = await selectSource(path);
       librarySelected = true;
-      if (remember) {
-        cachedLibraries = [{ path, available: true }, ...cachedLibraries.filter((item) => item.path !== path)];
-        await operation('recent_remember', { path });
-      }
+      sourceName = selected.provider;
+      libraryPath = path;
       searchQuery = '';
-      await loadLibraryInfo();
-      if (!librarySelected) {
-        loading = false;
-      }
+      await loadHistory();
       openingLibrary = false;
       indexingLibrary = false;
       await load();
@@ -243,7 +246,7 @@
         importError = value;
       });
       await loadLibraryInfo();
-      await loadCachedLibraries();
+      await loadHistory();
       if (!indexingLibrary && books.length === 0 && cachedBooks.length > 0) {
         books = cachedBooks;
         loading = false;
@@ -263,8 +266,13 @@
 
 <div class="p-[var(--space-5)]">
   <div class="mb-[var(--space-4)] flex items-center justify-between gap-[var(--space-4)]">
-    {#if libraryKind === 'external' && sourceName}
-      <Badge>{sourceName}</Badge>
+    {#if sourceName}
+      <span class="flex items-center gap-[var(--space-2)]">
+        <Badge>{sourceName}</Badge>
+        <strong class="text-base">
+          {libraryPath?.split('/').filter(Boolean).pop() ?? 'Библиотека'}
+        </strong>
+      </span>
     {/if}
     <div class="flex flex-wrap gap-[var(--space-2)]">
       <Button variant="secondary" disabled={openingLibrary} onclick={openLibrary}>
@@ -290,19 +298,38 @@
     <p class="text-[var(--color-danger)]">{importError}</p>
   {/if}
 
-  {#if cachedLibraries.length > 0 && !indexingLibrary && books.length === 0}
+  {#if history.length > 0 && !indexingLibrary}
     <section class="my-[var(--space-5)] grid gap-[var(--space-2)]">
-      <h2 class="text-base font-semibold">Сохранённые библиотеки</h2>
-      {#each cachedLibraries as cached}
-        <button
-          class="grid gap-[3px] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[var(--space-2)] text-left [font:inherit] disabled:cursor-not-allowed disabled:text-[var(--color-text-muted)]"
-          type="button"
-          disabled={!cached.available}
-          onclick={() => chooseCachedLibrary(cached.path)}
-        >
-          <strong>{cached.available ? 'Открыть' : 'Недоступна'}</strong>
-          <span class="text-xs text-[var(--color-text-muted)] [overflow-wrap:anywhere]">{cached.path}</span>
-        </button>
+      <h2 class="text-base font-semibold">История библиотек</h2>
+      {#each history as entry (entry.path)}
+        <div class="flex items-center gap-[var(--space-2)]">
+          <button
+            class="flex flex-1 cursor-pointer flex-col gap-[3px] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[var(--space-2)] text-left [font:inherit] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] disabled:cursor-not-allowed disabled:border-[var(--color-border)] disabled:bg-[var(--color-surface)] disabled:text-[var(--color-text-muted)]"
+            type="button"
+            disabled={!entry.available}
+            onclick={() => openFromHistory(entry)}
+          >
+            <span class="flex items-center gap-[var(--space-2)]">
+              <span
+                class="inline-block h-2 w-2 rounded-full"
+                style:background={entry.available
+                  ? 'var(--color-success)'
+                  : 'var(--color-border-strong)'}
+              ></span>
+              <Badge>{entry.provider}</Badge>
+              <strong>{entry.path.split('/').filter(Boolean).pop() ?? entry.path}</strong>
+              <span class="text-xs text-[var(--color-text-muted)]">
+                {entry.available ? 'доступна' : 'недоступна'}
+              </span>
+            </span>
+            <span class="text-xs text-[var(--color-text-muted)] [overflow-wrap:anywhere]">
+              {entry.path}
+            </span>
+          </button>
+          <Button variant="danger" size="sm" onclick={() => removeFromHistory(entry.path)}>
+            Убрать
+          </Button>
+        </div>
       {/each}
     </section>
   {/if}

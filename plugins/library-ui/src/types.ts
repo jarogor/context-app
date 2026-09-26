@@ -28,8 +28,12 @@ export interface LibraryInfo {
   stage: 'idle' | 'opening' | 'scanning' | 'indexing' | 'ready' | 'error';
 }
 
-/** Legacy cache entry type retained only for plugin UI compatibility. */
-export interface CachedLibrary {
+/** Запись истории открытых библиотек. */
+export interface HistoryEntry {
+  /** Путь библиотеки. */
   path: string;
+  /** Провайдер: имя source-плагина. */
+  provider: string;
+  /** Существует ли директория библиотеки. */
   available: boolean;
 }

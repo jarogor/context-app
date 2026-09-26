@@ -3,6 +3,7 @@ pub mod test_util;
 
 pub mod commands;
 pub mod constants;
+pub mod library_history;
 pub mod plugin;
 
 use std::path::{Path, PathBuf};
@@ -11,7 +12,8 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 use crate::constants::{
-    resolve_user_plugins_root, BASE_PLUGINS_DIR_NAME, DEMO_PLUGIN_NAME, PLUGINS_DIR_NAME,
+    resolve_app_state_root, resolve_user_plugins_root, BASE_PLUGINS_DIR_NAME, DEMO_PLUGIN_NAME,
+    PLUGINS_DIR_NAME,
 };
 use crate::plugin::{AppPluginHost, AppState, PluginSession};
 
@@ -24,8 +26,9 @@ pub fn run() {
             plugin::relay::set_app_handle(app.handle().clone());
 
             let resource_dir = app.path().resource_dir()?;
-            let user_plugins_dir =
-                resolve_user_plugins_root(app.path().app_data_dir().ok().as_deref());
+            let app_data_dir = app.path().app_data_dir().ok();
+            let user_plugins_dir = resolve_user_plugins_root(app_data_dir.as_deref());
+            let app_state_root = resolve_app_state_root(app_data_dir.as_deref());
 
             let bundled_base = resource_dir.join(BASE_PLUGINS_DIR_NAME);
             let mut app_host =
@@ -83,13 +86,16 @@ pub fn run() {
                 }
             }
 
-            app.manage(Mutex::new(AppState::new(host, app_host)));
+            app.manage(Mutex::new(AppState::new(host, app_host, app_state_root)));
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::invoke_plugin_operation,
             commands::invoke_base_plugin_operation,
+            commands::select_source_library,
+            commands::library_history_list,
+            commands::library_history_forget,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

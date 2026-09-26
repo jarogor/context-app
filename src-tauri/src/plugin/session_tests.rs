@@ -29,6 +29,25 @@ fn plugin_directories_without_user_catalog() {
 }
 
 #[test]
+fn pick_best_prefers_higher_priority() {
+    let candidates = vec![("library".to_string(), 1), ("calibre".to_string(), 10)];
+
+    assert_eq!(super::pick_best(candidates), Some("calibre".to_string()));
+}
+
+#[test]
+fn pick_best_keeps_first_on_tie() {
+    let candidates = vec![("a".to_string(), 5), ("b".to_string(), 5)];
+
+    assert_eq!(super::pick_best(candidates), Some("a".to_string()));
+}
+
+#[test]
+fn pick_best_is_none_for_empty_candidates() {
+    assert_eq!(super::pick_best(Vec::new()), None);
+}
+
+#[test]
 fn writable_root_is_created_before_plugin_configuration() {
     let parent = test_util::test_root("plugin-session-writable-root");
     let root = parent.join("nested").join("runtime-root");

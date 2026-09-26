@@ -73,6 +73,11 @@ export function defaultMockConfig(): MockBridgeConfig {
     handlers: {
       invoke_base_plugin_operation: baseOperation,
       invoke_plugin_operation: pluginOperation,
+      select_source_library: () => ({ provider: 'library' }),
+      library_history_list: () => ({
+        entries: [{ path: '/demo-library', provider: 'library', available: true }],
+      }),
+      library_history_forget: () => ({ forgotten: true }),
     },
   };
 }

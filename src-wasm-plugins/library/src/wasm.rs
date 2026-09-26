@@ -8,12 +8,8 @@ use crate::lifecycle;
 use crate::models::{ExternalBook, SourceCapabilities, SourceCatalog, SOURCE_PROTOCOL_VERSION};
 use crate::scanner;
 use extism_pdk::{host_fn, plugin_fn, FnResult};
-use quick_xml::events::Event;
-use quick_xml::Reader;
 use serde::Deserialize;
 use serde_json::json;
-use std::io::{Cursor, Read};
-use zip::ZipArchive;
 
 /// Host-функция `fs_list_dir`: перечисление имён записей директории.
 #[host_fn]
@@ -131,13 +127,17 @@ pub fn invoke(input: String) -> FnResult<String> {
             incremental_sync: true,
         })?,
         "probe" => {
-            let supported = scanner::probe(&fs).map_err(extism_pdk::Error::msg)?;
+            let priority = scanner::probe(&fs).map_err(extism_pdk::Error::msg)?;
+            let supported = priority.is_some();
             emit_notification(
                 "technical",
                 "Проверка source завершена",
-                json!({ "supported": supported }),
+                json!({ "supported": supported, "priority": priority }),
             );
-            serde_json::to_string(&json!({ "supported": supported }))?
+            serde_json::to_string(&json!({
+                "supported": supported,
+                "priority": priority.unwrap_or(0),
+            }))?
         }
         "open" => {
             let portable =
@@ -204,7 +204,7 @@ pub fn invoke(input: String) -> FnResult<String> {
             let path = book_path(&fs, &request.payload, false)?;
             let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
             let text = if path.to_ascii_lowercase().ends_with(".epub") {
-                read_epub_text(&bytes)?
+                crate::epub::read_epub_text(&bytes).map_err(extism_pdk::Error::msg)?
             } else {
                 String::from_utf8_lossy(&bytes).into_owned()
             };
@@ -241,71 +241,14 @@ pub fn invoke(input: String) -> FnResult<String> {
                 }
             }))?
         }
-        "recent_list" => {
-            let paths = recent_paths(&fs)?;
-            serde_json::to_string(&json!({
-                "paths": paths.into_iter().map(|path| json!({ "path": path, "available": true })).collect::<Vec<_>>()
-            }))?
-        }
-        "recent_remember" => {
-            let path = request
-                .payload
-                .get("path")
-                .and_then(|value| value.as_str())
-                .ok_or_else(|| extism_pdk::Error::msg("не указан путь каталога"))?;
-            let mut paths = recent_paths(&fs)?;
-            paths.retain(|current| current != path);
-            paths.insert(0, path.to_string());
-            let value = serde_json::to_string(&paths)?;
-            fs.state_write("recent-libraries.json", &value)
-                .map_err(extism_pdk::Error::msg)?;
-            serde_json::to_string(&json!({ "saved": true }))?
-        }
-        "recent_forget" => {
-            let path = request
-                .payload
-                .get("path")
-                .and_then(|value| value.as_str())
-                .ok_or_else(|| extism_pdk::Error::msg("не указан путь каталога"))?;
-            let mut paths = recent_paths(&fs)?;
-            paths.retain(|current| current != path);
-            let value = serde_json::to_string(&paths)?;
-            fs.state_write("recent-libraries.json", &value)
-                .map_err(extism_pdk::Error::msg)?;
-            serde_json::to_string(&json!({ "removed": true }))?
-        }
         "import" => {
             let path = request
                 .payload
                 .get("path")
                 .and_then(|value| value.as_str())
                 .ok_or_else(|| extism_pdk::Error::msg("не указан файл импорта"))?;
-            let bytes = fs.import_read_bytes(path).map_err(extism_pdk::Error::msg)?;
-            let (title, authors) = parse_epub_metadata(&bytes)?;
-            let id = format!("portable/{title}");
-            let book_path = format!("books/{}.epub", sanitize_name(&title));
-            let book = ExternalBook {
-                id: id.clone(),
-                title,
-                authors,
-                tags: Vec::new(),
-                series: Vec::new(),
-                files: vec![crate::models::ExternalFile {
-                    kind: crate::models::ExternalFileKind::Book,
-                    path: book_path.clone(),
-                    format: "epub".to_string(),
-                }],
-            };
-            fs.write_bytes(&book_path, &bytes)
-                .map_err(extism_pdk::Error::msg)?;
-            let mut catalog = lifecycle::catalog().unwrap_or(SourceCatalog {
-                protocol_version: SOURCE_PROTOCOL_VERSION,
-                revision: 0,
-                books: Vec::new(),
-            });
-            catalog.books.retain(|current| current.id != id);
-            catalog.books.push(book.clone());
-            lifecycle::replace(&fs, catalog.clone()).map_err(extism_pdk::Error::msg)?;
+            let book =
+                crate::portable::import_book(&fs, path).map_err(extism_pdk::Error::msg)?;
             serde_json::to_string(&json!({ "book": book }))?
         }
         other => {
@@ -315,17 +258,6 @@ pub fn invoke(input: String) -> FnResult<String> {
         }
     };
     Ok(payload)
-}
-
-/// Чтение списка последних корней из plugin-owned state.
-fn recent_paths(fs: &impl crate::fs::Fs) -> Result<Vec<String>, extism_pdk::Error> {
-    let Some(value) = fs
-        .state_read("recent-libraries.json")
-        .map_err(extism_pdk::Error::msg)?
-    else {
-        return Ok(Vec::new());
-    };
-    Ok(serde_json::from_str(&value).unwrap_or_default())
 }
 
 /// Получение пути файла книги из opaque идентификатора или явного пути.
@@ -356,113 +288,4 @@ fn book_path(
         })
         .map(|file| file.path.clone())
         .ok_or_else(|| extism_pdk::Error::msg("файл книги не найден"))
-}
-
-/// Нормализация имени файла в portable storage.
-fn sanitize_name(value: &str) -> String {
-    value
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() {
-                character
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
-/// Извлечение базовых EPUB metadata внутри WASM без доступа к ОС.
-fn parse_epub_metadata(bytes: &[u8]) -> Result<(String, Vec<String>), extism_pdk::Error> {
-    let mut archive = ZipArchive::new(Cursor::new(bytes))
-        .map_err(|_| extism_pdk::Error::msg("не удалось открыть EPUB"))?;
-    let container = archive
-        .by_name("META-INF/container.xml")
-        .map_err(|_| extism_pdk::Error::msg("в EPUB отсутствует container.xml"))?;
-    let container_text = container
-        .bytes()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| extism_pdk::Error::msg("не удалось прочитать container.xml"))?;
-    let rootfile = text_between(&container_text, "full-path")
-        .ok_or_else(|| extism_pdk::Error::msg("в EPUB отсутствует content.opf"))?;
-    let opf = archive
-        .by_name(&rootfile)
-        .map_err(|_| extism_pdk::Error::msg("не удалось открыть content.opf"))?;
-    let opf_text = opf
-        .bytes()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| extism_pdk::Error::msg("не удалось прочитать content.opf"))?;
-    let title = text_between(&opf_text, "dc:title").unwrap_or_else(|| "Без названия".to_string());
-    let authors = all_text_between(&opf_text, "dc:creator");
-    Ok((title, authors))
-}
-
-fn text_between(bytes: &[u8], tag: &str) -> Option<String> {
-    all_text_between(bytes, tag).into_iter().next()
-}
-
-fn all_text_between(bytes: &[u8], tag: &str) -> Vec<String> {
-    let mut reader = Reader::from_reader(bytes);
-    reader.config_mut().trim_text(true);
-    let mut buffer = Vec::new();
-    let mut active = false;
-    let mut values = Vec::new();
-    let mut current = String::new();
-    loop {
-        match reader.read_event_into(&mut buffer) {
-            Ok(Event::Start(event)) => {
-                active = String::from_utf8_lossy(event.name().as_ref()).ends_with(tag);
-                current.clear();
-            }
-            Ok(Event::Text(event)) if active => {
-                current.push_str(&String::from_utf8_lossy(event.as_ref()));
-            }
-            Ok(Event::End(_)) if active => {
-                if !current.is_empty() {
-                    values.push(current.clone());
-                }
-                active = false;
-            }
-            Ok(Event::Eof) => break,
-            Err(_) => break,
-            _ => {}
-        }
-        buffer.clear();
-    }
-    values
-}
-
-/// Извлечение текста XHTML-глав из EPUB внутри WASM.
-fn read_epub_text(bytes: &[u8]) -> Result<String, extism_pdk::Error> {
-    let mut archive = ZipArchive::new(Cursor::new(bytes))
-        .map_err(|_| extism_pdk::Error::msg("не удалось открыть EPUB"))?;
-    let mut chapters = Vec::new();
-    for index in 0..archive.len() {
-        let mut file = archive
-            .by_index(index)
-            .map_err(|_| extism_pdk::Error::msg("не удалось прочитать EPUB"))?;
-        let name = file.name().to_ascii_lowercase();
-        if !(name.ends_with(".xhtml") || name.ends_with(".html") || name.ends_with(".htm")) {
-            continue;
-        }
-        let mut content = String::new();
-        file.read_to_string(&mut content)
-            .map_err(|_| extism_pdk::Error::msg("глава EPUB не является текстом"))?;
-        chapters.push(strip_markup(&content));
-    }
-    Ok(chapters.join("\n\n"))
-}
-
-fn strip_markup(value: &str) -> String {
-    let mut result = String::new();
-    let mut inside = false;
-    for character in value.chars() {
-        match character {
-            '<' => inside = true,
-            '>' => inside = false,
-            character if !inside => result.push(character),
-            _ => {}
-        }
-    }
-    result.split_whitespace().collect::<Vec<_>>().join(" ")
 }

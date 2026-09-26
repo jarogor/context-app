@@ -1,0 +1,40 @@
+//! Открытие внешней библиотеки с выбором source-плагина по `probe`.
+
+use std::sync::Mutex;
+
+use serde_json::Value;
+use tauri::State;
+
+use crate::library_history;
+use crate::plugin::AppState;
+
+/// Выбор source-плагина для директории, настройка сессии и запись истории.
+#[tauri::command]
+pub fn select_source_library(
+    state: State<'_, Mutex<AppState>>,
+    path: String,
+    storage_root: String,
+) -> Result<Value, String> {
+    let mut state = state.lock().map_err(|error| error.to_string())?;
+
+    let provider = state
+        .session
+        .select_source(path.clone(), false, storage_root)
+        .map_err(|error| error.to_string())?;
+
+    state
+        .session
+        .invoke("open", serde_json::json!({ "mode": "external" }))
+        .map_err(|error| error.to_string())?;
+
+    let sources = state.session.settings_sources();
+    let _ = state.app_host.refresh_settings_registry(&sources);
+
+    let history_root = state.app_state_root.clone();
+    library_history::remember(&history_root, &path, &provider)
+        .map_err(|error| error.to_string())?;
+
+    let _ = state.app_host.drain_and_deliver();
+
+    Ok(serde_json::json!({ "provider": provider }))
+}

@@ -443,6 +443,37 @@ impl PluginRuntime {
         self.plugins.iter().map(|p| p.name.clone()).collect()
     }
 
+    /// Имена загруженных source-плагинов.
+    pub fn source_plugin_names(&self) -> Vec<String> {
+        self.plugins
+            .iter()
+            .filter(|plugin| plugin.kind == PluginKind::Source)
+            .map(|plugin| plugin.name.clone())
+            .collect()
+    }
+
+    /// Опрос source-плагина: приоритет поддержки корня или `None`.
+    pub(crate) fn probe_priority(&mut self, name: &str) -> Result<Option<i32>, PluginError> {
+        let output = self.invoke_operation(name, "probe", serde_json::json!({}))?;
+        let value: serde_json::Value =
+            serde_json::from_str(&output).map_err(|error| PluginError::Call {
+                plugin: name.to_string(),
+                message: error.to_string(),
+            })?;
+        let supported = value
+            .get("supported")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        if !supported {
+            return Ok(None);
+        }
+        let priority = value
+            .get("priority")
+            .and_then(|value| value.as_i64())
+            .unwrap_or(0) as i32;
+        Ok(Some(priority))
+    }
+
     /// Вызов экспортируемой функции загруженного плагина по имени.
     pub fn invoke(&mut self, name: &str, input: &str) -> Result<String, PluginError> {
         self.plugins

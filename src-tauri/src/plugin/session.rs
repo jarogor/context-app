@@ -40,39 +40,46 @@ impl PluginSession {
         writable: bool,
         storage_root: impl Into<PathBuf>,
     ) -> Result<(), PluginError> {
-        let root = root.into();
-        let root = if root.is_absolute() {
-            root
-        } else {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .parent()
-                .expect("родитель папки src-tauri")
-                .join(root)
-        };
-        if writable {
-            std::fs::create_dir_all(&root).map_err(|error| PluginError::Call {
-                plugin: "runtime".into(),
-                message: format!("не удалось подготовить sandbox: {error}"),
-            })?;
-        }
-        if !root.is_dir() {
-            return Err(PluginError::Call {
-                plugin: "runtime".into(),
-                message: format!("путь не является директорией: {}", root.display()),
-            });
-        }
-        let storage_root = resolve_project_path(storage_root.into());
-        self.runtime = Self::load_runtime(
-            &root,
-            &self.bundled_plugins_dir,
-            &storage_root,
-            self.user_plugins_dir.as_deref(),
-        )?;
-        self.runtime.set_sandbox_root(root.clone());
-        self.runtime.set_sandbox_writable(writable);
-        self.root = root;
+        let root = self.prepare(root.into(), writable)?;
+        self.install(&root, storage_root.into(), writable)?;
         self.active_plugin = Some(plugin);
         Ok(())
+    }
+
+    /// Выбор source-плагина для корня по `probe` с приоритетом.
+    ///
+    /// Опрашивает загруженные source-плагины и настраивает сессию на
+    /// подтвердивший корень с наибольшим приоритетом. Возвращает имя выбранного
+    /// провайдера.
+    pub fn select_source(
+        &mut self,
+        root: impl Into<PathBuf>,
+        writable: bool,
+        storage_root: impl Into<PathBuf>,
+    ) -> Result<String, PluginError> {
+        let root = self.prepare(root.into(), writable)?;
+        self.install(&root, storage_root.into(), writable)?;
+
+        let mut candidates = Vec::new();
+        for name in self.runtime.source_plugin_names() {
+            if let Ok(Some(priority)) = self.runtime.probe_priority(&name) {
+                candidates.push((name, priority));
+            }
+        }
+
+        let Some(provider) = pick_best(candidates) else {
+            return Err(PluginError::Call {
+                plugin: "runtime".into(),
+                message: "ни один source-плагин не подтвердил директорию".into(),
+            });
+        };
+        self.active_plugin = Some(provider.clone());
+        Ok(provider)
+    }
+
+    /// Имя активного плагина сессии.
+    pub fn active_plugin(&self) -> Option<&str> {
+        self.active_plugin.as_deref()
     }
 
     /// Вызов opaque operation активного plugin-а.
@@ -109,6 +116,60 @@ impl PluginSession {
         self.runtime.settings_sources()
     }
 
+    /// Имена доступных source-плагинов из директорий сессии.
+    ///
+    /// Плагины обнаруживаются по манифестам без загрузки WASM.
+    pub fn available_source_plugins(&self) -> Vec<String> {
+        let directories = plugin_directories(
+            &self.root,
+            &self.bundled_plugins_dir,
+            self.user_plugins_dir.as_deref(),
+        );
+        crate::plugin::discover_source_plugins(&directories)
+    }
+
+    /// Разрешение и проверка корня перед загрузкой runtime.
+    fn prepare(&self, root: PathBuf, writable: bool) -> Result<PathBuf, PluginError> {
+        let root = if root.is_absolute() {
+            root
+        } else {
+            project_root().join(root)
+        };
+        if writable {
+            std::fs::create_dir_all(&root).map_err(|error| PluginError::Call {
+                plugin: "runtime".into(),
+                message: format!("не удалось подготовить sandbox: {error}"),
+            })?;
+        }
+        if !root.is_dir() {
+            return Err(PluginError::Call {
+                plugin: "runtime".into(),
+                message: format!("путь не является директорией: {}", root.display()),
+            });
+        }
+        Ok(root)
+    }
+
+    /// Загрузка runtime, установка sandbox и корня сессии.
+    fn install(
+        &mut self,
+        root: &Path,
+        storage_root: PathBuf,
+        writable: bool,
+    ) -> Result<(), PluginError> {
+        let storage_root = resolve_project_path(storage_root);
+        self.runtime = Self::load_runtime(
+            root,
+            &self.bundled_plugins_dir,
+            &storage_root,
+            self.user_plugins_dir.as_deref(),
+        )?;
+        self.runtime.set_sandbox_root(root.to_path_buf());
+        self.runtime.set_sandbox_writable(writable);
+        self.root = root.to_path_buf();
+        Ok(())
+    }
+
     fn load_runtime(
         root: &Path,
         bundled: &Path,
@@ -120,6 +181,26 @@ impl PluginSession {
         runtime.set_storage_root(storage_root.to_path_buf());
         Ok(runtime)
     }
+}
+
+/// Выбор провайдера с наибольшим приоритетом; при равенстве — первый.
+fn pick_best(candidates: Vec<(String, i32)>) -> Option<String> {
+    let mut best: Option<(String, i32)> = None;
+    for (name, priority) in candidates {
+        match &best {
+            Some((_, current)) if *current >= priority => {}
+            _ => best = Some((name, priority)),
+        }
+    }
+    best.map(|(name, _)| name)
+}
+
+/// Корень проекта приложения.
+fn project_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("родитель папки src-tauri")
+        .to_path_buf()
 }
 
 /// Директории загрузки плагинов в порядке приоритета.
@@ -147,10 +228,7 @@ fn resolve_project_path(path: PathBuf) -> PathBuf {
     if path.is_absolute() {
         return path;
     }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("родитель папки src-tauri")
-        .join(path)
+    project_root().join(path)
 }
 
 #[cfg(test)]

@@ -1,134 +1,118 @@
-//! Сканирование каталога книг базового плагина.
+//! Сканирование директории книг generic-источника.
 //!
-//! Все чтения файловой системы выполняются через абстракцию `Fs`:
-//! в WASM-окружении это host-функция `fs_list_dir`, в нативных тестах —
-//! чтение локальных папок. Пути используются только относительные,
-//! разделитель — `/`. Метаданные книги (название, автор) извлекаются из
-//! структуры «автор/книга» и имён папок, без файлов метаданных.
+//! Директория обходится рекурсивно; каждая книга — **отдельный файл**
+//! поддерживаемого формата. Название берётся из имени файла; автор и обложка
+//! не определяются. Все чтения файловой системы выполняются через абстракцию
+//! `Fs`: в WASM-окружении это host-функция `fs_list_dir`, в нативных тестах —
+//! чтение локальных папок. Пути используются только относительные, разделитель
+//! — `/`.
 
 use std::path::Path;
 
 use super::fs::Fs;
 use super::models::{ExternalBook, ExternalFile, ExternalFileKind};
 
-/// Расширения файлов, считающихся содержимым книги.
+/// Расширения файлов, считающихся книгой.
 const BOOK_FORMATS: &[&str] = &[
     "epub", "mobi", "azw", "azw3", "pdf", "fb2", "txt", "djvu", "rtf", "docx", "html",
 ];
-/// Расширения файлов, считающихся обложкой.
-const COVER_FORMATS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp"];
 
-/// Проверка пригодности корня в качестве библиотеки книг без полного сканирования.
+/// Максимальная глубина рекурсивного обхода подпапок.
+const MAX_DEPTH: usize = 8;
+
+/// Приоритет generic-источника при выборе source-плагина.
 ///
-/// Библиотекой считается корень, в котором на втором уровне вложенности есть
-/// папка книги с хотя бы одним файлом книги в поддерживаемом формате.
-pub(crate) fn probe(fs: &impl Fs) -> Result<bool, String> {
-    for author in fs.list_dir("")? {
-        if is_hidden(&author) {
+/// Ниже приоритета специализированных источников, чтобы не перехватывать их
+/// директории.
+pub(crate) const PROBE_PRIORITY: i32 = 1;
+
+/// Проверка поддержки корня без полного сканирования.
+///
+/// Возвращает приоритет источника, если найден хотя бы один файл книги, и
+/// `None`, если книг нет.
+pub(crate) fn probe(fs: &impl Fs) -> Result<Option<i32>, String> {
+    if contains_book(fs, "", 0)? {
+        Ok(Some(PROBE_PRIORITY))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Полное рекурсивное сканирование директории книг.
+pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
+    let mut books = Vec::new();
+    collect(fs, "", 0, &mut books)?;
+    books.sort_by(|left, right| left.id.cmp(&right.id));
+    Ok(books)
+}
+
+/// Рекурсивный сбор книг из директории.
+fn collect(fs: &impl Fs, path: &str, depth: usize, books: &mut Vec<ExternalBook>) -> Result<(), String> {
+    for name in fs.list_dir(path)? {
+        if is_hidden(&name) {
             continue;
         }
-        for book in fs.list_dir(&author)? {
-            if is_hidden(&book) {
-                continue;
-            }
-            let book_path = join(&author, &book);
-            if fs.list_dir(&book_path)?.iter().any(is_book_file) {
-                return Ok(true);
-            }
+        let child = join(path, &name);
+        if is_book_file(&name) {
+            books.push(book_from_file(&child));
+            continue;
+        }
+        if depth < MAX_DEPTH && !fs.list_dir(&child)?.is_empty() {
+            collect(fs, &child, depth + 1, books)?;
+        }
+    }
+    Ok(())
+}
+
+/// Поиск хотя бы одного файла книги с ранним выходом.
+fn contains_book(fs: &impl Fs, path: &str, depth: usize) -> Result<bool, String> {
+    for name in fs.list_dir(path)? {
+        if is_hidden(&name) {
+            continue;
+        }
+        if is_book_file(&name) {
+            return Ok(true);
+        }
+        let child = join(path, &name);
+        if depth < MAX_DEPTH
+            && !fs.list_dir(&child)?.is_empty()
+            && contains_book(fs, &child, depth + 1)?
+        {
+            return Ok(true);
         }
     }
     Ok(false)
 }
 
-/// Полное сканирование библиотеки.
-///
-/// Обходит папки авторов и книги внутри них, пропуская скрытые элементы и
-/// корневые служебные файлы.
-pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
-    let mut books = Vec::new();
-    for author in fs.list_dir("")? {
-        if is_hidden(&author) {
-            continue;
-        }
-        for book in fs.list_dir(&author)? {
-            if is_hidden(&book) {
-                continue;
-            }
-            let book_path = join(&author, &book);
-            if let Some(book) = scan_book(fs, &author, &book_path)? {
-                books.push(book);
-            }
-        }
-    }
-    Ok(books)
-}
-
-/// Сканирование одной папки книги.
-///
-/// Возвращает `None`, если в папке нет ни одного файла содержимого книги.
-fn scan_book(
-    fs: &impl Fs,
-    folder_author: &str,
-    book_path: &str,
-) -> Result<Option<ExternalBook>, String> {
-    let entries = fs.list_dir(book_path)?;
-    let mut files = Vec::new();
-    let mut cover = None;
-    for name in &entries {
-        let file_path = join(book_path, name);
-        if !fs.list_dir(&file_path)?.is_empty() {
-            continue;
-        }
-        let Some(extension) = Path::new(name).extension().and_then(|value| value.to_str()) else {
-            continue;
-        };
-        let extension = extension.to_ascii_lowercase();
-        if is_book_file(name) {
-            files.push(ExternalFile {
-                kind: ExternalFileKind::Book,
-                path: file_path.clone(),
-                format: extension,
-            });
-        } else if Path::new(name).file_stem().and_then(|value| value.to_str()) == Some("cover")
-            && COVER_FORMATS.contains(&extension.as_str())
-        {
-            cover = Some(ExternalFile {
-                kind: ExternalFileKind::Cover,
-                path: file_path.clone(),
-                format: extension,
-            });
-        }
-    }
-    if files.is_empty() {
-        return Ok(None);
-    }
-
-    files.sort_by(|left, right| left.path.cmp(&right.path));
-    if let Some(cover) = cover {
-        files.push(cover);
-    }
-    let title = book_path
-        .rsplit('/')
-        .next()
-        .unwrap_or(book_path)
+/// Формирование записи книги из относительного пути файла.
+fn book_from_file(relative: &str) -> ExternalBook {
+    let file_name = relative.rsplit('/').next().unwrap_or(relative);
+    let title = Path::new(file_name)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(file_name)
         .to_string();
-    let authors = if folder_author.is_empty() {
-        Vec::new()
-    } else {
-        vec![folder_author.to_string()]
-    };
-    Ok(Some(ExternalBook {
-        id: book_path.to_string(),
+    let format = Path::new(file_name)
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    ExternalBook {
+        id: relative.to_string(),
         title,
-        authors,
+        authors: Vec::new(),
         tags: Vec::new(),
         series: Vec::new(),
-        files,
-    }))
+        files: vec![ExternalFile {
+            kind: ExternalFileKind::Book,
+            path: relative.to_string(),
+            format,
+        }],
+    }
 }
 
-/// Является ли файл содержимым книги по его имени.
-fn is_book_file(name: &String) -> bool {
+/// Является ли файл книгой по его расширению.
+fn is_book_file(name: &str) -> bool {
     Path::new(name)
         .extension()
         .and_then(|extension| extension.to_str())
