@@ -1,47 +1,75 @@
 # Текстура
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+**Текстура** — десктопное приложение для исследователя книг: чтение текста и
+ведение заметок в одном рабочем месте. В основе два симметричных пространства —
+книги и заметки. Каждое умеет хранить, искать и организовывать свои объекты, а
+точка их встречи — рабочее место: там книга и заметки сходятся, и ради этого
+строится всё остальное. Приложение поддерживает несколько библиотек одновременно
+(собственная, Calibre, другие источники) и быстрое переключение между ними.
+Всё работает локально: без облака и аккаунтов, библиотека и заметки переносимы.
 
-## Recommended IDE Setup
+## Как устроено
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+Ядро написано на Rust (Tauri 2), интерфейс — на Svelte. Доменная логика вынесена
+в плагины: ядро не знает о конкретных форматах книг и источниках, а только
+маршрутизирует непрозрачные операции. Source-плагины распознают и сканируют
+библиотеки, базовые заведуют каркасом приложения (уведомления, настройки, стор),
+extension-плагины добавляют остальное. Плагины — это WASM-модули (Extism) в
+песочнице: без прямого доступа к файловой системе и сети, доступные операции
+предоставляет ядро.
 
-## Need an official Svelte framework?
+Оболочка и frontend-плагины строят интерфейс только из общей дизайн-системы
+`@texture/ui`. Код организован по vertical slice: каждая Tauri-команда проходит
+срез «command → сервис → репозиторий» без лишних абстракций.
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+## Стек
 
-## Technical considerations
+- **Ядро:** Rust, Tauri 2, SQLite (rusqlite)
+- **Фронтенд:** Svelte 5, Vite, Tailwind v4
+- **Плагины:** Extism (WASM, Rust PDK)
+- **Сборка:** npm workspaces + Cargo workspace
 
-**Why use this over SvelteKit?**
+## Структура
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
 ```
+src/                 фронтенд-оболочка (App.svelte, PluginFrame)
+plugins/             frontend-плагины (library-ui, settings-ui, ...)
+packages/ui          дизайн-система @texture/ui
+src-wasm-plugins/    исходники WASM-плагинов (Cargo workspace)
+src-tauri/           Rust-ядро и конфигурация Tauri
+scripts/             сборка WASM- и frontend-плагинов
+openspec/            спеки и изменения (spec-driven)
+```
+
+## Разработка
+
+Требования: Rust с целью `wasm32-unknown-unknown`, Node.js, системные зависимости
+Tauri для Linux (GTK, webkit2gtk).
+
+```bash
+npm install
+scripts/build-wasm-plugins.sh   # артефакты плагинов, в git не хранятся
+npm run dev                     # Vite-сервер интерфейса (Tauri запускает его сам)
+npm run dev:test                # Vite с мок-мостом Tauri (для UI без десктопа)
+npm run tauri dev               # полноценный desktop-запуск
+```
+
+Проверки перед завершением задачи:
+
+```bash
+scripts/build-wasm-plugins.sh
+cargo test --manifest-path src-tauri/Cargo.toml
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+npm run check
+npm test
+npm run test:e2e
+npm run build
+openspec validate --all
+```
+
+## Документы
+
+- `ROADMAP.md` — направление, домены и приоритеты продукта.
+- `AGENTS.md` — правила разработки и архитектурные конвенции.
+- `openspec/specs/` — текущее состояние функциональности.
