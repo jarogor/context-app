@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Badge, Button, Card, Checkbox, Input, Select } from '@booklib/ui';
+  import { Badge, Button, Card, Checkbox, Input, Select } from '@texture/ui';
   import type { PluginEntry, Store, StorePackage } from './types';
 
   interface Props {

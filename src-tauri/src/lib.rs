@@ -46,7 +46,7 @@ pub fn run() {
             if app_host.welcome_notification_enabled() {
                 app_host.notify_user(
                     crate::plugin::Severity::Info,
-                    "Добро пожаловать в BookLib",
+                    "Добро пожаловать в «Текстуру»",
                     "app",
                     serde_json::json!({}),
                 );
@@ -67,7 +67,7 @@ pub fn run() {
             {
                 match host
                     .runtime_mut()
-                    .invoke(DEMO_PLUGIN_ID, r#"{"title":"BookLib"}"#)
+                    .invoke(DEMO_PLUGIN_ID, r#"{"title":"Текстура"}"#)
                 {
                     Ok(output) => {
                         app_host.notify_user(

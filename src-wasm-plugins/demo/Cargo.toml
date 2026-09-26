@@ -1,7 +1,7 @@
 [package]
 name = "demo"
 version = "0.1.0"
-description = "Демонстрационный плагин для Jarogor BookLib"
+description = "Демонстрационный плагин для приложения «Текстура»"
 edition = "2021"
 
 [lib]

@@ -1,5 +1,5 @@
 {
-  "name": "jarogor-booklib-plugin-store-ui",
+  "name": "jarogor-texture-plugin-store-ui",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@booklib/ui": "*",
+    "@texture/ui": "*",
     "@tauri-apps/api": "^2.11.1",
     "svelte": "^5.57.0"
   },

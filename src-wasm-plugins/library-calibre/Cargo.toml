@@ -1,7 +1,7 @@
 [package]
 name = "library-calibre"
 version = "0.1.0"
-description = "Source-плагин библиотеки Calibre для Jarogor BookLib"
+description = "Source-плагин библиотеки Calibre для приложения «Текстура»"
 edition = "2021"
 
 [lib]

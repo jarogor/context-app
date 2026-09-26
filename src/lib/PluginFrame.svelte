@@ -27,7 +27,7 @@
   /** Отправка размеров окна в frontend-плагин. */
   function postViewport() {
     frame?.contentWindow?.postMessage(
-      { channel: 'booklib-plugin', type: 'viewport', value: currentViewport() },
+      { channel: 'texture-plugin', type: 'viewport', value: currentViewport() },
       '*',
     );
   }
@@ -35,7 +35,7 @@
   async function handleMessage(event: MessageEvent) {
     if (event.source !== frame?.contentWindow) return;
     const message = event.data;
-    if (!message || message.channel !== 'booklib-plugin') return;
+    if (!message || message.channel !== 'texture-plugin') return;
     if (!message.id) {
       onMessage?.(message);
       return;
@@ -54,7 +54,7 @@
             message.event,
             await listenEvent(message.event, (payload) => {
               frame.contentWindow?.postMessage(
-                { channel: 'booklib-plugin', type: 'event', event: message.event, value: payload },
+                { channel: 'texture-plugin', type: 'event', event: message.event, value: payload },
                 '*',
               );
             }),
@@ -63,12 +63,12 @@
         value = true;
       }
       frame.contentWindow?.postMessage(
-        { channel: 'booklib-plugin', type: 'response', id: message.id, value },
+        { channel: 'texture-plugin', type: 'response', id: message.id, value },
         '*',
       );
     } catch (error) {
       frame.contentWindow?.postMessage(
-        { channel: 'booklib-plugin', type: 'response', id: message.id, error: String(error) },
+        { channel: 'texture-plugin', type: 'response', id: message.id, error: String(error) },
         '*',
       );
     }

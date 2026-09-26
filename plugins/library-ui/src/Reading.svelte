@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Button } from '@booklib/ui';
+  import { Button } from '@texture/ui';
   import { invoke, operation } from './bridge';
 
   interface Props {

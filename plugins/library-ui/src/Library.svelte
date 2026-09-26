@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Badge, Button, Input } from '@booklib/ui';
+  import { Badge, Button, Input } from '@texture/ui';
   import { historyForget, historyList, listen, openDialog, operation, selectSource } from './bridge';
   import type { Book, BookFile, HistoryEntry, LibraryInfo } from './types';
 

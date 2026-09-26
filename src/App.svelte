@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Menu, MenuItem } from '@booklib/ui';
+  import { Button, Menu, MenuItem } from '@texture/ui';
   import PluginFrame from './lib/PluginFrame.svelte';
 
   /** Сообщение frontend-плагина без идентификатора запроса. */
@@ -65,7 +65,7 @@
   <header
     class="flex flex-[0_0_48px] items-center gap-[var(--space-3)] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-4)]"
   >
-    <span class="text-base font-bold text-[var(--color-primary)]">BookLib</span>
+    <span class="text-base font-bold text-[var(--color-primary)]">Текстура</span>
     <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
     <div class="flex flex-1 justify-center">
       {#if activationPending}

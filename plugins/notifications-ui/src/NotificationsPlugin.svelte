@@ -14,7 +14,7 @@
   /** Передача счётчика в оболочку для кнопки в верхней панели. */
   $effect(() => {
     window.parent.postMessage(
-      { channel: 'booklib-plugin', type: 'notifications-count', value: unreadUser },
+      { channel: 'texture-plugin', type: 'notifications-count', value: unreadUser },
       '*',
     );
   });

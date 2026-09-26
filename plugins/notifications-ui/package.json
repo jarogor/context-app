@@ -1,5 +1,5 @@
 {
-  "name": "jarogor-booklib-notifications-ui-plugin",
+  "name": "jarogor-texture-notifications-ui-plugin",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@booklib/ui": "*",
+    "@texture/ui": "*",
     "@tauri-apps/api": "^2.11.1",
     "svelte": "^5.57.0"
   },

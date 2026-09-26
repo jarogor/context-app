@@ -12,7 +12,7 @@ export default defineConfig({
     },
     envPrefix: ["VITE_", "TAURI_ENV_"],
     optimizeDeps: {
-        exclude: ["@booklib/ui", "@booklib/ui-schema", "@booklib/testing"],
+        exclude: ["@texture/ui", "@texture/ui-schema", "@texture/testing"],
     },
     build: {
         target: "es2021",

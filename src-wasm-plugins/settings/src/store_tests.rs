@@ -32,7 +32,7 @@ fn state_with_registry() -> SettingsState {
                         "boolean",
                         json!(true),
                     ),
-                    field("startup.title", "Заголовок", "string", json!("BookLib")),
+                    field("startup.title", "Заголовок", "string", json!("Текстура")),
                 ],
             }],
         },
@@ -48,7 +48,7 @@ fn defaults_are_visible_without_saved_values() {
     let state = state_with_registry();
     let values = state.values_for("app.general").expect("значения");
     assert_eq!(values["startup.welcome_notification"], json!(true));
-    assert_eq!(values["startup.title"], json!("BookLib"));
+    assert_eq!(values["startup.title"], json!("Текстура"));
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn set_values_merges_with_defaults() {
         .expect("сохранение");
     assert_eq!(merged["startup.welcome_notification"], json!(false));
     assert_eq!(merged["extra"], json!(1));
-    assert_eq!(merged["startup.title"], json!("BookLib"));
+    assert_eq!(merged["startup.title"], json!("Текстура"));
 
     let values = state.values_for("app.general").expect("значения");
     assert_eq!(values["startup.welcome_notification"], json!(false));

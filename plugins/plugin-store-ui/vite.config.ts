@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [tailwindcss(), svelte()],
   base: './',
   optimizeDeps: {
-    exclude: ['@booklib/ui'],
+    exclude: ['@texture/ui'],
   },
   build: {
     outDir: 'dist',

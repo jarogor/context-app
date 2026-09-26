@@ -49,7 +49,7 @@ blob-report/
 .vscode/*
 !.vscode/extensions.json
 .idea
-.booklib
+.texture
 .DS_Store
 *.suo
 *.ntvs*

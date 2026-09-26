@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Card, Checkbox, Input, Select, Textarea } from '@booklib/ui';
+  import { Button, Card, Checkbox, Input, Select, Textarea } from '@texture/ui';
   import type { Field, Section } from './types';
 
   interface Props {

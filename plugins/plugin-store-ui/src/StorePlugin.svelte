@@ -15,7 +15,7 @@
     try {
       const { pending } = await pendingChanges();
       window.parent.postMessage(
-        { channel: 'booklib-plugin', type: 'activation-pending', value: pending },
+        { channel: 'texture-plugin', type: 'activation-pending', value: pending },
         '*',
       );
     } catch {

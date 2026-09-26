@@ -1,4 +1,4 @@
-# AGENTS.md — правила разработки jarogor_booklib
+# AGENTS.md — правила разработки Текстуры
 
 Правила относятся к Rust-коду (`src-tauri/`) и организации проекта. Их нужно
 соблюдать при любой правке, чтобы структура оставалась предсказуемой.
@@ -113,16 +113,16 @@
 - Фронтенд собран на npm workspaces: корень — приложение оболочки, члены —
   `plugins/*` (frontend-плагины) и `packages/*` (общие пакеты); один lock на весь
   workspace.
-- Дизайн-система — `packages/ui` (`@booklib/ui`): компоненты (Button, Input,
+- Дизайн-система — `packages/ui` (`@texture/ui`): компоненты (Button, Input,
   Textarea, Select, Checkbox, Card, Badge, Spinner, Menu, MenuItem) и токены
   оформления `tokens.css`. Оболочка и frontend-плагины строят UI только из этих
   компонентов и токенов. Tailwind v4 подключается в каждом приложении, классы
   пакета попадают в сборку через `@source`. Собственные `<style>`-блоки в
   Svelte-компонентах не используются — только Tailwind-классы и токены
   (иначе dev-сборка ломается на виртуальных CSS-модулях Svelte).
-- `packages/ui-schema` (`@booklib/ui-schema`) — скелет типов декларативного UI
+- `packages/ui-schema` (`@texture/ui-schema`) — скелет типов декларативного UI
   (задел на будущее), без рендерера.
-- `packages/testing` (`@booklib/testing`) — мок моста Tauri (`invoke`,
+- `packages/testing` (`@texture/testing`) — мок моста Tauri (`invoke`,
   `dialog.open`, `listen` с фикстурами); `src/lib/app-bridge.ts` переключает
   реальный Tauri и мок по `VITE_MOCK_BRIDGE=1`.
 - Тесты: компонентные — Vitest + `@testing-library/svelte` (`npm test`),

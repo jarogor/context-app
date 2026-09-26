@@ -2187,7 +2187,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jarogor-booklib"
+name = "jarogor-texture"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",

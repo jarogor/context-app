@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    jarogor_booklib_lib::run();
+    jarogor_texture_lib::run();
 }

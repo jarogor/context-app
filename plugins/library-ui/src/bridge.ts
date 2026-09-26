@@ -2,7 +2,7 @@ import libraryConfig from './library-config.json';
 import type { HistoryEntry } from './types';
 
 type Message = {
-  channel: 'booklib-plugin';
+  channel: 'texture-plugin';
   type: string;
   id?: string;
   command?: string;
@@ -18,7 +18,7 @@ const listeners = new Map<string, Set<(value: unknown) => void>>();
 
 window.addEventListener('message', (event: MessageEvent<Message>) => {
   const message = event.data;
-  if (!message || message.channel !== 'booklib-plugin') return;
+  if (!message || message.channel !== 'texture-plugin') return;
   if (message.type === 'response' && message.id) {
     const request = pending.get(message.id);
     if (!request) return;
@@ -35,7 +35,7 @@ function request<T>(type: string, payload: Omit<Message, 'channel' | 'type'>): P
   const id = `plugin-${++sequence}`;
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
-    window.parent.postMessage({ channel: 'booklib-plugin', type, id, ...payload }, '*');
+    window.parent.postMessage({ channel: 'texture-plugin', type, id, ...payload }, '*');
   });
 }
 
