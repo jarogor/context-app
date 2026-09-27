@@ -31,7 +31,7 @@ impl FakeFs {
 }
 
 impl Fs for FakeFs {
-    fn list_dir(&self, _path: &str) -> Result<Vec<String>, String> {
+    fn list_dir(&self, _path: &str) -> Result<Vec<crate::models::DirEntry>, String> {
         Ok(Vec::new())
     }
 

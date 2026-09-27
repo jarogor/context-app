@@ -8,7 +8,7 @@ use std::path::Path;
 
 use super::epub;
 use super::fs::Fs;
-use super::models::{ExternalBook, ExternalFile, ExternalFileKind};
+use super::models::{EntryKind, ExternalBook, ExternalFile, ExternalFileKind};
 
 /// Расширения файлов, считающихся содержимым книги.
 const BOOK_FORMATS: &[&str] = &[
@@ -22,19 +22,31 @@ pub(crate) const PROBE_PRIORITY: i32 = 10;
 
 /// Проверка, что корень имеет структуру библиотеки Calibre.
 ///
-/// Библиотекой считается корень, где на втором уровне вложенности есть папка
-/// книги с хотя бы одним файлом книги в поддерживаемом формате.
+/// Библиотека Calibre всегда содержит файл `metadata.db` в корне; без него
+/// директория не признаётся Calibre, чтобы не перехватывать произвольные папки
+/// с похожей вложенностью. Дополнительно требуется папка книги с файлами книг.
 pub(crate) fn probe(fs: &impl Fs) -> Result<Option<i32>, String> {
-    for author in fs.list_dir("")? {
-        if is_hidden(&author) {
+    let root = fs.list_dir("")?;
+    if !root
+        .iter()
+        .any(|entry| entry.kind == EntryKind::File && entry.name == "metadata.db")
+    {
+        return Ok(None);
+    }
+    for author in root {
+        if is_hidden(&author.name) || author.kind != EntryKind::Dir {
             continue;
         }
-        for book in fs.list_dir(&author)? {
-            if is_hidden(&book) {
+        for book in fs.list_dir(&author.name)? {
+            if is_hidden(&book.name) || book.kind != EntryKind::Dir {
                 continue;
             }
-            let book_path = join(&author, &book);
-            if fs.list_dir(&book_path)?.iter().any(|name| is_book_file(name)) {
+            let book_path = join(&author.name, &book.name);
+            if fs
+                .list_dir(&book_path)?
+                .iter()
+                .any(|entry| entry.kind == EntryKind::File && is_book_file(&entry.name))
+            {
                 return Ok(Some(PROBE_PRIORITY));
             }
         }
@@ -46,15 +58,15 @@ pub(crate) fn probe(fs: &impl Fs) -> Result<Option<i32>, String> {
 pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
     let mut books = Vec::new();
     for author in fs.list_dir("")? {
-        if is_hidden(&author) {
+        if is_hidden(&author.name) || author.kind != EntryKind::Dir {
             continue;
         }
-        for book in fs.list_dir(&author)? {
-            if is_hidden(&book) {
+        for book in fs.list_dir(&author.name)? {
+            if is_hidden(&book.name) || book.kind != EntryKind::Dir {
                 continue;
             }
-            let book_path = join(&author, &book);
-            if let Some(entry) = scan_book(fs, &author, &book_path)? {
+            let book_path = join(&author.name, &book.name);
+            if let Some(entry) = scan_book(fs, &author.name, &book_path)? {
                 books.push(entry);
             }
         }
@@ -71,11 +83,12 @@ fn scan_book(
     let entries = fs.list_dir(book_path)?;
     let mut files = Vec::new();
     let mut cover = None;
-    for name in &entries {
-        let file_path = join(book_path, name);
-        if !fs.list_dir(&file_path)?.is_empty() {
+    for entry in &entries {
+        if entry.kind != EntryKind::File {
             continue;
         }
+        let name = &entry.name;
+        let file_path = join(book_path, name);
         let Some(extension) = Path::new(name).extension().and_then(|value| value.to_str()) else {
             continue;
         };

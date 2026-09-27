@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Input } from '@texture/ui';
+  import { BookCoverPlaceholder, Input } from '@texture/ui';
   import { invoke, listen, operation } from './bridge';
   import type { Book, BookFile } from './types';
 
@@ -20,10 +20,6 @@
   let importError: string | null = $state(null);
   let searchQuery: string = $state('');
   let librarySelected = $state(false);
-
-  function coverFile(book: Book): BookFile | undefined {
-    return book.files.find((file) => file.kind === 'cover');
-  }
 
   function normalizeBook(book: Record<string, unknown>): Book {
     const id = String(book.id ?? '');
@@ -57,18 +53,26 @@
 
   async function loadCovers(list: Book[]) {
     for (const book of list) {
-      if (!coverFile(book)) {
-        continue;
-      }
       try {
-        const value = (await operation('cover', { book_id: book.id })) as { data?: string; format?: string };
-        const mime = value.format === 'png' ? 'image/png' : value.format === 'webp' ? 'image/webp' : 'image/jpeg';
-        const coverUri = value.data ? `data:${mime};base64,${value.data}` : null;
-        if (coverUri) {
-          books = books.map((current) =>
-            current.id === book.id ? { ...current, coverUri } : current,
-          );
+        const value = (await operation('cover', { book_id: book.id })) as {
+          data?: string | null;
+          format?: string;
+        };
+        if (!value.data) {
+          continue;
         }
+        const mime =
+          value.format === 'png'
+            ? 'image/png'
+            : value.format === 'webp'
+              ? 'image/webp'
+              : value.format === 'gif'
+                ? 'image/gif'
+                : 'image/jpeg';
+        const coverUri = `data:${mime};base64,${value.data}`;
+        books = books.map((current) =>
+          current.id === book.id ? { ...current, coverUri } : current,
+        );
       } catch {
         // A missing or temporarily unavailable cover must not block the catalog.
       }
@@ -172,7 +176,7 @@
     <p class="text-[var(--color-danger)]">{error}</p>
   {:else if books.length === 0}
     <p class="text-[var(--color-text-muted)]">
-      Источник не содержит книг, найденных сканером.
+      В библиотеке пока нет книг.
     </p>
   {:else}
     <ul
@@ -188,10 +192,7 @@
             {#if book.coverUri}
               <img class="aspect-[2/3] w-full rounded-[var(--radius-sm)] object-cover" src={book.coverUri} alt="" />
             {:else}
-              <div
-                class="aspect-[2/3] w-full rounded-[var(--radius-sm)] bg-[var(--color-surface-muted)]"
-                aria-hidden="true"
-              ></div>
+              <BookCoverPlaceholder />
             {/if}
             <div class="book-info">
               <h2 class="text-[15px] font-semibold">{book.title}</h2>

@@ -79,3 +79,24 @@ pub(crate) struct SourceState {
     /// Последний согласованный каталог.
     pub catalog: SourceCatalog,
 }
+
+/// Тип записи директории без следования по символической ссылке.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum EntryKind {
+    /// Обычный файл.
+    File,
+    /// Каталог.
+    Dir,
+    /// Символическая ссылка.
+    Symlink,
+}
+
+/// Запись директории.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub(crate) struct DirEntry {
+    /// Имя записи.
+    pub name: String,
+    /// Тип записи.
+    pub kind: EntryKind,
+}

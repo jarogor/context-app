@@ -49,7 +49,7 @@ fn emit_notification(level: &str, severity: &str, message: &str, details: serde_
 }
 
 impl Fs for HostFs {
-    fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
+    fn list_dir(&self, path: &str) -> Result<Vec<crate::models::DirEntry>, String> {
         let payload = unsafe { fs_list_dir(path.to_string()).map_err(|error| error.to_string())? };
         serde_json::from_str(&payload).map_err(|error| error.to_string())
     }
@@ -227,7 +227,7 @@ pub fn invoke(input: String) -> FnResult<String> {
             serde_json::to_string(&json!({ "books": books }))?
         }
         "read" => {
-            let path = book_path(&fs, &request.payload, false)?;
+            let (path, _format) = book_file_info(&fs, &request.payload)?;
             let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
             let text = if path.to_ascii_lowercase().ends_with(".epub") {
                 crate::epub::read_epub_text(&bytes).map_err(extism_pdk::Error::msg)?
@@ -237,17 +237,18 @@ pub fn invoke(input: String) -> FnResult<String> {
             serde_json::to_string(&json!({ "text": text, "title": path, "authors": [] }))?
         }
         "cover" => {
-            let path = book_path(&fs, &request.payload, true)?;
-            let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
-            let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
-            let format = std::path::Path::new(&path)
-                .extension()
-                .and_then(|value| value.to_str())
-                .unwrap_or("jpg");
-            serde_json::to_string(&json!({ "data": encoded, "format": format }))?
+            let (path, format) = book_file_info(&fs, &request.payload)?;
+            match crate::metadata::cover(&fs, &path, &format) {
+                Some((bytes, cover_format)) => {
+                    let encoded =
+                        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+                    serde_json::to_string(&json!({ "data": encoded, "format": cover_format }))?
+                }
+                None => serde_json::to_string(&json!({ "data": null }))?,
+            }
         }
         "open_external" => {
-            let path = book_path(&fs, &request.payload, false)?;
+            let (path, _format) = book_file_info(&fs, &request.payload)?;
             fs.open_file(&path).map_err(extism_pdk::Error::msg)?;
             serde_json::to_string(&json!({ "opened": true }))?
         }
@@ -320,14 +321,18 @@ fn indexed_message(base: &str, name: &str, path: &str) -> String {
     }
 }
 
-/// Получение пути файла книги из opaque идентификатора или явного пути.
-fn book_path(
+/// Путь и формат файла книги из opaque идентификатора или явного пути.
+fn book_file_info(
     _fs: &impl crate::fs::Fs,
     payload: &serde_json::Value,
-    cover: bool,
-) -> Result<String, extism_pdk::Error> {
+) -> Result<(String, String), extism_pdk::Error> {
     if let Some(path) = payload.get("path").and_then(|value| value.as_str()) {
-        return Ok(path.to_string());
+        let format = std::path::Path::new(path)
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        return Ok((path.to_string(), format));
     }
     let id = payload
         .get("book_id")
@@ -342,10 +347,7 @@ fn book_path(
         .ok_or_else(|| extism_pdk::Error::msg("книга не найдена"))?;
     book.files
         .iter()
-        .find(|file| {
-            (cover && matches!(file.kind, crate::models::ExternalFileKind::Cover))
-                || (!cover && matches!(file.kind, crate::models::ExternalFileKind::Book))
-        })
-        .map(|file| file.path.clone())
+        .find(|file| matches!(file.kind, crate::models::ExternalFileKind::Book))
+        .map(|file| (file.path.clone(), file.format.clone()))
         .ok_or_else(|| extism_pdk::Error::msg("файл книги не найден"))
 }

@@ -46,7 +46,7 @@ fn emit_notification(level: &str, severity: &str, message: &str, details: serde_
 }
 
 impl Fs for HostFs {
-    fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
+    fn list_dir(&self, path: &str) -> Result<Vec<crate::models::DirEntry>, String> {
         let payload = unsafe { fs_list_dir(path.to_string()).map_err(|error| error.to_string())? };
         serde_json::from_str(&payload).map_err(|error| error.to_string())
     }

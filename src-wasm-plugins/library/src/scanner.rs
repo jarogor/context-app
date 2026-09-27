@@ -1,24 +1,21 @@
 //! Сканирование директории книг generic-источника.
 //!
-//! Директория обходится рекурсивно; каждая книга — **отдельный файл**
-//! поддерживаемого формата. Название берётся из имени файла; автор и обложка
-//! не определяются. Все чтения файловой системы выполняются через абстракцию
-//! `Fs`: в WASM-окружении это host-функция `fs_list_dir`, в нативных тестах —
-//! чтение локальных папок. Пути используются только относительные, разделитель
-//! — `/`.
+//! Директория обходится рекурсивно; книга — отдельный файл формата `pdf`,
+//! `djvu`, `epub` или `fb2`. Обход опирается на тип записи из `list_dir`,
+//! пропускает скрытые элементы и символические ссылки. Название и авторы
+//! извлекаются анализаторами содержимого с фолбэком на имя файла.
 
 use std::path::Path;
 
 use super::fs::Fs;
-use super::models::{ExternalBook, ExternalFile, ExternalFileKind};
+use super::metadata;
+use super::models::{EntryKind, ExternalBook, ExternalFile, ExternalFileKind};
 
 /// Расширения файлов, считающихся книгой.
-const BOOK_FORMATS: &[&str] = &[
-    "epub", "mobi", "azw", "azw3", "pdf", "fb2", "txt", "djvu", "rtf", "docx", "html",
-];
+const BOOK_FORMATS: &[&str] = &["pdf", "djvu", "epub", "fb2"];
 
-/// Максимальная глубина рекурсивного обхода подпапок.
-const MAX_DEPTH: usize = 8;
+/// Страховочный предел глубины обхода (защита от аномальных структур).
+const MAX_DEPTH: usize = 64;
 
 /// Приоритет generic-источника при выборе source-плагина.
 ///
@@ -26,15 +23,16 @@ const MAX_DEPTH: usize = 8;
 /// директории.
 pub(crate) const PROBE_PRIORITY: i32 = 1;
 
-/// Проверка поддержки корня без полного сканирования.
+/// Проверка поддержки корня.
 ///
-/// Возвращает приоритет источника, если найден хотя бы один файл книги, и
-/// `None`, если книг нет.
+/// Generic-источник — базовый: он подтверждает любую доступную директорию и
+/// используется последним, когда специализированные источники (например,
+/// Calibre) её не признали. Пустая директория открывается как собственная
+/// библиотека с пустым каталогом.
 pub(crate) fn probe(fs: &impl Fs) -> Result<Option<i32>, String> {
-    if contains_book(fs, "", 0)? {
-        Ok(Some(PROBE_PRIORITY))
-    } else {
-        Ok(None)
+    match fs.list_dir("") {
+        Ok(_) => Ok(Some(PROBE_PRIORITY)),
+        Err(_) => Ok(None),
     }
 }
 
@@ -47,60 +45,47 @@ pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
 }
 
 /// Рекурсивный сбор книг из директории.
-fn collect(fs: &impl Fs, path: &str, depth: usize, books: &mut Vec<ExternalBook>) -> Result<(), String> {
-    for name in fs.list_dir(path)? {
-        if is_hidden(&name) {
+fn collect(
+    fs: &impl Fs,
+    path: &str,
+    depth: usize,
+    books: &mut Vec<ExternalBook>,
+) -> Result<(), String> {
+    for entry in fs.list_dir(path)? {
+        if is_hidden(&entry.name) || entry.kind == EntryKind::Symlink {
             continue;
         }
-        let child = join(path, &name);
-        if is_book_file(&name) {
-            books.push(book_from_file(&child));
-            continue;
-        }
-        if depth < MAX_DEPTH && !fs.list_dir(&child)?.is_empty() {
-            collect(fs, &child, depth + 1, books)?;
+        let child = join(path, &entry.name);
+        match entry.kind {
+            EntryKind::Dir => {
+                if depth < MAX_DEPTH {
+                    collect(fs, &child, depth + 1, books)?;
+                }
+            }
+            EntryKind::File => {
+                if is_book_file(&entry.name) {
+                    books.push(book_from_file(fs, &child));
+                }
+            }
+            EntryKind::Symlink => {}
         }
     }
     Ok(())
 }
 
-/// Поиск хотя бы одного файла книги с ранним выходом.
-fn contains_book(fs: &impl Fs, path: &str, depth: usize) -> Result<bool, String> {
-    for name in fs.list_dir(path)? {
-        if is_hidden(&name) {
-            continue;
-        }
-        if is_book_file(&name) {
-            return Ok(true);
-        }
-        let child = join(path, &name);
-        if depth < MAX_DEPTH
-            && !fs.list_dir(&child)?.is_empty()
-            && contains_book(fs, &child, depth + 1)?
-        {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
 /// Формирование записи книги из относительного пути файла.
-fn book_from_file(relative: &str) -> ExternalBook {
+fn book_from_file(fs: &impl Fs, relative: &str) -> ExternalBook {
     let file_name = relative.rsplit('/').next().unwrap_or(relative);
-    let title = Path::new(file_name)
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or(file_name)
-        .to_string();
-    let format = Path::new(file_name)
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
+    let format = extension(file_name);
+    let metadata = metadata::extract(fs, relative, &format);
+    let title = metadata
+        .title
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| file_stem(file_name));
     ExternalBook {
         id: relative.to_string(),
         title,
-        authors: Vec::new(),
+        authors: metadata.authors,
         tags: Vec::new(),
         series: Vec::new(),
         files: vec![ExternalFile {
@@ -113,10 +98,25 @@ fn book_from_file(relative: &str) -> ExternalBook {
 
 /// Является ли файл книгой по его расширению.
 fn is_book_file(name: &str) -> bool {
+    BOOK_FORMATS.contains(&extension(name).as_str())
+}
+
+/// Расширение файла в нижнем регистре.
+fn extension(name: &str) -> String {
     Path::new(name)
         .extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| BOOK_FORMATS.contains(&extension.to_ascii_lowercase().as_str()))
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+}
+
+/// Имя файла без расширения.
+fn file_stem(name: &str) -> String {
+    Path::new(name)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(name)
+        .to_string()
 }
 
 /// Объединение сегментов относительного пути через `/`.

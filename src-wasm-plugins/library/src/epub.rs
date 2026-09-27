@@ -9,6 +9,162 @@ use quick_xml::events::Event;
 use quick_xml::Reader;
 use zip::ZipArchive;
 
+use crate::models::BookMetadata;
+
+/// Извлечение метаданных (название, авторы, обложка) из содержимого EPUB.
+pub(crate) fn extract(bytes: &[u8]) -> Result<BookMetadata, String> {
+    let mut archive =
+        ZipArchive::new(Cursor::new(bytes)).map_err(|_| "не удалось открыть EPUB".to_string())?;
+    let container = read_zip_entry(&mut archive, "META-INF/container.xml")?;
+    let rootfile = attribute_value(&container, "rootfile", "full-path")
+        .or_else(|| text_between(&container, "full-path"))
+        .ok_or_else(|| "в EPUB отсутствует content.opf".to_string())?;
+    let opf = read_zip_entry(&mut archive, &rootfile)?;
+    let title = text_between(&opf, "dc:title").filter(|value| !value.is_empty());
+    let authors = all_text_between(&opf, "dc:creator")
+        .into_iter()
+        .filter(|value| !value.is_empty())
+        .collect();
+    let cover = epub_cover(&mut archive, &opf, &rootfile);
+    Ok(BookMetadata {
+        title,
+        authors,
+        cover,
+    })
+}
+
+/// Чтение записи архива EPUB.
+fn read_zip_entry(
+    archive: &mut ZipArchive<Cursor<&[u8]>>,
+    name: &str,
+) -> Result<Vec<u8>, String> {
+    let mut file = archive
+        .by_name(name)
+        .map_err(|_| format!("в EPUB нет {name}"))?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .map_err(|_| format!("не удалось прочитать {name}"))?;
+    Ok(bytes)
+}
+
+/// Описание элемента манифеста OPF.
+struct ManifestItem {
+    id: String,
+    href: String,
+    properties: String,
+    media_type: Option<String>,
+}
+
+/// Извлечение обложки EPUB из манифеста OPF.
+fn epub_cover(
+    archive: &mut ZipArchive<Cursor<&[u8]>>,
+    opf: &[u8],
+    opf_path: &str,
+) -> Option<(Vec<u8>, String)> {
+    let (cover_id, items) = manifest_items(opf);
+    let href = items
+        .iter()
+        .find(|item| Some(&item.id) == cover_id.as_ref())
+        .or_else(|| {
+            items
+                .iter()
+                .find(|item| item.properties.contains("cover-image"))
+        })
+        .map(|item| item.href.clone())?;
+    let media_type = items
+        .iter()
+        .find(|item| item.href == href)
+        .and_then(|item| item.media_type.clone());
+    let path = resolve_relative(opf_path, &href)?;
+    let bytes = read_zip_entry(archive, &path).ok()?;
+    Some((bytes, cover_format(media_type.as_deref(), &href)))
+}
+
+/// Метаданные манифеста OPF: идентификатор обложки и элементы.
+fn manifest_items(opf: &[u8]) -> (Option<String>, Vec<ManifestItem>) {
+    let mut reader = Reader::from_reader(opf);
+    let mut buffer = Vec::new();
+    let mut cover_id = None;
+    let mut items = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buffer) {
+            Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
+                let name = String::from_utf8_lossy(event.name().as_ref()).to_string();
+                let mut id = String::new();
+                let mut href = String::new();
+                let mut properties = String::new();
+                let mut media_type = None;
+                let mut meta_name = String::new();
+                let mut meta_content = String::new();
+                for attribute in event.attributes().flatten() {
+                    let key = String::from_utf8_lossy(attribute.key.as_ref()).to_string();
+                    let Ok(value) = attribute.unescape_value() else {
+                        continue;
+                    };
+                    match key.as_str() {
+                        "id" => id = value.into_owned(),
+                        "href" => href = value.into_owned(),
+                        "properties" => properties = value.into_owned(),
+                        "media-type" => media_type = Some(value.into_owned()),
+                        "name" => meta_name = value.into_owned(),
+                        "content" => meta_content = value.into_owned(),
+                        _ => {}
+                    }
+                }
+                if name.ends_with("item") {
+                    items.push(ManifestItem {
+                        id,
+                        href,
+                        properties,
+                        media_type,
+                    });
+                } else if name.ends_with("meta") && meta_name == "cover" {
+                    cover_id = Some(meta_content);
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+        buffer.clear();
+    }
+    (cover_id, items)
+}
+
+/// Разрешение относительного пути `href` от пути OPF.
+fn resolve_relative(opf_path: &str, href: &str) -> Option<String> {
+    let base: Vec<&str> = opf_path.rsplitn(2, '/').nth(1).unwrap_or("").split('/').collect();
+    let mut parts: Vec<String> = base
+        .into_iter()
+        .filter(|segment| !segment.is_empty())
+        .map(str::to_string)
+        .collect();
+    for segment in href.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            other => parts.push(other.to_string()),
+        }
+    }
+    Some(parts.join("/"))
+}
+
+/// Формат обложки по медиатипу и расширению.
+fn cover_format(media_type: Option<&str>, href: &str) -> String {
+    let media = media_type.unwrap_or_default().to_ascii_lowercase();
+    if media.contains("png") || href.to_ascii_lowercase().ends_with(".png") {
+        "png".to_string()
+    } else if media.contains("webp") || href.to_ascii_lowercase().ends_with(".webp") {
+        "webp".to_string()
+    } else if media.contains("gif") || href.to_ascii_lowercase().ends_with(".gif") {
+        "gif".to_string()
+    } else {
+        "jpeg".to_string()
+    }
+}
+
 /// Извлечение названия и авторов из метаданных EPUB.
 pub(crate) fn parse_epub_metadata(bytes: &[u8]) -> Result<(String, Vec<String>), String> {
     let mut archive =

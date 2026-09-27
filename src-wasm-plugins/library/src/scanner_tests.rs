@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::scan;
 use crate::fs::Fs;
 use crate::lifecycle;
-use crate::models::ExternalBook;
+use crate::models::{DirEntry, EntryKind, ExternalBook};
 
 /// Счётчик для уникальных имён временных папок каждого теста.
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
@@ -33,18 +33,26 @@ struct FailingStateFs {
 }
 
 impl Fs for NativeFs {
-    fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
+    fn list_dir(&self, path: &str) -> Result<Vec<DirEntry>, String> {
         let dir = self
             .root
             .join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
-        let mut names = Vec::new();
-        if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                names.push(entry.file_name().to_string_lossy().into_owned());
+        let mut entries = Vec::new();
+        if let Ok(reader) = fs::read_dir(&dir) {
+            for entry in reader.flatten() {
+                let kind = match entry.file_type() {
+                    Ok(file_type) if file_type.is_dir() => EntryKind::Dir,
+                    Ok(file_type) if file_type.is_file() => EntryKind::File,
+                    _ => EntryKind::Symlink,
+                };
+                entries.push(DirEntry {
+                    name: entry.file_name().to_string_lossy().into_owned(),
+                    kind,
+                });
             }
         }
-        names.sort();
-        Ok(names)
+        entries.sort_by(|left, right| left.name.cmp(&right.name));
+        Ok(entries)
     }
 
     fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
@@ -96,7 +104,7 @@ impl Fs for NativeFs {
 }
 
 impl Fs for FailingStateFs {
-    fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
+    fn list_dir(&self, path: &str) -> Result<Vec<DirEntry>, String> {
         NativeFs {
             root: self.root.clone(),
         }
@@ -206,9 +214,9 @@ fn probe_detects_book_in_nested_folder() {
     assert_eq!(super::probe(&fs).expect("проверка"), Some(super::PROBE_PRIORITY));
 }
 
-/// Директория без файлов книг не подтверждается.
+/// Generic-источник подтверждает любую директорию, включая пустую.
 #[test]
-fn probe_rejects_directory_without_books() {
+fn probe_confirms_any_directory() {
     let root = test_root();
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("Папка")).expect("папка");
@@ -216,7 +224,11 @@ fn probe_rejects_directory_without_books() {
     fs::write(root.join("Папка").join("notes.md"), "заметки").expect("файл");
     let fs = NativeFs { root };
 
-    assert_eq!(super::probe(&fs).expect("проверка"), None);
+    assert_eq!(
+        super::probe(&fs).expect("проверка"),
+        Some(super::PROBE_PRIORITY),
+        "generic-источник — базовый и подтверждает любую директорию"
+    );
 }
 
 /// Состояние каталога восстанавливается после повторного открытия.

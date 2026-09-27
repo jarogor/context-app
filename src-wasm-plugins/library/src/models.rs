@@ -47,6 +47,38 @@ pub(crate) enum ExternalFileKind {
     Cover,
 }
 
+/// Тип записи директории без следования по символической ссылке.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum EntryKind {
+    /// Обычный файл.
+    File,
+    /// Каталог.
+    Dir,
+    /// Символическая ссылка.
+    Symlink,
+}
+
+/// Запись директории.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub(crate) struct DirEntry {
+    /// Имя записи.
+    pub name: String,
+    /// Тип записи.
+    pub kind: EntryKind,
+}
+
+/// Извлечённые из файла метаданные книги.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(crate) struct BookMetadata {
+    /// Название из содержимого.
+    pub title: Option<String>,
+    /// Авторы из содержимого.
+    pub authors: Vec<String>,
+    /// Обложка: байты и формат (`jpeg`, `png`, …).
+    pub cover: Option<(Vec<u8>, String)>,
+}
+
 /// Возможности базового source-плагина.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct SourceCapabilities {

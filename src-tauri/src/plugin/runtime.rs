@@ -854,15 +854,32 @@ fn host_fs_list_dir(
         .map_err(|err| extism::Error::msg(err.to_string()))
 }
 
-fn read_directory_entries(path: &Path) -> Vec<String> {
+/// Запись директории для host-функции `fs_list_dir`.
+#[derive(serde::Serialize)]
+struct DirectoryEntry {
+    /// Имя записи.
+    name: String,
+    /// Тип записи: `file`, `dir` или `symlink` (без следования по ссылке).
+    kind: &'static str,
+}
+
+fn read_directory_entries(path: &Path) -> Vec<DirectoryEntry> {
     let mut entries = Vec::new();
 
     if let Ok(reader) = fs::read_dir(path) {
         for entry in reader.flatten() {
-            entries.push(entry.file_name().to_string_lossy().into_owned());
+            let kind = match entry.file_type() {
+                Ok(file_type) if file_type.is_dir() => "dir",
+                Ok(file_type) if file_type.is_file() => "file",
+                _ => "symlink",
+            };
+            entries.push(DirectoryEntry {
+                name: entry.file_name().to_string_lossy().into_owned(),
+                kind,
+            });
         }
 
-        entries.sort();
+        entries.sort_by(|left, right| left.name.cmp(&right.name));
     }
 
     entries

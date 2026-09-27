@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::scan;
 use crate::fs::Fs;
 use crate::lifecycle;
-use crate::models::{ExternalBook, ExternalFileKind};
+use crate::models::{DirEntry, EntryKind, ExternalBook, ExternalFileKind};
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
@@ -27,18 +27,26 @@ struct NativeFs {
 }
 
 impl Fs for NativeFs {
-    fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
+    fn list_dir(&self, path: &str) -> Result<Vec<DirEntry>, String> {
         let dir = self
             .root
             .join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
-        let mut names = Vec::new();
-        if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                names.push(entry.file_name().to_string_lossy().into_owned());
+        let mut entries = Vec::new();
+        if let Ok(reader) = fs::read_dir(&dir) {
+            for entry in reader.flatten() {
+                let kind = match entry.file_type() {
+                    Ok(file_type) if file_type.is_dir() => EntryKind::Dir,
+                    Ok(file_type) if file_type.is_file() => EntryKind::File,
+                    _ => EntryKind::Symlink,
+                };
+                entries.push(DirEntry {
+                    name: entry.file_name().to_string_lossy().into_owned(),
+                    kind,
+                });
             }
         }
-        names.sort();
-        Ok(names)
+        entries.sort_by(|left, right| left.name.cmp(&right.name));
+        Ok(entries)
     }
 
     fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
@@ -141,7 +149,7 @@ fn enriches_metadata_from_epub() {
     assert_eq!(books[0].authors, ["Реальный автор"]);
 }
 
-/// Структура «автор/книга» распознаётся, посторонняя — нет.
+/// Структура «автор/книга» с `metadata.db` распознаётся, без него — нет.
 #[test]
 fn probe_detects_only_calibre_structure() {
     let root = test_root();
@@ -149,17 +157,28 @@ fn probe_detects_only_calibre_structure() {
     let book = root.join("Автор").join("Книга");
     fs::create_dir_all(&book).expect("папка книги");
     fs::write(book.join("book.epub"), "epub").expect("книга");
+    fs::write(root.join("metadata.db"), "db").expect("metadata.db");
     let calibre = NativeFs { root: root.clone() };
 
     assert_eq!(super::probe(&calibre).expect("проверка"), Some(super::PROBE_PRIORITY));
+
+    // Похожая вложенность без metadata.db не должна перехватываться Calibre.
+    let fake = test_root();
+    let _ = fs::remove_dir_all(&fake);
+    let nested = fake.join("author").join("book");
+    fs::create_dir_all(&nested).expect("вложенные папки");
+    fs::write(nested.join("note.pdf"), "pdf").expect("файл");
+    let generic = NativeFs { root: fake };
+
+    assert_eq!(super::probe(&generic).expect("проверка"), None);
 
     let flat = test_root();
     let _ = fs::remove_dir_all(&flat);
     fs::create_dir_all(&flat).expect("плоский корень");
     fs::write(flat.join("book.epub"), "epub").expect("файл книги");
-    let generic = NativeFs { root: flat };
+    let plain = NativeFs { root: flat };
 
-    assert_eq!(super::probe(&generic).expect("проверка"), None);
+    assert_eq!(super::probe(&plain).expect("проверка"), None);
 }
 
 /// Состояние каталога восстанавливается после повторного открытия.
