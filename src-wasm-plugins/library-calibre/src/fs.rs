@@ -26,4 +26,16 @@ pub(crate) trait Fs {
 
     /// Удаление служебного состояния по ключу.
     fn state_delete(&self, key: &str) -> Result<(), String>;
+
+    /// Исполнение SQL в хранилище, изолированном на библиотеку.
+    ///
+    /// `params` — JSON-массив скаляров; пустой массив допускает несколько
+    /// выражений (скрипт, DDL).
+    fn sql_execute(&self, sql: &str, params: &str) -> Result<(), String>;
+
+    /// Чтение строк SQL-запроса как JSON-массива объектов «столбец → значение».
+    fn sql_query(&self, sql: &str, params: &str) -> Result<String, String>;
+
+    /// Публикация именованного прикладного события с JSON-payload.
+    fn emit_event(&self, name: &str, payload: &str) -> Result<(), String>;
 }

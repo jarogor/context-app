@@ -69,17 +69,6 @@ pub(crate) struct SourceCatalog {
     pub books: Vec<ExternalBook>,
 }
 
-/// Сохранённое состояние source-плагина.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct SourceState {
-    /// Версия формата состояния.
-    pub version: u32,
-    /// Fingerprint последнего сканирования.
-    pub fingerprint: String,
-    /// Последний согласованный каталог.
-    pub catalog: SourceCatalog,
-}
-
 /// Тип записи директории без следования по символической ссылке.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -99,4 +88,31 @@ pub(crate) struct DirEntry {
     pub name: String,
     /// Тип записи.
     pub kind: EntryKind,
+    /// Размер файла в байтах; `None` для каталогов, ссылок и при недоступности.
+    #[serde(default)]
+    pub size: Option<u64>,
+    /// Время изменения в миллисекундах Unix; `None` при недоступности.
+    #[serde(default)]
+    pub mtime_ms: Option<i64>,
+}
+
+/// Папка книги, обнаруженная без чтения метаданных.
+///
+/// Используется для инкрементального сопоставления с индексом: подпись из
+/// имён, размеров и времён изменения файлов папки позволяет пропустить
+/// повторный разбор `metadata.opf`/EPUB, если содержимое не изменилось.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct BookListing {
+    /// Путь папки книги относительно корня (он же идентификатор книги).
+    pub id: String,
+    /// Автор из имени родительской папки.
+    pub author: String,
+    /// Файлы книги: содержимое и обложка.
+    pub files: Vec<ExternalFile>,
+    /// Имя файла `metadata.opf`, если он присутствует в папке.
+    pub opf: Option<String>,
+    /// Подпись содержимого папки.
+    pub signature: String,
+    /// Доступны ли для всех файлов размер и время изменения.
+    pub reliable: bool,
 }

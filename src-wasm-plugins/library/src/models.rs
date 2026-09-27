@@ -66,6 +66,28 @@ pub(crate) struct DirEntry {
     pub name: String,
     /// Тип записи.
     pub kind: EntryKind,
+    /// Размер файла в байтах; `None` для каталогов, ссылок и при недоступности.
+    #[serde(default)]
+    pub size: Option<u64>,
+    /// Время изменения в миллисекундах Unix; `None` при недоступности.
+    #[serde(default)]
+    pub mtime_ms: Option<i64>,
+}
+
+/// Файл книги, обнаруженный без чтения содержимого.
+///
+/// Используется для инкрементального сопоставления с индексом: метаданные
+/// файла позволяют пропустить повторное чтение неизменённых книг.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FileListing {
+    /// Путь к файлу относительно корня библиотеки (он же идентификатор книги).
+    pub path: String,
+    /// Расширение файла в нижнем регистре.
+    pub format: String,
+    /// Размер файла в байтах.
+    pub size: Option<u64>,
+    /// Время изменения в миллисекундах Unix.
+    pub mtime_ms: Option<i64>,
 }
 
 /// Извлечённые из файла метаданные книги.
@@ -99,15 +121,4 @@ pub(crate) struct SourceCatalog {
     pub revision: u64,
     /// Книги каталога.
     pub books: Vec<ExternalBook>,
-}
-
-/// Сохранённое состояние source-плагина.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct SourceState {
-    /// Версия формата состояния.
-    pub version: u32,
-    /// Fingerprint последнего сканирования.
-    pub fingerprint: String,
-    /// Последний согласованный каталог.
-    pub catalog: SourceCatalog,
 }

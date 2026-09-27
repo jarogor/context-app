@@ -59,6 +59,16 @@ pub const HOST_STATE_DELETE: &str = "state_delete";
 /// Имя host-функции текущего времени Unix в миллисекундах.
 pub const HOST_NOW_FUNCTION: &str = "now_millis";
 
+/// Имя host-функции исполнения SQL в хранилище активной библиотеки.
+///
+/// Сигнатура: `sql_execute(sql, params)`; `params` — JSON-массив скаляров.
+pub const HOST_SQL_EXECUTE: &str = "sql_execute";
+
+/// Имя host-функции чтения строк SQL-запроса в хранилище активной библиотеки.
+///
+/// Сигнатура: `sql_query(sql, params)`; результат — JSON-массив объектов.
+pub const HOST_SQL_QUERY: &str = "sql_query";
+
 /// Имя привилегированной host-функции инспекции пакета плагина.
 pub const HOST_STORE_INSPECT: &str = "store_inspect";
 
@@ -107,6 +117,8 @@ pub const HOST_FUNCTIONS: &[&str] = &[
     HOST_STATE_WRITE,
     HOST_STATE_DELETE,
     HOST_NOW_FUNCTION,
+    HOST_SQL_EXECUTE,
+    HOST_SQL_QUERY,
     HOST_STORE_INSPECT,
     HOST_STORE_INSTALL,
     HOST_STORE_UNINSTALL,

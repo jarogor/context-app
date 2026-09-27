@@ -1,15 +1,17 @@
 //! Сканирование директории книг generic-источника.
 //!
 //! Директория обходится рекурсивно; книга — отдельный файл формата `pdf`,
-//! `djvu`, `epub` или `fb2`. Обход опирается на тип записи из `list_dir`,
-//! пропускает скрытые элементы и символические ссылки. Название и авторы
-//! извлекаются анализаторами содержимого с фолбэком на имя файла.
+//! `djvu`, `epub` или `fb2`. Обход опирается на тип и метаданные записи из
+//! `list_dir`, пропускает скрытые элементы и символические ссылки. Содержимое
+//! файлов при обходе не читается: метаданные используются для инкрементального
+//! сопоставления с индексом, а извлечение названия и авторов выполняется позже
+//! только для новых и изменённых файлов.
 
 use std::path::Path;
 
 use super::fs::Fs;
 use super::metadata;
-use super::models::{EntryKind, ExternalBook, ExternalFile, ExternalFileKind};
+use super::models::{EntryKind, ExternalBook, ExternalFile, ExternalFileKind, FileListing};
 
 /// Расширения файлов, считающихся книгой.
 const BOOK_FORMATS: &[&str] = &["pdf", "djvu", "epub", "fb2"];
@@ -36,20 +38,20 @@ pub(crate) fn probe(fs: &impl Fs) -> Result<Option<i32>, String> {
     }
 }
 
-/// Полное рекурсивное сканирование директории книг.
-pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
-    let mut books = Vec::new();
-    collect(fs, "", 0, &mut books)?;
-    books.sort_by(|left, right| left.id.cmp(&right.id));
-    Ok(books)
+/// Рекурсивный обход директории с перечислением файлов книг без чтения.
+pub(crate) fn list_files(fs: &impl Fs) -> Result<Vec<FileListing>, String> {
+    let mut files = Vec::new();
+    collect(fs, "", 0, &mut files)?;
+    files.sort_by(|left, right| left.path.cmp(&right.path));
+    Ok(files)
 }
 
-/// Рекурсивный сбор книг из директории.
+/// Рекурсивный сбор файлов книг из директории.
 fn collect(
     fs: &impl Fs,
     path: &str,
     depth: usize,
-    books: &mut Vec<ExternalBook>,
+    files: &mut Vec<FileListing>,
 ) -> Result<(), String> {
     for entry in fs.list_dir(path)? {
         if is_hidden(&entry.name) || entry.kind == EntryKind::Symlink {
@@ -59,12 +61,17 @@ fn collect(
         match entry.kind {
             EntryKind::Dir => {
                 if depth < MAX_DEPTH {
-                    collect(fs, &child, depth + 1, books)?;
+                    collect(fs, &child, depth + 1, files)?;
                 }
             }
             EntryKind::File => {
                 if is_book_file(&entry.name) {
-                    books.push(book_from_file(fs, &child));
+                    files.push(FileListing {
+                        path: child,
+                        format: extension(&entry.name),
+                        size: entry.size,
+                        mtime_ms: entry.mtime_ms,
+                    });
                 }
             }
             EntryKind::Symlink => {}
@@ -74,7 +81,19 @@ fn collect(
 }
 
 /// Формирование записи книги из относительного пути файла.
-fn book_from_file(fs: &impl Fs, relative: &str) -> ExternalBook {
+///
+/// Читает содержимое файла ради метаданных и обложки; вызывается только для
+/// новых и изменённых файлов.
+#[cfg(test)]
+pub(crate) fn book_from_file(fs: &impl Fs, relative: &str) -> ExternalBook {
+    read_book(fs, relative).0
+}
+
+/// Чтение книги и её обложки из файла.
+///
+/// Возвращает запись книги нейтрального каталога и, при наличии, байты обложки
+/// с её форматом — для сохранения в индексе.
+pub(crate) fn read_book(fs: &impl Fs, relative: &str) -> (ExternalBook, Option<(Vec<u8>, String)>) {
     let file_name = relative.rsplit('/').next().unwrap_or(relative);
     let format = extension(file_name);
     let metadata = metadata::extract(fs, relative, &format);
@@ -82,7 +101,7 @@ fn book_from_file(fs: &impl Fs, relative: &str) -> ExternalBook {
         .title
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| file_stem(file_name));
-    ExternalBook {
+    let book = ExternalBook {
         id: relative.to_string(),
         title,
         authors: metadata.authors,
@@ -93,7 +112,8 @@ fn book_from_file(fs: &impl Fs, relative: &str) -> ExternalBook {
             path: relative.to_string(),
             format,
         }],
-    }
+    };
+    (book, metadata.cover)
 }
 
 /// Является ли файл книгой по его расширению.

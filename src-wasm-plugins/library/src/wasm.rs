@@ -5,7 +5,7 @@
 
 use crate::fs::Fs;
 use crate::lifecycle;
-use crate::models::{ExternalBook, SourceCapabilities, SourceCatalog, SOURCE_PROTOCOL_VERSION};
+use crate::models::{SourceCapabilities, SourceCatalog, SOURCE_PROTOCOL_VERSION};
 use crate::scanner;
 use extism_pdk::{host_fn, plugin_fn, FnResult};
 use serde::Deserialize;
@@ -30,6 +30,12 @@ extern "ExtismHost" {
     fn state_write(key: String, value: String) -> String;
     /// Удаление служебного состояния source-плагина.
     fn state_delete(key: String) -> String;
+    /// Исполнение SQL в хранилище активной библиотеки.
+    fn sql_execute(sql: String, params: String) -> String;
+    /// Чтение строк SQL-запроса в хранилище активной библиотеки.
+    fn sql_query(sql: String, params: String) -> String;
+    /// Публикация прикладного события с JSON-payload.
+    fn emit_event(name: String, payload: String) -> String;
     /// Публикация уведомления от source-плагина.
     fn notify(level: String, severity: String, message: String, details: String) -> String;
 }
@@ -84,6 +90,22 @@ impl Fs for HostFs {
 
     fn state_delete(&self, key: &str) -> Result<(), String> {
         unsafe { state_delete(key.to_string()) }
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    fn sql_execute(&self, sql: &str, params: &str) -> Result<(), String> {
+        unsafe { sql_execute(sql.to_string(), params.to_string()) }
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    fn sql_query(&self, sql: &str, params: &str) -> Result<String, String> {
+        unsafe { sql_query(sql.to_string(), params.to_string()) }.map_err(|error| error.to_string())
+    }
+
+    fn emit_event(&self, name: &str, payload: &str) -> Result<(), String> {
+        unsafe { emit_event(name.to_string(), payload.to_string()) }
             .map(|_| ())
             .map_err(|error| error.to_string())
     }
@@ -237,14 +259,30 @@ pub fn invoke(input: String) -> FnResult<String> {
             serde_json::to_string(&json!({ "text": text, "title": path, "authors": [] }))?
         }
         "cover" => {
-            let (path, format) = book_file_info(&fs, &request.payload)?;
-            match crate::metadata::cover(&fs, &path, &format) {
-                Some((bytes, cover_format)) => {
-                    let encoded =
-                        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
-                    serde_json::to_string(&json!({ "data": encoded, "format": cover_format }))?
+            if let Some(id) = request
+                .payload
+                .get("book_id")
+                .and_then(|value| value.as_str())
+            {
+                if let Some((data, format)) =
+                    crate::index::load_cover(&fs, id).map_err(extism_pdk::Error::msg)?
+                {
+                    serde_json::to_string(&json!({ "data": data, "format": format }))?
+                } else {
+                    serde_json::to_string(&json!({ "data": null }))?
                 }
-                None => serde_json::to_string(&json!({ "data": null }))?,
+            } else {
+                let (path, format) = book_file_info(&fs, &request.payload)?;
+                match crate::metadata::cover(&fs, &path, &format) {
+                    Some((bytes, cover_format)) => {
+                        let encoded = base64::Engine::encode(
+                            &base64::engine::general_purpose::STANDARD,
+                            bytes,
+                        );
+                        serde_json::to_string(&json!({ "data": encoded, "format": cover_format }))?
+                    }
+                    None => serde_json::to_string(&json!({ "data": null }))?,
+                }
             }
         }
         "open_external" => {
@@ -255,18 +293,12 @@ pub fn invoke(input: String) -> FnResult<String> {
         "sync" => {
             let portable =
                 request.payload.get("mode").and_then(|value| value.as_str()) == Some("portable");
-            let books: Vec<ExternalBook> = if portable {
-                Vec::new()
+            let catalog = if portable {
+                lifecycle::restore(&fs).map_err(extism_pdk::Error::msg)?
             } else {
-                scanner::scan(&fs).map_err(extism_pdk::Error::msg)?
+                lifecycle::sync(&fs).map_err(extism_pdk::Error::msg)?
             };
-            serde_json::to_string(&json!({
-                "catalog": if portable {
-                    lifecycle::restore(&fs).map_err(extism_pdk::Error::msg)?
-                } else {
-                    lifecycle::sync(&fs, books).map_err(extism_pdk::Error::msg)?
-                }
-            }))?
+            serde_json::to_string(&json!({ "catalog": catalog }))?
         }
         "import" => {
             let path = request
@@ -274,8 +306,7 @@ pub fn invoke(input: String) -> FnResult<String> {
                 .get("path")
                 .and_then(|value| value.as_str())
                 .ok_or_else(|| extism_pdk::Error::msg("не указан файл импорта"))?;
-            let book =
-                crate::portable::import_book(&fs, path).map_err(extism_pdk::Error::msg)?;
+            let book = crate::portable::import_book(&fs, path).map_err(extism_pdk::Error::msg)?;
             serde_json::to_string(&json!({ "book": book }))?
         }
         other => {
@@ -292,8 +323,7 @@ fn open_catalog(fs: &impl Fs, portable: bool) -> Result<SourceCatalog, String> {
     if portable {
         lifecycle::restore(fs)
     } else {
-        let books = scanner::scan(fs)?;
-        lifecycle::open(fs, books)
+        lifecycle::open(fs)
     }
 }
 

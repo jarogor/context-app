@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Badge, Button, Spinner, cn } from '@texture/ui';
-  import { invokeCommand, openDialog } from './app-bridge';
+  import { Badge, Button, Progress, Spinner, cn } from '@texture/ui';
+  import { invokeCommand, listenEvent, openDialog } from './app-bridge';
   import appConfig from './app-config.json';
 
   interface Props {
@@ -30,6 +30,8 @@
   let openingPath: string | null = $state(null);
   let activePath: string | null = $state(null);
   let error: string | null = $state(null);
+  /** Прогресс построения индекса открываемой библиотеки (в процентах). */
+  let progress: { done: number; total: number; percent: number } | null = $state(null);
 
   /** Идёт ли открытие библиотеки. */
   const opening = $derived(openingPath !== null);
@@ -102,6 +104,7 @@
     }
     openingPath = path;
     error = null;
+    progress = null;
     try {
       await invokeCommand('select_source_library', {
         path,
@@ -113,6 +116,7 @@
       error = String(e);
     } finally {
       openingPath = null;
+      progress = null;
       await loadHistory();
     }
   }
@@ -144,8 +148,22 @@
   }
 
   onMount(() => {
+    let unlisten: (() => void) | undefined;
+    void (async () => {
+      unlisten = await listenEvent('library-index-progress', (value) => {
+        const payload = value as { done?: number; total?: number; percent?: number };
+        if (openingPath !== null && typeof payload?.percent === 'number') {
+          progress = {
+            done: payload.done ?? 0,
+            total: payload.total ?? 0,
+            percent: payload.percent,
+          };
+        }
+      });
+    })();
     void loadHistory();
     void loadActive();
+    return () => unlisten?.();
   });
 </script>
 
@@ -162,6 +180,16 @@
 
   {#if error}
     <p class="mb-[var(--space-4)] text-[var(--color-danger)]">{error}</p>
+  {/if}
+
+  {#if opening && progress}
+    <div class="mb-[var(--space-4)] flex flex-col gap-[var(--space-1)]">
+      <div class="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+        <span>Индексация библиотеки…</span>
+        <span>{progress.percent}%</span>
+      </div>
+      <Progress value={progress.percent} />
+    </div>
   {/if}
 
   {#if loading && entries.length === 0}

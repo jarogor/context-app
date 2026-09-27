@@ -102,3 +102,80 @@ fn select_source_warns_on_missing_path() {
     );
     test_util::cleanup(&parent);
 }
+
+/// Раскладка generic-библиотеки для проверки переключения источника.
+fn write_generic_library(root: &std::path::Path, title: &str) {
+    std::fs::create_dir_all(root).expect("корень generic-библиотеки");
+    std::fs::write(root.join(format!("{title}.pdf")), "pdf").expect("книга");
+}
+
+/// Раскладка Calibre для проверки переключения источника.
+fn write_calibre_library(root: &std::path::Path) {
+    let book = root.join("Автор").join("Книга");
+    std::fs::create_dir_all(&book).expect("папка книги");
+    std::fs::write(book.join("book.epub"), "epub").expect("книга");
+    std::fs::write(
+        book.join("metadata.opf"),
+        "<?xml version='1.0'?><package xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><metadata><dc:title>Книга Calibre</dc:title><dc:creator>Автор</dc:creator></metadata></package>",
+    )
+    .expect("metadata.opf");
+    std::fs::write(root.join("metadata.db"), "db").expect("metadata.db");
+}
+
+#[test]
+fn switching_between_generic_and_calibre_uses_new_root() {
+    let parent = test_util::test_root("plugin-session-switch");
+    let generic_root = parent.join("generic");
+    let calibre_root = parent.join("calibre");
+    let storage = parent.join("state");
+    write_generic_library(&generic_root, "GenericBook");
+    write_calibre_library(&calibre_root);
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("plugins");
+    let mut session = PluginSession::idle(PathBuf::from("."), bundled);
+
+    // Первая библиотека: generic-источник.
+    let provider = session
+        .select_source(&generic_root, false, &storage)
+        .expect("выбор generic-источника");
+    assert_eq!(
+        provider, "a692624f-1fa0-49a2-9015-9cb7361f9d47",
+        "выбран generic-источник"
+    );
+    let generic_catalog = session
+        .invoke(
+            "open",
+            serde_json::json!({ "mode": "external", "path": generic_root }),
+        )
+        .expect("открытие generic-библиотеки");
+    assert!(
+        generic_catalog.contains("GenericBook"),
+        "каталог generic-библиотеки содержит её книгу"
+    );
+
+    // Вторая библиотека: Calibre; каталог не должен содержать книги первой.
+    let provider = session
+        .select_source(&calibre_root, false, &storage)
+        .expect("выбор Calibre");
+    assert_eq!(
+        provider, "f7c8b139-887f-4a2f-84e8-fdcc89635a79",
+        "выбран источник Calibre"
+    );
+    let calibre_catalog = session
+        .invoke(
+            "open",
+            serde_json::json!({ "mode": "external", "path": calibre_root }),
+        )
+        .expect("открытие библиотеки Calibre");
+    assert!(
+        calibre_catalog.contains("Книга Calibre"),
+        "каталог Calibre содержит её книгу"
+    );
+    assert!(
+        !calibre_catalog.contains("GenericBook"),
+        "каталог Calibre не содержит книг предыдущей библиотеки"
+    );
+
+    test_util::cleanup(&parent);
+}

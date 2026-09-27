@@ -1,14 +1,15 @@
 //! Сканирование библиотеки Calibre.
 //!
 //! Библиотека Calibre хранится раскладкой «<автор>/<книга>». Название книги —
-//! имя папки книги, авторы — имя родительской папки; при наличии EPUB метаданные
-//! уточняются из файла. Все чтения выполняются через абстракцию `Fs`.
+//! имя папки книги, авторы — имя родительской папки; при наличии `metadata.opf`
+//! или EPUB метаданные уточняются из файла. Обход перечисляет файлы без чтения
+//! содержимого; чтение выполняется только для новых и изменённых папок.
 
 use std::path::Path;
 
 use super::epub;
 use super::fs::Fs;
-use super::models::{EntryKind, ExternalBook, ExternalFile, ExternalFileKind};
+use super::models::{BookListing, EntryKind, ExternalBook, ExternalFile, ExternalFileKind};
 use super::opf;
 
 /// Расширения файлов, считающихся содержимым книги.
@@ -25,38 +26,22 @@ pub(crate) const PROBE_PRIORITY: i32 = 10;
 ///
 /// Библиотека Calibre всегда содержит файл `metadata.db` в корне; без него
 /// директория не признаётся Calibre, чтобы не перехватывать произвольные папки
-/// с похожей вложенностью. Дополнительно требуется папка книги с файлами книг.
+/// с похожей вложенностью. Признаком служит именно `metadata.db`: обход
+/// раскладки здесь не выполняется, чтобы распознавание было дешёвым и не
+/// задерживало построение индекса.
 pub(crate) fn probe(fs: &impl Fs) -> Result<Option<i32>, String> {
     let root = fs.list_dir("")?;
-    if !root
+    if root
         .iter()
         .any(|entry| entry.kind == EntryKind::File && entry.name == "metadata.db")
     {
-        return Ok(None);
-    }
-    for author in root {
-        if is_hidden(&author.name) || author.kind != EntryKind::Dir {
-            continue;
-        }
-        for book in fs.list_dir(&author.name)? {
-            if is_hidden(&book.name) || book.kind != EntryKind::Dir {
-                continue;
-            }
-            let book_path = join(&author.name, &book.name);
-            if fs
-                .list_dir(&book_path)?
-                .iter()
-                .any(|entry| entry.kind == EntryKind::File && is_book_file(&entry.name))
-            {
-                return Ok(Some(PROBE_PRIORITY));
-            }
-        }
+        return Ok(Some(PROBE_PRIORITY));
     }
     Ok(None)
 }
 
-/// Полное сканирование библиотеки Calibre.
-pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
+/// Перечисление папок книг без чтения метаданных.
+pub(crate) fn list_books(fs: &impl Fs) -> Result<Vec<BookListing>, String> {
     let mut books = Vec::new();
     for author in fs.list_dir("")? {
         if is_hidden(&author.name) || author.kind != EntryKind::Dir {
@@ -67,33 +52,46 @@ pub(crate) fn scan(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
                 continue;
             }
             let book_path = join(&author.name, &book.name);
-            if let Some(entry) = scan_book(fs, &author.name, &book_path)? {
-                books.push(entry);
+            if let Some(listing) = list_book(fs, &author.name, &book_path)? {
+                books.push(listing);
             }
         }
     }
+    books.sort_by(|left, right| left.id.cmp(&right.id));
     Ok(books)
 }
 
-/// Сканирование одной папки книги с обогащением метаданных из EPUB.
-fn scan_book(
+/// Перечисление файлов одной папки книги и построение её подписи.
+fn list_book(
     fs: &impl Fs,
     folder_author: &str,
     book_path: &str,
-) -> Result<Option<ExternalBook>, String> {
+) -> Result<Option<BookListing>, String> {
     let entries = fs.list_dir(book_path)?;
     let mut files = Vec::new();
     let mut cover = None;
+    let mut opf = None;
+    let mut signature_parts = Vec::new();
+    let mut reliable = true;
     for entry in &entries {
         if entry.kind != EntryKind::File {
             continue;
         }
+        if entry.size.is_none() || entry.mtime_ms.is_none() {
+            reliable = false;
+        }
+        signature_parts.push(format!(
+            "{}:{}:{}",
+            entry.name,
+            entry.size.unwrap_or_default(),
+            entry.mtime_ms.unwrap_or_default()
+        ));
         let name = &entry.name;
-        let file_path = join(book_path, name);
         let Some(extension) = Path::new(name).extension().and_then(|value| value.to_str()) else {
             continue;
         };
         let extension = extension.to_ascii_lowercase();
+        let file_path = join(book_path, name);
         if is_book_file(name) {
             files.push(ExternalFile {
                 kind: ExternalFileKind::Book,
@@ -105,36 +103,50 @@ fn scan_book(
         {
             cover = Some(ExternalFile {
                 kind: ExternalFileKind::Cover,
-                path: file_path.clone(),
+                path: file_path,
                 format: extension,
             });
+        }
+        if name.eq_ignore_ascii_case("metadata.opf") {
+            opf = Some(name.clone());
         }
     }
     if files.is_empty() {
         return Ok(None);
     }
-
     files.sort_by(|left, right| left.path.cmp(&right.path));
+    if let Some(cover) = cover {
+        files.push(cover);
+    }
+    signature_parts.sort();
+    Ok(Some(BookListing {
+        id: book_path.to_string(),
+        author: folder_author.to_string(),
+        files,
+        opf,
+        signature: signature_parts.join("|"),
+        reliable,
+    }))
+}
 
-    let mut title = book_path
+/// Построение книги с чтением `metadata.opf` или EPUB ради метаданных.
+pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
+    let mut title = listing
+        .id
         .rsplit('/')
         .next()
-        .unwrap_or(book_path)
+        .unwrap_or(&listing.id)
         .to_string();
-    let mut authors = if folder_author.is_empty() {
+    let mut authors = if listing.author.is_empty() {
         Vec::new()
     } else {
-        vec![folder_author.to_string()]
+        vec![listing.author.clone()]
     };
     let mut series = Vec::new();
 
     // Основной источник метаданных Calibre — `metadata.opf` в папке книги.
-    let opf_entry = entries
-        .iter()
-        .find(|entry| entry.kind == EntryKind::File && entry.name.eq_ignore_ascii_case("metadata.opf"));
-    if let Some(entry) = opf_entry {
-        let opf_path = join(book_path, &entry.name);
-        if let Ok(bytes) = fs.read_bytes(&opf_path) {
+    if let Some(opf_name) = &listing.opf {
+        if let Ok(bytes) = fs.read_bytes(&join(&listing.id, opf_name)) {
             let metadata = opf::extract(&bytes);
             if let Some(value) = metadata.title.filter(|value| !value.trim().is_empty()) {
                 title = value;
@@ -146,7 +158,11 @@ fn scan_book(
                 series.push(value);
             }
         }
-    } else if let Some(epub_file) = files.iter().find(|file| file.format == "epub") {
+    } else if let Some(epub_file) = listing
+        .files
+        .iter()
+        .find(|file| file.format == "epub" && matches!(file.kind, ExternalFileKind::Book))
+    {
         // Фолбэк: метаданные из EPUB, если `metadata.opf` отсутствует.
         if let Ok(bytes) = fs.read_bytes(&epub_file.path) {
             if let Ok((epub_title, epub_authors)) = epub::parse_epub_metadata(&bytes) {
@@ -160,17 +176,14 @@ fn scan_book(
         }
     }
 
-    if let Some(cover) = cover {
-        files.push(cover);
-    }
-    Ok(Some(ExternalBook {
-        id: book_path.to_string(),
+    ExternalBook {
+        id: listing.id.clone(),
         title,
         authors,
         tags: Vec::new(),
         series,
-        files,
-    }))
+        files: listing.files.clone(),
+    }
 }
 
 /// Является ли файл содержимым книги по его имени.

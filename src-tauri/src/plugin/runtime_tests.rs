@@ -369,6 +369,7 @@ fn plugin_store_root_reaches_host_state() {
         &runtime.activation_root,
         &plugin_dirs,
         &runtime.sandbox_writable,
+        TEST_PLUGIN_ID,
     );
     let resolved = store_root(&state).expect("корень стора доступен");
     assert_eq!(resolved, dir, "корень доходит до host-функций стора");
@@ -386,6 +387,7 @@ fn plugin_store_root_absent_without_configuration() {
         &runtime.activation_root,
         &plugin_dirs,
         &runtime.sandbox_writable,
+        TEST_PLUGIN_ID,
     );
     assert!(
         store_root(&state).is_err(),
@@ -588,5 +590,189 @@ fn trace_suppressed_at_info_threshold() {
         !events.iter().any(|event| event.severity == Severity::Trace),
         "при пороге info трасса не публикуется"
     );
+    cleanup(&root);
+}
+
+/// Создание host-состояния для проверок SQL-хранилища.
+fn sqlite_host_state(storage: PathBuf, sandbox: PathBuf, plugin_id: &str) -> HostState {
+    let mut runtime = PluginRuntime::empty();
+    runtime.set_storage_root(storage);
+    let state = PluginRuntime::host_state(
+        &runtime.sandbox_root,
+        &runtime.storage_root,
+        &runtime.plugin_store_root,
+        &runtime.activation_root,
+        &runtime.catalog_dirs,
+        &runtime.sandbox_writable,
+        plugin_id,
+    );
+    *state.sandbox_root.lock().expect("песочный корень") = sandbox;
+    state
+}
+
+#[test]
+fn sql_database_path_is_isolated_per_library() {
+    let root = test_util::test_root("plugin-sql-path");
+    cleanup(&root);
+    fs::create_dir_all(root.join("library-a")).expect("папка A");
+    fs::create_dir_all(root.join("library-b")).expect("папка B");
+    let storage = root.join("state");
+
+    let first = sqlite_host_state(storage.clone(), root.join("library-a"), TEST_PLUGIN_ID);
+    let second = sqlite_host_state(storage, root.join("library-b"), TEST_PLUGIN_ID);
+    let first_path = sqlite_database_path(&first).expect("путь A");
+    let second_path = sqlite_database_path(&second).expect("путь B");
+
+    assert_ne!(first_path, second_path, "библиотеки получают разные базы");
+    assert!(
+        first_path.starts_with(storage_path(&first)),
+        "база лежит в служебной области"
+    );
+    assert!(
+        first_path.to_string_lossy().contains(TEST_PLUGIN_ID),
+        "путь содержит идентификатор провайдера"
+    );
+    cleanup(&root);
+}
+
+/// Корень служебного хранилища host-состояния.
+fn storage_path(state: &HostState) -> PathBuf {
+    state
+        .storage_root
+        .lock()
+        .expect("storage")
+        .clone()
+        .expect("storage настроен")
+}
+
+#[test]
+fn sql_requires_configured_storage() {
+    let runtime = PluginRuntime::empty();
+    let state = PluginRuntime::host_state(
+        &runtime.sandbox_root,
+        &runtime.storage_root,
+        &runtime.plugin_store_root,
+        &runtime.activation_root,
+        &runtime.catalog_dirs,
+        &runtime.sandbox_writable,
+        TEST_PLUGIN_ID,
+    );
+    assert!(
+        sqlite_database_path(&state).is_err(),
+        "без служебного хранилища SQL недоступен"
+    );
+}
+
+#[test]
+fn sql_execute_and_query_roundtrip() {
+    let root = test_util::test_root("plugin-sql-roundtrip");
+    cleanup(&root);
+    let library = root.join("library");
+    fs::create_dir_all(&library).expect("библиотека");
+    let state = sqlite_host_state(root.join("state"), library, TEST_PLUGIN_ID);
+
+    execute_sql(
+        &state,
+        "CREATE TABLE books (id INTEGER PRIMARY KEY, title TEXT, size INTEGER)",
+        Vec::new(),
+    )
+    .expect("создание таблицы");
+    execute_sql(
+        &state,
+        "INSERT INTO books (title, size) VALUES (?1, ?2)",
+        vec![
+            rusqlite::types::Value::Text("Книга".to_string()),
+            rusqlite::types::Value::Integer(42),
+        ],
+    )
+    .expect("вставка");
+
+    let rows = query_sql(&state, "SELECT title, size FROM books", Vec::new()).expect("запрос");
+    assert_eq!(rows.len(), 1, "одна строка");
+    assert_eq!(rows[0]["title"], "Книга");
+    assert_eq!(rows[0]["size"], 42);
+    cleanup(&root);
+}
+
+#[test]
+fn sql_error_is_reported() {
+    let root = test_util::test_root("plugin-sql-error");
+    cleanup(&root);
+    let library = root.join("library");
+    fs::create_dir_all(&library).expect("библиотека");
+    let state = sqlite_host_state(root.join("state"), library, TEST_PLUGIN_ID);
+
+    let result = query_sql(&state, "SELECT * FROM no_such_table", Vec::new());
+    assert!(result.is_err(), "ошибка SQL возвращается плагину");
+    cleanup(&root);
+}
+
+#[test]
+fn sql_libraries_do_not_share_data() {
+    let root = test_util::test_root("plugin-sql-isolation");
+    cleanup(&root);
+    let library_a = root.join("library-a");
+    let library_b = root.join("library-b");
+    fs::create_dir_all(&library_a).expect("библиотека A");
+    fs::create_dir_all(&library_b).expect("библиотека B");
+    let storage = root.join("state");
+
+    let first = sqlite_host_state(storage.clone(), library_a, TEST_PLUGIN_ID);
+    let second = sqlite_host_state(storage, library_b, TEST_PLUGIN_ID);
+    execute_sql(
+        &first,
+        "CREATE TABLE t (value TEXT); INSERT INTO t VALUES ('a')",
+        Vec::new(),
+    )
+    .expect("заполнение A");
+    execute_sql(
+        &second,
+        "CREATE TABLE t (value TEXT); INSERT INTO t VALUES ('b')",
+        Vec::new(),
+    )
+    .expect("заполнение B");
+
+    let rows_a = query_sql(&first, "SELECT value FROM t", Vec::new()).expect("A");
+    let rows_b = query_sql(&second, "SELECT value FROM t", Vec::new()).expect("B");
+    assert_eq!(rows_a[0]["value"], "a");
+    assert_eq!(rows_b[0]["value"], "b");
+    cleanup(&root);
+}
+
+#[test]
+fn parses_sql_params_from_json() {
+    let params = parse_sql_params(r#"[1, "текст", 1.5, null, true]"#).expect("разбор");
+    assert_eq!(params.len(), 5);
+    assert_eq!(params[0], rusqlite::types::Value::Integer(1));
+    assert_eq!(params[1], rusqlite::types::Value::Text("текст".to_string()));
+    assert_eq!(params[2], rusqlite::types::Value::Real(1.5));
+    assert_eq!(params[3], rusqlite::types::Value::Null);
+    assert_eq!(params[4], rusqlite::types::Value::Integer(1));
+    assert!(parse_sql_params("{}").is_err(), "не-массив отклоняется");
+}
+
+#[test]
+fn directory_entries_include_file_metadata() {
+    let root = test_util::test_root("plugin-fs-metadata");
+    cleanup(&root);
+    fs::create_dir_all(root.join("sub")).expect("подпапка");
+    fs::write(root.join("book.epub"), vec![0u8; 10]).expect("файл");
+
+    let entries = read_directory_entries(&root);
+    let file = entries
+        .iter()
+        .find(|entry| entry.name == "book.epub")
+        .expect("файл в списке");
+    assert_eq!(file.kind, "file");
+    assert_eq!(file.size, Some(10), "размер файла без чтения содержимого");
+    assert!(file.mtime_ms.is_some(), "время изменения файла доступно");
+
+    let dir = entries
+        .iter()
+        .find(|entry| entry.name == "sub")
+        .expect("каталог в списке");
+    assert_eq!(dir.kind, "dir");
+    assert!(dir.size.is_none(), "у каталога нет размера файла");
+    assert!(dir.mtime_ms.is_none(), "у каталога нет времени изменения");
     cleanup(&root);
 }

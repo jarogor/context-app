@@ -3,11 +3,16 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::import_book;
 use crate::fs::Fs;
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
+
+/// Счётчик уникальных SQL-хранилищ тестов.
+static NEXT_SQL_ROOT: AtomicU64 = AtomicU64::new(0);
 
 /// Подставная файловая система для тестов импорта.
 struct FakeFs {
@@ -17,15 +22,19 @@ struct FakeFs {
     files: RefCell<HashMap<String, Vec<u8>>>,
     /// Служебное состояние плагина.
     state: RefCell<HashMap<String, String>>,
+    /// Ключ SQL-хранилища теста.
+    sql_root: PathBuf,
 }
 
 impl FakeFs {
     /// Создание подставной ФС с заданным EPUB.
     fn new(epub: Vec<u8>) -> Self {
+        let seed = NEXT_SQL_ROOT.fetch_add(1, Ordering::Relaxed);
         Self {
             epub,
             files: RefCell::new(HashMap::new()),
             state: RefCell::new(HashMap::new()),
+            sql_root: PathBuf::from(format!("portable-test-{seed}")),
         }
     }
 }
@@ -67,6 +76,18 @@ impl Fs for FakeFs {
 
     fn state_delete(&self, key: &str) -> Result<(), String> {
         self.state.borrow_mut().remove(key);
+        Ok(())
+    }
+
+    fn sql_execute(&self, sql: &str, params: &str) -> Result<(), String> {
+        crate::test_sql::execute(&self.sql_root, sql, params)
+    }
+
+    fn sql_query(&self, sql: &str, params: &str) -> Result<String, String> {
+        crate::test_sql::query(&self.sql_root, sql, params)
+    }
+
+    fn emit_event(&self, _name: &str, _payload: &str) -> Result<(), String> {
         Ok(())
     }
 }
