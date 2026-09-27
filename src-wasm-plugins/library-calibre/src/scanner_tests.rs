@@ -202,3 +202,5 @@ fn lifecycle_restores_saved_catalog() {
 
     assert_eq!(first.books, restored.books);
 }
+
+

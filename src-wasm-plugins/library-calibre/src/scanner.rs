@@ -9,6 +9,7 @@ use std::path::Path;
 use super::epub;
 use super::fs::Fs;
 use super::models::{EntryKind, ExternalBook, ExternalFile, ExternalFileKind};
+use super::opf;
 
 /// Расширения файлов, считающихся содержимым книги.
 const BOOK_FORMATS: &[&str] = &[
@@ -125,7 +126,28 @@ fn scan_book(
     } else {
         vec![folder_author.to_string()]
     };
-    if let Some(epub_file) = files.iter().find(|file| file.format == "epub") {
+    let mut series = Vec::new();
+
+    // Основной источник метаданных Calibre — `metadata.opf` в папке книги.
+    let opf_entry = entries
+        .iter()
+        .find(|entry| entry.kind == EntryKind::File && entry.name.eq_ignore_ascii_case("metadata.opf"));
+    if let Some(entry) = opf_entry {
+        let opf_path = join(book_path, &entry.name);
+        if let Ok(bytes) = fs.read_bytes(&opf_path) {
+            let metadata = opf::extract(&bytes);
+            if let Some(value) = metadata.title.filter(|value| !value.trim().is_empty()) {
+                title = value;
+            }
+            if !metadata.authors.is_empty() {
+                authors = metadata.authors;
+            }
+            if let Some(value) = metadata.series {
+                series.push(value);
+            }
+        }
+    } else if let Some(epub_file) = files.iter().find(|file| file.format == "epub") {
+        // Фолбэк: метаданные из EPUB, если `metadata.opf` отсутствует.
         if let Ok(bytes) = fs.read_bytes(&epub_file.path) {
             if let Ok((epub_title, epub_authors)) = epub::parse_epub_metadata(&bytes) {
                 if !epub_title.is_empty() {
@@ -146,7 +168,7 @@ fn scan_book(
         title,
         authors,
         tags: Vec::new(),
-        series: Vec::new(),
+        series,
         files,
     }))
 }

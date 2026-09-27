@@ -7,6 +7,7 @@ pub(crate) mod epub;
 pub(crate) mod fs;
 pub(crate) mod lifecycle;
 pub(crate) mod models;
+pub(crate) mod opf;
 pub(crate) mod scanner;
 
 #[cfg(target_arch = "wasm32")]
