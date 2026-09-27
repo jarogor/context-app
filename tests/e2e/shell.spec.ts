@@ -17,11 +17,42 @@ test('оболочка показывает панель и переключае
   await expect(store.getByRole('heading', { name: 'Плагины' })).toBeVisible();
 });
 
-test('оболочка открывает страницу библиотек', async ({ page }) => {
+test('кнопки верхней панели показывают активный раздел', async ({ page }) => {
+  await page.goto('/');
+
+  const libraries = page.getByLabel('Библиотеки');
+  const settings = page.getByLabel('Настройки');
+
+  await expect(libraries).toHaveAttribute('aria-pressed', 'false');
+  await expect(settings).toHaveAttribute('aria-pressed', 'false');
+
+  await libraries.click();
+  await expect(libraries).toHaveAttribute('aria-pressed', 'true');
+  await expect(settings).toHaveAttribute('aria-pressed', 'false');
+
+  await settings.click();
+  await expect(settings).toHaveAttribute('aria-pressed', 'true');
+  await expect(libraries).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('страница библиотек показывает историю с временем', async ({ page }) => {
   await page.goto('/');
 
   await page.getByLabel('Библиотеки').click();
 
   await expect(page.getByRole('heading', { name: 'Библиотеки' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /demo-library/ })).toBeVisible();
+  const entry = page.getByRole('button', { name: /demo-library/ });
+  await expect(entry).toBeVisible();
+  await expect(page.getByText('library', { exact: true })).toBeVisible();
+  await expect(entry).toContainText('2023');
+});
+
+test('после открытия библиотеки страница выбора закрывается', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByLabel('Библиотеки').click();
+  await page.getByRole('button', { name: /demo-library/ }).click();
+
+  await expect(page.getByRole('heading', { name: 'Библиотеки' })).toBeHidden();
+  await expect(page.frameLocator('iframe[title="Library plugin"]').locator('body')).toBeVisible();
 });

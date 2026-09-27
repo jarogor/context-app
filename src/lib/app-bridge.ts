@@ -12,7 +12,27 @@ let mockConfigured = false;
 async function mock() {
   const testing = await import('@texture/testing');
   if (!mockConfigured) {
-    testing.configureMockBridge(testing.defaultMockConfig());
+    const globals = window as unknown as {
+      __TEXTURE_MOCK_CONFIG__?: Parameters<typeof testing.configureMockBridge>[0];
+      __TEXTURE_MOCK_OVERRIDES__?: {
+        handlers?: Record<string, (payload: unknown) => unknown>;
+        dialogResult?: unknown;
+      };
+    };
+    let config = testing.defaultMockConfig();
+    if (globals.__TEXTURE_MOCK_CONFIG__) {
+      config = globals.__TEXTURE_MOCK_CONFIG__;
+    } else if (globals.__TEXTURE_MOCK_OVERRIDES__) {
+      const overrides = globals.__TEXTURE_MOCK_OVERRIDES__;
+      config = {
+        ...config,
+        handlers: { ...config.handlers, ...overrides.handlers },
+      };
+      if ('dialogResult' in overrides) {
+        config.dialogResult = overrides.dialogResult;
+      }
+    }
+    testing.configureMockBridge(config);
     mockConfigured = true;
   }
   return testing;
