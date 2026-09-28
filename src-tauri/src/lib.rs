@@ -112,6 +112,10 @@ pub fn run() {
             commands::library_history_list,
             commands::library_history_forget,
             commands::plugin_activation_pending,
+            commands::workplace_formats,
+            commands::workplace_plugin_for_format,
+            commands::workplace_viewer,
+            commands::workplace_book_chunk,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

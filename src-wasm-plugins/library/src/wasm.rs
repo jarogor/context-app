@@ -258,6 +258,13 @@ pub fn invoke(input: String) -> FnResult<String> {
             };
             serde_json::to_string(&json!({ "text": text, "title": path, "authors": [] }))?
         }
+        "file_bytes" => {
+            let (path, _format) = book_file_info(&fs, &request.payload)?;
+            let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
+            let encoded =
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
+            serde_json::to_string(&json!({ "data": encoded, "size": bytes.len() }))?
+        }
         "content" => {
             let (path, format) = book_file_info(&fs, &request.payload)?;
             if format != "epub" {

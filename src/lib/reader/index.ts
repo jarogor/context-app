@@ -75,7 +75,10 @@ interface CatalogBook {
 }
 
 /** Определение формата книги по её файлам в каталоге. */
-async function bookFormat(bookId: string, backend: ReaderBackend): Promise<string> {
+export async function bookFormat(
+  bookId: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<string> {
   const response = (await backend.invoke('invoke_plugin_operation', {
     operation: 'list',
     payload: {},
@@ -85,6 +88,93 @@ async function bookFormat(bookId: string, backend: ReaderBackend): Promise<strin
   const book = books.find((item) => String(item.id) === bookId);
   const file = book?.files?.find((item) => item.kind === 'book');
   return (file?.format ?? '').toLowerCase();
+}
+
+/** Форматы, доступные встроенному чтению: EPUB и форматы плагинов рабочего места. */
+export async function supportedFormats(
+  backend: ReaderBackend = defaultBackend(),
+): Promise<string[]> {
+  const formats = new Set<string>(SUPPORTED_FORMATS);
+  try {
+    const list = (await backend.invoke('workplace_formats', {})) as string[] | null;
+    for (const format of list ?? []) {
+      if (format) {
+        formats.add(format.toLowerCase());
+      }
+    }
+  } catch {
+    // Сессия библиотеки может быть не открыта — остаются встроенные форматы.
+  }
+  return [...formats];
+}
+
+/** Выбранный плагин рабочего места для книги. */
+export interface WorkplaceSelection {
+  /** Идентификатор плагина рабочего места. */
+  pluginId: string;
+  /** Формат книги, обслуживаемый плагином. */
+  format: string;
+}
+
+/** Выбор плагина рабочего места по формату книги, если он установлен. */
+export async function selectWorkplacePlugin(
+  bookId: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<WorkplaceSelection | null> {
+  const format = await bookFormat(bookId, backend);
+  if (!format) {
+    return null;
+  }
+  const pluginId = (await backend.invoke('workplace_plugin_for_format', {
+    format,
+  })) as string | null | undefined;
+  if (!pluginId) {
+    return null;
+  }
+  return { pluginId, format };
+}
+
+/** Загрузка модуля рисования плагина рабочего места. */
+export async function loadWorkplaceViewer(
+  pluginId: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<string> {
+  return String(await backend.invoke('workplace_viewer', { pluginId }));
+}
+
+/** Порция содержимого книги, полученная от ядра. */
+interface BookChunk {
+  /** Кодированные байты порции. */
+  chunk: string;
+  /** Смещение конца порции. */
+  next: number;
+  /** Полный размер книги в байтах. */
+  total: number;
+  /** Достигнут ли конец файла. */
+  done: boolean;
+}
+
+/** Чтение содержимого книги частями по непрозрачной ссылке. */
+export async function readWorkplaceBook(
+  bookId: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<string> {
+  const CHUNK_LENGTH = 512 * 1024;
+  let offset = 0;
+  let base64 = '';
+  for (;;) {
+    const result = (await backend.invoke('workplace_book_chunk', {
+      bookId,
+      offset,
+      length: CHUNK_LENGTH,
+    })) as BookChunk;
+    base64 += result.chunk;
+    offset = result.next;
+    if (result.done) {
+      break;
+    }
+  }
+  return base64;
 }
 
 /** Приведение ответа плагина к модели содержимого. */

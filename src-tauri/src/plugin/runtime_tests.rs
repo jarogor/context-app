@@ -867,3 +867,107 @@ fn warm_cache_prevents_recompilation() {
     cleanup(&root);
     cleanup(&state_root);
 }
+
+/// Идентификатор тестового плагина рабочего места.
+const WORKPLACE_ID: &str = "aaaaaaaa-0000-4000-8000-000000000009";
+
+/// Создание корня плагинов с плагином рабочего места без WASM-модуля.
+fn setup_workplace_root(name: &str, viewer_file: bool) -> PathBuf {
+    let dir = test_util::test_root(&format!("plugin-runtime-workplace-{name}"));
+    let plugin_dir = dir.join("pdf-viewer");
+    fs::create_dir_all(plugin_dir.join("viewer")).expect("создание директории плагина");
+    let manifest = format!(
+        r#"{{
+          "contract_version": 1,
+          "kind": "workplace",
+          "id": "{WORKPLACE_ID}",
+          "name": "pdf-viewer",
+          "description": "Читалка PDF",
+          "formats": ["pdf"],
+          "viewer": "viewer/index.html",
+          "host_functions": []
+        }}"#
+    );
+    fs::write(plugin_dir.join(MANIFEST_FILE_NAME), manifest).expect("манифест");
+    if viewer_file {
+        fs::write(
+            plugin_dir.join("viewer").join("index.html"),
+            "<html></html>",
+        )
+        .expect("модуль рисования");
+    }
+    dir
+}
+
+#[test]
+fn loads_workplace_plugin_without_wasm() {
+    let dir = setup_workplace_root("loads", true);
+    let root = dir.clone();
+    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    assert_eq!(
+        runtime.workplace_plugin_ids(),
+        vec![WORKPLACE_ID.to_string()]
+    );
+    assert_eq!(runtime.workplace_formats(), vec!["pdf".to_string()]);
+    assert_eq!(
+        runtime.workplace_plugin_for_format("PDF").as_deref(),
+        Some(WORKPLACE_ID)
+    );
+    assert!(
+        runtime
+            .viewer_path(WORKPLACE_ID)
+            .expect("путь модуля")
+            .is_file(),
+        "модуль рисования доступен по идентификатору"
+    );
+    cleanup(&root);
+}
+
+#[test]
+fn skips_workplace_plugin_without_viewer_file() {
+    let dir = setup_workplace_root("missing-viewer", false);
+    let root = dir.clone();
+    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    assert!(
+        runtime.plugin_names().is_empty(),
+        "плагин рабочего места без модуля рисования не загружается"
+    );
+    cleanup(&root);
+}
+
+#[test]
+fn workplace_plugin_is_not_selected_for_unknown_format() {
+    let dir = setup_workplace_root("unknown-format", true);
+    let root = dir.clone();
+    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    assert_eq!(runtime.workplace_plugin_for_format("epub"), None);
+    cleanup(&root);
+}
+
+/// Идентификатор примера плагина рабочего места.
+const EXAMPLE_WORKPLACE_ID: &str = "c1a7e0d4-2b3f-4c5a-9d6e-7f8a9b0c1d2e";
+
+#[test]
+fn loads_example_workplace_plugin_from_source() {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("корень проекта")
+        .join("src-wasm-plugins");
+    let runtime =
+        PluginRuntime::load(std::slice::from_ref(&dir), dir.clone()).expect("загрузка примера");
+    assert!(
+        runtime.workplace_formats().contains(&"demo".to_string()),
+        "пример объявляет формат demo"
+    );
+    assert_eq!(
+        runtime.workplace_plugin_for_format("demo").as_deref(),
+        Some(EXAMPLE_WORKPLACE_ID)
+    );
+    assert!(
+        runtime
+            .viewer_path(EXAMPLE_WORKPLACE_ID)
+            .expect("путь модуля рисования")
+            .is_file(),
+        "модуль рисования примера доступен"
+    );
+}

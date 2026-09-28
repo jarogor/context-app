@@ -80,15 +80,30 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
             reason: "базовые плагины не устанавливаются через стор".to_string(),
         });
     }
-    if !is_safe_module(&manifest.module) {
-        return Err(PluginError::Package {
-            reason: format!("некорректный путь модуля в манифесте: {}", manifest.module),
-        });
+    if !manifest.module.trim().is_empty() {
+        if !is_safe_module(&manifest.module) {
+            return Err(PluginError::Package {
+                reason: format!("некорректный путь модуля в манифесте: {}", manifest.module),
+            });
+        }
+        if !staging.path().join(&manifest.module).is_file() {
+            return Err(PluginError::Package {
+                reason: format!("модуль {} отсутствует в пакете", manifest.module),
+            });
+        }
     }
-    if !staging.path().join(&manifest.module).is_file() {
-        return Err(PluginError::Package {
-            reason: format!("модуль {} отсутствует в пакете", manifest.module),
-        });
+    if manifest.kind == PluginKind::Workplace {
+        let viewer = manifest.viewer.as_deref().unwrap_or_default();
+        if !is_safe_module(viewer) {
+            return Err(PluginError::Package {
+                reason: format!("некорректный путь модуля рисования в манифесте: {viewer}"),
+            });
+        }
+        if !staging.path().join(viewer).is_file() {
+            return Err(PluginError::Package {
+                reason: format!("модуль рисования {viewer} отсутствует в пакете"),
+            });
+        }
     }
     let target = root.join(&manifest.id);
     if target.exists() {

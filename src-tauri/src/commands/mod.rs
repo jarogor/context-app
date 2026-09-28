@@ -7,6 +7,7 @@ pub mod library_history_list;
 pub mod plugin_activation_pending;
 pub mod plugin_operation;
 pub mod select_source_library;
+pub mod workplace;
 
 pub use active_library::__cmd__active_library;
 pub use active_library::__tauri_command_name_active_library;
@@ -35,3 +36,16 @@ pub use select_source_library::select_source_library;
 pub use plugin_activation_pending::__cmd__plugin_activation_pending;
 pub use plugin_activation_pending::__tauri_command_name_plugin_activation_pending;
 pub use plugin_activation_pending::plugin_activation_pending;
+
+pub use workplace::__cmd__workplace_book_chunk;
+pub use workplace::__cmd__workplace_formats;
+pub use workplace::__cmd__workplace_plugin_for_format;
+pub use workplace::__cmd__workplace_viewer;
+pub use workplace::__tauri_command_name_workplace_book_chunk;
+pub use workplace::__tauri_command_name_workplace_formats;
+pub use workplace::__tauri_command_name_workplace_plugin_for_format;
+pub use workplace::__tauri_command_name_workplace_viewer;
+pub use workplace::workplace_book_chunk;
+pub use workplace::workplace_formats;
+pub use workplace::workplace_plugin_for_format;
+pub use workplace::workplace_viewer;

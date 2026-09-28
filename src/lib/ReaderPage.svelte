@@ -1,11 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Button, Progress, Spinner } from '@texture/ui';
+  import WorkplaceContent from './WorkplaceContent.svelte';
   import {
     UnsupportedFormatError,
+    bookFormat,
+    isSupportedFormat,
     loadBookContent,
     openBookExternally,
+    selectWorkplacePlugin,
     type BookContent,
+    type WorkplaceSelection,
   } from './reader';
 
   interface Props {
@@ -23,8 +28,10 @@
   const MIN_ZOOM = 60;
   const MAX_ZOOM = 220;
 
-  /** Содержимое книги. */
+  /** Содержимое книги (текстовые форматы). */
   let content: BookContent | null = $state(null);
+  /** Плагин рабочего места, если формат читается им. */
+  let workplace: WorkplaceSelection | null = $state(null);
   /** Идёт загрузка содержимого. */
   let loading = $state(true);
   /** Ошибка загрузки содержимого. */
@@ -35,6 +42,8 @@
   let zoom = $state(100);
   /** Прогресс чтения в процентах. */
   let progress = $state(0);
+  /** Поддерживает ли плагин рабочего места изменение масштаба. */
+  let workplaceZoom = $state(true);
   /** Область отображения книги. */
   let frame: HTMLIFrameElement | undefined = $state();
 
@@ -96,10 +105,22 @@
     error = null;
     unsupported = false;
     content = null;
+    workplace = null;
     progress = 0;
     zoom = 100;
+    workplaceZoom = true;
     try {
-      content = await loadBookContent(id);
+      const format = await bookFormat(id);
+      if (isSupportedFormat(format)) {
+        content = await loadBookContent(id);
+      } else {
+        const selection = await selectWorkplacePlugin(id);
+        if (selection) {
+          workplace = selection;
+        } else {
+          unsupported = true;
+        }
+      }
     } catch (e) {
       if (e instanceof UnsupportedFormatError) {
         unsupported = true;
@@ -181,6 +202,16 @@
         </p>
         <Button variant="ghost" onclick={onBack}>К списку книг</Button>
       </div>
+    {:else if workplace}
+      <WorkplaceContent
+        pluginId={workplace.pluginId}
+        {bookId}
+        {title}
+        {zoom}
+        onCapabilities={(value) => (workplaceZoom = value.zoom !== false)}
+        onProgress={(value) => (progress = value)}
+        onError={(value) => (error = value)}
+      />
     {:else if content}
       <iframe
         bind:this={frame}
@@ -201,23 +232,25 @@
     class="flex flex-[0_0_40px] items-center gap-[var(--space-4)] border-t border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-4)] text-[12px] text-[var(--color-text-muted)]"
   >
     <div class="flex items-center gap-[var(--space-1)]">
-      <Button
-        size="icon"
-        variant="ghost"
-        title="Уменьшить масштаб"
-        ariaLabel="Уменьшить масштаб"
-        disabled={zoom <= MIN_ZOOM}
-        onclick={() => changeZoom(-10)}>−</Button
-      >
-      <span class="min-w-[48px] text-center" data-testid="reader-zoom">{zoom}%</span>
-      <Button
-        size="icon"
-        variant="ghost"
-        title="Увеличить масштаб"
-        ariaLabel="Увеличить масштаб"
-        disabled={zoom >= MAX_ZOOM}
-        onclick={() => changeZoom(10)}>+</Button
-      >
+      {#if !workplace || workplaceZoom}
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Уменьшить масштаб"
+          ariaLabel="Уменьшить масштаб"
+          disabled={zoom <= MIN_ZOOM}
+          onclick={() => changeZoom(-10)}>−</Button
+        >
+        <span class="min-w-[48px] text-center" data-testid="reader-zoom">{zoom}%</span>
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Увеличить масштаб"
+          ariaLabel="Увеличить масштаб"
+          disabled={zoom >= MAX_ZOOM}
+          onclick={() => changeZoom(10)}>+</Button
+        >
+      {/if}
     </div>
     <div class="ml-auto flex items-center gap-[var(--space-2)]">
       <span data-testid="reader-progress">{Math.round(progress)}%</span>

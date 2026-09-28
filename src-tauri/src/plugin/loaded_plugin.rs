@@ -1,5 +1,7 @@
 //! Загруженный плагин.
 
+use std::path::PathBuf;
+
 use extism::Plugin;
 
 use crate::plugin::{PluginError, PluginKind};
@@ -20,20 +22,41 @@ pub struct LoadedPlugin {
     pub settings: Option<serde_json::Value>,
     /// Имя экспортируемой функции.
     pub function: String,
-    /// Инстанс плагина в Extism runtime.
-    pub(super) plugin: Plugin,
+    /// Форматы книг, обслуживаемые плагином рабочего места.
+    pub formats: Vec<String>,
+    /// Относительный путь к модулю рисования плагина рабочего места.
+    pub viewer: Option<String>,
+    /// Директория, из которой загружен плагин.
+    pub dir: PathBuf,
+    /// Инстанс плагина в Extism runtime; `None`, если WASM-модуль отсутствует.
+    pub(super) plugin: Option<Plugin>,
 }
 
 impl LoadedPlugin {
     /// Вызов экспортируемой функции плагина.
     pub fn invoke(&mut self, input: &str) -> Result<String, PluginError> {
-        let output: String = self
-            .plugin
+        let Some(plugin) = self.plugin.as_mut() else {
+            return Err(PluginError::Call {
+                plugin: self.name.clone(),
+                message: "плагин рабочего места не предоставляет WASM-модуль".to_string(),
+            });
+        };
+        let output: String = plugin
             .call::<&str, String>(&self.function, input)
             .map_err(|e| PluginError::Call {
                 plugin: self.name.clone(),
                 message: e.to_string(),
             })?;
         Ok(output)
+    }
+
+    /// Поддерживает ли плагин указанный формат книги.
+    pub fn supports_format(&self, format: &str) -> bool {
+        let format = format.trim().to_ascii_lowercase();
+        !format.is_empty()
+            && self
+                .formats
+                .iter()
+                .any(|value| value.trim().eq_ignore_ascii_case(&format))
     }
 }

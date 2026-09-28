@@ -51,8 +51,9 @@ test('масштаб меняет размер текста книги', async (
   await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
 
   await expect(page.getByTestId('reader-zoom')).toHaveText('110%');
-  const after = await html.evaluate((element) => getComputedStyle(element).fontSize);
-  expect(after).not.toBe(before);
+  await expect
+    .poll(async () => html.evaluate((element) => getComputedStyle(element).fontSize))
+    .not.toBe(before);
 });
 
 test('масштаб удерживает верхнюю строку на месте', async ({ page }) => {

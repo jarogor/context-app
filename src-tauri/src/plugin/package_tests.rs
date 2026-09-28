@@ -325,3 +325,90 @@ fn installed_plugin_loads_and_uninstall_removes() {
     );
     test_util::cleanup(&dir);
 }
+
+/// Идентификатор тестового плагина рабочего места.
+const WORKPLACE_ID: &str = "b0000000-0000-4000-8000-000000000003";
+
+/// Манифест плагина рабочего места с форматом и модулем рисования.
+fn workplace_manifest(id: &str, name: &str, viewer: &str) -> String {
+    format!(
+        r#"{{
+          "contract_version": 1,
+          "kind": "workplace",
+          "id": "{id}",
+          "name": "{name}",
+          "description": "Читалка",
+          "formats": ["pdf"],
+          "viewer": "{viewer}",
+          "host_functions": []
+        }}"#
+    )
+}
+
+/// Пакет плагина рабочего места с модулем рисования.
+fn valid_workplace_package(path: &Path, id: &str, name: &str) {
+    write_package(
+        path,
+        &[
+            (
+                "plugin-manifest.json",
+                workplace_manifest(id, name, "viewer/index.html").as_bytes(),
+            ),
+            ("viewer/index.html", b"<html></html>"),
+        ],
+    );
+}
+
+#[test]
+fn installs_workplace_package_without_wasm() {
+    let dir = test_util::test_root("plugin-package-workplace");
+    let archive = dir.join("pkg.zip");
+    let root = dir.join("app-plugins");
+    valid_workplace_package(&archive, WORKPLACE_ID, "pdf-viewer");
+
+    let installed = install_package(&archive, &root).expect("установка пакета рабочего места");
+    assert_eq!(installed.kind, "workplace");
+    assert!(
+        root.join(WORKPLACE_ID).join("viewer/index.html").is_file(),
+        "модуль рисования распакован под идентификатором"
+    );
+    test_util::cleanup(&dir);
+}
+
+#[test]
+fn rejects_workplace_package_without_viewer_file() {
+    let dir = test_util::test_root("plugin-package-workplace-no-viewer");
+    let archive = dir.join("pkg.zip");
+    let root = dir.join("app-plugins");
+    write_package(
+        &archive,
+        &[(
+            "plugin-manifest.json",
+            workplace_manifest(WORKPLACE_ID, "pdf-viewer", "viewer/index.html").as_bytes(),
+        )],
+    );
+
+    let result = install_package(&archive, &root);
+    assert!(
+        matches!(result, Err(PluginError::Package { .. })),
+        "отсутствие модуля рисования отклоняется"
+    );
+    assert!(!root.join(WORKPLACE_ID).exists(), "файлы не созданы");
+    test_util::cleanup(&dir);
+}
+
+#[test]
+fn uninstall_removes_workplace_viewer() {
+    let dir = test_util::test_root("plugin-package-workplace-uninstall");
+    let archive = dir.join("pkg.zip");
+    let root = dir.join("app-plugins");
+    valid_workplace_package(&archive, WORKPLACE_ID, "pdf-viewer");
+    install_package(&archive, &root).expect("установка");
+
+    uninstall_package(WORKPLACE_ID, &root).expect("удаление");
+    assert!(
+        !root.join(WORKPLACE_ID).exists(),
+        "каталог с модулем рисования удалён"
+    );
+    test_util::cleanup(&dir);
+}

@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { BookCoverPlaceholder, Button } from '@texture/ui';
-  import { openReader, operation } from './bridge';
+  import { invoke, openReader, operation } from './bridge';
   import type { Book } from './types';
 
   interface Props {
@@ -16,6 +17,8 @@
   let error: string | null = $state(null);
   /** Идёт открытие во внешнем приложении. */
   let opening: boolean = $state(false);
+  /** Форматы, поддерживаемые встроенным чтением. */
+  let supported: string[] = $state(['epub']);
 
   /** Формат файла содержимого книги. */
   function bookFormat(): string {
@@ -24,7 +27,7 @@
 
   /** Поддерживает ли книгу встроенное чтение. */
   function canRead(): boolean {
-    return bookFormat() === 'epub';
+    return supported.includes(bookFormat());
   }
 
   /** Открытие рабочего места чтения книги. */
@@ -44,6 +47,18 @@
       opening = false;
     }
   }
+
+  onMount(() => {
+    void (async () => {
+      try {
+        const formats = await invoke<string[]>('workplace_formats');
+        const values = new Set(['epub', ...(formats ?? []).map((value) => value.toLowerCase())]);
+        supported = [...values];
+      } catch {
+        supported = ['epub'];
+      }
+    })();
+  });
 </script>
 
 <div class="mx-auto max-w-[760px] p-[var(--space-5)]" data-testid="book-page">

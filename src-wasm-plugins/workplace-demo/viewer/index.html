@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Плагин рабочего места</title>
+    <style>
+      html {
+        font-size: 100%;
+      }
+      body {
+        margin: 0;
+        background: #f8fafc;
+        color: #1f2937;
+        font-family: system-ui, sans-serif;
+        font-size: 16px;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 32px;
+      }
+      .hint {
+        color: #6b7280;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Содержимое</h1>
+      <p class="hint" id="status">Ожидание книги…</p>
+      <div id="body"></div>
+    </main>
+    <script>
+      (function () {
+        var CHANNEL = 'texture-workplace';
+
+        function post(message) {
+          message.channel = CHANNEL;
+          parent.postMessage(message, '*');
+        }
+
+        addEventListener('message', function (event) {
+          var message = event.data;
+          if (!message || message.channel !== CHANNEL) {
+            return;
+          }
+          if (message.type === 'open') {
+            var bytes = 0;
+            try {
+              bytes = atob(String(message.data || '')).length;
+            } catch (e) {
+              bytes = 0;
+            }
+            document.getElementById('title').textContent = message.title || 'Содержимое';
+            document.getElementById('status').textContent =
+              'Пример плагина рабочего места: получено ' + bytes + ' байт';
+            var body = document.getElementById('body');
+            body.textContent = '';
+            for (var index = 0; index < 40; index += 1) {
+              var paragraph = document.createElement('p');
+              paragraph.textContent = 'Строка примера ' + (index + 1);
+              body.appendChild(paragraph);
+            }
+            report();
+          } else if (message.type === 'zoom') {
+            document.documentElement.style.fontSize = message.value + '%';
+          }
+        });
+
+        function report() {
+          var root = document.scrollingElement || document.documentElement;
+          var max = root.scrollHeight - root.clientHeight;
+          if (max <= 0) {
+            return;
+          }
+          post({
+            type: 'progress',
+            value: (root.scrollTop / max) * 100,
+          });
+        }
+
+        addEventListener('scroll', report, { passive: true });
+        addEventListener('resize', report);
+        post({ type: 'capabilities', value: { zoom: true } });
+        post({ type: 'ready' });
+      })();
+    </script>
+  </body>
+</html>

@@ -82,3 +82,16 @@ deploy_plugin "plugin-store" "4c5e7783-1393-404c-8e3f-24df56d6bb18" "base" "Ба
 deploy_plugin "demo" "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c" "extension" "Демонстрационный плагин: приветствие при старте приложения через host-функцию log" "demo.wasm" "invoke" '["log"]'
 deploy_plugin "library" "a692624f-1fa0-49a2-9015-9cb7361f9d47" "source" "Плагин каталога, импорта и чтения библиотеки" "library.wasm" "invoke" '["fs_list_dir", "fs_read_bytes", "fs_write_bytes", "open_file", "import_read_bytes", "state_read", "state_write", "state_delete", "sql_execute", "sql_query", "emit_event", "notify"]' '["library.catalog@1", "library.files@1"]'
 deploy_plugin "library-calibre" "f7c8b139-887f-4a2f-84e8-fdcc89635a79" "source" "Плагин библиотеки Calibre (раскладка автор/книга)" "library_calibre.wasm" "invoke" '["fs_list_dir", "fs_read_bytes", "open_file", "state_read", "state_write", "state_delete", "sql_execute", "sql_query", "emit_event", "notify"]' '[]'
+
+# Развёртывание статического плагина рабочего места: манифест и модуль рисования.
+deploy_static_plugin() {
+  local name="$1"
+  local src="$WORKSPACE_DIR/$name"
+  local out_dir="$RESOURCES_DIR/$name"
+  rm -rf "$out_dir"
+  mkdir -p "$out_dir"
+  cp -R "$src/." "$out_dir/"
+  echo "собран плагин рабочего места: $out_dir"
+}
+
+deploy_static_plugin "workplace-demo"

@@ -249,204 +249,221 @@ impl PluginRuntime {
         })?;
         manifest.validate(dir)?;
 
-        if manifest.export != EXPORT_FUNCTION {
-            return Err(PluginError::MissingExport {
-                dir: dir.to_path_buf(),
-                function: EXPORT_FUNCTION.to_string(),
-            });
-        }
-
-        let wasm_path = dir.join(&manifest.module);
-        if !wasm_path.exists() {
-            return Err(PluginError::ModuleNotFound {
-                dir: dir.to_path_buf(),
-                module: manifest.module.clone(),
-            });
-        }
-
-        let extism_manifest = Manifest::new([Wasm::file(&wasm_path)]).disallow_all_hosts();
-
-        let host_state = Self::host_state(
-            sandbox_root,
-            storage_root,
-            plugin_store_root,
-            activation_root,
-            catalog_dirs,
-            sandbox_writable,
-            &manifest.id,
-        );
-        let mut builder = PluginBuilder::new(extism_manifest).with_wasi(false);
-        if let Some(cache_config) = cache_config {
-            builder = builder.with_cache_config(cache_config);
-        }
-        builder = builder
-            .with_function(
-                HOST_LOG_FUNCTION,
-                [ValType::I64, ValType::I64, ValType::I64],
-                [],
-                UserData::new(host_state.clone()),
-                host_log,
-            )
-            .with_function(
-                HOST_NOTIFY_FUNCTION,
-                [ValType::I64, ValType::I64, ValType::I64, ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_notify,
-            )
-            .with_function(
-                HOST_FS_LIST_DIR,
-                [ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_fs_list_dir,
-            )
-            .with_function(
-                HOST_FS_READ_TEXT,
-                [ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_fs_read_text,
-            )
-            .with_function(
-                HOST_FS_READ_BYTES,
-                [ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_fs_read_bytes,
-            )
-            .with_function(
-                HOST_IMPORT_READ_BYTES,
-                [ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_import_read_bytes,
-            )
-            .with_function(
-                HOST_FS_WRITE_BYTES,
-                [ValType::I64, ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_fs_write_bytes,
-            )
-            .with_function(
-                HOST_OPEN_FILE,
-                [ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_open_file,
-            )
-            .with_function(
-                HOST_STATE_READ,
-                [ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_state_read,
-            )
-            .with_function(
-                HOST_STATE_WRITE,
-                [ValType::I64, ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_state_write,
-            )
-            .with_function(
-                HOST_STATE_DELETE,
-                [ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_state_delete,
-            )
-            .with_function(
-                HOST_NOW_FUNCTION,
-                [],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_now_millis,
-            )
-            .with_function(
-                HOST_EMIT_EVENT,
-                [ValType::I64, ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_emit_event,
-            )
-            .with_function(
-                HOST_SQL_EXECUTE,
-                [ValType::I64, ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_sql_execute,
-            )
-            .with_function(
-                HOST_SQL_QUERY,
-                [ValType::I64, ValType::I64],
-                [ValType::I64],
-                UserData::new(host_state.clone()),
-                host_sql_query,
-            );
-
-        for function in STORE_HOST_FUNCTIONS {
-            if !declares_host_function(&manifest, function) {
-                continue;
+        let plugin = if manifest.module.trim().is_empty() {
+            None
+        } else {
+            if manifest.export != EXPORT_FUNCTION {
+                return Err(PluginError::MissingExport {
+                    dir: dir.to_path_buf(),
+                    function: EXPORT_FUNCTION.to_string(),
+                });
             }
-            builder = match *function {
-                HOST_STORE_INSPECT => builder.with_function(
-                    HOST_STORE_INSPECT,
-                    [ValType::I64],
-                    [ValType::I64],
-                    UserData::new(host_state.clone()),
-                    host_store_inspect,
-                ),
-                HOST_STORE_INSTALL => builder.with_function(
-                    HOST_STORE_INSTALL,
-                    [ValType::I64],
-                    [ValType::I64],
-                    UserData::new(host_state.clone()),
-                    host_store_install,
-                ),
-                HOST_STORE_UNINSTALL => builder.with_function(
-                    HOST_STORE_UNINSTALL,
-                    [ValType::I64],
-                    [ValType::I64],
-                    UserData::new(host_state.clone()),
-                    host_store_uninstall,
-                ),
-                HOST_STORE_INSTALLED => builder.with_function(
-                    HOST_STORE_INSTALLED,
+
+            let wasm_path = dir.join(&manifest.module);
+            if !wasm_path.exists() {
+                return Err(PluginError::ModuleNotFound {
+                    dir: dir.to_path_buf(),
+                    module: manifest.module.clone(),
+                });
+            }
+
+            let extism_manifest = Manifest::new([Wasm::file(&wasm_path)]).disallow_all_hosts();
+
+            let host_state = Self::host_state(
+                sandbox_root,
+                storage_root,
+                plugin_store_root,
+                activation_root,
+                catalog_dirs,
+                sandbox_writable,
+                &manifest.id,
+            );
+            let mut builder = PluginBuilder::new(extism_manifest).with_wasi(false);
+            if let Some(cache_config) = cache_config {
+                builder = builder.with_cache_config(cache_config);
+            }
+            builder = builder
+                .with_function(
+                    HOST_LOG_FUNCTION,
+                    [ValType::I64, ValType::I64, ValType::I64],
                     [],
+                    UserData::new(host_state.clone()),
+                    host_log,
+                )
+                .with_function(
+                    HOST_NOTIFY_FUNCTION,
+                    [ValType::I64, ValType::I64, ValType::I64, ValType::I64],
                     [ValType::I64],
                     UserData::new(host_state.clone()),
-                    host_store_installed,
-                ),
-                HOST_STORE_PLUGINS => builder.with_function(
-                    HOST_STORE_PLUGINS,
-                    [],
+                    host_notify,
+                )
+                .with_function(
+                    HOST_FS_LIST_DIR,
+                    [ValType::I64],
                     [ValType::I64],
                     UserData::new(host_state.clone()),
-                    host_store_plugins,
-                ),
-                HOST_STORE_SET_ENABLED => builder.with_function(
-                    HOST_STORE_SET_ENABLED,
+                    host_fs_list_dir,
+                )
+                .with_function(
+                    HOST_FS_READ_TEXT,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_fs_read_text,
+                )
+                .with_function(
+                    HOST_FS_READ_BYTES,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_fs_read_bytes,
+                )
+                .with_function(
+                    HOST_IMPORT_READ_BYTES,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_import_read_bytes,
+                )
+                .with_function(
+                    HOST_FS_WRITE_BYTES,
                     [ValType::I64, ValType::I64],
                     [ValType::I64],
                     UserData::new(host_state.clone()),
-                    host_store_set_enabled,
-                ),
-                _ => builder,
-            };
-        }
+                    host_fs_write_bytes,
+                )
+                .with_function(
+                    HOST_OPEN_FILE,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_open_file,
+                )
+                .with_function(
+                    HOST_STATE_READ,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_state_read,
+                )
+                .with_function(
+                    HOST_STATE_WRITE,
+                    [ValType::I64, ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_state_write,
+                )
+                .with_function(
+                    HOST_STATE_DELETE,
+                    [ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_state_delete,
+                )
+                .with_function(
+                    HOST_NOW_FUNCTION,
+                    [],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_now_millis,
+                )
+                .with_function(
+                    HOST_EMIT_EVENT,
+                    [ValType::I64, ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_emit_event,
+                )
+                .with_function(
+                    HOST_SQL_EXECUTE,
+                    [ValType::I64, ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_sql_execute,
+                )
+                .with_function(
+                    HOST_SQL_QUERY,
+                    [ValType::I64, ValType::I64],
+                    [ValType::I64],
+                    UserData::new(host_state.clone()),
+                    host_sql_query,
+                );
 
-        let plugin = builder.build().map_err(|e| PluginError::Build {
-            dir: dir.to_path_buf(),
-            message: e.to_string(),
-        })?;
+            for function in STORE_HOST_FUNCTIONS {
+                if !declares_host_function(&manifest, function) {
+                    continue;
+                }
+                builder = match *function {
+                    HOST_STORE_INSPECT => builder.with_function(
+                        HOST_STORE_INSPECT,
+                        [ValType::I64],
+                        [ValType::I64],
+                        UserData::new(host_state.clone()),
+                        host_store_inspect,
+                    ),
+                    HOST_STORE_INSTALL => builder.with_function(
+                        HOST_STORE_INSTALL,
+                        [ValType::I64],
+                        [ValType::I64],
+                        UserData::new(host_state.clone()),
+                        host_store_install,
+                    ),
+                    HOST_STORE_UNINSTALL => builder.with_function(
+                        HOST_STORE_UNINSTALL,
+                        [ValType::I64],
+                        [ValType::I64],
+                        UserData::new(host_state.clone()),
+                        host_store_uninstall,
+                    ),
+                    HOST_STORE_INSTALLED => builder.with_function(
+                        HOST_STORE_INSTALLED,
+                        [],
+                        [ValType::I64],
+                        UserData::new(host_state.clone()),
+                        host_store_installed,
+                    ),
+                    HOST_STORE_PLUGINS => builder.with_function(
+                        HOST_STORE_PLUGINS,
+                        [],
+                        [ValType::I64],
+                        UserData::new(host_state.clone()),
+                        host_store_plugins,
+                    ),
+                    HOST_STORE_SET_ENABLED => builder.with_function(
+                        HOST_STORE_SET_ENABLED,
+                        [ValType::I64, ValType::I64],
+                        [ValType::I64],
+                        UserData::new(host_state.clone()),
+                        host_store_set_enabled,
+                    ),
+                    _ => builder,
+                };
+            }
 
-        if !plugin.function_exists(&manifest.export) {
-            return Err(PluginError::MissingExport {
+            let plugin = builder.build().map_err(|e| PluginError::Build {
                 dir: dir.to_path_buf(),
-                function: manifest.export,
-            });
+                message: e.to_string(),
+            })?;
+
+            if !plugin.function_exists(&manifest.export) {
+                return Err(PluginError::MissingExport {
+                    dir: dir.to_path_buf(),
+                    function: manifest.export.clone(),
+                });
+            }
+
+            Some(plugin)
+        };
+
+        if manifest.kind == PluginKind::Workplace {
+            if let Some(viewer) = manifest.viewer.as_deref() {
+                if !dir.join(viewer).is_file() {
+                    return Err(PluginError::InvalidManifest {
+                        dir: dir.to_path_buf(),
+                        reason: format!("модуль рисования {viewer} отсутствует в плагине"),
+                    });
+                }
+            }
         }
 
         Ok(LoadedPlugin {
@@ -457,6 +474,9 @@ impl PluginRuntime {
             requires: manifest.requires,
             settings: manifest.settings,
             function: manifest.export,
+            formats: manifest.formats,
+            viewer: manifest.viewer,
+            dir: dir.to_path_buf(),
             plugin,
         })
     }
@@ -592,6 +612,63 @@ impl PluginRuntime {
             .filter(|plugin| plugin.kind == PluginKind::Source)
             .map(|plugin| plugin.id.clone())
             .collect()
+    }
+
+    /// Идентификаторы загруженных плагинов рабочего места.
+    pub fn workplace_plugin_ids(&self) -> Vec<String> {
+        self.plugins
+            .iter()
+            .filter(|plugin| plugin.kind == PluginKind::Workplace)
+            .map(|plugin| plugin.id.clone())
+            .collect()
+    }
+
+    /// Форматы книг, поддерживаемые загруженными плагинами рабочего места.
+    ///
+    /// Значения нормализуются к нижнему регистру и дедуплицируются; порядок
+    /// сохраняется по первому появлению.
+    pub fn workplace_formats(&self) -> Vec<String> {
+        let mut formats: Vec<String> = Vec::new();
+        for plugin in self
+            .plugins
+            .iter()
+            .filter(|plugin| plugin.kind == PluginKind::Workplace)
+        {
+            for format in &plugin.formats {
+                let normalized = format.trim().to_ascii_lowercase();
+                if normalized.is_empty() || formats.contains(&normalized) {
+                    continue;
+                }
+                formats.push(normalized);
+            }
+        }
+        formats
+    }
+
+    /// Идентификатор плагина рабочего места, обслуживающего формат.
+    pub fn workplace_plugin_for_format(&self, format: &str) -> Option<String> {
+        self.plugins
+            .iter()
+            .find(|plugin| plugin.kind == PluginKind::Workplace && plugin.supports_format(format))
+            .map(|plugin| plugin.id.clone())
+    }
+
+    /// Директория, из которой загружен плагин.
+    pub fn plugin_dir(&self, id: &str) -> Option<PathBuf> {
+        self.plugins
+            .iter()
+            .find(|plugin| plugin.id == id)
+            .map(|plugin| plugin.dir.clone())
+    }
+
+    /// Абсолютный путь к модулю рисования плагина рабочего места.
+    pub fn viewer_path(&self, id: &str) -> Option<PathBuf> {
+        let plugin = self
+            .plugins
+            .iter()
+            .find(|plugin| plugin.id == id && plugin.kind == PluginKind::Workplace)?;
+        let viewer = plugin.viewer.as_deref()?;
+        Some(plugin.dir.join(viewer))
     }
 
     /// Опрос source-плагина: приоритет поддержки корня или `None`.
