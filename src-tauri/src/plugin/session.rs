@@ -15,6 +15,7 @@ pub struct PluginSession {
     user_plugins_dir: Option<PathBuf>,
     disabled_plugins: Vec<String>,
     applied_disabled: Vec<String>,
+    wasm_cache: Option<PathBuf>,
 }
 
 impl PluginSession {
@@ -28,12 +29,20 @@ impl PluginSession {
             user_plugins_dir: None,
             disabled_plugins: Vec::new(),
             applied_disabled: Vec::new(),
+            wasm_cache: None,
         }
     }
 
     /// Настройка пользовательского каталога плагинов приложения.
     pub fn set_user_plugins_dir(&mut self, dir: PathBuf) {
         self.user_plugins_dir = Some(dir);
+    }
+
+    /// Настройка конфигурации постоянного кэша компиляции WASM.
+    ///
+    /// `None` оставляет системный кэш wasmtime по умолчанию.
+    pub fn set_wasm_cache(&mut self, cache_config: Option<PathBuf>) {
+        self.wasm_cache = cache_config;
     }
 
     /// Настройка списка отключённых плагинов.
@@ -244,6 +253,7 @@ impl PluginSession {
             &storage_root,
             self.user_plugins_dir.as_deref(),
             &self.disabled_plugins,
+            self.wasm_cache.as_deref(),
         )?;
         self.runtime.set_sandbox_root(root.to_path_buf());
         self.runtime.set_sandbox_writable(writable);
@@ -258,9 +268,11 @@ impl PluginSession {
         storage_root: &Path,
         user_plugins: Option<&Path>,
         disabled: &[String],
+        cache_config: Option<&Path>,
     ) -> Result<PluginRuntime, PluginError> {
         let directories = plugin_directories(root, bundled, user_plugins);
-        let mut runtime = PluginRuntime::load_filtered(&directories, root, None, disabled)?;
+        let mut runtime =
+            PluginRuntime::load_filtered(&directories, root, None, disabled, cache_config)?;
         runtime.set_storage_root(storage_root.to_path_buf());
         Ok(runtime)
     }

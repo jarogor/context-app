@@ -473,6 +473,7 @@ fn disabled_plugin_is_skipped() {
         root.clone(),
         None,
         &[TEST_PLUGIN_ID.to_string()],
+        None,
     )
     .expect("загрузка runtime");
 
@@ -497,6 +498,7 @@ fn disabled_base_plugin_still_loads() {
         root.clone(),
         None,
         &[BASE_ID.to_string()],
+        None,
     )
     .expect("загрузка runtime");
 
@@ -775,4 +777,93 @@ fn directory_entries_include_file_metadata() {
     assert!(dir.size.is_none(), "у каталога нет размера файла");
     assert!(dir.mtime_ms.is_none(), "у каталога нет времени изменения");
     cleanup(&root);
+}
+
+/// Снимок скомпилированных файлов кэша: путь и время изменения.
+///
+/// Служебные `.stats`-файлы wasmtime исключаются: они обновляются и при
+/// попадании в кэш, поэтому не отражают факт компиляции.
+fn cache_module_snapshot(cache_root: &std::path::Path) -> Vec<(PathBuf, std::time::SystemTime)> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, out);
+            } else if path.extension().and_then(|ext| ext.to_str()) != Some("stats") {
+                out.push(path);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(cache_root, &mut files);
+    let mut snapshot: Vec<_> = files
+        .into_iter()
+        .filter_map(|path| {
+            let modified = fs::metadata(&path).ok()?.modified().ok()?;
+            Some((path, modified))
+        })
+        .collect();
+    snapshot.sort();
+    snapshot
+}
+
+#[test]
+fn warm_cache_prevents_recompilation() {
+    let dir = setup_plugins_root("cache-warm", &compile_wat(WAT_WITH_INVOKE), MANIFEST_JSON);
+    let root = dir.clone();
+    let state_root = test_util::test_root("plugin-runtime-cache-state");
+    let config = crate::plugin::wasm_cache::prepare(&state_root).expect("конфигурация кэша");
+
+    let runtime = PluginRuntime::load_filtered(
+        std::slice::from_ref(&dir),
+        root.clone(),
+        None,
+        &[],
+        Some(&config),
+    )
+    .expect("прогрев");
+    assert_eq!(runtime.plugin_names(), vec!["test-plugin"]);
+    drop(runtime);
+
+    let cache_dir = state_root.join(crate::plugin::wasm_cache::WASM_CACHE_DIR_NAME);
+    let before = cache_module_snapshot(&cache_dir);
+    assert!(
+        !before.is_empty(),
+        "прогрев записал скомпилированный модуль в постоянный кэш"
+    );
+
+    let runtime = PluginRuntime::load_filtered(
+        std::slice::from_ref(&dir),
+        root.clone(),
+        None,
+        &[],
+        Some(&config),
+    )
+    .expect("загрузка после прогрева");
+    assert_eq!(
+        runtime.plugin_names(),
+        vec!["test-plugin"],
+        "повторная загрузка успешна"
+    );
+    drop(runtime);
+
+    let after = cache_module_snapshot(&cache_dir);
+    for (path, modified) in &before {
+        let reused = after
+            .iter()
+            .find(|(candidate, _)| candidate == path)
+            .map(|(_, time)| *time);
+        assert_eq!(
+            reused,
+            Some(*modified),
+            "модуль {} не перекомпилирован: файл кэша не перезаписан",
+            path.display()
+        );
+    }
+
+    cleanup(&root);
+    cleanup(&state_root);
 }

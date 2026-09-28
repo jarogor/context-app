@@ -4,7 +4,7 @@
 //! всего приложения и не зависят от активной библиотеки. Runtime также
 //! доставляет события из bus плагину, предоставляющему capability уведомлений.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::plugin::contract::{CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS};
 use crate::plugin::{get_bus, set_log_level, PluginError, PluginKind, PluginRuntime, Severity};
@@ -63,9 +63,25 @@ impl AppPluginHost {
         directories: &[PathBuf],
         storage_root: impl Into<PathBuf>,
     ) -> Result<Self, PluginError> {
+        Self::load_with_cache(directories, storage_root, None)
+    }
+
+    /// Создание runtime базовых плагинов с постоянным кэшем компиляции.
+    ///
+    /// `cache_config` — путь к конфигурации кэша wasmtime; `None` оставляет
+    /// системный кэш по умолчанию.
+    pub fn load_with_cache(
+        directories: &[PathBuf],
+        storage_root: impl Into<PathBuf>,
+        cache_config: Option<&Path>,
+    ) -> Result<Self, PluginError> {
         let storage_root = storage_root.into();
-        let mut runtime =
-            PluginRuntime::load_kinds(directories, PathBuf::from("."), Some(&[PluginKind::Base]))?;
+        let mut runtime = PluginRuntime::load_kinds(
+            directories,
+            PathBuf::from("."),
+            Some(&[PluginKind::Base]),
+            cache_config,
+        )?;
         runtime.set_storage_root(storage_root.clone());
         Ok(Self {
             runtime,

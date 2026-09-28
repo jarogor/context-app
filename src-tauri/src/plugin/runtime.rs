@@ -97,19 +97,22 @@ impl PluginRuntime {
         directories: &[PathBuf],
         sandbox_root: impl Into<PathBuf>,
     ) -> Result<Self, PluginError> {
-        Self::load_filtered(directories, sandbox_root, None, &[])
+        Self::load_filtered(directories, sandbox_root, None, &[], None)
     }
 
     /// Загрузка плагинов выбранных категорий из указанных директорий.
     ///
     /// `kinds` ограничивает набор загружаемых категорий; `None` загружает все.
-    /// Остальное поведение совпадает с [`PluginRuntime::load`].
+    /// `cache_config` — путь к конфигурации постоянного кэша компиляции; `None`
+    /// использует системный кэш wasmtime по умолчанию. Остальное поведение
+    /// совпадает с [`PluginRuntime::load`].
     pub fn load_kinds(
         directories: &[PathBuf],
         sandbox_root: impl Into<PathBuf>,
         kinds: Option<&[PluginKind]>,
+        cache_config: Option<&Path>,
     ) -> Result<Self, PluginError> {
-        Self::load_filtered(directories, sandbox_root, kinds, &[])
+        Self::load_filtered(directories, sandbox_root, kinds, &[], cache_config)
     }
 
     /// Загрузка плагинов с учётом отключённых.
@@ -120,6 +123,7 @@ impl PluginRuntime {
         sandbox_root: impl Into<PathBuf>,
         kinds: Option<&[PluginKind]>,
         disabled: &[String],
+        cache_config: Option<&Path>,
     ) -> Result<Self, PluginError> {
         let sandbox_root = Arc::new(Mutex::new(sandbox_root.into()));
         let storage_root = Arc::new(Mutex::new(None));
@@ -147,6 +151,7 @@ impl PluginRuntime {
                     &activation_root,
                     &catalog_dirs,
                     &sandbox_writable,
+                    cache_config,
                 ) {
                     Ok(plugin) => {
                         if plugin.kind != PluginKind::Base
@@ -231,6 +236,7 @@ impl PluginRuntime {
         activation_root: &Arc<Mutex<Option<PathBuf>>>,
         catalog_dirs: &Arc<Mutex<Vec<PathBuf>>>,
         sandbox_writable: &Arc<Mutex<bool>>,
+        cache_config: Option<&Path>,
     ) -> Result<LoadedPlugin, PluginError> {
         let manifest = PluginManifest::load(&dir.join(MANIFEST_FILE_NAME)).map_err(|e| {
             PluginError::InvalidManifest {
@@ -269,8 +275,11 @@ impl PluginRuntime {
             sandbox_writable,
             &manifest.id,
         );
-        let mut builder = PluginBuilder::new(extism_manifest)
-            .with_wasi(false)
+        let mut builder = PluginBuilder::new(extism_manifest).with_wasi(false);
+        if let Some(cache_config) = cache_config {
+            builder = builder.with_cache_config(cache_config);
+        }
+        builder = builder
             .with_function(
                 HOST_LOG_FUNCTION,
                 [ValType::I64, ValType::I64, ValType::I64],

@@ -32,8 +32,12 @@ pub fn run() {
 
             let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let bundled_base = resource_dir.join(BASE_PLUGINS_DIR_NAME);
-            let mut app_host =
-                AppPluginHost::load(&base_plugin_directories(&bundled_base), base_storage_root())?;
+            let wasm_cache = crate::plugin::wasm_cache::prepare(&app_state_root);
+            let mut app_host = AppPluginHost::load_with_cache(
+                &base_plugin_directories(&bundled_base),
+                base_storage_root(),
+                wasm_cache.as_deref(),
+            )?;
             app_host.set_plugin_store_root(user_plugins_dir.clone());
             app_host.set_activation_root(app_state_root.clone());
             app_host.set_catalog_dirs(session_plugin_directories(
@@ -52,9 +56,15 @@ pub fn run() {
                 );
             }
 
+            // Прогрев source-плагинов идёт в фоне: первое открытие библиотеки
+            // не должно ждать компиляции WASM.
+            let warmup_directories =
+                session_plugin_directories(&bundled_plugins_dir, &user_plugins_dir);
+
             let root = PathBuf::from(".");
             let mut host = PluginSession::idle(root, bundled_plugins_dir);
             host.set_user_plugins_dir(user_plugins_dir);
+            host.set_wasm_cache(wasm_cache.clone());
             host.set_disabled_plugins(
                 crate::plugin::activation::load(&app_state_root).unwrap_or_default(),
             );
@@ -89,6 +99,8 @@ pub fn run() {
             }
 
             app.manage(Mutex::new(AppState::new(host, app_host, app_state_root)));
+
+            crate::plugin::warmup::spawn_source_warmup(warmup_directories, wasm_cache);
 
             Ok(())
         })

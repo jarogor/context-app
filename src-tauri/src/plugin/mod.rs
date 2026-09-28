@@ -14,6 +14,8 @@ pub mod plugin_manifest;
 pub mod relay;
 pub mod runtime;
 pub mod session;
+pub(crate) mod warmup;
+pub(crate) mod wasm_cache;
 
 pub use app_host::AppPluginHost;
 pub use app_state::AppState;
