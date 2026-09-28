@@ -5,19 +5,18 @@
   import type { Book, BookFile } from './types';
 
   interface Props {
-    onNavigate: (page: string, bookId?: number | string) => void;
     books: Book[];
     onBooksChange: (books: Book[]) => void;
+    onOpenBook: (book: Book) => void;
   }
 
   type BookWithCover = Book & { coverUri?: string };
 
-  let { onNavigate, books: cachedBooks, onBooksChange }: Props = $props();
+  let { books: cachedBooks, onBooksChange, onOpenBook }: Props = $props();
 
   let books: BookWithCover[] = $state([]);
   let loading: boolean = $state(false);
   let error: string | null = $state(null);
-  let importError: string | null = $state(null);
   let searchQuery: string = $state('');
   let librarySelected = $state(false);
 
@@ -107,19 +106,6 @@
     await load();
   }
 
-  async function openInSystem(bookId: number | string) {
-    importError = null;
-    try {
-      await operation('open_external', { book_id: bookId });
-    } catch (e) {
-      importError = String(e);
-    }
-  }
-
-  function openBook(bookId: number | string) {
-    onNavigate('reading', bookId);
-  }
-
   onMount(() => {
     let unlisten: (() => void) | undefined;
     void (async () => {
@@ -162,10 +148,6 @@
     </label>
   {/if}
 
-  {#if importError}
-    <p class="text-[var(--color-danger)]">{importError}</p>
-  {/if}
-
   {#if !librarySelected}
     <p class="text-[var(--color-text-muted)]">
       Библиотека не открыта. Откройте её на странице «Библиотеки».
@@ -187,7 +169,8 @@
           <button
             class="flex w-full cursor-pointer flex-col gap-[var(--space-2)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-2)] text-left [font:inherit] hover:shadow-[var(--shadow-sm)]"
             type="button"
-            onclick={() => openBook(book.id)}
+            title="Страница книги"
+            onclick={() => onOpenBook(book)}
           >
             {#if book.coverUri}
               <img class="aspect-[2/3] w-full rounded-[var(--radius-sm)] object-cover" src={book.coverUri} alt="" />
@@ -199,22 +182,6 @@
               <p class="mt-[var(--space-1)] text-[13px] text-[var(--color-text-muted)]">
                 {book.authors.map((a) => a.name).join(', ')}
               </p>
-              <span
-                class="mt-[var(--space-2)] inline-block cursor-pointer text-xs text-[var(--color-primary)] hover:underline"
-                role="button"
-                tabindex="0"
-                onclick={(event) => {
-                  event.stopPropagation();
-                  openInSystem(book.id);
-                }}
-                onkeydown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    openInSystem(book.id);
-                  }
-                }}>Открыть в системе</span
-              >
             </div>
           </button>
         </li>

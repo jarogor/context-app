@@ -1,0 +1,55 @@
+import { expect, test } from '@playwright/test';
+
+/** Ответ активной библиотеки для сценариев страницы книги. */
+const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript((active) => {
+    (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
+      handlers: { active_library: () => active },
+    };
+  }, ACTIVE_LIBRARY);
+});
+
+test('клик по книге открывает страницу книги с информацией', async ({ page }) => {
+  await page.goto('/');
+  const library = page.frameLocator('iframe[title="Library plugin"]');
+
+  await library.getByRole('button', { name: /Демо-книга/ }).click();
+
+  await expect(library.getByTestId('book-title')).toHaveText('Демо-книга');
+  await expect(library.getByTestId('book-page').getByText('Тестовый автор')).toBeVisible();
+});
+
+test('страница книги предлагает чтение и открытие в системе', async ({ page }) => {
+  await page.goto('/');
+  const library = page.frameLocator('iframe[title="Library plugin"]');
+
+  await library.getByRole('button', { name: /Демо-книга/ }).click();
+
+  await expect(library.getByRole('button', { name: 'Читать' })).toBeVisible();
+  await expect(library.getByRole('button', { name: 'Открыть в системе' })).toBeVisible();
+});
+
+test('для неподдерживаемого формата нет кнопки Читать', async ({ page }) => {
+  await page.goto('/');
+  const library = page.frameLocator('iframe[title="Library plugin"]');
+
+  await library.getByRole('button', { name: /Вторая книга/ }).click();
+
+  await expect(library.getByTestId('book-title')).toHaveText('Вторая книга');
+  await expect(library.getByRole('button', { name: 'Читать' })).toHaveCount(0);
+  await expect(library.getByRole('button', { name: 'Открыть в системе' })).toBeVisible();
+});
+
+test('возврат к списку сохраняет поиск', async ({ page }) => {
+  await page.goto('/');
+  const library = page.frameLocator('iframe[title="Library plugin"]');
+
+  await library.getByPlaceholder('Название или автор').fill('Демо');
+  await library.getByRole('button', { name: /Демо-книга/ }).click();
+  await library.getByRole('button', { name: /К списку/ }).click();
+
+  await expect(library.getByPlaceholder('Название или автор')).toHaveValue('Демо');
+  await expect(library.getByText('Вторая книга')).toBeHidden();
+});

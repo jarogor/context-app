@@ -258,6 +258,24 @@ pub fn invoke(input: String) -> FnResult<String> {
             };
             serde_json::to_string(&json!({ "text": text, "title": path, "authors": [] }))?
         }
+        "content" => {
+            let (path, format) = book_file_info(&fs, &request.payload)?;
+            if format != "epub" {
+                return Err(extism_pdk::Error::msg(format!(
+                    "формат не поддерживается встроенным чтением: {format}"
+                ))
+                .into());
+            }
+            let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
+            let chapters =
+                crate::epub::read_epub_chapters(&bytes).map_err(extism_pdk::Error::msg)?;
+            let (title, authors) = book_identity(&request.payload, &path);
+            serde_json::to_string(&json!({
+                "title": title,
+                "authors": authors,
+                "chapters": chapters,
+            }))?
+        }
         "cover" => {
             if let Some(id) = request
                 .payload
@@ -380,4 +398,21 @@ fn book_file_info(
         .find(|file| matches!(file.kind, crate::models::ExternalFileKind::Book))
         .map(|file| (file.path.clone(), file.format.clone()))
         .ok_or_else(|| extism_pdk::Error::msg("файл книги не найден"))
+}
+
+/// Название и авторы книги из каталога или из пути к файлу.
+fn book_identity(payload: &serde_json::Value, path: &str) -> (String, Vec<String>) {
+    let id = payload.get("book_id").and_then(|value| value.as_str());
+    if let Some(book) = id.and_then(|id| {
+        lifecycle::catalog()
+            .and_then(|catalog| catalog.books.into_iter().find(|book| book.id == id))
+    }) {
+        return (book.title, book.authors);
+    }
+    let title = std::path::Path::new(path)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(path)
+        .to_string();
+    (title, Vec::new())
 }

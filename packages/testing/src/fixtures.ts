@@ -137,8 +137,18 @@ function baseOperation(payload: unknown): unknown {
 function pluginOperation(payload: unknown): unknown {
   const message = (payload ?? {}) as { operation?: string; payload?: { query?: string; book_id?: string } };
   const books = [
-    { id: 'demo-1', title: 'Демо-книга', authors: ['Тестовый автор'], files: [] },
-    { id: 'demo-2', title: 'Вторая книга', authors: [], files: [] },
+    {
+      id: 'demo-1',
+      title: 'Демо-книга',
+      authors: ['Тестовый автор'],
+      files: [{ kind: 'book', path: 'demo-1.epub', format: 'epub' }],
+    },
+    {
+      id: 'demo-2',
+      title: 'Вторая книга',
+      authors: [],
+      files: [{ kind: 'book', path: 'demo-2.fb2', format: 'fb2' }],
+    },
   ];
   if (message.operation === 'list' || message.operation === 'search') {
     const query = message.payload?.query?.toLowerCase() ?? '';
@@ -155,6 +165,20 @@ function pluginOperation(payload: unknown): unknown {
     return message.payload?.book_id === 'demo-1'
       ? { data: TINY_PNG, format: 'png' }
       : { data: null };
+  }
+  if (message.operation === 'content') {
+    const paragraphs = Array.from(
+      { length: 60 },
+      (_, index) => `<p>Абзац ${index + 1}. Текст для проверки прокрутки книги.</p>`,
+    ).join('');
+    return {
+      title: 'Демо-книга',
+      authors: ['Тестовый автор'],
+      chapters: [
+        { title: 'Глава 1', html: `<h1>Глава 1</h1><p>Первый абзац книги.</p>${paragraphs}` },
+        { title: 'Глава 2', html: '<h2>Глава 2</h2><p>Второй абзац книги.</p>' },
+      ],
+    };
   }
   return {};
 }

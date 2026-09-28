@@ -1,26 +1,32 @@
 <script lang="ts">
   import Library from './Library.svelte';
-  import Reading from './Reading.svelte';
+  import BookPage from './BookPage.svelte';
   import type { Book } from './types';
 
-  let page: 'library' | 'reading' = $state('library');
-  let bookId: number | string = $state('');
-  let cachedBooks: Book[] = $state([]);
+  type BookWithCover = Book & { coverUri?: string };
 
-  function navigate(nextPage: string, nextBookId?: number | string) {
-    page = nextPage === 'reading' ? 'reading' : 'library';
-    if (nextBookId !== undefined) {
-      bookId = nextBookId;
-    }
+  let cachedBooks: Book[] = $state([]);
+  let openedBook: BookWithCover | null = $state(null);
+
+  /** Открытие страницы книги. */
+  function openBook(book: Book) {
+    openedBook = book;
+  }
+
+  /** Возврат к списку книг. */
+  function closeBook() {
+    openedBook = null;
   }
 </script>
 
-{#if page === 'library'}
+<div class:hidden={openedBook !== null}>
   <Library
-    onNavigate={navigate}
     books={cachedBooks}
-    onBooksChange={(books: Book[]) => (cachedBooks = books)}
+    onBooksChange={(books) => (cachedBooks = books)}
+    onOpenBook={openBook}
   />
-{:else}
-  <Reading bookId={bookId} onNavigate={navigate} />
+</div>
+
+{#if openedBook}
+  <BookPage book={openedBook} onBack={closeBook} />
 {/if}

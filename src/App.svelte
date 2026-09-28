@@ -3,6 +3,7 @@
   import { Badge, Button, Menu, MenuItem } from '@texture/ui';
   import PluginFrame from './lib/PluginFrame.svelte';
   import LibrariesPage from './lib/LibrariesPage.svelte';
+  import ReaderPage from './lib/ReaderPage.svelte';
   import { invokeCommand, listenEvent } from './lib/app-bridge';
 
   /** Сообщение frontend-плагина без идентификатора запроса. */
@@ -17,6 +18,14 @@
     provider_name?: string;
     /** Путь библиотеки. */
     path?: string;
+  }
+
+  /** Открытая в рабочей странице книга. */
+  interface ReaderBook {
+    /** Идентификатор книги. */
+    id: string;
+    /** Название книги. */
+    title: string;
   }
 
   /** Страница раздела настроек. */
@@ -43,6 +52,12 @@
   /** Активная библиотека для шапки. */
   let activeLibrary: ActiveLibrary | null = $state(null);
 
+  /** Открыта ли рабочая страница книги; принадлежит оболочке. */
+  let readerOpen = $state(false);
+
+  /** Книга, открытая в рабочей странице. */
+  let readerBook: ReaderBook | null = $state(null);
+
   /** Имя активной библиотеки по последнему сегменту пути. */
   function libraryName(): string | null {
     const library = activeLibrary;
@@ -54,7 +69,7 @@
 
   /** Показывать ли в шапке название активной библиотеки (основной раздел). */
   function showLibrary(): boolean {
-    return !settingsOpen && !librariesOpen && activeLibrary !== null;
+    return !settingsOpen && !librariesOpen && !readerOpen && activeLibrary !== null;
   }
 
   /** Название текущего раздела в верхней панели. */
@@ -86,6 +101,30 @@
   /** Переключение панели уведомлений. */
   function toggleNotifications() {
     notificationsOpen = !notificationsOpen;
+  }
+
+  /** Открытие рабочей страницы книги по сообщению библиотечного плагина. */
+  function handleLibraryMessage(message: PluginMessage) {
+    if (message.type !== 'reader:open') {
+      return;
+    }
+    const value = message.value as
+      | { bookId?: unknown; title?: unknown }
+      | null
+      | undefined;
+    if (!value?.bookId) {
+      return;
+    }
+    readerBook = { id: String(value.bookId), title: String(value.title ?? '') };
+    readerOpen = true;
+    settingsOpen = false;
+    librariesOpen = false;
+  }
+
+  /** Возврат с рабочей страницы книги к библиотеке. */
+  function closeReader() {
+    readerOpen = false;
+    readerBook = null;
   }
 
   /** Обработка сообщений frontend-плагинов без ответа. */
@@ -135,19 +174,47 @@
   <header
     class="flex flex-[0_0_48px] items-center gap-[var(--space-3)] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-4)]"
   >
-    <span class="text-base font-bold text-[var(--color-primary)]">Текстура</span>
-    {#if showLibrary()}
-      {#if activeLibrary?.provider_name}
-        <Badge>{activeLibrary.provider_name}</Badge>
-      {/if}
-      <span
-        class="max-w-[280px] truncate text-sm text-[var(--color-text-muted)]"
-        title={activeLibrary?.path ?? ''}
+    {#if readerOpen && readerBook}
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Назад к библиотеке"
+        ariaLabel="Назад к библиотеке"
+        onclick={closeReader}
       >
-        {libraryName()}
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            d="M15 5l-7 7 7 7"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            fill="none"
+          />
+        </svg>
+      </Button>
+      <span
+        class="max-w-[420px] truncate text-sm font-semibold"
+        title={readerBook.title}
+        data-testid="reader-title"
+      >
+        {readerBook.title}
       </span>
     {:else}
-      <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
+      <span class="text-base font-bold text-[var(--color-primary)]">Текстура</span>
+      {#if showLibrary()}
+        {#if activeLibrary?.provider_name}
+          <Badge>{activeLibrary.provider_name}</Badge>
+        {/if}
+        <span
+          class="max-w-[280px] truncate text-sm text-[var(--color-text-muted)]"
+          title={activeLibrary?.path ?? ''}
+        >
+          {libraryName()}
+        </span>
+      {:else}
+        <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
+      {/if}
     {/if}
     <div class="ml-auto flex items-center gap-[var(--space-2)]">
       {#if activationPending}
@@ -182,23 +249,25 @@
           {unreadCount}
         </span>
       </Button>
-      <Button
-        variant={librariesOpen ? 'primary' : 'secondary'}
-        size="icon"
-        title="Библиотеки"
-        ariaLabel="Библиотеки"
-        ariaPressed={librariesOpen}
-        onclick={toggleLibraries}
-      >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <rect x="4" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
-          <rect x="10" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
-          <path
-            d="M16.2 4.3a1 1 0 0 1 1.25.7l3.1 14.2a1 1 0 0 1-.75 1.2l-1.9.45a1 1 0 0 1-1.2-.75L13.6 5.9a1 1 0 0 1 .75-1.2Z"
-            fill="currentColor"
-          />
-        </svg>
-      </Button>
+      {#if !readerOpen}
+        <Button
+          variant={librariesOpen ? 'primary' : 'secondary'}
+          size="icon"
+          title="Библиотеки"
+          ariaLabel="Библиотеки"
+          ariaPressed={librariesOpen}
+          onclick={toggleLibraries}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <rect x="4" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
+            <rect x="10" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
+            <path
+              d="M16.2 4.3a1 1 0 0 1 1.25.7l3.1 14.2a1 1 0 0 1-.75 1.2l-1.9.45a1 1 0 0 1-1.2-.75L13.6 5.9a1 1 0 0 1 .75-1.2Z"
+              fill="currentColor"
+            />
+          </svg>
+        </Button>
+      {/if}
       <Button
         variant={settingsOpen ? 'primary' : 'secondary'}
         size="icon"
@@ -222,11 +291,23 @@
 
   <div class="flex min-h-0 flex-1 overflow-hidden">
     <main class="flex min-w-0 flex-1">
-      <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsOpen || librariesOpen}>
-        <PluginFrame src="/plugins/library-ui/index.html" title="Library plugin" />
+      <div
+        class="min-h-0 min-w-0 flex-1"
+        class:hidden={settingsOpen || librariesOpen || readerOpen}
+      >
+        <PluginFrame
+          src="/plugins/library-ui/index.html"
+          title="Library plugin"
+          onMessage={handleLibraryMessage}
+        />
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesOpen}>
         <LibrariesPage onOpened={() => (librariesOpen = false)} />
+      </div>
+      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!readerOpen}>
+        {#if readerOpen && readerBook}
+          <ReaderPage bookId={readerBook.id} title={readerBook.title} onBack={closeReader} />
+        {/if}
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!settingsOpen}>
         <Menu

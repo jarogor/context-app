@@ -16,7 +16,7 @@
     "build:frontend-plugins": "bash ./scripts/build-frontend-plugins.sh",
     "preview": "vite preview",
     "test": "npm run test:unit",
-    "test:unit": "npm test -w @texture/ui",
+    "test:unit": "vitest run && npm test -w @texture/ui",
     "test:e2e": "playwright test",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",

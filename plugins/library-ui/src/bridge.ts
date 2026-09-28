@@ -52,6 +52,14 @@ export function operation<T = unknown>(action: string, payload: unknown = {}): P
   });
 }
 
+/** Просьба оболочке открыть рабочее место чтения книги. */
+export function openReader(value: { bookId: string; title: string; format: string }): void {
+  window.parent.postMessage(
+    { channel: 'texture-plugin', type: 'reader:open', value },
+    '*',
+  );
+}
+
 export async function listen<T = unknown>(event: string, listener: (value: T) => void): Promise<() => void> {
   let eventListeners = listeners.get(event);
   if (!eventListeners) {
