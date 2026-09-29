@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { Button, Progress, Spinner } from '@texture/ui';
   import WorkplaceContent from './WorkplaceContent.svelte';
   import {
     UnsupportedFormatError,
+    bookAvailable,
     bookFormat,
     isSupportedFormat,
     loadBookContent,
@@ -18,11 +19,33 @@
     bookId: string;
     /** Название открытой книги. */
     title: string;
-    /** Возврат к библиотеке. */
-    onBack: () => void;
+    /** Начальный масштаб чтения в процентах. */
+    initialZoom?: number;
+    /** Начальная позиция чтения в процентах. */
+    initialPosition?: number;
+    /** Видима ли поверхность рабочего места. */
+    visible?: boolean;
+    /** Сообщение об изменении состояния чтения вкладки. */
+    onStateChange?: (state: { zoom: number; position: number }) => void;
+    /** Книга недоступна: её нет в каталоге или не удалось загрузить. */
+    onUnavailable?: () => void;
+    /** Просьба переуказать файл недоступной книги. */
+    onRepoint?: () => void;
+    /** Убрать вкладку. */
+    onRemove?: () => void;
   }
 
-  let { bookId, title, onBack }: Props = $props();
+  let {
+    bookId,
+    title,
+    initialZoom = 100,
+    initialPosition = 0,
+    visible = true,
+    onStateChange,
+    onUnavailable,
+    onRepoint,
+    onRemove,
+  }: Props = $props();
 
   /** Минимальный и максимальный масштаб текста в процентах. */
   const MIN_ZOOM = 60;
@@ -38,30 +61,38 @@
   let error: string | null = $state(null);
   /** Формат не поддерживается встроенным чтением. */
   let unsupported = $state(false);
-  /** Масштаб текста в процентах. */
-  let zoom = $state(100);
+  /** Книга недоступна. */
+  let unavailable = $state(false);
+  /** Масштаб текста в процентах (начальное значение берётся один раз). */
+  let zoom = $state(untrack(() => initialZoom));
+  /** Начальная позиция чтения, взятая при создании вкладки. */
+  const startPosition = untrack(() => initialPosition);
   /** Прогресс чтения в процентах. */
-  let progress = $state(0);
+  let progress = $state(startPosition);
+  /** Восстановлена ли позиция после перемонтирования вкладки. */
+  let positionReady = $state(false);
   /** Поддерживает ли плагин рабочего места изменение масштаба. */
   let workplaceZoom = $state(true);
+  /** HTML-документ области отображения. */
+  let documentHtml = $state('');
   /** Область отображения книги. */
   let frame: HTMLIFrameElement | undefined = $state();
 
   /** Канал сообщений между областью отображения и рабочей страницей. */
   const READER_CHANNEL = 'texture-reader';
 
-  /** HTML-документ для области отображения. */
-  const documentHtml = $derived(content ? buildDocument(content) : '');
+  /** Сообщение об изменении состояния чтения вкладки. */
+  function reportState() {
+    onStateChange?.({ zoom, position: progress });
+  }
 
   /** Сборка документа отображения из глав книги.
    *
-   * Внутри документа работает собственный скрипт: он сообщает позицию
-   * прокрутки родителю и принимает изменения масштаба. При смене масштаба
-   * верхняя видимая строка остаётся точкой опоры: положение текста
-   * компенсируется, поэтому чтение не «уезжает». Так страница не заглядывает
-   * внутрь iframe — это не зависит от движка и политики origin.
+   * Начальные масштаб и позиция встраиваются в документ, потому что он
+   * собирается один раз при загрузке; дальнейшая смена масштаба приходит
+   * сообщением. Скрипт документа сообщает позицию прокрутки родителю.
    */
-  function buildDocument(value: BookContent): string {
+  function buildDocument(value: BookContent, startZoom: number, startPosition: number): string {
     const body = value.chapters.map((chapter) => chapter.html).join('\n');
     const style = [
       'html{font-size:100%;}',
@@ -72,6 +103,7 @@
       'a{color:#4338ca;}',
     ].join('');
     const report = [
+      `const initial={zoom:${startZoom},position:${startPosition}};`,
       `const root=()=>document.scrollingElement||document.documentElement;`,
       `const report=()=>{const e=root();const max=e.scrollHeight-e.clientHeight;`,
       `parent.postMessage({channel:'${READER_CHANNEL}',type:'progress',`,
@@ -93,7 +125,13 @@
       `addEventListener('message',event=>{const m=event.data;`,
       `if(m&&m.channel==='${READER_CHANNEL}'&&m.type==='zoom'){`,
       `const a=anchor();document.documentElement.style.fontSize=m.value+'%';`,
-      `restore(a);report();}});`,
+      `restore(a);report();}`,
+      `else if(m&&m.channel==='${READER_CHANNEL}'&&m.type==='position'){`,
+      `const e=root();const mx=e.scrollHeight-e.clientHeight;`,
+      `if(mx>0){e.scrollTop=mx*(m.value/100);}report();}});`,
+      `document.documentElement.style.fontSize=initial.zoom+'%';`,
+      `const start=root();const max=start.scrollHeight-start.clientHeight;`,
+      `if(max>0&&initial.position>0){start.scrollTop=max*initial.position/100;}`,
       `report();`,
     ].join('');
     return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}<script>${report}<\/script></body></html>`;
@@ -104,15 +142,21 @@
     loading = true;
     error = null;
     unsupported = false;
+    unavailable = false;
     content = null;
     workplace = null;
-    progress = 0;
-    zoom = 100;
-    workplaceZoom = true;
     try {
+      const available = await bookAvailable(id).catch(() => true);
+      if (!available) {
+        unavailable = true;
+        onUnavailable?.();
+        return;
+      }
       const format = await bookFormat(id);
       if (isSupportedFormat(format)) {
-        content = await loadBookContent(id);
+        const value = await loadBookContent(id);
+        content = value;
+        documentHtml = buildDocument(value, zoom, progress);
       } else {
         const selection = await selectWorkplacePlugin(id);
         if (selection) {
@@ -135,6 +179,7 @@
   /** Изменение масштаба текста в допустимых границах. */
   function changeZoom(delta: number) {
     zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom + delta));
+    reportState();
   }
 
   /** Обработка сообщений области отображения: прогресс чтения. */
@@ -150,7 +195,11 @@
       return;
     }
     if (message.type === 'progress' && typeof message.value === 'number') {
+      if (!visible || (content && !positionReady)) {
+        return;
+      }
       progress = Math.max(0, Math.min(100, message.value));
+      reportState();
     }
   }
 
@@ -172,12 +221,13 @@
     };
   });
 
+  /** Передача текущего масштаба области отображения. */
   $effect(() => {
     const value = zoom;
-    frame?.contentWindow?.postMessage(
-      { channel: READER_CHANNEL, type: 'zoom', value },
-      '*',
-    );
+    if (!content || !frame) {
+      return;
+    }
+    frame.contentWindow?.postMessage({ channel: READER_CHANNEL, type: 'zoom', value }, '*');
   });
 </script>
 
@@ -187,6 +237,24 @@
       <div class="flex h-full items-center justify-center gap-[var(--space-2)] text-[var(--color-text-muted)]">
         <Spinner />
         <span>Открытие книги…</span>
+      </div>
+    {:else if unavailable}
+      <div
+        class="mx-auto max-w-[560px] p-[var(--space-5)] text-center"
+        data-testid="reader-unavailable"
+      >
+        <p class="mb-[var(--space-2)] font-semibold">{title}</p>
+        <p class="mb-[var(--space-4)] text-[var(--color-text-muted)]">
+          Книга недоступна: возможно, файл перемещён или библиотека не открыта.
+        </p>
+        <div class="flex flex-wrap justify-center gap-[var(--space-2)]">
+          {#if onRepoint}
+            <Button variant="primary" onclick={onRepoint}>Переуказать файл</Button>
+          {/if}
+          {#if onRemove}
+            <Button variant="ghost" onclick={onRemove}>Убрать вкладку</Button>
+          {/if}
+        </div>
       </div>
     {:else if unsupported}
       <div class="mx-auto max-w-[560px] p-[var(--space-5)] text-center">
@@ -200,7 +268,9 @@
         <p class="mb-[var(--space-3)] text-[var(--color-danger)]" data-testid="reader-error">
           Не удалось открыть книгу: {error}
         </p>
-        <Button variant="ghost" onclick={onBack}>К списку книг</Button>
+        {#if onRemove}
+          <Button variant="ghost" onclick={onRemove}>Убрать вкладку</Button>
+        {/if}
       </div>
     {:else if workplace}
       <WorkplaceContent
@@ -209,7 +279,10 @@
         {title}
         {zoom}
         onCapabilities={(value) => (workplaceZoom = value.zoom !== false)}
-        onProgress={(value) => (progress = value)}
+        onProgress={(value) => {
+          progress = value;
+          reportState();
+        }}
         onError={(value) => (error = value)}
       />
     {:else if content}
@@ -219,11 +292,17 @@
         title="Чтение книги"
         sandbox="allow-scripts"
         srcdoc={documentHtml}
-        onload={() =>
+        onload={() => {
           frame?.contentWindow?.postMessage(
             { channel: READER_CHANNEL, type: 'zoom', value: zoom },
             '*',
-          )}
+          );
+          frame?.contentWindow?.postMessage(
+            { channel: READER_CHANNEL, type: 'position', value: startPosition },
+            '*',
+          );
+          positionReady = true;
+        }}
       ></iframe>
     {/if}
   </div>

@@ -52,10 +52,10 @@ export function operation<T = unknown>(action: string, payload: unknown = {}): P
   });
 }
 
-/** Просьба оболочке открыть рабочее место чтения книги. */
-export function openReader(value: { bookId: string; title: string; format: string }): void {
+/** Просьба оболочке открыть книгу вкладкой рабочего места. */
+export function openInWorkplace(value: { bookId: string; title: string; format: string }): void {
   window.parent.postMessage(
-    { channel: 'texture-plugin', type: 'reader:open', value },
+    { channel: 'texture-plugin', type: 'workspace:open-book', value },
     '*',
   );
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { BookCoverPlaceholder, Button } from '@texture/ui';
-  import { invoke, openReader, operation } from './bridge';
+  import { invoke, openInWorkplace, operation } from './bridge';
   import type { Book } from './types';
 
   interface Props {
@@ -30,9 +30,9 @@
     return supported.includes(bookFormat());
   }
 
-  /** Открытие рабочего места чтения книги. */
+  /** Открытие книги вкладкой рабочего места. */
   function startReading() {
-    openReader({ bookId: String(book.id), title: book.title, format: bookFormat() });
+    openInWorkplace({ bookId: String(book.id), title: book.title, format: bookFormat() });
   }
 
   /** Открытие файла книги в системном приложении. */
@@ -101,7 +101,7 @@
 
       <div class="mt-[var(--space-5)] flex flex-wrap items-center gap-[var(--space-2)]">
         {#if canRead()}
-          <Button variant="primary" onclick={startReading}>Читать</Button>
+          <Button variant="primary" onclick={startReading}>Открыть в рабочем месте</Button>
         {/if}
         <Button variant="secondary" disabled={opening} onclick={openInSystem}>
           {opening ? 'Открытие…' : 'Открыть в системе'}

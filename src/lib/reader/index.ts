@@ -74,18 +74,39 @@ interface CatalogBook {
   files?: { kind?: string; format?: string }[];
 }
 
+/** Извлечение книг из ответа операции `list`. */
+function catalogBooks(response: unknown): CatalogBook[] {
+  const record = (response ?? {}) as {
+    books?: CatalogBook[];
+    catalog?: { books?: CatalogBook[] };
+  };
+  return record.books ?? record.catalog?.books ?? [];
+}
+
+/** Наличие книги в каталоге активной библиотеки. */
+export async function bookAvailable(
+  bookId: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<boolean> {
+  const response = await backend.invoke('invoke_plugin_operation', {
+    operation: 'list',
+    payload: {},
+    storageRoot: backend.storageRoot,
+  });
+  return catalogBooks(response).some((item) => String(item.id) === bookId);
+}
+
 /** Определение формата книги по её файлам в каталоге. */
 export async function bookFormat(
   bookId: string,
   backend: ReaderBackend = defaultBackend(),
 ): Promise<string> {
-  const response = (await backend.invoke('invoke_plugin_operation', {
+  const response = await backend.invoke('invoke_plugin_operation', {
     operation: 'list',
     payload: {},
     storageRoot: backend.storageRoot,
-  })) as { books?: CatalogBook[]; catalog?: { books?: CatalogBook[] } };
-  const books = response.books ?? response.catalog?.books ?? [];
-  const book = books.find((item) => String(item.id) === bookId);
+  });
+  const book = catalogBooks(response).find((item) => String(item.id) === bookId);
   const file = book?.files?.find((item) => item.kind === 'book');
   return (file?.format ?? '').toLowerCase();
 }

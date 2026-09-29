@@ -149,6 +149,12 @@ function pluginOperation(payload: unknown): unknown {
       authors: [],
       files: [{ kind: 'book', path: 'demo-2.fb2', format: 'fb2' }],
     },
+    {
+      id: 'demo-3',
+      title: 'Третья книга',
+      authors: ['Ещё автор'],
+      files: [{ kind: 'book', path: 'demo-3.epub', format: 'epub' }],
+    },
   ];
   if (message.operation === 'list' || message.operation === 'search') {
     const query = message.payload?.query?.toLowerCase() ?? '';
@@ -193,6 +199,8 @@ export function defaultMockConfig(): MockBridgeConfig {
       select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
       active_library: () => null,
       plugin_activation_pending: () => ({ pending: false }),
+      get_workspace: () => ({ tabs: [], activeTabId: null }),
+      save_workspace: () => ({ ok: true }),
       library_history_list: () => ({
         entries: [
           {

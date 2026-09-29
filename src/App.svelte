@@ -3,7 +3,18 @@
   import { Badge, Button, Menu, MenuItem } from '@texture/ui';
   import PluginFrame from './lib/PluginFrame.svelte';
   import LibrariesPage from './lib/LibrariesPage.svelte';
-  import ReaderPage from './lib/ReaderPage.svelte';
+  import WorkplaceSurface from './lib/WorkplaceSurface.svelte';
+  import {
+    closeTab,
+    duplicateTab,
+    emptyWorkspace,
+    normalizeWorkspace,
+    openBook,
+    replaceTabBook,
+    updateTab,
+    activateTab,
+    type WorkspaceState,
+  } from './lib/workplace';
   import { invokeCommand, listenEvent } from './lib/app-bridge';
 
   /** Сообщение frontend-плагина без идентификатора запроса. */
@@ -18,14 +29,6 @@
     provider_name?: string;
     /** Путь библиотеки. */
     path?: string;
-  }
-
-  /** Открытая в рабочей странице книга. */
-  interface ReaderBook {
-    /** Идентификатор книги. */
-    id: string;
-    /** Название книги. */
-    title: string;
   }
 
   /** Страница раздела настроек. */
@@ -52,11 +55,20 @@
   /** Активная библиотека для шапки. */
   let activeLibrary: ActiveLibrary | null = $state(null);
 
-  /** Открыта ли рабочая страница книги; принадлежит оболочке. */
-  let readerOpen = $state(false);
+  /** Открыта ли поверхность рабочего места; принадлежит оболочке. */
+  let workspaceOpen = $state(false);
 
-  /** Книга, открытая в рабочей странице. */
-  let readerBook: ReaderBook | null = $state(null);
+  /** Открыта ли панель списка открытых книг. */
+  let booksPanelOpen = $state(false);
+
+  /** Состояние рабочего места: вкладки и активная вкладка. */
+  let workspace: WorkspaceState = $state(emptyWorkspace());
+
+  /** Загружено ли состояние рабочего места из ядра. */
+  let workspaceLoaded = $state(false);
+
+  /** Вкладка, для которой выбирается новая книга (переуказание файла). */
+  let repointTabId: string | null = $state(null);
 
   /** Имя активной библиотеки по последнему сегменту пути. */
   function libraryName(): string | null {
@@ -67,29 +79,58 @@
     return library.path.split(/[\\/]/).filter(Boolean).pop() ?? library.path;
   }
 
-  /** Показывать ли в шапке название активной библиотеки (основной раздел). */
+  /** Показан ли основной раздел библиотеки. */
+  function isMainSection(): boolean {
+    return !settingsOpen && !librariesOpen && !workspaceOpen;
+  }
+
+  /** Показывать ли в шапке имя активной библиотеки. */
   function showLibrary(): boolean {
-    return !settingsOpen && !librariesOpen && !readerOpen && activeLibrary !== null;
+    return activeLibrary !== null && (isMainSection() || workspaceOpen);
   }
 
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
-    librariesOpen ? 'Библиотеки' : settingsOpen ? (settingsSection === 'plugins' ? 'Плагины' : 'Настройки') : 'Библиотека',
+    librariesOpen
+      ? 'Библиотеки'
+      : settingsOpen
+        ? settingsSection === 'plugins'
+          ? 'Плагины'
+          : 'Настройки'
+        : workspaceOpen
+          ? 'Рабочее место'
+          : 'Библиотека',
   );
 
-  /** Переключение раздела настроек; закрывает страницу библиотек. */
+  /** Показывать ли в шапке название раздела помимо имени библиотеки. */
+  function showSectionLabel(): boolean {
+    return !(isMainSection() && activeLibrary !== null);
+  }
+
+  /** Переключение раздела настроек; закрывает другие поверхности. */
   function toggleSettings() {
     settingsOpen = !settingsOpen;
     if (settingsOpen) {
       librariesOpen = false;
+      workspaceOpen = false;
     }
   }
 
-  /** Переключение страницы «Библиотеки»; закрывает настройки. */
+  /** Переключение страницы «Библиотеки»; закрывает другие поверхности. */
   function toggleLibraries() {
     librariesOpen = !librariesOpen;
     if (librariesOpen) {
       settingsOpen = false;
+      workspaceOpen = false;
+    }
+  }
+
+  /** Переключение поверхности рабочего места. */
+  function toggleWorkspace() {
+    workspaceOpen = !workspaceOpen;
+    if (workspaceOpen) {
+      settingsOpen = false;
+      librariesOpen = false;
     }
   }
 
@@ -103,28 +144,72 @@
     notificationsOpen = !notificationsOpen;
   }
 
-  /** Открытие рабочей страницы книги по сообщению библиотечного плагина. */
+  /** Выбор активной вкладки. */
+  function selectTab(id: string) {
+    workspace = activateTab(workspace, id);
+  }
+
+  /** Закрытие вкладки. */
+  function removeTab(id: string) {
+    workspace = closeTab(workspace, id);
+  }
+
+  /** Дублирование вкладки. */
+  function duplicateCurrentTab(id: string) {
+    workspace = duplicateTab(workspace, id);
+  }
+
+  /** Изменение состояния чтения вкладки. */
+  function handleTabState(id: string, state: { zoom: number; position: number }) {
+    workspace = updateTab(workspace, id, state);
+  }
+
+  /** Переключение панели списка открытых книг. */
+  function toggleBooksPanel() {
+    booksPanelOpen = !booksPanelOpen;
+  }
+
+  /** Переход к библиотеке для добавления книги в рабочее место. */
+  function requestAddBook() {
+    workspaceOpen = false;
+    librariesOpen = false;
+    settingsOpen = false;
+  }
+
+  /** Просьба переуказать файл недоступной книги вкладки. */
+  function requestRepoint(tabId: string) {
+    repointTabId = tabId;
+    workspaceOpen = false;
+    librariesOpen = false;
+    settingsOpen = false;
+  }
+
+  /** Открытие книги вкладкой рабочего места по сообщению библиотечного плагина. */
   function handleLibraryMessage(message: PluginMessage) {
-    if (message.type !== 'reader:open') {
+    if (message.type !== 'workspace:open-book') {
       return;
     }
     const value = message.value as
-      | { bookId?: unknown; title?: unknown }
+      | { bookId?: unknown; title?: unknown; format?: unknown }
       | null
       | undefined;
     if (!value?.bookId) {
       return;
     }
-    readerBook = { id: String(value.bookId), title: String(value.title ?? '') };
-    readerOpen = true;
+    const book = {
+      bookId: String(value.bookId),
+      title: String(value.title ?? ''),
+      format: value.format ? String(value.format) : '',
+    };
+    if (repointTabId) {
+      workspace = replaceTabBook(workspace, repointTabId, book);
+      repointTabId = null;
+    } else {
+      workspace = openBook(workspace, book);
+    }
+    workspaceOpen = true;
     settingsOpen = false;
     librariesOpen = false;
-  }
-
-  /** Возврат с рабочей страницы книги к библиотеке. */
-  function closeReader() {
-    readerOpen = false;
-    readerBook = null;
   }
 
   /** Обработка сообщений frontend-плагинов без ответа. */
@@ -163,10 +248,30 @@
         }
       });
       await refreshActiveLibrary();
+      try {
+        const loaded = await invokeCommand('get_workspace', {});
+        workspace = normalizeWorkspace(loaded);
+      } catch {
+        workspace = emptyWorkspace();
+      } finally {
+        workspaceLoaded = true;
+      }
     })();
     return () => {
       unlisten?.();
     };
+  });
+
+  /** Сохранение состояния рабочего места с небольшой задержкой. */
+  $effect(() => {
+    const snapshot = $state.snapshot(workspace);
+    if (!workspaceLoaded) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      void invokeCommand('save_workspace', { workspace: snapshot });
+    }, 300);
+    return () => clearTimeout(timer);
   });
 </script>
 
@@ -174,47 +279,20 @@
   <header
     class="flex flex-[0_0_48px] items-center gap-[var(--space-3)] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-4)]"
   >
-    {#if readerOpen && readerBook}
-      <Button
-        variant="ghost"
-        size="icon"
-        title="Назад к библиотеке"
-        ariaLabel="Назад к библиотеке"
-        onclick={closeReader}
-      >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path
-            d="M15 5l-7 7 7 7"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            fill="none"
-          />
-        </svg>
-      </Button>
-      <span
-        class="max-w-[420px] truncate text-sm font-semibold"
-        title={readerBook.title}
-        data-testid="reader-title"
-      >
-        {readerBook.title}
-      </span>
-    {:else}
-      <span class="text-base font-bold text-[var(--color-primary)]">Текстура</span>
-      {#if showLibrary()}
-        {#if activeLibrary?.provider_name}
-          <Badge>{activeLibrary.provider_name}</Badge>
-        {/if}
-        <span
-          class="max-w-[280px] truncate text-sm text-[var(--color-text-muted)]"
-          title={activeLibrary?.path ?? ''}
-        >
-          {libraryName()}
-        </span>
-      {:else}
-        <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
+    <span class="text-base font-bold text-[var(--color-primary)]">Текстура</span>
+    {#if showLibrary()}
+      {#if activeLibrary?.provider_name}
+        <Badge>{activeLibrary.provider_name}</Badge>
       {/if}
+      <span
+        class="max-w-[280px] truncate text-sm text-[var(--color-text-muted)]"
+        title={activeLibrary?.path ?? ''}
+      >
+        {libraryName()}
+      </span>
+    {/if}
+    {#if showSectionLabel()}
+      <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
     {/if}
     <div class="ml-auto flex items-center gap-[var(--space-2)]">
       {#if activationPending}
@@ -249,25 +327,46 @@
           {unreadCount}
         </span>
       </Button>
-      {#if !readerOpen}
-        <Button
-          variant={librariesOpen ? 'primary' : 'secondary'}
-          size="icon"
-          title="Библиотеки"
-          ariaLabel="Библиотеки"
-          ariaPressed={librariesOpen}
-          onclick={toggleLibraries}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-            <rect x="4" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
-            <rect x="10" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
-            <path
-              d="M16.2 4.3a1 1 0 0 1 1.25.7l3.1 14.2a1 1 0 0 1-.75 1.2l-1.9.45a1 1 0 0 1-1.2-.75L13.6 5.9a1 1 0 0 1 .75-1.2Z"
-              fill="currentColor"
-            />
-          </svg>
-        </Button>
-      {/if}
+      <Button
+        variant={librariesOpen ? 'primary' : 'secondary'}
+        size="icon"
+        title="Библиотеки"
+        ariaLabel="Библиотеки"
+        ariaPressed={librariesOpen}
+        onclick={toggleLibraries}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <rect x="4" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
+          <rect x="10" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
+          <path
+            d="M16.2 4.3a1 1 0 0 1 1.25.7l3.1 14.2a1 1 0 0 1-.75 1.2l-1.9.45a1 1 0 0 1-1.2-.75L13.6 5.9a1 1 0 0 1 .75-1.2Z"
+            fill="currentColor"
+          />
+        </svg>
+      </Button>
+      <Button
+        variant={workspaceOpen ? 'primary' : 'secondary'}
+        size="icon"
+        title="Рабочее место"
+        ariaLabel="Рабочее место"
+        ariaPressed={workspaceOpen}
+        onclick={toggleWorkspace}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <rect
+            x="3.5"
+            y="4"
+            width="17"
+            height="16"
+            rx="2"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          />
+          <path d="M3.5 8.5h17" stroke="currentColor" stroke-width="2" />
+          <path d="M9 8.5V20" stroke="currentColor" stroke-width="2" />
+        </svg>
+      </Button>
       <Button
         variant={settingsOpen ? 'primary' : 'secondary'}
         size="icon"
@@ -293,7 +392,7 @@
     <main class="flex min-w-0 flex-1">
       <div
         class="min-h-0 min-w-0 flex-1"
-        class:hidden={settingsOpen || librariesOpen || readerOpen}
+        class:hidden={settingsOpen || librariesOpen || workspaceOpen}
       >
         <PluginFrame
           src="/plugins/library-ui/index.html"
@@ -301,13 +400,22 @@
           onMessage={handleLibraryMessage}
         />
       </div>
+      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!workspaceOpen}>
+        <WorkplaceSurface
+          {workspace}
+          booksOpen={booksPanelOpen}
+          visible={workspaceOpen}
+          onSelectTab={selectTab}
+          onCloseTab={removeTab}
+          onDuplicateTab={duplicateCurrentTab}
+          onAddBook={requestAddBook}
+          onToggleBooks={toggleBooksPanel}
+          onTabState={handleTabState}
+          onRepointTab={requestRepoint}
+        />
+      </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesOpen}>
         <LibrariesPage onOpened={() => (librariesOpen = false)} />
-      </div>
-      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!readerOpen}>
-        {#if readerOpen && readerBook}
-          <ReaderPage bookId={readerBook.id} title={readerBook.title} onBack={closeReader} />
-        {/if}
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!settingsOpen}>
         <Menu

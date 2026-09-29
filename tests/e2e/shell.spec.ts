@@ -21,18 +21,33 @@ test('кнопки верхней панели показывают активн
   await page.goto('/');
 
   const libraries = page.getByLabel('Библиотеки');
+  const workspace = page.getByLabel('Рабочее место');
   const settings = page.getByLabel('Настройки');
 
   await expect(libraries).toHaveAttribute('aria-pressed', 'false');
+  await expect(workspace).toHaveAttribute('aria-pressed', 'false');
   await expect(settings).toHaveAttribute('aria-pressed', 'false');
 
   await libraries.click();
   await expect(libraries).toHaveAttribute('aria-pressed', 'true');
   await expect(settings).toHaveAttribute('aria-pressed', 'false');
 
+  await workspace.click();
+  await expect(workspace).toHaveAttribute('aria-pressed', 'true');
+  await expect(libraries).toHaveAttribute('aria-pressed', 'false');
+
   await settings.click();
   await expect(settings).toHaveAttribute('aria-pressed', 'true');
-  await expect(libraries).toHaveAttribute('aria-pressed', 'false');
+  await expect(workspace).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('кнопка рабочего места открывает поверхность', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByLabel('Рабочее место').click();
+
+  await expect(page.getByTestId('workplace-surface')).toBeVisible();
+  await expect(page.getByTestId('workplace-empty')).toBeVisible();
 });
 
 test('страница библиотек показывает историю с временем', async ({ page }) => {

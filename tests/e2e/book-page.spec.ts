@@ -27,18 +27,18 @@ test('страница книги предлагает чтение и откр�
 
   await library.getByRole('button', { name: /Демо-книга/ }).click();
 
-  await expect(library.getByRole('button', { name: 'Читать' })).toBeVisible();
+  await expect(library.getByRole('button', { name: 'Открыть в рабочем месте' })).toBeVisible();
   await expect(library.getByRole('button', { name: 'Открыть в системе' })).toBeVisible();
 });
 
-test('для неподдерживаемого формата нет кнопки Читать', async ({ page }) => {
+test('для неподдерживаемого формата нет кнопки открытия в рабочем месте', async ({ page }) => {
   await page.goto('/');
   const library = page.frameLocator('iframe[title="Library plugin"]');
 
   await library.getByRole('button', { name: /Вторая книга/ }).click();
 
   await expect(library.getByTestId('book-title')).toHaveText('Вторая книга');
-  await expect(library.getByRole('button', { name: 'Читать' })).toHaveCount(0);
+  await expect(library.getByRole('button', { name: 'Открыть в рабочем месте' })).toHaveCount(0);
   await expect(library.getByRole('button', { name: 'Открыть в системе' })).toBeVisible();
 });
 

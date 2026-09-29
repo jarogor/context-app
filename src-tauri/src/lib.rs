@@ -5,6 +5,7 @@ pub mod commands;
 pub mod constants;
 pub mod library_history;
 pub mod plugin;
+pub mod workspace_state;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -111,6 +112,8 @@ pub fn run() {
             commands::active_library,
             commands::library_history_list,
             commands::library_history_forget,
+            commands::get_workspace,
+            commands::save_workspace,
             commands::plugin_activation_pending,
             commands::workplace_formats,
             commands::workplace_plugin_for_format,

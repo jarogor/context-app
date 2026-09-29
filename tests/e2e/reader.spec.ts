@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-/** Ответ активной библиотеки для сценариев рабочей страницы чтения. */
+/** Ответ активной библиотеки для сценариев рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
 
 test.beforeEach(async ({ page }) => {
@@ -11,39 +11,40 @@ test.beforeEach(async ({ page }) => {
   }, ACTIVE_LIBRARY);
 });
 
-/** Открытие рабочего места чтения через страницу книги. */
-async function openReader(page: import('@playwright/test').Page) {
+/** Открытие книги вкладкой рабочего места через страницу книги. */
+async function openWorkplace(page: import('@playwright/test').Page) {
   await page.goto('/');
   const library = page.frameLocator('iframe[title="Library plugin"]');
   await library.getByRole('button', { name: /Демо-книга/ }).click();
-  await library.getByRole('button', { name: 'Читать' }).click();
-  await expect(page.getByTestId('reader-title')).toBeVisible();
+  await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 }
 
-test('кнопка Читать на странице книги открывает рабочее место', async ({ page }) => {
-  await openReader(page);
+test('открытие книги добавляет вкладку в рабочее место', async ({ page }) => {
+  await openWorkplace(page);
 
-  await expect(page.getByTestId('reader-title')).toHaveText('Демо-книга');
+  await expect(page.getByTestId('workplace-tabs')).toBeVisible();
+  await expect(page.getByLabel('Рабочее место')).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('рабочая страница показывает содержимое книги', async ({ page }) => {
-  await openReader(page);
+test('рабочее место показывает содержимое книги', async ({ page }) => {
+  await openWorkplace(page);
 
   const reader = page.frameLocator('iframe[title="Чтение книги"]');
   await expect(reader.getByText('Первый абзац книги.')).toBeVisible();
   await expect(reader.getByText('Глава 2')).toBeVisible();
 });
 
-test('шапка рабочей страницы скрывает кнопку библиотек', async ({ page }) => {
-  await openReader(page);
+test('шапка рабочего места оставляет кнопки доступными', async ({ page }) => {
+  await openWorkplace(page);
 
-  await expect(page.getByRole('button', { name: 'Библиотеки' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Библиотеки' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Уведомления' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Настройки' })).toBeVisible();
 });
 
 test('масштаб меняет размер текста книги', async ({ page }) => {
-  await openReader(page);
+  await openWorkplace(page);
 
   const html = page.frameLocator('iframe[title="Чтение книги"]').locator('html');
   const before = await html.evaluate((element) => getComputedStyle(element).fontSize);
@@ -57,7 +58,7 @@ test('масштаб меняет размер текста книги', async (
 });
 
 test('масштаб удерживает верхнюю строку на месте', async ({ page }) => {
-  await openReader(page);
+  await openWorkplace(page);
   const body = page.frameLocator('iframe[title="Чтение книги"]').locator('body');
   const snapshot = (element: HTMLElement) => {
     const document = element.ownerDocument;
@@ -82,7 +83,7 @@ test('масштаб удерживает верхнюю строку на ме�
 });
 
 test('прогресс обновляется при прокрутке книги', async ({ page }) => {
-  await openReader(page);
+  await openWorkplace(page);
 
   const iframe = page.locator('iframe[title="Чтение книги"]');
   const box = await iframe.boundingBox();
@@ -100,14 +101,14 @@ test('прогресс обновляется при прокрутке книг
     .toBeGreaterThan(0);
 });
 
-test('возврат из рабочего места сохраняет библиотеку', async ({ page }) => {
-  await openReader(page);
+test('возврат к библиотеке сохраняет состояние', async ({ page }) => {
+  await openWorkplace(page);
 
-  await page.getByRole('button', { name: 'Назад к библиотеке' }).click();
+  await page.getByLabel('Рабочее место').click();
 
   const library = page.frameLocator('iframe[title="Library plugin"]');
   await expect(library.getByTestId('book-title')).toHaveText('Демо-книга');
-  await expect(page.getByTestId('reader-title')).toHaveCount(0);
+  await expect(page.getByTestId('workplace-surface')).toBeHidden();
 });
 
 test('со страницы книги можно вернуться к списку', async ({ page }) => {
@@ -121,4 +122,3 @@ test('со страницы книги можно вернуться к спис
   await expect(library.getByText('Демо-книга')).toBeVisible();
   await expect(library.getByText('Вторая книга')).toBeVisible();
 });
-

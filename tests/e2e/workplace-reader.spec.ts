@@ -62,8 +62,8 @@ async function openWorkplace(page: import('@playwright/test').Page) {
   await page.goto('/');
   const library = page.frameLocator('iframe[title="Library plugin"]');
   await library.getByRole('button', { name: /Демо-планшет/ }).click();
-  await library.getByRole('button', { name: 'Читать' }).click();
-  await expect(page.getByTestId('reader-title')).toHaveText('Демо-планшет');
+  await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-планшет');
 }
 
 test('книга рисующего формата открывается плагином рабочего места', async ({ page }) => {
