@@ -11,6 +11,7 @@ import {
   type WorkspaceTab,
   emptyWorkspace,
   normalizeWorkspace,
+  serializeWorkspace,
 } from './workplace';
 
 /** Рабочее место: имя и собственный набор вкладок. */
@@ -194,6 +195,23 @@ export function updateActiveWorkspaceTabs(
 export function activeTabsState(registry: WorkspaceRegistry): WorkspaceState {
   const active = activeWorkspace(registry);
   return active ? { tabs: active.tabs, activeTabId: active.activeTabId } : emptyWorkspace();
+}
+
+/** Сериализация реестра к контракту ядра (`snake_case`).
+ *
+ * Модель оболочки использует camelCase, а ядро ожидает `snake_case`;
+ * сериализация на границе IPC не даёт полям теряться при сохранении.
+ */
+export function serializeRegistry(registry: WorkspaceRegistry): Record<string, unknown> {
+  return {
+    workspaces: registry.workspaces.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+      created_at_millis: workspace.createdAtMillis,
+      ...serializeWorkspace({ tabs: workspace.tabs, activeTabId: workspace.activeTabId }),
+    })),
+    active_workspace_id: registry.activeWorkspaceId,
+  };
 }
 
 /** Тип книги для открытия вкладки в активном рабочем месте. */

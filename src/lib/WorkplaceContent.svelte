@@ -9,8 +9,8 @@
   interface Props {
     /** Идентификатор плагина рабочего места. */
     pluginId: string;
-    /** Идентификатор открытой книги. */
-    bookId: string;
+    /** Путь к файлу открытой книги (вложение вкладки). */
+    path: string;
     /** Название открытой книги. */
     title: string;
     /** Текущий масштаб отображения в процентах. */
@@ -23,7 +23,7 @@
     onError?: (message: string) => void;
   }
 
-  let { pluginId, bookId, title, zoom, onCapabilities, onProgress, onError }: Props = $props();
+  let { pluginId, path, title, zoom, onCapabilities, onProgress, onError }: Props = $props();
 
   /** Канал сообщений между областью содержимого и приложением. */
   const CHANNEL = 'texture-workplace';
@@ -45,7 +45,7 @@
   /** Передача содержимого книги модулю рисования. */
   async function sendBook() {
     try {
-      const data = await readWorkplaceBook(bookId);
+      const data = await readWorkplaceBook(path);
       post({ type: 'open', data, title });
     } catch (e) {
       error = String(e);
@@ -76,7 +76,7 @@
       error = String(message.message ?? 'не удалось отобразить книгу');
       onError?.(error);
     } else if (message.type === 'open-external') {
-      void openBookExternally(bookId);
+      void openBookExternally(path);
     }
   }
 

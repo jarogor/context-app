@@ -2,13 +2,15 @@
  *
  * Модуль хранит чистые операции над вкладками, независимые от Svelte и IPC.
  * Вкладка — экземпляр открытия книги: дубликат книги получает собственный
- * идентификатор и собственное состояние чтения.
+ * идентификатор и собственное состояние чтения. Вложением вкладки служит путь к
+ * файлу книги: рабочее место не знает, откуда книга — из библиотеки или выбрана
+ * с диска.
  */
 
-/** Ссылка на книгу для открытия вкладки. */
+/** Ссылка на книгу для открытия вкладки: путь к файлу-вложению. */
 export interface BookRef {
-  /** Идентификатор книги. */
-  bookId: string;
+  /** Путь к файлу книги. */
+  path: string;
   /** Название книги для отображения. */
   title: string;
   /** Формат книги. */
@@ -19,8 +21,8 @@ export interface BookRef {
 export interface WorkspaceTab {
   /** Идентификатор экземпляра вкладки. */
   id: string;
-  /** Идентификатор открытой книги. */
-  bookId: string;
+  /** Путь к файлу книги (вложение вкладки). */
+  path: string;
   /** Название книги для отображения. */
   title: string;
   /** Формат книги. */
@@ -55,7 +57,11 @@ export function emptyWorkspace(): WorkspaceState {
   return { tabs: [], activeTabId: null };
 }
 
-/** Приведение загруженного состояния к модели с безопасными значениями. */
+/** Приведение загруженного состояния к модели с безопасными значениями.
+ *
+ * Прежние снимки хранили `book_id` вместо пути; такие вкладки читаются как
+ * недоступные и предлагают указать файл заново.
+ */
 export function normalizeWorkspace(value: unknown): WorkspaceState {
   const record = (value ?? {}) as { tabs?: unknown; activeTabId?: unknown; active_tab_id?: unknown };
   const rawTabs = Array.isArray(record.tabs) ? record.tabs : [];
@@ -63,7 +69,7 @@ export function normalizeWorkspace(value: unknown): WorkspaceState {
     const tab = (item ?? {}) as Record<string, unknown>;
     return {
       id: String(tab.id ?? newTabId()),
-      bookId: String(tab.bookId ?? tab.book_id ?? ''),
+      path: String(tab.path ?? tab.book_id ?? ''),
       title: String(tab.title ?? ''),
       format: String(tab.format ?? ''),
       zoom: Number.isFinite(Number(tab.zoom)) && Number(tab.zoom) > 0 ? Number(tab.zoom) : 100,
@@ -88,7 +94,7 @@ export function activeTab(state: WorkspaceState): WorkspaceTab | null {
 export function openBook(state: WorkspaceState, book: BookRef): WorkspaceState {
   const tab: WorkspaceTab = {
     id: newTabId(),
-    bookId: book.bookId,
+    path: book.path,
     title: book.title,
     format: book.format ?? '',
     zoom: 100,
@@ -151,8 +157,29 @@ export function replaceTabBook(
   book: BookRef,
 ): WorkspaceState {
   return updateTab(state, tabId, {
-    bookId: book.bookId,
+    path: book.path,
     title: book.title,
     format: book.format ?? '',
   });
+}
+
+/** Сериализация вкладки к контракту ядра (`snake_case`). */
+export function serializeTab(tab: WorkspaceTab): Record<string, unknown> {
+  return {
+    id: tab.id,
+    path: tab.path,
+    title: tab.title,
+    format: tab.format,
+    zoom: tab.zoom,
+    position: tab.position,
+    mode: tab.mode,
+  };
+}
+
+/** Сериализация состояния вкладок к контракту ядра (`snake_case`). */
+export function serializeWorkspace(state: WorkspaceState): Record<string, unknown> {
+  return {
+    tabs: state.tabs.map(serializeTab),
+    active_tab_id: state.activeTabId,
+  };
 }

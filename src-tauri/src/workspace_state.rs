@@ -28,8 +28,9 @@ const DEFAULT_WORKSPACE_NAME: &str = "Рабочее место";
 pub struct WorkspaceTab {
     /// Идентификатор экземпляра вкладки.
     pub id: String,
-    /// Идентификатор открытой книги.
-    pub book_id: String,
+    /// Путь к файлу книги (вложение вкладки).
+    #[serde(default, alias = "book_id")]
+    pub path: String,
     /// Название книги для отображения.
     pub title: String,
     /// Формат книги.

@@ -45,6 +45,7 @@ impl FakeHost {
             description: "тест".to_string(),
             enabled,
             removable,
+            sample: false,
         });
         self
     }

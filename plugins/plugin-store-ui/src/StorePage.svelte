@@ -33,7 +33,11 @@
   let storeTitle = $state('');
   let storeLocation = $state('');
 
-  /** Добавление стора из формы. */
+  /** Рабочие плагины без образцов для разработчика. */
+  const regularPlugins = $derived(plugins.filter((plugin) => !plugin.sample));
+
+  /** Образцы для разработчика, показываются отдельной группой в конце. */
+  const samplePlugins = $derived(plugins.filter((plugin) => plugin.sample));  /** Добавление стора из формы. */
   function submitStore() {
     if (!storeId.trim()) return;
     onAddStore({
@@ -60,7 +64,7 @@
       </div>
     {:else}
       <ul class="flex list-none flex-col gap-[var(--space-2)] p-0">
-        {#each plugins as plugin (plugin.id)}
+        {#each regularPlugins as plugin (plugin.id)}
           <li
             class="flex items-center justify-between gap-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)]"
           >
@@ -88,6 +92,42 @@
           </li>
         {/each}
       </ul>
+
+      {#if samplePlugins.length > 0}
+        <details class="mt-[var(--space-3)] border-t border-[var(--color-border)] pt-[var(--space-3)]">
+          <summary class="cursor-pointer text-xs text-[var(--color-text-muted)]">
+            Образцы для разработчика ({samplePlugins.length})
+          </summary>
+          <ul class="mt-[var(--space-2)] flex list-none flex-col gap-[var(--space-2)] p-0">
+            {#each samplePlugins as plugin (plugin.id)}
+              <li
+                class="flex items-center justify-between gap-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)] opacity-70"
+              >
+                <label class="flex min-w-0 items-center gap-[var(--space-2)]">
+                  <Checkbox
+                    checked={plugin.enabled}
+                    onchange={(event) => onSetEnabled(plugin.id, event.currentTarget.checked)}
+                  />
+                  <span class="flex min-w-0 flex-col gap-[2px]">
+                    <span class="flex flex-wrap items-baseline gap-[var(--space-2)]">
+                      <span class="text-sm font-bold">{plugin.name}</span>
+                      <Badge>образец</Badge>
+                    </span>
+                    {#if plugin.description}
+                      <span class="text-xs text-[var(--color-text-muted)]">{plugin.description}</span>
+                    {/if}
+                  </span>
+                </label>
+                {#if plugin.removable}
+                  <Button variant="danger" size="sm" onclick={() => onUninstall(plugin.id)}>
+                    Удалить
+                  </Button>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </details>
+      {/if}
     {/if}
   </Card>
 

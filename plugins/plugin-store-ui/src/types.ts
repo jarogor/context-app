@@ -12,6 +12,8 @@ export interface PluginEntry {
   enabled: boolean;
   /** Можно ли удалить плагин. */
   removable: boolean;
+  /** Является ли плагин образцом для разработчика. */
+  sample?: boolean;
 }
 
 /** Вид провайдера стора. */

@@ -63,6 +63,12 @@ pub struct PluginManifest {
     /// настроек как opaque-схема.
     #[serde(default)]
     pub settings: Option<serde_json::Value>,
+    /// Признак образца для разработчика.
+    ///
+    /// Образцы поставляются как примеры структуры плагина и не решают задач
+    /// пользователя: интерфейс показывает их отдельной группой в конце.
+    #[serde(default)]
+    pub sample: bool,
 }
 
 impl PluginManifest {

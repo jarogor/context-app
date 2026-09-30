@@ -1,11 +1,11 @@
-/** Общий интерфейс чтения книги, не зависящий от формата.
+/** Общий интерфейс чтения книги по вложению вкладки, не зависящий от формата.
  *
- * Загрузчик определяет формат книги по её файлам и обращается к нужной
+ * Вкладка адресует книгу путём к файлу; рабочее место не знает, откуда книга.
+ * Загрузчик определяет формат по расширению файла и обращается к нужной
  * реализации. EPUB — первая реализация; подключение нового формата не меняет
  * рабочую страницу и оболочку.
  */
 
-import appConfig from '../app-config.json';
 import { invokeCommand } from '../app-bridge';
 import type { BookChapter, BookContent } from './types';
 
@@ -26,12 +26,16 @@ export class UnsupportedFormatError extends Error {
   }
 }
 
-/** Доступ загрузчика к командам приложения и служебному хранилищу. */
+/** Доступ загрузчика к командам приложения. */
 export interface ReaderBackend {
   /** Вызов команды приложения. */
   invoke: (command: string, payload: unknown) => Promise<unknown>;
-  /** Корень служебного хранилища активной библиотеки. */
-  storageRoot: string;
+}
+
+/** Формат файла книги по расширению. */
+export function formatFromPath(path: string): string {
+  const match = /\.([a-z0-9]+)$/i.exec(path.trim());
+  return (match?.[1] ?? '').toLowerCase();
 }
 
 /** Проверка поддержки формата встроенным чтением. */
@@ -39,76 +43,25 @@ export function isSupportedFormat(format: string): boolean {
   return SUPPORTED_FORMATS.includes(format.toLowerCase());
 }
 
-/** Загрузка содержимого книги через общий интерфейс чтения. */
+/** Загрузка содержимого книги по пути через общий интерфейс чтения. */
 export async function loadBookContent(
-  bookId: string,
+  path: string,
   backend: ReaderBackend = defaultBackend(),
 ): Promise<BookContent> {
-  const format = await bookFormat(bookId, backend);
+  const format = formatFromPath(path);
   if (!isSupportedFormat(format)) {
     throw new UnsupportedFormatError(format);
   }
-  const response = await backend.invoke('invoke_plugin_operation', {
-    operation: 'content',
-    payload: { book_id: bookId },
-    storageRoot: backend.storageRoot,
-  });
+  const response = await backend.invoke('reader_content', { path });
   return normalizeContent(response);
 }
 
 /** Открытие файла книги в системном приложении. */
 export async function openBookExternally(
-  bookId: string,
+  path: string,
   backend: ReaderBackend = defaultBackend(),
 ): Promise<void> {
-  await backend.invoke('invoke_plugin_operation', {
-    operation: 'open_external',
-    payload: { book_id: bookId },
-    storageRoot: backend.storageRoot,
-  });
-}
-
-/** Книга каталога в объёме, нужном для определения формата. */
-interface CatalogBook {
-  id?: unknown;
-  files?: { kind?: string; format?: string }[];
-}
-
-/** Извлечение книг из ответа операции `list`. */
-function catalogBooks(response: unknown): CatalogBook[] {
-  const record = (response ?? {}) as {
-    books?: CatalogBook[];
-    catalog?: { books?: CatalogBook[] };
-  };
-  return record.books ?? record.catalog?.books ?? [];
-}
-
-/** Наличие книги в каталоге активной библиотеки. */
-export async function bookAvailable(
-  bookId: string,
-  backend: ReaderBackend = defaultBackend(),
-): Promise<boolean> {
-  const response = await backend.invoke('invoke_plugin_operation', {
-    operation: 'list',
-    payload: {},
-    storageRoot: backend.storageRoot,
-  });
-  return catalogBooks(response).some((item) => String(item.id) === bookId);
-}
-
-/** Определение формата книги по её файлам в каталоге. */
-export async function bookFormat(
-  bookId: string,
-  backend: ReaderBackend = defaultBackend(),
-): Promise<string> {
-  const response = await backend.invoke('invoke_plugin_operation', {
-    operation: 'list',
-    payload: {},
-    storageRoot: backend.storageRoot,
-  });
-  const book = catalogBooks(response).find((item) => String(item.id) === bookId);
-  const file = book?.files?.find((item) => item.kind === 'book');
-  return (file?.format ?? '').toLowerCase();
+  await backend.invoke('reader_open_external', { path });
 }
 
 /** Форматы, доступные встроенному чтению: EPUB и форматы плагинов рабочего места. */
@@ -117,14 +70,14 @@ export async function supportedFormats(
 ): Promise<string[]> {
   const formats = new Set<string>(SUPPORTED_FORMATS);
   try {
-    const list = (await backend.invoke('workplace_formats', {})) as string[] | null;
+    const list = (await backend.invoke('reader_formats', {})) as string[] | null;
     for (const format of list ?? []) {
       if (format) {
         formats.add(format.toLowerCase());
       }
     }
   } catch {
-    // Сессия библиотеки может быть не открыта — остаются встроенные форматы.
+    // Плагины рабочего места могут быть недоступны — остаются встроенные форматы.
   }
   return [...formats];
 }
@@ -137,16 +90,16 @@ export interface WorkplaceSelection {
   format: string;
 }
 
-/** Выбор плагина рабочего места по формату книги, если он установлен. */
+/** Выбор плагина рабочего места по формату файла, если он установлен. */
 export async function selectWorkplacePlugin(
-  bookId: string,
+  path: string,
   backend: ReaderBackend = defaultBackend(),
 ): Promise<WorkplaceSelection | null> {
-  const format = await bookFormat(bookId, backend);
+  const format = formatFromPath(path);
   if (!format) {
     return null;
   }
-  const pluginId = (await backend.invoke('workplace_plugin_for_format', {
+  const pluginId = (await backend.invoke('reader_plugin_for_format', {
     format,
   })) as string | null | undefined;
   if (!pluginId) {
@@ -160,7 +113,7 @@ export async function loadWorkplaceViewer(
   pluginId: string,
   backend: ReaderBackend = defaultBackend(),
 ): Promise<string> {
-  return String(await backend.invoke('workplace_viewer', { pluginId }));
+  return String(await backend.invoke('reader_viewer', { pluginId }));
 }
 
 /** Порция содержимого книги, полученная от ядра. */
@@ -175,17 +128,17 @@ interface BookChunk {
   done: boolean;
 }
 
-/** Чтение содержимого книги частями по непрозрачной ссылке. */
+/** Чтение содержимого книги частями по пути. */
 export async function readWorkplaceBook(
-  bookId: string,
+  path: string,
   backend: ReaderBackend = defaultBackend(),
 ): Promise<string> {
   const CHUNK_LENGTH = 512 * 1024;
   let offset = 0;
   let base64 = '';
   for (;;) {
-    const result = (await backend.invoke('workplace_book_chunk', {
-      bookId,
+    const result = (await backend.invoke('reader_book_chunk', {
+      path,
       offset,
       length: CHUNK_LENGTH,
     })) as BookChunk;
@@ -196,6 +149,14 @@ export async function readWorkplaceBook(
     }
   }
   return base64;
+}
+
+/** Сброс кэша содержимого книги после переуказания файла. */
+export async function forgetBook(
+  path: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<void> {
+  await backend.invoke('reader_forget_book', { path });
 }
 
 /** Приведение ответа плагина к модели содержимого. */
@@ -223,5 +184,5 @@ function normalizeContent(value: unknown): BookContent {
 
 /** Загрузчик по умолчанию поверх моста приложения. */
 function defaultBackend(): ReaderBackend {
-  return { invoke: invokeCommand, storageRoot: appConfig.state_dir };
+  return { invoke: invokeCommand };
 }

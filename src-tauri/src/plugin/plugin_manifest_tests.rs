@@ -164,6 +164,27 @@ fn manifest_without_settings_has_none() {
         manifest.settings.is_none(),
         "поле настроек отсутствует при отсутствии декларации"
     );
+    assert!(!manifest.sample, "плагин по умолчанию не образец");
+    fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
+}
+
+#[test]
+fn parses_sample_flag() {
+    let path = write_manifest(
+        r#"{
+        "contract_version": 1,
+        "id": "88888888-8888-4888-8888-888888888888",
+        "name": "demo",
+        "description": "Образец",
+        "module": "demo.wasm",
+        "export": "invoke",
+        "host_functions": [],
+        "sample": true
+      }"#,
+    );
+
+    let manifest = PluginManifest::load(&path).expect("парсинг образца");
+    assert!(manifest.sample, "признак образца прочитан");
     fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
 }
 

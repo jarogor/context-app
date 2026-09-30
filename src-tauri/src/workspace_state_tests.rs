@@ -2,11 +2,11 @@ use super::*;
 use crate::test_util;
 
 /// Вкладка тестового рабочего места.
-fn tab(id: &str, book_id: &str, zoom: u32, position: f64) -> WorkspaceTab {
+fn tab(id: &str, path: &str, zoom: u32, position: f64) -> WorkspaceTab {
     WorkspaceTab {
         id: id.to_string(),
-        book_id: book_id.to_string(),
-        title: format!("Книга {book_id}"),
+        path: path.to_string(),
+        title: format!("Книга {path}"),
         format: "epub".to_string(),
         zoom,
         position,
@@ -84,7 +84,7 @@ fn defaults_missing_tab_fields() {
     std::fs::create_dir_all(&root).expect("каталог");
     std::fs::write(
         root.join("workspaces.json"),
-        r#"{"workspaces":[{"id":"ws-1","name":"Первое","tabs":[{"id":"t1","book_id":"book-1","title":"Книга"}]}]}"#,
+        r#"{"workspaces":[{"id":"ws-1","name":"Первое","tabs":[{"id":"t1","path":"book.epub","title":"Книга"}]}]}"#,
     )
     .expect("файл");
 

@@ -19,10 +19,27 @@
   let opening: boolean = $state(false);
   /** Форматы, поддерживаемые встроенным чтением. */
   let supported: string[] = $state(['epub']);
+  /** Корень активной библиотеки для сборки абсолютного пути книги. */
+  let libraryRoot: string = $state('');
 
   /** Формат файла содержимого книги. */
   function bookFormat(): string {
     return book.files.find((file) => file.kind === 'book')?.format?.toLowerCase() ?? '';
+  }
+
+  /** Абсолютный путь файла содержимого книги (вложение вкладки). */
+  function bookPath(): string {
+    const relative = book.files.find((file) => file.kind === 'book')?.path ?? '';
+    if (!relative) {
+      return '';
+    }
+    if (/^([a-z]+:)?[\\/]/i.test(relative)) {
+      return relative;
+    }
+    if (!libraryRoot) {
+      return relative;
+    }
+    return `${libraryRoot.replace(/[\\/]+$/, '')}/${relative}`;
   }
 
   /** Поддерживает ли книгу встроенное чтение. */
@@ -32,7 +49,7 @@
 
   /** Открытие книги вкладкой рабочего места. */
   function startReading() {
-    openInWorkplace({ bookId: String(book.id), title: book.title, format: bookFormat() });
+    openInWorkplace({ path: bookPath(), title: book.title, format: bookFormat() });
   }
 
   /** Открытие файла книги в системном приложении. */
@@ -51,11 +68,19 @@
   onMount(() => {
     void (async () => {
       try {
-        const formats = await invoke<string[]>('workplace_formats');
+        const formats = await invoke<string[]>('reader_formats');
         const values = new Set(['epub', ...(formats ?? []).map((value) => value.toLowerCase())]);
         supported = [...values];
       } catch {
         supported = ['epub'];
+      }
+      try {
+        const active = (await invoke<{ path?: string } | null>('active_library', {})) as {
+          path?: string;
+        } | null;
+        libraryRoot = active?.path ?? '';
+      } catch {
+        libraryRoot = '';
       }
     })();
   });

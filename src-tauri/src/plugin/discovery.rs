@@ -67,6 +67,8 @@ pub struct PluginEntry {
     pub enabled: bool,
     /// Можно ли удалить плагин (найден в пользовательском каталоге).
     pub removable: bool,
+    /// Является ли плагин образцом для разработчика.
+    pub sample: bool,
 }
 
 /// Перечень отключаемых плагинов из указанных директорий.
@@ -106,6 +108,7 @@ pub fn list_disableable(
                 description: manifest.description.clone(),
                 enabled: !disabled.iter().any(|id| id == &manifest.id),
                 removable,
+                sample: manifest.sample,
             });
         }
     }

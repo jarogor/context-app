@@ -3,54 +3,62 @@ import { describe, expect, it, vi } from 'vitest';
 import ReaderPage from './ReaderPage.svelte';
 
 vi.mock('./reader', () => ({
-  UnsupportedFormatError: class UnsupportedFormatError extends Error {},
-  bookAvailable: vi.fn(async () => true),
-  bookFormat: vi.fn(async () => 'epub'),
-  isSupportedFormat: (format: string) => format === 'epub',
-  loadBookContent: vi.fn(async () => ({
-    title: 'Книга',
-    authors: [],
-    chapters: [{ title: null, html: '<p>Текст</p>' }],
-  })),
-  openBookExternally: vi.fn(),
-  selectWorkplacePlugin: vi.fn(async () => null),
+    UnsupportedFormatError: class UnsupportedFormatError extends Error {},
+    formatFromPath: (path: string) => /\.([a-z0-9]+)$/i.exec(path)?.[1]?.toLowerCase() ?? '',
+    isSupportedFormat: (format: string) => format === 'epub',
+    loadBookContent: vi.fn(async () => ({
+        title: 'Книга',
+        authors: [],
+        chapters: [{ title: null, html: '<p>Текст</p>' }],
+    })),
+    openBookExternally: vi.fn(),
+    selectWorkplacePlugin: vi.fn(async () => null),
 }));
 
 describe('ReaderPage как содержимое вкладки', () => {
-  it('принимает начальные масштаб и позицию вкладки', () => {
-    render(ReaderPage, {
-      props: { bookId: 'book-1', title: 'Книга', initialZoom: 130, initialPosition: 40 },
+    it('принимает начальные масштаб и позицию вкладки', async () => {
+        render(ReaderPage, {
+            props: {
+                path: '/lib/book.epub',
+                title: 'Книга',
+                initialZoom: 130,
+                initialPosition: 40,
+            },
+        });
+
+        expect(await screen.findByTestId('reader-zoom')).toBeTruthy();
+        expect(screen.getByTestId('reader-zoom').textContent).toBe('130%');
+        expect(screen.getByTestId('reader-progress').textContent).toBe('40%');
     });
 
-    expect(screen.getByTestId('reader-zoom').textContent).toBe('130%');
-    expect(screen.getByTestId('reader-progress').textContent).toBe('40%');
-  });
+    it('сообщает наружу изменение масштаба', async () => {
+        const onStateChange = vi.fn();
+        render(ReaderPage, {
+            props: {
+                path: '/lib/book.epub',
+                title: 'Книга',
+                initialZoom: 130,
+                initialPosition: 40,
+                onStateChange,
+            },
+        });
 
-  it('сообщает наружу изменение масштаба', async () => {
-    const onStateChange = vi.fn();
-    render(ReaderPage, {
-      props: {
-        bookId: 'book-1',
-        title: 'Книга',
-        initialZoom: 130,
-        initialPosition: 40,
-        onStateChange,
-      },
+        await fireEvent.click(screen.getByLabelText('Увеличить масштаб'));
+
+        expect(screen.getByTestId('reader-zoom').textContent).toBe('140%');
+        expect(onStateChange).toHaveBeenCalledWith({ zoom: 140, position: 40 });
     });
 
-    await fireEvent.click(screen.getByLabelText('Увеличить масштаб'));
+    it('показывает заглушку недоступной книги и предлагает указать файл', async () => {
+        const reader = await import('./reader');
+        vi.mocked(reader.loadBookContent).mockRejectedValueOnce(new Error('нет файла'));
 
-    expect(screen.getByTestId('reader-zoom').textContent).toBe('140%');
-    expect(onStateChange).toHaveBeenCalledWith({ zoom: 140, position: 40 });
-  });
+        render(ReaderPage, {
+            props: { path: '/lib/gone.epub', title: 'Пропавшая книга', onRepoint: vi.fn() },
+        });
 
-  it('показывает заглушку недоступной книги', async () => {
-    const reader = await import('./reader');
-    vi.mocked(reader.bookAvailable).mockResolvedValueOnce(false);
-
-    render(ReaderPage, { props: { bookId: 'gone', title: 'Пропавшая книга' } });
-
-    expect(await screen.findByTestId('reader-unavailable')).toBeTruthy();
-    expect(screen.getByText('Пропавшая книга')).toBeTruthy();
-  });
+        expect(await screen.findByTestId('reader-unavailable')).toBeTruthy();
+        expect(screen.getByText('Пропавшая книга')).toBeTruthy();
+        expect(screen.getByText('Указать файл')).toBeTruthy();
+    });
 });

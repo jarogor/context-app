@@ -26,6 +26,7 @@ deploy_plugin() {
   local host_functions_json="$7"
   local provides_json="${8:-[]}"
   local settings_json="${9:-}"
+  local sample="${10:-}"
   local base_dir="$RESOURCES_DIR"
   if [ "$kind" = "base" ]; then
     base_dir="$BASE_RESOURCES_DIR"
@@ -36,6 +37,12 @@ deploy_plugin() {
   if [ -n "$settings_json" ]; then
     settings_field=",
   \"settings\": $settings_json"
+  fi
+
+  local sample_field=""
+  if [ "$sample" = "sample" ]; then
+    sample_field=",
+  \"sample\": true"
   fi
 
   mkdir -p "$out_dir"
@@ -52,7 +59,7 @@ deploy_plugin() {
   "export": "$export_fn",
   "host_functions": $host_functions_json,
   "provides": $provides_json,
-  "requires": []$settings_field
+  "requires": []$settings_field$sample_field
 }
 JSON
   echo "собран плагин: $out_dir"
@@ -78,12 +85,16 @@ deploy_plugin "notifications" "313fbeb9-8537-48bc-bb5f-5296e7b1c81e" "base" "Б�
     ]
   }'
 deploy_plugin "settings" "69b39e5d-0c25-4cdb-8c3e-d3ba89147c24" "base" "Базовый плагин настроек приложения и плагинов" "settings.wasm" "invoke" '["state_read", "state_write", "emit_event"]' '["settings.store@1"]'
+deploy_plugin "notes-store" "b1f2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d" "base" "Базовый плагин наборов заметок" "notes_store.wasm" "invoke" '["state_read", "state_write", "emit_event", "now_millis"]' '["notes.store@1"]'
 deploy_plugin "plugin-store" "4c5e7783-1393-404c-8e3f-24df56d6bb18" "base" "Базовый плагин файлового стора плагинов" "plugin_store.wasm" "invoke" '["state_read", "state_write", "emit_event", "import_read_bytes", "store_inspect", "store_install", "store_uninstall", "store_installed", "store_plugins", "store_set_enabled"]' '["plugin-store@1"]'
-deploy_plugin "demo" "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c" "extension" "Демонстрационный плагин: приветствие при старте приложения через host-функцию log" "demo.wasm" "invoke" '["log"]'
 deploy_plugin "library" "a692624f-1fa0-49a2-9015-9cb7361f9d47" "source" "Плагин каталога, импорта и чтения библиотеки" "library.wasm" "invoke" '["fs_list_dir", "fs_read_bytes", "fs_write_bytes", "open_file", "import_read_bytes", "state_read", "state_write", "state_delete", "sql_execute", "sql_query", "emit_event", "notify"]' '["library.catalog@1", "library.files@1"]'
 deploy_plugin "library-calibre" "f7c8b139-887f-4a2f-84e8-fdcc89635a79" "source" "Плагин библиотеки Calibre (раскладка автор/книга)" "library_calibre.wasm" "invoke" '["fs_list_dir", "fs_read_bytes", "open_file", "state_read", "state_write", "state_delete", "sql_execute", "sql_query", "emit_event", "notify"]' '[]'
 
-# Развёртывание статического плагина рабочего места: манифест и модуль рисования.
+# Образцы для разработчика помечаются `sample`, чтобы интерфейс показывал их
+# отдельной группой в конце списка плагинов и они не примешивались к рабочим.
+deploy_plugin "demo" "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c" "extension" "Образец: минимальный extension-плагин с host-функцией log" "demo.wasm" "invoke" '["log"]' '[]' '' 'sample'
+
+# Развёртывание статического образца плагина рабочего места: манифест и модуль рисования.
 deploy_static_plugin() {
   local name="$1"
   local src="$WORKSPACE_DIR/$name"
@@ -91,7 +102,7 @@ deploy_static_plugin() {
   rm -rf "$out_dir"
   mkdir -p "$out_dir"
   cp -R "$src/." "$out_dir/"
-  echo "собран плагин рабочего места: $out_dir"
+  echo "собран образец плагина рабочего места: $out_dir"
 }
 
 deploy_static_plugin "workplace-demo"

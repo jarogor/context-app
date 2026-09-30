@@ -10,6 +10,7 @@ import {
   removeWorkspace,
   renameWorkspace,
   selectWorkspace,
+  serializeRegistry,
   updateActiveWorkspaceTabs,
   updateWorkspaceTabs,
 } from './workspace-registry';
@@ -76,7 +77,7 @@ describe('реестр рабочих мест', () => {
     registry = addWorkspace(registry, 'Второе', 'ws-2', 2);
 
     registry = updateWorkspaceTabs(registry, 'ws-1', (state) =>
-      openBook(state, { bookId: 'book-1', title: 'Книга' }),
+      openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
     );
 
     expect(registry.workspaces[0].tabs).toHaveLength(1);
@@ -86,7 +87,7 @@ describe('реестр рабочих мест', () => {
   it('без активного места создаёт рабочее место по умолчанию при открытии книги', () => {
     const registry = updateActiveWorkspaceTabs(
       emptyRegistry(),
-      (state) => openBook(state, { bookId: 'book-1', title: 'Книга' }),
+      (state) => openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
       true,
     );
 
@@ -98,7 +99,7 @@ describe('реестр рабочих мест', () => {
 
   it('без активного места и без создания ничего не меняет', () => {
     const registry = updateActiveWorkspaceTabs(emptyRegistry(), (state) =>
-      openBook(state, { bookId: 'book-1', title: 'Книга' }),
+      openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
     );
 
     expect(registry).toEqual(emptyRegistry());
@@ -107,7 +108,7 @@ describe('реестр рабочих мест', () => {
   it('возвращает вкладки активного места и пустое состояние без активного', () => {
     let registry = addWorkspace(emptyRegistry(), 'Первое', 'ws-1', 1);
     registry = updateWorkspaceTabs(registry, 'ws-1', (state) =>
-      openBook(state, { bookId: 'book-1', title: 'Книга' }),
+      openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
     );
 
     expect(activeTabsState(registry).tabs).toHaveLength(1);
@@ -120,13 +121,13 @@ describe('реестр рабочих мест', () => {
   it('нормализует реестр из ядра и чинит активное место', () => {
     const registry = normalizeRegistry({
       workspaces: [
-        { id: 'ws-1', name: 'Первое', tabs: [{ id: 't1', book_id: 'book-1', title: 'Книга' }] },
+        { id: 'ws-1', name: 'Первое', tabs: [{ id: 't1', path: '/lib/book-1.epub', title: 'Книга' }] },
       ],
       active_workspace_id: 'missing',
     });
 
     expect(registry.workspaces).toHaveLength(1);
-    expect(registry.workspaces[0].tabs[0].bookId).toBe('book-1');
+    expect(registry.workspaces[0].tabs[0].path).toBe('/lib/book-1.epub');
     expect(registry.workspaces[0].tabs[0].zoom).toBe(100);
     expect(registry.activeWorkspaceId).toBe('ws-1');
   });
@@ -139,5 +140,40 @@ describe('реестр рабочих мест', () => {
     expect(registry.workspaces).toHaveLength(1);
     expect(registry.workspaces[0].id).toBe('ws-2');
     expect(registry.activeWorkspaceId).toBe('ws-2');
+  });
+
+  it('сериализует реестр в контракт ядра (snake_case)', () => {
+    let registry = createWorkspace(emptyRegistry(), 'Исследование');
+    const workspaceId = registry.activeWorkspaceId as string;
+    registry = updateActiveWorkspaceTabs(registry, (state) =>
+      openBook(state, { path: '/lib/book-1.epub', title: 'Книга', format: 'epub' }),
+    );
+
+    const serialized = serializeRegistry(registry) as {
+      active_workspace_id: string;
+      workspaces: Array<Record<string, unknown>>;
+    };
+
+    expect(serialized.active_workspace_id).toBe(workspaceId);
+    const workspace = serialized.workspaces[0];
+    expect(workspace.created_at_millis).toEqual(expect.any(Number));
+    const tabs = workspace.tabs as Array<Record<string, unknown>>;
+    expect(tabs[0].path).toBe('/lib/book-1.epub');
+    expect(tabs[0].activeTabId).toBeUndefined();
+    expect(workspace.active_tab_id).toEqual(expect.any(String));
+    expect(workspace.activeTabId).toBeUndefined();
+  });
+
+  it('сериализованный реестр читается нормализацией без потерь', () => {
+    let registry = addWorkspace(emptyRegistry(), 'Исследование', 'ws-1', 42);
+    registry = updateWorkspaceTabs(registry, 'ws-1', (state) =>
+      openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
+    );
+
+    const roundtrip = normalizeRegistry(serializeRegistry(registry));
+
+    expect(roundtrip.workspaces[0].createdAtMillis).toBe(42);
+    expect(roundtrip.workspaces[0].tabs[0].path).toBe('/lib/book-1.epub');
+    expect(roundtrip.activeWorkspaceId).toBe('ws-1');
   });
 });

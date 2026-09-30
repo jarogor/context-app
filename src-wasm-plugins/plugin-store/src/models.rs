@@ -67,6 +67,9 @@ pub struct PluginEntry {
     pub enabled: bool,
     /// Можно ли удалить плагин.
     pub removable: bool,
+    /// Является ли плагин образцом для разработчика.
+    #[serde(default)]
+    pub sample: bool,
 }
 
 /// Индекс пакетов файлового стора.

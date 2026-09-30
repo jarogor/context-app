@@ -4,7 +4,15 @@
   import PluginFrame from './lib/PluginFrame.svelte';
   import LibrariesPage from './lib/LibrariesPage.svelte';
   import WorkplaceSurface from './lib/WorkplaceSurface.svelte';
-  import { closeTab, duplicateTab, openBook, replaceTabBook, updateTab, activateTab } from './lib/workplace';
+  import {
+    closeTab,
+    duplicateTab,
+    openBook,
+    replaceTabBook,
+    updateTab,
+    activateTab,
+    activeTab,
+  } from './lib/workplace';
   import {
     activeWorkspace,
     createWorkspace,
@@ -13,10 +21,23 @@
     removeWorkspace,
     renameWorkspace,
     selectWorkspace,
+    serializeRegistry,
     updateActiveWorkspaceTabs,
     type WorkspaceRegistry,
   } from './lib/workspace-registry';
-  import { invokeCommand, listenEvent } from './lib/app-bridge';
+  import {
+    addQuote,
+    bookKey,
+    createSet,
+    deleteNote,
+    DEFAULT_SET_NAME,
+    findSet,
+    noteList,
+    type Note,
+  } from './lib/notes';
+  import type { QuoteAnchor } from './lib/reader/anchor';
+  import { formatFromPath } from './lib/reader';
+  import { invokeCommand, listenEvent, openDialog } from './lib/app-bridge';
 
   /** Сообщение frontend-плагина без идентификатора запроса. */
   interface PluginMessage {
@@ -65,6 +86,27 @@
   /** Открыта ли панель списка открытых книг. */
   let booksPanelOpen = $state(false);
 
+  /** Открыта ли панель заметок. */
+  let notesPanelOpen = $state(false);
+
+  /** Номер внешнего изменения заметок из события хранилища. */
+  let notesRevision = $state(0);
+
+  /** Ошибка операций заметок для сообщения в шапке. */
+  let notesError = $state<string | null>(null);
+
+  /** Заметки-цитаты книги активной вкладки. */
+  let notes: Note[] = $state([]);
+
+  /** Идёт ли загрузка заметок книги. */
+  let notesLoading = $state(false);
+
+  /** Идентификатор набора заметок книги. */
+  let notesSetId: string | null = $state(null);
+
+  /** Читалка активной вкладки для перехода к заметке. */
+  let reader: { goto: (note: Note) => void } | undefined = $state();
+
   /** Реестр рабочих мест и активное место. */
   let registry: WorkspaceRegistry = $state(emptyRegistry());
 
@@ -73,6 +115,21 @@
 
   /** Активное рабочее место. */
   const workspace = $derived(activeWorkspace(registry));
+
+  /** Активная вкладка активного рабочего места. */
+  const currentTab = $derived(
+    workspace ? activeTab({ tabs: workspace.tabs, activeTabId: workspace.activeTabId }) : null,
+  );
+
+  /** Ключ книги активной вкладки для заметок.
+   *
+   * Вложение вкладки — путь к файлу, поэтому ключ строится по пути: одна и та
+   * же книга в разных вкладках и рабочих местах делит заметки.
+   */
+  const notesBookKey = $derived.by(() => {
+    const tab = currentTab;
+    return tab ? bookKey(tab.path) : null;
+  });
 
   /** Вкладка, для которой выбирается новая книга (переуказание файла). */
   let repointTabId: string | null = $state(null);
@@ -138,7 +195,7 @@
     if (workspaceOpen) {
       settingsOpen = false;
       librariesOpen = false;
-      workspaceListMode = workspace === null;
+      workspaceListMode = false;
     }
   }
 
@@ -177,6 +234,101 @@
     booksPanelOpen = !booksPanelOpen;
   }
 
+  /** Переключение панели заметок. */
+  function toggleNotesPanel() {
+    notesPanelOpen = !notesPanelOpen;
+    if (notesPanelOpen) {
+      void loadNotes();
+    }
+  }
+
+  /** Элементы списка заметок-цитат для панели. */
+  const noteItems = $derived(noteList(notes));
+
+  /** Набор заметок книги активной вкладки.
+   *
+   * Набор заводится при первой заметке; пока заметок нет, набор может не
+   * существовать.
+   */
+  async function loadNotes() {
+    const key = notesBookKey;
+    if (!key) {
+      notes = [];
+      notesSetId = null;
+      return;
+    }
+    notesLoading = true;
+    try {
+      const set = await findSet(key);
+      notes = set?.notes ?? [];
+      notesSetId = set?.id ?? null;
+      notesError = null;
+    } catch (error) {
+      notesError = String(error);
+    } finally {
+      notesLoading = false;
+    }
+  }
+
+  /** Добавление заметки-цитаты, созданной выделением в книге. */
+  async function addQuoteFromSelection(anchor: QuoteAnchor) {
+    const key = notesBookKey;
+    if (!key) {
+      return;
+    }
+    try {
+      const set = notesSetId
+        ? { id: notesSetId, bookKey: key, name: '', createdAtMillis: 0, notes }
+        : await createSet(key, DEFAULT_SET_NAME);
+      notesSetId = set.id;
+      const updated = await addQuote(key, anchor, set);
+      notes = updated.notes;
+      notesError = null;
+    } catch (error) {
+      notesError = String(error);
+    }
+  }
+
+  /** Удаление заметки-цитаты. */
+  async function removeNote(noteId: string) {
+    const key = notesBookKey;
+    if (!key || !notesSetId) {
+      return;
+    }
+    try {
+      const updated = await deleteNote(key, notesSetId, noteId);
+      notes = updated.notes;
+      notesError = null;
+    } catch (error) {
+      notesError = String(error);
+    }
+  }
+
+  /** Переход чтения к заметке в тексте книги. */
+  function goToNote(note: Note) {
+    reader?.goto(note);
+  }
+
+  /** Загрузка заметок при смене книги активной вкладки. */
+  $effect(() => {
+    const key = notesBookKey;
+    if (!key) {
+      notes = [];
+      notesSetId = null;
+      return;
+    }
+    void loadNotes();
+  });
+
+  /** Перечитывание заметок при внешнем изменении хранилища. */
+  $effect(() => {
+    const marker = notesRevision;
+    if (marker === 0) {
+      return;
+    }
+    void loadNotes();
+  });
+
   /** Возврат к списку рабочих мест. */
   function backToList() {
     workspaceListMode = true;
@@ -214,12 +366,55 @@
     settingsOpen = false;
   }
 
-  /** Просьба переуказать файл недоступной книги вкладки. */
+  /** Переуказание файла недоступной книги вкладки.
+   *
+   * Рабочее место не знает, откуда книга: пользователь выбирает любой файл на
+   * диске, как при добавлении вложения.
+   */
   function requestRepoint(tabId: string) {
     repointTabId = tabId;
-    workspaceOpen = false;
-    librariesOpen = false;
+    void chooseBookFile();
+  }
+
+  /** Выбор файла книги на диске и открытие его вкладкой или переуказание. */
+  async function chooseBookFile() {
+    const selected = await openDialog({
+      multiple: false,
+      directory: false,
+      filters: [
+        { name: 'Книги', extensions: ['epub', 'pdf', 'djvu', 'fb2'] },
+        { name: 'Все файлы', extensions: ['*'] },
+      ],
+    });
+    const chosen = Array.isArray(selected) ? selected[0] : selected;
+    if (typeof chosen !== 'string' || !chosen) {
+      repointTabId = null;
+      return;
+    }
+    const book = {
+      path: chosen,
+      title: fileName(chosen),
+      format: formatFromPath(chosen),
+    };
+    if (repointTabId) {
+      registry = updateActiveWorkspaceTabs(registry, (state) =>
+        replaceTabBook(state, repointTabId as string, book),
+      );
+      repointTabId = null;
+    } else {
+      registry = updateActiveWorkspaceTabs(registry, (state) => openBook(state, book), true);
+    }
+    workspaceOpen = true;
+    workspaceListMode = false;
     settingsOpen = false;
+    librariesOpen = false;
+  }
+
+  /** Человекочитаемое имя книги по последнему сегменту пути. */
+  function fileName(path: string): string {
+    return (
+      path.split(/[\\/]/).filter(Boolean).pop()?.replace(/\.[^.]+$/, '') ?? path
+    );
   }
 
   /** Открытие книги вкладкой рабочего места по сообщению библиотечного плагина. */
@@ -228,16 +423,16 @@
       return;
     }
     const value = message.value as
-      | { bookId?: unknown; title?: unknown; format?: unknown }
+      | { path?: unknown; title?: unknown; format?: unknown }
       | null
       | undefined;
-    if (!value?.bookId) {
+    if (!value?.path) {
       return;
     }
     const book = {
-      bookId: String(value.bookId),
-      title: String(value.title ?? ''),
-      format: value.format ? String(value.format) : '',
+      path: String(value.path),
+      title: String(value.title ?? '') || fileName(String(value.path)),
+      format: value.format ? String(value.format) : formatFromPath(String(value.path)),
     };
     if (repointTabId) {
       registry = updateActiveWorkspaceTabs(registry, (state) =>
@@ -245,11 +440,7 @@
       );
       repointTabId = null;
     } else {
-      registry = updateActiveWorkspaceTabs(
-        registry,
-        (state) => openBook(state, book),
-        true,
-      );
+      registry = updateActiveWorkspaceTabs(registry, (state) => openBook(state, book), true);
     }
     workspaceOpen = true;
     workspaceListMode = false;
@@ -283,6 +474,7 @@
 
   onMount(() => {
     let unlisten: (() => void) | undefined;
+    let unlistenNotes: (() => void) | undefined;
     void (async () => {
       unlisten = await listenEvent('source-catalog-changed', (value) => {
         const payload = value as ActiveLibrary | null;
@@ -292,6 +484,9 @@
           void refreshActiveLibrary();
         }
       });
+      unlistenNotes = await listenEvent('notes:changed', () => {
+        notesRevision += 1;
+      });
       await refreshActiveLibrary();
       try {
         const loaded = await invokeCommand('get_workspaces', {});
@@ -300,13 +495,19 @@
         registry = emptyRegistry();
       } finally {
         registryLoaded = true;
-        workspaceListMode = activeWorkspace(registry) === null;
+        // Список рабочих мест — точка входа: при старте показывается список,
+        // а рабочее место пользователь выбирает сам.
+        workspaceListMode = true;
       }
     })();
     return () => {
       unlisten?.();
+      unlistenNotes?.();
     };
   });
+
+  /** Сообщение об ошибке загрузки или сохранения реестра. */
+  let registryError = $state<string | null>(null);
 
   /** Сохранение реестра рабочих мест с небольшой задержкой. */
   $effect(() => {
@@ -315,10 +516,20 @@
       return;
     }
     const timer = setTimeout(() => {
-      void invokeCommand('save_workspaces', { workspaces: snapshot });
+      void saveRegistry(snapshot);
     }, 300);
     return () => clearTimeout(timer);
   });
+
+  /** Сохранение снимка реестра в ядро с сообщением об ошибке. */
+  async function saveRegistry(snapshot: WorkspaceRegistry) {
+    try {
+      await invokeCommand('save_workspaces', { workspaces: serializeRegistry(snapshot) });
+      registryError = null;
+    } catch (error) {
+      registryError = String(error);
+    }
+  }
 </script>
 
 <div class="flex h-full flex-col">
@@ -341,6 +552,22 @@
       <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
     {/if}
     <div class="ml-auto flex items-center gap-[var(--space-2)]">
+      {#if registryError}
+        <span
+          class="whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--color-danger)] px-[var(--space-2)] py-[2px] text-[12px] text-[var(--color-danger)]"
+          title={registryError}
+        >
+          Не удалось сохранить рабочее место
+        </span>
+      {/if}
+      {#if notesError}
+        <span
+          class="whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--color-danger)] px-[var(--space-2)] py-[2px] text-[12px] text-[var(--color-danger)]"
+          title={notesError}
+        >
+          Ошибка заметок
+        </span>
+      {/if}
       {#if activationPending}
         <span
           class="whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--color-warning)] px-[var(--space-2)] py-[2px] text-[12px] text-[var(--color-warning)]"
@@ -448,17 +675,27 @@
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!workspaceOpen}>
         <WorkplaceSurface
+          bind:this={reader}
           workspace={workspace}
           workspaces={registry.workspaces}
           activeWorkspaceId={registry.activeWorkspaceId}
           listMode={workspaceListMode}
           booksOpen={booksPanelOpen}
+          notesOpen={notesPanelOpen}
+          notes={noteItems}
+          notesLoading={notesLoading}
+          hasBook={notesBookKey !== null}
           visible={workspaceOpen}
           onSelectTab={selectTab}
           onCloseTab={removeTab}
           onDuplicateTab={duplicateCurrentTab}
           onAddBook={requestAddBook}
+          onAddFile={chooseBookFile}
           onToggleBooks={toggleBooksPanel}
+          onToggleNotes={toggleNotesPanel}
+          onQuote={addQuoteFromSelection}
+          onDeleteNote={removeNote}
+          onGoToNote={goToNote}
           onTabState={handleTabState}
           onRepointTab={requestRepoint}
           onBackToList={backToList}

@@ -18,7 +18,7 @@ pub(crate) mod warmup;
 pub(crate) mod wasm_cache;
 
 pub use app_host::AppPluginHost;
-pub use app_state::AppState;
+pub use app_state::{AppState, ReaderConfig};
 pub use bus::{get_bus, set_log_level, EventBus, PluginEvent, Severity};
 pub use contract::{
     CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS, CONTRACT_VERSION, EXPORT_FUNCTION,

@@ -1,0 +1,335 @@
+use super::*;
+use std::cell::RefCell;
+
+/// Фейковые host-функции для нативных тестов.
+#[derive(Default)]
+struct FakeHost {
+    /// Служебное состояние плагина.
+    state: RefCell<Option<String>>,
+    /// Опубликованные события.
+    events: RefCell<Vec<(String, String)>>,
+}
+
+impl Host for FakeHost {
+    fn state_read(&self, _key: &str) -> Result<Option<String>, String> {
+        Ok(self.state.borrow().clone())
+    }
+
+    fn state_write(&self, _key: &str, value: &str) -> Result<(), String> {
+        *self.state.borrow_mut() = Some(value.to_string());
+        Ok(())
+    }
+
+    fn emit_event(&self, name: &str, payload: &str) -> Result<(), String> {
+        self.events
+            .borrow_mut()
+            .push((name.to_string(), payload.to_string()));
+        Ok(())
+    }
+
+    fn now_millis(&self) -> i64 {
+        1_000
+    }
+}
+
+/// Запрос по контракту.
+fn request(action: &str, payload: serde_json::Value) -> String {
+    json!({ "action": action, "payload": payload }).to_string()
+}
+
+/// Разбор ответа как JSON.
+fn parse(output: &str) -> serde_json::Value {
+    serde_json::from_str(output).expect("JSON ответа")
+}
+
+/// Создание набора для книги и возврат его идентификатора.
+fn create(host: &FakeHost, book_key: &str, name: &str) -> String {
+    let output = handle(
+        host,
+        &request("create_set", json!({ "book_key": book_key, "name": name })),
+    )
+    .expect("создание набора");
+    parse(&output)["set"]["id"]
+        .as_str()
+        .expect("идентификатор")
+        .to_string()
+}
+
+#[test]
+fn unknown_action_is_rejected() {
+    let host = FakeHost::default();
+    assert!(handle(&host, &request("unknown", json!({}))).is_err());
+}
+
+#[test]
+fn malformed_request_is_rejected() {
+    let host = FakeHost::default();
+    assert!(handle(&host, "не JSON").is_err());
+}
+
+#[test]
+fn create_set_returns_new_set_and_emits_event() {
+    let host = FakeHost::default();
+    let output = handle(
+        &host,
+        &request(
+            "create_set",
+            json!({ "book_key": "lib/a", "name": "Мой набор" }),
+        ),
+    )
+    .expect("создание");
+    let parsed = parse(&output);
+    assert_eq!(parsed["set"]["name"], "Мой набор");
+    assert_eq!(parsed["set"]["book_key"], "lib/a");
+    assert!(parsed["set"]["notes"]
+        .as_array()
+        .expect("заметки")
+        .is_empty());
+    assert!(
+        parsed["set"]["id"]
+            .as_str()
+            .expect("идентификатор")
+            .starts_with("ns-"),
+        "новый идентификатор набора"
+    );
+
+    let events = host.events.borrow();
+    assert_eq!(events.len(), 1, "событие опубликовано");
+    assert_eq!(events[0].0, "notes:changed");
+    let event = parse(&events[0].1);
+    assert_eq!(event["book_key"], "lib/a");
+    let event_set_id = event["set_id"].as_str().expect("идентификатор в событии");
+    assert_eq!(
+        event_set_id,
+        parsed["set"]["id"].as_str().expect("идентификатор")
+    );
+}
+
+#[test]
+fn create_set_rejects_empty_name() {
+    let host = FakeHost::default();
+    let result = handle(
+        &host,
+        &request("create_set", json!({ "book_key": "lib/a", "name": "   " })),
+    );
+    assert!(result.is_err());
+    let listed =
+        handle(&host, &request("list_sets", json!({ "book_key": "lib/a" }))).expect("список");
+    assert!(parse(&listed)["sets"]
+        .as_array()
+        .expect("наборы")
+        .is_empty());
+}
+
+#[test]
+fn list_sets_is_scoped_to_book() {
+    let host = FakeHost::default();
+    let first = create(&host, "lib/a", "A");
+    let _ = create(&host, "lib/b", "B");
+
+    let listed =
+        handle(&host, &request("list_sets", json!({ "book_key": "lib/a" }))).expect("список");
+    let sets = parse(&listed)["sets"].as_array().expect("наборы").clone();
+    assert_eq!(sets.len(), 1);
+    assert_eq!(sets[0]["id"], first);
+    assert_eq!(sets[0]["note_count"], 0);
+}
+
+#[test]
+fn get_set_returns_full_set_and_rejects_unknown() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "lib/a", "A");
+    handle(
+        &host,
+        &request(
+            "add_note",
+            json!({
+                "set_id": set_id,
+                "note": { "anchor": "cfi", "text": "мысль" }
+            }),
+        ),
+    )
+    .expect("заметка");
+
+    let output = handle(&host, &request("get_set", json!({ "set_id": set_id }))).expect("набор");
+    let set = &parse(&output)["set"];
+    assert_eq!(set["id"], set_id.as_str());
+    assert_eq!(set["notes"].as_array().expect("заметки").len(), 1);
+
+    assert!(handle(
+        &host,
+        &request("get_set", json!({ "set_id": "ns-missing" }))
+    )
+    .is_err());
+}
+
+#[test]
+fn rename_and_delete_set() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "lib/a", "A");
+
+    let renamed = handle(
+        &host,
+        &request("rename_set", json!({ "set_id": set_id, "name": "B" })),
+    )
+    .expect("переименование");
+    assert_eq!(parse(&renamed)["set"]["name"], "B");
+    assert!(handle(
+        &host,
+        &request("rename_set", json!({ "set_id": set_id, "name": " " }))
+    )
+    .is_err());
+    assert!(handle(
+        &host,
+        &request("rename_set", json!({ "set_id": "ns-missing", "name": "C" }))
+    )
+    .is_err());
+
+    handle(&host, &request("delete_set", json!({ "set_id": set_id }))).expect("удаление");
+    let listed =
+        handle(&host, &request("list_sets", json!({ "book_key": "lib/a" }))).expect("список");
+    assert!(parse(&listed)["sets"]
+        .as_array()
+        .expect("наборы")
+        .is_empty());
+}
+
+#[test]
+fn add_note_returns_anchor_and_metadata() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "lib/a", "A");
+    let output = handle(
+        &host,
+        &request(
+            "add_note",
+            json!({
+                "set_id": set_id,
+                "note": {
+                    "anchor": "epubcfi(/6/4)",
+                    "quote": "цитата",
+                    "chapter": "Глава 1",
+                    "percent": 7.5,
+                    "text": "мысль"
+                }
+            }),
+        ),
+    )
+    .expect("заметка");
+    let note = &parse(&output)["note"];
+    assert_eq!(note["anchor"], "epubcfi(/6/4)");
+    assert_eq!(note["quote"], "цитата");
+    assert_eq!(note["chapter"], "Глава 1");
+    assert_eq!(note["percent"], 7.5);
+    assert_eq!(note["text"], "мысль");
+    assert!(
+        note["id"]
+            .as_str()
+            .expect("идентификатор")
+            .starts_with("note-"),
+        "новый идентификатор заметки"
+    );
+    assert_eq!(note["created_at_millis"], 1_000);
+
+    let events = host.events.borrow();
+    assert_eq!(events.len(), 2, "создание набора и добавление заметки");
+    assert_eq!(events[1].0, "notes:changed");
+}
+
+#[test]
+fn update_and_delete_note() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "lib/a", "A");
+    let added = handle(
+        &host,
+        &request(
+            "add_note",
+            json!({ "set_id": set_id, "note": { "text": "старый", "quote": "ц" } }),
+        ),
+    )
+    .expect("заметка");
+    let note_id = parse(&added)["note"]["id"]
+        .as_str()
+        .expect("идентификатор")
+        .to_string();
+
+    let updated = handle(
+        &host,
+        &request(
+            "update_note",
+            json!({
+                "set_id": set_id,
+                "note_id": note_id,
+                "patch": { "text": "новый" }
+            }),
+        ),
+    )
+    .expect("изменение");
+    assert_eq!(parse(&updated)["note"]["text"], "новый");
+    assert_eq!(
+        parse(&updated)["note"]["quote"],
+        "ц",
+        "непереданное поле сохранено"
+    );
+
+    handle(
+        &host,
+        &request(
+            "delete_note",
+            json!({ "set_id": set_id, "note_id": note_id }),
+        ),
+    )
+    .expect("удаление");
+    let got = handle(&host, &request("get_set", json!({ "set_id": set_id }))).expect("набор");
+    assert!(parse(&got)["set"]["notes"]
+        .as_array()
+        .expect("заметки")
+        .is_empty());
+}
+
+#[test]
+fn note_operations_reject_unknown_set() {
+    let host = FakeHost::default();
+    assert!(handle(
+        &host,
+        &request(
+            "add_note",
+            json!({ "set_id": "ns-x", "note": { "text": "т" } })
+        )
+    )
+    .is_err());
+    assert!(handle(
+        &host,
+        &request(
+            "update_note",
+            json!({ "set_id": "ns-x", "note_id": "note-1", "patch": { "text": "т" } })
+        )
+    )
+    .is_err());
+    assert!(handle(
+        &host,
+        &request(
+            "delete_note",
+            json!({ "set_id": "ns-x", "note_id": "note-1" })
+        )
+    )
+    .is_err());
+}
+
+#[test]
+fn state_survives_reload() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "lib/a", "A");
+    handle(
+        &host,
+        &request(
+            "add_note",
+            json!({ "set_id": set_id, "note": { "anchor": "cfi", "text": "заметка" } }),
+        ),
+    )
+    .expect("заметка");
+
+    let stored = host.state.borrow().clone().expect("состояние записано");
+    let state: NotesState = serde_json::from_str(&stored).expect("состояние парсится");
+    assert_eq!(state.sets().len(), 1);
+    assert_eq!(state.find(&set_id).expect("набор").notes.len(), 1);
+}

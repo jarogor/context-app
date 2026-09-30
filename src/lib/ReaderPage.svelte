@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { Button, Progress, Spinner } from '@texture/ui';
+  import BookReader from './BookReader.svelte';
   import WorkplaceContent from './WorkplaceContent.svelte';
   import {
     UnsupportedFormatError,
-    bookAvailable,
-    bookFormat,
+    formatFromPath,
     isSupportedFormat,
     loadBookContent,
     openBookExternally,
@@ -13,10 +13,12 @@
     type BookContent,
     type WorkplaceSelection,
   } from './reader';
+  import type { Note } from './notes';
+  import type { QuoteAnchor } from './reader/anchor';
 
   interface Props {
-    /** Идентификатор открытой книги. */
-    bookId: string;
+    /** Путь к файлу открытой книги (вложение вкладки). */
+    path: string;
     /** Название открытой книги. */
     title: string;
     /** Начальный масштаб чтения в процентах. */
@@ -25,24 +27,27 @@
     initialPosition?: number;
     /** Видима ли поверхность рабочего места. */
     visible?: boolean;
+    /** Заметки-цитаты книги для подсветки. */
+    notes?: Note[];
     /** Сообщение об изменении состояния чтения вкладки. */
     onStateChange?: (state: { zoom: number; position: number }) => void;
-    /** Книга недоступна: её нет в каталоге или не удалось загрузить. */
-    onUnavailable?: () => void;
-    /** Просьба переуказать файл недоступной книги. */
+    /** Выделение пользователя, ставшее цитатой. */
+    onQuote?: (anchor: QuoteAnchor) => void;
+    /** Просьба указать файл недоступной книги. */
     onRepoint?: () => void;
     /** Убрать вкладку. */
     onRemove?: () => void;
   }
 
   let {
-    bookId,
+    path,
     title,
     initialZoom = 100,
     initialPosition = 0,
     visible = true,
+    notes = [],
     onStateChange,
-    onUnavailable,
+    onQuote,
     onRepoint,
     onRemove,
   }: Props = $props();
@@ -61,84 +66,29 @@
   let error: string | null = $state(null);
   /** Формат не поддерживается встроенным чтением. */
   let unsupported = $state(false);
-  /** Книга недоступна. */
+  /** Книга недоступна: файл не читается или не найден. */
   let unavailable = $state(false);
   /** Масштаб текста в процентах (начальное значение берётся один раз). */
   let zoom = $state(untrack(() => initialZoom));
-  /** Начальная позиция чтения, взятая при создании вкладки. */
-  const startPosition = untrack(() => initialPosition);
   /** Прогресс чтения в процентах. */
-  let progress = $state(startPosition);
-  /** Восстановлена ли позиция после перемонтирования вкладки. */
-  let positionReady = $state(false);
+  let progress = $state(untrack(() => initialPosition));
   /** Поддерживает ли плагин рабочего места изменение масштаба. */
   let workplaceZoom = $state(true);
-  /** HTML-документ области отображения. */
-  let documentHtml = $state('');
-  /** Область отображения книги. */
-  let frame: HTMLIFrameElement | undefined = $state();
-
-  /** Канал сообщений между областью отображения и рабочей страницей. */
-  const READER_CHANNEL = 'texture-reader';
+  /** Читалка текстовой книги для перехода к заметке. */
+  let reader: { goto: (note: Note) => void } | undefined = $state();
 
   /** Сообщение об изменении состояния чтения вкладки. */
   function reportState() {
     onStateChange?.({ zoom, position: progress });
   }
 
-  /** Сборка документа отображения из глав книги.
+  /** Загрузка содержимого книги.
    *
-   * Начальные масштаб и позиция встраиваются в документ, потому что он
-   * собирается один раз при загрузке; дальнейшая смена масштаба приходит
-   * сообщением. Скрипт документа сообщает позицию прокрутки родителю.
+   * Рабочее место не знает, откуда книга: файл читается ядром по пути. Если
+   * файл не найден или не читается, вкладка предлагает указать файл заново, а
+   * не завершает работу.
    */
-  function buildDocument(value: BookContent, startZoom: number, startPosition: number): string {
-    const body = value.chapters.map((chapter) => chapter.html).join('\n');
-    const style = [
-      'html{font-size:100%;}',
-      "body{margin:0 auto;max-width:760px;padding:24px 32px;background:#fff;",
-      "color:#1f2937;font-family:Georgia,'Times New Roman',serif;line-height:1.6;}",
-      'img{max-width:100%;height:auto;}',
-      'h1,h2,h3{line-height:1.25;}',
-      'a{color:#4338ca;}',
-    ].join('');
-    const report = [
-      `const initial={zoom:${startZoom},position:${startPosition}};`,
-      `const root=()=>document.scrollingElement||document.documentElement;`,
-      `const report=()=>{const e=root();const max=e.scrollHeight-e.clientHeight;`,
-      `parent.postMessage({channel:'${READER_CHANNEL}',type:'progress',`,
-      `value:max>0?(e.scrollTop/max)*100:0},'*');};`,
-      `const anchor=()=>{const x=Math.round(innerWidth/2),y=30;try{`,
-      `if(document.caretPositionFromPoint){const p=document.caretPositionFromPoint(x,y);`,
-      `if(p&&p.offsetNode){const r=document.createRange();r.setStart(p.offsetNode,p.offset);`,
-      `r.collapse(true);return{node:p.offsetNode,offset:p.offset,top:r.getBoundingClientRect().top};}}`,
-      `if(document.caretRangeFromPoint){const cr=document.caretRangeFromPoint(x,y);`,
-      `if(cr){const r=document.createRange();r.setStart(cr.startContainer,cr.startOffset);`,
-      `r.collapse(true);return{node:cr.startContainer,offset:cr.startOffset,top:r.getBoundingClientRect().top};}}`,
-      `}catch(e){}return null;};`,
-      `const restore=(a)=>{if(!a)return;try{const r=document.createRange();`,
-      `r.setStart(a.node,a.offset);r.collapse(true);`,
-      `const delta=r.getBoundingClientRect().top-a.top;`,
-      `if(delta){root().scrollTop+=delta;}}catch(e){}};`,
-      `addEventListener('scroll',report,{passive:true});`,
-      `addEventListener('resize',report);`,
-      `addEventListener('message',event=>{const m=event.data;`,
-      `if(m&&m.channel==='${READER_CHANNEL}'&&m.type==='zoom'){`,
-      `const a=anchor();document.documentElement.style.fontSize=m.value+'%';`,
-      `restore(a);report();}`,
-      `else if(m&&m.channel==='${READER_CHANNEL}'&&m.type==='position'){`,
-      `const e=root();const mx=e.scrollHeight-e.clientHeight;`,
-      `if(mx>0){e.scrollTop=mx*(m.value/100);}report();}});`,
-      `document.documentElement.style.fontSize=initial.zoom+'%';`,
-      `const start=root();const max=start.scrollHeight-start.clientHeight;`,
-      `if(max>0&&initial.position>0){start.scrollTop=max*initial.position/100;}`,
-      `report();`,
-    ].join('');
-    return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}<script>${report}<\/script></body></html>`;
-  }
-
-  /** Загрузка содержимого книги. */
-  async function load(id: string) {
+  async function load(value: string) {
     loading = true;
     error = null;
     unsupported = false;
@@ -146,19 +96,15 @@
     content = null;
     workplace = null;
     try {
-      const available = await bookAvailable(id).catch(() => true);
-      if (!available) {
-        unavailable = true;
-        onUnavailable?.();
+      const format = formatFromPath(value);
+      if (!format) {
+        unsupported = true;
         return;
       }
-      const format = await bookFormat(id);
       if (isSupportedFormat(format)) {
-        const value = await loadBookContent(id);
-        content = value;
-        documentHtml = buildDocument(value, zoom, progress);
+        content = await loadBookContent(value);
       } else {
-        const selection = await selectWorkplacePlugin(id);
+        const selection = await selectWorkplacePlugin(value);
         if (selection) {
           workplace = selection;
         } else {
@@ -169,6 +115,7 @@
       if (e instanceof UnsupportedFormatError) {
         unsupported = true;
       } else {
+        unavailable = true;
         error = String(e);
       }
     } finally {
@@ -182,53 +129,27 @@
     reportState();
   }
 
-  /** Обработка сообщений области отображения: прогресс чтения. */
-  function handleReaderMessage(event: MessageEvent) {
-    if (event.source !== frame?.contentWindow) {
-      return;
-    }
-    const message = event.data as
-      | { channel?: string; type?: string; value?: unknown }
-      | null
-      | undefined;
-    if (!message || message.channel !== READER_CHANNEL) {
-      return;
-    }
-    if (message.type === 'progress' && typeof message.value === 'number') {
-      if (!visible || (content && !positionReady)) {
-        return;
-      }
-      progress = Math.max(0, Math.min(100, message.value));
-      reportState();
-    }
-  }
-
   /** Открытие файла книги в системном приложении. */
   async function openInSystem() {
     error = null;
     try {
-      await openBookExternally(bookId);
+      await openBookExternally(path);
     } catch (e) {
       error = String(e);
     }
   }
 
   onMount(() => {
-    void load(bookId);
-    window.addEventListener('message', handleReaderMessage);
-    return () => {
-      window.removeEventListener('message', handleReaderMessage);
-    };
+    void load(path);
   });
 
-  /** Передача текущего масштаба области отображения. */
-  $effect(() => {
-    const value = zoom;
-    if (!content || !frame) {
-      return;
-    }
-    frame.contentWindow?.postMessage({ channel: READER_CHANNEL, type: 'zoom', value }, '*');
-  });
+  /** Переход к месту заметки в тексте книги.
+   *
+   * Используется панелью заметок: чтение возвращается к выделению заметки.
+   */
+  export function goto(note: Note) {
+    reader?.goto(note);
+  }
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
@@ -245,11 +166,11 @@
       >
         <p class="mb-[var(--space-2)] font-semibold">{title}</p>
         <p class="mb-[var(--space-4)] text-[var(--color-text-muted)]">
-          Книга недоступна: возможно, файл перемещён или библиотека не открыта.
+          Книга недоступна: возможно, файл перемещён или переименован.
         </p>
         <div class="flex flex-wrap justify-center gap-[var(--space-2)]">
           {#if onRepoint}
-            <Button variant="primary" onclick={onRepoint}>Переуказать файл</Button>
+            <Button variant="primary" onclick={onRepoint}>Указать файл</Button>
           {/if}
           {#if onRemove}
             <Button variant="ghost" onclick={onRemove}>Убрать вкладку</Button>
@@ -275,7 +196,7 @@
     {:else if workplace}
       <WorkplaceContent
         pluginId={workplace.pluginId}
-        {bookId}
+        {path}
         {title}
         {zoom}
         onCapabilities={(value) => (workplaceZoom = value.zoom !== false)}
@@ -286,24 +207,19 @@
         onError={(value) => (error = value)}
       />
     {:else if content}
-      <iframe
-        bind:this={frame}
-        class="h-full w-full border-0 bg-white"
-        title="Чтение книги"
-        sandbox="allow-scripts"
-        srcdoc={documentHtml}
-        onload={() => {
-          frame?.contentWindow?.postMessage(
-            { channel: READER_CHANNEL, type: 'zoom', value: zoom },
-            '*',
-          );
-          frame?.contentWindow?.postMessage(
-            { channel: READER_CHANNEL, type: 'position', value: startPosition },
-            '*',
-          );
-          positionReady = true;
+      <BookReader
+        bind:this={reader}
+        {content}
+        {zoom}
+        {initialPosition}
+        {notes}
+        {visible}
+        onQuote={(anchor) => onQuote?.(anchor)}
+        onProgress={(value) => {
+          progress = value;
+          reportState();
         }}
-      ></iframe>
+      />
     {/if}
   </div>
 

@@ -2,9 +2,12 @@
   import ReaderPage from './ReaderPage.svelte';
   import WorkplaceTabs from './WorkplaceTabs.svelte';
   import OpenBooksPanel from './OpenBooksPanel.svelte';
+  import NotesPanel from './NotesPanel.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
   import { activeTab } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
+  import type { Note, NoteListItem } from './notes';
+  import type { QuoteAnchor } from './reader/anchor';
 
   interface Props {
     /** Активное рабочее место или null, когда его нет. */
@@ -17,6 +20,14 @@
     listMode: boolean;
     /** Открыта ли панель списка открытых книг. */
     booksOpen: boolean;
+    /** Открыта ли панель заметок. */
+    notesOpen: boolean;
+    /** Элементы списка заметок книги активной вкладки. */
+    notes: NoteListItem[];
+    /** Загружаются ли заметки книги. */
+    notesLoading: boolean;
+    /** Есть ли активная книга. */
+    hasBook: boolean;
     /** Видима ли поверхность рабочего места. */
     visible: boolean;
     /** Выбор вкладки. */
@@ -27,8 +38,18 @@
     onDuplicateTab: (id: string) => void;
     /** Добавление книги. */
     onAddBook: () => void;
+    /** Добавление книги из файла. */
+    onAddFile: () => void;
     /** Переключение панели открытых книг. */
     onToggleBooks: () => void;
+    /** Переключение панели заметок. */
+    onToggleNotes: () => void;
+    /** Создание заметки-цитаты выделением в книге. */
+    onQuote: (anchor: QuoteAnchor) => void;
+    /** Удаление заметки. */
+    onDeleteNote: (noteId: string) => void;
+    /** Переход к заметке в тексте книги. */
+    onGoToNote: (note: Note) => void;
     /** Изменение состояния чтения вкладки. */
     onTabState: (id: string, state: { zoom: number; position: number }) => void;
     /** Просьба переуказать файл недоступной книги вкладки. */
@@ -51,12 +72,21 @@
     activeWorkspaceId,
     listMode,
     booksOpen,
+    notesOpen,
+    notes,
+    notesLoading,
+    hasBook,
     visible,
     onSelectTab,
     onCloseTab,
     onDuplicateTab,
     onAddBook,
+    onAddFile,
     onToggleBooks,
+    onToggleNotes,
+    onQuote,
+    onDeleteNote,
+    onGoToNote,
     onTabState,
     onRepointTab,
     onBackToList,
@@ -69,6 +99,20 @@
   const tab = $derived(
     workspace ? activeTab({ tabs: workspace.tabs, activeTabId: workspace.activeTabId }) : null,
   );
+
+  /** Элементы списка заметок книги активной вкладки. */
+  const tabItems = $derived(tab ? notes : []);
+
+  /** Заметки книги активной вкладки для подсветки. */
+  const tabNotes = $derived(tabItems.map((item) => item.note));
+
+  /** Читалка активной вкладки для перехода к заметке. */
+  let reader: { goto: (note: Note) => void } | undefined = $state();
+
+  /** Переход к заметке в читалке активной вкладки. */
+  export function goto(note: Note) {
+    reader?.goto(note);
+  }
 </script>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-surface">
@@ -87,24 +131,30 @@
       activeTabId={workspace.activeTabId}
       workspaceName={workspace.name}
       {booksOpen}
+      {notesOpen}
       onSelect={onSelectTab}
       onClose={onCloseTab}
       onDuplicate={onDuplicateTab}
       onAdd={onAddBook}
+      onAddFile={onAddFile}
       onToggleBooks={onToggleBooks}
+      onToggleNotes={onToggleNotes}
       onBackToList={onBackToList}
     />
     <div class="flex min-h-0 flex-1">
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         {#if tab}
-          {#key `${tab.id}:${tab.bookId}`}
+          {#key `${tab.id}:${tab.path}`}
             <ReaderPage
-              bookId={tab.bookId}
+              bind:this={reader}
+              path={tab.path}
               title={tab.title}
               initialZoom={tab.zoom}
               initialPosition={tab.position}
+              notes={tabNotes}
               {visible}
               onStateChange={(state) => onTabState(tab.id, state)}
+              onQuote={onQuote}
               onRepoint={() => onRepointTab(tab.id)}
               onRemove={() => onCloseTab(tab.id)}
             />
@@ -119,6 +169,15 @@
           </div>
         {/if}
       </div>
+      {#if notesOpen}
+        <NotesPanel
+          items={tabItems}
+          loading={notesLoading}
+          {hasBook}
+          onGoToNote={onGoToNote}
+          onDeleteNote={onDeleteNote}
+        />
+      {/if}
       {#if booksOpen}
         <OpenBooksPanel
           tabs={workspace.tabs}

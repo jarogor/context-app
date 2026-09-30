@@ -52,8 +52,8 @@ export function operation<T = unknown>(action: string, payload: unknown = {}): P
   });
 }
 
-/** Просьба оболочке открыть книгу вкладкой рабочего места. */
-export function openInWorkplace(value: { bookId: string; title: string; format: string }): void {
+/** Просьба оболочке открыть книгу вкладкой рабочего места по её файлу. */
+export function openInWorkplace(value: { path: string; title: string; format: string }): void {
   window.parent.postMessage(
     { channel: 'texture-plugin', type: 'workspace:open-book', value },
     '*',

@@ -391,3 +391,82 @@ fn log_level_reads_setting_and_applies() {
     crate::plugin::set_log_level(Severity::Info);
     cleanup(&storage);
 }
+
+/// Проверка сквозного сценария заметок: создание набора и заметки и сохранение
+/// их между перезапусками runtime, а также безвредный отказ без плагина.
+#[test]
+fn notes_registry_survives_restart() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-notes-restart");
+
+    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
+        .expect("первый запуск");
+    let created = host
+        .invoke_capability(
+            crate::plugin::contract::CAPABILITY_NOTES,
+            "create_set",
+            serde_json::json!({ "book_key": "lib/a", "name": "Мой набор" }),
+        )
+        .expect("создание набора");
+    let created: serde_json::Value = serde_json::from_str(&created).expect("JSON набора");
+    let set_id = created["set"]["id"]
+        .as_str()
+        .expect("идентификатор набора")
+        .to_string();
+
+    host.invoke_capability(
+        crate::plugin::contract::CAPABILITY_NOTES,
+        "add_note",
+        serde_json::json!({
+            "set_id": set_id,
+            "note": { "anchor": "epubcfi(/6/4)", "text": "мысль" }
+        }),
+    )
+    .expect("добавление заметки");
+
+    let mut restarted =
+        AppPluginHost::load(&[bundled], storage.join("storage")).expect("второй запуск");
+    let output = restarted
+        .invoke_capability(
+            crate::plugin::contract::CAPABILITY_NOTES,
+            "get_set",
+            serde_json::json!({ "set_id": set_id }),
+        )
+        .expect("набор после перезапуска");
+    let output: serde_json::Value = serde_json::from_str(&output).expect("JSON набора");
+    assert_eq!(output["set"]["notes"][0]["text"], "мысль");
+    assert_eq!(output["set"]["notes"][0]["anchor"], "epubcfi(/6/4)");
+    cleanup(&storage);
+}
+
+/// Отсутствие плагина заметок даёт безвредный отказ маршрутизации.
+#[test]
+fn notes_capability_missing_provider_is_safe() {
+    let dir = setup_plugin(
+        "demo",
+        r#"{
+        "contract_version": 1,
+        "kind": "base",
+        "id": "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c",
+        "name": "demo",
+        "description": "Без заметок",
+        "module": "plugin.wasm",
+        "export": "invoke",
+        "host_functions": []
+      }"#,
+    );
+    let mut host =
+        AppPluginHost::load(std::slice::from_ref(&dir), dir.join("storage")).expect("загрузка");
+    let result = host.invoke_capability(
+        crate::plugin::contract::CAPABILITY_NOTES,
+        "list_sets",
+        serde_json::json!({ "book_key": "lib/a" }),
+    );
+    assert!(
+        result.is_err(),
+        "без провайдера операция отклоняется безвредно"
+    );
+    cleanup(&dir);
+}

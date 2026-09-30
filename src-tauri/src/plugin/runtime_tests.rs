@@ -27,8 +27,6 @@ const PROVIDER_ID: &str = "aaaaaaaa-0000-4000-8000-000000000002";
 const NOTIFICATIONS_ID: &str = "313fbeb9-8537-48bc-bb5f-5296e7b1c81e";
 /// Идентификатор тестового base-плагина.
 const BASE_ID: &str = "aaaaaaaa-0000-4000-8000-000000000007";
-/// Идентификатор поставляемого demo-плагина.
-const DEMO_ID: &str = "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c";
 
 /// Манифест плагина-расширения под контракт v3.
 const MANIFEST_JSON: &str = r#"{
@@ -177,41 +175,6 @@ fn storage_accepts_only_single_file_keys() {
     assert!(resolve_storage_key(&storage, "/tmp/state.json").is_err());
 
     cleanup(&root);
-}
-
-#[test]
-fn loads_and_invokes_bundled_demo() {
-    let root = test_util::test_root("plugin-runtime-demo");
-    let plugin_dir = root.join("demo");
-    fs::create_dir_all(&plugin_dir).expect("создание директории плагина");
-    let resources = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join("plugins")
-        .join("demo");
-    for file in ["plugin-manifest.json", "demo.wasm"] {
-        fs::copy(resources.join(file), plugin_dir.join(file)).expect("копирование ресурса");
-    }
-
-    let root_copy = root.clone();
-    let mut runtime = PluginRuntime::load(&[root], root_copy.clone()).expect("загрузка runtime");
-    assert_eq!(runtime.plugin_names(), vec!["demo"], "demo-плагин загружен");
-
-    let output = runtime
-        .invoke(DEMO_ID, r#"{"title":"Тест"}"#)
-        .expect("вызов demo-плагина");
-    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON-ответ");
-    let greeting = parsed["greeting"].as_str().expect("поле greeting");
-    assert!(greeting.contains("Тест"), "ответ содержит переданное имя");
-
-    let events = crate::plugin::get_bus().drain();
-    assert!(
-        events
-            .iter()
-            .any(|event| event.message.contains("Тест") && event.level == "technical"),
-        "host-функция log опубликовала техническое событие"
-    );
-
-    cleanup(&root_copy);
 }
 
 /// Манифест плагина, предоставляющего capability.
@@ -942,32 +905,4 @@ fn workplace_plugin_is_not_selected_for_unknown_format() {
     let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
     assert_eq!(runtime.workplace_plugin_for_format("epub"), None);
     cleanup(&root);
-}
-
-/// Идентификатор примера плагина рабочего места.
-const EXAMPLE_WORKPLACE_ID: &str = "c1a7e0d4-2b3f-4c5a-9d6e-7f8a9b0c1d2e";
-
-#[test]
-fn loads_example_workplace_plugin_from_source() {
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("корень проекта")
-        .join("src-wasm-plugins");
-    let runtime =
-        PluginRuntime::load(std::slice::from_ref(&dir), dir.clone()).expect("загрузка примера");
-    assert!(
-        runtime.workplace_formats().contains(&"demo".to_string()),
-        "пример объявляет формат demo"
-    );
-    assert_eq!(
-        runtime.workplace_plugin_for_format("demo").as_deref(),
-        Some(EXAMPLE_WORKPLACE_ID)
-    );
-    assert!(
-        runtime
-            .viewer_path(EXAMPLE_WORKPLACE_ID)
-            .expect("путь модуля рисования")
-            .is_file(),
-        "модуль рисования примера доступен"
-    );
 }

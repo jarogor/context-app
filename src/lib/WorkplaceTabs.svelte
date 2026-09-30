@@ -11,6 +11,8 @@
     workspaceName: string;
     /** Открыта ли панель списка открытых книг. */
     booksOpen: boolean;
+    /** Открыта ли панель заметок. */
+    notesOpen: boolean;
     /** Выбор вкладки. */
     onSelect: (id: string) => void;
     /** Закрытие вкладки. */
@@ -19,8 +21,12 @@
     onDuplicate: (id: string) => void;
     /** Добавление книги (переход в библиотеку). */
     onAdd: () => void;
+    /** Открытие книги с диска как произвольного файла. */
+    onAddFile: () => void;
     /** Переключение панели открытых книг. */
     onToggleBooks: () => void;
+    /** Переключение панели заметок. */
+    onToggleNotes: () => void;
     /** Возврат к списку рабочих мест. */
     onBackToList: () => void;
   }
@@ -30,11 +36,14 @@
     activeTabId,
     workspaceName,
     booksOpen,
+    notesOpen,
     onSelect,
     onClose,
     onDuplicate,
     onAdd,
+    onAddFile,
     onToggleBooks,
+    onToggleNotes,
     onBackToList,
   }: Props = $props();
 </script>
@@ -109,7 +118,44 @@
         <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
       </svg>
     </Button>
+    <Button
+      size="icon"
+      variant="ghost"
+      title="Открыть файл с диска"
+      ariaLabel="Открыть файл с диска"
+      onclick={onAddFile}
+    >
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path
+          d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h7A1.5 1.5 0 0 1 19 9v8.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </Button>
   </div>
+  <Button
+    variant={notesOpen ? 'primary' : 'secondary'}
+    size="icon"
+    title="Заметки"
+    ariaLabel="Заметки"
+    ariaPressed={notesOpen}
+    onclick={onToggleNotes}
+  >
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path
+        d="M6 3.5h9.5L20 8v12.5H6Z"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linejoin="round"
+      />
+      <path d="M15.5 3.5V8H20" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="M9 12h7M9 16h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </svg>
+  </Button>
   <Button
     variant={booksOpen ? 'primary' : 'secondary'}
     size="icon"

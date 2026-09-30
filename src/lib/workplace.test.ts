@@ -13,7 +13,7 @@ import {
 
 describe('рабочее место', () => {
   it('открывает книгу новой активной вкладкой', () => {
-    const state = openBook(emptyWorkspace(), { bookId: 'book-1', title: 'Книга' });
+    const state = openBook(emptyWorkspace(), { path: '/lib/book-1.epub', title: 'Книга' });
 
     expect(state.tabs).toHaveLength(1);
     expect(state.tabs[0].zoom).toBe(100);
@@ -22,8 +22,8 @@ describe('рабочее место', () => {
   });
 
   it('переводит активность соседней вкладке при закрытии активной', () => {
-    let state = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
-    state = openBook(state, { bookId: 'b', title: 'B' });
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    state = openBook(state, { path: '/lib/b.epub', title: 'B' });
     const first = state.tabs[0].id;
 
     state = closeTab(state, state.activeTabId ?? '');
@@ -33,8 +33,8 @@ describe('рабочее место', () => {
   });
 
   it('сохраняет активность при закрытии неактивной вкладки', () => {
-    let state = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
-    state = openBook(state, { bookId: 'b', title: 'B' });
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    state = openBook(state, { path: '/lib/b.epub', title: 'B' });
     const active = state.activeTabId;
 
     state = closeTab(state, state.tabs[0].id);
@@ -43,7 +43,7 @@ describe('рабочее место', () => {
   });
 
   it('очищает активную вкладку при закрытии последней', () => {
-    let state = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
 
     state = closeTab(state, state.tabs[0].id);
 
@@ -53,20 +53,20 @@ describe('рабочее место', () => {
   });
 
   it('дублирует вкладку независимым экземпляром', () => {
-    let state = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
     state = updateTab(state, state.activeTabId ?? '', { zoom: 140, position: 30 });
 
     state = duplicateTab(state, state.tabs[0].id);
 
     expect(state.tabs).toHaveLength(2);
     expect(state.tabs[1].id).not.toBe(state.tabs[0].id);
-    expect(state.tabs[1].bookId).toBe('a');
+    expect(state.tabs[1].path).toBe('/lib/a.epub');
     expect(state.tabs[1].zoom).toBe(140);
     expect(state.activeTabId).toBe(state.tabs[1].id);
   });
 
   it('обновляет только указанные поля вкладки', () => {
-    let state = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
     const id = state.activeTabId ?? '';
 
     state = updateTab(state, id, { position: 55 });
@@ -76,13 +76,13 @@ describe('рабочее место', () => {
   });
 
   it('заменяет книгу вкладки, сохраняя состояние чтения', () => {
-    let state = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
     const id = state.activeTabId ?? '';
     state = updateTab(state, id, { zoom: 130, position: 20 });
 
-    state = replaceTabBook(state, id, { bookId: 'b', title: 'B', format: 'pdf' });
+    state = replaceTabBook(state, id, { path: '/lib/b.epub', title: 'B', format: 'pdf' });
 
-    expect(state.tabs[0].bookId).toBe('b');
+    expect(state.tabs[0].path).toBe('/lib/b.epub');
     expect(state.tabs[0].title).toBe('B');
     expect(state.tabs[0].format).toBe('pdf');
     expect(state.tabs[0].zoom).toBe(130);
@@ -90,8 +90,8 @@ describe('рабочее место', () => {
   });
 
   it('активирует существующую вкладку и игнорирует неизвестную', () => {
-    let state = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
-    state = openBook(state, { bookId: 'b', title: 'B' });
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    state = openBook(state, { path: '/lib/b.epub', title: 'B' });
 
     const activated = activateTab(state, state.tabs[0].id);
     expect(activated.activeTabId).toBe(state.tabs[0].id);
@@ -101,24 +101,24 @@ describe('рабочее место', () => {
 
   it('нормализует загруженное состояние и чинит активную вкладку', () => {
     const state = normalizeWorkspace({
-      tabs: [{ id: 't1', book_id: 'book-1', title: 'Книга' }],
+      tabs: [{ id: 't1', path: '/lib/book-1.epub', title: 'Книга' }],
       active_tab_id: 'missing',
     });
 
-    expect(state.tabs[0].bookId).toBe('book-1');
+    expect(state.tabs[0].path).toBe('/lib/book-1.epub');
     expect(state.tabs[0].zoom).toBe(100);
     expect(state.activeTabId).toBe('t1');
   });
 
   it('держит вкладки разных рабочих мест обособленными', () => {
-    const first = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
-    const second = openBook(emptyWorkspace(), { bookId: 'b', title: 'B' });
+    const first = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    const second = openBook(emptyWorkspace(), { path: '/lib/b.epub', title: 'B' });
 
     const updated = updateTab(first, first.tabs[0].id, { zoom: 150, position: 70 });
 
     expect(updated.tabs[0].zoom).toBe(150);
     expect(second.tabs[0].zoom).toBe(100);
     expect(second.tabs[0].position).toBe(0);
-    expect(second.tabs[0].bookId).toBe('b');
+    expect(second.tabs[0].path).toBe('/lib/b.epub');
   });
 });

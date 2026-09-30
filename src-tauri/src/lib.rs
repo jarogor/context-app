@@ -13,10 +13,9 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 use crate::constants::{
-    resolve_app_state_root, resolve_user_plugins_root, BASE_PLUGINS_DIR_NAME, DEMO_PLUGIN_ID,
-    PLUGINS_DIR_NAME,
+    resolve_app_state_root, resolve_user_plugins_root, BASE_PLUGINS_DIR_NAME, PLUGINS_DIR_NAME,
 };
-use crate::plugin::{AppPluginHost, AppState, PluginSession};
+use crate::plugin::{AppPluginHost, AppState, PluginSession, ReaderConfig};
 
 /// Точка входа Tauri-приложения и generic plugin host.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -63,43 +62,29 @@ pub fn run() {
                 session_plugin_directories(&bundled_plugins_dir, &user_plugins_dir);
 
             let root = PathBuf::from(".");
-            let mut host = PluginSession::idle(root, bundled_plugins_dir);
-            host.set_user_plugins_dir(user_plugins_dir);
+            let mut host = PluginSession::idle(root, bundled_plugins_dir.clone());
+            host.set_user_plugins_dir(user_plugins_dir.clone());
             host.set_wasm_cache(wasm_cache.clone());
-            host.set_disabled_plugins(
-                crate::plugin::activation::load(&app_state_root).unwrap_or_default(),
-            );
+            let disabled = crate::plugin::activation::load(&app_state_root).unwrap_or_default();
+            host.set_disabled_plugins(disabled.clone());
             host.mark_activation_applied();
-            if host
-                .runtime()
-                .plugin_ids()
-                .iter()
-                .any(|id| id == DEMO_PLUGIN_ID)
-            {
-                match host
-                    .runtime_mut()
-                    .invoke(DEMO_PLUGIN_ID, r#"{"title":"Текстура"}"#)
-                {
-                    Ok(output) => {
-                        app_host.notify_user(
-                            crate::plugin::Severity::Info,
-                            "demo answered",
-                            "plugin",
-                            serde_json::json!({ "output": output }),
-                        );
-                    }
-                    Err(err) => {
-                        app_host.notify_technical(
-                            crate::plugin::Severity::Error,
-                            "demo error",
-                            DEMO_PLUGIN_ID,
-                            serde_json::json!({ "error": err.to_string() }),
-                        );
-                    }
-                }
-            }
 
-            app.manage(Mutex::new(AppState::new(host, app_host, app_state_root)));
+            // Runtime чтения книг рабочим местом собирается отдельно от сессии
+            // библиотеки: книга открывается по вложению (пути) и не зависит от
+            // того, открыта ли библиотека и откуда взята книга.
+            let reader_config = ReaderConfig {
+                directories: session_plugin_directories(&bundled_plugins_dir, &user_plugins_dir),
+                disabled,
+                storage_root: app_state_root.clone(),
+                cache: wasm_cache.clone(),
+            };
+
+            app.manage(Mutex::new(AppState::new(
+                host,
+                app_host,
+                app_state_root,
+                reader_config,
+            )));
 
             crate::plugin::warmup::spawn_source_warmup(warmup_directories, wasm_cache);
 
@@ -115,10 +100,13 @@ pub fn run() {
             commands::get_workspaces,
             commands::save_workspaces,
             commands::plugin_activation_pending,
-            commands::workplace_formats,
-            commands::workplace_plugin_for_format,
-            commands::workplace_viewer,
-            commands::workplace_book_chunk,
+            commands::reader_formats,
+            commands::reader_plugin_for_format,
+            commands::reader_viewer,
+            commands::reader_content,
+            commands::reader_open_external,
+            commands::reader_book_chunk,
+            commands::reader_forget_book,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
