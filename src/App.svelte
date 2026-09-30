@@ -81,7 +81,7 @@
   let workspaceOpen = $state(true);
 
   /** Показывается ли список рабочих мест вместо вкладок. */
-  let workspaceListMode = $state(false);
+  let workspaceListMode = $state(true);
 
   /** Открыта ли панель списка открытых книг. */
   let booksPanelOpen = $state(false);
@@ -680,6 +680,7 @@
           workspaces={registry.workspaces}
           activeWorkspaceId={registry.activeWorkspaceId}
           listMode={workspaceListMode}
+          registryLoading={!registryLoaded}
           booksOpen={booksPanelOpen}
           notesOpen={notesPanelOpen}
           notes={noteItems}

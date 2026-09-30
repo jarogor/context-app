@@ -231,6 +231,49 @@ describe('имя и место заметки', () => {
     });
 });
 
+describe('порядок заметок', () => {
+    it('сортирует по расположению в книге, а не по времени добавления', () => {
+        // Вторая по времени заметка стоит выше по тексту — она должна быть первой.
+        const later = normalizeNote({
+            id: 'late',
+            createdAtMillis: 200,
+            anchor: serializeAnchor(createAnchor({ chapter: 0, start: 10, end: 20, quote: 'б' })),
+        });
+        const earlier = normalizeNote({
+            id: 'early',
+            createdAtMillis: 100,
+            anchor: serializeAnchor(createAnchor({ chapter: 0, start: 5, end: 9, quote: 'а' })),
+        });
+
+        expect(noteList([later, earlier]).map((item) => item.note.id)).toEqual(['early', 'late']);
+    });
+
+    it('сравнивает заметки из разных глав по номеру главы', () => {
+        const second = normalizeNote({
+            id: 'ch2',
+            anchor: serializeAnchor(createAnchor({ chapter: 2, start: 0, end: 4, quote: 'б' })),
+        });
+        const first = normalizeNote({
+            id: 'ch1',
+            anchor: serializeAnchor(createAnchor({ chapter: 1, start: 0, end: 4, quote: 'а' })),
+        });
+
+        expect(noteList([second, first]).map((item) => item.note.id)).toEqual(['ch1', 'ch2']);
+    });
+
+    it('без якоря опирается на страницу и долю позиции', () => {
+        const page = normalizeNote({ id: 'page', page: 3, createdAtMillis: 300 });
+        const percent = normalizeNote({ id: 'percent', percent: 1.5, createdAtMillis: 100 });
+        const missing = normalizeNote({ id: 'missing', createdAtMillis: 50 });
+
+        expect(noteList([missing, page, percent]).map((item) => item.note.id)).toEqual([
+            'percent',
+            'page',
+            'missing',
+        ]);
+    });
+});
+
 describe('поиск по заметкам', () => {
     const notes = [
         normalizeNote({ id: '1', quote: 'Хайдеггер', chapter: 'Введение' }),

@@ -14,6 +14,8 @@
     workspaces: WorkspaceItem[];
     /** Идентификатор активного рабочего места. */
     activeId: string | null;
+    /** Загружается ли реестр рабочих мест из ядра. */
+    loading?: boolean;
     /** Создание рабочего места с указанным именем. */
     onCreate: (name: string) => void;
     /** Открытие рабочего места. */
@@ -24,7 +26,8 @@
     onRemove: (id: string) => void;
   }
 
-  let { workspaces, activeId, onCreate, onOpen, onRename, onRemove }: Props = $props();
+  let { workspaces, activeId, loading = false, onCreate, onOpen, onRename, onRemove }: Props =
+    $props();
 
   /** Ввод имени нового рабочего места. */
   let newName = $state('');
@@ -85,7 +88,9 @@
     <Button variant="primary" disabled={!newName.trim()} onclick={create}>Создать</Button>
   </div>
 
-  {#if workspaces.length === 0}
+  {#if loading}
+    <p class="text-[var(--color-text-muted)]" data-testid="workspaces-loading">Загрузка…</p>
+  {:else if workspaces.length === 0}
     <p class="text-[var(--color-text-muted)]" data-testid="workspaces-empty">
       Рабочих мест нет. Создайте рабочее место, чтобы открыть в нём книги.
     </p>

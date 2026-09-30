@@ -9,7 +9,7 @@
  */
 
 import { invokeCommand } from './app-bridge';
-import type { QuoteAnchor } from './reader/anchor';
+import { parseAnchor, type QuoteAnchor } from './reader/anchor';
 
 /** Идентификатор активной библиотеки в ключе книги. */
 const NO_LIBRARY = 'no-library';
@@ -235,9 +235,54 @@ export interface NoteListItem {
     createdAtMillis: number;
 }
 
-/** Элементы списка заметок-цитат: имя, место и дата. */
+/** Сравнимое место заметки без якоря: страница, иначе доля позиции в книге. */
+function fallbackLocation(note: Note): number {
+    if (note.page !== null) {
+        return note.page;
+    }
+    if (note.percent !== null) {
+        return note.percent;
+    }
+    return Number.POSITIVE_INFINITY;
+}
+
+/** Сравнение заметок по ходу текста книги, затем по времени создания.
+ *
+ * Порядок отражает расположение в книге: заметка, созданная позже, но стоящая
+ * выше по тексту, идёт раньше. Якорь даёт точную позицию (глава и смещение
+ * символов); без якоря опорой служат страница или доля позиции.
+ */
+function byPosition(left: Note, right: Note): number {
+    const a = parseAnchor(left.anchor);
+    const b = parseAnchor(right.anchor);
+    if (a && b) {
+        if (a.chapter !== b.chapter) {
+            return a.chapter - b.chapter;
+        }
+        if (a.start !== b.start) {
+            return a.start - b.start;
+        }
+    } else if (a || b) {
+        // Заметки без якоря не имеют точного места — показываем их в конце.
+        return a ? -1 : 1;
+    } else {
+        const difference = fallbackLocation(left) - fallbackLocation(right);
+        if (difference !== 0) {
+            return difference;
+        }
+    }
+    return left.createdAtMillis - right.createdAtMillis;
+}
+
+/** Элементы списка заметок-цитат: имя, место и дата.
+ *
+ * Порядок отражает ход контента (глава и смещение в тексте, иначе страница или
+ * доля позиции), а не очерёдность добавления: заметка, созданная позже, но
+ * расположенная выше в книге, идёт раньше. Дата остаётся для понимания
+ * хронологии.
+ */
 export function noteList(notes: Note[]): NoteListItem[] {
-    return notes.map((note, index) => ({
+    return [...notes].sort(byPosition).map((note, index) => ({
         note,
         name: noteName(note, index),
         place: notePlace(note),

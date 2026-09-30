@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import { Button } from '@texture/ui';
   import type { BookContent } from './reader';
   import type { Note } from './notes';
   import {
@@ -44,6 +45,8 @@
   const NOTE_CLASS = 'texture-note';
   /** Класс временной вспышки подсветки при переходе. */
   const FLASH_CLASS = 'texture-note-flash';
+  /** Отступ сверху до опорной строки при масштабировании, в пикселях. */
+  const ZOOM_ANCHOR_MARGIN = 18;
 
   /** Область отображения книги. */
   let frame: HTMLIFrameElement | undefined = $state();
@@ -51,6 +54,15 @@
   let doc: Document | null = $state(null);
   /** Начальная позиция, взятая один раз при создании вкладки. */
   const startPosition = untrack(() => initialPosition);
+  /** Живой диапазон опорной строки для удержания места при перестройке. */
+  let anchorRange: Range | null = null;
+  /** Экранная координата опорной строки в момент захвата. */
+  let anchorTop = 0;
+
+  /** Незавершённое выделение для создания заметки. */
+  let pendingAnchor: QuoteAnchor | null = $state(null);
+  /** Позиция контекстного меню выделения (координаты области чтения). */
+  let menuPosition: { x: number; y: number } | null = $state(null);
 
   /** Документ области отображения или null. */
   function document(): Document | null {
@@ -172,11 +184,20 @@
     }
   }
 
-  /** Обработка выделения пользователя: цитата и её место. */
+  /** Скрытие контекстного меню выделения и снятие выделения. */
+  function dismissMenu(): void {
+    pendingAnchor = null;
+    menuPosition = null;
+    document()?.getSelection()?.removeAllRanges();
+  }
+
+  /** Обработка выделения пользователя: подготовка меню создания заметки. */
   function handleMouseUp(): void {
     const value = document();
     const selection = value?.getSelection();
     if (!value || !selection || selection.isCollapsed || selection.rangeCount === 0) {
+      pendingAnchor = null;
+      menuPosition = null;
       return;
     }
     const range = selection.getRangeAt(0);
@@ -185,11 +206,15 @@
     const start = element(range.startContainer)?.closest('.texture-chapter');
     const end = element(range.endContainer)?.closest('.texture-chapter');
     if (!start || start !== end) {
+      pendingAnchor = null;
+      menuPosition = null;
       return;
     }
     const offsets = offsetsFromRange(start, range);
     const quote = range.toString().replace(/\s+/g, ' ').trim();
     if (!offsets || !quote) {
+      pendingAnchor = null;
+      menuPosition = null;
       return;
     }
     const rect = range.getBoundingClientRect();
@@ -201,17 +226,28 @@
         ? Math.max(0, Math.min(100, ((rect.top + root.scrollTop) / height) * 100))
         : 0;
     const chapter = Number((start as HTMLElement).dataset.chapter ?? '0');
-    selection.removeAllRanges();
-    onQuote?.(
-      createAnchor({
-        chapter: Number.isFinite(chapter) ? chapter : 0,
-        start: offsets.start,
-        end: offsets.end,
-        quote,
-        percent,
-        page: null,
-      }),
-    );
+    pendingAnchor = createAnchor({
+      chapter: Number.isFinite(chapter) ? chapter : 0,
+      start: offsets.start,
+      end: offsets.end,
+      quote,
+      percent,
+      page: null,
+    });
+    const width = win?.innerWidth ?? 0;
+    menuPosition = {
+      x: Math.max(8, Math.min(rect.left, Math.max(8, width - 180))),
+      y: Math.max(8, rect.bottom + 6),
+    };
+  }
+
+  /** Создание заметки-цитаты по текущему выделению. */
+  function confirmQuote(): void {
+    const anchor = pendingAnchor;
+    dismissMenu();
+    if (anchor) {
+      onQuote?.(anchor);
+    }
   }
 
   /** Обработка клика по подсветке: выбор заметки. */
@@ -221,6 +257,69 @@
     if (mark?.dataset.noteId) {
       onSelectNote?.(mark.dataset.noteId);
     }
+  }
+
+  /** Отмена меню при начале нового взаимодействия с текстом. */
+  function handleMouseDown(): void {
+    if (pendingAnchor) {
+      pendingAnchor = null;
+      menuPosition = null;
+    }
+  }
+
+  /** Захват опорной строки: читаемое место остаётся на экране при перестройке.
+   *
+   * Опорой служит живой диапазон второй видимой строки: пока строка живёт в
+   * документе, её позиция восстанавливается точно — раньше браузерного reflow,
+   * который смещал бы текст при изменении ширины или масштаба.
+   */
+  function captureAnchor(): void {
+    const value = doc ?? document();
+    if (!value) {
+      return;
+    }
+    anchorRange = topAnchorRange(value);
+    anchorTop = anchorRange ? anchorRange.getBoundingClientRect().top : 0;
+  }
+
+  /** Восстановление захваченной опорной строки после перестройки текста. */
+  function restoreAnchor(): void {
+    const value = doc ?? document();
+    const root = value?.scrollingElement ?? value?.documentElement;
+    if (!value || !root || !anchorRange) {
+      return;
+    }
+    // Диапазон мог быть разрушен перерисовкой (например, подсветками).
+    try {
+      if (!value.body?.contains(anchorRange.startContainer)) {
+        anchorRange = null;
+        return;
+      }
+    } catch {
+      anchorRange = null;
+      return;
+    }
+    const delta = anchorRange.getBoundingClientRect().top - anchorTop;
+    if (delta) {
+      root.scrollTop += delta;
+    }
+  }
+
+  /** Скрытие меню при прокрутке книги и обновление опорной строки. */
+  function handleDocumentScroll(): void {
+    if (pendingAnchor) {
+      pendingAnchor = null;
+      menuPosition = null;
+    }
+    handleScroll();
+    captureAnchor();
+  }
+
+  /** Удержание читаемого места при изменении ширины области (например, панелью). */
+  function handleResize(): void {
+    restoreAnchor();
+    handleScroll();
+    captureAnchor();
   }
 
   /** Отчёт о позиции чтения при прокрутке. */
@@ -237,7 +336,48 @@
     onProgress?.(max > 0 ? (root.scrollTop / max) * 100 : 0);
   }
 
-  /** Применение масштаба с удержанием верхней строки. */
+  /** Живая ссылка на опорную строку у верха области чтения.
+   *
+   * Возвращает диапазон, привязанный к символу во второй видимой строке. Пока
+   * строка живёт в документе, её `getBoundingClientRect` остаётся точкой опоры
+   * даже при перестройке текста, поэтому масштаб не сдвигает читаемое место.
+   */
+  function topAnchorRange(value: Document): Range | null {
+    const win = value.defaultView;
+    if (!win) {
+      return null;
+    }
+    const x = Math.round(win.innerWidth / 2);
+    const body = value.body ?? value.documentElement;
+    const lineHeight = body ? parseFloat(win.getComputedStyle(body).lineHeight) || 24 : 24;
+    const y = Math.round(ZOOM_ANCHOR_MARGIN + lineHeight);
+    const caretRange = (
+      value as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null }
+    ).caretRangeFromPoint;
+    if (typeof caretRange === 'function') {
+      const range = caretRange.call(value, x, y);
+      if (range) {
+        return range;
+      }
+    }
+    const caretPosition = (
+      value as Document & {
+        caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+      }
+    ).caretPositionFromPoint;
+    if (typeof caretPosition === 'function') {
+      const position = caretPosition.call(value, x, y);
+      if (position) {
+        const range = value.createRange();
+        range.setStart(position.offsetNode, position.offset);
+        range.setEnd(position.offsetNode, position.offset);
+        return range;
+      }
+    }
+    return null;
+  }
+
+  /** Применение масштаба с удержанием опорной строки на месте. */
   function applyZoom(value: number): void {
     const current = document();
     const win = current?.defaultView;
@@ -245,14 +385,10 @@
     if (!current || !win || !root) {
       return;
     }
-    const width = win.innerWidth;
-    const before =
-      typeof current.elementFromPoint === 'function'
-        ? current.elementFromPoint(Math.round(width / 2), 30)
-        : null;
-    const topBefore = before?.getBoundingClientRect().top ?? 0;
+    const anchor = topAnchorRange(current);
+    const topBefore = anchor ? anchor.getBoundingClientRect().top : 0;
     current.documentElement.style.fontSize = `${value}%`;
-    const topAfter = before?.getBoundingClientRect().top ?? 0;
+    const topAfter = anchor ? anchor.getBoundingClientRect().top : 0;
     const delta = topAfter - topBefore;
     if (delta) {
       root.scrollTop += delta;
@@ -272,15 +408,17 @@
       return;
     }
     value.addEventListener('mouseup', handleMouseUp);
+    value.addEventListener('mousedown', handleMouseDown);
     value.addEventListener('click', handleClick);
-    value.addEventListener('scroll', handleScroll, { passive: true });
-    value.defaultView?.addEventListener('resize', handleScroll);
+    value.addEventListener('scroll', handleDocumentScroll, { passive: true });
+    value.defaultView?.addEventListener('resize', handleResize);
     applyZoom(zoom);
     if (startPosition > 0) {
       gotoPercent(startPosition);
     }
     drawHighlights();
     handleScroll();
+    captureAnchor();
   }
 
   /** Документ книги собирается один раз при загрузке. */
@@ -294,6 +432,7 @@
     const value = zoom;
     if (doc) {
       applyZoom(value);
+      captureAnchor();
     }
   });
 
@@ -301,14 +440,29 @@
   $effect(() => {
     if (doc) {
       drawHighlights();
+      captureAnchor();
     }
   });
 </script>
 
-<iframe
-  bind:this={frame}
-  class="h-full w-full border-0 bg-white"
-  title="Чтение книги"
-  srcdoc={html}
-  onload={handleLoad}
-></iframe>
+<div class="relative h-full w-full">
+  <iframe
+    bind:this={frame}
+    class="h-full w-full border-0 bg-white"
+    title="Чтение книги"
+    srcdoc={html}
+    onload={handleLoad}
+  ></iframe>
+
+  {#if menuPosition && pendingAnchor}
+    <div
+      class="absolute z-10 flex items-center gap-[var(--space-1)] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[4px] shadow-lg"
+      data-testid="quote-menu"
+      style:left="{menuPosition.x}px"
+      style:top="{menuPosition.y}px"
+    >
+      <Button variant="primary" size="sm" onclick={confirmQuote}>Создать заметку</Button>
+      <Button variant="ghost" size="sm" onclick={dismissMenu}>Отмена</Button>
+    </div>
+  {/if}
+</div>

@@ -77,7 +77,7 @@ function bookDocument(page: import('@playwright/test').Page) {
     return page.frameLocator('iframe[title="Чтение книги"]');
 }
 
-/** Выделение абзаца демо-книги и ожидание появления заметки. */
+/** Выделение абзаца демо-книги и подтверждение создания заметки. */
 async function highlightParagraph(page: import('@playwright/test').Page, text: string) {
     const paragraph = bookDocument(page).getByText(text);
     await paragraph.evaluate((element) => {
@@ -88,8 +88,32 @@ async function highlightParagraph(page: import('@playwright/test').Page, text: s
         selection?.addRange(range);
         element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     });
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+    await expect(page.getByTestId('quote-menu')).toBeVisible();
+    await page.getByTestId('quote-menu').getByRole('button', { name: 'Создать заметку' }).click();
 }
+
+test('выделение показывает меню создания и отмены', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    const paragraph = bookDocument(page).getByText('Первый абзац книги.');
+    await paragraph.evaluate((element) => {
+        const range = element.ownerDocument.createRange();
+        range.selectNodeContents(element);
+        const selection = element.ownerDocument.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    await expect(page.getByTestId('quote-menu')).toBeVisible();
+    await page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' }).click();
+
+    // Отмена убирает меню и не создаёт заметку.
+    await expect(page.getByTestId('quote-menu')).toHaveCount(0);
+    await expect(page.getByTestId('notes-item')).toHaveCount(0);
+});
 
 test('панель заметок показывает пустое состояние без книги', async ({ page }) => {
     await page.goto('/');
@@ -109,6 +133,21 @@ test('выделение текста создаёт заметку-цитату
     await expect(page.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
     const highlighted = bookDocument(page).locator('mark').first();
     await expect(highlighted).toHaveText('Первый абзац книги.');
+});
+
+test('заметки идут по расположению в книге, а не по времени добавления', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    // Сначала заметка ниже по тексту, затем выше: в списке верхняя должна быть первой.
+    await highlightParagraph(page, 'Второй абзац книги.');
+    await highlightParagraph(page, 'Первый абзац книги.');
+
+    const links = page.getByTestId('notes-item-link');
+    await expect(links).toHaveCount(2);
+    await expect(links.first()).toContainText('Первый абзац книги.');
+    await expect(links.last()).toContainText('Второй абзац книги.');
 });
 
 test('выделение восстанавливается после перезагрузки страницы', async ({ page }) => {

@@ -38,6 +38,42 @@ async function backToList(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 }
 
+test('при старте показывается загрузка, а не пустой список', async ({ page }) => {
+    await page.addInitScript(() => {
+        (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
+            handlers: {
+                // Реестр приходит с задержкой: до его загрузки нельзя утверждать,
+                // что рабочих мест нет.
+                get_workspaces: () =>
+                    new Promise((resolve) =>
+                        setTimeout(
+                            () =>
+                                resolve({
+                                    workspaces: [
+                                        {
+                                            id: 'ws-1',
+                                            name: 'Рабочее место',
+                                            created_at_millis: 1,
+                                            tabs: [],
+                                            active_tab_id: null,
+                                        },
+                                    ],
+                                    active_workspace_id: 'ws-1',
+                                }),
+                            400,
+                        ),
+                    ),
+            },
+        };
+    });
+
+    await page.goto('/');
+
+    await expect(page.getByTestId('workspaces-loading')).toBeVisible();
+    await expect(page.getByTestId('workspaces-empty')).toHaveCount(0);
+    await expect(page.getByTestId('workspace-open')).toHaveText('Рабочее место');
+});
+
 test('пустой реестр показывает подсказку создать рабочее место', async ({ page }) => {
     await page.goto('/');
 

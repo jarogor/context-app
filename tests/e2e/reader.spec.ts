@@ -70,13 +70,14 @@ test('масштаб меняет размер текста книги', async (
         .not.toBe(before);
 });
 
-test('масштаб удерживает верхнюю строку на месте', async ({ page }) => {
+test('масштаб удерживает читаемую строку на месте', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 620 });
     await openWorkplace(page);
     const body = page.frameLocator('iframe[title="Чтение книги"]').locator('body');
     const snapshot = (element: HTMLElement) => {
         const document = element.ownerDocument;
         const width = document.defaultView?.innerWidth ?? 0;
-        const node = document.elementFromPoint(Math.round(width / 2), 30);
+        const node = document.elementFromPoint(Math.round(width / 2), 40);
         return {
             text: node?.textContent?.slice(0, 24) ?? '',
             top: node ? node.getBoundingClientRect().top : 0,
@@ -91,8 +92,43 @@ test('масштаб удерживает верхнюю строку на ме�
     await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
     const after = await body.evaluate(snapshot);
 
+    // Строка, читаемая у верха области, остаётся той же и не уезжает.
     expect(after.text).toBe(before.text);
-    expect(Math.abs(after.top - before.top)).toBeLessThan(6);
+    expect(Math.abs(after.top - before.top)).toBeLessThan(8);
+});
+
+test('открытие панели заметок не сбивает читаемое место', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
+    await openWorkplace(page);
+    const body = page.frameLocator('iframe[title="Чтение книги"]').locator('body');
+    const frame = page.locator('iframe[title="Чтение книги"]');
+    const snapshot = (element: HTMLElement) => {
+        const document = element.ownerDocument;
+        const width = document.defaultView?.innerWidth ?? 0;
+        const node = document.elementFromPoint(Math.round(width / 2), 40);
+        return {
+            text: node?.textContent?.slice(0, 24) ?? '',
+            top: node ? node.getBoundingClientRect().top : 0,
+        };
+    };
+
+    await body.evaluate((element) => {
+        element.ownerDocument.scrollingElement?.scrollTo(0, 900);
+    });
+    const before = await body.evaluate(snapshot);
+    const widthBefore = await frame.evaluate((element) => element.clientWidth);
+
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await expect(page.getByTestId('notes-panel')).toBeVisible();
+    // Дожидаемся перестройки текста под новую ширину области чтения.
+    await expect
+        .poll(async () => frame.evaluate((element) => element.clientWidth))
+        .toBeLessThan(widthBefore);
+
+    const after = await body.evaluate(snapshot);
+    // Панель меняет ширину текста, но читаемая строка остаётся на месте.
+    expect(after.text).toBe(before.text);
+    expect(Math.abs(after.top - before.top)).toBeLessThan(30);
 });
 
 test('прогресс обновляется при прокрутке книги', async ({ page }) => {
