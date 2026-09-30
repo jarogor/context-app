@@ -13,6 +13,7 @@ test.beforeEach(async ({ page }) => {
 
 test('библиотека показывает книги, поиск и обложки', async ({ page }) => {
   await page.goto('/');
+  await page.getByLabel('Рабочее место').click();
   const library = page.frameLocator('iframe[title="Library plugin"]');
 
   await expect(library.getByText('Демо-книга')).toBeVisible();
@@ -26,6 +27,7 @@ test('библиотека показывает книги, поиск и обл
 
 test('поиск фильтрует список и показывает пустое состояние', async ({ page }) => {
   await page.goto('/');
+  await page.getByLabel('Рабочее место').click();
   const library = page.frameLocator('iframe[title="Library plugin"]');
   const search = library.getByPlaceholder('Название или автор');
 

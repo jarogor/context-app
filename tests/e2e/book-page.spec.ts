@@ -11,8 +11,17 @@ test.beforeEach(async ({ page }) => {
   }, ACTIVE_LIBRARY);
 });
 
+/** Переход к основному разделу библиотеки, если открыто рабочее место. */
+async function showLibrary(page: import('@playwright/test').Page) {
+  const workspace = page.getByLabel('Рабочее место');
+  if ((await workspace.getAttribute('aria-pressed')) === 'true') {
+    await workspace.click();
+  }
+}
+
 test('клик по книге открывает страницу книги с информацией', async ({ page }) => {
   await page.goto('/');
+  await showLibrary(page);
   const library = page.frameLocator('iframe[title="Library plugin"]');
 
   await library.getByRole('button', { name: /Демо-книга/ }).click();
@@ -23,6 +32,7 @@ test('клик по книге открывает страницу книги с
 
 test('страница книги предлагает чтение и открытие в системе', async ({ page }) => {
   await page.goto('/');
+  await showLibrary(page);
   const library = page.frameLocator('iframe[title="Library plugin"]');
 
   await library.getByRole('button', { name: /Демо-книга/ }).click();
@@ -33,6 +43,7 @@ test('страница книги предлагает чтение и откр�
 
 test('для неподдерживаемого формата нет кнопки открытия в рабочем месте', async ({ page }) => {
   await page.goto('/');
+  await showLibrary(page);
   const library = page.frameLocator('iframe[title="Library plugin"]');
 
   await library.getByRole('button', { name: /Вторая книга/ }).click();
@@ -44,6 +55,7 @@ test('для неподдерживаемого формата нет кнопк
 
 test('возврат к списку сохраняет поиск', async ({ page }) => {
   await page.goto('/');
+  await showLibrary(page);
   const library = page.frameLocator('iframe[title="Library plugin"]');
 
   await library.getByPlaceholder('Название или автор').fill('Демо');

@@ -2,12 +2,12 @@
 
 pub mod active_library;
 pub mod base_plugin_operation;
-pub mod get_workspace;
+pub mod get_workspaces;
 pub mod library_history_forget;
 pub mod library_history_list;
 pub mod plugin_activation_pending;
 pub mod plugin_operation;
-pub mod save_workspace;
+pub mod save_workspaces;
 pub mod select_source_library;
 pub mod workplace;
 
@@ -15,13 +15,13 @@ pub use active_library::__cmd__active_library;
 pub use active_library::__tauri_command_name_active_library;
 pub use active_library::active_library;
 
-pub use get_workspace::__cmd__get_workspace;
-pub use get_workspace::__tauri_command_name_get_workspace;
-pub use get_workspace::get_workspace;
+pub use get_workspaces::__cmd__get_workspaces;
+pub use get_workspaces::__tauri_command_name_get_workspaces;
+pub use get_workspaces::get_workspaces;
 
-pub use save_workspace::__cmd__save_workspace;
-pub use save_workspace::__tauri_command_name_save_workspace;
-pub use save_workspace::save_workspace;
+pub use save_workspaces::__cmd__save_workspaces;
+pub use save_workspaces::__tauri_command_name_save_workspaces;
+pub use save_workspaces::save_workspaces;
 
 pub use base_plugin_operation::__cmd__invoke_base_plugin_operation;
 pub use base_plugin_operation::__tauri_command_name_invoke_base_plugin_operation;

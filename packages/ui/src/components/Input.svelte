@@ -16,6 +16,8 @@
     class?: string;
     /** Обработчик ввода. */
     oninput?: (event: Event & { currentTarget: HTMLInputElement }) => void;
+    /** Обработчик нажатия клавиши. */
+    onkeydown?: (event: KeyboardEvent) => void;
   }
 
   let {
@@ -26,6 +28,7 @@
     disabled = false,
     class: className = '',
     oninput,
+    onkeydown,
   }: Props = $props();
 </script>
 
@@ -36,6 +39,7 @@
   {disabled}
   bind:value
   {oninput}
+  {onkeydown}
   class={cn(
     'box-border h-9 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-[var(--space-2)] text-sm text-[var(--color-text)] [font:inherit] disabled:opacity-50',
     className,

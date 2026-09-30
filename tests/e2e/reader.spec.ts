@@ -11,9 +11,18 @@ test.beforeEach(async ({ page }) => {
   }, ACTIVE_LIBRARY);
 });
 
+/** Переход к основному разделу библиотеки, если открыто рабочее место. */
+async function showLibrary(page: import('@playwright/test').Page) {
+  const workspace = page.getByLabel('Рабочее место');
+  if ((await workspace.getAttribute('aria-pressed')) === 'true') {
+    await workspace.click();
+  }
+}
+
 /** Открытие книги вкладкой рабочего места через страницу книги. */
 async function openWorkplace(page: import('@playwright/test').Page) {
   await page.goto('/');
+  await showLibrary(page);
   const library = page.frameLocator('iframe[title="Library plugin"]');
   await library.getByRole('button', { name: /Демо-книга/ }).click();
   await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
@@ -113,6 +122,7 @@ test('возврат к библиотеке сохраняет состояни
 
 test('со страницы книги можно вернуться к списку', async ({ page }) => {
   await page.goto('/');
+  await showLibrary(page);
   const library = page.frameLocator('iframe[title="Library plugin"]');
 
   await library.getByRole('button', { name: /Демо-книга/ }).click();

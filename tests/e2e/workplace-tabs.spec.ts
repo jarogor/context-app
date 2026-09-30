@@ -6,7 +6,22 @@ const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((active) => {
     (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
-      handlers: { active_library: () => active },
+      handlers: {
+        active_library: () => active,
+        get_workspaces: () => ({
+          workspaces: [
+            {
+              id: 'ws-1',
+              name: 'Рабочее место',
+              created_at_millis: 1_700_000_000_000,
+              tabs: [],
+              active_tab_id: null,
+            },
+          ],
+          active_workspace_id: 'ws-1',
+        }),
+        save_workspaces: () => ({ ok: true }),
+      },
     };
   }, ACTIVE_LIBRARY);
 });

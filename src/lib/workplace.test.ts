@@ -109,4 +109,16 @@ describe('рабочее место', () => {
     expect(state.tabs[0].zoom).toBe(100);
     expect(state.activeTabId).toBe('t1');
   });
+
+  it('держит вкладки разных рабочих мест обособленными', () => {
+    const first = openBook(emptyWorkspace(), { bookId: 'a', title: 'A' });
+    const second = openBook(emptyWorkspace(), { bookId: 'b', title: 'B' });
+
+    const updated = updateTab(first, first.tabs[0].id, { zoom: 150, position: 70 });
+
+    expect(updated.tabs[0].zoom).toBe(150);
+    expect(second.tabs[0].zoom).toBe(100);
+    expect(second.tabs[0].position).toBe(0);
+    expect(second.tabs[0].bookId).toBe('b');
+  });
 });

@@ -199,8 +199,19 @@ export function defaultMockConfig(): MockBridgeConfig {
       select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
       active_library: () => null,
       plugin_activation_pending: () => ({ pending: false }),
-      get_workspace: () => ({ tabs: [], activeTabId: null }),
-      save_workspace: () => ({ ok: true }),
+      get_workspaces: () => ({
+        workspaces: [
+          {
+            id: 'ws-default',
+            name: 'Рабочее место',
+            created_at_millis: 1_700_000_000_000,
+            tabs: [],
+            active_tab_id: null,
+          },
+        ],
+        active_workspace_id: 'ws-default',
+      }),
+      save_workspaces: () => ({ ok: true }),
       library_history_list: () => ({
         entries: [
           {

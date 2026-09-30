@@ -60,6 +60,7 @@ test.beforeEach(async ({ page }) => {
 /** Открытие книги формата demo на рабочем месте. */
 async function openWorkplace(page: import('@playwright/test').Page) {
   await page.goto('/');
+  await page.getByLabel('Рабочее место').click();
   const library = page.frameLocator('iframe[title="Library plugin"]');
   await library.getByRole('button', { name: /Демо-планшет/ }).click();
   await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();

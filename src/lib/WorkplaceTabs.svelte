@@ -7,6 +7,8 @@
     tabs: WorkspaceTab[];
     /** Активная вкладка. */
     activeTabId: string | null;
+    /** Имя активного рабочего места. */
+    workspaceName: string;
     /** Открыта ли панель списка открытых книг. */
     booksOpen: boolean;
     /** Выбор вкладки. */
@@ -19,16 +21,38 @@
     onAdd: () => void;
     /** Переключение панели открытых книг. */
     onToggleBooks: () => void;
+    /** Возврат к списку рабочих мест. */
+    onBackToList: () => void;
   }
 
-  let { tabs, activeTabId, booksOpen, onSelect, onClose, onDuplicate, onAdd, onToggleBooks }: Props =
-    $props();
+  let {
+    tabs,
+    activeTabId,
+    workspaceName,
+    booksOpen,
+    onSelect,
+    onClose,
+    onDuplicate,
+    onAdd,
+    onToggleBooks,
+    onBackToList,
+  }: Props = $props();
 </script>
 
 <div
   class="flex flex-[0_0_42px] items-center gap-[var(--space-2)] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-2)]"
   data-testid="workplace-tabs"
 >
+  <button
+    type="button"
+    data-testid="workplace-back-to-list"
+    title="К списку рабочих мест"
+    class="max-w-[180px] flex-none cursor-pointer truncate rounded-[var(--radius-sm)] px-[var(--space-2)] py-[4px] text-[13px] text-[var(--color-text-muted)] [font:inherit] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
+    onclick={onBackToList}
+  >
+    {workspaceName}
+  </button>
+  <span class="text-[var(--color-border-strong)]" aria-hidden="true">|</span>
   <div class="flex min-w-0 flex-1 items-center gap-[2px] overflow-x-auto">
     {#each tabs as tab (tab.id)}
       <div

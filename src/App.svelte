@@ -4,17 +4,18 @@
   import PluginFrame from './lib/PluginFrame.svelte';
   import LibrariesPage from './lib/LibrariesPage.svelte';
   import WorkplaceSurface from './lib/WorkplaceSurface.svelte';
+  import { closeTab, duplicateTab, openBook, replaceTabBook, updateTab, activateTab } from './lib/workplace';
   import {
-    closeTab,
-    duplicateTab,
-    emptyWorkspace,
-    normalizeWorkspace,
-    openBook,
-    replaceTabBook,
-    updateTab,
-    activateTab,
-    type WorkspaceState,
-  } from './lib/workplace';
+    activeWorkspace,
+    createWorkspace,
+    emptyRegistry,
+    normalizeRegistry,
+    removeWorkspace,
+    renameWorkspace,
+    selectWorkspace,
+    updateActiveWorkspaceTabs,
+    type WorkspaceRegistry,
+  } from './lib/workspace-registry';
   import { invokeCommand, listenEvent } from './lib/app-bridge';
 
   /** Сообщение frontend-плагина без идентификатора запроса. */
@@ -56,16 +57,22 @@
   let activeLibrary: ActiveLibrary | null = $state(null);
 
   /** Открыта ли поверхность рабочего места; принадлежит оболочке. */
-  let workspaceOpen = $state(false);
+  let workspaceOpen = $state(true);
+
+  /** Показывается ли список рабочих мест вместо вкладок. */
+  let workspaceListMode = $state(false);
 
   /** Открыта ли панель списка открытых книг. */
   let booksPanelOpen = $state(false);
 
-  /** Состояние рабочего места: вкладки и активная вкладка. */
-  let workspace: WorkspaceState = $state(emptyWorkspace());
+  /** Реестр рабочих мест и активное место. */
+  let registry: WorkspaceRegistry = $state(emptyRegistry());
 
-  /** Загружено ли состояние рабочего места из ядра. */
-  let workspaceLoaded = $state(false);
+  /** Загружен ли реестр рабочих мест из ядра. */
+  let registryLoaded = $state(false);
+
+  /** Активное рабочее место. */
+  const workspace = $derived(activeWorkspace(registry));
 
   /** Вкладка, для которой выбирается новая книга (переуказание файла). */
   let repointTabId: string | null = $state(null);
@@ -131,6 +138,7 @@
     if (workspaceOpen) {
       settingsOpen = false;
       librariesOpen = false;
+      workspaceListMode = workspace === null;
     }
   }
 
@@ -146,27 +154,57 @@
 
   /** Выбор активной вкладки. */
   function selectTab(id: string) {
-    workspace = activateTab(workspace, id);
+    registry = updateActiveWorkspaceTabs(registry, (state) => activateTab(state, id));
   }
 
   /** Закрытие вкладки. */
   function removeTab(id: string) {
-    workspace = closeTab(workspace, id);
+    registry = updateActiveWorkspaceTabs(registry, (state) => closeTab(state, id));
   }
 
   /** Дублирование вкладки. */
   function duplicateCurrentTab(id: string) {
-    workspace = duplicateTab(workspace, id);
+    registry = updateActiveWorkspaceTabs(registry, (state) => duplicateTab(state, id));
   }
 
   /** Изменение состояния чтения вкладки. */
   function handleTabState(id: string, state: { zoom: number; position: number }) {
-    workspace = updateTab(workspace, id, state);
+    registry = updateActiveWorkspaceTabs(registry, (current) => updateTab(current, id, state));
   }
 
   /** Переключение панели списка открытых книг. */
   function toggleBooksPanel() {
     booksPanelOpen = !booksPanelOpen;
+  }
+
+  /** Возврат к списку рабочих мест. */
+  function backToList() {
+    workspaceListMode = true;
+  }
+
+  /** Создание рабочего места. */
+  function createNewWorkspace(name: string) {
+    registry = createWorkspace(registry, name);
+    workspaceListMode = false;
+  }
+
+  /** Открытие рабочего места из списка. */
+  function openWorkspace(id: string) {
+    registry = selectWorkspace(registry, id);
+    workspaceListMode = false;
+  }
+
+  /** Переименование рабочего места. */
+  function renameExistingWorkspace(id: string, name: string) {
+    registry = renameWorkspace(registry, id, name);
+  }
+
+  /** Удаление рабочего места. */
+  function removeExistingWorkspace(id: string) {
+    registry = removeWorkspace(registry, id);
+    if (registry.activeWorkspaceId === null) {
+      workspaceListMode = true;
+    }
   }
 
   /** Переход к библиотеке для добавления книги в рабочее место. */
@@ -202,12 +240,19 @@
       format: value.format ? String(value.format) : '',
     };
     if (repointTabId) {
-      workspace = replaceTabBook(workspace, repointTabId, book);
+      registry = updateActiveWorkspaceTabs(registry, (state) =>
+        replaceTabBook(state, repointTabId as string, book),
+      );
       repointTabId = null;
     } else {
-      workspace = openBook(workspace, book);
+      registry = updateActiveWorkspaceTabs(
+        registry,
+        (state) => openBook(state, book),
+        true,
+      );
     }
     workspaceOpen = true;
+    workspaceListMode = false;
     settingsOpen = false;
     librariesOpen = false;
   }
@@ -249,12 +294,13 @@
       });
       await refreshActiveLibrary();
       try {
-        const loaded = await invokeCommand('get_workspace', {});
-        workspace = normalizeWorkspace(loaded);
+        const loaded = await invokeCommand('get_workspaces', {});
+        registry = normalizeRegistry(loaded);
       } catch {
-        workspace = emptyWorkspace();
+        registry = emptyRegistry();
       } finally {
-        workspaceLoaded = true;
+        registryLoaded = true;
+        workspaceListMode = activeWorkspace(registry) === null;
       }
     })();
     return () => {
@@ -262,14 +308,14 @@
     };
   });
 
-  /** Сохранение состояния рабочего места с небольшой задержкой. */
+  /** Сохранение реестра рабочих мест с небольшой задержкой. */
   $effect(() => {
-    const snapshot = $state.snapshot(workspace);
-    if (!workspaceLoaded) {
+    const snapshot = $state.snapshot(registry);
+    if (!registryLoaded) {
       return;
     }
     const timer = setTimeout(() => {
-      void invokeCommand('save_workspace', { workspace: snapshot });
+      void invokeCommand('save_workspaces', { workspaces: snapshot });
     }, 300);
     return () => clearTimeout(timer);
   });
@@ -402,7 +448,10 @@
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!workspaceOpen}>
         <WorkplaceSurface
-          {workspace}
+          workspace={workspace}
+          workspaces={registry.workspaces}
+          activeWorkspaceId={registry.activeWorkspaceId}
+          listMode={workspaceListMode}
           booksOpen={booksPanelOpen}
           visible={workspaceOpen}
           onSelectTab={selectTab}
@@ -412,6 +461,11 @@
           onToggleBooks={toggleBooksPanel}
           onTabState={handleTabState}
           onRepointTab={requestRepoint}
+          onBackToList={backToList}
+          onCreateWorkspace={createNewWorkspace}
+          onOpenWorkspace={openWorkspace}
+          onRenameWorkspace={renameExistingWorkspace}
+          onRemoveWorkspace={removeExistingWorkspace}
         />
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesOpen}>

@@ -1,10 +1,18 @@
 import { expect, test } from '@playwright/test';
 
+/** Закрытие поверхности рабочего места, чтобы показать основной раздел библиотеки. */
+async function showLibrary(page: import('@playwright/test').Page) {
+  const workspace = page.getByLabel('Рабочее место');
+  if ((await workspace.getAttribute('aria-pressed')) === 'true') {
+    await workspace.click();
+  }
+}
+
 test('оболочка показывает панель и переключает настройки', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByText('Текстура')).toBeVisible();
-  await expect(page.getByText('Библиотека')).toBeVisible();
+  await expect(page.getByTestId('workplace-surface')).toBeVisible();
 
   await page.getByLabel('Настройки').click();
 
@@ -24,13 +32,13 @@ test('кнопки верхней панели показывают активн
   const workspace = page.getByLabel('Рабочее место');
   const settings = page.getByLabel('Настройки');
 
+  await expect(workspace).toHaveAttribute('aria-pressed', 'true');
   await expect(libraries).toHaveAttribute('aria-pressed', 'false');
-  await expect(workspace).toHaveAttribute('aria-pressed', 'false');
   await expect(settings).toHaveAttribute('aria-pressed', 'false');
 
   await libraries.click();
   await expect(libraries).toHaveAttribute('aria-pressed', 'true');
-  await expect(settings).toHaveAttribute('aria-pressed', 'false');
+  await expect(workspace).toHaveAttribute('aria-pressed', 'false');
 
   await workspace.click();
   await expect(workspace).toHaveAttribute('aria-pressed', 'true');
@@ -41,13 +49,11 @@ test('кнопки верхней панели показывают активн
   await expect(workspace).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('кнопка рабочего места открывает поверхность', async ({ page }) => {
+test('при запуске открыто рабочее место', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByLabel('Рабочее место').click();
-
+  await expect(page.getByLabel('Рабочее место')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('workplace-surface')).toBeVisible();
-  await expect(page.getByTestId('workplace-empty')).toBeVisible();
 });
 
 test('страница библиотек показывает историю с временем', async ({ page }) => {
@@ -69,5 +75,12 @@ test('после открытия библиотеки страница выбо
   await page.getByRole('button', { name: /demo-library/ }).click();
 
   await expect(page.getByRole('heading', { name: 'Библиотеки' })).toBeHidden();
+  await expect(page.frameLocator('iframe[title="Library plugin"]').locator('body')).toBeVisible();
+});
+
+test('основной раздел библиотеки возвращается после закрытия рабочего места', async ({ page }) => {
+  await page.goto('/');
+  await showLibrary(page);
+
   await expect(page.frameLocator('iframe[title="Library plugin"]').locator('body')).toBeVisible();
 });
