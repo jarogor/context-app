@@ -15,6 +15,7 @@ function handlers() {
         onQuote: vi.fn(),
         onDeleteNote: vi.fn(),
         onGoToNote: vi.fn(),
+        onSelectNote: vi.fn(),
         
         onTabState: vi.fn(),
         onRepointTab: vi.fn(),

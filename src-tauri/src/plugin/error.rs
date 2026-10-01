@@ -24,6 +24,8 @@ pub enum PluginError {
     UnknownPlugin(String),
     /// Ошибка работы с пакетом плагина.
     Package { reason: String },
+    /// Ошибка доступа к файлу модуля рисования плагина рабочего места.
+    ViewerResource { plugin: String, message: String },
     /// Ни один загруженный плагин не предоставляет требуемую capability.
     MissingCapability(String),
     /// Зависимость плагина не может быть разрешена.
@@ -77,6 +79,9 @@ impl std::fmt::Display for PluginError {
             }
             Self::UnknownPlugin(name) => write!(f, "плагин {name} не загружен"),
             Self::Package { reason } => write!(f, "ошибка пакета плагина: {reason}"),
+            Self::ViewerResource { plugin, message } => {
+                write!(f, "ошибка модуля рисования плагина {plugin}: {message}")
+            }
             Self::MissingCapability(capability) => {
                 write!(
                     f,

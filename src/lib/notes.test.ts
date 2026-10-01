@@ -16,7 +16,7 @@ import {
     normalizeSet,
     normalizeSetSummary,
 } from './notes';
-import { createAnchor, serializeAnchor } from './reader/anchor';
+import { createAnchor, createPageAnchor, serializeAnchor } from './reader/anchor';
 import { invokeCommand } from './app-bridge';
 
 vi.mock('./app-bridge', () => ({
@@ -271,6 +271,23 @@ describe('порядок заметок', () => {
             'page',
             'missing',
         ]);
+    });
+
+    it('сортирует страничные заметки по номеру страницы', () => {
+        const later = normalizeNote({
+            id: 'p9',
+            page: 9,
+            createdAtMillis: 100,
+            anchor: serializeAnchor(createPageAnchor({ page: 9, quote: 'б', percent: 90 })),
+        });
+        const earlier = normalizeNote({
+            id: 'p3',
+            page: 3,
+            createdAtMillis: 200,
+            anchor: serializeAnchor(createPageAnchor({ page: 3, quote: 'а', percent: 30 })),
+        });
+
+        expect(noteList([later, earlier]).map((item) => item.note.id)).toEqual(['p3', 'p9']);
     });
 });
 

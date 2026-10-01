@@ -106,3 +106,22 @@ deploy_static_plugin() {
 }
 
 deploy_static_plugin "workplace-demo"
+
+# Развёртывание плагина рабочего места PDF: манифест, модуль рисования и
+# поставляемая сборка pdf.js (движок и worker) в его каталоге.
+deploy_pdf_plugin() {
+  local name="workplace-pdf"
+  local src="$WORKSPACE_DIR/$name"
+  local out_dir="$RESOURCES_DIR/$name"
+  local pdf_dist="$ROOT/node_modules/pdfjs-dist/build"
+  if [ ! -f "$pdf_dist/pdf.min.mjs" ] || [ ! -f "$pdf_dist/pdf.worker.min.mjs" ]; then
+    echo "не найдена сборка pdfjs-dist; выполните npm install" >&2
+    exit 1
+  fi
+  deploy_static_plugin "$name"
+  cp "$pdf_dist/pdf.min.mjs" "$out_dir/viewer/pdf.mjs"
+  cp "$pdf_dist/pdf.worker.min.mjs" "$out_dir/viewer/pdf.worker.mjs"
+  echo "собран плагин рабочего места PDF: $out_dir"
+}
+
+deploy_pdf_plugin

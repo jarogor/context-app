@@ -24,6 +24,8 @@
     notesOpen: boolean;
     /** Элементы списка заметок книги активной вкладки. */
     notes: NoteListItem[];
+    /** Выбранная заметка для подсветки в списке. */
+    selectedNoteId?: string | null;
     /** Загружаются ли заметки книги. */
     notesLoading: boolean;
     /** Есть ли активная книга. */
@@ -50,6 +52,8 @@
     onDeleteNote: (noteId: string) => void;
     /** Переход к заметке в тексте книги. */
     onGoToNote: (note: Note) => void;
+    /** Клик по подсветке заметки в книге: открыть панель и выбрать заметку. */
+    onSelectNote: (noteId: string) => void;
     /** Изменение состояния чтения вкладки. */
     onTabState: (id: string, state: { zoom: number; position: number }) => void;
     /** Просьба переуказать файл недоступной книги вкладки. */
@@ -77,6 +81,7 @@
     notesLoading,
     hasBook,
     visible,
+    selectedNoteId = null,
     onSelectTab,
     onCloseTab,
     onDuplicateTab,
@@ -87,6 +92,7 @@
     onQuote,
     onDeleteNote,
     onGoToNote,
+    onSelectNote,
     onTabState,
     onRepointTab,
     onBackToList,
@@ -155,6 +161,7 @@
               {visible}
               onStateChange={(state) => onTabState(tab.id, state)}
               onQuote={onQuote}
+              onNoteClick={onSelectNote}
               onRepoint={() => onRepointTab(tab.id)}
               onRemove={() => onCloseTab(tab.id)}
             />
@@ -174,6 +181,7 @@
           items={tabItems}
           loading={notesLoading}
           {hasBook}
+          selectedId={selectedNoteId}
           onGoToNote={onGoToNote}
           onDeleteNote={onDeleteNote}
         />

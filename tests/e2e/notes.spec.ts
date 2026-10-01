@@ -175,6 +175,46 @@ test('выделение восстанавливается после пере�
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
 });
 
+test('меню заметки закрывается при снятии выделения', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    const paragraph = bookDocument(page).getByText('Первый абзац книги.');
+    await paragraph.evaluate((element) => {
+        const range = element.ownerDocument.createRange();
+        range.selectNodeContents(element);
+        const selection = element.ownerDocument.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+    await expect(page.getByTestId('quote-menu')).toBeVisible();
+
+    // Щелчок мимо снимает выделение — меню закрывается.
+    await paragraph.evaluate((element) => {
+        element.ownerDocument.getSelection()?.removeAllRanges();
+    });
+
+    await expect(page.getByTestId('quote-menu')).toHaveCount(0);
+});
+
+test('клик по подсветке открывает панель заметок и выбирает заметку', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+    await highlightParagraph(page, 'Первый абзац книги.');
+
+    // Панель закрыта, книга видна.
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await expect(page.getByTestId('notes-panel')).toHaveCount(0);
+
+    await bookDocument(page).locator('mark').first().click();
+
+    await expect(page.getByTestId('notes-panel')).toBeVisible();
+    await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
+});
+
 test('клик по заметке ведёт к выделению в книге', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');

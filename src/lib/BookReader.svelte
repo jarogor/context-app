@@ -267,6 +267,18 @@
     }
   }
 
+  /** Отмена меню при снятии выделения (клик мимо, клавиатура, другая книга). */
+  function handleSelectionChange(): void {
+    if (!pendingAnchor) {
+      return;
+    }
+    const selection = document()?.getSelection();
+    if (!selection || selection.isCollapsed) {
+      pendingAnchor = null;
+      menuPosition = null;
+    }
+  }
+
   /** Захват опорной строки: читаемое место остаётся на экране при перестройке.
    *
    * Опорой служит живой диапазон второй видимой строки: пока строка живёт в
@@ -410,6 +422,7 @@
     value.addEventListener('mouseup', handleMouseUp);
     value.addEventListener('mousedown', handleMouseDown);
     value.addEventListener('click', handleClick);
+    value.addEventListener('selectionchange', handleSelectionChange);
     value.addEventListener('scroll', handleDocumentScroll, { passive: true });
     value.defaultView?.addEventListener('resize', handleResize);
     applyZoom(zoom);

@@ -112,6 +112,42 @@ impl AppState {
         Ok(name)
     }
 
+    /// Каталог модуля рисования плагина рабочего места.
+    ///
+    /// Ядро не интерпретирует содержимое: каталог нужен лишь для безопасного
+    /// перечисления и чтения файлов модуля по идентификатору плагина.
+    pub fn viewer_dir(&mut self, plugin_id: &str) -> Result<PathBuf, String> {
+        self.reader()?
+            .viewer_dir(plugin_id)
+            .ok_or_else(|| format!("модуль рисования плагина не найден: {plugin_id}"))
+    }
+
+    /// Список файлов модуля рисования плагина (относительные пути и MIME).
+    pub fn viewer_files(&mut self, plugin_id: &str) -> Result<serde_json::Value, String> {
+        let dir = self.viewer_dir(plugin_id)?;
+        let files = crate::plugin::viewer::list_files(&dir).map_err(|error| error.to_string())?;
+        serde_json::to_value(files).map_err(|error| error.to_string())
+    }
+
+    /// Содержимое файла модуля рисования в base64.
+    ///
+    /// Путь читается только внутри каталога модуля; содержимое не
+    /// интерпретируется и передаётся интерфейсу непрозрачно.
+    pub fn viewer_file(
+        &mut self,
+        plugin_id: &str,
+        path: &str,
+    ) -> Result<serde_json::Value, String> {
+        let dir = self.viewer_dir(plugin_id)?;
+        let bytes =
+            crate::plugin::viewer::read_file(&dir, path).map_err(|error| error.to_string())?;
+        let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
+        Ok(serde_json::json!({
+            "path": path,
+            "data": encoded,
+        }))
+    }
+
     /// Содержимое книги по пути через source-плагин.
     ///
     /// Перебирает source-плагины runtime чтения и возвращает первый успешный

@@ -4,6 +4,7 @@ import {
   formatFromPath,
   isSupportedFormat,
   loadBookContent,
+  loadWorkplaceBundle,
   loadWorkplaceViewer,
   readWorkplaceBook,
   selectWorkplacePlugin,
@@ -80,9 +81,10 @@ describe('loadBookContent', () => {
 /** Мок-бэкенд ядра для плагинов рабочего места. */
 function workplaceBackend(overrides: Partial<Record<string, unknown>> = {}): ReaderBackend {
   return {
-    invoke: async (command) => {
+    invoke: async (command, payload) => {
       if (command in overrides) {
-        return overrides[command];
+        const value = overrides[command];
+        return typeof value === 'function' ? (value as (input: unknown) => unknown)(payload) : value;
       }
       if (command === 'reader_formats') {
         return ['pdf'];
@@ -146,20 +148,51 @@ describe('loadWorkplaceViewer', () => {
   });
 });
 
+describe('loadWorkplaceBundle', () => {
+  it('собирает точку входа и файлы модуля', async () => {
+    const backend = workplaceBackend({
+      reader_viewer: '<html><script src="pdf.mjs"></script></html>',
+      reader_viewer_files: [
+        { path: 'index.html', mime: 'text/html' },
+        { path: 'pdf.mjs', mime: 'text/javascript' },
+      ],
+      reader_viewer_file: (payload: unknown) => {
+        const path = (payload as { path?: string }).path ?? '';
+        return { path, data: `data:${path}` };
+      },
+    });
+    const bundle = await loadWorkplaceBundle('plugin-1', backend);
+    expect(bundle.entry).toContain('pdf.mjs');
+    expect(bundle.files.map((file) => file.path)).toEqual(['index.html', 'pdf.mjs']);
+    expect(bundle.files[1].base64).toBe('data:pdf.mjs');
+    expect(bundle.files[1].mime).toBe('text/javascript');
+  });
+
+  it('переживает отсутствие списка файлов', async () => {
+    const backend = workplaceBackend({ reader_viewer_files: null });
+    const bundle = await loadWorkplaceBundle('plugin-1', backend);
+    expect(bundle.files).toEqual([]);
+  });
+});
+
 describe('readWorkplaceBook', () => {
-  it('собирает содержимое из порций', async () => {
+  it('собирает содержимое из независимо закодированных порций', async () => {
+    // Каждая порция — самостоятельный base64 байтового среза: склейка строк
+    // base64 недопустима, иначе граница попадёт в середину тройки байтов.
+    const first = btoa(String.fromCharCode(0, 1, 2));
+    const second = btoa(String.fromCharCode(3, 4));
     let call = 0;
     const backend: ReaderBackend = {
       invoke: async () => {
         call += 1;
         if (call === 1) {
-          return { chunk: 'AAA', next: 3, total: 6, done: false };
+          return { chunk: first, next: 3, total: 5, done: false };
         }
-        return { chunk: 'BBB', next: 6, total: 6, done: true };
+        return { chunk: second, next: 5, total: 5, done: true };
       },
     };
     const data = await readWorkplaceBook('/lib/book.demo', backend);
-    expect(data).toBe('AAABBB');
+    expect(atob(data)).toBe(String.fromCharCode(0, 1, 2, 3, 4));
     expect(call).toBe(2);
   });
 });

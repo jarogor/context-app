@@ -46,6 +46,27 @@ pub fn reader_viewer(
         .map_err(|error| format!("не удалось прочитать модуль рисования: {error}"))
 }
 
+/// Список файлов модуля рисования плагина рабочего места.
+#[tauri::command]
+pub fn reader_viewer_files(
+    state: State<'_, Mutex<AppState>>,
+    plugin_id: String,
+) -> Result<Value, String> {
+    let mut state = state.lock().map_err(|error| error.to_string())?;
+    state.viewer_files(&plugin_id)
+}
+
+/// Содержимое файла модуля рисования плагина рабочего места (base64).
+#[tauri::command]
+pub fn reader_viewer_file(
+    state: State<'_, Mutex<AppState>>,
+    plugin_id: String,
+    path: String,
+) -> Result<Value, String> {
+    let mut state = state.lock().map_err(|error| error.to_string())?;
+    state.viewer_file(&plugin_id, &path)
+}
+
 /// Содержимое книги по пути (opaque-модель source-плагина).
 #[tauri::command]
 pub fn reader_content(state: State<'_, Mutex<AppState>>, path: String) -> Result<Value, String> {

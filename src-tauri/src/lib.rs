@@ -103,6 +103,8 @@ pub fn run() {
             commands::reader_formats,
             commands::reader_plugin_for_format,
             commands::reader_viewer,
+            commands::reader_viewer_files,
+            commands::reader_viewer_file,
             commands::reader_content,
             commands::reader_open_external,
             commands::reader_book_chunk,

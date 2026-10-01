@@ -11,11 +11,20 @@
     hasBook?: boolean;
     /** Переход к заметке в тексте книги. */
     onGoToNote?: (note: Note) => void;
+    /** Идентификатор выбранной заметки для подсветки в списке. */
+    selectedId?: string | null;
     /** Удаление заметки. */
     onDeleteNote?: (noteId: string) => void;
   }
 
-  let { items, loading = false, hasBook = true, onGoToNote, onDeleteNote }: Props = $props();
+  let {
+    items,
+    loading = false,
+    hasBook = true,
+    onGoToNote,
+    selectedId = null,
+    onDeleteNote,
+  }: Props = $props();
 
   /** Запрос поиска по цитатам. */
   let query = $state('');
@@ -79,8 +88,12 @@
       >
         {#each visible as item (item.note.id)}
           <li
-            class="rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)]"
+            class="rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)] transition-colors {selectedId ===
+            item.note.id
+              ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+              : ''}"
             data-testid="notes-item"
+            data-selected={selectedId === item.note.id ? 'true' : 'false'}
           >
             <button
               type="button"

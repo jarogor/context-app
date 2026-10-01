@@ -887,6 +887,25 @@ fn loads_workplace_plugin_without_wasm() {
 }
 
 #[test]
+fn workplace_viewer_dir_resolves_and_is_missing_for_unknown_plugin() {
+    let dir = setup_workplace_root("viewer-dir", true);
+    let root = dir.clone();
+    let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    let viewer_dir = runtime.viewer_dir(WORKPLACE_ID).expect("каталог модуля");
+    assert!(viewer_dir.is_dir(), "каталог модуля рисования существует");
+    assert!(
+        viewer_dir.join("index.html").is_file(),
+        "точка входа лежит в каталоге модуля"
+    );
+    assert_eq!(
+        runtime.viewer_dir("aaaaaaaa-0000-4000-8000-0000000000ff"),
+        None,
+        "для неизвестного плагина каталог модуля не резолвится"
+    );
+    cleanup(&root);
+}
+
+#[test]
 fn skips_workplace_plugin_without_viewer_file() {
     let dir = setup_workplace_root("missing-viewer", false);
     let root = dir.clone();

@@ -15,6 +15,7 @@
   } from './reader';
   import type { Note } from './notes';
   import type { QuoteAnchor } from './reader/anchor';
+  import { canStepPage, clampPage, pageProgress } from './reader/page-state';
 
   interface Props {
     /** Путь к файлу открытой книги (вложение вкладки). */
@@ -35,6 +36,8 @@
     onQuote?: (anchor: QuoteAnchor) => void;
     /** Просьба указать файл недоступной книги. */
     onRepoint?: () => void;
+    /** Клик по подсветке заметки: открыть панель и выбрать заметку. */
+    onNoteClick?: (noteId: string) => void;
     /** Убрать вкладку. */
     onRemove?: () => void;
   }
@@ -49,12 +52,20 @@
     onStateChange,
     onQuote,
     onRepoint,
+    onNoteClick,
     onRemove,
   }: Props = $props();
 
   /** Минимальный и максимальный масштаб текста в процентах. */
-  const MIN_ZOOM = 60;
-  const MAX_ZOOM = 220;
+  const TEXT_MIN_ZOOM = 60;
+  const TEXT_MAX_ZOOM = 220;
+  /** Минимальный и максимальный масштаб страничного формата в процентах.
+   *
+   * Страницы измеряются собственной шкалой файла, поэтому диапазон шире: от
+   * почти нечитаемого обзора до сильного увеличения фрагмента.
+   */
+  const PAGE_MIN_ZOOM = 5;
+  const PAGE_MAX_ZOOM = 1000;
 
   /** Содержимое книги (текстовые форматы). */
   let content: BookContent | null = $state(null);
@@ -74,12 +85,64 @@
   let progress = $state(untrack(() => initialPosition));
   /** Поддерживает ли плагин рабочего места изменение масштаба. */
   let workplaceZoom = $state(true);
+  /** Поддерживает ли плагин рабочего места страницы. */
+  let workplacePages = $state(false);
+  /** Прогресс загрузки содержимого плагина в процентах. */
+  let loadProgress = $state<number | null>(null);
+  /** Действующие границы масштаба: шире для страничных форматов. */
+  const minZoom = $derived(workplacePages ? PAGE_MIN_ZOOM : TEXT_MIN_ZOOM);
+  const maxZoom = $derived(workplacePages ? PAGE_MAX_ZOOM : TEXT_MAX_ZOOM);
+  /** Текущая страница плагина рабочего места. */
+  let workplacePage = $state<number | null>(null);
+  /** Общее число страниц плагина рабочего места. */
+  let workplacePageCount = $state<number | null>(null);
+  /** Введённый номер страницы для перехода. */
+  let pageInput = $state('');
   /** Читалка текстовой книги для перехода к заметке. */
   let reader: { goto: (note: Note) => void } | undefined = $state();
+  /** Область содержимого плагина для перехода к странице и заметке. */
+  let workplaceContent:
+    | { gotoPage: (page: number) => void; gotoAnchor: (anchor: string, noteId?: string) => void }
+    | undefined = $state();
+  /** Незавершённый якорь выделения для создания заметки. */
+  let pendingAnchor: QuoteAnchor | null = $state(null);
+  /** Позиция меню создания заметки. */
+  let menuPosition: { x: number; y: number } | null = $state(null);
 
   /** Сообщение об изменении состояния чтения вкладки. */
   function reportState() {
     onStateChange?.({ zoom, position: progress });
+  }
+
+  /** Переход к введённому номеру страницы. */
+  function goToPageInput() {
+    const page = Number(pageInput);
+    if (Number.isFinite(page) && page >= 1) {
+      workplaceContent?.gotoPage(clampPage(page, workplacePageCount));
+    }
+    pageInput = '';
+  }
+
+  /** Переход к соседней странице с учётом границ. */
+  function stepPage(delta: number) {
+    if (workplacePage !== null && canStepPage(workplacePage, workplacePageCount, delta)) {
+      workplaceContent?.gotoPage(workplacePage + delta);
+    }
+  }
+
+  /** Создание заметки-цитаты по выделению на странице. */
+  function confirmWorkplaceQuote() {
+    const anchor = pendingAnchor;
+    dismissWorkplaceMenu();
+    if (anchor) {
+      onQuote?.(anchor);
+    }
+  }
+
+  /** Отмена меню создания заметки. */
+  function dismissWorkplaceMenu() {
+    pendingAnchor = null;
+    menuPosition = null;
   }
 
   /** Загрузка содержимого книги.
@@ -125,7 +188,7 @@
 
   /** Изменение масштаба текста в допустимых границах. */
   function changeZoom(delta: number) {
-    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom + delta));
+    zoom = Math.max(minZoom, Math.min(maxZoom, zoom + delta));
     reportState();
   }
 
@@ -149,13 +212,19 @@
    */
   export function goto(note: Note) {
     reader?.goto(note);
+    if (workplace) {
+      workplaceContent?.gotoAnchor(note.anchor, note.id);
+    }
   }
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
   <div class="min-h-0 flex-1 overflow-hidden">
     {#if loading}
-      <div class="flex h-full items-center justify-center gap-[var(--space-2)] text-[var(--color-text-muted)]">
+      <div
+        class="flex h-full items-center justify-center gap-[var(--space-2)] text-[var(--color-text-muted)]"
+        data-testid="reader-loading"
+      >
         <Spinner />
         <span>Открытие книги…</span>
       </div>
@@ -194,18 +263,60 @@
         {/if}
       </div>
     {:else if workplace}
-      <WorkplaceContent
-        pluginId={workplace.pluginId}
-        {path}
-        {title}
-        {zoom}
-        onCapabilities={(value) => (workplaceZoom = value.zoom !== false)}
-        onProgress={(value) => {
-          progress = value;
-          reportState();
-        }}
-        onError={(value) => (error = value)}
-      />
+      <div class="relative h-full w-full">
+        {#if loadProgress !== null}
+          <div
+            class="pointer-events-none absolute inset-x-0 top-0 z-20"
+            data-testid="reader-load-progress"
+          >
+            <Progress value={loadProgress} />
+          </div>
+        {/if}
+        <WorkplaceContent
+          bind:this={workplaceContent}
+          pluginId={workplace.pluginId}
+          {path}
+          {title}
+          {zoom}
+          initialPosition={initialPosition}
+          {notes}
+          onCapabilities={(value) => {
+            workplaceZoom = value.zoom !== false;
+            workplacePages = value.pages === true;
+          }}
+          onLoadProgress={(value) => (loadProgress = value)}
+          onState={(value) => {
+            workplacePage = value.page;
+            workplacePageCount = value.pages;
+            if (value.pages && value.page) {
+              progress = pageProgress(value.page, value.pages);
+              reportState();
+            }
+          }}
+          onProgress={(value) => {
+            progress = value;
+            reportState();
+          }}
+          onSelection={(anchor, position) => {
+            pendingAnchor = anchor;
+            menuPosition = position;
+          }}
+          onSelectionCleared={dismissWorkplaceMenu}
+          onNoteClick={(noteId) => onNoteClick?.(noteId)}
+          onError={(value) => (error = value)}
+        />
+        {#if menuPosition && pendingAnchor}
+          <div
+            class="absolute z-10 flex items-center gap-[var(--space-1)] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[4px] shadow-lg"
+            data-testid="quote-menu"
+            style:left="{Math.max(8, Math.min(menuPosition.x, 400))}px"
+            style:top="{menuPosition.y + 6}px"
+          >
+            <Button variant="primary" size="sm" onclick={confirmWorkplaceQuote}>Создать заметку</Button>
+            <Button variant="ghost" size="sm" onclick={dismissWorkplaceMenu}>Отмена</Button>
+          </div>
+        {/if}
+      </div>
     {:else if content}
       <BookReader
         bind:this={reader}
@@ -215,6 +326,7 @@
         {notes}
         {visible}
         onQuote={(anchor) => onQuote?.(anchor)}
+        onSelectNote={(noteId) => onNoteClick?.(noteId)}
         onProgress={(value) => {
           progress = value;
           reportState();
@@ -233,7 +345,7 @@
           variant="ghost"
           title="Уменьшить масштаб"
           ariaLabel="Уменьшить масштаб"
-          disabled={zoom <= MIN_ZOOM}
+          disabled={zoom <= minZoom}
           onclick={() => changeZoom(-10)}>−</Button
         >
         <span class="min-w-[48px] text-center" data-testid="reader-zoom">{zoom}%</span>
@@ -242,12 +354,46 @@
           variant="ghost"
           title="Увеличить масштаб"
           ariaLabel="Увеличить масштаб"
-          disabled={zoom >= MAX_ZOOM}
+          disabled={zoom >= maxZoom}
           onclick={() => changeZoom(10)}>+</Button
         >
       {/if}
     </div>
     <div class="ml-auto flex items-center gap-[var(--space-2)]">
+      {#if workplace && workplacePages && workplacePage !== null}
+        <div class="flex items-center gap-[var(--space-1)]" data-testid="reader-pages">
+          <Button
+            size="icon"
+            variant="ghost"
+            title="Предыдущая страница"
+            ariaLabel="Предыдущая страница"
+            disabled={workplacePage <= 1}
+            onclick={() => stepPage(-1)}>‹</Button
+          >
+          <span class="min-w-[16px] text-center" data-testid="reader-page">{workplacePage}</span>
+          <span data-testid="reader-page-count">из {workplacePageCount ?? '?'}</span>
+          <input
+            class="w-[52px] rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-[6px] py-[2px] text-center text-[12px] text-[var(--color-text)]"
+            aria-label="Перейти к странице"
+            placeholder="№"
+            bind:value={pageInput}
+            onkeydown={(event) => {
+              if (event.key === 'Enter') {
+                goToPageInput();
+              }
+            }}
+            onblur={goToPageInput}
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            title="Следующая страница"
+            ariaLabel="Следующая страница"
+            disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
+            onclick={() => stepPage(1)}>›</Button
+          >
+        </div>
+      {/if}
       <span data-testid="reader-progress">{Math.round(progress)}%</span>
       <Progress value={progress} class="w-[180px]" />
     </div>

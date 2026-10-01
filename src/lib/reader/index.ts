@@ -116,6 +116,62 @@ export async function loadWorkplaceViewer(
   return String(await backend.invoke('reader_viewer', { pluginId }));
 }
 
+/** Файл модуля рисования: относительный путь и MIME-тип. */
+export interface ViewerFile {
+  /** Относительный путь файла внутри каталога модуля. */
+  path: string;
+  /** MIME-тип файла. */
+  mime: string;
+}
+
+/** Содержимое файла модуля рисования. */
+export interface ViewerFileContent extends ViewerFile {
+  /** Содержимое файла в base64. */
+  base64: string;
+}
+
+/** Список файлов модуля рисования плагина рабочего места. */
+export async function listWorkplaceViewerFiles(
+  pluginId: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<ViewerFile[]> {
+  const value = (await backend.invoke('reader_viewer_files', { pluginId })) as unknown;
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((item) => {
+    const record = (item ?? {}) as { path?: unknown; mime?: unknown };
+    return { path: String(record.path ?? ''), mime: String(record.mime ?? '') };
+  });
+}
+
+/** Чтение содержимого файла модуля рисования. */
+export async function readWorkplaceViewerFile(
+  pluginId: string,
+  path: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<ViewerFileContent> {
+  const value = (await backend.invoke('reader_viewer_file', { pluginId, path })) as {
+    data?: unknown;
+  } | null;
+  return { path, mime: '', base64: String(value?.data ?? '') };
+}
+
+/** Загрузка точки входа и всех файлов модуля рисования. */
+export async function loadWorkplaceBundle(
+  pluginId: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<{ entry: string; files: ViewerFileContent[] }> {
+  const entry = await loadWorkplaceViewer(pluginId, backend);
+  const descriptors = await listWorkplaceViewerFiles(pluginId, backend);
+  const files: ViewerFileContent[] = [];
+  for (const descriptor of descriptors) {
+    const content = await readWorkplaceViewerFile(pluginId, descriptor.path, backend);
+    files.push({ path: descriptor.path, mime: descriptor.mime, base64: content.base64 });
+  }
+  return { entry, files };
+}
+
 /** Порция содержимого книги, полученная от ядра. */
 interface BookChunk {
   /** Кодированные байты порции. */
@@ -128,27 +184,40 @@ interface BookChunk {
   done: boolean;
 }
 
-/** Чтение содержимого книги частями по пути. */
+/** Чтение содержимого книги частями по пути.
+ *
+ * Каждая порция приходит отдельной строкой base64 со своим паддингом, поэтому
+ * склеивать строки нельзя: граница порции может прийтись на середину тройки
+ * байтов, и `atob` на склейке упадёт. Порции декодируются по отдельности, а
+ * результат собирается в одну строку base64 для передачи модулю рисования.
+ */
 export async function readWorkplaceBook(
   path: string,
   backend: ReaderBackend = defaultBackend(),
+  onProgress?: (value: number) => void,
 ): Promise<string> {
   const CHUNK_LENGTH = 512 * 1024;
   let offset = 0;
-  let base64 = '';
+  let binary = '';
+  let total = 0;
   for (;;) {
     const result = (await backend.invoke('reader_book_chunk', {
       path,
       offset,
       length: CHUNK_LENGTH,
     })) as BookChunk;
-    base64 += result.chunk;
+    binary += atob(result.chunk);
     offset = result.next;
+    total = Number(result.total) || binary.length;
+    if (total > 0) {
+      onProgress?.(Math.max(0, Math.min(100, (offset / total) * 100)));
+    }
     if (result.done) {
       break;
     }
   }
-  return base64;
+  onProgress?.(100);
+  return btoa(binary);
 }
 
 /** Сброс кэша содержимого книги после переуказания файла. */

@@ -9,7 +9,7 @@
  */
 
 import { invokeCommand } from './app-bridge';
-import { parseAnchor, type QuoteAnchor } from './reader/anchor';
+import { parseAnchor, isPageAnchor, type QuoteAnchor } from './reader/anchor';
 
 /** Идентификатор активной библиотеки в ключе книги. */
 const NO_LIBRARY = 'no-library';
@@ -249,18 +249,33 @@ function fallbackLocation(note: Note): number {
 /** Сравнение заметок по ходу текста книги, затем по времени создания.
  *
  * Порядок отражает расположение в книге: заметка, созданная позже, но стоящая
- * выше по тексту, идёт раньше. Якорь даёт точную позицию (глава и смещение
- * символов); без якоря опорой служат страница или доля позиции.
+ * выше по тексту, идёт раньше. Якорь даёт точную позицию: для текстового якоря —
+ * глава и смещение символов, для страничного — номер страницы. Без якоря опорой
+ * служат страница или доля позиции.
  */
 function byPosition(left: Note, right: Note): number {
     const a = parseAnchor(left.anchor);
     const b = parseAnchor(right.anchor);
     if (a && b) {
-        if (a.chapter !== b.chapter) {
-            return a.chapter - b.chapter;
-        }
-        if (a.start !== b.start) {
-            return a.start - b.start;
+        if (isPageAnchor(a) && isPageAnchor(b)) {
+            const leftPage = a.page ?? 0;
+            const rightPage = b.page ?? 0;
+            if (leftPage !== rightPage) {
+                return leftPage - rightPage;
+            }
+        } else if (isPageAnchor(a) || isPageAnchor(b)) {
+            // Страничный якорь сопоставим с текстовым лишь по месту книги.
+            const difference = fallbackLocation(left) - fallbackLocation(right);
+            if (difference !== 0) {
+                return difference;
+            }
+        } else {
+            if (a.chapter !== b.chapter) {
+                return a.chapter - b.chapter;
+            }
+            if (a.start !== b.start) {
+                return a.start - b.start;
+            }
         }
     } else if (a || b) {
         // Заметки без якоря не имеют точного места — показываем их в конце.

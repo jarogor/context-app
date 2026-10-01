@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Читалка PDF</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #525659;
+        font-family: system-ui, sans-serif;
+      }
+      /* Область прокрутки: книга показывается целиком, все страницы подряд. */
+      #viewer {
+        position: absolute;
+        inset: 0;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #8a8f98 #3f4247;
+      }
+      #viewer::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+      }
+      #viewer::-webkit-scrollbar-track {
+        background: #3f4247;
+      }
+      #viewer::-webkit-scrollbar-thumb {
+        background: #8a8f98;
+        border-radius: 6px;
+      }
+      #pages {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 0;
+      }
+      .page {
+        position: relative;
+        background: #fff;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+      }
+      .page canvas {
+        display: block;
+      }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .overlay .note {
+        position: absolute;
+        background: rgba(253, 224, 71, 0.5);
+        border-radius: 2px;
+        pointer-events: auto;
+        cursor: pointer;
+      }
+      .overlay .note.flash {
+        background: rgba(245, 158, 11, 0.75);
+      }
+      .textLayer {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        line-height: 1;
+        opacity: 0.25;
+      }
+      .textLayer span,
+      .textLayer br {
+        color: transparent;
+        position: absolute;
+        white-space: pre;
+        cursor: text;
+        transform-origin: 0% 0%;
+      }
+      .textLayer ::selection {
+        background: rgba(37, 99, 235, 0.35);
+      }
+      #status {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #e5e7eb;
+        padding: 24px;
+        text-align: center;
+      }
+      #status[hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"><div id="pages"></div></div>
+    <div id="status">Ожидание книги…</div>
+
+    <!--
+      Классический скрипт выполняется до модульного: он получает blob-адреса
+      файлов модуля (движок и worker). Модуль импортирует движок напрямую по
+      этому адресу — без карты импорта и без сети.
+    -->
+    <script>
+      (function () {
+        window.__texturePdfEngine = textureViewerUrl('./pdf.mjs');
+        window.__texturePdfWorker = textureViewerUrl('./pdf.worker.mjs');
+      })();
+    </script>
+
+    <script type="module">
+      const CHANNEL = 'texture-workplace';
+      /** Соответствие пункта PDF и CSS-пикселя: 100 % — естественный размер. */
+      const CSS_UNITS = 96 / 72;
+
+      const status = document.getElementById('status');
+      const viewer = document.getElementById('viewer');
+      const pagesEl = document.getElementById('pages');
+
+      let pdfjsLib = null;
+      let doc = null;
+      let pageCount = 0;
+      let zoom = 100;
+      let initialZoom = 100;
+      let notes = [];
+      /** Натуральный размер каждой страницы при масштабе 1 (CSS px). */
+      let naturalSizes = [];
+      /** Отметка, показан ли уже канвас страницы. */
+      const rendered = new WeakMap();
+      /** Страницы, отрисовка которых уже идёт. */
+      const pending = new Set();
+      /** Опорная страница окна (для удержания места при масштабе). */
+      let currentPage = 1;
+      let observer = null;
+      let scheduled = false;
+
+      function post(message) {
+        message.channel = CHANNEL;
+        parent.postMessage(message, '*');
+      }
+
+      function decodeBase64(value) {
+        const binary = atob(String(value || ''));
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          bytes[index] = binary.charCodeAt(index);
+        }
+        return bytes;
+      }
+
+      /** Масштаб отображения: 100 % — естественный размер страницы файла. */
+      function currentScale() {
+        return (zoom / 100) * CSS_UNITS;
+      }
+
+      /** Доля прочитанного по положению прокрутки. */
+      function scrollProgress() {
+        const max = viewer.scrollHeight - viewer.clientHeight;
+        return max > 0 ? Math.max(0, Math.min(100, (viewer.scrollTop / max) * 100)) : 0;
+      }
+
+      /** Размер страницы в пикселях при текущем масштабе. */
+      function pageSize(index) {
+        const natural = naturalSizes[index] || naturalSizes[0] || { width: 612, height: 792 };
+        const scale = currentScale();
+        return { width: natural.width * scale, height: natural.height * scale };
+      }
+
+      /** Обновление размеров страниц после уточнения их размеров. */
+      function resizePage(index) {
+        const pageEl = pagesEl.children[index];
+        if (!pageEl || pageEl.dataset.rendered === '1') {
+          return;
+        }
+        const size = pageSize(index);
+        pageEl.style.width = size.width + 'px';
+        pageEl.style.height = size.height + 'px';
+      }
+
+      function reportState() {
+        post({ type: 'state', value: { page: currentPage, pages: pageCount, zoom } });
+        post({ type: 'progress', value: scrollProgress() });
+      }
+
+      async function loadEngine() {
+        if (pdfjsLib) {
+          return pdfjsLib;
+        }
+        pdfjsLib = await import(window.__texturePdfEngine);
+        pdfjsLib.GlobalWorkerOptions.workerSrc = window.__texturePdfWorker;
+        return pdfjsLib;
+      }
+
+      /** Построение каркаса страниц: размеры без рендера. */
+      function layoutPages() {
+        pagesEl.replaceChildren();
+        for (let index = 0; index < pageCount; index += 1) {
+          const size = pageSize(index);
+          const pageEl = document.createElement('div');
+          pageEl.className = 'page';
+          pageEl.dataset.page = String(index + 1);
+          pageEl.style.width = size.width + 'px';
+          pageEl.style.height = size.height + 'px';
+          const overlay = document.createElement('div');
+          overlay.className = 'overlay';
+          pageEl.append(overlay);
+          pagesEl.append(pageEl);
+        }
+      }
+
+      /** Обновление размеров каркаса при смене масштаба. */
+      function resizePages() {
+        for (const pageEl of pagesEl.children) {
+          const index = Number(pageEl.dataset.page) - 1;
+          const size = pageSize(index);
+          pageEl.style.width = size.width + 'px';
+          pageEl.style.height = size.height + 'px';
+        }
+      }
+
+      function overlayOf(pageEl) {
+        return pageEl.querySelector('.overlay');
+      }
+
+      /** Освобождение канваса и текстового слоя страницы (память при прокрутке). */
+      function releasePage(pageEl) {
+        const entry = rendered.get(pageEl);
+        delete pageEl.dataset.rendered;
+        if (!entry) {
+          return;
+        }
+        entry.canvas.remove();
+        entry.textLayer.remove();
+        rendered.delete(pageEl);
+      }
+
+      /** Отрисовка страницы: канвас, текстовый слой, подсветки заметок. */
+      async function renderPage(pageEl) {
+        if (rendered.has(pageEl) || pending.has(pageEl) || !doc) {
+          return;
+        }
+        const index = Number(pageEl.dataset.page) - 1;
+        pending.add(pageEl);
+        let page;
+        try {
+          page = await doc.getPage(index + 1);
+        } catch (error) {
+          pending.delete(pageEl);
+          return;
+        }
+        if (!pageEl.isConnected) {
+          pending.delete(pageEl);
+          return;
+        }
+        const base = page.getViewport({ scale: 1 });
+        naturalSizes[index] = { width: base.width, height: base.height };
+        resizePage(index);
+        const viewport = page.getViewport({ scale: currentScale() });
+        pageEl.style.width = viewport.width + 'px';
+        pageEl.style.height = viewport.height + 'px';
+        pageEl.style.setProperty('--scale-factor', String(currentScale()));
+        pageEl.dataset.rendered = '1';
+
+        const canvas = document.createElement('canvas');
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(viewport.width * ratio);
+        canvas.height = Math.floor(viewport.height * ratio);
+        canvas.style.width = viewport.width + 'px';
+        canvas.style.height = viewport.height + 'px';
+        const context = canvas.getContext('2d');
+        context.scale(ratio, ratio);
+
+        const textLayerEl = document.createElement('div');
+        textLayerEl.className = 'textLayer';
+        const overlay = overlayOf(pageEl);
+        pageEl.insertBefore(canvas, overlay);
+        pageEl.insertBefore(textLayerEl, overlay);
+        rendered.set(pageEl, { canvas, textLayer: textLayerEl });
+
+        await page.render({ canvasContext: context, viewport }).promise;
+        const textLayer = new pdfjsLib.TextLayer({
+          textContentSource: page.streamTextContent(),
+          container: textLayerEl,
+          viewport,
+        });
+        await textLayer.render();
+        pending.delete(pageEl);
+        drawNotes(pageEl);
+      }
+
+      /** Наблюдение за видимостью страниц: рендер вблизи, освобождение вдали. */
+      function startObserver() {
+        if (observer) {
+          observer.disconnect();
+        }
+        observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              const pageEl = entry.target;
+              if (entry.isIntersecting) {
+                void renderPage(pageEl);
+              } else if (entry.intersectionRatio === 0) {
+                const rect = pageEl.getBoundingClientRect();
+                const far = Math.abs(rect.top) > window.innerHeight * 3;
+                if (far) {
+                  releasePage(pageEl);
+                }
+              }
+            }
+          },
+          { root: viewer, rootMargin: '1200px 0px' },
+        );
+        for (const pageEl of pagesEl.children) {
+          observer.observe(pageEl);
+        }
+      }
+
+      /** Подсветка заметок на странице по долям её размера. */
+      function drawNotes(pageEl) {
+        const overlay = overlayOf(pageEl);
+        if (!overlay) {
+          return;
+        }
+        overlay.replaceChildren();
+        const index = Number(pageEl.dataset.page);
+        for (const note of notes) {
+          if (!note.anchor) {
+            continue;
+          }
+          let anchor;
+          try {
+            anchor = JSON.parse(note.anchor);
+          } catch (error) {
+            continue;
+          }
+          if (!anchor || anchor.kind !== 'page' || anchor.page !== index) {
+            continue;
+          }
+          for (const rect of anchor.rects || []) {
+            const element = document.createElement('div');
+            element.className = 'note';
+            element.dataset.noteId = note.id;
+            element.style.left = rect.x * 100 + '%';
+            element.style.top = rect.y * 100 + '%';
+            element.style.width = rect.width * 100 + '%';
+            element.style.height = rect.height * 100 + '%';
+            overlay.appendChild(element);
+          }
+        }
+      }
+
+      function redrawAllNotes() {
+        for (const pageEl of pagesEl.children) {
+          drawNotes(pageEl);
+        }
+      }
+
+      /** Страница, находящаяся у верха области чтения. */
+      function pageAtTop() {
+        const top = viewer.scrollTop;
+        let result = 1;
+        for (const pageEl of pagesEl.children) {
+          const offset = pageEl.offsetTop;
+          if (offset <= top + 8) {
+            result = Number(pageEl.dataset.page);
+          } else {
+            break;
+          }
+        }
+        return result;
+      }
+
+      /** Обновление текущей страницы и прогресса после прокрутки. */
+      function handleScroll() {
+        if (!doc || scheduled) {
+          return;
+        }
+        scheduled = true;
+        requestAnimationFrame(() => {
+          scheduled = false;
+          const page = pageAtTop();
+          if (page !== currentPage) {
+            currentPage = page;
+          }
+          reportState();
+        });
+      }
+
+      /** Прокрутка к доле книги в процентах. */
+      function scrollToFraction(percent) {
+        const max = viewer.scrollHeight - viewer.clientHeight;
+        viewer.scrollTop = max * (Math.max(0, Math.min(100, percent)) / 100);
+      }
+
+      /** Прокрутка к странице (постраничный режим помещает её в область видимости). */
+      function gotoPage(page) {
+        const target = Math.max(1, Math.min(pageCount, Math.trunc(page)));
+        const pageEl = pagesEl.children[target - 1];
+        if (pageEl) {
+          pageEl.scrollIntoView({ block: 'start' });
+          currentPage = target;
+          reportState();
+        }
+      }
+
+      function flashNote(noteId) {
+        if (!noteId) {
+          return;
+        }
+        for (const element of document.querySelectorAll(`.note[data-note-id="${noteId}"]`)) {
+          element.classList.add('flash');
+          setTimeout(() => element.classList.remove('flash'), 1200);
+        }
+      }
+
+      async function open(data, position, zoomValue) {
+        status.textContent = 'Открытие книги…';
+        status.hidden = false;
+        pagesEl.replaceChildren();
+        try {
+          const lib = await loadEngine();
+          doc = await lib.getDocument({ data: decodeBase64(data) }).promise;
+          pageCount = doc.numPages;
+          initialZoom = Number(zoomValue) || 100;
+          zoom = initialZoom;
+          const first = await doc.getPage(1);
+          const firstBase = first.getViewport({ scale: 1 });
+          naturalSizes = new Array(pageCount).fill({
+            width: firstBase.width,
+            height: firstBase.height,
+          });
+          layoutPages();
+          startObserver();
+          status.hidden = true;
+          scrollToFraction(position);
+          currentPage = pageAtTop();
+          reportState();
+        } catch (error) {
+          status.textContent = 'Не удалось отобразить книгу: ' + error;
+          post({ type: 'error', message: String(error) });
+        }
+      }
+
+      /** Применение масштаба с удержанием опорной страницы на месте. */
+      function applyZoom(value) {
+        if (!doc) {
+          return;
+        }
+        const next = Number(value) || 100;
+        if (next === zoom) {
+          return;
+        }
+        const anchorEl = pagesEl.children[currentPage - 1];
+        const offsetBefore = anchorEl ? anchorEl.offsetTop - viewer.scrollTop : 0;
+        zoom = next;
+        resizePages();
+        for (const pageEl of pagesEl.children) {
+          releasePage(pageEl);
+        }
+        for (const pageEl of pagesEl.children) {
+          const rect = pageEl.getBoundingClientRect();
+          if (rect.bottom > -1200 && rect.top < window.innerHeight + 1200) {
+            void renderPage(pageEl);
+          }
+        }
+        if (anchorEl) {
+          viewer.scrollTop = anchorEl.offsetTop - offsetBefore;
+        }
+        reportState();
+      }
+
+      /** Доля выделения в долях размера страницы. */
+      function fractionRect(bounds, pageBounds) {
+        return {
+          x: (bounds.left - pageBounds.left) / pageBounds.width,
+          y: (bounds.top - pageBounds.top) / pageBounds.height,
+          width: bounds.width / pageBounds.width,
+          height: bounds.height / pageBounds.height,
+        };
+      }
+
+      function handleSelection() {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+          return;
+        }
+        const range = selection.getRangeAt(0);
+        const startLayer = elementOf(range.startContainer)?.closest('.textLayer');
+        const endLayer = elementOf(range.endContainer)?.closest('.textLayer');
+        if (!startLayer || startLayer !== endLayer) {
+          return;
+        }
+        const pageEl = startLayer.closest('.page');
+        if (!pageEl) {
+          return;
+        }
+        const quote = selection.toString().replace(/\s+/g, ' ').trim();
+        if (!quote) {
+          return;
+        }
+        const pageBounds = pageEl.getBoundingClientRect();
+        const rects = [];
+        for (const bounds of range.getClientRects()) {
+          if (bounds.width <= 0 || bounds.height <= 0) {
+            continue;
+          }
+          rects.push(fractionRect(bounds, pageBounds));
+        }
+        if (rects.length === 0) {
+          return;
+        }
+        const first = range.getClientRects()[0];
+        const page = Number(pageEl.dataset.page);
+        post({
+          type: 'selection',
+          value: {
+            anchor: {
+              v: 1,
+              kind: 'page',
+              chapter: 0,
+              start: 0,
+              end: 0,
+              quote,
+              percent: scrollProgress(),
+              page,
+              rects,
+            },
+            x: first.left,
+            y: first.bottom,
+          },
+        });
+      }
+
+      function elementOf(node) {
+        return node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+      }
+
+      /** Снятие меню при пропаже выделения. */
+      function handleSelectionChange() {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) {
+          post({ type: 'selection-cleared' });
+        }
+      }
+
+      addEventListener('message', async (event) => {
+        const message = event.data;
+        if (!message || message.channel !== CHANNEL) {
+          return;
+        }
+        if (message.type === 'open') {
+          await open(message.data, Number(message.position) || 0, message.zoom);
+        } else if (message.type === 'zoom') {
+          applyZoom(message.value);
+        } else if (message.type === 'goto') {
+          const value = message.value || {};
+          if (typeof value.page === 'number') {
+            gotoPage(value.page);
+          } else if (typeof value.anchor === 'string') {
+            let anchor;
+            try {
+              anchor = JSON.parse(value.anchor);
+            } catch (error) {
+              anchor = null;
+            }
+            if (anchor && anchor.page) {
+              gotoPage(anchor.page);
+              setTimeout(() => flashNote(value.noteId), 60);
+            }
+          }
+        } else if (message.type === 'notes') {
+          notes = Array.isArray(message.value) ? message.value : [];
+          redrawAllNotes();
+        }
+      });
+
+      viewer.addEventListener('scroll', handleScroll, { passive: true });
+      viewer.addEventListener('mouseup', handleSelection);
+      document.addEventListener('selectionchange', handleSelectionChange);
+      /* Клик по подсветке: приложение открывает панель заметок и выбирает её. */
+      pagesEl.addEventListener('click', (event) => {
+        const target = event.target;
+        const note = target && target.closest ? target.closest('.note') : null;
+        if (note && note.dataset.noteId) {
+          post({ type: 'note-click', value: { noteId: note.dataset.noteId } });
+        }
+      });
+      /** Перерисовка при смене плотности пикселей (перемещение между экранами). */
+      let lastRatio = window.devicePixelRatio || 1;
+      addEventListener('resize', () => {
+        const ratio = window.devicePixelRatio || 1;
+        if (ratio === lastRatio) {
+          return;
+        }
+        lastRatio = ratio;
+        for (const pageEl of pagesEl.children) {
+          releasePage(pageEl);
+        }
+        for (const pageEl of pagesEl.children) {
+          const rect = pageEl.getBoundingClientRect();
+          if (rect.bottom > -1200 && rect.top < window.innerHeight + 1200) {
+            void renderPage(pageEl);
+          }
+        }
+      });
+
+      post({ type: 'capabilities', value: { zoom: true, pages: true, selection: true } });
+      post({ type: 'ready' });
+    </script>
+  </body>
+</html>

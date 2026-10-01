@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     createAnchor,
+    createPageAnchor,
+    isPageAnchor,
     offsetsFromRange,
     parseAnchor,
     rangeFromOffsets,
@@ -80,5 +82,53 @@ describe('смещения выделения', () => {
     it('смещения вне главы отклоняются', () => {
         const root = chapterRoot('<p>Привет</p>');
         expect(rangeFromOffsets(root, 10, 20)).toBeNull();
+    });
+});
+
+describe('страничный якорь', () => {
+    it('создаётся по странице и прямоугольникам', () => {
+        const anchor = createPageAnchor({
+            page: 5,
+            quote: 'цитата на странице',
+            percent: 42,
+            rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.05 }],
+        });
+        expect(anchor.kind).toBe('page');
+        expect(anchor.page).toBe(5);
+        expect(anchor.chapter).toBe(0);
+        expect(anchor.start).toBe(0);
+        expect(isPageAnchor(anchor)).toBe(true);
+        expect(anchor.rects).toHaveLength(1);
+    });
+
+    it('переживает круговой обход', () => {
+        const anchor = createPageAnchor({
+            page: 3,
+            quote: 'текст',
+            percent: 30,
+            rects: [
+                { x: 0.1, y: 0.1, width: 0.2, height: 0.04 },
+                { x: 0.1, y: 0.2, width: 0.5, height: 0.04 },
+            ],
+        });
+        expect(parseAnchor(serializeAnchor(anchor))).toEqual(anchor);
+    });
+
+    it('некорректные прямоугольники отбрасываются', () => {
+        const anchor = createPageAnchor({
+            page: 1,
+            rects: [
+                { x: 0.1, y: 0.1, width: 0.2, height: 0.04 },
+                { x: 'нет', y: 0, width: 1, height: 1 } as never,
+            ],
+        });
+        expect(anchor.rects).toHaveLength(1);
+    });
+
+    it('старый текстовый якорь без вида читается как текстовый', () => {
+        const restored = parseAnchor('{"chapter":2,"start":4,"end":9,"quote":"ц"}');
+        expect(restored?.kind).toBe('text');
+        expect(restored?.chapter).toBe(2);
+        expect(restored?.rects).toBeUndefined();
     });
 });

@@ -370,6 +370,14 @@ export function defaultMockConfig(): MockBridgeConfig {
                 return { chunk: encoded, next: bytes.length, total: bytes.length, done: true };
             },
             reader_forget_book: () => ({ forgotten: true }),
+            reader_viewer_files: () => [
+                { path: 'index.html', mime: 'text/html' },
+                { path: 'viewer.mjs', mime: 'text/javascript' },
+            ],
+            reader_viewer_file: (payload: unknown) => {
+                const value = (payload ?? {}) as { path?: string };
+                return { path: value.path ?? '', data: btoa(`asset:${value.path ?? ''}`) };
+            },
             select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
             active_library: () => null,
             plugin_activation_pending: () => ({ pending: false }),

@@ -89,6 +89,9 @@
   /** Открыта ли панель заметок. */
   let notesPanelOpen = $state(false);
 
+  /** Выбранная в списке заметка (для подсветки и после клика по подсветке). */
+  let selectedNoteId: string | null = $state(null);
+
   /** Номер внешнего изменения заметок из события хранилища. */
   let notesRevision = $state(0);
 
@@ -303,7 +306,15 @@
 
   /** Переход чтения к заметке в тексте книги. */
   function goToNote(note: Note) {
+    selectedNoteId = note.id;
     reader?.goto(note);
+  }
+
+  /** Клик по подсветке заметки в книге: панель открывается, заметка выбирается. */
+  function selectNote(noteId: string) {
+    selectedNoteId = noteId;
+    notesPanelOpen = true;
+    void loadNotes();
   }
 
   /** Загрузка заметок при смене книги активной вкладки. */
@@ -668,6 +679,7 @@
           notesLoading={notesLoading}
           hasBook={notesBookKey !== null}
           visible={workspaceOpen}
+          selectedNoteId={selectedNoteId}
           onSelectTab={selectTab}
           onCloseTab={removeTab}
           onDuplicateTab={duplicateCurrentTab}
@@ -678,6 +690,7 @@
           onQuote={addQuoteFromSelection}
           onDeleteNote={removeNote}
           onGoToNote={goToNote}
+          onSelectNote={selectNote}
           onTabState={handleTabState}
           onRepointTab={requestRepoint}
           onBackToList={backToList}

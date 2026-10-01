@@ -2,6 +2,8 @@
  *
  * Якорь адресует выделение не пикселями, а смещениями символов внутри главы,
  * поэтому не зависит от размера окна, переносов строк и масштаба текста.
+ * Для страничных форматов (PDF) якорь адресует страницу и прямоугольники
+ * выделения в долях размера страницы — тоже независимо от масштаба.
  * Сериализация и разбор — чистые функции; разрешение в диапазон DOM работает с
  * документом книги и вынесено сюда же, чтобы модуль чтения оставался тонким.
  */
@@ -9,15 +11,32 @@
 /** Версия формата якоря. */
 export const ANCHOR_VERSION = 1;
 
-/** Якорь выделения внутри одной главы книги. */
+/** Вид якоря выделения. */
+export type AnchorKind = 'text' | 'page';
+
+/** Прямоугольник выделения в долях размера страницы. */
+export interface AnchorRect {
+    /** Доля от левого края страницы. */
+    x: number;
+    /** Доля от верхнего края страницы. */
+    y: number;
+    /** Доля ширины страницы. */
+    width: number;
+    /** Доля высоты страницы. */
+    height: number;
+}
+
+/** Якорь выделения: внутри главы (текст) или на странице (страничный формат). */
 export interface QuoteAnchor {
     /** Версия формата. */
     v: number;
-    /** Индекс главы книги. */
+    /** Вид якоря: смещения символов либо страница с прямоугольниками. */
+    kind: AnchorKind;
+    /** Индекс главы книги (0 для страничного якоря). */
     chapter: number;
-    /** Смещение начала выделения в символах внутри главы. */
+    /** Смещение начала выделения в символах внутри главы (0 для страничного). */
     start: number;
-    /** Смещение конца выделения в символах внутри главы. */
+    /** Смещение конца выделения в символах внутри главы (0 для страничного). */
     end: number;
     /** Выделенный текст. */
     quote: string;
@@ -25,12 +44,16 @@ export interface QuoteAnchor {
     percent: number;
     /** Номер страницы для страничных форматов; может отсутствовать. */
     page: number | null;
+    /** Прямоугольники выделения в долях страницы (только страничный якорь). */
+    rects?: AnchorRect[];
 }
 
 /** Создание якоря выделения с безопасными значениями. */
 export function createAnchor(value: Partial<QuoteAnchor>): QuoteAnchor {
-    return {
+    const kind: AnchorKind = value.kind === 'page' ? 'page' : 'text';
+    const anchor: QuoteAnchor = {
         v: ANCHOR_VERSION,
+        kind,
         chapter: Number.isFinite(value.chapter) ? Number(value.chapter) : 0,
         start: Number.isFinite(value.start) ? Math.max(0, Number(value.start)) : 0,
         end: Number.isFinite(value.end) ? Math.max(0, Number(value.end)) : 0,
@@ -38,6 +61,40 @@ export function createAnchor(value: Partial<QuoteAnchor>): QuoteAnchor {
         percent: Number.isFinite(value.percent) ? Number(value.percent) : 0,
         page: Number.isFinite(value.page) ? Number(value.page) : null,
     };
+    if (kind === 'page') {
+        anchor.rects = normalizeRects(value.rects);
+    }
+    return anchor;
+}
+
+/** Создание страничного якоря по странице и прямоугольникам выделения. */
+export function createPageAnchor(value: Partial<QuoteAnchor>): QuoteAnchor {
+    return createAnchor({ ...value, kind: 'page', chapter: 0, start: 0, end: 0 });
+}
+
+/** Признак страничного якоря. */
+export function isPageAnchor(anchor: QuoteAnchor): boolean {
+    return anchor.kind === 'page';
+}
+
+/** Нормализация прямоугольников: конечные числа, неотрицательные размеры. */
+function normalizeRects(value: unknown): AnchorRect[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    const rects: AnchorRect[] = [];
+    for (const item of value) {
+        const record = (item ?? {}) as Record<string, unknown>;
+        const x = Number(record.x);
+        const y = Number(record.y);
+        const width = Number(record.width);
+        const height = Number(record.height);
+        if (![x, y, width, height].every((number) => Number.isFinite(number))) {
+            continue;
+        }
+        rects.push({ x, y, width: Math.max(0, width), height: Math.max(0, height) });
+    }
+    return rects;
 }
 
 /** Сериализация якоря выделения в непрозрачную строку. */
@@ -55,7 +112,8 @@ export function parseAnchor(value: string | null | undefined): QuoteAnchor | nul
         if (typeof parsed !== 'object' || parsed === null) {
             return null;
         }
-        if (typeof parsed.chapter !== 'number' || typeof parsed.start !== 'number') {
+        const isPage = parsed.kind === 'page';
+        if (!isPage && (typeof parsed.chapter !== 'number' || typeof parsed.start !== 'number')) {
             return null;
         }
         return createAnchor(parsed);

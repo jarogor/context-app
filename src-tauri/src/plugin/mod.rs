@@ -14,6 +14,7 @@ pub mod plugin_manifest;
 pub mod relay;
 pub mod runtime;
 pub mod session;
+pub mod viewer;
 pub(crate) mod warmup;
 pub(crate) mod wasm_cache;
 

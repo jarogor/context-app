@@ -671,6 +671,16 @@ impl PluginRuntime {
         Some(plugin.dir.join(viewer))
     }
 
+    /// Каталог модуля рисования плагина рабочего места.
+    ///
+    /// Каталог определяется по объявленному пути модуля: файлы перечисляются и
+    /// читаются относительно него. Возвращается `None`, если плагин не найден,
+    /// не является плагином рабочего места или не объявил модуль рисования.
+    pub fn viewer_dir(&self, id: &str) -> Option<PathBuf> {
+        let path = self.viewer_path(id)?;
+        path.parent().map(Path::to_path_buf)
+    }
+
     /// Опрос source-плагина: приоритет поддержки корня или `None`.
     pub(crate) fn probe_priority(&mut self, id: &str) -> Result<Option<i32>, PluginError> {
         let output = self.invoke_operation(id, "probe", serde_json::json!({}))?;

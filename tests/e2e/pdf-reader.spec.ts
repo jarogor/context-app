@@ -1,0 +1,403 @@
+import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** Корень репозитория. */
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/** Точка входа модуля рисования плагина PDF. */
+function viewerEntry(): string {
+    return readFileSync(
+        resolve(ROOT, 'src-wasm-plugins', 'workplace-pdf', 'viewer', 'index.html'),
+        'utf8',
+    );
+}
+
+/** Файлы модуля рисования плагина PDF (движок и worker из pdfjs-dist). */
+function viewerFiles(): Array<{ path: string; mime: string; data: string }> {
+    const build = resolve(ROOT, 'node_modules', 'pdfjs-dist', 'build');
+    return [
+        {
+            path: 'pdf.mjs',
+            mime: 'text/javascript',
+            data: readFileSync(resolve(build, 'pdf.min.mjs')).toString('base64'),
+        },
+        {
+            path: 'pdf.worker.mjs',
+            mime: 'text/javascript',
+            data: readFileSync(resolve(build, 'pdf.worker.min.mjs')).toString('base64'),
+        },
+    ];
+}
+
+/** Минимальный многостраничный PDF без текстового слоя. */
+function buildPdf(pageCount: number): string {
+    const objects: string[] = [];
+    const kids: string[] = [];
+    // 1 — каталог, 2 — дерево страниц, далее по три объекта на страницу.
+    for (let index = 0; index < pageCount; index += 1) {
+        const pageId = 3 + index * 3;
+        kids.push(`${pageId} 0 R`);
+    }
+    objects.push('1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj');
+    objects.push(`2 0 obj<</Type/Pages/Kids[${kids.join(' ')}]/Count ${pageCount}>>endobj`);
+    for (let index = 0; index < pageCount; index += 1) {
+        const pageId = 3 + index * 3;
+        const contentId = pageId + 1;
+        const stream = `BT /F1 36 Tf 72 700 Td (Page ${index + 1}) Tj ET`;
+        objects.push(
+            `${pageId} 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents ${contentId} 0 R/Resources<</Font<</F1 ${pageId + 2} 0 R>>>>>>endobj`,
+        );
+        objects.push(
+            `${contentId} 0 obj<</Length ${stream.length}>>stream\n${stream}\nendstream endobj`,
+        );
+        objects.push(`${pageId + 2} 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj`);
+    }
+    const header = '%PDF-1.4\n';
+    const body = objects.join('\n') + '\n';
+    return `${header}${body}trailer<</Root 1 0 R>>\n%%EOF`;
+}
+
+/** PDF в base64 (как его отдаёт ядро постранично). */
+function pdfBase64(pageCount: number): string {
+    return Buffer.from(buildPdf(pageCount), 'binary').toString('base64');
+}
+
+/** Каталог с книгой формата pdf, обслуживаемой плагином рабочего места. */
+const PDF_BOOKS = {
+    catalog: {
+        books: [
+            {
+                id: 'demo-pdf',
+                title: 'Демо-книга',
+                authors: [],
+                tags: [],
+                series: [],
+                files: [{ kind: 'book', path: 'demo-pdf.pdf', format: 'pdf' }],
+            },
+        ],
+    },
+};
+
+/** Установка мока: плагин PDF и книга формата pdf. */
+async function installPdfMock(page: Page, pageCount: number) {
+    const files = viewerFiles();
+    const entry = viewerEntry();
+    await page.addInitScript(
+        (payload: { data: string; books: unknown; entry: string; files: unknown }) => {
+            (
+                window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }
+            ).__TEXTURE_MOCK_OVERRIDES__ = {
+                handlers: {
+                    active_library: () => ({ path: '/demo-library', provider_name: 'library' }),
+                    reader_formats: () => ['pdf'],
+                    reader_plugin_for_format: () => 'workplace-pdf',
+                    reader_viewer: () => payload.entry,
+                    reader_viewer_files: () => payload.files,
+                    reader_viewer_file: (input: unknown) => {
+                        const path = (input as { path?: string }).path ?? '';
+                        const file = (
+                            payload.files as Array<{ path: string; data: string }>
+                        ).find((item) => item.path === path);
+                        return { path, data: file?.data ?? '' };
+                    },
+                    reader_book_chunk: (input: unknown) => {
+                        const request = (input ?? {}) as { offset?: number; length?: number };
+                        const bytes = atob(payload.data);
+                        const offset = request.offset ?? 0;
+                        // Порция нарезается независимо: каждая кодируется своим base64.
+                        const length = Math.min(request.length ?? 5, 5);
+                        const slice = bytes.slice(offset, offset + length);
+                        const next = offset + slice.length;
+                        return {
+                            chunk: btoa(slice),
+                            next,
+                            total: bytes.length,
+                            done: next >= bytes.length,
+                        };
+                    },
+                    invoke_plugin_operation: () => payload.books,
+                    get_workspaces: () => {
+                        const raw = window.localStorage.getItem('workspaces');
+                        return raw
+                            ? JSON.parse(raw)
+                            : {
+                                  workspaces: [
+                                      {
+                                          id: 'ws-1',
+                                          name: 'Рабочее место',
+                                          created_at_millis: 1_700_000_000_000,
+                                          tabs: [],
+                                          active_tab_id: null,
+                                      },
+                                  ],
+                                  active_workspace_id: 'ws-1',
+                              };
+                    },
+                    save_workspaces: (payloadInput: unknown) => {
+                        const registry = (payloadInput as { workspaces?: unknown })?.workspaces;
+                        window.localStorage.setItem('workspaces', JSON.stringify(registry));
+                        return { ok: true };
+                    },
+                },
+            };
+        },
+        { data: pdfBase64(pageCount), books: PDF_BOOKS, entry, files },
+    );
+}
+
+/** Открытие PDF вкладкой рабочего места. */
+async function openPdf(page: Page, pageCount: number) {
+    await installPdfMock(page, pageCount);
+    await page.goto('/');
+    await page.getByLabel('Рабочее место', { exact: true }).click();
+    const open = page.getByTestId('workspace-open').first();
+    if (await open.isVisible().catch(() => false)) {
+        await open.click();
+    }
+    const library = page.frameLocator('iframe[title="Library plugin"]');
+    await library.getByRole('button', { name: /Демо-книга/ }).click();
+    await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+    await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+    // Готовность области содержимого: страницы построены, первая отрисована.
+    await content(page).locator('.page canvas').first().waitFor({ timeout: 20000 });
+}
+
+/** Область содержимого плагина. */
+function content(page: Page) {
+    return page.frameLocator('iframe[title="Содержимое книги"]');
+}
+
+/** Возврат на поверхность рабочего места после перезагрузки. */
+async function reopenWorkplace(page: Page) {
+    const workspace = page.getByLabel('Рабочее место', { exact: true });
+    if ((await workspace.getAttribute('aria-pressed')) !== 'true') {
+        await workspace.click();
+    }
+    const open = page.getByTestId('workspace-open').first();
+    if (await open.isVisible().catch(() => false)) {
+        await open.click();
+    }
+    await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+}
+
+test('PDF открывается плагином рабочего места страницами', async ({ page }) => {
+    await openPdf(page, 3);
+
+    const frame = content(page);
+    await expect(frame.locator('.page canvas').first()).toBeVisible();
+    await expect(frame.locator('.page')).toHaveCount(3);
+    await expect(page.getByTestId('reader-page')).toHaveText('1');
+    await expect(page.getByTestId('reader-page-count')).toHaveText('из 3');
+});
+
+test('листание по страницам обновляет номер и прогресс', async ({ page }) => {
+    await openPdf(page, 4);
+
+    await expect(page.getByTestId('reader-page')).toHaveText('1');
+    await page.getByRole('button', { name: 'Следующая страница' }).click();
+    await expect(page.getByTestId('reader-page')).toHaveText('2');
+    await expect(content(page).locator('.page canvas').nth(1)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Предыдущая страница' }).click();
+    await expect(page.getByTestId('reader-page')).toHaveText('1');
+});
+
+test('прокрутка переводит текущую страницу', async ({ page }) => {
+    await openPdf(page, 6);
+
+    await content(page)
+        .locator('#viewer')
+        .evaluate((element) => {
+            element.scrollTop = element.scrollHeight;
+        });
+
+    await expect
+        .poll(async () => await page.getByTestId('reader-page').textContent(), { timeout: 15000 })
+        .toBe('6');
+});
+
+test('переход к номеру страницы', async ({ page }) => {
+    await openPdf(page, 4);
+
+    await page.getByLabel('Перейти к странице').fill('3');
+    await page.getByLabel('Перейти к странице').press('Enter');
+
+    await expect
+        .poll(async () => await page.getByTestId('reader-page').textContent(), { timeout: 15000 })
+        .toBe('3');
+    await expect
+        .poll(
+            async () =>
+                content(page)
+                    .locator('.page')
+                    .nth(2)
+                    .evaluate((element) => element.getBoundingClientRect().top),
+            { timeout: 15000 },
+        )
+        .toBeLessThan(120);
+});
+
+test('страница восстанавливается после перезагрузки', async ({ page }) => {
+    await openPdf(page, 4);
+
+    await page.getByRole('button', { name: 'Следующая страница' }).click();
+    await page.getByRole('button', { name: 'Следующая страница' }).click();
+    await expect(page.getByTestId('reader-page')).toHaveText('3');
+
+    await expect
+        .poll(async () => {
+            const raw = await page.evaluate(() => window.localStorage.getItem('workspaces'));
+            const registry = raw ? JSON.parse(raw) : null;
+            const position = registry?.workspaces?.[0]?.tabs?.[0]?.position ?? 0;
+            return typeof position === 'number' ? position : 0;
+        })
+        .toBeGreaterThan(50);
+
+    await page.reload();
+    await reopenWorkplace(page);
+    await expect(page.getByTestId('reader-page')).toHaveText('3');
+});
+
+test('масштаб меняет размер страницы, не меняя номер', async ({ page }) => {
+    await openPdf(page, 3);
+
+    await page.getByRole('button', { name: 'Следующая страница' }).click();
+    await expect(page.getByTestId('reader-page')).toHaveText('2');
+
+    const pageEl = content(page).locator('.page').nth(1);
+    const before = await pageEl.evaluate((element) => element.getBoundingClientRect().width);
+    await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
+    await expect
+        .poll(async () => pageEl.evaluate((element) => element.getBoundingClientRect().width))
+        .toBeGreaterThan(before);
+    await expect(page.getByTestId('reader-page')).toHaveText('2');
+});
+
+/** Выделение первого фрагмента текстового слоя указанной страницы. */
+async function selectTextOnPage(page: Page, pageNumber: number) {
+    await content(page)
+        .locator('.page')
+        .nth(pageNumber - 1)
+        .locator('.textLayer')
+        .evaluate((layer) => {
+            const span = layer.querySelector('span');
+            if (!span || !span.firstChild) {
+                return;
+            }
+            const document = layer.ownerDocument;
+            const range = document.createRange();
+            range.selectNodeContents(span);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            span.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        });
+    await expect(page.getByTestId('quote-menu')).toBeVisible();
+    await page.getByTestId('quote-menu').getByRole('button', { name: 'Создать заметку' }).click();
+}
+
+test('выделение текста создаёт заметку-цитату с подсветкой на странице', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTextOnPage(page, 1);
+
+    await expect(page.getByTestId('notes-item-link')).toContainText('Page 1');
+    await expect(content(page).locator('.note')).toHaveCount(1);
+});
+
+test('меню заметки закрывается при снятии выделения', async ({ page }) => {
+    await openPdf(page, 3);
+
+    await content(page)
+        .locator('.page')
+        .first()
+        .locator('.textLayer')
+        .evaluate((layer) => {
+            const span = layer.querySelector('span');
+            if (!span || !span.firstChild) {
+                return;
+            }
+            const document = layer.ownerDocument;
+            const range = document.createRange();
+            range.selectNodeContents(span);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            span.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        });
+    await expect(page.getByTestId('quote-menu')).toBeVisible();
+
+    await content(page)
+        .locator('#viewer')
+        .evaluate((element) => {
+            element.ownerDocument.getSelection()?.removeAllRanges();
+        });
+
+    await expect(page.getByTestId('quote-menu')).toHaveCount(0);
+});
+
+test('заметка на странице восстанавливается после перезагрузки', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await selectTextOnPage(page, 1);
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    await expect
+        .poll(async () => {
+            const raw = await page.evaluate(() => window.localStorage.getItem('workspaces'));
+            const registry = raw ? JSON.parse(raw) : null;
+            return registry?.workspaces?.[0]?.tabs?.length ?? 0;
+        })
+        .toBe(1);
+
+    await page.reload();
+    await reopenWorkplace(page);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+    await expect(content(page).locator('.note')).toHaveCount(1);
+});
+
+test('клик по заметке ведёт к странице заметки', async ({ page }) => {
+    await openPdf(page, 4);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByLabel('Перейти к странице').fill('3');
+    await page.getByLabel('Перейти к странице').press('Enter');
+    await expect
+        .poll(async () => await page.getByTestId('reader-page').textContent(), { timeout: 15000 })
+        .toBe('3');
+    await selectTextOnPage(page, 3);
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    await page.getByTestId('notes-item-link').click();
+
+    await expect
+        .poll(
+            async () =>
+                content(page)
+                    .locator('.page')
+                    .nth(2)
+                    .evaluate((element) => element.getBoundingClientRect().top),
+            { timeout: 15000 },
+        )
+        .toBeLessThan(120);
+    await expect(content(page).locator('.note')).toHaveCount(1);
+});
+
+test('клик по подсветке открывает панель заметок и выбирает заметку', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await selectTextOnPage(page, 1);
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await expect(page.getByTestId('notes-panel')).toHaveCount(0);
+
+    await content(page).locator('.note').first().click();
+
+    await expect(page.getByTestId('notes-panel')).toBeVisible();
+    await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
+});
+
