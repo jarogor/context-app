@@ -38,39 +38,99 @@ async function backToList(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 }
 
-test('при старте показывается загрузка, а не пустой список', async ({ page }) => {
+test('до готовности реестра показывается загрузка, а не пустой список', async ({ page }) => {
     await page.addInitScript(() => {
-        (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
-            handlers: {
-                // Реестр приходит с задержкой: до его загрузки нельзя утверждать,
-                // что рабочих мест нет.
-                get_workspaces: () =>
-                    new Promise((resolve) =>
-                        setTimeout(
-                            () =>
-                                resolve({
-                                    workspaces: [
-                                        {
-                                            id: 'ws-1',
-                                            name: 'Рабочее место',
-                                            created_at_millis: 1,
-                                            tabs: [],
-                                            active_tab_id: null,
-                                        },
-                                    ],
-                                    active_workspace_id: 'ws-1',
-                                }),
-                            400,
+        (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ =
+            {
+                handlers: {
+                    // Реестр приходит с задержкой: до его загрузки нельзя утверждать,
+                    // что рабочих мест нет.
+                    get_workspaces: () =>
+                        new Promise((resolve) =>
+                            setTimeout(
+                                () =>
+                                    resolve({
+                                        workspaces: [
+                                            {
+                                                id: 'ws-1',
+                                                name: 'Рабочее место',
+                                                created_at_millis: 1,
+                                                tabs: [],
+                                                active_tab_id: null,
+                                            },
+                                        ],
+                                        active_workspace_id: 'ws-1',
+                                    }),
+                                400,
+                            ),
                         ),
-                    ),
-            },
-        };
+                },
+            };
     });
 
     await page.goto('/');
 
-    await expect(page.getByTestId('workspaces-loading')).toBeVisible();
+    // Пока реестр грузится, оболочка ещё не смонтирована: видна загрузка.
+    await expect(page.getByTestId('bootstrap-loading')).toBeVisible();
+    await expect(page.getByTestId('workspaces-page')).toHaveCount(0);
     await expect(page.getByTestId('workspaces-empty')).toHaveCount(0);
+    await expect(page.getByTestId('workspace-open')).toHaveText('Рабочее место');
+});
+
+test('ошибка загрузки реестра не выглядит как отсутствие рабочих мест', async ({ page }) => {
+    await page.addInitScript(() => {
+        (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ =
+            {
+                handlers: {
+                    get_workspaces: () => {
+                        throw new Error('реестр недоступен');
+                    },
+                },
+            };
+    });
+
+    await page.goto('/');
+
+    await expect(page.getByTestId('bootstrap-error')).toBeVisible();
+    // Пустой список не показывается: «не удалось» и «пусто» — разные состояния.
+    await expect(page.getByTestId('workspaces-empty')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Повторить' })).toBeVisible();
+});
+
+test('попытка после ошибки загрузки реестра открывает рабочие места', async ({ page }) => {
+    await page.addInitScript(() => {
+        let attempts = 0;
+        (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ =
+            {
+                handlers: {
+                    get_workspaces: () => {
+                        attempts += 1;
+                        if (attempts === 1) {
+                            throw new Error('реестр недоступен');
+                        }
+                        return {
+                            workspaces: [
+                                {
+                                    id: 'ws-1',
+                                    name: 'Рабочее место',
+                                    created_at_millis: 1,
+                                    tabs: [],
+                                    active_tab_id: null,
+                                },
+                            ],
+                            active_workspace_id: 'ws-1',
+                        };
+                    },
+                },
+            };
+    });
+
+    await page.goto('/');
+    await expect(page.getByTestId('bootstrap-error')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Повторить' }).click();
+
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
     await expect(page.getByTestId('workspace-open')).toHaveText('Рабочее место');
 });
 

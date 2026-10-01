@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { Badge, Button, Menu, MenuItem } from '@texture/ui';
   import PluginFrame from './lib/PluginFrame.svelte';
   import LibrariesPage from './lib/LibrariesPage.svelte';
@@ -16,8 +16,6 @@
   import {
     activeWorkspace,
     createWorkspace,
-    emptyRegistry,
-    normalizeRegistry,
     removeWorkspace,
     renameWorkspace,
     selectWorkspace,
@@ -25,6 +23,7 @@
     updateActiveWorkspaceTabs,
     type WorkspaceRegistry,
   } from './lib/workspace-registry';
+  import type { ActiveLibrary } from './lib/bootstrap';
   import {
     addQuote,
     bookKey,
@@ -45,13 +44,14 @@
     value?: unknown;
   }
 
-  /** Активная библиотека для отображения в шапке. */
-  interface ActiveLibrary {
-    /** Человекочитаемое имя провайдера. */
-    provider_name?: string;
-    /** Путь библиотеки. */
-    path?: string;
+  interface Props {
+    /** Реестр рабочих мест, загруженный до первого рендера. */
+    initialRegistry: WorkspaceRegistry;
+    /** Активная библиотека, загруженная до первого рендера. */
+    initialLibrary: ActiveLibrary | null;
   }
+
+  let { initialRegistry, initialLibrary }: Props = $props();
 
   /** Страница раздела настроек. */
   type SettingsSection = 'general' | 'plugins';
@@ -75,12 +75,12 @@
   let activationPending = $state(false);
 
   /** Активная библиотека для шапки. */
-  let activeLibrary: ActiveLibrary | null = $state(null);
+  let activeLibrary: ActiveLibrary | null = $state(untrack(() => initialLibrary));
 
   /** Открыта ли поверхность рабочего места; принадлежит оболочке. */
   let workspaceOpen = $state(true);
 
-  /** Показывается ли список рабочих мест вместо вкладок. */
+  /** Показывается ли список рабочих мест вместо вкладок; точка входа приложения. */
   let workspaceListMode = $state(true);
 
   /** Открыта ли панель списка открытых книг. */
@@ -107,11 +107,8 @@
   /** Читалка активной вкладки для перехода к заметке. */
   let reader: { goto: (note: Note) => void } | undefined = $state();
 
-  /** Реестр рабочих мест и активное место. */
-  let registry: WorkspaceRegistry = $state(emptyRegistry());
-
-  /** Загружен ли реестр рабочих мест из ядра. */
-  let registryLoaded = $state(false);
+  /** Реестр рабочих мест и активное место (загружен до первого рендера). */
+  let registry: WorkspaceRegistry = $state(untrack(() => initialRegistry));
 
   /** Активное рабочее место. */
   const workspace = $derived(activeWorkspace(registry));
@@ -487,18 +484,6 @@
       unlistenNotes = await listenEvent('notes:changed', () => {
         notesRevision += 1;
       });
-      await refreshActiveLibrary();
-      try {
-        const loaded = await invokeCommand('get_workspaces', {});
-        registry = normalizeRegistry(loaded);
-      } catch {
-        registry = emptyRegistry();
-      } finally {
-        registryLoaded = true;
-        // Список рабочих мест — точка входа: при старте показывается список,
-        // а рабочее место пользователь выбирает сам.
-        workspaceListMode = true;
-      }
     })();
     return () => {
       unlisten?.();
@@ -512,9 +497,6 @@
   /** Сохранение реестра рабочих мест с небольшой задержкой. */
   $effect(() => {
     const snapshot = $state.snapshot(registry);
-    if (!registryLoaded) {
-      return;
-    }
     const timer = setTimeout(() => {
       void saveRegistry(snapshot);
     }, 300);
@@ -680,7 +662,6 @@
           workspaces={registry.workspaces}
           activeWorkspaceId={registry.activeWorkspaceId}
           listMode={workspaceListMode}
-          registryLoading={!registryLoaded}
           booksOpen={booksPanelOpen}
           notesOpen={notesPanelOpen}
           notes={noteItems}

@@ -18,8 +18,6 @@
     activeWorkspaceId: string | null;
     /** Показывать ли список рабочих мест вместо вкладок. */
     listMode: boolean;
-    /** Загружается ли реестр рабочих мест из ядра. */
-    registryLoading?: boolean;
     /** Открыта ли панель списка открытых книг. */
     booksOpen: boolean;
     /** Открыта ли панель заметок. */
@@ -73,7 +71,6 @@
     workspaces,
     activeWorkspaceId,
     listMode,
-    registryLoading = false,
     booksOpen,
     notesOpen,
     notes,
@@ -123,7 +120,6 @@
     <WorkspacesPage
       {workspaces}
       activeId={activeWorkspaceId}
-      loading={registryLoading}
       onCreate={onCreateWorkspace}
       onOpen={onOpenWorkspace}
       onRename={onRenameWorkspace}
