@@ -97,6 +97,10 @@ async function highlightParagraph(page: import('@playwright/test').Page, text: s
     });
     await expect(page.getByTestId('quote-menu')).toBeVisible();
     await page.getByTestId('quote-menu').getByRole('button', { name: 'Создать заметку' }).click();
+    // Создание заметки асинхронно. Дожидаемся её появления, иначе следующий шаг
+    // (например, перезагрузка страницы) прервёт незавершённую запись, и заметка
+    // не сохранится.
+    await expect(page.getByTestId('notes-item-link').filter({ hasText: text }).first()).toBeVisible();
 }
 
 test('выделение показывает меню создания и отмены', async ({ page }) => {
