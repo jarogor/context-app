@@ -40,7 +40,7 @@ pub(crate) fn extract(bytes: &[u8]) -> OpfMetadata {
                     }
                     "meta" => {
                         if let Some((key, value)) = meta_entry(&event) {
-        match key.as_ref() {
+                            match key.as_ref() {
                                 "calibre:series" => series = Some(value),
                                 "calibre:series_index" => series_index = value.parse().ok(),
                                 _ => {}

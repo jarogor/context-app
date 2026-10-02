@@ -8,10 +8,7 @@ fn extracts_metadata_fields() {
     let metadata = extract(bytes);
 
     assert_eq!(metadata.title.as_deref(), Some("DjVu Book"));
-    assert_eq!(
-        metadata.authors,
-        vec!["A".to_string(), "B".to_string()]
-    );
+    assert_eq!(metadata.authors, vec!["A".to_string(), "B".to_string()]);
 }
 
 /// DjVu без метаданных даёт пустые поля.

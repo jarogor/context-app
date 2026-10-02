@@ -371,14 +371,12 @@ fn manifest_items(opf: &[u8]) -> (Option<String>, Vec<ManifestItem>) {
 
 /// Разрешение относительного пути `href` от пути OPF.
 fn resolve_relative(opf_path: &str, href: &str) -> Option<String> {
-    let base: Vec<&str> = opf_path
-        .rsplitn(2, '/')
-        .nth(1)
-        .unwrap_or("")
+    let directory = opf_path
+        .rsplit_once('/')
+        .map(|(base, _)| base)
+        .unwrap_or("");
+    let mut parts: Vec<String> = directory
         .split('/')
-        .collect();
-    let mut parts: Vec<String> = base
-        .into_iter()
         .filter(|segment| !segment.is_empty())
         .map(str::to_string)
         .collect();
@@ -412,23 +410,28 @@ fn cover_format(media_type: Option<&str>, href: &str) -> String {
 pub(crate) fn parse_epub_metadata(bytes: &[u8]) -> Result<(String, Vec<String>), String> {
     let mut archive =
         ZipArchive::new(Cursor::new(bytes)).map_err(|_| "не удалось открыть EPUB".to_string())?;
-    let container = archive
-        .by_name("META-INF/container.xml")
-        .map_err(|_| "в EPUB отсутствует container.xml".to_string())?;
-    let container_text = container
-        .bytes()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| "не удалось прочитать container.xml".to_string())?;
+    let container_text = {
+        let mut container = archive
+            .by_name("META-INF/container.xml")
+            .map_err(|_| "в EPUB отсутствует container.xml".to_string())?;
+        let mut bytes = Vec::new();
+        container
+            .read_to_end(&mut bytes)
+            .map_err(|_| "не удалось прочитать container.xml".to_string())?;
+        bytes
+    };
     let rootfile = attribute_value(&container_text, "rootfile", "full-path")
         .or_else(|| text_between(&container_text, "full-path"))
         .ok_or_else(|| "в EPUB отсутствует content.opf".to_string())?;
-    let opf = archive
-        .by_name(&rootfile)
-        .map_err(|_| "не удалось открыть content.opf".to_string())?;
-    let opf_text = opf
-        .bytes()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| "не удалось прочитать content.opf".to_string())?;
+    let opf_text = {
+        let mut opf = archive
+            .by_name(&rootfile)
+            .map_err(|_| "не удалось открыть content.opf".to_string())?;
+        let mut bytes = Vec::new();
+        opf.read_to_end(&mut bytes)
+            .map_err(|_| "не удалось прочитать content.opf".to_string())?;
+        bytes
+    };
     let title = text_between(&opf_text, "dc:title").unwrap_or_else(|| "Без названия".to_string());
     let authors = all_text_between(&opf_text, "dc:creator");
     Ok((title, authors))

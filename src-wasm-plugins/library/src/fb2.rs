@@ -56,9 +56,7 @@ pub(crate) fn extract(bytes: &[u8]) -> BookMetadata {
             }
             Ok(Event::Text(event)) => {
                 let text = event.unescape().unwrap_or_default().into_owned();
-                if binary.is_some() {
-                    active_text.push_str(&text);
-                } else if !active_tag.is_empty() {
+                if binary.is_some() || !active_tag.is_empty() {
                     active_text.push_str(&text);
                 }
             }
@@ -83,8 +81,8 @@ pub(crate) fn extract(bytes: &[u8]) -> BookMetadata {
                     }
                     "binary" => {
                         if let Some((id, content_type)) = binary.take() {
-                            if let Ok(data) = base64::engine::general_purpose::STANDARD
-                                .decode(active_text.trim())
+                            if let Ok(data) =
+                                base64::engine::general_purpose::STANDARD.decode(active_text.trim())
                             {
                                 binaries.push((id, data, format_from(&content_type)));
                             }

@@ -48,7 +48,14 @@ impl Journal {
         source: impl Into<String>,
         details: serde_json::Value,
     ) -> Entry {
-        self.add(timestamp, Level::Technical, message, severity, source, details)
+        self.add(
+            timestamp,
+            Level::Technical,
+            message,
+            severity,
+            source,
+            details,
+        )
     }
 
     /// Добавление события в журнал с меткой времени.

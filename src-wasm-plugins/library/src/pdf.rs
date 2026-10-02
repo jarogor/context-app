@@ -93,7 +93,7 @@ fn parse_hex(bytes: &[u8]) -> Option<String> {
         return Some(String::new());
     }
     let mut hex = String::from_utf8_lossy(&digits).to_string();
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         hex.push('0');
     }
     let data: Vec<u8> = (0..hex.len() / 2)

@@ -20,10 +20,6 @@ extern "ExtismHost" {
     fn fs_read_bytes(path: String) -> String;
     /// Открытие файла системным приложением.
     fn open_file(path: String) -> String;
-    /// Чтение служебного состояния source-плагина.
-    fn state_read(key: String) -> String;
-    /// Запись служебного состояния source-плагина.
-    fn state_write(key: String, value: String) -> String;
     /// Удаление служебного состояния source-плагина.
     fn state_delete(key: String) -> String;
     /// Исполнение SQL в хранилище активной библиотеки.
@@ -66,21 +62,6 @@ impl Fs for HostFs {
 
     fn open_file(&self, path: &str) -> Result<(), String> {
         unsafe { open_file(path.to_string()) }
-            .map(|_| ())
-            .map_err(|error| error.to_string())
-    }
-
-    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
-        let value = unsafe { state_read(key.to_string()).map_err(|error| error.to_string())? };
-        if value.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(value))
-        }
-    }
-
-    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
-        unsafe { state_write(key.to_string(), value.to_string()) }
             .map(|_| ())
             .map_err(|error| error.to_string())
     }

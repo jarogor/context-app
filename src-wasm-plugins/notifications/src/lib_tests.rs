@@ -72,7 +72,10 @@ fn publish_technical_uses_technical_level() {
     .expect("публикация");
     let entry: serde_json::Value = serde_json::from_str(&output).expect("JSON записи");
     assert_eq!(entry["level"], "Technical");
-    assert_eq!(entry["severity"], "warn", "техническая запись хранит степень");
+    assert_eq!(
+        entry["severity"], "warn",
+        "техническая запись хранит степень"
+    );
     assert_eq!(entry["source"], "plugin", "источник по умолчанию");
 }
 

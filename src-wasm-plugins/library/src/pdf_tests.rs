@@ -3,7 +3,8 @@ use super::extract;
 /// PDF со словарём `/Info`.
 #[test]
 fn extracts_info_metadata() {
-    let pdf = b"%PDF-1.4\n1 0 obj\n<< /Title (My Book) /Author (Ivan Petrov; Anna Sidorova) >>\nendobj\n";
+    let pdf =
+        b"%PDF-1.4\n1 0 obj\n<< /Title (My Book) /Author (Ivan Petrov; Anna Sidorova) >>\nendobj\n";
 
     let metadata = extract(pdf);
 

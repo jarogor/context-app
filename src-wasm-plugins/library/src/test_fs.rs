@@ -124,27 +124,6 @@ impl Fs for TestFs {
         Ok(())
     }
 
-    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
-        if self.fail_state {
-            return Ok(None);
-        }
-        let path = self.root.join(".state").join(key);
-        match fs::read_to_string(path) {
-            Ok(value) => Ok(Some(value)),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(error.to_string()),
-        }
-    }
-
-    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
-        if self.fail_state {
-            return Err("storage недоступен".to_string());
-        }
-        let directory = self.root.join(".state");
-        fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
-        fs::write(directory.join(key), value).map_err(|error| error.to_string())
-    }
-
     fn state_delete(&self, key: &str) -> Result<(), String> {
         if self.fail_state {
             return Ok(());

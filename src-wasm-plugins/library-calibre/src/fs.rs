@@ -18,12 +18,6 @@ pub(crate) trait Fs {
     /// Открытие файла системным приложением.
     fn open_file(&self, path: &str) -> Result<(), String>;
 
-    /// Чтение служебного состояния по ключу.
-    fn state_read(&self, key: &str) -> Result<Option<String>, String>;
-
-    /// Атомарная запись служебного состояния по ключу.
-    fn state_write(&self, key: &str, value: &str) -> Result<(), String>;
-
     /// Удаление служебного состояния по ключу.
     fn state_delete(&self, key: &str) -> Result<(), String>;
 

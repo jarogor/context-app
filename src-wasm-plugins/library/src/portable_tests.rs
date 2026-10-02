@@ -63,17 +63,6 @@ impl Fs for FakeFs {
         Ok(())
     }
 
-    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
-        Ok(self.state.borrow().get(key).cloned())
-    }
-
-    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
-        self.state
-            .borrow_mut()
-            .insert(key.to_string(), value.to_string());
-        Ok(())
-    }
-
     fn state_delete(&self, key: &str) -> Result<(), String> {
         self.state.borrow_mut().remove(key);
         Ok(())

@@ -13,23 +13,28 @@ use zip::ZipArchive;
 pub(crate) fn parse_epub_metadata(bytes: &[u8]) -> Result<(String, Vec<String>), String> {
     let mut archive =
         ZipArchive::new(Cursor::new(bytes)).map_err(|_| "не удалось открыть EPUB".to_string())?;
-    let container = archive
-        .by_name("META-INF/container.xml")
-        .map_err(|_| "в EPUB отсутствует container.xml".to_string())?;
-    let container_text = container
-        .bytes()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| "не удалось прочитать container.xml".to_string())?;
+    let container_text = {
+        let mut container = archive
+            .by_name("META-INF/container.xml")
+            .map_err(|_| "в EPUB отсутствует container.xml".to_string())?;
+        let mut bytes = Vec::new();
+        container
+            .read_to_end(&mut bytes)
+            .map_err(|_| "не удалось прочитать container.xml".to_string())?;
+        bytes
+    };
     let rootfile = attribute_value(&container_text, "rootfile", "full-path")
         .or_else(|| text_between(&container_text, "full-path"))
         .ok_or_else(|| "в EPUB отсутствует content.opf".to_string())?;
-    let opf = archive
-        .by_name(&rootfile)
-        .map_err(|_| "не удалось открыть content.opf".to_string())?;
-    let opf_text = opf
-        .bytes()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| "не удалось прочитать content.opf".to_string())?;
+    let opf_text = {
+        let mut opf = archive
+            .by_name(&rootfile)
+            .map_err(|_| "не удалось открыть content.opf".to_string())?;
+        let mut bytes = Vec::new();
+        opf.read_to_end(&mut bytes)
+            .map_err(|_| "не удалось прочитать content.opf".to_string())?;
+        bytes
+    };
     let title = text_between(&opf_text, "dc:title").unwrap_or_else(|| "Без названия".to_string());
     let authors = all_text_between(&opf_text, "dc:creator");
     Ok((title, authors))
