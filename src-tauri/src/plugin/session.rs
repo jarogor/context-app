@@ -213,6 +213,7 @@ impl PluginSession {
             &self.root,
             &self.bundled_plugins_dir,
             self.user_plugins_dir.as_deref(),
+            development_plugins(),
         );
         crate::plugin::discover_source_plugins(&directories)
     }
@@ -270,7 +271,7 @@ impl PluginSession {
         disabled: &[String],
         cache_config: Option<&Path>,
     ) -> Result<PluginRuntime, PluginError> {
-        let directories = plugin_directories(root, bundled, user_plugins);
+        let directories = plugin_directories(root, bundled, user_plugins, development_plugins());
         let mut runtime =
             PluginRuntime::load_filtered(&directories, root, None, disabled, cache_config)?;
         runtime.set_storage_root(storage_root.to_path_buf());
@@ -301,21 +302,33 @@ fn project_root() -> PathBuf {
 /// Директории загрузки плагинов в порядке приоритета.
 ///
 /// При совпадении имён побеждает первый загруженный плагин, поэтому порядок
-/// задаёт приоритет: `plugins/` библиотеки, пользовательский каталог
-/// приложения, поставляемые ресурсы и dev-ресурсы.
-fn plugin_directories(root: &Path, bundled: &Path, user_plugins: Option<&Path>) -> Vec<PathBuf> {
+/// задаёт приоритет. `development` (ресурсы рабочей копии) идёт раньше
+/// `bundled` (копии в каталоге сборки): исходники плагинов ближе к разработке,
+/// а копия в `target` не должна перекрывать свежую сборку.
+fn plugin_directories(
+    root: &Path,
+    bundled: &Path,
+    user_plugins: Option<&Path>,
+    development: Option<PathBuf>,
+) -> Vec<PathBuf> {
     let mut directories = vec![root.join(PLUGINS_DIR_NAME)];
     if let Some(user) = user_plugins {
         directories.push(user.to_path_buf());
     }
+    if let Some(development) = development {
+        directories.push(development);
+    }
     directories.push(bundled.to_path_buf());
-    let development_plugins = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    directories
+}
+
+/// Ресурсный каталог плагинов рабочей копии (только если он отличается от
+/// каталога сборки). В dev-запуске из него читаются свежие исходные артефакты.
+fn development_plugins() -> Option<PathBuf> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
         .join(PLUGINS_DIR_NAME);
-    if development_plugins != *bundled && development_plugins.is_dir() {
-        directories.push(development_plugins);
-    }
-    directories
+    path.is_dir().then_some(path)
 }
 
 /// Разрешение относительного plugin storage от корня проекта.

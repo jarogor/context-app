@@ -1,0 +1,12 @@
+{
+  "contract_version": 1,
+  "kind": "base",
+  "id": "69b39e5d-0c25-4cdb-8c3e-d3ba89147c24",
+  "name": "settings",
+  "description": "Базовый плагин настроек приложения и плагинов",
+  "module": "settings.wasm",
+  "export": "invoke",
+  "host_functions": ["state_read", "state_write", "emit_event"],
+  "provides": ["settings.store@1"],
+  "requires": []
+}

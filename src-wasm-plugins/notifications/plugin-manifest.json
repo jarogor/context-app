@@ -1,0 +1,31 @@
+{
+  "contract_version": 1,
+  "kind": "base",
+  "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
+  "name": "notifications",
+  "description": "Базовый плагин уведомлений и технических логов",
+  "module": "notifications.wasm",
+  "export": "invoke",
+  "host_functions": ["state_read", "state_write", "emit_event", "now_millis"],
+  "provides": ["notifications.journal@1"],
+  "requires": [],
+  "settings": {
+    "title": "Уведомления",
+    "sections": [
+      {
+        "id": "notifications",
+        "title": "Журнал",
+        "description": "Параметры журнала уведомлений",
+        "fields": [
+          {
+            "key": "technical_visible_default",
+            "title": "Показывать технические уведомления",
+            "type": "boolean",
+            "description": "Включать технический уровень при открытии журнала",
+            "default": false
+          }
+        ]
+      }
+    ]
+  }
+}

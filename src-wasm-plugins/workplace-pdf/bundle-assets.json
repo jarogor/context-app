@@ -1,0 +1,12 @@
+{
+  "assets": [
+    {
+      "from": "node_modules/pdfjs-dist/build/pdf.min.mjs",
+      "to": "viewer/pdf.mjs"
+    },
+    {
+      "from": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs",
+      "to": "viewer/pdf.worker.mjs"
+    }
+  ]
+}

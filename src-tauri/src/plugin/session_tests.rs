@@ -7,15 +7,21 @@ fn plugin_directories_follow_priority() {
     let root = PathBuf::from("/library");
     let bundled = PathBuf::from("/bundled");
     let user = PathBuf::from("/user");
+    let development = PathBuf::from("/development");
 
-    let directories = super::plugin_directories(&root, &bundled, Some(&user));
+    let directories =
+        super::plugin_directories(&root, &bundled, Some(&user), Some(development.clone()));
     assert_eq!(
         directories[0],
         root.join("plugins"),
         "плагины библиотеки первые"
     );
     assert_eq!(directories[1], user, "затем пользовательский каталог");
-    assert_eq!(directories[2], bundled, "поставляемые ресурсы последние");
+    assert_eq!(
+        directories[2], development,
+        "затем ресурсы рабочей копии (свежая сборка)"
+    );
+    assert_eq!(directories[3], bundled, "поставляемые ресурсы последние");
 }
 
 #[test]
@@ -23,7 +29,7 @@ fn plugin_directories_without_user_catalog() {
     let root = PathBuf::from("/library");
     let bundled = PathBuf::from("/bundled");
 
-    let directories = super::plugin_directories(&root, &bundled, None);
+    let directories = super::plugin_directories(&root, &bundled, None, None);
     assert_eq!(directories[0], root.join("plugins"));
     assert_eq!(directories[1], bundled);
 }

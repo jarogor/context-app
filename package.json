@@ -8,16 +8,17 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run build:frontend-plugins && vite",
-    "dev:test": "npm run build:frontend-plugins && VITE_MOCK_BRIDGE=1 vite",
+    "dev": "npm run build:plugins && npm run build:frontend-plugins && vite",
+    "dev:test": "npm run build:plugins && npm run build:frontend-plugins && VITE_MOCK_BRIDGE=1 vite",
     "tauri": "tauri",
     "build": "npm run build:plugins && npm run build:frontend-plugins && vite build",
     "build:plugins": "bash ./scripts/build-wasm-plugins.sh",
     "build:frontend-plugins": "bash ./scripts/build-frontend-plugins.sh",
+    "check:artifacts": "node scripts/plugin-artifacts.mjs check",
     "preview": "vite preview",
     "test": "npm run test:unit",
     "test:unit": "vitest run && npm test -w @texture/ui",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run check:artifacts && playwright test",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",
     "check:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --check"

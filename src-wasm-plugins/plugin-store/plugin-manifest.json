@@ -1,0 +1,12 @@
+{
+  "contract_version": 1,
+  "kind": "base",
+  "id": "4c5e7783-1393-404c-8e3f-24df56d6bb18",
+  "name": "plugin-store",
+  "description": "Базовый плагин файлового стора плагинов",
+  "module": "plugin_store.wasm",
+  "export": "invoke",
+  "host_functions": ["state_read", "state_write", "emit_event", "import_read_bytes", "store_inspect", "store_install", "store_uninstall", "store_installed", "store_plugins", "store_set_enabled"],
+  "provides": ["plugin-store@1"],
+  "requires": []
+}

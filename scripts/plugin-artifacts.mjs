@@ -1,0 +1,250 @@
+#!/usr/bin/env node
+// Развёртывание и проверка артефактов плагинов.
+//
+// Единственный источник правды — каталоги плагинов в `src-wasm-plugins/`:
+// манифест `plugin-manifest.json`, исходники модуля рисования и декларация
+// внешних файлов `bundle-assets.json`. Скрипт сам находит плагины в workspace,
+// поэтому новый плагин не нужно нигде дополнительно регистрировать.
+//
+// Команды:
+//   node scripts/plugin-artifacts.mjs build  — собрать артефакты в ресурсы;
+//   node scripts/plugin-artifacts.mjs check  — проверить, что ресурсы актуальны.
+//
+// Виды плагинов:
+//   * WASM-плагин (в манифесте есть `module`) — разворачивается `<модуль>.wasm`
+//     и манифест; WASM-модуль предварительно собирает Cargo;
+//   * статический плагин (модуля нет) — разворачивается весь каталог исходника
+//     (кроме `bundle-assets.json`) плюс файлы из декларации внешних ассетов.
+//
+// Целостность развёрнутого каталога фиксируется хэшем `.bundle.sha256`;
+// `check` сверяет и файлы, и хэш.
+
+import { createHash } from 'node:crypto';
+import {
+    cpSync,
+    existsSync,
+    mkdirSync,
+    readdirSync,
+    readFileSync,
+    rmSync,
+    statSync,
+    writeFileSync,
+} from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** Корень проекта. */
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/** Каталог исходников WASM-плагинов (Cargo workspace). */
+const WORKSPACE = join(ROOT, 'src-wasm-plugins');
+/** Ресурсы поставляемых source/extension-плагинов. */
+const PLUGINS_DIR = join(ROOT, 'src-tauri', 'resources', 'plugins');
+/** Ресурсы базовых плагинов каркаса. */
+const BASE_PLUGINS_DIR = join(ROOT, 'src-tauri', 'resources', 'base-plugins');
+/** Имя файла с хэшем развёрнутого каталога. */
+const HASH_FILE = '.bundle.sha256';
+/** Имя файла декларации внешних ассетов плагина. */
+const ASSETS_FILE = 'bundle-assets.json';
+
+/** Каталог развёртывания плагина по категории из манифеста. */
+function targetDir(manifest, name) {
+    return join(manifest.kind === 'base' ? BASE_PLUGINS_DIR : PLUGINS_DIR, name);
+}
+
+/** Список плагинов workspace: каталоги с манифестом. */
+function listPlugins() {
+    const entries = readdirSync(WORKSPACE, { withFileTypes: true });
+    const plugins = [];
+    for (const entry of entries) {
+        if (!entry.isDirectory()) {
+            continue;
+        }
+        const dir = join(WORKSPACE, entry.name);
+        const manifestPath = join(dir, 'plugin-manifest.json');
+        if (!existsSync(manifestPath)) {
+            continue;
+        }
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+        plugins.push({ name: entry.name, dir, manifest, manifestPath });
+    }
+    return plugins;
+}
+
+/** Имя WASM-модуля из имени крейта Cargo. */
+function wasmFileName(plugin) {
+    const cargo = readFileSync(join(plugin.dir, 'Cargo.toml'), 'utf8');
+    const match = cargo.match(/^name\s*=\s*"([^"]+)"/m);
+    if (!match) {
+        throw new Error(`${plugin.name}: в Cargo.toml не найдено имя крейта`);
+    }
+    const module = plugin.manifest.module;
+    if (!module) {
+        throw new Error(`${plugin.name}: в манифесте не указан module`);
+    }
+    return module;
+}
+
+/** Декларация внешних ассетов плагина (или null). */
+function assetsOf(plugin) {
+    const path = join(plugin.dir, ASSETS_FILE);
+    if (!existsSync(path)) {
+        return null;
+    }
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    return Array.isArray(parsed.assets) ? parsed.assets : [];
+}
+
+/** Рекурсивный сбор файлов каталога относительно его корня. */
+function collectFiles(dir, base = dir, acc = []) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+            collectFiles(full, base, acc);
+        } else if (entry.isFile()) {
+            acc.push(full.slice(base.length + 1));
+        }
+    }
+    return acc;
+}
+
+/** Ожидаемые файлы плагина: относительный путь → Buffer. */
+function expectedFiles(plugin) {
+    const files = new Map();
+    const manifest = readFileSync(plugin.manifestPath);
+    files.set('plugin-manifest.json', manifest);
+    if (plugin.manifest.module) {
+        const wasmPath = join(WORKSPACE, 'target', 'wasm32-unknown-unknown', 'release', wasmFileName(plugin));
+        if (!existsSync(wasmPath)) {
+            throw new Error(
+                `${plugin.name}: не найден собранный модуль ${wasmPath};` +
+                    ' сначала выполните сборку WASM-плагинов',
+            );
+        }
+        files.set(plugin.manifest.module, readFileSync(wasmPath));
+    } else {
+        for (const relative of collectFiles(plugin.dir)) {
+            if (relative === ASSETS_FILE) {
+                continue;
+            }
+            files.set(relative.replaceAll('\\', '/'), readFileSync(join(plugin.dir, relative)));
+        }
+    }
+    const assets = assetsOf(plugin);
+    if (assets) {
+        for (const asset of assets) {
+            const from = join(ROOT, asset.from);
+            if (!existsSync(from)) {
+                throw new Error(`${plugin.name}: не найден внешний ассет ${asset.from}`);
+            }
+            files.set(asset.to, readFileSync(from));
+        }
+    }
+    return files;
+}
+
+/** Хэш набора файлов (путь + содержимое) для контроля целостности. */
+function hashFiles(files) {
+    const hash = createHash('sha256');
+    for (const [relative, data] of [...files.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+        hash.update(relative);
+        hash.update('\0');
+        hash.update(data);
+        hash.update('\0');
+    }
+    return hash.digest('hex');
+}
+
+/** Развёртывание одного плагина. */
+function deploy(plugin) {
+    const files = expectedFiles(plugin);
+    const outDir = targetDir(plugin.manifest, plugin.name);
+    rmSync(outDir, { recursive: true, force: true });
+    mkdirSync(outDir, { recursive: true });
+    for (const [relative, data] of files) {
+        const path = join(outDir, relative);
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, data);
+    }
+    writeFileSync(join(outDir, HASH_FILE), `${hashFiles(files)}\n`);
+    console.log(`собран плагин: ${outDir}`);
+}
+
+/** Фактически развёрнутые файлы каталога (без файла хэша). */
+function deployedFiles(outDir) {
+    if (!existsSync(outDir)) {
+        return null;
+    }
+    const files = new Map();
+    for (const relative of collectFiles(outDir)) {
+        const normalized = relative.replaceAll('\\', '/');
+        if (normalized === HASH_FILE) {
+            continue;
+        }
+        files.set(normalized, readFileSync(join(outDir, relative)));
+    }
+    return files;
+}
+
+/** Проверка одного плагина; список расхождений. */
+function check(plugin) {
+    const expected = expectedFiles(plugin);
+    const outDir = targetDir(plugin.manifest, plugin.name);
+    const actual = deployedFiles(outDir);
+    if (!actual) {
+        return [`${plugin.name}: ресурсы не собраны (${outDir})`];
+    }
+    const problems = [];
+    for (const [relative, data] of expected) {
+        const found = actual.get(relative);
+        if (!found) {
+            problems.push(`${relative}: отсутствует`);
+        } else if (!found.equals(data)) {
+            problems.push(`${relative}: отличается от исходника`);
+        }
+    }
+    for (const relative of actual.keys()) {
+        if (!expected.has(relative)) {
+            problems.push(`${relative}: лишний файл`);
+        }
+    }
+    const hashPath = join(outDir, HASH_FILE);
+    const expectedHash = `${hashFiles(expected)}\n`;
+    if (!existsSync(hashPath)) {
+        problems.push(`${HASH_FILE}: отсутствует`);
+    } else if (readFileSync(hashPath, 'utf8') !== expectedHash) {
+        problems.push(`${HASH_FILE}: устарел`);
+    }
+    return problems;
+}
+
+/** Точка входа. */
+function main() {
+    const command = process.argv[2];
+    const plugins = listPlugins();
+    if (command === 'build') {
+        for (const plugin of plugins) {
+            deploy(plugin);
+        }
+        return;
+    }
+    if (command === 'check') {
+        const problems = [];
+        for (const plugin of plugins) {
+            problems.push(...check(plugin));
+        }
+        if (problems.length > 0) {
+            console.error('Артефакты плагинов устарели:');
+            for (const problem of problems) {
+                console.error(`  - ${problem}`);
+            }
+            console.error('Выполните `make plugins` и повторите.');
+            process.exit(1);
+        }
+        console.log(`Артефакты плагинов актуальны (${plugins.length} шт.).`);
+        return;
+    }
+    console.error('Использование: node scripts/plugin-artifacts.mjs build|check');
+    process.exit(2);
+}
+
+main();

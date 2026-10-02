@@ -133,21 +133,26 @@
 
 ## Проверки перед завершением задачи
 
-Выполнять из корня проекта:
+Единая точка входа — `make` (см. `make help`). Артефакты плагинов генерируются
+из исходников в `src-wasm-plugins/` и в git не хранятся; команды, которым нужны
+плагины, собирают их сами, поэтому отдельно помнить про пересборку не нужно.
 
 ```bash
-scripts/build-wasm-plugins.sh        # генерация артефактов плагинов (в git не хранятся)
-cargo test --manifest-path src-tauri/Cargo.toml
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
-npm run check
-npm test
-npm run test:e2e
-npm run build
-openspec validate --all
+make verify        # полный набор проверок
 ```
 
-Все проверки должны проходить без ошибок и предупреждений.
+`make verify` последовательно выполняет: сборку плагинов (`plugins`), проверку
+актуальности артефактов (`check-artifacts`), тесты Rust ядра и WASM-плагинов
+(`cargo test`), `clippy` и `fmt --check` для обоих крейтов (ядро и
+`src-wasm-plugins` под `wasm32-unknown-unknown`), `npm run check`, модульные
+тесты, браузерные тесты, полную сборку и `openspec validate --all`. Отдельные
+шаги доступны как `make test`, `make e2e`, `make build`, `make rust-check`,
+`make check`.
+
+Все проверки должны проходить без ошибок и предупреждений. Сборка плагинов —
+только через `make plugins` / `scripts/build-wasm-plugins.sh`; манифесты плагинов
+лежат в исходниках (`src-wasm-plugins/<name>/plugin-manifest.json`) и не
+дублируются в скрипте.
 
 ## Общение
 

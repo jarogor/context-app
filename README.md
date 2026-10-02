@@ -48,25 +48,24 @@ Tauri для Linux (GTK, webkit2gtk).
 
 ```bash
 npm install
-scripts/build-wasm-plugins.sh   # артефакты плагинов, в git не хранятся
-npm run dev                     # Vite-сервер интерфейса (Tauri запускает его сам)
-npm run dev:test                # Vite с мок-мостом Tauri (для UI без десктопа)
-npm run tauri dev               # полноценный desktop-запуск
+make dev            # desktop-запуск (Tauri); плагины собираются автоматически
+make dev-test       # Vite с мок-мостом Tauri (интерфейс без десктопа)
 ```
 
-Проверки перед завершением задачи:
+Все задачи собраны в `Makefile` (`make help`). Артефакты плагинов генерируются
+из `src-wasm-plugins/` и в git не хранятся; команды собирают их сами, поэтому
+отдельно помнить про пересборку не нужно.
+
+Проверки перед завершением задачи — одной командой:
 
 ```bash
-scripts/build-wasm-plugins.sh
-cargo test --manifest-path src-tauri/Cargo.toml
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
-npm run check
-npm test
-npm run test:e2e
-npm run build
-openspec validate --all
+make verify
 ```
+
+Отдельные шаги: `make plugins`, `make check-artifacts`, `make test`,
+`make rust-check`, `make check`, `make e2e`, `make build`, `make validate`.
+`make rust-check` линтует и ядро, и WASM-плагины (`src-wasm-plugins` под
+`wasm32-unknown-unknown`), а `make test` прогоняет тесты обоих крейтов.
 
 ## Документы
 

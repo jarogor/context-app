@@ -114,15 +114,19 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-/// Директории базовых плагинов: поставляемая и ресурсная для разработки.
+/// Директории базовых плагинов в порядке приоритета.
+///
+/// Ресурсы рабочей копии идут раньше копии в каталоге сборки: свежая сборка
+/// плагина не должна перекрываться устаревшей копией в `target`.
 fn base_plugin_directories(bundled: &Path) -> Vec<PathBuf> {
-    let mut directories = vec![bundled.to_path_buf()];
+    let mut directories = Vec::new();
     let development = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
         .join(BASE_PLUGINS_DIR_NAME);
     if development != bundled && development.is_dir() {
         directories.push(development);
     }
+    directories.push(bundled.to_path_buf());
     directories
 }
 
@@ -135,15 +139,20 @@ fn base_storage_root() -> PathBuf {
         .join(BASE_PLUGINS_DIR_NAME)
 }
 
-/// Директории session-плагинов для перечня стора: поставляемая, пользовательская
-/// и ресурсная для разработки.
+/// Директории session-плагинов для перечня стора: пользовательская и ресурсные
+/// каталоги.
+///
+/// Ресурсы рабочей копии идут раньше копии в каталоге сборки, чтобы перечень
+/// совпадал с приоритетом загрузки плагинов (свежая сборка не перекрывается
+/// устаревшей копией в `target`).
 fn session_plugin_directories(bundled: &Path, user: &Path) -> Vec<PathBuf> {
-    let mut directories = vec![bundled.to_path_buf(), user.to_path_buf()];
+    let mut directories = vec![user.to_path_buf()];
     let development = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
         .join(PLUGINS_DIR_NAME);
     if development != *bundled && development.is_dir() {
         directories.push(development);
     }
+    directories.push(bundled.to_path_buf());
     directories
 }
