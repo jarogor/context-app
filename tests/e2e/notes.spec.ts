@@ -72,9 +72,16 @@ async function openNotes(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('notes-panel')).toBeVisible();
 }
 
-/** Документ книги в области чтения. */
+/** Документ активной вкладки в области чтения.
+ *
+ * Открытые вкладки остаются смонтированными (переключение не перезагружает
+ * книгу), поэтому документ адресуется странице активной вкладки.
+ */
 function bookDocument(page: import('@playwright/test').Page) {
-    return page.frameLocator('iframe[title="Чтение книги"]');
+    return page
+        .locator('[data-testid="workplace-tab-page"][data-active="true"]')
+        .locator('iframe[title="Чтение книги"]')
+        .contentFrame();
 }
 
 /** Выделение абзаца демо-книги и подтверждение создания заметки. */
@@ -121,6 +128,20 @@ test('панель заметок показывает пустое состоя
     await openNotes(page);
 
     await expect(page.getByTestId('notes-panel-empty')).toBeVisible();
+});
+
+test('подсветка заметки-абзаца видна в тексте', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    await highlightParagraph(page, 'Первый абзац книги.');
+
+    const background = await bookDocument(page)
+        .locator('mark.texture-note')
+        .first()
+        .evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(background).toBe('rgb(253, 230, 138)');
 });
 
 test('выделение текста создаёт заметку-цитату с подсветкой', async ({ page }) => {
@@ -249,4 +270,134 @@ test('заметки книги общие для двух вкладок', asyn
 
     await page.getByTestId('workplace-tab').first().click();
     await expect(bookDocument(page).locator('mark').first()).toHaveText('Первый абзац книги.');
+});
+
+/** Создание набора заметок с указанным именем; он становится активным. */
+async function createNoteSet(page: import('@playwright/test').Page, name: string) {
+    await page.getByLabel('Создать набор').click();
+    await page.getByPlaceholder('Новый набор').fill(name);
+    await page.getByRole('button', { name: 'Создать' }).click();
+    await expect(page.getByRole('option', { name: new RegExp(name) })).toHaveCount(1);
+}
+
+test('переключение набора меняет список и изолирует заметки', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    await createNoteSet(page, 'Конспект');
+    await highlightParagraph(page, 'Первый абзац книги.');
+    await expect(page.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
+    await expect(bookDocument(page).locator('mark')).toHaveCount(1);
+
+    // Новый набор пуст: ни заметок в списке, ни подсветок в книге.
+    await createNoteSet(page, 'Черновик');
+    await expect(page.getByTestId('notes-item')).toHaveCount(0);
+    await expect(bookDocument(page).locator('mark')).toHaveCount(0);
+
+    await highlightParagraph(page, 'Второй абзац книги.');
+    await expect(page.getByTestId('notes-item-link')).toContainText('Второй абзац книги.');
+
+    // Возврат к первому набору показывает только его заметку и подсветку.
+    await page.getByRole('combobox').selectOption({ label: 'Конспект (1)' });
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+    await expect(page.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
+    await expect(bookDocument(page).locator('mark').first()).toHaveText('Первый абзац книги.');
+});
+
+test('активный набор книги сохраняется при переключении вкладок', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    await createNoteSet(page, 'Конспект');
+    await highlightParagraph(page, 'Первый абзац книги.');
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    // Созданный позже пустой набор становится активным.
+    await createNoteSet(page, 'Черновик');
+    await expect(page.getByTestId('notes-item')).toHaveCount(0);
+
+    // Переключение на другую книгу и обратно не сбрасывает выбор набора.
+    await addBook(page, 'Третья книга');
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+
+    await page.getByTestId('workplace-tab').first().click();
+    if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
+        await page.getByRole('button', { name: 'Заметки' }).click();
+    }
+
+    await expect(page.getByRole('combobox')).toHaveValue('ns-mock-2');
+    await expect(page.getByTestId('notes-item')).toHaveCount(0);
+    await expect(bookDocument(page).locator('mark')).toHaveCount(0);
+});
+
+test('наборы одной книги не появляются у другой книги', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+    await createNoteSet(page, 'Конспект');
+
+    // Вторая книга: наборов у неё ещё нет, чужие наборы показываться не должны.
+    await addBook(page, 'Третья книга');
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+    if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
+        await page.getByRole('button', { name: 'Заметки' }).click();
+    }
+    await expect(page.getByTestId('notes-panel')).toBeVisible();
+    await expect(page.getByRole('option', { name: /Конспект/ })).toHaveCount(0);
+    await expect(page.getByRole('combobox')).toHaveValue('');
+
+    // Свой набор второй книги не показывается у первой.
+    await createNoteSet(page, 'Вторая книга');
+    await expect(page.getByRole('option', { name: /Вторая книга/ })).toHaveCount(1);
+
+    await page.getByTestId('workplace-tab').first().click();
+    if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
+        await page.getByRole('button', { name: 'Заметки' }).click();
+    }
+    await expect(page.getByRole('option', { name: /Конспект/ })).toHaveCount(1);
+    await expect(page.getByRole('option', { name: /Вторая книга/ })).toHaveCount(0);
+});
+
+test('активный набор книги сохраняется после перезапуска', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    await createNoteSet(page, 'Конспект');
+    await createNoteSet(page, 'Черновик');
+    await highlightParagraph(page, 'Второй абзац книги.');
+    await expect(page.getByRole('combobox')).toHaveValue('ns-mock-2');
+
+    // Перезапуск приложения: активным должен остаться выбранный набор книги.
+    await page.reload();
+    await openWorkspace(page);
+    if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
+        await page.getByRole('button', { name: 'Заметки' }).click();
+    }
+
+    await expect(page.getByRole('combobox')).toHaveValue('ns-mock-2');
+    await expect(page.getByTestId('notes-item-link')).toContainText('Второй абзац книги.');
+});
+
+test('создание, переименование и удаление набора', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    await createNoteSet(page, 'Конспект');
+    await createNoteSet(page, 'Черновик');
+
+    // Переименование активного набора.
+    await page.getByLabel('Переименовать набор').click();
+    await page.getByPlaceholder('Новое имя').fill('Наброски');
+    await page.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(page.getByRole('option', { name: /Наброски/ })).toHaveCount(1);
+
+    // Удаление активного набора переводит на оставшийся.
+    await page.getByLabel('Удалить набор').click();
+    await expect(page.getByRole('option', { name: /Наброски/ })).toHaveCount(0);
+    await expect(page.getByRole('combobox')).toHaveValue(/.+/);
+    await expect(page.getByRole('option', { name: /Конспект/ })).toHaveCount(1);
 });

@@ -4,17 +4,21 @@ import {
     bookKey,
     createSet,
     deleteNote,
+    deleteSet,
     DEFAULT_SET_NAME,
     ensureDefaultSet,
     filterNotes,
-    findSet,
     getSet,
     listSets,
+    loadSets,
     noteList,
     noteName,
     normalizeNote,
     normalizeSet,
     normalizeSetSummary,
+    renameSet,
+    resolveActiveSetId,
+    setActiveSet,
 } from './notes';
 import { createAnchor, createPageAnchor, serializeAnchor } from './reader/anchor';
 import { invokeCommand } from './app-bridge';
@@ -111,7 +115,7 @@ describe('нормализация', () => {
 });
 
 describe('операции плагина заметок', () => {
-    it('запрашивает наборы книги и первый набор', async () => {
+    it('запрашивает список наборов книги', async () => {
         invoke.mockResolvedValue({ sets: [{ id: 'ns-1', name: 'Основные', note_count: 2 }] });
         const sets = await listSets('lib::book-1');
 
@@ -121,15 +125,35 @@ describe('операции плагина заметок', () => {
             payload: { book_key: 'lib::book-1' },
         });
         expect(sets).toEqual([{ id: 'ns-1', bookKey: '', name: 'Основные', noteCount: 2 }]);
-
-        invoke.mockResolvedValue(setResponse());
-        const set = await findSet('lib::book-1');
-        expect(set?.id).toBe('ns-1');
     });
 
-    it('первый набор отсутствует', async () => {
+    it('читает сохранённый активный набор книги', async () => {
+        invoke.mockResolvedValue({
+            sets: [{ id: 'ns-2', name: 'Черновик', note_count: 0 }],
+            active_set_id: 'ns-2',
+        });
+        const result = await loadSets('lib::book-1');
+
+        expect(result.sets).toHaveLength(1);
+        expect(result.activeSetId).toBe('ns-2');
+    });
+
+    it('активный набор отсутствует, если хранилище его не вернуло', async () => {
         invoke.mockResolvedValue({ sets: [] });
-        expect(await findSet('lib::book-1')).toBeNull();
+        const result = await loadSets('lib::book-1');
+
+        expect(result.activeSetId).toBeNull();
+    });
+
+    it('запоминает активный набор книги', async () => {
+        invoke.mockResolvedValue({ ok: true });
+        await setActiveSet('lib::book-1', 'ns-2');
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'set_active',
+            payload: { book_key: 'lib::book-1', set_id: 'ns-2' },
+        });
     });
 
     it('заводит набор по умолчанию, если наборов нет', async () => {
@@ -214,6 +238,59 @@ describe('операции плагина заметок', () => {
 
         const set = await getSet('ns-1');
         expect(set.notes[0].quote).toBe('цитата');
+    });
+
+    it('переименовывает набор', async () => {
+        invoke.mockResolvedValue(setResponse());
+        await renameSet('ns-1', 'Конспект');
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'rename_set',
+            payload: { set_id: 'ns-1', name: 'Конспект' },
+        });
+    });
+
+    it('удаляет набор', async () => {
+        invoke.mockResolvedValue({ ok: true });
+        await deleteSet('ns-1');
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'delete_set',
+            payload: { set_id: 'ns-1' },
+        });
+    });
+});
+
+describe('выбор активного набора', () => {
+    const summary = (id: string): ReturnType<typeof normalizeSetSummary> =>
+        normalizeSetSummary({ id, name: id, note_count: 0 });
+
+    it('сохраняет предпочтительный набор, если он принадлежит книге', () => {
+        expect(resolveActiveSetId([summary('a'), summary('b')], 'b')).toBe('b');
+    });
+
+    it('берёт первый набор, если предпочтительный исчез', () => {
+        expect(resolveActiveSetId([summary('a'), summary('b')], 'gone')).toBe('a');
+    });
+
+    it('без наборов активного набора нет', () => {
+        expect(resolveActiveSetId([], null)).toBeNull();
+    });
+
+    it('ensureDefaultSet берёт активный набор, а не первый', async () => {
+        invoke.mockResolvedValueOnce({
+            sets: [
+                { id: 'ns-1', book_key: 'lib::book-1', name: 'Первый', note_count: 0 },
+                { id: 'ns-2', book_key: 'lib::book-1', name: 'Второй', note_count: 0 },
+            ],
+        }).mockResolvedValueOnce(setResponse());
+        await ensureDefaultSet('lib::book-1', 'ns-2');
+
+        expect(invoke).toHaveBeenNthCalledWith(2, 'invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'get_set',
+            payload: { set_id: 'ns-2' },
+        });
     });
 });
 

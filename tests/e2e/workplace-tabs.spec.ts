@@ -133,11 +133,16 @@ test('панель открытых книг выбирает и закрыва�
     await expect(panel).toBeVisible();
 });
 
+/** Страница активной вкладки рабочего места. */
+function activePage(page: import('@playwright/test').Page) {
+    return page.locator('[data-testid="workplace-tab-page"][data-active="true"]');
+}
+
 test('позиция чтения сохраняется при переключении вкладок', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');
 
-    const iframe = page.locator('iframe[title="Чтение книги"]');
+    const iframe = activePage(page).locator('iframe[title="Чтение книги"]');
     const box = await iframe.boundingBox();
     if (!box) {
         throw new Error('область чтения не найдена');
@@ -146,10 +151,14 @@ test('позиция чтения сохраняется при переключ
     await page.mouse.wheel(0, 1500);
     await expect
         .poll(async () => {
-            const text = await page.getByTestId('reader-progress').textContent();
+            const text = await activePage(page).getByTestId('reader-progress').textContent();
             return Number.parseInt(text ?? '0', 10);
         })
         .toBeGreaterThan(0);
+    const savedProgress = Number.parseInt(
+        (await activePage(page).getByTestId('reader-progress').textContent()) ?? '0',
+        10,
+    );
 
     await addBook(page, 'Третья книга');
     await tab(page, 'Демо-книга').getByTestId('workplace-tab').click();
@@ -158,10 +167,24 @@ test('позиция чтения сохраняется при переключ
         'true',
     );
 
-    await expect
-        .poll(async () => {
-            const text = await page.getByTestId('reader-progress').textContent();
-            return Number.parseInt(text ?? '0', 10);
-        })
-        .toBeGreaterThan(0);
+    // Книга не перезагружается: позиция сохраняется сразу, без повторного чтения.
+    await expect(activePage(page).getByTestId('reader-progress')).toHaveText(`${savedProgress}%`);
+});
+
+test('вкладки остаются открытыми при переключении', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await addBook(page, 'Третья книга');
+
+    // Обе вкладки смонтированы, видима только активная.
+    await expect(page.getByTestId('workplace-tab-page')).toHaveCount(2);
+    await expect(activePage(page)).toHaveCount(1);
+
+    await tab(page, 'Демо-книга').getByTestId('workplace-tab').click();
+
+    // Вкладка активной становится другая книга, а прежняя не исчезает.
+    await expect(page.getByTestId('workplace-tab-page')).toHaveCount(2);
+    await expect(
+        page.locator('[data-testid="workplace-tab-page"][data-active="false"]'),
+    ).toHaveCount(1);
 });

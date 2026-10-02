@@ -42,8 +42,12 @@
         position: relative;
         background: #fff;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+        /* Подсветки заметок смешиваются только со страницей, не с фоном окна. */
+        isolation: isolate;
       }
       .page canvas {
+        /* Канвас покрывает видимую область страницы и позиционируется по ней. */
+        position: absolute;
         display: block;
       }
       .overlay {
@@ -53,13 +57,15 @@
       }
       .overlay .note {
         position: absolute;
-        background: rgba(253, 224, 71, 0.5);
+        background: rgba(253, 224, 71, 0.65);
+        /* Умножение сохраняет тёмный текст контрастным, а фон делает жёлтым. */
+        mix-blend-mode: multiply;
         border-radius: 2px;
         pointer-events: auto;
         cursor: pointer;
       }
       .overlay .note.flash {
-        background: rgba(245, 158, 11, 0.75);
+        background: rgba(245, 158, 11, 0.85);
       }
       .textLayer {
         position: absolute;
@@ -127,14 +133,30 @@
       let notes = [];
       /** Натуральный размер каждой страницы при масштабе 1 (CSS px). */
       let naturalSizes = [];
-      /** Отметка, показан ли уже канвас страницы. */
-      const rendered = new WeakMap();
+      /** Отрисованные страницы: элемент страницы → её холст. */
+      const rendered = new Map();
       /** Страницы, отрисовка которых уже идёт. */
       const pending = new Set();
+      /** Поколение рендера: смена масштаба отменяет незавершённые отрисовки. */
+      let renderEpoch = 0;
+      /** Запас вокруг видимой области страницы для канваса, CSS px. */
+      const WINDOW_MARGIN = 512;
+      /** Минимальная длина стороны канваса, CSS px. */
+      const MIN_WINDOW_SIDE = 128;
+      /** Предельный размер стороны канваса.
+       *
+       * Больше — браузер оставляет канвас белым; ограничение не даёт окну
+       * выродиться на гигантском мониторе или при большом devicePixelRatio.
+       */
+      const MAX_CANVAS_SIDE = 8192;
+      /** Предельная площадь канваса (пиксели): страховка от нехватки памяти. */
+      const MAX_CANVAS_AREA = 32 * 1024 * 1024;
       /** Опорная страница окна (для удержания места при масштабе). */
       let currentPage = 1;
       let observer = null;
       let scheduled = false;
+      /** Отложенный пересчёт окна канвасов после прокрутки. */
+      let windowScheduled = false;
 
       function post(message) {
         message.channel = CHANNEL;
@@ -226,6 +248,7 @@
 
       /** Освобождение канваса и текстового слоя страницы (память при прокрутке). */
       function releasePage(pageEl) {
+        pending.delete(pageEl);
         const entry = rendered.get(pageEl);
         delete pageEl.dataset.rendered;
         if (!entry) {
@@ -236,12 +259,77 @@
         rendered.delete(pageEl);
       }
 
-      /** Отрисовка страницы: канвас, текстовый слой, подсветки заметок. */
+      /** Окно канваса страницы в CSS-пикселях.
+       *
+       * Рисуется только видимая область страницы с запасом, а не вся страница:
+       * канвас всегда имеет плотность devicePixelRatio, поэтому текст резкий на
+       * любом масштабе, а память ограничена видимой областью.
+       */
+      function pageWindow(pageEl, viewport) {
+        const rect = pageEl.getBoundingClientRect();
+        const rawLeft = viewer.getBoundingClientRect().left;
+        const rawTop = viewer.getBoundingClientRect().top;
+        let x0 = rawLeft - rect.left - WINDOW_MARGIN;
+        let y0 = rawTop - rect.top - WINDOW_MARGIN;
+        let x1 = rawLeft + viewer.clientWidth - rect.left + WINDOW_MARGIN;
+        let y1 = rawTop + viewer.clientHeight - rect.top + WINDOW_MARGIN;
+        x0 = Math.max(0, x0);
+        y0 = Math.max(0, y0);
+        x1 = Math.min(viewport.width, x1);
+        y1 = Math.min(viewport.height, y1);
+        let width = Math.max(MIN_WINDOW_SIDE, x1 - x0);
+        let height = Math.max(MIN_WINDOW_SIDE, y1 - y0);
+        // Держим окно внутри страницы даже на маленьких страницах.
+        x0 = Math.min(x0, Math.max(0, viewport.width - width));
+        y0 = Math.min(y0, Math.max(0, viewport.height - height));
+        width = Math.min(width, viewport.width);
+        height = Math.min(height, viewport.height);
+        return { x: x0, y: y0, width, height };
+      }
+
+      /** Подготовка канваса страницы: окно видимой области и его плотность.
+       *
+       * Канвас рисуется в пикселях с плотностью devicePixelRatio и покрывает
+       * видимую область страницы с запасом, поэтому текст резкий на любом
+       * масштабе, а память ограничена видимой областью. Геометрия задаётся до
+       * отрисовки: изменение размеров канваса после неё стёрло бы рисунок.
+       */
+      function setupCanvas(pageEl, viewport) {
+        const canvas = document.createElement('canvas');
+        const win = pageWindow(pageEl, viewport);
+        let ratio = Math.min(window.devicePixelRatio || 1, 2.5);
+        if (win.width > 0 && win.width * ratio > MAX_CANVAS_SIDE) {
+          ratio = MAX_CANVAS_SIDE / win.width;
+        }
+        if (win.height > 0 && win.height * ratio > MAX_CANVAS_SIDE) {
+          ratio = MAX_CANVAS_SIDE / win.height;
+        }
+        const area = win.width * win.height;
+        if (area > 0 && area * ratio * ratio > MAX_CANVAS_AREA) {
+          ratio = Math.sqrt(MAX_CANVAS_AREA / area);
+        }
+        ratio = Math.max(0.25, ratio);
+        const width = Math.max(1, Math.round(win.width * ratio));
+        const height = Math.max(1, Math.round(win.height * ratio));
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.left = win.x + 'px';
+        canvas.style.top = win.y + 'px';
+        canvas.style.width = win.width + 'px';
+        canvas.style.height = win.height + 'px';
+        return {
+          canvas,
+          info: { x: win.x, y: win.y, width: win.width, height: win.height, ratio },
+        };
+      }
+
+      /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок. */
       async function renderPage(pageEl) {
         if (rendered.has(pageEl) || pending.has(pageEl) || !doc) {
           return;
         }
         const index = Number(pageEl.dataset.page) - 1;
+        const epoch = renderEpoch;
         pending.add(pageEl);
         let page;
         try {
@@ -250,44 +338,81 @@
           pending.delete(pageEl);
           return;
         }
-        if (!pageEl.isConnected) {
+        if (!pageEl.isConnected || epoch !== renderEpoch) {
           pending.delete(pageEl);
           return;
         }
         const base = page.getViewport({ scale: 1 });
         naturalSizes[index] = { width: base.width, height: base.height };
         resizePage(index);
-        const viewport = page.getViewport({ scale: currentScale() });
+        const scale = currentScale();
+        const viewport = page.getViewport({ scale });
         pageEl.style.width = viewport.width + 'px';
         pageEl.style.height = viewport.height + 'px';
-        pageEl.style.setProperty('--scale-factor', String(currentScale()));
-        pageEl.dataset.rendered = '1';
+        pageEl.style.setProperty('--scale-factor', String(scale));
 
-        const canvas = document.createElement('canvas');
-        const ratio = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = Math.floor(viewport.width * ratio);
-        canvas.height = Math.floor(viewport.height * ratio);
-        canvas.style.width = viewport.width + 'px';
-        canvas.style.height = viewport.height + 'px';
+        const setup = setupCanvas(pageEl, viewport);
+        const canvas = setup.canvas;
+        const info = setup.info;
         const context = canvas.getContext('2d');
-        context.scale(ratio, ratio);
+        if (!context) {
+          pending.delete(pageEl);
+          return;
+        }
 
         const textLayerEl = document.createElement('div');
         textLayerEl.className = 'textLayer';
         const overlay = overlayOf(pageEl);
+        if (!overlay) {
+          pending.delete(pageEl);
+          return;
+        }
+        const entry = { canvas, textLayer: textLayerEl, info };
         pageEl.insertBefore(canvas, overlay);
         pageEl.insertBefore(textLayerEl, overlay);
-        rendered.set(pageEl, { canvas, textLayer: textLayerEl });
+        rendered.set(pageEl, entry);
+        pageEl.dataset.rendered = '1';
 
-        await page.render({ canvasContext: context, viewport }).promise;
-        const textLayer = new pdfjsLib.TextLayer({
-          textContentSource: page.streamTextContent(),
-          container: textLayerEl,
-          viewport,
-        });
-        await textLayer.render();
-        pending.delete(pageEl);
-        drawNotes(pageEl);
+        // Дополнительное преобразование сдвигает страницу в начало координат
+        // окна (её левый верх не совпадает с углом страницы) и задаёт плотность
+        // devicePixelRatio: без него рисовалась бы левая верхняя часть страницы
+        // в неверном масштабе.
+        const transform = [
+          info.ratio,
+          0,
+          0,
+          info.ratio,
+          -info.x * info.ratio,
+          -info.y * info.ratio,
+        ];
+
+        try {
+          await page.render({ canvasContext: context, viewport, transform }).promise;
+          if (epoch !== renderEpoch) {
+            throw new Error('отрисовка устарела из-за смены масштаба');
+          }
+          const textLayer = new pdfjsLib.TextLayer({
+            textContentSource: page.streamTextContent(),
+            container: textLayerEl,
+            viewport,
+          });
+          await textLayer.render();
+          if (epoch !== renderEpoch) {
+            throw new Error('отрисовка устарела из-за смены масштаба');
+          }
+          drawNotes(pageEl);
+        } catch (error) {
+          // Неудачная отрисовка не должна навсегда помечать страницу готовой:
+          // иначе она останется белой и повторный рендер не запустится.
+          if (rendered.get(pageEl) === entry) {
+            rendered.delete(pageEl);
+            delete pageEl.dataset.rendered;
+          }
+          canvas.remove();
+          textLayerEl.remove();
+        } finally {
+          pending.delete(pageEl);
+        }
       }
 
       /** Наблюдение за видимостью страниц: рендер вблизи, освобождение вдали. */
@@ -302,11 +427,7 @@
               if (entry.isIntersecting) {
                 void renderPage(pageEl);
               } else if (entry.intersectionRatio === 0) {
-                const rect = pageEl.getBoundingClientRect();
-                const far = Math.abs(rect.top) > window.innerHeight * 3;
-                if (far) {
-                  releasePage(pageEl);
-                }
+                releasePage(pageEl);
               }
             }
           },
@@ -315,6 +436,107 @@
         for (const pageEl of pagesEl.children) {
           observer.observe(pageEl);
         }
+      }
+
+      /** Пересчёт окон отрисованных страниц при прокрутке.
+       *
+       * Канвас страницы покрывает видимую область с запасом. Когда прокрутка
+       * уводит видимую область за пределы нарисованного окна, страница
+       * освобождается и рисуется заново под новое положение.
+       */
+      function refreshWindows() {
+        windowScheduled = false;
+        const viewerRect = viewer.getBoundingClientRect();
+        for (const pageEl of pagesEl.children) {
+          const entry = rendered.get(pageEl);
+          if (!entry) {
+            continue;
+          }
+          const index = Number(pageEl.dataset.page) - 1;
+          const natural = naturalSizes[index];
+          if (!natural) {
+            continue;
+          }
+          const rect = pageEl.getBoundingClientRect();
+          const interTop = Math.max(rect.top, viewerRect.top);
+          const interBottom = Math.min(rect.bottom, viewerRect.bottom);
+          const interLeft = Math.max(rect.left, viewerRect.left);
+          const interRight = Math.min(rect.right, viewerRect.right);
+          if (interBottom <= interTop || interRight <= interLeft) {
+            continue;
+          }
+          const scale = rect.height > 0 ? rect.height / natural.height : currentScale();
+          const visTop = (interTop - rect.top) / scale;
+          const visBottom = (interBottom - rect.top) / scale;
+          const visLeft = (interLeft - rect.left) / scale;
+          const visRight = (interRight - rect.left) / scale;
+          const info = entry.info;
+          const covered =
+            visTop >= info.y &&
+            visBottom <= info.y + info.height &&
+            visLeft >= info.x &&
+            visRight <= info.x + info.width;
+          if (!covered) {
+            releasePage(pageEl);
+            void renderPage(pageEl);
+          }
+        }
+      }
+
+      /** Планирование пересчёта окон после прокрутки. */
+      function scheduleWindowRefresh() {
+        if (windowScheduled) {
+          return;
+        }
+        windowScheduled = true;
+        requestAnimationFrame(refreshWindows);
+      }
+
+      /** Доля пересечения меньшего прямоугольника; ниже — это соседние строки. */
+      function overlapRatio(a, b) {
+        const left = Math.max(a.x, b.x);
+        const top = Math.max(a.y, b.y);
+        const right = Math.min(a.x + a.width, b.x + b.width);
+        const bottom = Math.min(a.y + a.height, b.y + b.height);
+        if (right <= left || bottom <= top) {
+          return 0;
+        }
+        const intersection = (right - left) * (bottom - top);
+        const smaller = Math.min(a.width * a.height, b.width * b.height);
+        return smaller > 0 ? intersection / smaller : 0;
+      }
+
+      /** Объединение совпадающих прямоугольников строки в один.
+       *
+       * Текстовый слой иногда даёт по нескольку прямоугольников на одну строку;
+       * при отрисовке они накладываются и жёлтый становится плотнее. Прямоугольники
+       * соседних строк пересекаются лишь краем и не объединяются.
+       */
+      function mergeRects(rects) {
+        const merged = [];
+        for (const rect of rects) {
+          let current = { ...rect };
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (let index = 0; index < merged.length; index += 1) {
+              const other = merged[index];
+              if (overlapRatio(current, other) < 0.5) {
+                continue;
+              }
+              const left = Math.min(current.x, other.x);
+              const top = Math.min(current.y, other.y);
+              const right = Math.max(current.x + current.width, other.x + other.width);
+              const bottom = Math.max(current.y + current.height, other.y + other.height);
+              current = { x: left, y: top, width: right - left, height: bottom - top };
+              merged.splice(index, 1);
+              changed = true;
+              break;
+            }
+          }
+          merged.push(current);
+        }
+        return merged;
       }
 
       /** Подсветка заметок на странице по долям её размера. */
@@ -338,7 +560,7 @@
           if (!anchor || anchor.kind !== 'page' || anchor.page !== index) {
             continue;
           }
-          for (const rect of anchor.rects || []) {
+          for (const rect of mergeRects(anchor.rects || [])) {
             const element = document.createElement('div');
             element.className = 'note';
             element.dataset.noteId = note.id;
@@ -385,6 +607,7 @@
             currentPage = page;
           }
           reportState();
+          scheduleWindowRefresh();
         });
       }
 
@@ -402,6 +625,7 @@
           pageEl.scrollIntoView({ block: 'start' });
           currentPage = target;
           reportState();
+          scheduleWindowRefresh();
         }
       }
 
@@ -419,6 +643,10 @@
         status.textContent = 'Открытие книги…';
         status.hidden = false;
         pagesEl.replaceChildren();
+        // Предыдущая книга: освобождаем её холсты, иначе карта держала бы их.
+        rendered.clear();
+        pending.clear();
+        renderEpoch += 1;
         try {
           const lib = await loadEngine();
           doc = await lib.getDocument({ data: decodeBase64(data) }).promise;
@@ -455,6 +683,9 @@
         const anchorEl = pagesEl.children[currentPage - 1];
         const offsetBefore = anchorEl ? anchorEl.offsetTop - viewer.scrollTop : 0;
         zoom = next;
+        // Смена масштаба отменяет незавершённые отрисовки: иначе они завершатся
+        // в старом масштабе и оставят страницу белой.
+        renderEpoch += 1;
         resizePages();
         for (const pageEl of pagesEl.children) {
           releasePage(pageEl);
@@ -525,7 +756,7 @@
               quote,
               percent: scrollProgress(),
               page,
-              rects,
+              rects: mergeRects(rects),
             },
             x: first.left,
             y: first.bottom,
@@ -595,6 +826,7 @@
           return;
         }
         lastRatio = ratio;
+        renderEpoch += 1;
         for (const pageEl of pagesEl.children) {
           releasePage(pageEl);
         }
@@ -604,6 +836,18 @@
             void renderPage(pageEl);
           }
         }
+      });
+
+      /** Пересчёт окон при изменении области просмотра (панели, размер окна). */
+      let lastViewerWidth = viewer.clientWidth;
+      let lastViewerHeight = viewer.clientHeight;
+      addEventListener('resize', () => {
+        if (viewer.clientWidth === lastViewerWidth && viewer.clientHeight === lastViewerHeight) {
+          return;
+        }
+        lastViewerWidth = viewer.clientWidth;
+        lastViewerHeight = viewer.clientHeight;
+        scheduleWindowRefresh();
       });
 
       post({ type: 'capabilities', value: { zoom: true, pages: true, selection: true } });

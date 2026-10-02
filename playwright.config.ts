@@ -16,6 +16,10 @@ export default defineConfig({
     timezoneId: 'Europe/Moscow',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // Браузерные сценарии выполняются последовательно: приложение тяжёлое
+  // (WASM-плагины, вложенные iframe), и параллельные воркеры давали редкие
+  // гонки в таймингах (по аналогии с последовательными тестами Rust-ядра).
+  workers: 1,
   webServer: {
     command: 'npm run dev:test',
     url: 'http://localhost:1420',

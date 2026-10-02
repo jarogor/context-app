@@ -185,3 +185,56 @@ fn missing_version_defaults_to_current() {
     let state: NotesState = serde_json::from_str(r#"{ "sets": [] }"#).expect("разбор");
     assert_eq!(state.normalized().version(), STATE_VERSION);
 }
+
+#[test]
+fn create_set_becomes_active_for_book() {
+    let mut state = NotesState::new();
+    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    assert_eq!(state.active_for_book("lib/a"), Some("ns-a"));
+
+    state.create_set("lib/a", "B", "ns-b", 2).expect("набор");
+    assert_eq!(state.active_for_book("lib/a"), Some("ns-b"));
+}
+
+#[test]
+fn set_active_requires_set_of_same_book() {
+    let mut state = NotesState::new();
+    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state.create_set("lib/b", "B", "ns-b", 1).expect("набор");
+
+    state.set_active("lib/a", "ns-a").expect("выбор");
+    assert_eq!(state.active_for_book("lib/a"), Some("ns-a"));
+
+    assert!(state.set_active("lib/a", "ns-b").is_err(), "чужой набор");
+    assert!(state.set_active("lib/a", "ns-missing").is_err());
+    assert_eq!(state.active_for_book("lib/a"), Some("ns-a"));
+}
+
+#[test]
+fn delete_active_set_clears_selection() {
+    let mut state = NotesState::new();
+    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state.set_active("lib/a", "ns-a").expect("выбор");
+    state.delete_set("ns-a").expect("удаление");
+    assert_eq!(state.active_for_book("lib/a"), None);
+}
+
+#[test]
+fn normalized_keeps_only_valid_active_selections() {
+    let raw = r#"{
+      "version": 1,
+      "sets": [
+        { "id": "ns-a", "book_key": "lib/a", "name": "A" },
+        { "id": "ns-b", "book_key": "lib/b", "name": "B" }
+      ],
+      "active": { "lib/a": "ns-a", "lib/b": "ns-a", "": "ns-a", "lib/a-missing": "ns-x" }
+    }"#;
+    let state: NotesState = serde_json::from_str(raw).expect("разбор");
+    let state = state.normalized();
+    assert_eq!(state.active_for_book("lib/a"), Some("ns-a"));
+    assert_eq!(state.active_for_book("lib/b"), None, "чужой набор");
+    assert_eq!(
+        state.active,
+        BTreeMap::from([("lib/a".to_string(), "ns-a".to_string())])
+    );
+}

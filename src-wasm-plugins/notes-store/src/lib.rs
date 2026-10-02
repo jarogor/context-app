@@ -51,6 +51,7 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
         "create_set" => create_set(host, &request.payload),
         "rename_set" => rename_set(host, &request.payload),
         "delete_set" => delete_set(host, &request.payload),
+        "set_active" => set_active(host, &request.payload),
         "add_note" => add_note(host, &request.payload),
         "update_note" => update_note(host, &request.payload),
         "delete_note" => delete_note(host, &request.payload),
@@ -58,11 +59,12 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
     }
 }
 
-/// Список наборов книги с идентификатором, именем и числом заметок.
+/// Список наборов книги с идентификатором, именем, числом заметок и активным набором.
 fn list_sets(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
     let book_key = string_field(payload, "book_key");
     let state = load(host)?;
-    Ok(json!({ "sets": state.list_for_book(&book_key) }).to_string())
+    let active = state.active_for_book(&book_key).map(str::to_string);
+    Ok(json!({ "sets": state.list_for_book(&book_key), "active_set_id": active }).to_string())
 }
 
 /// Набор целиком со всеми заметками.
@@ -111,6 +113,19 @@ fn delete_set(host: &impl Host, payload: &serde_json::Value) -> Result<String, S
     state.delete_set(&set_id)?;
     save(host, &state)?;
     emit_changed(host, &book_key, &set_id)?;
+    Ok(json!({ "ok": true }).to_string())
+}
+
+/// Запоминание активного набора книги без публикации события.
+///
+/// Выбор набора — состояние клиента: он не меняет наборы и заметки, поэтому
+/// событие `notes:changed` не публикуется, чтобы не перечитывать заметки.
+fn set_active(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let book_key = string_field(payload, "book_key");
+    let set_id = set_id(payload);
+    let mut state = load(host)?;
+    state.set_active(&book_key, &set_id)?;
+    save(host, &state)?;
     Ok(json!({ "ok": true }).to_string())
 }
 

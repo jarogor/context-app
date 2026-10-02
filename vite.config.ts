@@ -9,6 +9,11 @@ export default defineConfig({
     server: {
         port: 1420,
         strictPort: true,
+        watch: {
+            // Каталоги сборки Rust и артефакты не должны наблюдаться: их много,
+            // и на них исчерпывается системный лимит файловых наблюдателей.
+            ignored: ['**/target/**'],
+        },
     },
     envPrefix: ["VITE_", "TAURI_ENV_"],
     optimizeDeps: {

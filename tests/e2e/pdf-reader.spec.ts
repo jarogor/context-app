@@ -6,10 +6,16 @@ import { fileURLToPath } from 'node:url';
 /** Корень репозитория. */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-/** Точка входа модуля рисования плагина PDF. */
+/** Точка входа модуля рисования плагина PDF.
+ *
+ * Берётся **развёрнутый ресурс**, который реально грузит приложение, а не
+ * исходник: иначе устаревшая сборка плагина оставалась бы незамеченной.
+ * Ресурс собирается `scripts/build-wasm-plugins.sh`; сервер тестов
+ * (`npm run dev:test`) запускает сборку перед прогоном.
+ */
 function viewerEntry(): string {
     return readFileSync(
-        resolve(ROOT, 'src-wasm-plugins', 'workplace-pdf', 'viewer', 'index.html'),
+        resolve(ROOT, 'src-tauri', 'resources', 'plugins', 'workplace-pdf', 'viewer', 'index.html'),
         'utf8',
     );
 }
@@ -297,6 +303,128 @@ async function selectTextOnPage(page: Page, pageNumber: number) {
     await expect(page.getByTestId('quote-menu')).toBeVisible();
     await page.getByTestId('quote-menu').getByRole('button', { name: 'Создать заметку' }).click();
 }
+
+test('сильное увеличение не оставляет страницу белой', async ({ page }) => {
+    await openPdf(page, 2);
+
+    // Приближаем до максимального масштаба: страница в пикселях становится
+    // огромной, и без ограничения канвас превысил бы допустимый размер.
+    for (let index = 0; index < 60; index += 1) {
+        await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
+    }
+
+    const pageEl = content(page).locator('.page').first();
+    await expect
+        .poll(async () =>
+            pageEl.evaluate((element) => {
+                const canvas = element.querySelector('canvas');
+                if (!(canvas instanceof HTMLCanvasElement) || canvas.width === 0) {
+                    return false;
+                }
+                // Канвас не пустой: в центре есть непустой пиксель.
+                const context = canvas.getContext('2d');
+                if (!context) {
+                    return false;
+                }
+                const data = context.getImageData(
+                    Math.floor(canvas.width / 2),
+                    Math.floor(canvas.height / 2),
+                    1,
+                    1,
+                ).data;
+                return data[3] !== 0;
+            }),
+        )
+        .toBe(true);
+});
+
+// Проверка при плотности HiDPI: без учёта плотности содержимое рисуется вдвое
+// мельче текстового слоя, и на экране текст мутный и не совпадает со строками.
+test.describe('плотность экрана 2', () => {
+    test.use({ deviceScaleFactor: 2 });
+
+    test('нарисованный текст совпадает с текстовым слоем по масштабу', async ({ page }) => {
+        await openPdf(page, 1);
+
+        // Нарисованное содержимое должно стоять ровно там же, где текстовый слой:
+        // если страница отрисована без учёта окна и плотности, текст уезжает и
+        // масштабируется неверно — резкость и попадание по строкам ломаются.
+        const result = await content(page)
+            .locator('.page')
+            .first()
+            .evaluate((element) => {
+                const canvas = element.querySelector('canvas');
+                const textLayer = element.querySelector('.textLayer');
+                const span = textLayer?.querySelector('span');
+                if (!(canvas instanceof HTMLCanvasElement) || !span) {
+                    return null;
+                }
+                const pageRect = element.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+                const spanRect = span.getBoundingClientRect();
+                const context = canvas.getContext('2d');
+                if (!context) {
+                    return null;
+                }
+                const image = context.getImageData(0, 0, canvas.width, canvas.height).data;
+                let minX = canvas.width;
+                let minY = canvas.height;
+                let maxX = -1;
+                let maxY = -1;
+                for (let y = 0; y < canvas.height; y += 1) {
+                    for (let x = 0; x < canvas.width; x += 1) {
+                        const offset = (y * canvas.width + x) * 4;
+                        const luminance =
+                            (image[offset] + image[offset + 1] + image[offset + 2]) / 3;
+                        if (image[offset + 3] > 0 && luminance < 128) {
+                            if (x < minX) {
+                                minX = x;
+                            }
+                            if (y < minY) {
+                                minY = y;
+                            }
+                            if (x > maxX) {
+                                maxX = x;
+                            }
+                            if (y > maxY) {
+                                maxY = y;
+                            }
+                        }
+                    }
+                }
+                if (maxX < 0 || maxY < 0) {
+                    return null;
+                }
+                const scaleX = canvasRect.width / canvas.width;
+                const scaleY = canvasRect.height / canvas.height;
+                return {
+                    canvas: {
+                        left: canvasRect.left - pageRect.left + minX * scaleX,
+                        top: canvasRect.top - pageRect.top + minY * scaleY,
+                        width: (maxX - minX) * scaleX,
+                        height: (maxY - minY) * scaleY,
+                    },
+                    span: {
+                        left: spanRect.left - pageRect.left,
+                        top: spanRect.top - pageRect.top,
+                        width: spanRect.width,
+                        height: spanRect.height,
+                    },
+                };
+            });
+
+        expect(result).not.toBeNull();
+        if (!result) {
+            return;
+        }
+
+        // Положение и размер нарисованного текста близки к текстовому слою.
+        expect(Math.abs(result.canvas.left - result.span.left)).toBeLessThan(20);
+        expect(Math.abs(result.canvas.top - result.span.top)).toBeLessThan(20);
+        expect(result.canvas.height).toBeGreaterThan(result.span.height * 0.6);
+        expect(result.canvas.height).toBeLessThan(result.span.height * 1.4);
+    });
+});
 
 test('выделение текста создаёт заметку-цитату с подсветкой на странице', async ({ page }) => {
     await openPdf(page, 3);

@@ -4,8 +4,9 @@
  * интерпретирует модель хранилища. Модуль чист от Svelte и пригоден для тестов.
  *
  * Заметка — это **цитата**: выделенный в тексте книги фрагмент с непрозрачным
- * якорем, точно восстанавливающим выделение. Книга заводит один набор заметок
- * по умолчанию, поэтому клиент скрывает наборы от панели.
+ * якорем, точно восстанавливающим выделение. Книга ведёт несколько именованных
+ * наборов заметок; клиент перечисляет их, выбирает активный и управляет
+ * наборами, не интерпретируя модель хранилища глубже модели набора.
  */
 
 import { invokeCommand } from './app-bridge';
@@ -138,14 +139,48 @@ async function operation<T>(action: string, payload: unknown): Promise<T> {
 
 /** Наборы книги с идентификатором, именем и числом заметок. */
 export async function listSets(key: string): Promise<NoteSetSummary[]> {
-    const response = await operation<{ sets?: unknown[] }>('list_sets', { book_key: key });
-    return (response.sets ?? []).map(normalizeSetSummary);
+    return (await loadSets(key)).sets;
 }
 
-/** Первый набор книги либо null, если наборов ещё нет. */
-export async function findSet(key: string): Promise<NoteSet | null> {
-    const sets = await listSets(key);
-    return sets.length > 0 ? getSet(sets[0].id) : null;
+/** Список наборов книги вместе с сохранённым активным набором.
+ *
+ * Активный набор хранит сам плагин заметок по ключу книги, поэтому выбор
+ * переживает перезапуск приложения. `activeSetId` равен null, если выбор не
+ * сохранён или набор исчез.
+ */
+export async function loadSets(
+    key: string,
+): Promise<{ sets: NoteSetSummary[]; activeSetId: string | null }> {
+    const response = await operation<{ sets?: unknown[]; active_set_id?: unknown }>('list_sets', {
+        book_key: key,
+    });
+    const sets = (response.sets ?? []).map(normalizeSetSummary);
+    const activeSetId =
+        typeof response.active_set_id === 'string' && response.active_set_id.length > 0
+            ? response.active_set_id
+            : null;
+    return { sets, activeSetId };
+}
+
+/** Запоминание активного набора книги в хранилище. */
+export async function setActiveSet(key: string, setId: string): Promise<void> {
+    await operation('set_active', { book_key: key, set_id: setId });
+}
+
+/** Активный набор книги: предпочтительный или первый, иначе null.
+ *
+ * Предпочтительный набор сохраняется, пока принадлежит книге; иначе активным
+ * становится первый набор. Пустой список наборов даёт null — тогда активного
+ * набора нет.
+ */
+export function resolveActiveSetId(
+    sets: NoteSetSummary[],
+    preferredSetId: string | null,
+): string | null {
+    if (preferredSetId && sets.some((set) => set.id === preferredSetId)) {
+        return preferredSetId;
+    }
+    return sets.length > 0 ? sets[0].id : null;
 }
 
 /** Набор целиком со всеми заметками. */
@@ -163,19 +198,37 @@ export async function createSet(key: string, name: string): Promise<NoteSet> {
     return normalizeSet(response.set);
 }
 
-/** Использует первый набор книги, иначе заводит набор по умолчанию. */
-export async function ensureDefaultSet(key: string): Promise<NoteSet> {
+/** Переименование набора: имя непустое, лишние пробелы снимает хранилище. */
+export async function renameSet(setId: string, name: string): Promise<NoteSet> {
+    const response = await operation<{ set?: unknown }>('rename_set', {
+        set_id: setId,
+        name,
+    });
+    return normalizeSet(response.set);
+}
+
+/** Удаление набора вместе с его заметками. */
+export async function deleteSet(setId: string): Promise<void> {
+    await operation('delete_set', { set_id: setId });
+}
+
+/** Набор книги для работы: активный (предпочтительный либо первый), иначе новый по умолчанию. */
+export async function ensureDefaultSet(
+    key: string,
+    preferredSetId: string | null = null,
+): Promise<NoteSet> {
     const sets = await listSets(key);
-    if (sets.length > 0) {
-        return getSet(sets[0].id);
+    const activeId = resolveActiveSetId(sets, preferredSetId);
+    if (activeId) {
+        return getSet(activeId);
     }
     return createSet(key, DEFAULT_SET_NAME);
 }
 
 /** Добавление заметки-цитаты в набор книги.
  *
- * Набор определяется по ключу книги: панель работает с единственным набором
- * книги, поэтому идентификатор набора не требуется.
+ * Набор задаётся явно: заметка добавляется в активный набор книги, а не в
+ * единственный.
  */
 export async function addQuote(key: string, anchor: QuoteAnchor, set: NoteSet): Promise<NoteSet> {
     const response = await operation<{ set?: unknown }>('add_note', {

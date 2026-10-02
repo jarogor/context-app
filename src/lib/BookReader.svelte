@@ -10,6 +10,7 @@
     rangeFromOffsets,
     type QuoteAnchor,
   } from './reader/anchor';
+  import { clearNoteMarks, highlightTextRange } from './reader/highlight';
 
   interface Props {
     /** Содержимое книги главами. */
@@ -63,6 +64,25 @@
   let pendingAnchor: QuoteAnchor | null = $state(null);
   /** Позиция контекстного меню выделения (координаты области чтения). */
   let menuPosition: { x: number; y: number } | null = $state(null);
+  /** Ширина и высота области чтения для удержания меню внутри неё. */
+  let readerAreaWidth = $state(0);
+  let readerAreaHeight = $state(0);
+
+  /** Ограничение позиции меню внутри области чтения. */
+  function menuStyle(): string {
+    const menuWidth = 190;
+    const menuHeight = 40;
+    const x = Math.max(
+      8,
+      Math.min(menuPosition?.x ?? 0, Math.max(8, readerAreaWidth - menuWidth - 8)),
+    );
+    const preferred = menuPosition?.y ?? 0;
+    const y =
+      readerAreaHeight > 0 && preferred + menuHeight > readerAreaHeight
+        ? Math.max(8, preferred - menuHeight - 12)
+        : preferred;
+    return `left: ${x}px; top: ${y}px;`;
+  }
 
   /** Документ области отображения или null. */
   function document(): Document | null {
@@ -98,16 +118,7 @@
     if (!value) {
       return;
     }
-    for (const mark of Array.from(value.querySelectorAll(`mark.${NOTE_CLASS}`))) {
-      const parent = mark.parentNode;
-      if (!parent) {
-        continue;
-      }
-      while (mark.firstChild) {
-        parent.insertBefore(mark.firstChild, mark);
-      }
-      parent.removeChild(mark);
-    }
+    clearNoteMarks(value, `mark.${NOTE_CLASS}`);
   }
 
   /** Подсветка одной заметки; неподходящий якорь пропускается. */
@@ -121,20 +132,7 @@
     if (!section) {
       return;
     }
-    const range = rangeFromOffsets(section, anchor.start, anchor.end);
-    if (!range) {
-      return;
-    }
-    const mark = value.createElement('mark');
-    mark.className = NOTE_CLASS;
-    mark.dataset.noteId = note.id;
-    try {
-      range.surroundContents(mark);
-    } catch {
-      const fragment = range.extractContents();
-      mark.appendChild(fragment);
-      range.insertNode(mark);
-    }
+    highlightTextRange(section, anchor.start, anchor.end, NOTE_CLASS, note.id);
   }
 
   /** Перерисовка всех подсветок заметок. */
@@ -238,8 +236,7 @@
     menuPosition = {
       x: Math.max(8, Math.min(rect.left, Math.max(8, width - 180))),
       y: Math.max(8, rect.bottom + 6),
-    };
-  }
+    };  }
 
   /** Создание заметки-цитаты по текущему выделению. */
   function confirmQuote(): void {
@@ -458,7 +455,11 @@
   });
 </script>
 
-<div class="relative h-full w-full">
+<div
+  class="relative h-full w-full"
+  bind:clientWidth={readerAreaWidth}
+  bind:clientHeight={readerAreaHeight}
+>
   <iframe
     bind:this={frame}
     class="h-full w-full border-0 bg-white"
@@ -471,8 +472,7 @@
     <div
       class="absolute z-10 flex items-center gap-[var(--space-1)] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[4px] shadow-lg"
       data-testid="quote-menu"
-      style:left="{menuPosition.x}px"
-      style:top="{menuPosition.y}px"
+      style={menuStyle()}
     >
       <Button variant="primary" size="sm" onclick={confirmQuote}>Создать заметку</Button>
       <Button variant="ghost" size="sm" onclick={dismissMenu}>Отмена</Button>

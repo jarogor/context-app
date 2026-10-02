@@ -16,7 +16,10 @@ function handlers() {
         onDeleteNote: vi.fn(),
         onGoToNote: vi.fn(),
         onSelectNote: vi.fn(),
-        
+        onSelectSet: vi.fn(),
+        onCreateSet: vi.fn(),
+        onRenameSet: vi.fn(),
+        onRemoveSet: vi.fn(),
         onTabState: vi.fn(),
         onRepointTab: vi.fn(),
         onBackToList: vi.fn(),
@@ -29,7 +32,14 @@ function handlers() {
 
 /** Значения панелей, общие для тестов. */
 function panels() {
-    return { notesOpen: false, notes: [], notesLoading: false, hasBook: false, };
+    return {
+        notesOpen: false,
+        notes: [],
+        noteSets: [],
+        activeSetId: null,
+        notesLoading: false,
+        hasBook: false,
+    };
 }
 
 describe('поверхность рабочего места: список и вкладки', () => {

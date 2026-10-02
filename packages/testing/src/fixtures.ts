@@ -1,4 +1,5 @@
 import type { MockBridgeConfig } from './mock-bridge';
+import { emitMockEvent } from './mock-bridge';
 
 /** Идентификатор тестового generic-провайдера. */
 const LIBRARY_ID = 'a692624f-1fa0-49a2-9015-9cb7361f9d47';
@@ -162,6 +163,8 @@ interface MockNoteSet {
 
 /** Ключ мок-хранилища заметок в localStorage. */
 const NOTES_STORAGE_KEY = 'texture-notes';
+/** Ключ мок-хранилища активного набора по книгам. */
+const NOTES_ACTIVE_STORAGE_KEY = 'texture-notes-active';
 
 /** Все наборы заметок мок-хранилища. */
 function loadMockNotes(): MockNoteSet[] {
@@ -177,6 +180,25 @@ function loadMockNotes(): MockNoteSet[] {
 function saveMockNotes(sets: MockNoteSet[]): void {
     try {
         window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(sets));
+    } catch {
+        // Отсутствие localStorage не мешает операции.
+    }
+}
+
+/** Активный набор по книгам мок-хранилища. */
+function loadMockActive(): Record<string, string> {
+    try {
+        const raw = window.localStorage.getItem(NOTES_ACTIVE_STORAGE_KEY);
+        return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    } catch {
+        return {};
+    }
+}
+
+/** Сохранение активного набора по книгам мок-хранилища. */
+function saveMockActive(active: Record<string, string>): void {
+    try {
+        window.localStorage.setItem(NOTES_ACTIVE_STORAGE_KEY, JSON.stringify(active));
     } catch {
         // Отсутствие localStorage не мешает операции.
     }
@@ -203,21 +225,37 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
                     name: set.name,
                     note_count: set.notes.length,
                 })),
+            active_set_id: loadMockActive()[body.book_key ?? ''] ?? null,
         };
+    }
+    if (operation === 'set_active') {
+        const active = loadMockActive();
+        active[body.book_key ?? ''] = body.set_id ?? '';
+        saveMockActive(active);
+        return { ok: true };
     }
     if (operation === 'get_set') {
         const set = sets.find((item) => item.id === body.set_id);
         return { set: set ?? null };
     }
     if (operation === 'create_set') {
+        // Идентификатор не переиспользуется после удаления: счётчик берётся из
+        // уже выданных номеров, а не из текущей длины списка.
+        const issued = sets
+            .map((set) => Number(/^ns-mock-(\d+)$/.exec(set.id)?.[1] ?? 0))
+            .reduce((max, value) => Math.max(max, value), 0);
         const created: MockNoteSet = {
-            id: `ns-mock-${sets.length + 1}`,
+            id: `ns-mock-${issued + 1}`,
             bookKey: body.book_key ?? '',
             name: body.name ?? '',
             notes: [],
         };
         sets.push(created);
         saveMockNotes(sets);
+        const active = loadMockActive();
+        active[created.bookKey] = created.id;
+        saveMockActive(active);
+        emitMockEvent('notes:changed', { book_key: created.bookKey, set_id: created.id });
         return { set: created };
     }
     if (operation === 'rename_set') {
@@ -225,11 +263,21 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
         if (set) {
             set.name = body.name ?? set.name;
             saveMockNotes(sets);
+            emitMockEvent('notes:changed', { book_key: set.bookKey, set_id: set.id });
         }
         return { set: set ?? null };
     }
     if (operation === 'delete_set') {
+        const removed = sets.find((item) => item.id === body.set_id);
         saveMockNotes(sets.filter((item) => item.id !== body.set_id));
+        if (removed) {
+            const active = loadMockActive();
+            if (active[removed.bookKey] === removed.id) {
+                delete active[removed.bookKey];
+                saveMockActive(active);
+            }
+            emitMockEvent('notes:changed', { book_key: removed.bookKey, set_id: removed.id });
+        }
         return { ok: true };
     }
     if (operation === 'add_note') {
@@ -247,6 +295,7 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
                 updated_at_millis: 1_700_000_000_000,
             });
             saveMockNotes(sets);
+            emitMockEvent('notes:changed', { book_key: set.bookKey, set_id: set.id });
         }
         return { set: set ?? null };
     }
@@ -257,6 +306,9 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
             Object.assign(note, body.patch);
             note.updated_at_millis = 1_700_000_001_000;
             saveMockNotes(sets);
+            if (set) {
+                emitMockEvent('notes:changed', { book_key: set.bookKey, set_id: set.id });
+            }
         }
         return { set: set ?? null };
     }
@@ -265,6 +317,7 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
         if (set) {
             set.notes = set.notes.filter((item) => item.id !== body.note_id);
             saveMockNotes(sets);
+            emitMockEvent('notes:changed', { book_key: set.bookKey, set_id: set.id });
         }
         return { set: set ?? null };
     }

@@ -108,6 +108,29 @@
   let pendingAnchor: QuoteAnchor | null = $state(null);
   /** Позиция меню создания заметки. */
   let menuPosition: { x: number; y: number } | null = $state(null);
+  /** Ширина области содержимого: по ней ограничивается позиция меню. */
+  let readerAreaWidth = $state(0);
+  /** Высота области содержимого: по ней меню переносится выше выделения. */
+  let readerAreaHeight = $state(0);
+
+  /** Позиция меню создания заметки внутри области содержимого.
+   *
+   * Координаты выделения приходят из области содержимого и уже заданы от её
+   * верхнего левого угла; ограничение держит меню внутри области и над краем.
+   */
+  function quoteMenuStyle(): string {
+    const width = readerAreaWidth;
+    const height = readerAreaHeight;
+    const menuWidth = 190;
+    const menuHeight = 40;
+    const x = Math.max(8, Math.min(menuPosition?.x ?? 0, Math.max(8, width - menuWidth - 8)));
+    const preferred = (menuPosition?.y ?? 0) + 6;
+    const y =
+      height > 0 && preferred + menuHeight > height
+        ? Math.max(8, (menuPosition?.y ?? 0) - menuHeight - 6)
+        : preferred;
+    return `left: ${x}px; top: ${y}px;`;
+  }
 
   /** Сообщение об изменении состояния чтения вкладки. */
   function reportState() {
@@ -263,7 +286,11 @@
         {/if}
       </div>
     {:else if workplace}
-      <div class="relative h-full w-full">
+      <div
+        class="relative h-full w-full"
+        bind:clientWidth={readerAreaWidth}
+        bind:clientHeight={readerAreaHeight}
+      >
         {#if loadProgress !== null}
           <div
             class="pointer-events-none absolute inset-x-0 top-0 z-20"
@@ -309,8 +336,7 @@
           <div
             class="absolute z-10 flex items-center gap-[var(--space-1)] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[4px] shadow-lg"
             data-testid="quote-menu"
-            style:left="{Math.max(8, Math.min(menuPosition.x, 400))}px"
-            style:top="{menuPosition.y + 6}px"
+            style={quoteMenuStyle()}
           >
             <Button variant="primary" size="sm" onclick={confirmWorkplaceQuote}>Создать заметку</Button>
             <Button variant="ghost" size="sm" onclick={dismissWorkplaceMenu}>Отмена</Button>

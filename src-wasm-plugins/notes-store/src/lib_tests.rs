@@ -333,3 +333,49 @@ fn state_survives_reload() {
     assert_eq!(state.sets().len(), 1);
     assert_eq!(state.find(&set_id).expect("набор").notes.len(), 1);
 }
+
+#[test]
+fn active_set_is_returned_and_persisted_without_event() {
+    let host = FakeHost::default();
+    let first = create(&host, "lib/a", "A");
+    let second = create(&host, "lib/a", "B");
+
+    // Создание набора делает его активным.
+    let listed =
+        handle(&host, &request("list_sets", json!({ "book_key": "lib/a" }))).expect("список");
+    assert_eq!(parse(&listed)["active_set_id"], second.as_str());
+
+    let events_before = host.events.borrow().len();
+    handle(
+        &host,
+        &request(
+            "set_active",
+            json!({ "book_key": "lib/a", "set_id": first }),
+        ),
+    )
+    .expect("выбор");
+    assert_eq!(
+        host.events.borrow().len(),
+        events_before,
+        "выбор набора не публикует событие"
+    );
+
+    let listed =
+        handle(&host, &request("list_sets", json!({ "book_key": "lib/a" }))).expect("список");
+    assert_eq!(parse(&listed)["active_set_id"], first.as_str());
+}
+
+#[test]
+fn set_active_rejects_foreign_set() {
+    let host = FakeHost::default();
+    let _ = create(&host, "lib/a", "A");
+    let foreign = create(&host, "lib/b", "B");
+    assert!(handle(
+        &host,
+        &request(
+            "set_active",
+            json!({ "book_key": "lib/a", "set_id": foreign })
+        )
+    )
+    .is_err());
+}
