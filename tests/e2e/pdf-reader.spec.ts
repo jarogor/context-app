@@ -175,6 +175,62 @@ function content(page: Page) {
     return page.frameLocator('iframe[title="Содержимое книги"]');
 }
 
+/** Приведение области чтения к заданному масштабу (шаг кнопок — 10 %). */
+async function setZoom(page: Page, target: number) {
+    const readZoom = async () =>
+        Number(((await page.getByTestId('reader-zoom').textContent()) ?? '100').replace('%', ''));
+    let current = await readZoom();
+    while (current < target) {
+        await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
+        current += 10;
+    }
+    while (current > target) {
+        await page.getByRole('button', { name: 'Уменьшить масштаб' }).click();
+        current -= 10;
+    }
+}
+
+/** Отклонение канваса страницы от пиксельной сетки устройства. */
+async function canvasDeviceAlignment(page: Page) {
+    return content(page)
+        .locator('.page')
+        .first()
+        .evaluate((element) => {
+            const canvas = element.querySelector('canvas');
+            if (!(canvas instanceof HTMLCanvasElement)) {
+                return null;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const residual = (value: number) =>
+                Math.abs(value * dpr - Math.round(value * dpr));
+            return {
+                backingW: Math.abs(canvas.width - rect.width * dpr),
+                backingH: Math.abs(canvas.height - rect.height * dpr),
+                left: residual(rect.left),
+                top: residual(rect.top),
+                width: residual(rect.width),
+                height: residual(rect.height),
+            };
+        });
+}
+
+/** Наибольшее отклонение канваса от сетки устройства. */
+async function alignmentError(page: Page) {
+    const value = await canvasDeviceAlignment(page);
+    if (!value) {
+        return Number.POSITIVE_INFINITY;
+    }
+    return Math.max(
+        value.backingW,
+        value.backingH,
+        value.left,
+        value.top,
+        value.width,
+        value.height,
+    );
+}
+
 /** Возврат на поверхность рабочего места после перезагрузки. */
 async function reopenWorkplace(page: Page) {
     const workspace = page.getByLabel('Рабочее место', { exact: true });
@@ -338,6 +394,68 @@ test('сильное увеличение не оставляет страниц
         .toBe(true);
 });
 
+// Прокрутка не должна гасить текст. На обычных масштабах (например, 200 %)
+// страница должна рисоваться целиком: тогда прокрутка внутри неё ничего не
+// перерисовывает. Если же рисовать окном видимой области, видимая область
+// уходит за пределы окна, страница освобождается и белеет до конца отрисовки —
+// текст «пропадает» на всё время прокрутки.
+test('прокрутка не оставляет белых полос на странице', async ({ page }) => {
+    await openPdf(page, 1);
+    await setZoom(page, 200);
+
+    const blanks = await content(page)
+        .locator('#viewer')
+        .evaluate(async (viewer) => {
+            const pagesHost = document.getElementById('pages');
+            if (!pagesHost) {
+                return [1];
+            }
+            const measure = () => {
+                const viewerRect = viewer.getBoundingClientRect();
+                const canvases = Array.from(document.querySelectorAll('.page canvas')).map((canvas) =>
+                    canvas.getBoundingClientRect(),
+                );
+                let total = 0;
+                let blank = 0;
+                for (let y = viewerRect.top + 20; y < viewerRect.bottom - 20; y += 40) {
+                    for (let x = viewerRect.left + 40; x < viewerRect.right - 40; x += 160) {
+                        const pageEl = Array.from(pagesHost.children).find((candidate) => {
+                            const rect = candidate.getBoundingClientRect();
+                            return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+                        });
+                        if (!pageEl) {
+                            continue;
+                        }
+                        total += 1;
+                        const covered = canvases.some(
+                            (canvas) =>
+                                x >= canvas.left &&
+                                x <= canvas.right &&
+                                y >= canvas.top &&
+                                y <= canvas.bottom,
+                        );
+                        if (!covered) {
+                            blank += 1;
+                        }
+                    }
+                }
+                return total > 0 ? blank / total : 1;
+            };
+            const start = viewer.scrollTop;
+            const samples: number[] = [measure()];
+            // Непрерывная прокрутка небольшими шагами без пауз: проверяется,
+            // что текст остаётся видимым прямо во время движения.
+            for (let step = 1; step <= 20; step += 1) {
+                viewer.scrollTop = start + step * 50;
+                await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+                samples.push(measure());
+            }
+            return samples;
+        });
+
+    expect(Math.max(...blanks)).toBeLessThan(0.02);
+});
+
 // Проверка при плотности HiDPI: без учёта плотности содержимое рисуется вдвое
 // мельче текстового слоя, и на экране текст мутный и не совпадает со строками.
 test.describe('плотность экрана 2', () => {
@@ -424,6 +542,38 @@ test.describe('плотность экрана 2', () => {
         expect(result.canvas.height).toBeGreaterThan(result.span.height * 0.6);
         expect(result.canvas.height).toBeLessThan(result.span.height * 1.4);
     });
+});
+
+// Дробный масштаб даёт дробный размер страницы: 80 % → 652.8 px, 110 % → 897.6 px.
+// Если канвас унаследует дробный размер или позицию, браузер пересэмплирует растр
+// и текст мутнеет. Канвас привязывается к пиксельной сетке устройства, поэтому
+// его размер и положение в физических пикселях целые на любом масштабе.
+test.describe('резкость на дробных масштабах', () => {
+    for (const zoom of [80, 110, 140, 170]) {
+        test(`канвас выровнен по пиксельной сетке при ${zoom}%`, async ({ page }) => {
+            await openPdf(page, 1);
+            await setZoom(page, zoom);
+            await expect
+                .poll(async () => await alignmentError(page), { timeout: 15000 })
+                .toBeLessThan(0.05);
+            expect(await alignmentError(page)).toBeLessThan(0.05);
+        });
+    }
+});
+
+test.describe('резкость на дробных масштабах (HiDPI 1.25)', () => {
+    test.use({ deviceScaleFactor: 1.25 });
+
+    for (const zoom of [80, 110, 140, 170]) {
+        test(`канвас выровнен по пиксельной сетке при ${zoom}%`, async ({ page }) => {
+            await openPdf(page, 1);
+            await setZoom(page, zoom);
+            await expect
+                .poll(async () => await alignmentError(page), { timeout: 15000 })
+                .toBeLessThan(0.05);
+            expect(await alignmentError(page)).toBeLessThan(0.05);
+        });
+    }
 });
 
 test('выделение текста создаёт заметку-цитату с подсветкой на странице', async ({ page }) => {

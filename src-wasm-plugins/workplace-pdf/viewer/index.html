@@ -177,6 +177,113 @@
         return (zoom / 100) * CSS_UNITS;
       }
 
+      /** Плотность растра канваса: не выше разумного предела и не выше
+       * предела размера и площади канваса (иначе браузер оставит его белым).
+       */
+      function boundedRatio(width, height) {
+        let ratio = Math.min(window.devicePixelRatio || 1, 2.5);
+        if (width > 0 && width * ratio > MAX_CANVAS_SIDE) {
+          ratio = MAX_CANVAS_SIDE / width;
+        }
+        if (height > 0 && height * ratio > MAX_CANVAS_SIDE) {
+          ratio = MAX_CANVAS_SIDE / height;
+        }
+        const area = width * height;
+        if (area > 0 && area * ratio * ratio > MAX_CANVAS_AREA) {
+          ratio = Math.sqrt(MAX_CANVAS_AREA / area);
+        }
+        return Math.max(0.25, ratio);
+      }
+
+      /** Привязка координаты к пиксельной сетке устройства.
+       *
+       * Канвас, чей размер или положение в устройстве дробные, браузер
+       * пересэмплирует при выводе — текст мутнеет. Округление до целого
+       * физического пикселя убирает пересэмплирование: растр выводится 1:1.
+       */
+      function snapToDevice(value, ratio) {
+        return Math.round(value * ratio) / ratio;
+      }
+
+      /** Признак, что вся страница помещается в пределы канваса при плотности. */
+      function fitsWholePage(viewport, ratio) {
+        return (
+          viewport.width * ratio <= MAX_CANVAS_SIDE &&
+          viewport.height * ratio <= MAX_CANVAS_SIDE &&
+          viewport.width * viewport.height * ratio * ratio <= MAX_CANVAS_AREA
+        );
+      }
+
+      /** Желаемое окно страницы в CSS-пикселях (координаты относительно страницы).
+       *
+       * Если растр всей страницы помещается в пределы канваса, рисуется вся
+       * страница: тогда прокрутка внутри неё ничего не перерисовывает, и текст
+       * не пропадает на время отрисовки. Окно видимой области с запасом
+       * применяется только к страницам, которые целиком не помещаются (сильное
+       * увеличение) — там память ограничивается видимой областью.
+       */
+      function desiredWindow(rect, viewerRect, viewport) {
+        const ratio = Math.min(window.devicePixelRatio || 1, 2.5);
+        if (fitsWholePage(viewport, ratio)) {
+          return { x0: 0, y0: 0, width: viewport.width, height: viewport.height };
+        }
+        const x0 = Math.max(0, viewerRect.left - rect.left - WINDOW_MARGIN);
+        const y0 = Math.max(0, viewerRect.top - rect.top - WINDOW_MARGIN);
+        const x1 = Math.min(
+          viewport.width,
+          viewerRect.left + viewer.clientWidth - rect.left + WINDOW_MARGIN,
+        );
+        const y1 = Math.min(
+          viewport.height,
+          viewerRect.top + viewer.clientHeight - rect.top + WINDOW_MARGIN,
+        );
+        const width = Math.max(MIN_WINDOW_SIDE, x1 - x0);
+        const height = Math.max(MIN_WINDOW_SIDE, y1 - y0);
+        return {
+          x0: Math.min(x0, Math.max(0, viewport.width - width)),
+          y0: Math.min(y0, Math.max(0, viewport.height - height)),
+          width: Math.min(width, viewport.width),
+          height: Math.min(height, viewport.height),
+        };
+      }
+
+      /** Подготовка канваса страницы: окно и плотность.
+       *
+       * Канвас рисуется в пикселях с плотностью devicePixelRatio: вся страница,
+       * если её растр помещается в пределы канваса (обычные масштабы), иначе —
+       * окно видимой области с запасом (сильное увеличение), чтобы память была
+       * ограничена видимой областью. Геометрия задаётся до отрисовки:
+       * изменение размеров канваса после неё стёрло бы рисунок. Границы окна
+       * привязаны к пиксельной сетке устройства по абсолютной экранной позиции:
+       * сама страница стоит в дробной координате, поэтому иначе браузер
+       * пересэмплирует растр и текст мутнеет.
+       */
+      function setupCanvas(pageEl, viewport) {
+        const canvas = document.createElement('canvas');
+        const rect = pageEl.getBoundingClientRect();
+        const viewerRect = viewer.getBoundingClientRect();
+        const base = desiredWindow(rect, viewerRect, viewport);
+        const ratio = boundedRatio(base.width, base.height);
+        const absX0 = snapToDevice(rect.left + base.x0, ratio);
+        const absY0 = snapToDevice(rect.top + base.y0, ratio);
+        const absRight = snapToDevice(rect.left + base.x0 + base.width, ratio);
+        const absBottom = snapToDevice(rect.top + base.y0 + base.height, ratio);
+        const x = absX0 - rect.left;
+        const y = absY0 - rect.top;
+        const width = Math.max(1, absRight - absX0);
+        const height = Math.max(1, absBottom - absY0);
+        canvas.width = Math.max(1, Math.round(width * ratio));
+        canvas.height = Math.max(1, Math.round(height * ratio));
+        canvas.style.left = x + 'px';
+        canvas.style.top = y + 'px';
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        return {
+          canvas,
+          info: { x, y, width, height, ratio },
+        };
+      }
+
       /** Доля прочитанного по положению прокрутки. */
       function scrollProgress() {
         const max = viewer.scrollHeight - viewer.clientHeight;
@@ -257,70 +364,6 @@
         entry.canvas.remove();
         entry.textLayer.remove();
         rendered.delete(pageEl);
-      }
-
-      /** Окно канваса страницы в CSS-пикселях.
-       *
-       * Рисуется только видимая область страницы с запасом, а не вся страница:
-       * канвас всегда имеет плотность devicePixelRatio, поэтому текст резкий на
-       * любом масштабе, а память ограничена видимой областью.
-       */
-      function pageWindow(pageEl, viewport) {
-        const rect = pageEl.getBoundingClientRect();
-        const rawLeft = viewer.getBoundingClientRect().left;
-        const rawTop = viewer.getBoundingClientRect().top;
-        let x0 = rawLeft - rect.left - WINDOW_MARGIN;
-        let y0 = rawTop - rect.top - WINDOW_MARGIN;
-        let x1 = rawLeft + viewer.clientWidth - rect.left + WINDOW_MARGIN;
-        let y1 = rawTop + viewer.clientHeight - rect.top + WINDOW_MARGIN;
-        x0 = Math.max(0, x0);
-        y0 = Math.max(0, y0);
-        x1 = Math.min(viewport.width, x1);
-        y1 = Math.min(viewport.height, y1);
-        let width = Math.max(MIN_WINDOW_SIDE, x1 - x0);
-        let height = Math.max(MIN_WINDOW_SIDE, y1 - y0);
-        // Держим окно внутри страницы даже на маленьких страницах.
-        x0 = Math.min(x0, Math.max(0, viewport.width - width));
-        y0 = Math.min(y0, Math.max(0, viewport.height - height));
-        width = Math.min(width, viewport.width);
-        height = Math.min(height, viewport.height);
-        return { x: x0, y: y0, width, height };
-      }
-
-      /** Подготовка канваса страницы: окно видимой области и его плотность.
-       *
-       * Канвас рисуется в пикселях с плотностью devicePixelRatio и покрывает
-       * видимую область страницы с запасом, поэтому текст резкий на любом
-       * масштабе, а память ограничена видимой областью. Геометрия задаётся до
-       * отрисовки: изменение размеров канваса после неё стёрло бы рисунок.
-       */
-      function setupCanvas(pageEl, viewport) {
-        const canvas = document.createElement('canvas');
-        const win = pageWindow(pageEl, viewport);
-        let ratio = Math.min(window.devicePixelRatio || 1, 2.5);
-        if (win.width > 0 && win.width * ratio > MAX_CANVAS_SIDE) {
-          ratio = MAX_CANVAS_SIDE / win.width;
-        }
-        if (win.height > 0 && win.height * ratio > MAX_CANVAS_SIDE) {
-          ratio = MAX_CANVAS_SIDE / win.height;
-        }
-        const area = win.width * win.height;
-        if (area > 0 && area * ratio * ratio > MAX_CANVAS_AREA) {
-          ratio = Math.sqrt(MAX_CANVAS_AREA / area);
-        }
-        ratio = Math.max(0.25, ratio);
-        const width = Math.max(1, Math.round(win.width * ratio));
-        const height = Math.max(1, Math.round(win.height * ratio));
-        canvas.width = width;
-        canvas.height = height;
-        canvas.style.left = win.x + 'px';
-        canvas.style.top = win.y + 'px';
-        canvas.style.width = win.width + 'px';
-        canvas.style.height = win.height + 'px';
-        return {
-          canvas,
-          info: { x: win.x, y: win.y, width: win.width, height: win.height, ratio },
-        };
       }
 
       /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок. */
@@ -440,9 +483,11 @@
 
       /** Пересчёт окон отрисованных страниц при прокрутке.
        *
-       * Канвас страницы покрывает видимую область с запасом. Когда прокрутка
-       * уводит видимую область за пределы нарисованного окна, страница
-       * освобождается и рисуется заново под новое положение.
+       * Когда страница рисуется целиком (обычные масштабы), видимая область
+       * всегда внутри её канваса, и перерисовки при прокрутке не происходит.
+       * Когда страница целиком не помещается и нарисована окном, прокрутка,
+       * уводящая видимую область за пределы окна, освобождает страницу и
+       * рисует её заново под новое положение.
        */
       function refreshWindows() {
         windowScheduled = false;
@@ -453,8 +498,7 @@
             continue;
           }
           const index = Number(pageEl.dataset.page) - 1;
-          const natural = naturalSizes[index];
-          if (!natural) {
+          if (!naturalSizes[index]) {
             continue;
           }
           const rect = pageEl.getBoundingClientRect();
@@ -465,11 +509,12 @@
           if (interBottom <= interTop || interRight <= interLeft) {
             continue;
           }
-          const scale = rect.height > 0 ? rect.height / natural.height : currentScale();
-          const visTop = (interTop - rect.top) / scale;
-          const visBottom = (interBottom - rect.top) / scale;
-          const visLeft = (interLeft - rect.left) / scale;
-          const visRight = (interRight - rect.left) / scale;
+          // Видимая область и окно канваса — в одной системе: CSS-пиксели
+          // относительно страницы.
+          const visTop = interTop - rect.top;
+          const visBottom = interBottom - rect.top;
+          const visLeft = interLeft - rect.left;
+          const visRight = interRight - rect.left;
           const info = entry.info;
           const covered =
             visTop >= info.y &&
