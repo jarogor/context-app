@@ -572,6 +572,7 @@ dependencies = [
  "extism-pdk",
  "serde",
  "serde_json",
+ "ui-sdk",
 ]
 
 [[package]]
@@ -674,6 +675,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
 dependencies = [
  "winnow",
+]
+
+[[package]]
+name = "ui-sdk"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

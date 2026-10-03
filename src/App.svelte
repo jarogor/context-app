@@ -28,6 +28,9 @@
     type WorkspaceRegistry,
   } from './lib/workspace-registry';
   import type { ActiveLibrary } from './lib/bootstrap';
+  import type { SettingsBootstrap } from './lib/bootstrap';
+  import type { NotificationsBootstrap } from './lib/bootstrap';
+  import type { StoreBootstrap } from './lib/bootstrap';
   import {
     addQuote,
     bookKey,
@@ -54,9 +57,16 @@
     initialRegistry: WorkspaceRegistry;
     /** Активная библиотека, загруженная до первого рендера. */
     initialLibrary: ActiveLibrary | null;
+    /** Декларации настроек, загруженные до первого рендера. */
+    initialSettings: SettingsBootstrap;
+    /** Журнал уведомлений, загруженный до первого рендера. */
+    initialNotifications: NotificationsBootstrap;
+    /** Каталог плагинов и сторов, загруженный до первого рендера. */
+    initialStore: StoreBootstrap;
   }
 
-  let { initialRegistry, initialLibrary }: Props = $props();
+  let { initialRegistry, initialLibrary, initialSettings, initialNotifications, initialStore }: Props =
+    $props();
 
   /** Страница раздела настроек. */
   type SettingsSection = 'general' | 'plugins' | 'about';
@@ -73,11 +83,15 @@
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
 
-  /** Число непрочитанных уведомлений, полученное от frontend-плагина. */
-  let unreadCount = $state(0);
+  /** Число непрочитанных уведомлений, полученное от поверхности уведомлений. */
+  let unreadCount = $state(
+    untrack(
+      () => initialNotifications.entries.filter((entry) => entry.level === 'User' && !entry.read).length,
+    ),
+  );
 
   /** Есть ли неприменённые изменения активности плагинов. */
-  let activationPending = $state(false);
+  let activationPending = $state(untrack(() => initialStore.activationPending));
 
   /** Активная библиотека для шапки. */
   let activeLibrary: ActiveLibrary | null = $state(untrack(() => initialLibrary));
@@ -960,10 +974,19 @@
         </Menu>
         <div class="flex min-h-0 min-w-0 flex-1">
           <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'general'}>
-            <SettingsPage />
+            <SettingsPage
+              initialDeclarations={initialSettings.declarations}
+              initialError={initialSettings.error}
+            />
           </div>
           <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'plugins'}>
-            <StorePage onPendingChange={(pending) => (activationPending = pending)} />
+            <StorePage
+              initialPlugins={initialStore.plugins}
+              initialStores={initialStore.stores}
+              initialPending={initialStore.activationPending}
+              initialError={initialStore.error}
+              onPendingChange={(pending) => (activationPending = pending)}
+            />
           </div>
           <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'about'}>
             {#if settingsSection === 'about'}
@@ -977,7 +1000,12 @@
       class="flex min-w-0 flex-[0_0_500px] border-l border-[var(--color-border)] max-[899px]:fixed max-[899px]:inset-x-0 max-[899px]:top-[48px] max-[899px]:bottom-0 max-[899px]:z-[1000] max-[899px]:flex-none max-[899px]:border-l-0"
       class:hidden={!notificationsOpen}
     >
-      <NotificationsPanel onUnreadChange={(count) => (unreadCount = count)} />
+      <NotificationsPanel
+        initialEntries={initialNotifications.entries}
+        initialTechnicalVisible={initialNotifications.technicalVisible}
+        initialError={initialNotifications.error}
+        onUnreadChange={(count) => (unreadCount = count)}
+      />
     </aside>
   </div>
 </div>

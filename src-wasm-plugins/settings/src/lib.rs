@@ -8,6 +8,7 @@ pub mod host;
 pub mod models;
 pub mod registry;
 pub mod store;
+pub mod ui;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm;
@@ -16,7 +17,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::host::Host;
-use crate::models::Source;
+use crate::models::{FieldSchema, Source};
 use crate::registry::Registry;
 use crate::store::SettingsState;
 
@@ -41,6 +42,8 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
         "list" => list(host),
         "get" => get(host, &request.payload),
         "set" => set(host, &request.payload),
+        "ui" => ui(host),
+        "intent" => intent(host, &request.payload),
         other => Err(format!("неизвестное действие плагина настроек: {other}")),
     }
 }
@@ -88,6 +91,121 @@ fn set(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> 
     let event = json!({ "section": id, "values": merged }).to_string();
     host.emit_event("settings:changed", &event)?;
     Ok(json!({ "values": merged }).to_string())
+}
+
+/// Декларации пространства `settings.section` для всех секций реестра.
+fn ui(host: &impl Host) -> Result<String, String> {
+    let state = load(host)?;
+    Ok(declarations_response(&state, None))
+}
+
+/// Обработка интента интерфейса: применение действия и возврат свежих деклараций.
+fn intent(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let space = payload
+        .get("space")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if space != ui_sdk::SPACE_SETTINGS_SECTION {
+        return Err(format!("неизвестное пространство интерфейса: {space}"));
+    }
+    let id = payload
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    let action = payload
+        .get("action")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    let values = payload.get("values").cloned().unwrap_or_else(|| json!({}));
+
+    let mut state = load(host)?;
+    let Some(section) = state.find(id).cloned() else {
+        return Err(format!("неизвестная секция настроек: {id}"));
+    };
+    if action != ui::ACTION_SAVE {
+        return Err(format!(
+            "неизвестное действие интерфейса настроек: {action}"
+        ));
+    }
+    let coerced = match coerce_values(&section.fields, &values) {
+        Ok(coerced) => coerced,
+        Err(message) => return Ok(declarations_response(&state, Some(&message))),
+    };
+    state.set_values(id, &coerced)?;
+    save(host, &state)?;
+
+    let merged = state.values_for(id).unwrap_or_else(|| json!({}));
+    let event = json!({ "section": id, "values": merged }).to_string();
+    host.emit_event("settings:changed", &event)?;
+    Ok(declarations_response(&state, None))
+}
+
+/// Сериализация ответа со всеми декларациями и необязательной ошибкой действия.
+fn declarations_response(state: &SettingsState, error: Option<&str>) -> String {
+    let declarations: Vec<ui_sdk::Declaration> = state
+        .registry()
+        .iter()
+        .map(|section| {
+            let values = state.values_for(&section.id).unwrap_or_else(|| json!({}));
+            ui::section_declaration(section, &values)
+        })
+        .collect();
+    let mut response = ui_sdk::Declaration::response(&declarations);
+    if let (Some(message), Some(object)) = (error, response.as_object_mut()) {
+        object.insert("error".to_string(), json!(message));
+    }
+    response.to_string()
+}
+
+/// Приведение значений контролов к типам полей секции.
+///
+/// Возвращает ошибку с человекочитаемым названием поля, если значение не
+/// соответствует типу; в этом случае интент не сохраняется.
+fn coerce_values(
+    fields: &[FieldSchema],
+    values: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let incoming = values
+        .as_object()
+        .ok_or_else(|| "значения секции должны быть объектом".to_string())?;
+    let mut result = serde_json::Map::new();
+    for (key, value) in incoming {
+        let field = fields.iter().find(|field| &field.key == key);
+        let coerced = match field {
+            Some(field) => coerce_value(field, value)?,
+            None => value.clone(),
+        };
+        result.insert(key.clone(), coerced);
+    }
+    Ok(serde_json::Value::Object(result))
+}
+
+/// Приведение одного значения к типу поля.
+fn coerce_value(
+    field: &FieldSchema,
+    value: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let invalid = || format!("Некорректное значение поля «{}»", field.title);
+    match field.field_type.as_str() {
+        "boolean" => Ok(serde_json::Value::Bool(match value {
+            serde_json::Value::Bool(flag) => *flag,
+            serde_json::Value::String(text) => text == "true",
+            _ => false,
+        })),
+        "number" => match value {
+            serde_json::Value::Number(_) => Ok(value.clone()),
+            serde_json::Value::String(text) => text
+                .parse::<f64>()
+                .map(|number| json!(number))
+                .map_err(|_| invalid()),
+            _ => Err(invalid()),
+        },
+        "json" => match value {
+            serde_json::Value::String(text) => serde_json::from_str(text).map_err(|_| invalid()),
+            other => Ok(other.clone()),
+        },
+        _ => Ok(value.clone()),
+    }
 }
 
 /// Извлечение полного идентификатора секции из payload.

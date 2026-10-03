@@ -11,52 +11,134 @@ const INSTALLED_ID = 'e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c';
 const TINY_PNG =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
+/** Поля секции настроек тестового окружения. */
+const SETTINGS_FIELDS: Record<
+    string,
+    Array<{
+        key: string;
+        title: string;
+        type: string;
+        default: unknown;
+        options?: Array<{ value: string; title: string }>;
+    }>
+> = {
+    'app.general': [
+        {
+            key: 'startup.welcome_notification',
+            title: 'Приветственное уведомление',
+            type: 'boolean',
+            default: true,
+        },
+        {
+            key: 'diagnostics.log_level',
+            title: 'Порог технических логов',
+            type: 'select',
+            default: 'info',
+            options: [
+                { value: 'info', title: 'Информация' },
+                { value: 'trace', title: 'Всё' },
+            ],
+        },
+    ],
+};
+
+/** Изменяемое состояние настроек в моке: значения переживают интенты. */
+const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
+    'app.general': {
+        'startup.welcome_notification': true,
+        'diagnostics.log_level': 'info',
+    },
+};
+
+/** Секции настроек с текущими значениями для opaque-операций. */
+function settingsSections(): unknown[] {
+    return Object.entries(SETTINGS_FIELDS).map(([id, fields]) => ({
+        id,
+        owner: 'app',
+        kind: 'app',
+        title: 'Общие',
+        description: 'Общие параметры приложения',
+        fields,
+        values: { ...SETTINGS_VALUES[id] },
+    }));
+}
+
+/** Декларации секций настроек деревом `ui-schema`. */
+function settingsSpaces(): unknown[] {
+    return Object.entries(SETTINGS_FIELDS).map(([id, fields]) => ({
+        space: 'settings.section',
+        id,
+        title: 'Общие',
+        description: 'Общие параметры приложения',
+        nodes: [
+            { type: 'Heading', props: { text: 'Общие', level: 2 } },
+            { type: 'Text', props: { text: 'Общие параметры приложения' } },
+            ...fields.map((field) => {
+                const value = SETTINGS_VALUES[id][field.key];
+                if (field.type === 'boolean') {
+                    return {
+                        type: 'Checkbox',
+                        props: { name: field.key, label: field.title, checked: value === true },
+                        on: { change: 'save' },
+                    };
+                }
+                if (field.type === 'select') {
+                    return {
+                        type: 'Select',
+                        props: {
+                            name: field.key,
+                            label: field.title,
+                            value: String(value ?? ''),
+                            options: field.options ?? [],
+                        },
+                        on: { change: 'save' },
+                    };
+                }
+                return {
+                    type: 'Input',
+                    props: { name: field.key, label: field.title, value: String(value ?? '') },
+                };
+            }),
+            {
+                type: 'Button',
+                props: { label: 'Сохранить', variant: 'secondary' },
+                on: { click: 'save' },
+            },
+        ],
+    }));
+}
+
 /** Ответ базового плагина на opaque-операцию в браузерных тестах. */
 function baseOperation(payload: unknown): unknown {
     const message = (payload ?? {}) as {
         capability?: string;
         operation?: string;
+        payload?: {
+            space?: string;
+            id?: string;
+            action?: string;
+            values?: Record<string, unknown>;
+        };
     };
     if (message.capability === 'settings.store@1' && message.operation === 'list') {
-        return {
-            sections: [
-                {
-                    id: 'app.general',
-                    owner: 'app',
-                    kind: 'app',
-                    title: 'Общие',
-                    description: 'Общие параметры приложения',
-                    fields: [
-                        {
-                            key: 'startup.welcome_notification',
-                            title: 'Приветственное уведомление',
-                            type: 'boolean',
-                            default: true,
-                        },
-                        {
-                            key: 'diagnostics.log_level',
-                            title: 'Порог технических логов',
-                            type: 'select',
-                            default: 'info',
-                            options: [
-                                { value: 'info', title: 'Информация' },
-                                { value: 'trace', title: 'Всё' },
-                            ],
-                        },
-                    ],
-                    values: {
-                        'startup.welcome_notification': true,
-                        'diagnostics.log_level': 'info',
-                    },
-                },
-            ],
-        };
+        return { sections: settingsSections() };
     }
     if (message.capability === 'settings.store@1' && message.operation === 'get') {
         return { values: {} };
     }
     if (message.capability === 'settings.store@1' && message.operation === 'set') {
         return { values: {} };
+    }
+    if (message.capability === 'settings.store@1' && message.operation === 'ui') {
+        return { version: 1, spaces: settingsSpaces() };
+    }
+    if (message.capability === 'settings.store@1' && message.operation === 'intent') {
+        const request = message.payload ?? {};
+        const id = request.id ?? '';
+        if (request.space === 'settings.section' && id in SETTINGS_VALUES) {
+            Object.assign(SETTINGS_VALUES[id], request.values ?? {});
+        }
+        return { version: 1, spaces: settingsSpaces() };
     }
     if (message.capability === 'plugin-store@1' && message.operation === 'list') {
         return { plugins: [] };

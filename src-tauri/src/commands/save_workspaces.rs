@@ -9,8 +9,12 @@ use crate::plugin::AppState;
 use crate::workspace_state::{self, WorkspacesFile};
 
 /// Сохранение реестра рабочих мест в служебный каталог приложения.
+///
+/// Команда асинхронная: ждать общий `Mutex<AppState>`, который может быть занят
+/// тяжёлой операцией базового плагина, нельзя на главном потоке — иначе
+/// подвисает интерфейс.
 #[tauri::command]
-pub fn save_workspaces(
+pub async fn save_workspaces(
     state: State<'_, Mutex<AppState>>,
     workspaces: WorkspacesFile,
 ) -> Result<Value, String> {

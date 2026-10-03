@@ -12,15 +12,19 @@ use tauri::State;
 use crate::plugin::AppState;
 
 /// Форматы, поддерживаемые плагинами рабочего места.
+///
+/// Команда асинхронная: первое обращение лениво собирает runtime чтения
+/// (компиляция WASM), а ждать общий `Mutex<AppState>` нельзя на главном
+/// потоке — иначе подвисает интерфейс.
 #[tauri::command]
-pub fn reader_formats(state: State<'_, Mutex<AppState>>) -> Result<Vec<String>, String> {
+pub async fn reader_formats(state: State<'_, Mutex<AppState>>) -> Result<Vec<String>, String> {
     let mut state = state.lock().map_err(|error| error.to_string())?;
     Ok(state.reader()?.workplace_formats())
 }
 
 /// Идентификатор плагина рабочего места, обслуживающего формат, либо `null`.
 #[tauri::command]
-pub fn reader_plugin_for_format(
+pub async fn reader_plugin_for_format(
     state: State<'_, Mutex<AppState>>,
     format: String,
 ) -> Result<Value, String> {
@@ -33,7 +37,7 @@ pub fn reader_plugin_for_format(
 
 /// Модуль рисования плагина рабочего места как HTML.
 #[tauri::command]
-pub fn reader_viewer(
+pub async fn reader_viewer(
     state: State<'_, Mutex<AppState>>,
     plugin_id: String,
 ) -> Result<String, String> {
@@ -48,7 +52,7 @@ pub fn reader_viewer(
 
 /// Список файлов модуля рисования плагина рабочего места.
 #[tauri::command]
-pub fn reader_viewer_files(
+pub async fn reader_viewer_files(
     state: State<'_, Mutex<AppState>>,
     plugin_id: String,
 ) -> Result<Value, String> {
@@ -58,7 +62,7 @@ pub fn reader_viewer_files(
 
 /// Содержимое файла модуля рисования плагина рабочего места (base64).
 #[tauri::command]
-pub fn reader_viewer_file(
+pub async fn reader_viewer_file(
     state: State<'_, Mutex<AppState>>,
     plugin_id: String,
     path: String,
@@ -69,14 +73,17 @@ pub fn reader_viewer_file(
 
 /// Содержимое книги по пути (opaque-модель source-плагина).
 #[tauri::command]
-pub fn reader_content(state: State<'_, Mutex<AppState>>, path: String) -> Result<Value, String> {
+pub async fn reader_content(
+    state: State<'_, Mutex<AppState>>,
+    path: String,
+) -> Result<Value, String> {
     let mut state = state.lock().map_err(|error| error.to_string())?;
     state.reader_content(&path)
 }
 
 /// Открытие файла книги системным приложением.
 #[tauri::command]
-pub fn reader_open_external(
+pub async fn reader_open_external(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
@@ -87,7 +94,7 @@ pub fn reader_open_external(
 
 /// Порция содержимого книги по пути.
 #[tauri::command]
-pub fn reader_book_chunk(
+pub async fn reader_book_chunk(
     state: State<'_, Mutex<AppState>>,
     path: String,
     offset: usize,
@@ -99,7 +106,7 @@ pub fn reader_book_chunk(
 
 /// Сброс кэша содержимого книги по пути (после переуказания файла).
 #[tauri::command]
-pub fn reader_forget_book(
+pub async fn reader_forget_book(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {

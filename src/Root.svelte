@@ -2,7 +2,13 @@
   import App from './App.svelte';
   import BootstrapLoading from './lib/BootstrapLoading.svelte';
   import BootstrapError from './lib/BootstrapError.svelte';
-  import { loadBootstrap, type ActiveLibrary } from './lib/bootstrap';
+  import {
+    loadBootstrap,
+    type ActiveLibrary,
+    type NotificationsBootstrap,
+    type SettingsBootstrap,
+    type StoreBootstrap,
+  } from './lib/bootstrap';
   import { normalizeRegistry } from './lib/workspace-registry';
 
   /** Фаза начальной загрузки приложения. */
@@ -19,6 +25,24 @@
 
   /** Сведения об активной библиотеке, переданные оболочке при запуске. */
   let initialLibrary: ActiveLibrary | null = $state(null);
+
+  /** Декларации настроек, загруженные до первого рендера. */
+  let initialSettings: SettingsBootstrap = $state({ declarations: [], error: '' });
+
+  /** Журнал уведомлений, загруженный до первого рендера. */
+  let initialNotifications: NotificationsBootstrap = $state({
+    entries: [],
+    technicalVisible: false,
+    error: '',
+  });
+
+  /** Каталог плагинов и сторов, загруженный до первого рендера. */
+  let initialStore: StoreBootstrap = $state({
+    plugins: [],
+    stores: [],
+    activationPending: false,
+    error: '',
+  });
 
   /** Счётчик повторных попыток: перезапускает эффект загрузки. */
   let attempt = $state(0);
@@ -47,6 +71,9 @@
         }
         initialRegistry = state.registry;
         initialLibrary = state.activeLibrary;
+        initialSettings = state.settings;
+        initialNotifications = state.notifications;
+        initialStore = state.store;
         phase = 'ready';
       } catch (error) {
         if (!active) {
@@ -66,7 +93,13 @@
 </script>
 
 {#if phase === 'ready'}
-  <App initialRegistry={registry} initialLibrary={initialLibrary} />
+  <App
+    initialRegistry={registry}
+    initialLibrary={initialLibrary}
+    initialSettings={initialSettings}
+    initialNotifications={initialNotifications}
+    initialStore={initialStore}
+  />
 {:else if phase === 'error'}
   <BootstrapError error={bootstrapError} onRetry={retry} />
 {:else}

@@ -179,3 +179,123 @@ fn unknown_action_is_rejected() {
     let result = handle(&host, &request("unknown", serde_json::json!({})));
     assert!(result.is_err());
 }
+
+#[test]
+fn ui_returns_declarations_for_registered_sections() {
+    let host = FakeHost::default();
+    let _ = handle(
+        &host,
+        &request("register", serde_json::json!({ "sources": [app_source()] })),
+    )
+    .expect("регистрация");
+    let output = handle(&host, &request("ui", serde_json::json!({}))).expect("декларации");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON");
+    assert_eq!(parsed["version"], ui_sdk::UI_SCHEMA_VERSION);
+    assert_eq!(parsed["spaces"][0]["space"], ui_sdk::SPACE_SETTINGS_SECTION);
+    assert_eq!(parsed["spaces"][0]["id"], "app.general");
+    let checkbox = parsed["spaces"][0]["nodes"]
+        .as_array()
+        .expect("узлы")
+        .iter()
+        .find(|node| node["type"] == "Checkbox")
+        .expect("флажок");
+    assert_eq!(checkbox["props"]["checked"], true);
+}
+
+#[test]
+fn intent_saves_values_and_returns_declarations() {
+    let host = FakeHost::default();
+    let _ = handle(
+        &host,
+        &request("register", serde_json::json!({ "sources": [app_source()] })),
+    )
+    .expect("регистрация");
+    let output = handle(
+        &host,
+        &request(
+            "intent",
+            serde_json::json!({
+                "space": ui_sdk::SPACE_SETTINGS_SECTION,
+                "id": "app.general",
+                "action": ui::ACTION_SAVE,
+                "values": { "startup.welcome_notification": false }
+            }),
+        ),
+    )
+    .expect("интент");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON");
+    assert_eq!(parsed["spaces"][0]["space"], ui_sdk::SPACE_SETTINGS_SECTION);
+    let checkbox = parsed["spaces"][0]["nodes"]
+        .as_array()
+        .expect("узлы")
+        .iter()
+        .find(|node| node["type"] == "Checkbox")
+        .expect("флажок");
+    assert_eq!(checkbox["props"]["checked"], false);
+
+    let events = host.events.borrow();
+    assert_eq!(events.len(), 1, "событие опубликовано");
+    assert_eq!(events[0].0, "settings:changed");
+}
+
+#[test]
+fn intent_with_invalid_json_reports_error_without_saving() {
+    let host = FakeHost::default();
+    let source = serde_json::json!({
+        "owner": "app",
+        "kind": "app",
+        "schema": {
+            "sections": [
+                {
+                    "id": "general",
+                    "title": "Общие",
+                    "fields": [
+                        { "key": "extra", "title": "Данные", "type": "json" }
+                    ]
+                }
+            ]
+        }
+    });
+    let _ = handle(
+        &host,
+        &request("register", serde_json::json!({ "sources": [source] })),
+    )
+    .expect("регистрация");
+    let output = handle(
+        &host,
+        &request(
+            "intent",
+            serde_json::json!({
+                "space": ui_sdk::SPACE_SETTINGS_SECTION,
+                "id": "app.general",
+                "action": ui::ACTION_SAVE,
+                "values": { "extra": "не json" }
+            }),
+        ),
+    )
+    .expect("ответ с ошибкой");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON");
+    assert_eq!(parsed["error"], "Некорректное значение поля «Данные»");
+    assert!(
+        host.events.borrow().is_empty(),
+        "некорректный интент не публикует событие"
+    );
+}
+
+#[test]
+fn intent_for_unknown_space_is_rejected() {
+    let host = FakeHost::default();
+    let result = handle(
+        &host,
+        &request(
+            "intent",
+            serde_json::json!({
+                "space": "unknown.space",
+                "id": "app.general",
+                "action": ui::ACTION_SAVE,
+                "values": {}
+            }),
+        ),
+    );
+    assert!(result.is_err());
+}

@@ -8,8 +8,12 @@ use tauri::State;
 use crate::plugin::AppState;
 
 /// Активная библиотека: путь, провайдер и его имя, либо `null`.
+///
+/// Команда асинхронная: ждать общий `Mutex<AppState>`, который может быть занят
+/// тяжёлой операцией базового плагина, нельзя на главном потоке — иначе
+/// подвисает интерфейс.
 #[tauri::command]
-pub fn active_library(state: State<'_, Mutex<AppState>>) -> Result<Value, String> {
+pub async fn active_library(state: State<'_, Mutex<AppState>>) -> Result<Value, String> {
     let state = state.lock().map_err(|error| error.to_string())?;
     match state.session.active_library() {
         Some((path, provider, provider_name)) => Ok(serde_json::json!({

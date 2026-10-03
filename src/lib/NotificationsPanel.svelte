@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { Badge, Button, Checkbox } from '@texture/ui';
   import {
     clearNotifications,
@@ -13,18 +13,24 @@
   interface Props {
     /** Передача числа непрочитанных пользовательских уведомлений в оболочку. */
     onUnreadChange?: (count: number) => void;
+    /** Записи журнала, загруженные на бутстрапе; `undefined` — загрузить самим. */
+    initialEntries?: NotificationEntry[];
+    /** Начальное значение показа технических записей с бутстрапа. */
+    initialTechnicalVisible?: boolean;
+    /** Ошибка загрузки журнала на бутстрапе. */
+    initialError?: string;
   }
 
-  let { onUnreadChange }: Props = $props();
+  let { onUnreadChange, initialEntries, initialTechnicalVisible, initialError }: Props = $props();
 
   /** Записи журнала уведомлений. */
-  let entries: NotificationEntry[] = $state([]);
+  let entries: NotificationEntry[] = $state(untrack(() => initialEntries ?? []));
 
   /** Показывать ли технические записи. */
-  let technicalVisible = $state(false);
+  let technicalVisible = $state(untrack(() => initialTechnicalVisible ?? false));
 
   /** Ошибка загрузки или операции журнала. */
-  let errorMessage = $state('');
+  let errorMessage = $state(untrack(() => initialError ?? ''));
 
   /** Отфильтрованные записи: без технического уровня показываем только User. */
   let visibleEntries = $derived(
@@ -91,8 +97,11 @@
       unlistenSettings = await listenEvent('settings:changed', () => {
         void loadSettings();
       });
-      await loadSettings();
-      await load();
+      // Данные уже загружены на бутстрапе; без них (в изоляции) грузим сами.
+      if (initialEntries === undefined) {
+        await loadSettings();
+        await load();
+      }
     })();
     return () => {
       unlistenAdded?.();

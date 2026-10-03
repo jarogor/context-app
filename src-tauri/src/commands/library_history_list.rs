@@ -9,8 +9,12 @@ use crate::library_history;
 use crate::plugin::AppState;
 
 /// История, отфильтрованная по доступным source-плагинам.
+///
+/// Команда асинхронная: ждать общий `Mutex<AppState>`, который может быть занят
+/// тяжёлой операцией базового плагина, нельзя на главном потоке — иначе
+/// подвисает интерфейс.
 #[tauri::command]
-pub fn library_history_list(state: State<'_, Mutex<AppState>>) -> Result<Value, String> {
+pub async fn library_history_list(state: State<'_, Mutex<AppState>>) -> Result<Value, String> {
     let state = state.lock().map_err(|error| error.to_string())?;
     let providers = state.session.available_source_plugins();
     let disabled = crate::plugin::activation::load(state.app_state_root()).unwrap_or_default();

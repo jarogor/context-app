@@ -9,8 +9,12 @@ use crate::plugin::contract::CAPABILITY_SETTINGS;
 use crate::plugin::AppState;
 
 /// Передача opaque-операции базовому плагину, предоставляющему capability.
+///
+/// Команда асинхронная: вызов WASM-плагина может быть тяжёлым (первое
+/// обращение и инициализация) и не должен блокировать главный поток, иначе
+/// подвисает интерфейс.
 #[tauri::command]
-pub fn invoke_base_plugin_operation(
+pub async fn invoke_base_plugin_operation(
     state: State<'_, Mutex<AppState>>,
     capability: String,
     operation: String,

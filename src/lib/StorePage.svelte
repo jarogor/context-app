@@ -1,67 +1,47 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { Badge, Button, Card, Checkbox, Input, Select } from '@texture/ui';
-  import { invokeCommand, listenEvent, openDialog } from './app-bridge';
-
-  /** Плагин в перечне стора с признаком активности. */
-  interface PluginEntry {
-    /** Стабильный идентификатор плагина. */
-    id: string;
-    /** Человекочитаемое имя плагина. */
-    name: string;
-    /** Категория плагина. */
-    kind: string;
-    /** Описание плагина. */
-    description: string;
-    /** Включён ли плагин. */
-    enabled: boolean;
-    /** Можно ли удалить плагин. */
-    removable: boolean;
-    /** Является ли плагин образцом для разработчика. */
-    sample?: boolean;
-  }
-
-  /** Подключённый стор. */
-  interface Store {
-    /** Уникальный идентификатор. */
-    id: string;
-    /** Вид провайдера. */
-    kind: string;
-    /** Человекочитаемое название. */
-    title: string;
-    /** Расположение: каталог или адрес. */
-    location: string;
-  }
-
-  /** Пакет в индексе стора. */
-  interface StorePackage {
-    /** Имя пакета. */
-    name: string;
-    /** Версия пакета. */
-    version?: string;
-    /** Категория плагина. */
-    kind?: string;
-    /** Описание пакета. */
-    description?: string;
-    /** Путь к zip-пакету. */
-    location: string;
-  }
+  import { listenEvent, openDialog } from './app-bridge';
+  import {
+    addStore as addStoreEntry,
+    installPluginFromFile,
+    listStorePackages,
+    loadActivationPending,
+    loadStoreCatalog,
+    removeStore as removeStoreEntry,
+    setPluginEnabled,
+    uninstallPlugin,
+    type PluginEntry,
+    type Store,
+    type StorePackage,
+  } from './plugin-store';
 
   interface Props {
     /** Передача оболочке признака неприменённых изменений активности. */
     onPendingChange?: (pending: boolean) => void;
+    /** Перечень плагинов, загруженный на бутстрапе; `undefined` — загрузить самим. */
+    initialPlugins?: PluginEntry[];
+    /** Реестр сторов, загруженный на бутстрапе; `undefined` — загрузить самим. */
+    initialStores?: Store[];
+    /** Признак неприменённых изменений активности, загруженный на бутстрапе. */
+    initialPending?: boolean;
+    /** Ошибка загрузки каталога на бутстрапе. */
+    initialError?: string;
   }
 
-  let { onPendingChange }: Props = $props();
-
-  /** Capability базового плагина стора. */
-  const STORE_CAPABILITY = 'plugin-store@1';
+  let {
+    onPendingChange,
+    initialPlugins,
+    initialStores,
+    initialPending,
+    initialError,
+  }: Props = $props();
 
   /** Перечень отключаемых плагинов. */
-  let plugins: PluginEntry[] = $state([]);
+  let plugins: PluginEntry[] = $state(untrack(() => initialPlugins ?? []));
 
   /** Реестр подключённых сторов. */
-  let stores: Store[] = $state([]);
+  let stores: Store[] = $state(untrack(() => initialStores ?? []));
 
   /** Пакеты выбранного стора. */
   let packages: StorePackage[] = $state([]);
@@ -70,7 +50,7 @@
   let unsupported: string = $state('');
 
   /** Ошибка операции стора. */
-  let errorMessage: string = $state('');
+  let errorMessage: string = $state(untrack(() => initialError ?? ''));
 
   /** Черновик формы добавления стора. */
   let storeId = $state('');
@@ -90,45 +70,32 @@
   /** Образцы для разработчика, показываются отдельной группой в конце. */
   const samplePlugins = $derived(plugins.filter((plugin) => plugin.sample));
 
-  /** Вызов opaque-операции базового плагина стора. */
-  async function operation<T>(action: string, payload: unknown = {}): Promise<T> {
-    return (await invokeCommand('invoke_base_plugin_operation', {
-      capability: STORE_CAPABILITY,
-      operation: action,
-      payload,
-    })) as T;
+  /** Сообщение оболочке о наличии неприменённых изменений активности. */
+  function publishPending(pending: boolean) {
+    onPendingChange?.(pending);
   }
 
-  /** Сообщение оболочке о наличии неприменённых изменений активности. */
-  async function publishPending() {
+  /** Загрузка перечня плагинов, реестра сторов и признака изменений. */
+  async function load() {
     try {
-      const { pending } = (await invokeCommand('plugin_activation_pending', {})) as {
-        pending: boolean;
-      };
-      onPendingChange?.(pending);
+      const catalog = await loadStoreCatalog();
+      plugins = catalog.plugins;
+      stores = catalog.stores;
+      errorMessage = '';
+    } catch (error) {
+      errorMessage = String(error);
+    }
+    try {
+      publishPending(await loadActivationPending());
     } catch {
       // Отсутствие признака не мешает работе страницы.
     }
   }
 
-  /** Загрузка перечня плагинов и реестра сторов. */
-  async function load() {
-    try {
-      const catalog = await operation<{ plugins: PluginEntry[] }>('plugins', {});
-      plugins = catalog.plugins;
-      const registry = await operation<{ stores: Store[] }>('stores_list', {});
-      stores = registry.stores;
-      errorMessage = '';
-    } catch (error) {
-      errorMessage = String(error);
-    }
-    await publishPending();
-  }
-
   /** Переключение активности плагина. */
   async function setEnabled(id: string, enabled: boolean) {
     try {
-      await operation('set_enabled', { id, enabled });
+      await setPluginEnabled(id, enabled);
       await load();
     } catch (error) {
       errorMessage = String(error);
@@ -147,7 +114,7 @@
       if (typeof path !== 'string' || !path) {
         return;
       }
-      await operation('install_file', { path });
+      await installPluginFromFile(path);
       await load();
     } catch (error) {
       errorMessage = String(error);
@@ -157,7 +124,7 @@
   /** Удаление установленного плагина. */
   async function uninstall(id: string) {
     try {
-      await operation('uninstall', { id });
+      await uninstallPlugin(id);
       await load();
     } catch (error) {
       errorMessage = String(error);
@@ -170,13 +137,11 @@
       return;
     }
     try {
-      await operation('stores_add', {
-        store: {
-          id: storeId.trim(),
-          kind: storeKind,
-          title: storeTitle.trim() || storeId.trim(),
-          location: storeLocation.trim(),
-        },
+      await addStoreEntry({
+        id: storeId.trim(),
+        kind: storeKind,
+        title: storeTitle.trim() || storeId.trim(),
+        location: storeLocation.trim(),
       });
       storeId = '';
       storeTitle = '';
@@ -190,7 +155,7 @@
   /** Удаление стора из реестра. */
   async function removeStore(id: string) {
     try {
-      await operation('stores_remove', { id });
+      await removeStoreEntry(id);
       packages = [];
       unsupported = '';
       await load();
@@ -204,15 +169,12 @@
     unsupported = '';
     packages = [];
     try {
-      const result = await operation<{ supported: boolean; packages?: StorePackage[] }>(
-        'available',
-        { id },
-      );
+      const result = await listStorePackages(id);
       if (!result.supported) {
         unsupported = 'Сетевой стор пока не поддерживается';
         return;
       }
-      packages = result.packages ?? [];
+      packages = result.packages;
     } catch (error) {
       errorMessage = String(error);
     }
@@ -220,11 +182,18 @@
 
   onMount(() => {
     let unlisten: (() => void) | undefined;
+    // Признак изменений сообщаем оболочке синхронно: он рисуется в шапке.
+    if (initialPending !== undefined) {
+      publishPending(initialPending);
+    }
     void (async () => {
       unlisten = await listenEvent('plugin-store:changed', () => {
         void load();
       });
-      await load();
+      // Данные уже загружены на бутстрапе; без них (в изоляции) грузим сами.
+      if (initialPlugins === undefined || initialStores === undefined) {
+        await load();
+      }
     })();
     return () => {
       unlisten?.();

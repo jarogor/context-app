@@ -1,5 +1,5 @@
 [workspace]
-members = ["demo", "index-migrations", "library", "library-calibre", "notifications", "notes-store", "plugin-store", "settings"]
+members = ["demo", "index-migrations", "library", "library-calibre", "notifications", "notes-store", "plugin-store", "settings", "ui-sdk"]
 resolver = "2"
 
 [profile.release]

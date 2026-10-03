@@ -9,8 +9,12 @@ use crate::library_history;
 use crate::plugin::AppState;
 
 /// Удаление записи истории по пути библиотеки.
+///
+/// Команда асинхронная: ждать общий `Mutex<AppState>`, который может быть занят
+/// тяжёлой операцией базового плагина, нельзя на главном потоке — иначе
+/// подвисает интерфейс.
 #[tauri::command]
-pub fn library_history_forget(
+pub async fn library_history_forget(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
