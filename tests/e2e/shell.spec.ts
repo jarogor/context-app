@@ -60,6 +60,33 @@ test('при запуске открыт список рабочих мест', 
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 });
 
+test('закрытие настроек возвращает к списку рабочих мест', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+
+    await page.getByLabel('Настройки').click();
+    await expect(page.getByRole('navigation', { name: 'Разделы настроек' })).toBeVisible();
+
+    await page.getByLabel('Настройки').click();
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+    await expect(page.getByLabel('Рабочее место', { exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+    );
+});
+
+test('кнопка рабочего места открывает список из раздела библиотеки', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByLabel('Библиотеки').click();
+    await page.getByRole('button', { name: /demo-library/ }).click();
+    await expect(page.frameLocator('iframe[title="Library plugin"]').locator('body')).toBeVisible();
+
+    await page.getByLabel('Рабочее место', { exact: true }).click();
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+});
+
 test('страница библиотек показывает историю с временем', async ({ page }) => {
     await page.goto('/');
 

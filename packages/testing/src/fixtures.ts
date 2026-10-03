@@ -84,7 +84,16 @@ function baseOperation(payload: unknown): unknown {
                     id: 'b1f2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5e',
                     name: 'demo',
                     kind: 'extension',
-                    description: 'Образец плагина для разработчика',
+                    description: 'Образец: минимальный extension-плагин',
+                    enabled: true,
+                    removable: false,
+                    sample: true,
+                },
+                {
+                    id: 'c1a7e0d4-2b3f-4c5a-9d6e-7f8a9b0c1d2e',
+                    name: 'workplace-demo',
+                    kind: 'workplace',
+                    description: 'Образец плагина рабочего места',
                     enabled: true,
                     removable: false,
                     sample: true,
@@ -433,6 +442,24 @@ export function defaultMockConfig(): MockBridgeConfig {
             },
             select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
             active_library: () => null,
+            app_info: () => ({
+                name: 'Текстура',
+                version: '0.1.0',
+                paths: [
+                    {
+                        key: 'app_state',
+                        title: 'Служебное состояние приложения',
+                        path: '/home/user/.texture/app-state',
+                        note: 'Реестры приложения',
+                    },
+                    {
+                        key: 'wasm_cache',
+                        title: 'Кэш компиляции WASM',
+                        path: '/home/user/.texture/app-state/wasm-cache',
+                        note: 'Скомпилированные модули плагинов',
+                    },
+                ],
+            }),
             plugin_activation_pending: () => ({ pending: false }),
             get_workspaces: () => ({
                 workspaces: [

@@ -1,6 +1,7 @@
 //! Generic IPC-команды host-приложения.
 
 pub mod active_library;
+pub mod app_info;
 pub mod base_plugin_operation;
 pub mod get_workspaces;
 pub mod library_history_forget;
@@ -14,6 +15,10 @@ pub mod select_source_library;
 pub use active_library::__cmd__active_library;
 pub use active_library::__tauri_command_name_active_library;
 pub use active_library::active_library;
+
+pub use app_info::__cmd__app_info;
+pub use app_info::__tauri_command_name_app_info;
+pub use app_info::app_info;
 
 pub use get_workspaces::__cmd__get_workspaces;
 pub use get_workspaces::__tauri_command_name_get_workspaces;

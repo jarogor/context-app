@@ -75,14 +75,17 @@ pub struct PluginEntry {
 ///
 /// Базовые плагины каркаса исключаются. `enabled` вычисляется по списку
 /// отключённых идентификаторов, `removable` — по расположению плагина в
-/// пользовательском каталоге.
+/// пользовательском каталоге. При нескольких копиях одного идентификатора
+/// (директории идут в порядке приоритета) запись берётся из первой, но признак
+/// образца `sample` поднимается, если он есть в любой из копий.
 pub fn list_disableable(
     directories: &[PathBuf],
     user_root: Option<&Path>,
     disabled: &[String],
 ) -> Vec<PluginEntry> {
     let mut entries: Vec<PluginEntry> = Vec::new();
-    let mut seen = std::collections::HashSet::new();
+    let mut index_by_id: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     for directory in directories {
         let Ok(dir_entries) = std::fs::read_dir(directory) else {
             continue;
@@ -95,12 +98,22 @@ pub fn list_disableable(
             let Ok(manifest) = PluginManifest::load(&plugin_dir.join(MANIFEST_FILE_NAME)) else {
                 continue;
             };
-            if manifest.kind == PluginKind::Base || !seen.insert(manifest.id.clone()) {
+            if manifest.kind == PluginKind::Base {
+                continue;
+            }
+            // Признак образца — свойство плагина, а не конкретной его копии:
+            // пользовательская копия того же идентификатора не должна лишать
+            // поставляемый образец отметки.
+            if let Some(&index) = index_by_id.get(&manifest.id) {
+                if manifest.sample {
+                    entries[index].sample = true;
+                }
                 continue;
             }
             let removable = user_root
                 .map(|root| plugin_dir.starts_with(root))
                 .unwrap_or(false);
+            index_by_id.insert(manifest.id.clone(), entries.len());
             entries.push(PluginEntry {
                 id: manifest.id.clone(),
                 name: manifest.name.clone(),

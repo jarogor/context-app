@@ -13,9 +13,10 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 use crate::constants::{
-    resolve_app_state_root, resolve_user_plugins_root, BASE_PLUGINS_DIR_NAME, PLUGINS_DIR_NAME,
+    resolve_app_state_root, resolve_user_plugins_root, APP_DISPLAY_NAME, BASE_PLUGINS_DIR_NAME,
+    PLUGINS_DIR_NAME,
 };
-use crate::plugin::{AppPluginHost, AppState, PluginSession, ReaderConfig};
+use crate::plugin::{AppInfo, AppPluginHost, AppState, PluginSession, ReaderConfig};
 
 /// Точка входа Tauri-приложения и generic plugin host.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -79,10 +80,20 @@ pub fn run() {
                 cache: wasm_cache.clone(),
             };
 
+            let app_info = AppInfo::build(
+                APP_DISPLAY_NAME,
+                app.package_info().version.to_string(),
+                &app_state_root,
+                &user_plugins_dir,
+                &bundled_plugins_dir,
+                &bundled_base,
+            );
+
             app.manage(Mutex::new(AppState::new(
                 host,
                 app_host,
                 app_state_root,
+                app_info,
                 reader_config,
             )));
 
@@ -93,6 +104,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::invoke_plugin_operation,
             commands::invoke_base_plugin_operation,
+            commands::app_info,
             commands::select_source_library,
             commands::active_library,
             commands::library_history_list,

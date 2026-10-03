@@ -11,7 +11,7 @@ test('стор показывает перечень плагинов и акт�
   await expect(store.getByText('calibre', { exact: true })).toBeVisible();
   await expect(store.getByText('installed-plugin', { exact: true })).toBeVisible();
   // Рабочие плагины и образцы для разработчика разделены.
-  await expect(store.getByText('Образцы для разработчика (1)')).toBeVisible();
+  await expect(store.getByText('Образцы для разработчика (2)')).toBeVisible();
 
   // Отключаемый пользовательский плагин можно удалить, поставляемый — нет.
   await expect(store.getByRole('button', { name: 'Удалить' })).toHaveCount(1);

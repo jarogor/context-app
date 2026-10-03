@@ -88,3 +88,37 @@ fn lists_disableable_with_flags() {
     assert!(demo.removable, "пользовательский удаляется");
     test_util::cleanup(&dir);
 }
+
+#[test]
+fn sample_flag_survives_user_copy() {
+    let dir = test_util::test_root("plugin-discovery-sample-copy");
+    let bundled = dir.join("bundled");
+    let user = dir.join("user");
+    std::fs::create_dir_all(&bundled).expect("bundled");
+    std::fs::create_dir_all(&user).expect("user");
+    // Поставляемый образец и его пользовательская копия без признака образца.
+    write_sample_manifest(&bundled, DEMO_ID, "demo", "extension");
+    write_manifest(&user, DEMO_ID, "demo", "extension");
+
+    let entries = list_disableable(&[user.clone(), bundled.clone()], Some(user.as_path()), &[]);
+
+    assert_eq!(entries.len(), 1, "копии одного id схлопываются");
+    assert!(
+        entries[0].sample,
+        "признак образца поставляемой копии сохранён"
+    );
+    test_util::cleanup(&dir);
+}
+
+/// Создание директории плагина с манифестом-образцом.
+fn write_sample_manifest(directory: &Path, id: &str, name: &str, kind: &str) {
+    let plugin_dir = directory.join(name);
+    std::fs::create_dir_all(&plugin_dir).expect("директория плагина");
+    std::fs::write(
+        plugin_dir.join(MANIFEST_FILE_NAME),
+        format!(
+            r#"{{"contract_version":1,"kind":"{kind}","id":"{id}","name":"{name}","description":"d","module":"p.wasm","export":"invoke","host_functions":[],"sample":true}}"#
+        ),
+    )
+    .expect("манифест");
+}

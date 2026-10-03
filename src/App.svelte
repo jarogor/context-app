@@ -3,6 +3,7 @@
   import { Badge, Button, Menu, MenuItem } from '@texture/ui';
   import PluginFrame from './lib/PluginFrame.svelte';
   import LibrariesPage from './lib/LibrariesPage.svelte';
+  import AppInfoPage from './lib/AppInfoPage.svelte';
   import WorkplaceSurface from './lib/WorkplaceSurface.svelte';
   import {
     closeTab,
@@ -61,7 +62,7 @@
   let { initialRegistry, initialLibrary }: Props = $props();
 
   /** Страница раздела настроек. */
-  type SettingsSection = 'general' | 'plugins';
+  type SettingsSection = 'general' | 'plugins' | 'about';
 
   /** Открыт ли раздел настроек; состояние принадлежит оболочке. */
   let settingsOpen = $state(false);
@@ -170,19 +171,27 @@
     return !settingsOpen && !librariesOpen && !workspaceOpen;
   }
 
+  /** Видна ли поверхность рабочего места (с учётом модальных разделов). */
+  const workspaceVisible = $derived(workspaceOpen && !settingsOpen && !librariesOpen);
+
+  /** Видна ли страница «Библиотеки» (с учётом модального раздела настроек). */
+  const librariesVisible = $derived(librariesOpen && !settingsOpen);
+
   /** Показывать ли в шапке имя активной библиотеки. */
   function showLibrary(): boolean {
-    return activeLibrary !== null && (isMainSection() || workspaceOpen);
+    return activeLibrary !== null && !settingsOpen && (isMainSection() || workspaceOpen);
   }
 
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
-    librariesOpen
-      ? 'Библиотеки'
-      : settingsOpen
-        ? settingsSection === 'plugins'
-          ? 'Плагины'
+    settingsOpen
+      ? settingsSection === 'plugins'
+        ? 'Плагины'
+        : settingsSection === 'about'
+          ? 'Информация'
           : 'Настройки'
+      : librariesOpen
+        ? 'Библиотеки'
         : workspaceOpen
           ? 'Рабочее место'
           : 'Библиотека',
@@ -193,31 +202,37 @@
     return !(isMainSection() && activeLibrary !== null);
   }
 
-  /** Переключение раздела настроек; закрывает другие поверхности. */
+  /** Переключение раздела настроек как модального окна.
+   *
+   * Настройки не меняют базовую поверхность: при закрытии пользователь
+   * возвращается туда, откуда открыл их.
+   */
   function toggleSettings() {
     settingsOpen = !settingsOpen;
-    if (settingsOpen) {
-      librariesOpen = false;
-      workspaceOpen = false;
-    }
   }
 
-  /** Переключение страницы «Библиотеки»; закрывает другие поверхности. */
+  /** Переключение страницы «Библиотеки». */
   function toggleLibraries() {
     librariesOpen = !librariesOpen;
     if (librariesOpen) {
       settingsOpen = false;
-      workspaceOpen = false;
     }
   }
 
-  /** Переключение поверхности рабочего места. */
+  /** Переключение поверхности рабочего места.
+   *
+   * При открытии из другого раздела показывается **список** рабочих мест —
+   * точка входа раздела, а не конкретное рабочее место.
+   */
   function toggleWorkspace() {
-    workspaceOpen = !workspaceOpen;
-    if (workspaceOpen) {
-      settingsOpen = false;
-      librariesOpen = false;
-      workspaceListMode = false;
+    const wasActive = workspaceVisible;
+    settingsOpen = false;
+    librariesOpen = false;
+    if (wasActive) {
+      workspaceOpen = false;
+    } else {
+      workspaceOpen = true;
+      workspaceListMode = true;
     }
   }
 
@@ -832,11 +847,11 @@
         </span>
       </Button>
       <Button
-        variant={librariesOpen ? 'primary' : 'secondary'}
+        variant={librariesVisible ? 'primary' : 'secondary'}
         size="icon"
         title="Библиотеки"
         ariaLabel="Библиотеки"
-        ariaPressed={librariesOpen}
+        ariaPressed={librariesVisible}
         onclick={toggleLibraries}
       >
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -849,11 +864,11 @@
         </svg>
       </Button>
       <Button
-        variant={workspaceOpen ? 'primary' : 'secondary'}
+        variant={workspaceVisible ? 'primary' : 'secondary'}
         size="icon"
         title="Рабочее место"
         ariaLabel="Рабочее место"
-        ariaPressed={workspaceOpen}
+        ariaPressed={workspaceVisible}
         onclick={toggleWorkspace}
       >
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -904,7 +919,7 @@
           onMessage={handleLibraryMessage}
         />
       </div>
-      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!workspaceOpen}>
+      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!workspaceVisible}>
         <WorkplaceSurface
           bind:this={reader}
           workspace={workspace}
@@ -918,7 +933,7 @@
           activeSetId={notesSetId}
           notesLoading={notesLoading}
           hasBook={notesBookKey !== null}
-          visible={workspaceOpen}
+          visible={workspaceVisible}
           selectedNoteId={selectedNoteId}
           onSelectTab={selectTab}
           onCloseTab={removeTab}
@@ -944,8 +959,14 @@
           onRemoveWorkspace={removeExistingWorkspace}
         />
       </div>
-      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesOpen}>
-        <LibrariesPage onOpened={() => (librariesOpen = false)} />
+      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesVisible}>
+        <LibrariesPage
+          onOpened={() => {
+            librariesOpen = false;
+            workspaceOpen = false;
+            settingsOpen = false;
+          }}
+        />
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!settingsOpen}>
         <Menu
@@ -958,6 +979,9 @@
           <MenuItem active={settingsSection === 'plugins'} onclick={() => selectSettingsSection('plugins')}>
             Плагины
           </MenuItem>
+          <MenuItem active={settingsSection === 'about'} onclick={() => selectSettingsSection('about')}>
+            Информация
+          </MenuItem>
         </Menu>
         <div class="flex min-h-0 min-w-0 flex-1">
           <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'general'}>
@@ -969,6 +993,11 @@
               title="Plugin store"
               onMessage={handleStoreMessage}
             />
+          </div>
+          <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'about'}>
+            {#if settingsSection === 'about'}
+              <AppInfoPage />
+            {/if}
           </div>
         </div>
       </div>

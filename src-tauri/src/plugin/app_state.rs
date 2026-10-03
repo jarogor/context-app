@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::plugin::{AppPluginHost, PluginKind, PluginRuntime, PluginSession};
+use crate::plugin::{AppInfo, AppPluginHost, PluginKind, PluginRuntime, PluginSession};
 
 /// Настройки ленивого runtime чтения книг рабочим местом.
 ///
@@ -51,6 +51,8 @@ pub struct AppState {
     pub app_host: AppPluginHost,
     /// Корень служебного состояния приложения.
     pub app_state_root: PathBuf,
+    /// Сведения о приложении для страницы «Информация».
+    app_info: AppInfo,
     /// Настройки runtime чтения книг.
     reader_config: ReaderConfig,
     /// Runtime чтения книг по вложению, собираемый при первом обращении.
@@ -65,16 +67,23 @@ impl AppState {
         session: PluginSession,
         app_host: AppPluginHost,
         app_state_root: PathBuf,
+        app_info: AppInfo,
         reader_config: ReaderConfig,
     ) -> Self {
         Self {
             session,
             app_host,
             app_state_root,
+            app_info,
             reader_config,
             reader: None,
             workplace_files: HashMap::new(),
         }
+    }
+
+    /// Сведения о приложении для страницы «Информация».
+    pub fn app_info(&self) -> AppInfo {
+        self.app_info.clone()
     }
 
     /// Корень служебного состояния приложения.

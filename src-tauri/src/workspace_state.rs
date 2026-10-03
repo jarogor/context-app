@@ -7,7 +7,7 @@
 //! умолчанию при первом чтении реестра.
 
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use serde::{Deserialize, Serialize};
 
@@ -119,7 +119,8 @@ pub fn save(root: &Path, file: &WorkspacesFile) -> Result<(), String> {
 /// Чтение идемпотентно: пока реестр не сохранён, каждый вызов даёт то же
 /// детерминированное рабочее место, а прежний файл не изменяется и не удаляется.
 fn migrate_legacy(root: &Path) -> WorkspacesFile {
-    let legacy: LegacyWorkspaceState = match std::fs::read_to_string(legacy_workspace_path(root)) {
+    let legacy_path = legacy_workspace_path(root);
+    let legacy: LegacyWorkspaceState = match std::fs::read_to_string(&legacy_path) {
         Ok(value) => serde_json::from_str(&value).unwrap_or_default(),
         Err(_) => LegacyWorkspaceState::default(),
     };
@@ -130,12 +131,25 @@ fn migrate_legacy(root: &Path) -> WorkspacesFile {
         workspaces: vec![WorkspaceRecord {
             id: DEFAULT_WORKSPACE_ID.to_string(),
             name: DEFAULT_WORKSPACE_NAME.to_string(),
-            created_at_millis: now_millis(),
+            // Время берётся из mtime прежнего файла, а не из текущего момента:
+            // иначе повторное чтение до сохранения давало бы новое время и
+            // миграция переставала быть идемпотентной.
+            created_at_millis: legacy_modified_millis(&legacy_path),
             tabs: legacy.tabs,
             active_tab_id: legacy.active_tab_id,
         }],
         active_workspace_id: Some(DEFAULT_WORKSPACE_ID.to_string()),
     }
+}
+
+/// Время изменения прежнего файла одиночного состояния (Unix, мс).
+fn legacy_modified_millis(path: &Path) -> u64 {
+    std::fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or_default()
 }
 
 /// Путь файла реестра в служебном каталоге состояния.
@@ -146,14 +160,6 @@ fn workspaces_path(root: &Path) -> PathBuf {
 /// Путь прежнего файла одиночного состояния.
 fn legacy_workspace_path(root: &Path) -> PathBuf {
     root.join(LEGACY_WORKSPACE_FILE_NAME)
-}
-
-/// Текущее время Unix в миллисекундах.
-fn now_millis() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as u64)
-        .unwrap_or_default()
 }
 
 #[cfg(test)]
