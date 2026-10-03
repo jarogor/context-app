@@ -21,16 +21,15 @@ test('оболочка показывает панель и переключае
     await expect(menu.getByRole('button', { name: 'Плагины' })).toBeVisible();
 
     await menu.getByRole('button', { name: 'Плагины' }).click();
-    const store = page.frameLocator('iframe[title="Plugin store"]');
-    await expect(store.getByRole('heading', { name: 'Плагины' })).toBeVisible();
+    await expect(page.locator('main').getByRole('heading', { name: 'Плагины' })).toBeVisible();
 });
 
 test('кнопки верхней панели показывают активный раздел', async ({ page }) => {
     await page.goto('/');
 
-    const libraries = page.getByLabel('Библиотеки');
+    const libraries = page.getByLabel('Библиотеки', { exact: true });
     const workspace = page.getByLabel('Рабочее место', { exact: true });
-    const settings = page.getByLabel('Настройки');
+    const settings = page.getByLabel('Настройки', { exact: true });
 
     await expect(workspace).toHaveAttribute('aria-pressed', 'true');
     await expect(libraries).toHaveAttribute('aria-pressed', 'false');
@@ -79,9 +78,9 @@ test('закрытие настроек возвращает к списку р�
 test('кнопка рабочего места открывает список из раздела библиотеки', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByLabel('Библиотеки').click();
+    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
     await page.getByRole('button', { name: /demo-library/ }).click();
-    await expect(page.frameLocator('iframe[title="Library plugin"]').locator('body')).toBeVisible();
+    await expect(page.locator('main')).toBeVisible();
 
     await page.getByLabel('Рабочее место', { exact: true }).click();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
@@ -90,7 +89,7 @@ test('кнопка рабочего места открывает список �
 test('страница библиотек показывает историю с временем', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByLabel('Библиотеки').click();
+    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
 
     await expect(page.getByRole('heading', { name: 'Библиотеки' })).toBeVisible();
     const entry = page.getByRole('button', { name: /demo-library/ });
@@ -102,16 +101,16 @@ test('страница библиотек показывает историю с
 test('после открытия библиотеки страница выбора закрывается', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByLabel('Библиотеки').click();
+    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
     await page.getByRole('button', { name: /demo-library/ }).click();
 
     await expect(page.getByRole('heading', { name: 'Библиотеки' })).toBeHidden();
-    await expect(page.frameLocator('iframe[title="Library plugin"]').locator('body')).toBeVisible();
+    await expect(page.locator('main')).toBeVisible();
 });
 
 test('основной раздел библиотеки возвращается после закрытия рабочего места', async ({ page }) => {
     await page.goto('/');
     await showLibrary(page);
 
-    await expect(page.frameLocator('iframe[title="Library plugin"]').locator('body')).toBeVisible();
+    await expect(page.locator('main')).toBeVisible();
 });

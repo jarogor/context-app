@@ -1,9 +1,0 @@
-{
-  "contract_version": 1,
-  "kind": "ui",
-  "id": "ff6c6f88-d57d-4eaf-b64b-a4d1d6dfe0e8",
-  "name": "library-ui",
-  "description": "Автономный интерфейс library plugin",
-  "entry": "index.html",
-  "requires": ["library.catalog@1"]
-}

@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { Badge, Button, Menu, MenuItem } from '@texture/ui';
-  import PluginFrame from './lib/PluginFrame.svelte';
+  import NotificationsPanel from './lib/NotificationsPanel.svelte';
+  import SettingsPage from './lib/SettingsPage.svelte';
+  import StorePage from './lib/StorePage.svelte';
+  import LibraryPage from './lib/LibraryPage.svelte';
   import LibrariesPage from './lib/LibrariesPage.svelte';
   import AppInfoPage from './lib/AppInfoPage.svelte';
   import WorkplaceSurface from './lib/WorkplaceSurface.svelte';
@@ -45,12 +48,6 @@
   import type { QuoteAnchor } from './lib/reader/anchor';
   import { formatFromPath } from './lib/reader';
   import { invokeCommand, listenEvent, openDialog } from './lib/app-bridge';
-
-  /** Сообщение frontend-плагина без идентификатора запроса. */
-  interface PluginMessage {
-    type?: string;
-    value?: unknown;
-  }
 
   interface Props {
     /** Реестр рабочих мест, загруженный до первого рендера. */
@@ -678,22 +675,15 @@
     );
   }
 
-  /** Открытие книги вкладкой рабочего места по сообщению библиотечного плагина. */
-  function handleLibraryMessage(message: PluginMessage) {
-    if (message.type !== 'workspace:open-book') {
-      return;
-    }
-    const value = message.value as
-      | { path?: unknown; title?: unknown; format?: unknown }
-      | null
-      | undefined;
-    if (!value?.path) {
+  /** Открытие книги вкладкой рабочего места из библиотеки. */
+  function openBookInWorkspace(value: { path: string; title: string; format: string }) {
+    if (!value.path) {
       return;
     }
     const book = {
-      path: String(value.path),
-      title: String(value.title ?? '') || fileName(String(value.path)),
-      format: value.format ? String(value.format) : formatFromPath(String(value.path)),
+      path: value.path,
+      title: value.title || fileName(value.path),
+      format: value.format || formatFromPath(value.path),
     };
     if (repointTabId) {
       registry = updateActiveWorkspaceTabs(registry, (state) =>
@@ -707,20 +697,6 @@
     workspaceListMode = false;
     settingsOpen = false;
     librariesOpen = false;
-  }
-
-  /** Обработка сообщений frontend-плагинов без ответа. */
-  function handlePluginMessage(message: PluginMessage) {
-    if (message.type === 'notifications-count' && typeof message.value === 'number') {
-      unreadCount = message.value;
-    }
-  }
-
-  /** Обработка сообщений плагина стора. */
-  function handleStoreMessage(message: PluginMessage) {
-    if (message.type === 'activation-pending') {
-      activationPending = Boolean(message.value);
-    }
   }
 
   /** Обновление сведений об активной библиотеке из ядра. */
@@ -913,10 +889,9 @@
         class="min-h-0 min-w-0 flex-1"
         class:hidden={settingsOpen || librariesOpen || workspaceOpen}
       >
-        <PluginFrame
-          src="/plugins/library-ui/index.html"
-          title="Library plugin"
-          onMessage={handleLibraryMessage}
+        <LibraryPage
+          initialActiveLibrary={activeLibrary}
+          onOpenInWorkplace={openBookInWorkspace}
         />
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!workspaceVisible}>
@@ -985,14 +960,10 @@
         </Menu>
         <div class="flex min-h-0 min-w-0 flex-1">
           <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'general'}>
-            <PluginFrame src="/plugins/settings-ui/index.html" title="Settings plugin" />
+            <SettingsPage />
           </div>
           <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'plugins'}>
-            <PluginFrame
-              src="/plugins/plugin-store-ui/index.html"
-              title="Plugin store"
-              onMessage={handleStoreMessage}
-            />
+            <StorePage onPendingChange={(pending) => (activationPending = pending)} />
           </div>
           <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'about'}>
             {#if settingsSection === 'about'}
@@ -1006,11 +977,7 @@
       class="flex min-w-0 flex-[0_0_500px] border-l border-[var(--color-border)] max-[899px]:fixed max-[899px]:inset-x-0 max-[899px]:top-[48px] max-[899px]:bottom-0 max-[899px]:z-[1000] max-[899px]:flex-none max-[899px]:border-l-0"
       class:hidden={!notificationsOpen}
     >
-      <PluginFrame
-        src="/plugins/notifications-ui/index.html"
-        title="Notifications plugin"
-        onMessage={handlePluginMessage}
-      />
+      <NotificationsPanel onUnreadChange={(count) => (unreadCount = count)} />
     </aside>
   </div>
 </div>

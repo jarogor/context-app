@@ -1,9 +1,0 @@
-{
-  "contract_version": 1,
-  "kind": "ui",
-  "id": "e63bdc78-1b26-4572-9fc5-ac8b08a77d85",
-  "name": "plugin-store-ui",
-  "description": "Автономный интерфейс базового плагина стора плагинов",
-  "entry": "index.html",
-  "requires": ["plugin-store@1"]
-}

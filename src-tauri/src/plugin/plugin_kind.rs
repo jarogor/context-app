@@ -14,8 +14,6 @@ pub enum PluginKind {
     Extension,
     /// Плагин рабочего места: рисует область содержимого книги.
     Workplace,
-    /// Frontend-плагин интерфейса.
-    Ui,
 }
 
 impl Default for PluginKind {

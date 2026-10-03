@@ -162,7 +162,7 @@ async function openPdf(page: Page, pageCount: number) {
     if (await open.isVisible().catch(() => false)) {
         await open.click();
     }
-    const library = page.frameLocator('iframe[title="Library plugin"]');
+    const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
     await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');

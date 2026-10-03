@@ -8,7 +8,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help plugins artifacts check-artifacts frontend dev dev-test build \
+.PHONY: help plugins artifacts check-artifacts dev dev-test build \
         check test test-rust e2e rust-check validate verify clean
 
 help: ## Показать список команд
@@ -23,9 +23,6 @@ artifacts: ## Разложить артефакты из уже собранны
 
 check-artifacts: ## Проверить, что артефакты плагинов актуальны
 	node scripts/plugin-artifacts.mjs check
-
-frontend: ## Собрать frontend-плагины в public/plugins/
-	bash scripts/build-frontend-plugins.sh
 
 dev: ## Запустить desktop-приложение (сборка плагинов — в beforeDevCommand)
 	npm run tauri dev
@@ -66,5 +63,5 @@ verify: ## Полный набор проверок перед завершен�
 	$(MAKE) build
 	$(MAKE) validate
 
-clean: ## Удалить сгенерированные артефакты (ресурсы плагинов и public/plugins)
-	rm -rf src-tauri/resources/plugins src-tauri/resources/base-plugins public/plugins
+clean: ## Удалить сгенерированные артефакты (ресурсы плагинов)
+	rm -rf src-tauri/resources/plugins src-tauri/resources/base-plugins

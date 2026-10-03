@@ -155,7 +155,7 @@ test('переключение между рабочими местами сох
     await createWorkspace(page, 'Первое');
 
     await page.getByRole('button', { name: 'Добавить книгу' }).click();
-    const library = page.frameLocator('iframe[title="Library plugin"]');
+    const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
     await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');

@@ -1,15 +1,30 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { Badge, Button, Checkbox } from '@texture/ui';
-  import type { Entry } from './types';
+  import {
+    clearNotifications,
+    listNotifications,
+    loadTechnicalVisibleDefault,
+    markAllNotificationsRead,
+    type NotificationEntry,
+  } from './notifications';
+  import { listenEvent } from './app-bridge';
 
   interface Props {
-    entries: Entry[];
-    technicalVisible: boolean;
-    markAllRead: () => void;
-    clear: () => void;
+    /** Передача числа непрочитанных пользовательских уведомлений в оболочку. */
+    onUnreadChange?: (count: number) => void;
   }
 
-  let { entries, technicalVisible = $bindable(false), markAllRead, clear }: Props = $props();
+  let { onUnreadChange }: Props = $props();
+
+  /** Записи журнала уведомлений. */
+  let entries: NotificationEntry[] = $state([]);
+
+  /** Показывать ли технические записи. */
+  let technicalVisible = $state(false);
+
+  /** Ошибка загрузки или операции журнала. */
+  let errorMessage = $state('');
 
   /** Отфильтрованные записи: без технического уровня показываем только User. */
   let visibleEntries = $derived(
@@ -19,8 +34,74 @@
   /** Количество непрочитанных пользовательских уведомлений. */
   let unreadUser = $derived(entries.filter((entry) => entry.level === 'User' && !entry.read).length);
 
+  /** Передача счётчика в оболочку для кнопки в верхней панели. */
+  $effect(() => {
+    onUnreadChange?.(unreadUser);
+  });
+
+  /** Загрузка журнала уведомлений. */
+  async function load() {
+    try {
+      entries = await listNotifications();
+      errorMessage = '';
+    } catch (error) {
+      errorMessage = String(error);
+    }
+  }
+
+  /** Загрузка начального технического уровня из настроек. */
+  async function loadSettings() {
+    try {
+      const value = await loadTechnicalVisibleDefault();
+      if (value !== null) {
+        technicalVisible = value;
+      }
+    } catch {
+      // Отсутствие секции настроек не мешает панели уведомлений.
+    }
+  }
+
+  /** Пометка всех записей прочитанными. */
+  async function markAllRead() {
+    try {
+      await markAllNotificationsRead();
+      entries = entries.map((entry) => ({ ...entry, read: true }));
+    } catch (error) {
+      errorMessage = String(error);
+    }
+  }
+
+  /** Полная очистка журнала. */
+  async function clearEntries() {
+    try {
+      await clearNotifications();
+      await load();
+    } catch (error) {
+      errorMessage = String(error);
+    }
+  }
+
+  onMount(() => {
+    let unlistenAdded: (() => void) | undefined;
+    let unlistenSettings: (() => void) | undefined;
+    void (async () => {
+      unlistenAdded = await listenEvent('notifications:added', (value) => {
+        entries = [...entries, value as NotificationEntry];
+      });
+      unlistenSettings = await listenEvent('settings:changed', () => {
+        void loadSettings();
+      });
+      await loadSettings();
+      await load();
+    })();
+    return () => {
+      unlistenAdded?.();
+      unlistenSettings?.();
+    };
+  });
+
   /** Цвет акцента записи по уровню и важности. */
-  function accent(entry: Entry): string {
+  function accent(entry: NotificationEntry): string {
     if (entry.level === 'User') {
       return 'var(--color-success)';
     }
@@ -72,7 +153,7 @@
       <Button variant="secondary" size="sm" disabled={unreadUser === 0} onclick={markAllRead}>
         Прочитать
       </Button>
-      <Button variant="secondary" size="sm" onclick={clear}>Очистить</Button>
+      <Button variant="secondary" size="sm" onclick={clearEntries}>Очистить</Button>
     </div>
   </div>
   <div class="flex-1 overflow-y-auto p-[var(--space-2)]">
@@ -109,3 +190,12 @@
     {/if}
   </div>
 </div>
+
+{#if errorMessage}
+  <div
+    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-[var(--radius-md)] bg-[var(--color-danger-soft)] p-[var(--space-2)] text-xs text-[var(--color-danger)]"
+    role="alert"
+  >
+    {errorMessage}
+  </div>
+{/if}

@@ -4,16 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "plugins/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run build:plugins && npm run build:frontend-plugins && vite",
-    "dev:test": "npm run build:plugins && npm run build:frontend-plugins && VITE_MOCK_BRIDGE=1 vite",
+    "dev": "npm run build:plugins && vite",
+    "dev:test": "npm run build:plugins && VITE_MOCK_BRIDGE=1 vite",
     "tauri": "tauri",
-    "build": "npm run build:plugins && npm run build:frontend-plugins && vite build",
+    "build": "npm run build:plugins && vite build",
     "build:plugins": "bash ./scripts/build-wasm-plugins.sh",
-    "build:frontend-plugins": "bash ./scripts/build-frontend-plugins.sh",
     "check:artifacts": "node scripts/plugin-artifacts.mjs check",
     "preview": "vite preview",
     "test": "npm run test:unit",

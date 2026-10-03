@@ -56,7 +56,7 @@ async function openWorkspace(page: import('@playwright/test').Page) {
 async function addBook(page: import('@playwright/test').Page, title: string) {
     await openWorkspace(page);
     await page.getByRole('button', { name: 'Добавить книгу' }).click();
-    const library = page.frameLocator('iframe[title="Library plugin"]');
+    const library = page.locator('main');
     const back = library.getByRole('button', { name: /К списку/ });
     if ((await back.count()) > 0) {
         await back.click();

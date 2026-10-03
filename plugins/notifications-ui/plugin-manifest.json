@@ -1,9 +1,0 @@
-{
-  "contract_version": 1,
-  "kind": "ui",
-  "id": "35f3a150-ae90-4c4b-bffd-9ba35c42ce5c",
-  "name": "notifications-ui",
-  "description": "Автономный интерфейс базового плагина уведомлений",
-  "entry": "index.html",
-  "requires": ["notifications.journal@1"]
-}

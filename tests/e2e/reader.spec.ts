@@ -24,7 +24,7 @@ async function showLibrary(page: import('@playwright/test').Page) {
 async function openWorkplace(page: import('@playwright/test').Page) {
     await page.goto('/');
     await showLibrary(page);
-    const library = page.frameLocator('iframe[title="Library plugin"]');
+    const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
     await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
@@ -155,7 +155,7 @@ test('возврат к библиотеке сохраняет состояни
 
     await page.getByLabel('Рабочее место', { exact: true }).click();
 
-    const library = page.frameLocator('iframe[title="Library plugin"]');
+    const library = page.locator('main');
     await expect(library.getByTestId('book-title')).toHaveText('Демо-книга');
     await expect(page.getByTestId('workplace-surface')).toBeHidden();
 });
@@ -163,7 +163,7 @@ test('возврат к библиотеке сохраняет состояни
 test('со страницы книги можно вернуться к списку', async ({ page }) => {
     await page.goto('/');
     await showLibrary(page);
-    const library = page.frameLocator('iframe[title="Library plugin"]');
+    const library = page.locator('main');
 
     await library.getByRole('button', { name: /Демо-книга/ }).click();
     await expect(library.getByTestId('book-title')).toBeVisible();

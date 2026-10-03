@@ -89,47 +89,44 @@
   доставляет app-level runtime плагину, предоставляющему capability
   `notifications.journal@1`. Ядро не хранит журнал и не интерпретирует его модель.
 - Host-функция `emit_event(name, payload)` — generic relay прикладных событий
-  Tauri; базовые plugins используют её для live-обновления frontend-плагинов.
-- Базовый плагин уведомлений — `src-wasm-plugins/notifications/` +
-  frontend-плагин `plugins/notifications-ui/`.
-- Базовый плагин настроек — `src-wasm-plugins/settings/` + frontend-плагин
-  `plugins/settings-ui/`; предоставляет capability `settings.store@1` и владеет
-  реестром секций и значений настроек в служебном состоянии. Плагин объявляет
-  секции настроек в необязательном поле `settings` своего манифеста; секция
-  описывает поля с человекочитаемым названием, типом (`boolean`/`string`/
-  `number`/`select`/`json`) и значением по умолчанию. Ядро передаёт декларации
-  как opaque-схему и не интерпретирует их. Ядро собирает
+  Tauri; базовые plugins используют её для live-обновления встроенных
+  поверхностей приложения.
+- Автономные frontend-плагины (`kind: "ui"`, iframe, отдельные сборки) не
+  поддерживаются: ядро и оболочка не загружают их. Интерфейс встроенных
+  поверхностей принадлежит приложению и собирается из `@texture/ui`.
+- Базовый плагин уведомлений — `src-wasm-plugins/notifications/`; UI журнала —
+  встроенная поверхность оболочки `src/lib/NotificationsPanel.svelte`.
+- Базовый плагин настроек — `src-wasm-plugins/settings/`; предоставляет capability
+  `settings.store@1` и владеет реестром секций и значений настроек в служебном
+  состоянии. Плагин объявляет секции настроек в необязательном поле `settings`
+  своего манифеста; секция описывает поля с человекочитаемым названием, типом
+  (`boolean`/`string`/`number`/`select`/`json`) и значением по умолчанию. Ядро
+  передаёт декларации как opaque-схему и не интерпретирует их. Ядро собирает
   реестр из базовых, сессионных деклараций и собственной секции приложения и
-  регистрирует его через opaque-операцию `register`. UI настроек — отдельный
-  frontend-плагин, а оболочка предоставляет каркас: верхнюю панель с названием
-  раздела и кнопкой настроек и контентную область ниже. Оболочка владеет
-  состоянием «настройки открыты» и переключает панели контента, сохраняя
-  состояние основного плагина. Примеры: `app.general.startup.welcome_notification`
-  (читает ядро) и `notifications.notifications.technical_visible_default`
-  (читает `notifications-ui`).
+  регистрирует его через opaque-операцию `register`. UI настроек — встроенная
+  поверхность оболочки `src/lib/SettingsPage.svelte`. Примеры:
+  `app.general.startup.welcome_notification` (читает ядро) и
+  `notifications.notifications.technical_visible_default` (читает поверхность
+  уведомлений).
 
 ## Фронтенд
 
 - Фронтенд собран на npm workspaces: корень — приложение оболочки, члены —
-  `plugins/*` (frontend-плагины) и `packages/*` (общие пакеты); один lock на весь
-  workspace.
+  `packages/*` (общие пакеты); один lock на весь workspace.
 - Дизайн-система — `packages/ui` (`@texture/ui`): компоненты (Button, Input,
   Textarea, Select, Checkbox, Card, Badge, Spinner, Menu, MenuItem) и токены
-  оформления `tokens.css`. Оболочка и frontend-плагины строят UI только из этих
-  компонентов и токенов. Tailwind v4 подключается в каждом приложении, классы
-  пакета попадают в сборку через `@source`. Собственные `<style>`-блоки в
-  Svelte-компонентах не используются — только Tailwind-классы и токены
-  (иначе dev-сборка ломается на виртуальных CSS-модулях Svelte).
+  оформления `tokens.css`. Оболочка строит UI только из этих компонентов и
+  токенов. Tailwind v4 подключается в приложении, классы пакета попадают в
+  сборку через `@source`. Собственные `<style>`-блоки в Svelte-компонентах не
+  используются — только Tailwind-классы и токены (иначе dev-сборка ломается на
+  виртуальных CSS-модулях Svelte).
 - `packages/ui-schema` (`@texture/ui-schema`) — скелет типов декларативного UI
   (задел на будущее), без рендерера.
 - `packages/testing` (`@texture/testing`) — мок моста Tauri (`invoke`,
   `dialog.open`, `listen` с фикстурами); `src/lib/app-bridge.ts` переключает
   реальный Tauri и мок по `VITE_MOCK_BRIDGE=1`.
 - Тесты: компонентные — Vitest + `@testing-library/svelte` (`npm test`),
-  браузерные — Playwright (`npm run test:e2e`: мок-мост, iframe через
-  `frameLocator`, визуальная регрессия).
-- Сборка frontend-плагинов — `scripts/build-frontend-plugins.sh` (workspace-aware,
-  артефакты в `public/plugins/`).
+  браузерные — Playwright (`npm run test:e2e`: мок-мост, визуальная регрессия).
 
 ## Проверки перед завершением задачи
 

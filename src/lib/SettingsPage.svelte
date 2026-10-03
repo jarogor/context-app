@@ -1,16 +1,87 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { Button, Card, Checkbox, Input, Select, Textarea } from '@texture/ui';
-  import type { Field, Section } from './types';
+  import { invokeCommand, listenEvent } from './app-bridge';
 
-  interface Props {
-    sections: Section[];
-    onSave: (id: string, values: Record<string, unknown>) => Promise<void>;
+  /** Тип поля настроек. */
+  type FieldType = 'boolean' | 'string' | 'number' | 'select' | 'json';
+
+  /** Вариант выбора для поля типа `select`. */
+  interface FieldOption {
+    /** Значение варианта. */
+    value: unknown;
+    /** Человекочитаемое название варианта. */
+    title: string;
   }
 
-  let { sections, onSave }: Props = $props();
+  /** Поле настроек секции. */
+  interface Field {
+    /** Ключ значения в секции. */
+    key: string;
+    /** Человекочитаемое название поля. */
+    title: string;
+    /** Тип поля. */
+    type: FieldType;
+    /** Описание поля. */
+    description?: string | null;
+    /** Варианты выбора для типа `select`. */
+    options?: FieldOption[];
+  }
 
+  /** Секция настроек, зарегистрированная владельцем. */
+  interface Section {
+    /** Полный идентификатор секции в формате `<owner>.<id>`. */
+    id: string;
+    /** Заголовок секции. */
+    title: string;
+    /** Описание секции. */
+    description?: string | null;
+    /** Поля секции. */
+    fields: Field[];
+    /** Текущие значения секции. */
+    values: Record<string, unknown>;
+  }
+
+  /** Capability базового плагина настроек. */
+  const SETTINGS_CAPABILITY = 'settings.store@1';
+
+  /** Секции настроек. */
+  let sections: Section[] = $state([]);
+
+  /** Ошибка загрузки или сохранения настроек. */
+  let errorMessage = $state('');
+
+  /** Черновики значений по секциям. */
   let drafts = $state<Record<string, Record<string, string>>>({});
+
+  /** Ошибки валидации и сохранения по секциям. */
   let errors = $state<Record<string, string>>({});
+
+  /** Вызов opaque-операции базового плагина настроек. */
+  async function operation<T>(action: string, payload: unknown = {}): Promise<T> {
+    return (await invokeCommand('invoke_base_plugin_operation', {
+      capability: SETTINGS_CAPABILITY,
+      operation: action,
+      payload,
+    })) as T;
+  }
+
+  /** Загрузка списка секций настроек. */
+  async function load() {
+    try {
+      const data = await operation<{ sections: Section[] }>('list', {});
+      sections = data.sections;
+      errorMessage = '';
+    } catch (error) {
+      errorMessage = String(error);
+    }
+  }
+
+  /** Сохранение значений секции. */
+  async function saveSection(id: string, values: Record<string, unknown>) {
+    await operation('set', { section: id, values });
+    await load();
+  }
 
   /** Преобразование значения поля в строку черновика. */
   function toDraft(field: Field, value: unknown): string {
@@ -77,11 +148,24 @@
       }
     }
     try {
-      await onSave(section.id, values);
+      await saveSection(section.id, values);
     } catch (error) {
       errors[section.id] = String(error);
     }
   }
+
+  onMount(() => {
+    let unlisten: (() => void) | undefined;
+    void (async () => {
+      unlisten = await listenEvent('settings:changed', () => {
+        void load();
+      });
+      await load();
+    })();
+    return () => {
+      unlisten?.();
+    };
+  });
 </script>
 
 <div class="flex flex-col gap-[var(--space-4)] p-[var(--space-4)]">
@@ -174,3 +258,12 @@
     {/each}
   {/if}
 </div>
+
+{#if errorMessage}
+  <div
+    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-[var(--radius-md)] bg-[var(--color-danger-soft)] p-[var(--space-2)] text-xs text-[var(--color-danger)]"
+    role="alert"
+  >
+    {errorMessage}
+  </div>
+{/if}

@@ -6,14 +6,13 @@ test('уведомления скрывают технические запис�
   await page.goto('/');
   await page.getByLabel('Уведомления').click();
 
-  const panel = page.frameLocator('iframe[title="Notifications plugin"]');
-  await expect(panel.getByText('Библиотека открыта')).toBeVisible();
-  await expect(panel.getByText('Плагин пропущен')).toBeHidden();
+  await expect(page.getByText('Библиотека открыта')).toBeVisible();
+  await expect(page.getByText('Плагин пропущен')).toBeHidden();
 
-  await panel.getByLabel('Технические').click();
+  await page.getByLabel('Технические').click();
 
-  await expect(panel.getByText('Плагин пропущен')).toBeVisible();
-  await expect(panel.getByText('Ошибка вызова плагина')).toBeVisible();
-  await expect(panel.getByText('WARN')).toBeVisible();
-  await expect(panel.getByText('ERROR')).toBeVisible();
+  await expect(page.getByText('Плагин пропущен')).toBeVisible();
+  await expect(page.getByText('Ошибка вызова плагина')).toBeVisible();
+  await expect(page.getByText('WARN')).toBeVisible();
+  await expect(page.getByText('ERROR')).toBeVisible();
 });
