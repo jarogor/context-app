@@ -11,6 +11,8 @@ pub mod plugin_operation;
 pub mod reader;
 pub mod save_workspaces;
 pub mod select_source_library;
+pub mod show_window;
+pub mod theme_preference;
 
 pub use active_library::__cmd__active_library;
 pub use active_library::__tauri_command_name_active_library;
@@ -79,3 +81,11 @@ pub use reader::reader_plugin_for_format;
 pub use reader::reader_viewer;
 pub use reader::reader_viewer_file;
 pub use reader::reader_viewer_files;
+
+pub use theme_preference::__cmd__theme_preference;
+pub use theme_preference::__tauri_command_name_theme_preference;
+pub use theme_preference::theme_preference;
+
+pub use show_window::__cmd__show_window;
+pub use show_window::__tauri_command_name_show_window;
+pub use show_window::show_window;

@@ -32,7 +32,9 @@ pub async fn invoke_plugin_operation(
             .map_err(|error| error.to_string())?;
 
         let sources = state.session.settings_sources();
-        let _ = state.app_host.refresh_settings_registry(&sources);
+        if let Ok(host) = state.app_host() {
+            let _ = host.refresh_settings_registry(&sources);
+        }
         crate::plugin::relay::emit(
             "plugin-store:changed",
             serde_json::json!({ "reason": "session" }),
@@ -44,7 +46,7 @@ pub async fn invoke_plugin_operation(
         .invoke(&operation, payload)
         .map_err(|error| error.to_string())?;
 
-    let _ = state.app_host.drain_and_deliver();
+    let _ = state.app_host().map(|host| host.drain_and_deliver());
 
     serde_json::from_str(&response).map_err(|error| error.to_string())
 }

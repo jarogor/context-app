@@ -17,6 +17,7 @@
 
 import type { NormalizedDeclaration } from './settings';
 import { loadSettingsUi } from './settings';
+import { applyAppThemeTracked, loadThemePreference } from './theme';
 import {
   listNotifications,
   loadTechnicalVisibleDefault,
@@ -98,7 +99,18 @@ export async function loadBootstrap(): Promise<BootstrapState> {
         loadNotificationsBootstrap(),
         loadStoreBootstrap(),
     ]);
+    // Тема применяется до первого кадра: чтение ошибок не прерывает вход.
+    await applyThemePreference();
     return { registry, activeLibrary: library, settings, notifications, store };
+}
+
+/** Чтение и применение сохранённой темы; ошибка оставляет системную тему. */
+async function applyThemePreference(): Promise<void> {
+    try {
+        applyAppThemeTracked(await loadThemePreference());
+    } catch {
+        applyAppThemeTracked('system');
+    }
 }
 
 /** Загрузка деклараций настроек; ошибка даёт пустое пространство с диагностикой. */

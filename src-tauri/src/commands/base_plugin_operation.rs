@@ -22,7 +22,7 @@ pub async fn invoke_base_plugin_operation(
 ) -> Result<Value, String> {
     let mut state = state.lock().map_err(|error| error.to_string())?;
     let response = state
-        .app_host
+        .app_host()?
         .invoke_capability(&capability, &operation, payload)
         .map_err(|error| error.to_string())?;
 
@@ -32,7 +32,7 @@ pub async fn invoke_base_plugin_operation(
 
     // Изменение настроек могло затронуть порог логирования.
     if capability == CAPABILITY_SETTINGS {
-        state.app_host.refresh_log_level();
+        state.app_host()?.refresh_log_level();
     }
 
     serde_json::from_str(&response).map_err(|error| error.to_string())

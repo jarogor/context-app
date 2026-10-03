@@ -14,7 +14,8 @@
       {
         "title": "Текстура",
         "width": 1100,
-        "height": 750
+        "height": 750,
+        "visible": false
       }
     ],
     "security": {

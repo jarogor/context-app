@@ -6,7 +6,7 @@
     message?: string;
   }
 
-  let { message = 'Загрузка рабочего места…' }: Props = $props();
+  let { message = 'Загрузка…' }: Props = $props();
 </script>
 
 <div

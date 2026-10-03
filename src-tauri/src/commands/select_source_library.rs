@@ -35,13 +35,15 @@ pub async fn select_source_library(
         .map_err(|error| error.to_string())?;
 
     let sources = state.session.settings_sources();
-    let _ = state.app_host.refresh_settings_registry(&sources);
+    if let Ok(host) = state.app_host() {
+        let _ = host.refresh_settings_registry(&sources);
+    }
 
     let history_root = state.app_state_root.clone();
     library_history::remember(&history_root, &path, &provider)
         .map_err(|error| error.to_string())?;
 
-    let _ = state.app_host.drain_and_deliver();
+    let _ = state.app_host().map(|host| host.drain_and_deliver());
 
     // Сессия перезагружена — сообщаем стору, что применённое состояние обновилось.
     crate::plugin::relay::emit(

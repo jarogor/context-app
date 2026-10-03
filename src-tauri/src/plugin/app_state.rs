@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::plugin::{AppInfo, AppPluginHost, PluginKind, PluginRuntime, PluginSession};
+use crate::plugin::{AppInfo, AppPluginHost, PluginKind, PluginRuntime, PluginSession, Severity};
 
 /// Настройки ленивого runtime чтения книг рабочим местом.
 ///
@@ -17,6 +17,26 @@ pub struct ReaderConfig {
     pub disabled: Vec<String>,
     /// Корень служебного хранилища source-плагинов runtime чтения.
     pub storage_root: PathBuf,
+    /// Путь к постоянному кэшу компиляции WASM.
+    pub cache: Option<PathBuf>,
+}
+
+/// Настройки ленивой сборки app-level runtime базовых плагинов.
+///
+/// Тяжёлая загрузка и компиляция WASM не выполняется на старте окна: они
+/// откладываются до первого обращения к runtime, чтобы появление окна не ждало
+/// компилятор плагинов.
+pub struct AppHostConfig {
+    /// Директории базовых плагинов в порядке приоритета.
+    pub directories: Vec<PathBuf>,
+    /// Корень служебного хранилища базовых плагинов.
+    pub storage_root: PathBuf,
+    /// Пользовательский каталог плагинов для стора.
+    pub user_plugins_dir: PathBuf,
+    /// Корень состояния активности плагинов.
+    pub activation_root: PathBuf,
+    /// Каталоги session-плагинов, видимые базовым плагинам.
+    pub catalog_dirs: Vec<PathBuf>,
     /// Путь к постоянному кэшу компиляции WASM.
     pub cache: Option<PathBuf>,
 }
@@ -47,8 +67,6 @@ fn sandbox_for(path: &str) -> Result<(PathBuf, String), String> {
 pub struct AppState {
     /// Сессия активного source-плагина библиотеки.
     pub session: PluginSession,
-    /// App-level runtime базовых плагинов каркаса.
-    pub app_host: AppPluginHost,
     /// Корень служебного состояния приложения.
     pub app_state_root: PathBuf,
     /// Сведения о приложении для страницы «Информация».
@@ -57,28 +75,74 @@ pub struct AppState {
     reader_config: ReaderConfig,
     /// Runtime чтения книг по вложению, собираемый при первом обращении.
     reader: Option<PluginRuntime>,
+    /// Настройки сборки runtime базовых плагинов.
+    app_host_config: AppHostConfig,
+    /// App-level runtime базовых плагинов, собираемый при первом обращении.
+    ///
+    /// Намеренно ленивый: компиляция WASM базовых плагинов не должна задерживать
+    /// появление окна приложения.
+    app_host: Option<AppPluginHost>,
     /// Содержимое файлов вложений по пути: ядро не интерпретирует байты.
     workplace_files: HashMap<String, Vec<u8>>,
 }
 
 impl AppState {
     /// Создание состояния из готовых составляющих.
+    ///
+    /// Runtime базовых плагинов не собирается: для него сохраняются настройки, а
+    /// сама сборка откладывается до первого обращения к `app_host`.
     pub fn new(
         session: PluginSession,
-        app_host: AppPluginHost,
         app_state_root: PathBuf,
         app_info: AppInfo,
         reader_config: ReaderConfig,
+        app_host_config: AppHostConfig,
     ) -> Self {
         Self {
             session,
-            app_host,
             app_state_root,
             app_info,
             reader_config,
             reader: None,
+            app_host_config,
+            app_host: None,
             workplace_files: HashMap::new(),
         }
+    }
+
+    /// Runtime базовых плагинов каркаса.
+    ///
+    /// Собирается лениво при первом обращении: загрузка и компиляция WASM
+    /// базовых плагинов, регистрация настроек, сброс журнала, порог логирования
+    /// и приветственное уведомление выполняются уже после появления окна.
+    pub fn app_host(&mut self) -> Result<&mut AppPluginHost, String> {
+        if self.app_host.is_none() {
+            let config = &self.app_host_config;
+            let mut host = AppPluginHost::load_with_cache(
+                &config.directories,
+                config.storage_root.clone(),
+                config.cache.as_deref(),
+            )
+            .map_err(|error| error.to_string())?;
+            host.set_plugin_store_root(config.user_plugins_dir.clone());
+            host.set_activation_root(config.activation_root.clone());
+            host.set_catalog_dirs(config.catalog_dirs.clone());
+            let _ = host.reset_notifications();
+            let _ = host.refresh_settings_registry(&[]);
+            host.refresh_log_level();
+            if host.welcome_notification_enabled() {
+                host.notify_user(
+                    Severity::Info,
+                    "Добро пожаловать в «Текстуру»",
+                    "app",
+                    serde_json::json!({}),
+                );
+            }
+            self.app_host = Some(host);
+        }
+        self.app_host
+            .as_mut()
+            .ok_or_else(|| "runtime базовых плагинов недоступен".to_string())
     }
 
     /// Сведения о приложении для страницы «Информация».
@@ -247,3 +311,7 @@ impl AppState {
         }))
     }
 }
+
+#[cfg(test)]
+#[path = "app_state_tests.rs"]
+mod tests;

@@ -51,6 +51,7 @@
   import type { QuoteAnchor } from './lib/reader/anchor';
   import { formatFromPath } from './lib/reader';
   import { invokeCommand, listenEvent, openDialog } from './lib/app-bridge';
+  import { applyAppThemeTracked, themeFromSettingsEvent } from './lib/theme';
 
   interface Props {
     /** Реестр рабочих мест, загруженный до первого рендера. */
@@ -726,6 +727,7 @@
   onMount(() => {
     let unlisten: (() => void) | undefined;
     let unlistenNotes: (() => void) | undefined;
+    let unlistenSettings: (() => void) | undefined;
     void (async () => {
       unlisten = await listenEvent('source-catalog-changed', (value) => {
         const payload = value as ActiveLibrary | null;
@@ -738,10 +740,17 @@
       unlistenNotes = await listenEvent('notes:changed', () => {
         notesRevision += 1;
       });
+      unlistenSettings = await listenEvent('settings:changed', (value) => {
+        const theme = themeFromSettingsEvent(value);
+        if (theme !== null) {
+          applyAppThemeTracked(theme);
+        }
+      });
     })();
     return () => {
       unlisten?.();
       unlistenNotes?.();
+      unlistenSettings?.();
     };
   });
 

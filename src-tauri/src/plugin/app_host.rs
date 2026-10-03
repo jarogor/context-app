@@ -41,6 +41,18 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
             { "value": "debug", "title": "Отладка и важнее" },
             { "value": "trace", "title": "Всё, включая трассу вызовов" }
           ]
+        },
+        {
+          "key": "appearance.theme",
+          "title": "Тема оформления",
+          "type": "select",
+          "description": "Светлая, тёмная или как в операционной системе",
+          "default": "system",
+          "options": [
+            { "value": "light", "title": "Светлая" },
+            { "value": "dark", "title": "Тёмная" },
+            { "value": "system", "title": "Как в системе" }
+          ]
         }
       ]
     }
@@ -279,8 +291,33 @@ impl AppPluginHost {
         set_log_level(self.log_level());
     }
 
+    /// Предпочтение темы оформления из настроек приложения.
+    ///
+    /// Значения `light`, `dark` и `system` возвращаются как есть; неизвестное
+    /// или отсутствующее значение трактуется как `system`.
+    pub fn theme_preference(&mut self) -> String {
+        let value = self.app_setting_string("appearance.theme");
+        match value.as_deref() {
+            Some("light") => "light".to_string(),
+            Some("dark") => "dark".to_string(),
+            _ => "system".to_string(),
+        }
+    }
+
     /// Чтение логического значения из секции настроек приложения.
     fn app_setting_bool(&mut self, key: &str) -> Option<bool> {
+        self.app_setting_value(key)
+            .and_then(|value| value.as_bool())
+    }
+
+    /// Чтение строкового значения из секции настроек приложения.
+    fn app_setting_string(&mut self, key: &str) -> Option<String> {
+        self.app_setting_value(key)
+            .and_then(|value| value.as_str().map(str::to_string))
+    }
+
+    /// Чтение значения по ключу из секции настроек приложения.
+    fn app_setting_value(&mut self, key: &str) -> Option<serde_json::Value> {
         let response = self
             .runtime
             .invoke_capability(
@@ -293,7 +330,7 @@ impl AppPluginHost {
             .ok()?
             .get("values")
             .and_then(|values| values.get(key))
-            .and_then(serde_json::Value::as_bool)
+            .cloned()
     }
 }
 

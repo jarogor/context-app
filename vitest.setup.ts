@@ -18,3 +18,23 @@ class ResizeObserverStub {
 if (!('ResizeObserver' in globalThis)) {
   (globalThis as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
 }
+
+/** Поддельный список медиа-запросов: jsdom не предоставляет `matchMedia`.
+ *
+ * Тема `system` подписывается на `(prefers-color-scheme: dark)`; в тестах
+ * достаточно объекта без событий и с предпочтением светлой темы.
+ */
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  const matchMedia = (query: string): MediaQueryList =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
+  (window as { matchMedia: unknown }).matchMedia = matchMedia;
+}

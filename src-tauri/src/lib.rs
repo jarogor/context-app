@@ -16,7 +16,7 @@ use crate::constants::{
     resolve_app_state_root, resolve_user_plugins_root, APP_DISPLAY_NAME, BASE_PLUGINS_DIR_NAME,
     PLUGINS_DIR_NAME,
 };
-use crate::plugin::{AppInfo, AppPluginHost, AppState, PluginSession, ReaderConfig};
+use crate::plugin::{AppHostConfig, AppInfo, AppState, PluginSession, ReaderConfig};
 
 /// Точка входа Tauri-приложения и generic plugin host.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -34,28 +34,19 @@ pub fn run() {
             let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let bundled_base = resource_dir.join(BASE_PLUGINS_DIR_NAME);
             let wasm_cache = crate::plugin::wasm_cache::prepare(&app_state_root);
-            let mut app_host = AppPluginHost::load_with_cache(
-                &base_plugin_directories(&bundled_base),
-                base_storage_root(),
-                wasm_cache.as_deref(),
-            )?;
-            app_host.set_plugin_store_root(user_plugins_dir.clone());
-            app_host.set_activation_root(app_state_root.clone());
-            app_host.set_catalog_dirs(session_plugin_directories(
-                &bundled_plugins_dir,
-                &user_plugins_dir,
-            ));
-            let _ = app_host.reset_notifications();
-            let _ = app_host.refresh_settings_registry(&[]);
-            app_host.refresh_log_level();
-            if app_host.welcome_notification_enabled() {
-                app_host.notify_user(
-                    crate::plugin::Severity::Info,
-                    "Добро пожаловать в «Текстуру»",
-                    "app",
-                    serde_json::json!({}),
-                );
-            }
+
+            // Тяжёлая загрузка и компиляция WASM базовых плагинов намеренно НЕ
+            // выполняется здесь: иначе окно остаётся белым, пока компилятор
+            // плагинов работает. Runtime базовых плагинов собирается лениво, при
+            // первом обращении, уже под экраном загрузки.
+            let app_host_config = AppHostConfig {
+                directories: base_plugin_directories(&bundled_base),
+                storage_root: base_storage_root(),
+                user_plugins_dir: user_plugins_dir.clone(),
+                activation_root: app_state_root.clone(),
+                catalog_dirs: session_plugin_directories(&bundled_plugins_dir, &user_plugins_dir),
+                cache: wasm_cache.clone(),
+            };
 
             // Прогрев source-плагинов идёт в фоне: первое открытие библиотеки
             // не должно ждать компиляции WASM.
@@ -91,11 +82,17 @@ pub fn run() {
 
             app.manage(Mutex::new(AppState::new(
                 host,
-                app_host,
                 app_state_root,
                 app_info,
                 reader_config,
+                app_host_config,
             )));
+
+            // Окно создано скрытым: его показывает интерфейс после первой
+            // отрисовки. Страховка на случай, если интерфейс не загрузился.
+            if let Some(window) = app.get_webview_window("main") {
+                crate::commands::show_window::schedule_fallback_show(window);
+            }
 
             crate::plugin::warmup::spawn_source_warmup(warmup_directories, wasm_cache);
 
@@ -112,6 +109,8 @@ pub fn run() {
             commands::get_workspaces,
             commands::save_workspaces,
             commands::plugin_activation_pending,
+            commands::theme_preference,
+            commands::show_window,
             commands::reader_formats,
             commands::reader_plugin_for_format,
             commands::reader_viewer,

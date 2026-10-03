@@ -39,6 +39,17 @@ const SETTINGS_FIELDS: Record<
                 { value: 'trace', title: 'Всё' },
             ],
         },
+        {
+            key: 'appearance.theme',
+            title: 'Тема оформления',
+            type: 'select',
+            default: 'system',
+            options: [
+                { value: 'light', title: 'Светлая' },
+                { value: 'dark', title: 'Тёмная' },
+                { value: 'system', title: 'Как в системе' },
+            ],
+        },
     ],
 };
 
@@ -47,6 +58,7 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
     'app.general': {
         'startup.welcome_notification': true,
         'diagnostics.log_level': 'info',
+        'appearance.theme': 'system',
     },
 };
 
@@ -137,6 +149,10 @@ function baseOperation(payload: unknown): unknown {
         const id = request.id ?? '';
         if (request.space === 'settings.section' && id in SETTINGS_VALUES) {
             Object.assign(SETTINGS_VALUES[id], request.values ?? {});
+            emitMockEvent('settings:changed', {
+                section: id,
+                values: { ...SETTINGS_VALUES[id] },
+            });
         }
         return { version: 1, spaces: settingsSpaces() };
     }
@@ -524,6 +540,8 @@ export function defaultMockConfig(): MockBridgeConfig {
             },
             select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
             active_library: () => null,
+            theme_preference: () => SETTINGS_VALUES['app.general']['appearance.theme'],
+            show_window: () => null,
             app_info: () => ({
                 name: 'Текстура',
                 version: '0.1.0',

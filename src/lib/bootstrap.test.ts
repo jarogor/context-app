@@ -111,4 +111,38 @@ describe('загрузка начального состояния', () => {
 
         await expect(loadBootstrap()).rejects.toThrow('реестр недоступен');
     });
+
+    it('применяет сохранённую тему до готовности оболочки', async () => {
+        document.documentElement.removeAttribute('data-theme');
+        invoke.mockImplementation(async (command: string) => {
+            if (command === 'get_workspaces') {
+                return { workspaces: [] };
+            }
+            if (command === 'theme_preference') {
+                return 'dark';
+            }
+            return null;
+        });
+
+        await loadBootstrap();
+
+        expect(document.documentElement.dataset.theme).toBe('dark');
+    });
+
+    it('оставляет системную тему, если чтение темы не удалось', async () => {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        invoke.mockImplementation(async (command: string) => {
+            if (command === 'get_workspaces') {
+                return { workspaces: [] };
+            }
+            if (command === 'theme_preference') {
+                throw new Error('тема недоступна');
+            }
+            return null;
+        });
+
+        await loadBootstrap();
+
+        expect(document.documentElement.dataset.theme).toBe('light');
+    });
 });
