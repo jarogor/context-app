@@ -11,7 +11,7 @@
 
 <div
   class={cn(
-    'flex aspect-[2/3] w-full items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]',
+    'bg-muted text-muted-foreground flex aspect-[2/3] w-full items-center justify-center rounded-sm',
     className,
   )}
   aria-hidden="true"

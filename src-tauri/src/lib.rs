@@ -110,6 +110,7 @@ pub fn run() {
             commands::save_workspaces,
             commands::plugin_activation_pending,
             commands::theme_preference,
+            commands::theme_palette,
             commands::show_window,
             commands::reader_formats,
             commands::reader_plugin_for_format,

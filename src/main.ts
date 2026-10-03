@@ -1,13 +1,16 @@
 import { mount } from 'svelte';
 import './app.css';
 import Root from './Root.svelte';
-import { applyAppTheme } from './lib/theme';
+import { applyAppPalette, applyAppTheme } from './lib/theme';
 import { showAppWindow } from './lib/window';
+import { DEFAULT_PALETTE } from '@texture/ui';
 
-// До первого кадра применяется системная тема: экран загрузки не должен быть
-// светлым, если у пользователя тёмная тема ОС. Сохранённое предпочтение
-// применится на стадии бутстрапа, до показа оболочки.
+// До первого кадра применяется системная тема и палитра по умолчанию: экран
+// загрузки не должен быть светлым, если у пользователя тёмная тема ОС, и не
+// должен мелькать чужой палитрой. Сохранённое оформление применится на стадии
+// бутстрапа, до показа оболочки.
 applyAppTheme('system');
+applyAppPalette(DEFAULT_PALETTE);
 
 // Статичный экран загрузки из index.html заменяется оболочкой: одновременно
 // виден только один экран загрузки.

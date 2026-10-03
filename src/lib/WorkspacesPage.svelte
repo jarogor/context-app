@@ -66,12 +66,12 @@
 </script>
 
 <div
-  class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-[var(--space-5)]"
+  class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-6"
   data-testid="workspaces-page"
 >
-  <div class="mb-[var(--space-4)] flex items-end gap-[var(--space-2)]">
-    <label class="flex min-w-0 flex-1 flex-col gap-[var(--space-1)]">
-      <span class="text-xs text-[var(--color-text-muted)]">Имя</span>
+  <div class="mb-4 flex items-end gap-2">
+    <label class="flex min-w-0 flex-1 flex-col gap-1">
+      <span class="text-xs text-[var(--muted-foreground)]">Имя</span>
       <Input
         bind:value={newName}
         placeholder="Новое рабочее место"
@@ -86,21 +86,21 @@
   </div>
 
   {#if workspaces.length === 0}
-    <p class="text-[var(--color-text-muted)]" data-testid="workspaces-empty">
+    <p class="text-[var(--muted-foreground)]" data-testid="workspaces-empty">
       Рабочих мест нет. Создайте рабочее место, чтобы открыть в нём книги.
     </p>
   {:else}
-    <ul class="flex list-none flex-col gap-[var(--space-2)] p-0">
+    <ul class="flex list-none flex-col gap-2 p-0">
       {#each workspaces as item (item.id)}
         <li
-          class="flex items-center gap-[var(--space-2)] rounded-[var(--radius-md)] border bg-[var(--color-surface)] p-[var(--space-2)]"
-          class:border-[var(--color-primary)]={item.id === activeId}
-          class:border-[var(--color-border-strong)]={item.id !== activeId}
+          class="flex items-center gap-2 rounded-md border bg-[var(--card)] p-2"
+          class:border-[var(--primary)]={item.id === activeId}
+          class:border-[var(--input)]={item.id !== activeId}
           data-testid="workspace-item"
         >
           {#if editingId === item.id}
-            <label class="flex min-w-0 flex-1 flex-col gap-[var(--space-1)]">
-              <span class="text-xs text-[var(--color-text-muted)]">Новое имя</span>
+            <label class="flex min-w-0 flex-1 flex-col gap-1">
+              <span class="text-xs text-[var(--muted-foreground)]">Новое имя</span>
               <Input
                 bind:value={editingName}
                 placeholder="Новое имя"
@@ -120,14 +120,14 @@
             <button
               type="button"
               data-testid="workspace-open"
-              class="min-w-0 flex-1 cursor-pointer truncate rounded-[var(--radius-sm)] px-[var(--space-2)] py-[6px] text-left text-[14px] [font:inherit] hover:bg-[var(--color-bg)]"
+              class="min-w-0 flex-1 cursor-pointer truncate rounded-sm px-2 py-[6px] text-left text-[14px] [font:inherit] hover:bg-[var(--background)]"
               title={item.name}
               onclick={() => onOpen(item.id)}
             >
               {item.name}
             </button>
             {#if item.id === activeId}
-              <span class="text-xs text-[var(--color-success)]" data-testid="workspace-active">
+              <span class="text-xs text-[var(--success)]" data-testid="workspace-active">
                 активное
               </span>
             {/if}

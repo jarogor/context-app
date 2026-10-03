@@ -14,7 +14,7 @@ test('дискретное поле настроек переключается'
   await page.goto('/');
   await page.getByLabel('Настройки').click();
 
-  const checkbox = page.locator('main input[type="checkbox"]').first();
+  const checkbox = page.locator('main [role="checkbox"]').first();
   await expect(checkbox).toBeChecked();
 
   await checkbox.click();

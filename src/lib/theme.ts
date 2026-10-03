@@ -1,24 +1,30 @@
-/** Тема оформления оболочки: чтение предпочтения и применение к документу.
+/** Оформление оболочки: чтение предпочтения и применение к документу.
  *
- * Логика темы (тип предпочтения и разрешение в светлую/тёмную) принадлежит
- * дизайн-системе `@texture/ui`. Оболочка лишь читает сохранённое предпочтение
- * из ядра, применяет его и реагирует на изменение настроек. Модуль чист от
- * Svelte и пригоден для тестов.
+ * Логика оформления (тип предпочтения, разрешение в светлую/тёмную и реестр
+ * палитр) принадлежит дизайн-системе `@texture/ui`. Оболочка лишь читает
+ * сохранённые значения из ядра, применяет их и реагирует на изменение настроек.
+ * Модуль чист от Svelte и пригоден для тестов.
  */
 
 import {
+  applyPalette,
   applyTheme,
+  normalizePaletteId,
   normalizeThemePreference,
+  type PaletteId,
   type ThemePreference,
   type UnsubscribeTheme,
 } from '@texture/ui';
 import { invokeCommand } from './app-bridge';
 
-/** Секция настроек приложения, изменение которой может сменить тему. */
+/** Секция настроек приложения, изменение которой может сменить оформление. */
 export const APP_SETTINGS_SECTION = 'app.general';
 
 /** Ключ значения темы в секции настроек приложения. */
 export const THEME_SETTING_KEY = 'appearance.theme';
+
+/** Ключ значения палитры в секции настроек приложения. */
+export const PALETTE_SETTING_KEY = 'appearance.palette';
 
 /** Чтение сохранённого предпочтения темы из ядра.
  *
@@ -28,6 +34,16 @@ export const THEME_SETTING_KEY = 'appearance.theme';
 export async function loadThemePreference(): Promise<ThemePreference> {
   const value = await invokeCommand('theme_preference', {});
   return normalizeThemePreference(value);
+}
+
+/** Чтение сохранённой палитры оформления из ядра.
+ *
+ * Неизвестное или отсутствующее значение приводится к палитре по умолчанию;
+ * ошибку чтения вызывающий обрабатывает сам.
+ */
+export async function loadThemePalette(): Promise<PaletteId> {
+  const value = await invokeCommand('theme_palette', {});
+  return normalizePaletteId(value);
 }
 
 /** Применение предпочтения темы к документу.
@@ -57,12 +73,41 @@ export function applyAppThemeTracked(preference: unknown): void {
   currentUnsubscribe = applyAppTheme(preference);
 }
 
+/** Применение палитры оформления к документу. */
+export function applyAppPalette(palette: unknown, root?: HTMLElement): void {
+  applyPalette(normalizePaletteId(palette), root);
+}
+
 /** Извлечение темы из события `settings:changed`.
  *
  * Возвращает предпочтение только для секции приложения; для других секций или
  * при отсутствии значения — `null`, чтобы оболочка не трогала тему зря.
  */
 export function themeFromSettingsEvent(payload: unknown): ThemePreference | null {
+  const values = appSettingsValues(payload);
+  if (values === null) {
+    return null;
+  }
+  const value = values[THEME_SETTING_KEY];
+  return value === undefined ? null : normalizeThemePreference(value);
+}
+
+/** Извлечение палитры из события `settings:changed`.
+ *
+ * Возвращает палитру только для секции приложения; для других секций или при
+ * отсутствии значения — `null`.
+ */
+export function paletteFromSettingsEvent(payload: unknown): PaletteId | null {
+  const values = appSettingsValues(payload);
+  if (values === null) {
+    return null;
+  }
+  const value = values[PALETTE_SETTING_KEY];
+  return value === undefined ? null : normalizePaletteId(value);
+}
+
+/** Значения секции приложения из события `settings:changed` или `null`. */
+function appSettingsValues(payload: unknown): Record<string, unknown> | null {
   if (typeof payload !== 'object' || payload === null) {
     return null;
   }
@@ -70,6 +115,5 @@ export function themeFromSettingsEvent(payload: unknown): ThemePreference | null
   if (event.section !== APP_SETTINGS_SECTION) {
     return null;
   }
-  const value = event.values?.[THEME_SETTING_KEY];
-  return value === undefined ? null : normalizeThemePreference(value);
+  return event.values ?? {};
 }

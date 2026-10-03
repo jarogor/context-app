@@ -6,7 +6,9 @@ export default defineConfig({
   timeout: 30_000,
   expect: {
     toHaveScreenshot: {
-      maxDiffPixelRatio: 0.02,
+      // Строгий порог: смена палитры токенов заметно меняет кадр и не должна
+      // маскироваться допуском. Оставляет запас лишь на сглаживание шрифтов.
+      maxDiffPixelRatio: 0.002,
     },
   },
   use: {

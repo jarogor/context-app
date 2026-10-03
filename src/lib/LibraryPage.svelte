@@ -177,16 +177,16 @@
 </script>
 
 {#if openedBook}
-  <div class="mx-auto max-w-[760px] p-[var(--space-5)]" data-testid="book-page">
-    <Button variant="ghost" size="sm" class="mb-[var(--space-4)]" onclick={closeBook}>
+  <div class="mx-auto max-w-[760px] p-6" data-testid="book-page">
+    <Button variant="ghost" size="sm" class="mb-4" onclick={closeBook}>
       ← К списку
     </Button>
 
-    <div class="flex flex-col gap-[var(--space-5)] sm:flex-row">
+    <div class="flex flex-col gap-6 sm:flex-row">
       <div class="w-[180px] flex-none">
         {#if openedBook.coverUri}
           <img
-            class="aspect-[2/3] w-full rounded-[var(--radius-md)] object-cover"
+            class="aspect-[2/3] w-full rounded-md object-cover"
             src={openedBook.coverUri}
             alt=""
           />
@@ -198,24 +198,24 @@
       <div class="min-w-0 flex-1">
         <h1 class="text-xl font-semibold" data-testid="book-title">{openedBook.title}</h1>
         {#if openedBook.authors.length > 0}
-          <p class="mt-[var(--space-1)] text-[var(--color-text-muted)]">
+          <p class="mt-1 text-[var(--muted-foreground)]">
             {openedBook.authors.map((author) => author.name).join(', ')}
           </p>
         {/if}
 
         {#if openedBook.series.length > 0}
-          <p class="mt-[var(--space-2)] text-[13px] text-[var(--color-text-muted)]">
+          <p class="mt-2 text-[13px] text-[var(--muted-foreground)]">
             Серия: {openedBook.series.map((entry) => entry.series.name).join(', ')}
           </p>
         {/if}
 
         {#if openedBook.tags.length > 0}
-          <p class="mt-[var(--space-1)] text-[13px] text-[var(--color-text-muted)]">
+          <p class="mt-1 text-[13px] text-[var(--muted-foreground)]">
             Теги: {openedBook.tags.map((tag) => tag.name).join(', ')}
           </p>
         {/if}
 
-        <div class="mt-[var(--space-5)] flex flex-wrap items-center gap-[var(--space-2)]">
+        <div class="mt-6 flex flex-wrap items-center gap-2">
           {#if canRead(openedBook)}
             <Button variant="primary" onclick={() => startReading(openedBook as BookWithCover)}>
               Открыть в рабочем месте
@@ -227,16 +227,16 @@
         </div>
 
         {#if externalError}
-          <p class="mt-[var(--space-3)] text-[var(--color-danger)]">{externalError}</p>
+          <p class="mt-3 text-[var(--destructive)]">{externalError}</p>
         {/if}
       </div>
     </div>
   </div>
 {:else}
-  <div class="p-[var(--space-5)]">
+  <div class="p-6">
     {#if librarySelected}
       <label
-        class="mb-[var(--space-4)] flex flex-col gap-[var(--space-1)] text-[13px] text-[var(--color-text-muted)]"
+        class="mb-4 flex flex-col gap-1 text-[13px] text-[var(--muted-foreground)]"
       >
         <span>Поиск</span>
         <Input
@@ -249,30 +249,30 @@
     {/if}
 
     {#if !librarySelected}
-      <p class="text-[var(--color-text-muted)]">
+      <p class="text-[var(--muted-foreground)]">
         Библиотека не открыта. Откройте её на странице «Библиотеки».
       </p>
     {:else if loading && books.length === 0}
-      <p class="text-[var(--color-text-muted)]">Загрузка…</p>
+      <p class="text-[var(--muted-foreground)]">Загрузка…</p>
     {:else if error}
-      <p class="text-[var(--color-danger)]">{error}</p>
+      <p class="text-[var(--destructive)]">{error}</p>
     {:else if books.length === 0}
-      <p class="text-[var(--color-text-muted)]">В библиотеке пока нет книг.</p>
+      <p class="text-[var(--muted-foreground)]">В библиотеке пока нет книг.</p>
     {:else}
       <ul
-        class="grid list-none gap-[var(--space-5)] p-0 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]"
+        class="grid list-none gap-6 p-0 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]"
       >
         {#each books as book (book.id)}
           <li>
             <button
-              class="flex w-full cursor-pointer flex-col gap-[var(--space-2)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-2)] text-left [font:inherit] hover:shadow-[var(--shadow-sm)]"
+              class="flex w-full cursor-pointer flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2 text-left [font:inherit] hover:shadow-sm"
               type="button"
               title="Страница книги"
               onclick={() => openBook(book)}
             >
               {#if book.coverUri}
                 <img
-                  class="aspect-[2/3] w-full rounded-[var(--radius-sm)] object-cover"
+                  class="aspect-[2/3] w-full rounded-sm object-cover"
                   src={book.coverUri}
                   alt=""
                 />
@@ -281,7 +281,7 @@
               {/if}
               <div>
                 <h2 class="text-[15px] font-semibold">{book.title}</h2>
-                <p class="mt-[var(--space-1)] text-[13px] text-[var(--color-text-muted)]">
+                <p class="mt-1 text-[13px] text-[var(--muted-foreground)]">
                   {book.authors.map((author) => author.name).join(', ')}
                 </p>
               </div>

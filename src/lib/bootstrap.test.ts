@@ -112,8 +112,9 @@ describe('загрузка начального состояния', () => {
         await expect(loadBootstrap()).rejects.toThrow('реестр недоступен');
     });
 
-    it('применяет сохранённую тему до готовности оболочки', async () => {
+    it('применяет сохранённые тему и палитру до готовности оболочки', async () => {
         document.documentElement.removeAttribute('data-theme');
+        document.documentElement.removeAttribute('data-palette');
         invoke.mockImplementation(async (command: string) => {
             if (command === 'get_workspaces') {
                 return { workspaces: [] };
@@ -121,16 +122,22 @@ describe('загрузка начального состояния', () => {
             if (command === 'theme_preference') {
                 return 'dark';
             }
+            if (command === 'theme_palette') {
+                return 'mist';
+            }
             return null;
         });
 
-        await loadBootstrap();
+        const state = await loadBootstrap();
 
+        expect(state.appearance).toEqual({ theme: 'dark', palette: 'mist' });
         expect(document.documentElement.dataset.theme).toBe('dark');
+        expect(document.documentElement.dataset.palette).toBe('mist');
     });
 
-    it('оставляет системную тему, если чтение темы не удалось', async () => {
+    it('оставляет оформление по умолчанию, если чтение не удалось', async () => {
         document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.setAttribute('data-palette', 'mist');
         invoke.mockImplementation(async (command: string) => {
             if (command === 'get_workspaces') {
                 return { workspaces: [] };
@@ -138,11 +145,16 @@ describe('загрузка начального состояния', () => {
             if (command === 'theme_preference') {
                 throw new Error('тема недоступна');
             }
+            if (command === 'theme_palette') {
+                throw new Error('палитра недоступна');
+            }
             return null;
         });
 
-        await loadBootstrap();
+        const state = await loadBootstrap();
 
+        expect(state.appearance).toEqual({ theme: 'system', palette: 'gruvbox' });
         expect(document.documentElement.dataset.theme).toBe('light');
+        expect(document.documentElement.dataset.palette).toBe('gruvbox');
     });
 });

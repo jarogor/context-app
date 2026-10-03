@@ -5,11 +5,13 @@
   import {
     loadBootstrap,
     type ActiveLibrary,
+    type AppearanceBootstrap,
     type NotificationsBootstrap,
     type SettingsBootstrap,
     type StoreBootstrap,
   } from './lib/bootstrap';
   import { normalizeRegistry } from './lib/workspace-registry';
+  import { DEFAULT_PALETTE } from '@texture/ui';
 
   /** Фаза начальной загрузки приложения. */
   type Phase = 'boot' | 'ready' | 'error';
@@ -25,6 +27,12 @@
 
   /** Сведения об активной библиотеке, переданные оболочке при запуске. */
   let initialLibrary: ActiveLibrary | null = $state(null);
+
+  /** Оформление, применённое до первого рендера. */
+  let initialAppearance: AppearanceBootstrap = $state({
+    theme: 'system',
+    palette: DEFAULT_PALETTE,
+  });
 
   /** Декларации настроек, загруженные до первого рендера. */
   let initialSettings: SettingsBootstrap = $state({ declarations: [], error: '' });
@@ -71,6 +79,7 @@
         }
         initialRegistry = state.registry;
         initialLibrary = state.activeLibrary;
+        initialAppearance = state.appearance;
         initialSettings = state.settings;
         initialNotifications = state.notifications;
         initialStore = state.store;
@@ -96,6 +105,7 @@
   <App
     initialRegistry={registry}
     initialLibrary={initialLibrary}
+    initialAppearance={initialAppearance}
     initialSettings={initialSettings}
     initialNotifications={initialNotifications}
     initialStore={initialStore}

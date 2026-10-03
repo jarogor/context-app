@@ -12,11 +12,6 @@
   let { class: className = '', children }: Props = $props();
 </script>
 
-<div
-  class={cn(
-    'rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-4)]',
-    className,
-  )}
->
+<div class={cn('bg-card text-card-foreground rounded-lg border p-4', className)}>
   {@render children()}
 </div>

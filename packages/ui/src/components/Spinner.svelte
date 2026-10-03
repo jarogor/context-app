@@ -10,7 +10,7 @@
 </script>
 
 <svg
-  class={cn('h-4 w-4 animate-spin text-[var(--color-text-muted)]', className)}
+  class={cn('text-muted-foreground h-4 w-4 animate-spin', className)}
   viewBox="0 0 24 24"
   fill="none"
   aria-hidden="true"

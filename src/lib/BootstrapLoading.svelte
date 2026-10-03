@@ -10,7 +10,7 @@
 </script>
 
 <div
-  class="flex h-full flex-col items-center justify-center gap-[var(--space-3)] text-[var(--color-text-muted)]"
+  class="flex h-full flex-col items-center justify-center gap-3 text-[var(--muted-foreground)]"
   data-testid="bootstrap-loading"
 >
   <Spinner class="h-6 w-6" />

@@ -10,8 +10,8 @@ use tauri::{Theme, WebviewWindow};
 /// появиться на тёмной теме ОС.
 fn background_for(theme: Theme) -> Color {
     match theme {
-        Theme::Dark => Color(0x12, 0x15, 0x1a, 0xff),
-        _ => Color(0xf5, 0xf6, 0xf8, 0xff),
+        Theme::Dark => Color(0x28, 0x28, 0x28, 0xff),
+        _ => Color(0xfb, 0xf1, 0xc7, 0xff),
     }
 }
 

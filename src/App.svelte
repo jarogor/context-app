@@ -28,6 +28,7 @@
     type WorkspaceRegistry,
   } from './lib/workspace-registry';
   import type { ActiveLibrary } from './lib/bootstrap';
+  import type { AppearanceBootstrap } from './lib/bootstrap';
   import type { SettingsBootstrap } from './lib/bootstrap';
   import type { NotificationsBootstrap } from './lib/bootstrap';
   import type { StoreBootstrap } from './lib/bootstrap';
@@ -51,13 +52,24 @@
   import type { QuoteAnchor } from './lib/reader/anchor';
   import { formatFromPath } from './lib/reader';
   import { invokeCommand, listenEvent, openDialog } from './lib/app-bridge';
-  import { applyAppThemeTracked, themeFromSettingsEvent } from './lib/theme';
+  import {
+    APP_SETTINGS_SECTION,
+    applyAppPalette,
+    applyAppThemeTracked,
+    paletteFromSettingsEvent,
+    THEME_SETTING_KEY,
+    themeFromSettingsEvent,
+  } from './lib/theme';
+  import { saveSettingsValues } from './lib/settings';
+  import { normalizeThemePreference, type ThemePreference } from '@texture/ui';
 
   interface Props {
     /** Реестр рабочих мест, загруженный до первого рендера. */
     initialRegistry: WorkspaceRegistry;
     /** Активная библиотека, загруженная до первого рендера. */
     initialLibrary: ActiveLibrary | null;
+    /** Оформление, применённое до первого рендера. */
+    initialAppearance: AppearanceBootstrap;
     /** Декларации настроек, загруженные до первого рендера. */
     initialSettings: SettingsBootstrap;
     /** Журнал уведомлений, загруженный до первого рендера. */
@@ -66,8 +78,14 @@
     initialStore: StoreBootstrap;
   }
 
-  let { initialRegistry, initialLibrary, initialSettings, initialNotifications, initialStore }: Props =
-    $props();
+  let {
+    initialRegistry,
+    initialLibrary,
+    initialAppearance,
+    initialSettings,
+    initialNotifications,
+    initialStore,
+  }: Props = $props();
 
   /** Страница раздела настроек. */
   type SettingsSection = 'general' | 'plugins' | 'about';
@@ -117,6 +135,24 @@
 
   /** Ошибка операций заметок для сообщения в шапке. */
   let notesError = $state<string | null>(null);
+
+  /** Предпочтение темы для кнопки-переключателя в шапке. */
+  let themePreference = $state<ThemePreference>(
+    untrack(() => normalizeThemePreference(initialAppearance.theme)),
+  );
+
+  /** Ошибка смены темы из шапки. */
+  let appearanceError = $state<string | null>(null);
+
+  /** Порядок цикла темы кнопкой в шапке. */
+  const THEME_CYCLE: readonly ThemePreference[] = ['light', 'dark', 'system'];
+
+  /** Названия тем по значению предпочтения. */
+  const themeTitles: Record<ThemePreference, string> = {
+    light: 'Светлая',
+    dark: 'Тёмная',
+    system: 'Как в системе',
+  };
 
   /** Заметки-цитаты активного набора книги. */
   let notes: Note[] = $state([]);
@@ -256,6 +292,29 @@
   /** Переключение панели уведомлений. */
   function toggleNotifications() {
     notificationsOpen = !notificationsOpen;
+  }
+
+  /** Сохранение оформления в секции настроек приложения.
+   *
+   * Изменение применяется сразу (кнопка реагирует мгновенно), а сохранение идёт
+   * асинхронно; событие `settings:changed` подтверждает записанное значение.
+   */
+  async function saveAppearance(values: Record<string, unknown>) {
+    try {
+      await saveSettingsValues(APP_SETTINGS_SECTION, values);
+      appearanceError = null;
+    } catch (error) {
+      appearanceError = String(error);
+    }
+  }
+
+  /** Циклическое переключение темы кнопкой в шапке: светлая → тёмная → система. */
+  function cycleTheme() {
+    const index = THEME_CYCLE.indexOf(themePreference);
+    const next = THEME_CYCLE[(index + 1) % THEME_CYCLE.length];
+    themePreference = next;
+    applyAppThemeTracked(next);
+    void saveAppearance({ [THEME_SETTING_KEY]: next });
   }
 
   /** Выбор активной вкладки. */
@@ -743,7 +802,13 @@
       unlistenSettings = await listenEvent('settings:changed', (value) => {
         const theme = themeFromSettingsEvent(value);
         if (theme !== null) {
+          themePreference = theme;
           applyAppThemeTracked(theme);
+        }
+        // Палитра меняется в настройках; здесь достаточно применить её.
+        const nextPalette = paletteFromSettingsEvent(value);
+        if (nextPalette !== null) {
+          applyAppPalette(nextPalette);
         }
       });
     })();
@@ -779,27 +844,27 @@
 
 <div class="flex h-full flex-col">
   <header
-    class="flex flex-[0_0_48px] items-center gap-[var(--space-3)] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-4)]"
+    class="flex flex-[0_0_48px] items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4"
   >
-    <span class="text-base font-bold text-[var(--color-primary)]">Текстура</span>
+    <span class="text-base font-bold text-[var(--primary)]">Текстура</span>
     {#if showLibrary()}
       {#if activeLibrary?.provider_name}
         <Badge>{activeLibrary.provider_name}</Badge>
       {/if}
       <span
-        class="max-w-[280px] truncate text-sm text-[var(--color-text-muted)]"
+        class="max-w-[280px] truncate text-sm text-[var(--muted-foreground)]"
         title={activeLibrary?.path ?? ''}
       >
         {libraryName()}
       </span>
     {/if}
     {#if showSectionLabel()}
-      <span class="text-sm text-[var(--color-text-muted)]">{sectionTitle}</span>
+      <span class="text-sm text-[var(--muted-foreground)]">{sectionTitle}</span>
     {/if}
-    <div class="ml-auto flex items-center gap-[var(--space-2)]">
+    <div class="ml-auto flex items-center gap-2">
       {#if registryError}
         <span
-          class="whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--color-danger)] px-[var(--space-2)] py-[2px] text-[12px] text-[var(--color-danger)]"
+          class="whitespace-nowrap rounded-md border border-[var(--destructive)] px-2 py-[2px] text-[12px] text-[var(--destructive)]"
           title={registryError}
         >
           Не удалось сохранить рабочее место
@@ -807,15 +872,23 @@
       {/if}
       {#if notesError}
         <span
-          class="whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--color-danger)] px-[var(--space-2)] py-[2px] text-[12px] text-[var(--color-danger)]"
+          class="whitespace-nowrap rounded-md border border-[var(--destructive)] px-2 py-[2px] text-[12px] text-[var(--destructive)]"
           title={notesError}
         >
           Ошибка заметок
         </span>
       {/if}
+      {#if appearanceError}
+        <span
+          class="whitespace-nowrap rounded-md border border-[var(--destructive)] px-2 py-[2px] text-[12px] text-[var(--destructive)]"
+          title={appearanceError}
+        >
+          Ошибка оформления
+        </span>
+      {/if}
       {#if activationPending}
         <span
-          class="whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--color-warning)] px-[var(--space-2)] py-[2px] text-[12px] text-[var(--color-warning)]"
+          class="whitespace-nowrap rounded-md border border-[var(--warning)] px-2 py-[2px] text-[12px] text-[var(--warning)]"
           title="Изменения плагинов применятся после перезапуска приложения или переоткрытия библиотеки"
         >
           Нужен перезапуск
@@ -837,10 +910,10 @@
           />
         </svg>
         <span
-          class="absolute -top-[6px] -right-[6px] flex h-[18px] min-w-[18px] items-center justify-center rounded-[9px] px-[5px] text-[11px] font-bold text-[var(--color-primary-fg)]"
+          class="absolute -top-[6px] -right-[6px] flex h-[18px] min-w-[18px] items-center justify-center rounded-[9px] px-[5px] text-[11px] font-bold text-[var(--primary-foreground)]"
           style:background={unreadCount === 0
-            ? 'var(--color-border-strong)'
-            : 'var(--color-success)'}
+            ? 'var(--input)'
+            : 'var(--success)'}
         >
           {unreadCount}
         </span>
@@ -883,6 +956,40 @@
           />
           <path d="M3.5 8.5h17" stroke="currentColor" stroke-width="2" />
           <path d="M9 8.5V20" stroke="currentColor" stroke-width="2" />
+        </svg>
+      </Button>
+      <Button
+        variant="secondary"
+        size="icon"
+        title={`Тема: ${themeTitles[themePreference]} (нажмите, чтобы переключить)`}
+        ariaLabel="Переключить тему"
+        onclick={cycleTheme}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          {#if themePreference === 'light'}
+            <circle cx="12" cy="12" r="4.5" fill="currentColor" />
+            <path
+              d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              fill="none"
+            />
+          {:else if themePreference === 'dark'}
+            <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor" />
+          {:else}
+            <rect
+              x="2.5"
+              y="4"
+              width="19"
+              height="13"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            />
+            <path d="M8 20.5h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          {/if}
         </svg>
       </Button>
       <Button
@@ -969,7 +1076,7 @@
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!settingsOpen}>
         <Menu
           ariaLabel="Разделы настроек"
-          class="flex-[0_0_200px] border-r border-[var(--color-border)] bg-[var(--color-bg)] p-[var(--space-3)]"
+          class="flex-[0_0_200px] border-r border-[var(--border)] bg-[var(--background)] p-3"
         >
           <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
             Настройки
@@ -1006,7 +1113,7 @@
       </div>
     </main>
     <aside
-      class="flex min-w-0 flex-[0_0_500px] border-l border-[var(--color-border)] max-[899px]:fixed max-[899px]:inset-x-0 max-[899px]:top-[48px] max-[899px]:bottom-0 max-[899px]:z-[1000] max-[899px]:flex-none max-[899px]:border-l-0"
+      class="flex min-w-0 flex-[0_0_500px] border-l border-[var(--border)] max-[899px]:fixed max-[899px]:inset-x-0 max-[899px]:top-[48px] max-[899px]:bottom-0 max-[899px]:z-[1000] max-[899px]:flex-none max-[899px]:border-l-0"
       class:hidden={!notificationsOpen}
     >
       <NotificationsPanel

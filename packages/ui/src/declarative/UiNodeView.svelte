@@ -54,16 +54,16 @@
 {:else if node.type === 'Heading'}
   <svelte:element
     this={`h${Math.min(6, Math.max(1, level))}`}
-    class="mb-[var(--space-1)] text-base font-semibold"
+    class="mb-1 text-base font-semibold"
   >
     {node.props?.text ?? ''}
   </svelte:element>
 {:else if node.type === 'Text'}
-  <p class="mb-[var(--space-2)] text-[13px] text-[var(--color-text-muted)]">
+  <p class="text-muted-foreground mb-2 text-[13px]">
     {node.props?.text ?? ''}
   </p>
 {:else if node.type === 'Checkbox'}
-  <label class="flex items-center gap-[var(--space-2)] text-[13px]">
+  <label class="flex items-center gap-2 text-[13px]">
     <Checkbox
       id={controlId}
       checked={values[name] === true}
@@ -78,9 +78,9 @@
     <span>{node.props?.label ?? ''}</span>
   </label>
 {:else if node.type === 'Input'}
-  <div class="flex flex-col gap-[var(--space-1)]">
+  <div class="flex flex-col gap-1">
     {#if node.props?.label}
-      <label class="text-[13px] text-[var(--color-text-muted)]" for={controlId}>
+      <label class="text-muted-foreground text-[13px]" for={controlId}>
         {node.props.label}
       </label>
     {/if}
@@ -98,9 +98,9 @@
     />
   </div>
 {:else if node.type === 'Textarea'}
-  <div class="flex flex-col gap-[var(--space-1)]">
+  <div class="flex flex-col gap-1">
     {#if node.props?.label}
-      <label class="text-[13px] text-[var(--color-text-muted)]" for={controlId}>
+      <label class="text-muted-foreground text-[13px]" for={controlId}>
         {node.props.label}
       </label>
     {/if}
@@ -118,9 +118,9 @@
     />
   </div>
 {:else if node.type === 'Select'}
-  <div class="flex flex-col gap-[var(--space-1)]">
+  <div class="flex flex-col gap-1">
     {#if node.props?.label}
-      <label class="text-[13px] text-[var(--color-text-muted)]" for={controlId}>
+      <label class="text-muted-foreground text-[13px]" for={controlId}>
         {node.props.label}
       </label>
     {/if}
@@ -157,7 +157,7 @@
     {node.props?.label ?? ''}
   </Button>
 {:else}
-  <span class={cn('text-[13px] text-[var(--color-text-muted)]')}>
+  <span class={cn('text-muted-foreground text-[13px]')}>
     Неизвестный компонент: {node.type}
   </span>
 {/if}

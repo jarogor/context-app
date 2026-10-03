@@ -1,74 +1,214 @@
 /* Дизайн-токены Текстуры.
  *
- * Единственный источник оформления: цвета, радиусы, отступы и шрифты.
- * Компоненты обязаны ссылаться на эти переменные, а не на литералы.
+ * Основа — стандартная схема shadcn-svelte поверх примитивов Bits UI и
+ * Tailwind v4. Токены существуют в нескольких палитрах, у каждой — светлый и
+ * тёмный наборы. Активный набор выбирают два атрибута на корне документа:
+ * `data-theme` (`light`/`dark`) выбирает светлую или тёмную сторону, а
+ * `data-palette` — саму палитру. Оба атрибута выставляет модуль темы
+ * `theme.ts`/`palettes.ts`, компоненты о теме и палитре не знают.
  *
- * Токены существуют в двух наборах — светлом (`:root`) и тёмном
- * (`:root[data-theme='dark']`). Активный набор выбирает атрибут `data-theme` на
- * корне документа: его выставляет модуль темы `theme.ts`, а компоненты о теме
- * не знают.
+ * Палитра по умолчанию — официальная Gruvbox (`morhetz/gruvbox`): тёплые
+ * приглушённые цвета, значения заданы hex из первоисточника. Она лежит в
+ * `:root` (светлый набор) и `:root[data-theme='dark']` (тёмный), поэтому
+ * работает даже до установки атрибутов (статичный экран до бандла). Палитра
+ * Mist — отклонение от Gruvbox к прежнему стандартному набору shadcn; она
+ * подключается атрибутом `data-palette='mist'`.
+ *
+ * Помимо стандартных токенов объявлены только те, что нужны поверхностям и
+ * отсутствуют в стандарте: `--success`/`--warning` и производные мягкие фоны
+ * (`--primary-soft`, `--destructive-soft`, `--destructive-border`) через
+ * `color-mix`; производные общие, их значения подстраиваются под активный набор.
+ *
+ * Блок `@theme inline` превращает токены в утилиты Tailwind (`bg-background`,
+ * `text-muted-foreground`, `border-border`, `rounded-lg`, …).
  */
 :root {
   color-scheme: light;
 
-  --color-bg: #f5f6f8;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f2f4f7;
-  --color-text: #1f2933;
-  --color-text-muted: #6b7280;
-  --color-border: #e2e4e8;
-  --color-border-strong: #c3cbd6;
-
-  --color-primary: #315f9e;
-  --color-primary-fg: #ffffff;
-  --color-primary-soft: #eef5ff;
-  --color-accent: #e6efff;
-
-  --color-danger: #b3261e;
-  --color-danger-soft: #fdecea;
-  --color-danger-border: #e0a9a5;
-  --color-success: #3f9142;
-  --color-warning: #c77700;
-
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  /* Производные общие для всех палитр: ссылаются на базовые токены, поэтому
+   * пересчитываются под активный набор без повторного объявления. */
+  --primary-soft: color-mix(in oklab, var(--primary) 14%, var(--background));
+  --destructive-soft: color-mix(in oklab, var(--destructive) 14%, var(--background));
+  --destructive-border: color-mix(in oklab, var(--destructive) 45%, var(--border));
+
+  /* Палитра Gruvbox по умолчанию, светлый набор (bg0 #fbf1c7, bg1 #ebdbb2,
+   * fg1 #3c3836, blue #076678, red #9d0006, green #79740e, yellow #b57614). */
+  --background: #fbf1c7;
+  --foreground: #3c3836;
+  --card: #f9f5d7;
+  --card-foreground: #3c3836;
+  --popover: #f9f5d7;
+  --popover-foreground: #3c3836;
+  --primary: #076678;
+  --primary-foreground: #fbf1c7;
+  --secondary: #ebdbb2;
+  --secondary-foreground: #3c3836;
+  --muted: #ebdbb2;
+  --muted-foreground: #7c6f64;
+  --accent: #ebdbb2;
+  --accent-foreground: #3c3836;
+  --destructive: #9d0006;
+  --destructive-foreground: #fbf1c7;
+  /* Границы мягкие: смесь переднего плана с фоном, а не отдельный gruvbox-тон —
+   * линии лишь намечают контур и не спорят с тёплым фоном. */
+  --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 22%, var(--background));
+  --ring: #076678;
+  --radius: 0.625rem;
+  --sidebar: #f9f5d7;
+  --sidebar-foreground: #3c3836;
+  --sidebar-primary: #076678;
+  --sidebar-primary-foreground: #fbf1c7;
+  --sidebar-accent: #ebdbb2;
+  --sidebar-accent-foreground: #3c3836;
+  --sidebar-border: color-mix(in oklab, var(--foreground) 15%, var(--background));
+  --sidebar-ring: #076678;
+  --success: #79740e;
+  --warning: #b57614;
 }
 
-/* Тёмный набор токенов. Включается атрибутом `data-theme='dark'` на корне
- * документа; `color-scheme` синхронизируется с активной темой. */
+/* Палитра Gruvbox, тёмный набор (bg0 #282828, bg0_s #32302f, bg1 #3c3836,
+ * fg1 #ebdbb2, blue #83a598, red #fb4934, green #b8bb26, yellow #fabd2f). */
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --color-bg: #12151a;
-  --color-surface: #1b1f26;
-  --color-surface-muted: #232830;
-  --color-text: #e7eaf0;
-  --color-text-muted: #9aa4b2;
-  --color-border: #2c333d;
-  --color-border-strong: #414b58;
+  --background: #282828;
+  --foreground: #ebdbb2;
+  --card: #32302f;
+  --card-foreground: #ebdbb2;
+  --popover: #32302f;
+  --popover-foreground: #ebdbb2;
+  --primary: #83a598;
+  --primary-foreground: #282828;
+  --secondary: #3c3836;
+  --secondary-foreground: #ebdbb2;
+  --muted: #3c3836;
+  --muted-foreground: #a89984;
+  --accent: #3c3836;
+  --accent-foreground: #ebdbb2;
+  --destructive: #fb4934;
+  --destructive-foreground: #282828;
+  /* Границы мягкие: смесь переднего плана с фоном (см. светлый набор). */
+  --border: color-mix(in oklab, var(--foreground) 14%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
+  --ring: #83a598;
+  --sidebar: #32302f;
+  --sidebar-foreground: #ebdbb2;
+  --sidebar-primary: #83a598;
+  --sidebar-primary-foreground: #282828;
+  --sidebar-accent: #3c3836;
+  --sidebar-accent-foreground: #ebdbb2;
+  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
+  --sidebar-ring: #83a598;
+  --success: #b8bb26;
+  --warning: #fabd2f;
+}
 
-  --color-primary: #6ea8fe;
-  --color-primary-fg: #0f1319;
-  --color-primary-soft: #1d2b40;
-  --color-accent: #253044;
+/* Палитра Mist — прежний стандартный набор shadcn-svelte; светлый набор.
+ *
+ * Селектор специфичнее `:root`, поэтому перекрывает светлую сторону Gruvbox;
+ * тёмная сторона Mist специфичнее обеих и перекрывает набор Gruvbox. */
+:root[data-palette='mist'] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.148 0.004 228.8);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.148 0.004 228.8);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.148 0.004 228.8);
+  --primary: oklch(0.218 0.008 223.9);
+  --primary-foreground: oklch(0.987 0.002 197.1);
+  --secondary: oklch(0.963 0.002 197.1);
+  --secondary-foreground: oklch(0.218 0.008 223.9);
+  --muted: oklch(0.963 0.002 197.1);
+  --muted-foreground: oklch(0.56 0.021 213.5);
+  --accent: oklch(0.963 0.002 197.1);
+  --accent-foreground: oklch(0.218 0.008 223.9);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.987 0.002 197.1);
+  --border: oklch(0.925 0.005 214.3);
+  --input: oklch(0.925 0.005 214.3);
+  --ring: oklch(0.723 0.014 214.4);
+  --sidebar: oklch(0.987 0.002 197.1);
+  --sidebar-foreground: oklch(0.148 0.004 228.8);
+  --sidebar-primary: oklch(0.218 0.008 223.9);
+  --sidebar-primary-foreground: oklch(0.987 0.002 197.1);
+  --sidebar-accent: oklch(0.963 0.002 197.1);
+  --sidebar-accent-foreground: oklch(0.218 0.008 223.9);
+  --sidebar-border: oklch(0.925 0.005 214.3);
+  --sidebar-ring: oklch(0.723 0.014 214.4);
+  --success: oklch(62.7% 0.194 149.214);
+  --warning: oklch(66.6% 0.179 58.318);
+}
 
-  --color-danger: #ff8a80;
-  --color-danger-soft: #3a1f1d;
-  --color-danger-border: #7a3b36;
-  --color-success: #7bd88f;
-  --color-warning: #ffc266;
+/* Палитра Mist, тёмный набор. */
+:root[data-palette='mist'][data-theme='dark'] {
+  color-scheme: dark;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --background: oklch(0.148 0.004 228.8);
+  --foreground: oklch(0.987 0.002 197.1);
+  --card: oklch(0.218 0.008 223.9);
+  --card-foreground: oklch(0.987 0.002 197.1);
+  --popover: oklch(0.218 0.008 223.9);
+  --popover-foreground: oklch(0.987 0.002 197.1);
+  --primary: oklch(0.925 0.005 214.3);
+  --primary-foreground: oklch(0.218 0.008 223.9);
+  --secondary: oklch(0.275 0.011 216.9);
+  --secondary-foreground: oklch(0.987 0.002 197.1);
+  --muted: oklch(0.275 0.011 216.9);
+  --muted-foreground: oklch(0.723 0.014 214.4);
+  --accent: oklch(0.275 0.011 216.9);
+  --accent-foreground: oklch(0.987 0.002 197.1);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.987 0.002 197.1);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.56 0.021 213.5);
+  --sidebar: oklch(0.218 0.008 223.9);
+  --sidebar-foreground: oklch(0.987 0.002 197.1);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.987 0.002 197.1);
+  --sidebar-accent: oklch(0.275 0.011 216.9);
+  --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.56 0.021 213.5);
+  --success: oklch(87.1% 0.15 154.449);
+  --warning: oklch(82.8% 0.189 84.429);
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-primary-soft: var(--primary-soft);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-border: var(--destructive-border);
 }

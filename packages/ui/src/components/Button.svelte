@@ -1,3 +1,33 @@
+<script lang="ts" module>
+  import { type VariantProps, tv } from 'tailwind-variants';
+
+  /** Варианты оформления кнопки по стандарту shadcn-svelte. */
+  export const buttonVariants = tv({
+    base: 'focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+    variants: {
+      variant: {
+        primary: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs',
+        secondary:
+          'bg-background hover:bg-accent hover:text-accent-foreground border shadow-xs',
+        ghost: 'hover:bg-accent hover:text-accent-foreground',
+        danger: 'bg-destructive hover:bg-destructive/90 text-white shadow-xs',
+      },
+      size: {
+        md: 'h-9 px-4 py-2',
+        sm: 'h-8 gap-1.5 px-3',
+        icon: 'size-9',
+      },
+    },
+    defaultVariants: {
+      variant: 'secondary',
+      size: 'md',
+    },
+  });
+
+  /** Допустимые варианты кнопки. */
+  export type ButtonVariant = VariantProps<typeof buttonVariants>['variant'];
+</script>
+
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { cn } from '../utils';
@@ -37,23 +67,6 @@
     onclick,
     children,
   }: Props = $props();
-
-  const variants: Record<string, string> = {
-    primary:
-      'border-transparent bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:opacity-90',
-    secondary:
-      'border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]',
-    ghost:
-      'border-transparent bg-transparent text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]',
-    danger:
-      'border-[var(--color-danger-border)] bg-[var(--color-surface)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]',
-  };
-
-  const sizes: Record<string, string> = {
-    md: 'h-9 px-[var(--space-3)] text-sm',
-    sm: 'h-8 px-[var(--space-2)] text-xs',
-    icon: 'h-9 w-9 p-0',
-  };
 </script>
 
 <button
@@ -63,12 +76,7 @@
   aria-label={ariaLabel}
   aria-pressed={ariaPressed}
   {onclick}
-  class={cn(
-    'inline-flex cursor-pointer items-center justify-center gap-[var(--space-1)] rounded-[var(--radius-md)] border [font:inherit] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-    variants[variant],
-    sizes[size],
-    className,
-  )}
+  class={cn(buttonVariants({ variant, size }), className)}
 >
   {@render children()}
 </button>

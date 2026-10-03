@@ -234,6 +234,41 @@ fn refresh_registry_includes_theme_field() {
     cleanup(&storage);
 }
 
+/// Проверка, что поле выбора палитры зарегистрировано в секции приложения.
+#[test]
+fn refresh_registry_includes_palette_field() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-palette-field");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+
+    let output = host
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
+        .expect("список секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
+    let app_section = parsed["sections"]
+        .as_array()
+        .expect("массив секций")
+        .iter()
+        .find(|section| section["id"] == "app.general")
+        .expect("секция приложения");
+    let palette_field = app_section["fields"]
+        .as_array()
+        .expect("поля секции")
+        .iter()
+        .find(|field| field["key"] == "appearance.palette")
+        .expect("поле палитры");
+    assert_eq!(palette_field["type"], "select", "тип поля палитры");
+    assert_eq!(
+        app_section["values"]["appearance.palette"], "gruvbox",
+        "значение по умолчанию для палитры"
+    );
+    cleanup(&storage);
+}
+
 /// Проверка сквозного сценария настроек: реестр приложения и уведомлений и
 /// сохранение значения между перезапусками runtime.
 #[test]
@@ -466,6 +501,35 @@ fn theme_preference_reads_setting() {
         host.theme_preference(),
         "system",
         "неизвестное значение приведено к system"
+    );
+    cleanup(&storage);
+}
+
+/// Проверка чтения палитры оформления из настроек приложения.
+#[test]
+fn theme_palette_reads_setting() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-theme-palette");
+    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+    assert_eq!(host.theme_palette(), "gruvbox", "значение по умолчанию");
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "appearance.palette": "mist" }
+        }),
+    )
+    .expect("сохранение палитры");
+    assert_eq!(
+        host.theme_palette(),
+        "mist",
+        "палитра прочитана из настроек"
     );
     cleanup(&storage);
 }

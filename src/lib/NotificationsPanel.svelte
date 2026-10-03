@@ -112,15 +112,15 @@
   /** Цвет акцента записи по уровню и важности. */
   function accent(entry: NotificationEntry): string {
     if (entry.level === 'User') {
-      return 'var(--color-success)';
+      return 'var(--success)';
     }
     if (entry.severity === 'error') {
-      return 'var(--color-danger)';
+      return 'var(--destructive)';
     }
     if (entry.severity === 'warn') {
-      return 'var(--color-warning)';
+      return 'var(--warning)';
     }
-    return 'var(--color-primary)';
+    return 'var(--primary)';
   }
 
   /** Человекочитаемая подпись степени серьёзности. */
@@ -143,19 +143,19 @@
   }
 </script>
 
-<div class="flex h-full flex-col overflow-hidden bg-[var(--color-surface)]">
+<div class="flex h-full flex-col overflow-hidden bg-[var(--card)]">
   <div
-    class="flex items-center gap-[var(--space-2)] border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] px-[var(--space-4)] py-[var(--space-3)]"
+    class="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--muted)] px-4 py-3"
   >
-    <span class="text-[15px] font-bold text-[var(--color-primary)]">Уведомления</span>
+    <span class="text-[15px] font-bold text-[var(--primary)]">Уведомления</span>
     <span
-      class="flex h-[22px] min-w-[22px] items-center justify-center rounded-[11px] px-[6px] text-xs font-bold text-[var(--color-primary-fg)]"
-      style:background={unreadUser === 0 ? 'var(--color-border-strong)' : 'var(--color-success)'}
+      class="flex h-[22px] min-w-[22px] items-center justify-center rounded-[11px] px-[6px] text-xs font-bold text-[var(--primary-foreground)]"
+      style:background={unreadUser === 0 ? 'var(--input)' : 'var(--success)'}
     >
       {unreadUser}
     </span>
-    <div class="ml-auto flex items-center gap-[var(--space-2)]">
-      <label class="flex cursor-pointer items-center gap-[var(--space-1)] text-[13px]">
+    <div class="ml-auto flex items-center gap-2">
+      <label class="flex cursor-pointer items-center gap-1 text-[13px]">
         <Checkbox bind:checked={technicalVisible} />
         Технические
       </label>
@@ -165,15 +165,15 @@
       <Button variant="secondary" size="sm" onclick={clearEntries}>Очистить</Button>
     </div>
   </div>
-  <div class="flex-1 overflow-y-auto p-[var(--space-2)]">
+  <div class="flex-1 overflow-y-auto p-2">
     {#if visibleEntries.length === 0}
-      <div class="p-[var(--space-5)] text-center text-[var(--color-text-muted)]">
+      <div class="p-6 text-center text-[var(--muted-foreground)]">
         Нет уведомлений
       </div>
     {:else}
       {#each visibleEntries as entry (entry.id)}
         <div
-          class="mb-[var(--space-2)] rounded-[var(--radius-md)] border border-l-[3px] border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-2)]"
+          class="mb-2 rounded-md border border-l-[3px] border-[var(--border)] bg-[var(--card)] p-2"
           style:border-left-color={accent(entry)}
           class:opacity-60={entry.read}
         >
@@ -183,15 +183,15 @@
           <Badge
             variant="muted"
             class={entry.severity === 'error'
-              ? 'text-[var(--color-danger)]'
+              ? 'text-[var(--destructive)]'
               : entry.severity === 'warn'
-                ? 'text-[var(--color-warning)]'
+                ? 'text-[var(--warning)]'
                 : ''}
           >
             {severityLabels[entry.severity] ?? entry.severity}
           </Badge>
           <span class="break-words">{entry.message}</span>
-          <span class="mt-[var(--space-1)] block text-[11px] text-[var(--color-text-muted)]">
+          <span class="mt-1 block text-[11px] text-[var(--muted-foreground)]">
             {formatTime(entry.timestamp)}
           </span>
         </div>
@@ -202,7 +202,7 @@
 
 {#if errorMessage}
   <div
-    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-[var(--radius-md)] bg-[var(--color-danger-soft)] p-[var(--space-2)] text-xs text-[var(--color-danger)]"
+    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-md bg-[var(--destructive-soft)] p-2 text-xs text-[var(--destructive)]"
     role="alert"
   >
     {errorMessage}

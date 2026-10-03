@@ -4,6 +4,18 @@
 /* Классы компонентов дизайн-системы должны попадать в сборку оболочки. */
 @source '../packages/ui/src';
 
+/* Цвет границ по умолчанию — из токена дизайн-системы. В Tailwind v4 утилита
+ * `border` без цвета берёт currentColor, отчего обводки кнопок и карточек
+ * выглядели резкими. Правило лежит в слое base, поэтому классы вида
+ * `border-input`/`border-transparent` его перекрывают. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -16,8 +28,8 @@ body,
 
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
   line-height: 1.5;
 }

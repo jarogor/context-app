@@ -50,6 +50,16 @@ const SETTINGS_FIELDS: Record<
                 { value: 'system', title: 'Как в системе' },
             ],
         },
+        {
+            key: 'appearance.palette',
+            title: 'Палитра оформления',
+            type: 'select',
+            default: 'gruvbox',
+            options: [
+                { value: 'gruvbox', title: 'Gruvbox' },
+                { value: 'mist', title: 'Mist' },
+            ],
+        },
     ],
 };
 
@@ -59,6 +69,7 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
         'startup.welcome_notification': true,
         'diagnostics.log_level': 'info',
         'appearance.theme': 'system',
+        'appearance.palette': 'gruvbox',
     },
 };
 
@@ -139,6 +150,19 @@ function baseOperation(payload: unknown): unknown {
         return { values: {} };
     }
     if (message.capability === 'settings.store@1' && message.operation === 'set') {
+        const request = (message.payload ?? {}) as {
+            section?: string;
+            values?: Record<string, unknown>;
+        };
+        const section = request.section ?? '';
+        if (section in SETTINGS_VALUES) {
+            Object.assign(SETTINGS_VALUES[section], request.values ?? {});
+            emitMockEvent('settings:changed', {
+                section,
+                values: { ...SETTINGS_VALUES[section] },
+            });
+            return { values: { ...SETTINGS_VALUES[section] } };
+        }
         return { values: {} };
     }
     if (message.capability === 'settings.store@1' && message.operation === 'ui') {
@@ -541,6 +565,7 @@ export function defaultMockConfig(): MockBridgeConfig {
             select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
             active_library: () => null,
             theme_preference: () => SETTINGS_VALUES['app.general']['appearance.theme'],
+            theme_palette: () => SETTINGS_VALUES['app.general']['appearance.palette'],
             show_window: () => null,
             app_info: () => ({
                 name: 'Текстура',

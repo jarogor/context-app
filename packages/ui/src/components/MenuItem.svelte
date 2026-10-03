@@ -29,10 +29,10 @@
   {disabled}
   {onclick}
   class={cn(
-    'cursor-pointer rounded-[var(--radius-md)] border px-[var(--space-3)] py-[var(--space-2)] text-left text-sm [font:inherit] disabled:cursor-not-allowed disabled:opacity-50',
+    'cursor-pointer rounded-md border px-3 py-2 text-left text-sm [font:inherit] disabled:cursor-not-allowed disabled:opacity-50',
     active
-      ? 'border-[var(--color-border-strong)] bg-[var(--color-accent)] font-semibold text-[var(--color-primary)]'
-      : 'border-transparent bg-transparent text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]',
+      ? 'border-border bg-accent text-accent-foreground font-semibold'
+      : 'hover:bg-primary-soft border-transparent bg-transparent text-primary',
     className,
   )}
 >

@@ -28,3 +28,16 @@
 
 - [x] 5.1 Обновить `_docs/structure.md` (модуль темы в дизайн-системе и его применение на бутстрапе); проверить актуальность описания
 - [x] 5.2 Записать решение (тема — шов оформления, значения `light|dark|system`, читалка вне темы) в «Журнал решений» `ROADMAP.md`; отметить прогресс в строке тем
+
+## 6. Палитры оформления (Gruvbox) и переключатель в шапке
+
+- [x] 6.1 Переписать `packages/ui/src/tokens.css`: палитра по умолчанию Gruvbox (светлый набор в `:root`, тёмный в `:root[data-theme='dark']`, официальные цвета) и палитра Mist (селекторы `:root[data-palette='mist']` и `:root[data-palette='mist'][data-theme='dark']`); производные `color-mix` — общие
+- [x] 6.2 Создать `packages/ui/src/palettes.ts` (реестр палитр `gruvbox`/`mist`, `DEFAULT_PALETTE`, `applyPalette`, нормализация), покрыть тестами и экспортировать из `index.ts`
+- [x] 6.3 Добавить поля `appearance.palette` в `APP_SETTINGS_SCHEMA`, чтение `theme_palette()` в `AppPluginHost` и `async` команду `theme_palette`; покрыть тестами Rust
+- [x] 6.4 Расширить `src/lib/theme.ts` чтением/применением палитры и разбором события `settings:changed`; обновить `bootstrap.ts` (прочитать тему и палитру параллельно, вернуть `appearance`) и `Root.svelte`/`App.svelte` (проп `initialAppearance`)
+- [x] 6.5 Добавить в шапку `App.svelte` кнопку-цикл темы (`light` → `dark` → `system`, иконка по текущей) с сохранением через `saveSettingsValues`; синхронизировать состояние с событием `settings:changed` (палитра применяется оттуда же)
+- [x] 6.6 Привести статичный экран `index.html` и фон окна `show_window.rs` к палитре Gruvbox; выставить `data-palette` до первого кадра в `src/main.ts`
+- [x] 6.7 Обновить тесты: `packages/ui` (палитры), `src/lib/theme.test.ts`, `src/lib/bootstrap.test.ts`, мок-мост и браузерный `theme.spec.ts`; `npm test` и `npm run test:e2e` проходят
+- [x] 6.8 Ужесточить порог визуальной регрессии (`maxDiffPixelRatio` 0.002) и пере-эталонировать скриншоты под Gruvbox; `visual.spec.ts` проходит
+- [x] 6.9 Обновить спеки `design-system`/`settings`/`app-shell`, `_docs/structure.md`, `AGENTS.md` и «Журнал решений» `ROADMAP.md`; `make verify` проходит
+- [x] 6.10 Смягчить границы интерфейса: задать цвет границ по умолчанию из токена `--border` в базовом слое `src/app.css` (в Tailwind v4 `border` без цвета берёт `currentColor`) и сделать `--border`/`--input`/`--sidebar-border` gruvbox смесью переднего плана с фоном; пере-эталонировать скриншоты

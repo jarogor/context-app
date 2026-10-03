@@ -470,7 +470,7 @@
 
   {#if menuPosition && pendingAnchor}
     <div
-      class="absolute z-10 flex items-center gap-[var(--space-1)] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[4px] shadow-lg"
+      class="absolute z-10 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[4px] shadow-lg"
       data-testid="quote-menu"
       style={menuStyle()}
     >

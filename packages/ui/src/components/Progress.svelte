@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Progress as ProgressPrimitive } from 'bits-ui';
   import { cn } from '../utils';
 
   interface Props {
@@ -14,18 +15,13 @@
   const clamped = $derived(Math.max(0, Math.min(100, Math.round(value))));
 </script>
 
-<div
-  class={cn(
-    'h-2 w-full overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-muted)]',
-    className,
-  )}
-  role="progressbar"
-  aria-valuemin="0"
-  aria-valuemax="100"
-  aria-valuenow={clamped}
+<ProgressPrimitive.Root
+  value={clamped}
+  max={100}
+  class={cn('bg-primary/20 relative h-2 w-full overflow-hidden rounded-full', className)}
 >
   <div
-    class="h-full rounded-[var(--radius-lg)] bg-[var(--color-primary)] transition-[width] duration-200"
-    style:width={`${clamped}%`}
+    class="bg-primary h-full w-full flex-1 transition-transform duration-200"
+    style="transform: translateX(-{100 - clamped}%)"
   ></div>
-</div>
+</ProgressPrimitive.Root>

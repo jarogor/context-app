@@ -59,15 +59,15 @@
   });
 </script>
 
-<div class="flex flex-col gap-[var(--space-4)] p-[var(--space-4)]">
+<div class="flex flex-col gap-4 p-4">
   {#if declarations.length === 0}
-    <div class="p-[var(--space-5)] text-center text-[var(--color-text-muted)]">
+    <div class="p-6 text-center text-[var(--muted-foreground)]">
       Нет зарегистрированных настроек
     </div>
   {:else}
     {#each declarations as item, index (item.declaration?.id ?? index)}
       {#if item.declaration}
-        <div class="flex flex-col gap-[var(--space-3)]" data-testid="settings-section">
+        <div class="flex flex-col gap-3" data-testid="settings-section">
           <UiRenderer
             declaration={item.declaration}
             diagnostics={item.diagnostics}
@@ -81,7 +81,7 @@
 
 {#if errorMessage}
   <div
-    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-[var(--radius-md)] bg-[var(--color-danger-soft)] p-[var(--space-2)] text-xs text-[var(--color-danger)]"
+    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-md bg-[var(--destructive-soft)] p-2 text-xs text-[var(--destructive)]"
     role="alert"
   >
     {errorMessage}

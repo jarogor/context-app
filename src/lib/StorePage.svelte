@@ -201,35 +201,35 @@
   });
 </script>
 
-<div class="flex flex-col gap-[var(--space-4)] p-[var(--space-4)]">
+<div class="flex flex-col gap-4 p-4">
   <Card>
-    <div class="mb-[var(--space-3)] flex items-start justify-between gap-[var(--space-3)]">
+    <div class="mb-3 flex items-start justify-between gap-3">
       <h2 class="text-base font-semibold">Плагины</h2>
       <Button variant="secondary" onclick={installFromFile}>Установить из файла</Button>
     </div>
     {#if plugins.length === 0}
-      <div class="p-[var(--space-4)] text-center text-[var(--color-text-muted)]">
+      <div class="p-4 text-center text-[var(--muted-foreground)]">
         Нет плагинов
       </div>
     {:else}
-      <ul class="flex list-none flex-col gap-[var(--space-2)] p-0">
+      <ul class="flex list-none flex-col gap-2 p-0">
         {#each regularPlugins as plugin (plugin.id)}
           <li
-            class="flex items-center justify-between gap-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)]"
+            class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2"
           >
-            <label class="flex min-w-0 items-center gap-[var(--space-2)]">
+            <label class="flex min-w-0 items-center gap-2">
               <Checkbox
                 checked={plugin.enabled}
                 onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
               />
               <span class="flex min-w-0 flex-col gap-[2px]">
-                <span class="flex flex-wrap items-baseline gap-[var(--space-2)]">
+                <span class="flex flex-wrap items-baseline gap-2">
                   <span class="text-sm font-bold">{plugin.name}</span>
-                  <span class="font-mono text-xs text-[var(--color-text-muted)]">{plugin.id}</span>
+                  <span class="font-mono text-xs text-[var(--muted-foreground)]">{plugin.id}</span>
                 </span>
-                <span class="text-xs text-[var(--color-text-muted)]">{plugin.kind}</span>
+                <span class="text-xs text-[var(--muted-foreground)]">{plugin.kind}</span>
                 {#if plugin.description}
-                  <span class="text-xs text-[var(--color-text-muted)]">{plugin.description}</span>
+                  <span class="text-xs text-[var(--muted-foreground)]">{plugin.description}</span>
                 {/if}
               </span>
             </label>
@@ -243,27 +243,27 @@
       </ul>
 
       {#if samplePlugins.length > 0}
-        <details class="mt-[var(--space-3)] border-t border-[var(--color-border)] pt-[var(--space-3)]">
-          <summary class="cursor-pointer text-xs text-[var(--color-text-muted)]">
+        <details class="mt-3 border-t border-[var(--border)] pt-3">
+          <summary class="cursor-pointer text-xs text-[var(--muted-foreground)]">
             Образцы для разработчика ({samplePlugins.length})
           </summary>
-          <ul class="mt-[var(--space-2)] flex list-none flex-col gap-[var(--space-2)] p-0">
+          <ul class="mt-2 flex list-none flex-col gap-2 p-0">
             {#each samplePlugins as plugin (plugin.id)}
               <li
-                class="flex items-center justify-between gap-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)] opacity-70"
+                class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2 opacity-70"
               >
-                <label class="flex min-w-0 items-center gap-[var(--space-2)]">
+                <label class="flex min-w-0 items-center gap-2">
                   <Checkbox
                     checked={plugin.enabled}
                     onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
                   />
                   <span class="flex min-w-0 flex-col gap-[2px]">
-                    <span class="flex flex-wrap items-baseline gap-[var(--space-2)]">
+                    <span class="flex flex-wrap items-baseline gap-2">
                       <span class="text-sm font-bold">{plugin.name}</span>
                       <Badge>образец</Badge>
                     </span>
                     {#if plugin.description}
-                      <span class="text-xs text-[var(--color-text-muted)]">{plugin.description}</span>
+                      <span class="text-xs text-[var(--muted-foreground)]">{plugin.description}</span>
                     {/if}
                   </span>
                 </label>
@@ -281,24 +281,24 @@
   </Card>
 
   <Card>
-    <h2 class="mb-[var(--space-3)] text-base font-semibold">Сторы</h2>
+    <h2 class="mb-3 text-base font-semibold">Сторы</h2>
     {#if stores.length === 0}
-      <div class="p-[var(--space-3)] text-center text-[var(--color-text-muted)]">
+      <div class="p-3 text-center text-[var(--muted-foreground)]">
         Сторы не подключены
       </div>
     {:else}
-      <ul class="flex list-none flex-col gap-[var(--space-2)] p-0">
+      <ul class="flex list-none flex-col gap-2 p-0">
         {#each stores as store (store.id)}
           <li
-            class="flex items-center justify-between gap-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)]"
+            class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2"
           >
             <div class="flex min-w-0 flex-col gap-[2px]">
               <span class="text-sm font-bold">{store.title}</span>
-              <span class="text-xs text-[var(--color-text-muted)]">
+              <span class="text-xs text-[var(--muted-foreground)]">
                 {store.kind} · {store.location || '—'}
               </span>
             </div>
-            <div class="flex gap-[var(--space-2)]">
+            <div class="flex gap-2">
               <Button variant="secondary" size="sm" onclick={() => showAvailable(store.id)}>
                 Пакеты
               </Button>
@@ -312,23 +312,23 @@
     {/if}
 
     {#if unsupported}
-      <p class="mt-[var(--space-3)] text-[13px] text-[var(--color-text-muted)]">{unsupported}</p>
+      <p class="mt-3 text-[13px] text-[var(--muted-foreground)]">{unsupported}</p>
     {/if}
     {#if packages.length > 0}
-      <ul class="mt-[var(--space-3)] flex list-none flex-col gap-[var(--space-2)] p-0">
+      <ul class="mt-3 flex list-none flex-col gap-2 p-0">
         {#each packages as item (item.name)}
           <li
-            class="flex items-center gap-[var(--space-2)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)]"
+            class="flex items-center gap-2 rounded-md border border-[var(--border)] p-2"
           >
             <span class="text-sm font-bold">{item.name}</span>
             <Badge>{item.version || '—'}</Badge>
-            <span class="text-xs text-[var(--color-text-muted)]">{item.description || ''}</span>
+            <span class="text-xs text-[var(--muted-foreground)]">{item.description || ''}</span>
           </li>
         {/each}
       </ul>
     {/if}
 
-    <div class="mt-[var(--space-3)] flex flex-wrap gap-[var(--space-2)]">
+    <div class="mt-3 flex flex-wrap gap-2">
       <Input placeholder="Идентификатор" bind:value={storeId} class="max-w-[180px]" />
       <Select bind:value={storeKind} class="max-w-[120px]">
         <option value="file">file</option>
@@ -343,7 +343,7 @@
 
 {#if errorMessage}
   <div
-    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-[var(--radius-md)] bg-[var(--color-danger-soft)] p-[var(--space-2)] text-xs text-[var(--color-danger)]"
+    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-md bg-[var(--destructive-soft)] p-2 text-xs text-[var(--destructive)]"
     role="alert"
   >
     {errorMessage}

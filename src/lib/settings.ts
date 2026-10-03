@@ -71,6 +71,19 @@ export async function loadSettingsUi(): Promise<{
   return { declarations, error: response.error ?? '' };
 }
 
+/** Сохранение значений секции настроек.
+ *
+ * Используется оболочкой для собственного поведения (например, переключателя
+ * оформления в шапке), не проходя через UI-интент: значение пишется напрямую и
+ * публикуется событие `settings:changed`.
+ */
+export async function saveSettingsValues(
+  section: string,
+  values: Record<string, unknown>,
+): Promise<void> {
+  await operation('set', { section, values });
+}
+
 /** Передача интента интерфейса настроек плагину. */
 export async function sendSettingsIntent(
   intent: UiIntent,

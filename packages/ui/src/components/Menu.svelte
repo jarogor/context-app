@@ -14,9 +14,6 @@
   let { ariaLabel, class: className = '', children }: Props = $props();
 </script>
 
-<nav
-  aria-label={ariaLabel}
-  class={cn('flex flex-col gap-[var(--space-1)]', className)}
->
+<nav aria-label={ariaLabel} class={cn('flex flex-col gap-1', className)}>
   {@render children()}
 </nav>

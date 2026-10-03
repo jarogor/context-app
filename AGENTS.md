@@ -153,13 +153,21 @@
 
 - Фронтенд собран на npm workspaces: корень — приложение оболочки, члены —
   `packages/*` (общие пакеты); один lock на весь workspace.
-- Дизайн-система — `packages/ui` (`@texture/ui`): компоненты (Button, Input,
-  Textarea, Select, Checkbox, Card, Badge, Spinner, Menu, MenuItem) и токены
-  оформления `tokens.css`. Оболочка строит UI только из этих компонентов и
-  токенов. Tailwind v4 подключается в приложении, классы пакета попадают в
-  сборку через `@source`. Собственные `<style>`-блоки в Svelte-компонентах не
-  используются — только Tailwind-классы и токены (иначе dev-сборка ломается на
-  виртуальных CSS-модулях Svelte).
+- Дизайн-система — `packages/ui` (`@texture/ui`) на стандарте shadcn-svelte:
+  примитивы Bits UI, варианты `tailwind-variants`, компоненты (Button, Input,
+  Textarea, Select, Checkbox, Progress, Card, Badge, Spinner, Menu, MenuItem) и
+  токены оформления `tokens.css` по стандартной схеме (`--background`,
+  `--foreground`, `--primary`, `--muted`, `--border`, `--ring`, `--radius` и
+  `-foreground`-пары). Токены идут палитрами: у каждой — светлый и тёмный наборы;
+  активную палитру выбирает атрибут `data-palette`, сторону — `data-theme`.
+  Палитра по умолчанию — официальная **Gruvbox** (тёплая, мягкая, hex из
+  первоисточника), вторая — **Mist** (прежний набор shadcn в `oklch`); реестр
+  палитр — `packages/ui/src/palettes.ts`. Блок `@theme inline` превращает токены
+  в утилиты Tailwind v4. Оболочка строит UI только из этих компонентов и токенов.
+  Tailwind v4 подключается в приложении, классы пакета попадают в сборку через
+  `@source`. Собственные `<style>`-блоки в Svelte-компонентах не используются —
+  только Tailwind-классы и токены (иначе dev-сборка ломается на виртуальных
+  CSS-модулях Svelte).
 - `packages/ui-schema` (`@texture/ui-schema`) — контракт декларативного UI: типы
   узлов, интентов, пространств и каталог разрешённых компонентов с валидацией.
 - `packages/ui` (`@texture/ui`) — дизайн-система: компоненты и токены `tokens.css`,

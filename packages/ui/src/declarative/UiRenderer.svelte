@@ -37,11 +37,11 @@
 </script>
 
 {#if diagnostics.length > 0}
-  <p class="mb-[var(--space-2)] text-xs text-[var(--color-danger)]" role="status">
+  <p class="text-destructive mb-2 text-xs" role="status">
     {diagnostics.join('; ')}
   </p>
 {/if}
-<div class="flex flex-col gap-[var(--space-3)]">
+<div class="flex flex-col gap-3">
   {#each declaration.nodes as node}
     {#if node.type !== '#text'}
       <UiNodeView {node} {values} onvalue={setValue} onaction={dispatch} />

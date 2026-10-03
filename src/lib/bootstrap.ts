@@ -17,7 +17,13 @@
 
 import type { NormalizedDeclaration } from './settings';
 import { loadSettingsUi } from './settings';
-import { applyAppThemeTracked, loadThemePreference } from './theme';
+import {
+  applyAppPalette,
+  applyAppThemeTracked,
+  loadThemePalette,
+  loadThemePreference,
+} from './theme';
+import { DEFAULT_PALETTE, type PaletteId, type ThemePreference } from '@texture/ui';
 import {
   listNotifications,
   loadTechnicalVisibleDefault,
@@ -45,12 +51,22 @@ export interface BootstrapState {
     registry: unknown;
     /** Активная библиотека или null, когда библиотека не открыта. */
     activeLibrary: ActiveLibrary | null;
+    /** Оформление: применённые тема и палитра, загруженные до первого рендера. */
+    appearance: AppearanceBootstrap;
     /** Декларации интерфейса настроек, загруженные до первого рендера. */
     settings: SettingsBootstrap;
     /** Журнал уведомлений и настройки его показа, загруженные до первого рендера. */
     notifications: NotificationsBootstrap;
     /** Каталог плагинов и сторов, загруженный до первого рендера. */
     store: StoreBootstrap;
+}
+
+/** Оформление, прочитанное и применённое на бутстрапе. */
+export interface AppearanceBootstrap {
+    /** Предпочтение темы: светлая, тёмная или системная. */
+    theme: ThemePreference;
+    /** Активная палитра оформления. */
+    palette: PaletteId;
 }
 
 /** Декларации интерфейса настроек и ошибка их загрузки на бутстрапе. */
@@ -92,25 +108,30 @@ export interface StoreBootstrap {
  * не должна мешать входу в приложение.
  */
 export async function loadBootstrap(): Promise<BootstrapState> {
-    const [registry, library, settings, notifications, store] = await Promise.all([
+    const [registry, library, appearance, settings, notifications, store] = await Promise.all([
         invokeCommand('get_workspaces', {}),
         loadActiveLibrary(),
+        applyAppearance(),
         loadSettingsBootstrap(),
         loadNotificationsBootstrap(),
         loadStoreBootstrap(),
     ]);
-    // Тема применяется до первого кадра: чтение ошибок не прерывает вход.
-    await applyThemePreference();
-    return { registry, activeLibrary: library, settings, notifications, store };
+    return { registry, activeLibrary: library, appearance, settings, notifications, store };
 }
 
-/** Чтение и применение сохранённой темы; ошибка оставляет системную тему. */
-async function applyThemePreference(): Promise<void> {
-    try {
-        applyAppThemeTracked(await loadThemePreference());
-    } catch {
-        applyAppThemeTracked('system');
-    }
+/** Чтение и применение оформления до первого кадра.
+ *
+ * Тема и палитра читаются параллельно; ошибка чтения каждой оставляет значение
+ * по умолчанию (системная тема, палитра по умолчанию) и не прерывает вход.
+ */
+async function applyAppearance(): Promise<AppearanceBootstrap> {
+    const [theme, palette] = await Promise.all([
+        loadThemePreference().catch(() => 'system' as ThemePreference),
+        loadThemePalette().catch(() => DEFAULT_PALETTE),
+    ]);
+    applyAppThemeTracked(theme);
+    applyAppPalette(palette);
+    return { theme, palette };
 }
 
 /** Загрузка деклараций настроек; ошибка даёт пустое пространство с диагностикой. */

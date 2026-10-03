@@ -190,7 +190,7 @@
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         {#if workspace.tabs.length === 0}
           <div
-            class="flex h-full flex-col items-center justify-center gap-[var(--space-2)] p-[var(--space-5)] text-center text-[var(--color-text-muted)]"
+            class="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-[var(--muted-foreground)]"
             data-testid="workplace-empty"
           >
             <p>Рабочее место пусто.</p>

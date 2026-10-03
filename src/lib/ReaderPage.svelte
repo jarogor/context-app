@@ -245,7 +245,7 @@
   <div class="min-h-0 flex-1 overflow-hidden">
     {#if loading}
       <div
-        class="flex h-full items-center justify-center gap-[var(--space-2)] text-[var(--color-text-muted)]"
+        class="flex h-full items-center justify-center gap-2 text-[var(--muted-foreground)]"
         data-testid="reader-loading"
       >
         <Spinner />
@@ -253,14 +253,14 @@
       </div>
     {:else if unavailable}
       <div
-        class="mx-auto max-w-[560px] p-[var(--space-5)] text-center"
+        class="mx-auto max-w-[560px] p-6 text-center"
         data-testid="reader-unavailable"
       >
-        <p class="mb-[var(--space-2)] font-semibold">{title}</p>
-        <p class="mb-[var(--space-4)] text-[var(--color-text-muted)]">
+        <p class="mb-2 font-semibold">{title}</p>
+        <p class="mb-4 text-[var(--muted-foreground)]">
           Книга недоступна: возможно, файл перемещён или переименован.
         </p>
-        <div class="flex flex-wrap justify-center gap-[var(--space-2)]">
+        <div class="flex flex-wrap justify-center gap-2">
           {#if onRepoint}
             <Button variant="primary" onclick={onRepoint}>Указать файл</Button>
           {/if}
@@ -270,15 +270,15 @@
         </div>
       </div>
     {:else if unsupported}
-      <div class="mx-auto max-w-[560px] p-[var(--space-5)] text-center">
-        <p class="mb-[var(--space-4)]">
+      <div class="mx-auto max-w-[560px] p-6 text-center">
+        <p class="mb-4">
           Формат этой книги пока не поддерживается встроенным чтением.
         </p>
         <Button variant="secondary" onclick={openInSystem}>Открыть в системе</Button>
       </div>
     {:else if error}
-      <div class="mx-auto max-w-[560px] p-[var(--space-5)] text-center">
-        <p class="mb-[var(--space-3)] text-[var(--color-danger)]" data-testid="reader-error">
+      <div class="mx-auto max-w-[560px] p-6 text-center">
+        <p class="mb-3 text-[var(--destructive)]" data-testid="reader-error">
           Не удалось открыть книгу: {error}
         </p>
         {#if onRemove}
@@ -334,7 +334,7 @@
         />
         {#if menuPosition && pendingAnchor}
           <div
-            class="absolute z-10 flex items-center gap-[var(--space-1)] rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[4px] shadow-lg"
+            class="absolute z-10 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[4px] shadow-lg"
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >
@@ -362,9 +362,9 @@
   </div>
 
   <footer
-    class="flex flex-[0_0_40px] items-center gap-[var(--space-4)] border-t border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-4)] text-[12px] text-[var(--color-text-muted)]"
+    class="flex flex-[0_0_40px] items-center gap-4 border-t border-[var(--border)] bg-[var(--card)] px-4 text-[12px] text-[var(--muted-foreground)]"
   >
-    <div class="flex items-center gap-[var(--space-1)]">
+    <div class="flex items-center gap-1">
       {#if !workplace || workplaceZoom}
         <Button
           size="icon"
@@ -385,9 +385,9 @@
         >
       {/if}
     </div>
-    <div class="ml-auto flex items-center gap-[var(--space-2)]">
+    <div class="ml-auto flex items-center gap-2">
       {#if workplace && workplacePages && workplacePage !== null}
-        <div class="flex items-center gap-[var(--space-1)]" data-testid="reader-pages">
+        <div class="flex items-center gap-1" data-testid="reader-pages">
           <Button
             size="icon"
             variant="ghost"
@@ -399,7 +399,7 @@
           <span class="min-w-[16px] text-center" data-testid="reader-page">{workplacePage}</span>
           <span data-testid="reader-page-count">из {workplacePageCount ?? '?'}</span>
           <input
-            class="w-[52px] rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-[6px] py-[2px] text-center text-[12px] text-[var(--color-text)]"
+            class="w-[52px] rounded-sm border border-[var(--border)] bg-[var(--card)] px-[6px] py-[2px] text-center text-[12px] text-[var(--foreground)]"
             aria-label="Перейти к странице"
             placeholder="№"
             bind:value={pageInput}

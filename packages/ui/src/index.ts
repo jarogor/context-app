@@ -22,3 +22,12 @@ export {
   type ThemePreference,
   type UnsubscribeTheme,
 } from './theme';
+export {
+  applyPalette,
+  DEFAULT_PALETTE,
+  isPaletteId,
+  normalizePaletteId,
+  PALETTES,
+  type Palette,
+  type PaletteId,
+} from './palettes';

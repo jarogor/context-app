@@ -137,33 +137,33 @@
 </script>
 
 <aside
-  class="flex w-[340px] flex-none flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)]"
+  class="flex w-[340px] flex-none flex-col border-l border-[var(--border)] bg-[var(--card)]"
   data-testid="notes-panel"
 >
   <div
-    class="flex flex-[0_0_42px] items-center gap-[var(--space-2)] border-b border-[var(--color-border)] px-[var(--space-3)] text-[13px] font-semibold"
+    class="flex flex-[0_0_42px] items-center gap-2 border-b border-[var(--border)] px-3 text-[13px] font-semibold"
   >
     Заметки
     {#if items.length > 0}
-      <span class="font-normal text-[var(--color-text-muted)]">· {items.length}</span>
+      <span class="font-normal text-[var(--muted-foreground)]">· {items.length}</span>
     {/if}
   </div>
 
   {#if !hasBook}
     <div
-      class="p-[var(--space-4)] text-[13px] text-[var(--color-text-muted)]"
+      class="p-4 text-[13px] text-[var(--muted-foreground)]"
       data-testid="notes-panel-empty"
     >
       Откройте книгу, чтобы вести заметки.
     </div>
   {:else}
     <div
-      class="flex flex-col gap-[var(--space-2)] border-b border-[var(--color-border)] p-[var(--space-2)]"
+      class="flex flex-col gap-2 border-b border-[var(--border)] p-2"
       data-testid="notes-sets"
     >
       {#if creating}
-        <label class="flex flex-col gap-[var(--space-1)]">
-          <span class="text-xs text-[var(--color-text-muted)]">Имя набора</span>
+        <label class="flex flex-col gap-1">
+          <span class="text-xs text-[var(--muted-foreground)]">Имя набора</span>
           <Input
             bind:value={newSetName}
             placeholder="Новый набор"
@@ -177,15 +177,15 @@
             }}
           />
         </label>
-        <div class="flex gap-[var(--space-2)]">
+        <div class="flex gap-2">
           <Button variant="primary" size="sm" disabled={!newSetName.trim()} onclick={commitCreate}>
             Создать
           </Button>
           <Button variant="secondary" size="sm" onclick={() => (creating = false)}>Отмена</Button>
         </div>
       {:else if renaming}
-        <label class="flex flex-col gap-[var(--space-1)]">
-          <span class="text-xs text-[var(--color-text-muted)]">Новое имя</span>
+        <label class="flex flex-col gap-1">
+          <span class="text-xs text-[var(--muted-foreground)]">Новое имя</span>
           <Input
             bind:value={renameName}
             placeholder="Новое имя"
@@ -199,14 +199,14 @@
             }}
           />
         </label>
-        <div class="flex gap-[var(--space-2)]">
+        <div class="flex gap-2">
           <Button variant="primary" size="sm" disabled={!renameName.trim()} onclick={commitRename}>
             Сохранить
           </Button>
           <Button variant="secondary" size="sm" onclick={() => (renaming = false)}>Отмена</Button>
         </div>
       {:else}
-        <div class="flex items-center gap-[var(--space-2)]">
+        <div class="flex items-center gap-2">
           <Select
             value={activeSetId ?? ''}
             disabled={sets.length === 0}
@@ -229,7 +229,7 @@
           >
         </div>
         {#if activeSet}
-          <div class="flex gap-[var(--space-2)]">
+          <div class="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
@@ -249,22 +249,22 @@
       {/if}
     </div>
 
-    <div class="border-b border-[var(--color-border)] p-[var(--space-2)]">
+    <div class="border-b border-[var(--border)] p-2">
       <Input bind:value={query} placeholder="Поиск по цитатам" />
     </div>
 
     {#if loading && items.length === 0}
-      <p class="p-[var(--space-3)] text-[13px] text-[var(--color-text-muted)]">Загрузка…</p>
+      <p class="p-3 text-[13px] text-[var(--muted-foreground)]">Загрузка…</p>
     {:else}
       <ul
-        class="m-0 flex list-none flex-col gap-[var(--space-2)] overflow-y-auto p-[var(--space-2)]"
+        class="m-0 flex list-none flex-col gap-2 overflow-y-auto p-2"
         data-testid="notes-list"
       >
         {#each visible as item (item.note.id)}
           <li
-            class="rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-2)] transition-colors {selectedId ===
+            class="rounded-md border border-[var(--border)] p-2 transition-colors {selectedId ===
             item.note.id
-              ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+              ? 'border-[var(--accent)] bg-[var(--muted)]'
               : ''}"
             data-testid="notes-item"
             data-selected={selectedId === item.note.id ? 'true' : 'false'}
@@ -278,14 +278,14 @@
               <span class="block text-[13px] leading-snug">{item.name}</span>
             </button>
             <div
-              class="mt-[var(--space-1)] flex items-center gap-[var(--space-2)] text-[11px] text-[var(--color-text-muted)]"
+              class="mt-1 flex items-center gap-2 text-[11px] text-[var(--muted-foreground)]"
             >
               {#if item.place}
                 <span data-testid="notes-item-place">{item.place}</span>
               {/if}
               <span>{formatDate(item.createdAtMillis)}</span>
             </div>
-            <div class="mt-[var(--space-2)]">
+            <div class="mt-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -296,7 +296,7 @@
           </li>
         {:else}
           <li
-            class="px-[var(--space-2)] py-[var(--space-3)] text-center text-[13px] text-[var(--color-text-muted)]"
+            class="px-2 py-3 text-center text-[13px] text-[var(--muted-foreground)]"
             data-testid="notes-list-empty"
           >
             {query
