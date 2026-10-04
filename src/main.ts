@@ -1,8 +1,8 @@
 import { mount } from 'svelte';
-import './app.css';
-import Root from './Root.svelte';
-import { applyAppPalette, applyAppTheme } from './lib/theme';
-import { showAppWindow } from './lib/window';
+import './app/app.css';
+import Root from './app/Root.svelte';
+import { applyAppPalette, applyAppTheme } from './features/appearance/theme';
+import { showAppWindow } from './shared/window';
 import { DEFAULT_PALETTE } from '@texture/ui';
 
 // До первого кадра применяется системная тема и палитра по умолчанию: экран
