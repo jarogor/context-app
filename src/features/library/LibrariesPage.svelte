@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Badge, Button, Progress, Spinner, cn } from '@texture/ui';
+  import { Badge, Button, DeleteButton, Progress, Spinner, cn } from '@texture/ui';
   import { invokeCommand, listenEvent, openDialog } from '../../shared/app-bridge';
   import appConfig from './app-config.json';
 
@@ -251,7 +251,11 @@
               {entry.path}
             </span>
           </button>
-          <Button variant="danger" size="sm" onclick={() => forget(entry.path)}>Убрать</Button>
+          <DeleteButton
+            title="Убрать библиотеку"
+            ariaLabel="Убрать библиотеку"
+            onclick={() => forget(entry.path)}
+          />
         </li>
       {/each}
     </ul>

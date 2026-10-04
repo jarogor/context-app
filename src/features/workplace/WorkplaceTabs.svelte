@@ -7,8 +7,6 @@
     tabs: WorkspaceTab[];
     /** Активная вкладка. */
     activeTabId: string | null;
-    /** Имя активного рабочего места. */
-    workspaceName: string;
     /** Открыта ли панель списка открытых книг. */
     booksOpen: boolean;
     /** Открыта ли панель заметок. */
@@ -34,7 +32,6 @@
   let {
     tabs,
     activeTabId,
-    workspaceName,
     booksOpen,
     notesOpen,
     onSelect,
@@ -49,27 +46,35 @@
 </script>
 
 <div
-  class="flex flex-[0_0_42px] items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-2"
+  class="flex flex-[0_0_42px] items-center gap-2 bg-[var(--muted)] px-2"
   data-testid="workplace-tabs"
 >
-  <button
-    type="button"
-    data-testid="workplace-back-to-list"
+  <Button
+    size="icon"
+    variant="ghost"
     title="К списку рабочих мест"
-    class="max-w-[180px] flex-none cursor-pointer truncate rounded-sm px-2 py-[4px] text-[13px] text-[var(--muted-foreground)] [font:inherit] hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+    ariaLabel="К списку рабочих мест"
     onclick={onBackToList}
   >
-    {workspaceName}
-  </button>
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path
+        d="M15 6l-6 6 6 6"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  </Button>
   <span class="text-[var(--input)]" aria-hidden="true">|</span>
   <div class="flex min-w-0 flex-1 items-center gap-[2px] overflow-x-auto">
     {#each tabs as tab (tab.id)}
       <div
-        class="flex flex-none items-center rounded-md border"
+        class="flex flex-none items-center rounded-md {tab.id === activeTabId
+          ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+          : 'text-[var(--muted-foreground)] hover:bg-[var(--background)]'}"
         data-testid="workplace-tab-item"
-        class:border-[var(--primary)]={tab.id === activeTabId}
-        class:border-transparent={tab.id !== activeTabId}
-        class:bg-[var(--background)]={tab.id === activeTabId}
       >
         <button
           type="button"
@@ -85,7 +90,7 @@
           type="button"
           title="Дублировать вкладку"
           aria-label="Дублировать вкладку"
-          class="cursor-pointer px-[6px] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+          class="cursor-pointer px-[6px] opacity-70 hover:opacity-100"
           onclick={() => onDuplicate(tab.id)}
         >
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
@@ -98,7 +103,7 @@
           data-testid="workplace-tab-close"
           title="Закрыть вкладку"
           aria-label="Закрыть вкладку"
-          class="cursor-pointer px-[6px] text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
+          class="cursor-pointer px-[6px] opacity-70 hover:opacity-100"
           onclick={() => onClose(tab.id)}
         >
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">

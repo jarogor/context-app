@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Input } from '@texture/ui';
+  import { ActionMenu, AddButton, Button, Input, type MenuAction } from '@texture/ui';
 
   /** Рабочее место в списке. */
   interface WorkspaceItem {
@@ -25,6 +25,12 @@
   }
 
   let { workspaces, activeId, onCreate, onOpen, onRename, onRemove }: Props = $props();
+
+  /** Пункты меню действий рабочего места. */
+  const workspaceActions: MenuAction[] = [
+    { id: 'rename', label: 'Переименовать' },
+    { id: 'delete', label: 'Удалить', destructive: true },
+  ];
 
   /** Ввод имени нового рабочего места. */
   let newName = $state('');
@@ -63,26 +69,39 @@
     editingId = null;
     editingName = '';
   }
+
+  /** Выбор действия рабочего места из меню. */
+  function runWorkspaceAction(item: WorkspaceItem, action: string) {
+    if (action === 'rename') {
+      startRename(item.id, item.name);
+    }
+    if (action === 'delete') {
+      onRemove(item.id);
+    }
+  }
 </script>
 
 <div
   class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-6"
   data-testid="workspaces-page"
 >
-  <div class="mb-4 flex items-end gap-2">
-    <label class="flex min-w-0 flex-1 flex-col gap-1">
-      <span class="text-xs text-[var(--muted-foreground)]">Имя</span>
-      <Input
-        bind:value={newName}
-        placeholder="Новое рабочее место"
-        onkeydown={(event) => {
-          if (event.key === 'Enter') {
-            create();
-          }
-        }}
-      />
-    </label>
-    <Button variant="primary" disabled={!newName.trim()} onclick={create}>Создать</Button>
+  <div class="mb-4 flex items-center gap-2">
+    <Input
+      bind:value={newName}
+      placeholder="Новое рабочее место"
+      class="min-w-0 flex-1"
+      onkeydown={(event) => {
+        if (event.key === 'Enter') {
+          create();
+        }
+      }}
+    />
+    <AddButton
+      title="Создать рабочее место"
+      ariaLabel="Создать рабочее место"
+      disabled={!newName.trim()}
+      onclick={create}
+    />
   </div>
 
   {#if workspaces.length === 0}
@@ -93,9 +112,10 @@
     <ul class="flex list-none flex-col gap-2 p-0">
       {#each workspaces as item (item.id)}
         <li
-          class="flex items-center gap-2 rounded-md border bg-[var(--card)] p-2"
-          class:border-[var(--primary)]={item.id === activeId}
-          class:border-[var(--input)]={item.id !== activeId}
+          class="flex items-center gap-2 rounded-md border border-[var(--border)] p-2 {item.id ===
+          activeId
+            ? 'bg-[var(--primary-soft)]'
+            : 'bg-[var(--card)] hover:bg-[var(--muted)]'}"
           data-testid="workspace-item"
         >
           {#if editingId === item.id}
@@ -114,13 +134,16 @@
                 }}
               />
             </label>
-            <Button variant="primary" size="sm" onclick={commitRename}>Сохранить</Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onclick={commitRename}>Сохранить</Button>
             <Button variant="secondary" size="sm" onclick={() => (editingId = null)}>Отмена</Button>
           {:else}
             <button
               type="button"
               data-testid="workspace-open"
-              class="min-w-0 flex-1 cursor-pointer truncate rounded-sm px-2 py-[6px] text-left text-[14px] [font:inherit] hover:bg-[var(--background)]"
+              class="min-w-0 flex-1 cursor-pointer truncate px-2 py-[6px] text-left text-[14px] [font:inherit]"
               title={item.name}
               onclick={() => onOpen(item.id)}
             >
@@ -131,24 +154,12 @@
                 активное
               </span>
             {/if}
-            <Button
-              variant="secondary"
-              size="sm"
-              title="Переименовать"
-              ariaLabel="Переименовать рабочее место"
-              onclick={() => startRename(item.id, item.name)}
-            >
-              Переименовать
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              title="Удалить"
-              ariaLabel="Удалить рабочее место"
-              onclick={() => onRemove(item.id)}
-            >
-              Удалить
-            </Button>
+            <ActionMenu
+              ariaLabel="Действия с рабочим местом"
+              title="Действия"
+              items={workspaceActions}
+              onselect={(action) => runWorkspaceAction(item, action)}
+            />
           {/if}
         </li>
       {/each}

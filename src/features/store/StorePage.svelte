@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Card, Checkbox, Input, Select } from '@texture/ui';
+  import { Badge, Button, Card, Checkbox, DeleteButton, Input, Select } from '@texture/ui';
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import {
     addStore as addStoreEntry,
@@ -36,6 +36,12 @@
     initialPending,
     initialError,
   }: Props = $props();
+
+  /** Варианты вида стора для выпадающего списка. */
+  const STORE_KIND_OPTIONS = [
+    { value: 'file', label: 'file' },
+    { value: 'network', label: 'network' },
+  ];
 
   /** Перечень отключаемых плагинов. */
   let plugins: PluginEntry[] = $state(untrack(() => initialPlugins ?? []));
@@ -234,9 +240,11 @@
               </span>
             </label>
             {#if plugin.removable}
-              <Button variant="danger" size="sm" onclick={() => uninstall(plugin.id)}>
-                Удалить
-              </Button>
+              <DeleteButton
+                title="Удалить плагин"
+                ariaLabel="Удалить плагин"
+                onclick={() => uninstall(plugin.id)}
+              />
             {/if}
           </li>
         {/each}
@@ -268,9 +276,11 @@
                   </span>
                 </label>
                 {#if plugin.removable}
-                  <Button variant="danger" size="sm" onclick={() => uninstall(plugin.id)}>
-                    Удалить
-                  </Button>
+                  <DeleteButton
+                    title="Удалить плагин"
+                    ariaLabel="Удалить плагин"
+                    onclick={() => uninstall(plugin.id)}
+                  />
                 {/if}
               </li>
             {/each}
@@ -302,9 +312,11 @@
               <Button variant="secondary" size="sm" onclick={() => showAvailable(store.id)}>
                 Пакеты
               </Button>
-              <Button variant="danger" size="sm" onclick={() => removeStore(store.id)}>
-                Удалить
-              </Button>
+              <DeleteButton
+                title="Удалить стор"
+                ariaLabel="Удалить стор"
+                onclick={() => removeStore(store.id)}
+              />
             </div>
           </li>
         {/each}
@@ -330,10 +342,12 @@
 
     <div class="mt-3 flex flex-wrap gap-2">
       <Input placeholder="Идентификатор" bind:value={storeId} class="max-w-[180px]" />
-      <Select bind:value={storeKind} class="max-w-[120px]">
-        <option value="file">file</option>
-        <option value="network">network</option>
-      </Select>
+      <Select
+        bind:value={storeKind}
+        items={STORE_KIND_OPTIONS}
+        ariaLabel="Вид стора"
+        class="max-w-[120px]"
+      />
       <Input placeholder="Название" bind:value={storeTitle} class="max-w-[180px]" />
       <Input placeholder="Каталог или адрес" bind:value={storeLocation} class="max-w-[240px]" />
       <Button variant="primary" onclick={addStore}>Добавить стор</Button>

@@ -12,7 +12,8 @@ test('снимок тёмной темы совпадает с эталоном'
 
   const settings = page.locator('main');
   await expect(settings.getByRole('heading', { name: 'Общие' })).toBeVisible();
-  await settings.getByLabel('Тема оформления').selectOption('dark');
+  await settings.getByRole('button', { name: 'Тема оформления' }).click();
+  await page.getByRole('option', { name: 'Тёмная' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
   await expect(page).toHaveScreenshot('shell-dark.png');

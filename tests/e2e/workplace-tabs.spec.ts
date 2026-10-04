@@ -62,6 +62,12 @@ test('переключение вкладок меняет активную кн
     await addBook(page, 'Демо-книга');
     await addBook(page, 'Третья книга');
 
+    // Имя открытого рабочего места видно в шапке, а библиотеки — нет.
+    await expect(page.getByTestId('header-workspace-name')).toHaveText('Рабочее место');
+    const header = page.locator('header');
+    await expect(header.getByText('library', { exact: true })).toHaveCount(0);
+    await expect(header.getByText('demo-library', { exact: true })).toHaveCount(0);
+
     await expect(tab(page, 'Третья книга').getByTestId('workplace-tab')).toHaveAttribute(
         'aria-pressed',
         'true',

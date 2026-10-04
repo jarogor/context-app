@@ -19,6 +19,14 @@ if (!('ResizeObserver' in globalThis)) {
   (globalThis as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
 }
 
+/** jsdom не реализует Pointer Capture, который используют примитивы Bits UI
+ * в обработчиках `pointerdown`/`pointerup`. Заглушки нужны только тестам. */
+if (typeof Element !== 'undefined' && !Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+}
+
 /** Поддельный список медиа-запросов: jsdom не предоставляет `matchMedia`.
  *
  * Тема `system` подписывается на `(prefers-color-scheme: dark)`; в тестах

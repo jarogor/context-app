@@ -8,6 +8,12 @@ async function openSettings(page: import('@playwright/test').Page) {
   return page.locator('main');
 }
 
+/** Выбор значения в выпадающем списке настроек по его подписи. */
+async function chooseSelect(page: import('@playwright/test').Page, label: string, option: string) {
+  await page.locator('main').getByRole('button', { name: label }).click();
+  await page.getByRole('option', { name: option }).click();
+}
+
 test('кнопка в шапке циклически переключает тему', async ({ page }) => {
   await page.goto('/');
 
@@ -27,14 +33,14 @@ test('кнопка в шапке циклически переключает т�
 });
 
 test('выбор тёмной темы в настройках переключает оформление', async ({ page }) => {
-  const settings = await openSettings(page);
+  await openSettings(page);
 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   const surface = await page
     .locator('header')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
-  await settings.getByLabel('Тема оформления').selectOption('dark');
+  await chooseSelect(page, 'Тема оформления', 'Тёмная');
 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect
@@ -46,14 +52,14 @@ test('выбор тёмной темы в настройках переключ�
 });
 
 test('выбор палитры в настройках меняет цвета интерфейса', async ({ page }) => {
-  const settings = await openSettings(page);
+  await openSettings(page);
 
   await expect(page.locator('html')).toHaveAttribute('data-palette', 'gruvbox');
   const surface = await page
     .locator('header')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
-  await settings.getByLabel('Палитра оформления').selectOption('mist');
+  await chooseSelect(page, 'Палитра оформления', 'Mist');
 
   await expect(page.locator('html')).toHaveAttribute('data-palette', 'mist');
   await expect

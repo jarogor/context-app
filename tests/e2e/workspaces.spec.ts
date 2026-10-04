@@ -28,13 +28,13 @@ test.beforeEach(async ({ page }) => {
 /** Создание рабочего места с указанным именем. */
 async function createWorkspace(page: import('@playwright/test').Page, name: string) {
     await page.getByPlaceholder('Новое рабочее место').fill(name);
-    await page.getByRole('button', { name: 'Создать' }).click();
+    await page.getByLabel('Создать рабочее место').click();
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
 }
 
 /** Возврат к списку рабочих мест. */
 async function backToList(page: import('@playwright/test').Page) {
-    await page.getByTestId('workplace-back-to-list').click();
+    await page.getByLabel('К списку рабочих мест').click();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 }
 
@@ -178,7 +178,8 @@ test('переименование рабочего места отражает�
     await createWorkspace(page, 'Черновик');
     await backToList(page);
 
-    await page.getByLabel('Переименовать рабочее место').click();
+    await page.getByLabel('Действия с рабочим местом').click();
+    await page.getByRole('menuitem', { name: 'Переименовать' }).click();
     await page.getByPlaceholder('Новое имя').fill('Основное');
     await page.getByRole('button', { name: 'Сохранить' }).click();
 
@@ -194,8 +195,9 @@ test('удаление рабочего места убирает его из с
 
     await page
         .locator('[data-testid="workspace-item"]', { hasText: 'Первое' })
-        .getByLabel('Удалить рабочее место')
+        .getByLabel('Действия с рабочим местом')
         .click();
+    await page.getByRole('menuitem', { name: 'Удалить' }).click();
 
     await expect(page.getByTestId('workspace-item')).toHaveCount(1);
     await expect(page.getByTestId('workspace-open')).toHaveText('Второе');
@@ -207,7 +209,8 @@ test('удаление последнего рабочего места пока
     await createWorkspace(page, 'Единственное');
     await backToList(page);
 
-    await page.getByLabel('Удалить рабочее место').click();
+    await page.getByLabel('Действия с рабочим местом').click();
+    await page.getByRole('menuitem', { name: 'Удалить' }).click();
 
     await expect(page.getByTestId('workspaces-empty')).toBeVisible();
     await expect(page.getByTestId('workplace-tabs')).toHaveCount(0);

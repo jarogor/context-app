@@ -8,9 +8,11 @@
       variant: {
         primary: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs',
         secondary:
-          'bg-background hover:bg-accent hover:text-accent-foreground border shadow-xs',
+          'bg-background hover:bg-accent hover:text-accent-foreground border border-[var(--border)] shadow-xs',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
-        danger: 'bg-destructive hover:bg-destructive/90 text-white shadow-xs',
+        danger: 'bg-destructive hover:bg-destructive/90 text-white border border-transparent shadow-xs',
+        'ghost-danger':
+          'border border-[var(--border)] text-destructive hover:bg-destructive-soft hover:border-destructive-border',
       },
       size: {
         md: 'h-9 px-4 py-2',
@@ -34,7 +36,7 @@
 
   interface Props {
     /** Вариант оформления. */
-    variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+    variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'ghost-danger';
     /** Размер кнопки. */
     size?: 'md' | 'sm' | 'icon';
     /** Тип кнопки. */

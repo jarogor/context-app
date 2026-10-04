@@ -79,7 +79,8 @@ describe('панель заметок-цитат', () => {
         await fireEvent.click(screen.getByTestId('notes-item-link'));
         expect(onGoToNote).toHaveBeenCalledWith(expect.objectContaining({ id: 'note-1' }));
 
-        await fireEvent.click(screen.getByTitle('Удалить заметку'));
+        await fireEvent.pointerDown(screen.getByLabelText('Действия с заметкой'), { button: 0 });
+        await fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить' }));
         expect(onDeleteNote).toHaveBeenCalledWith('note-1');
     });
 
@@ -95,7 +96,10 @@ describe('панель заметок-цитат', () => {
             },
         });
 
-        await fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ns-2' } });
+        await fireEvent.pointerDown(screen.getByRole('button', { name: 'Набор заметок' }), {
+            button: 0,
+        });
+        await fireEvent.pointerUp(screen.getByRole('option', { name: 'Конспект (0)' }));
         expect(onSelectSet).toHaveBeenCalledWith('ns-2');
     });
 
@@ -111,7 +115,10 @@ describe('панель заметок-цитат', () => {
             },
         });
 
-        await fireEvent.click(screen.getByLabelText('Создать набор'));
+        await fireEvent.pointerDown(screen.getByLabelText('Действия с набором заметок'), {
+            button: 0,
+        });
+        await fireEvent.click(screen.getByRole('menuitem', { name: 'Новый набор' }));
         await fireEvent.input(screen.getByPlaceholderText('Новый набор'), {
             target: { value: 'Черновик' },
         });
@@ -132,7 +139,10 @@ describe('панель заметок-цитат', () => {
             },
         });
 
-        await fireEvent.click(screen.getByLabelText('Переименовать набор'));
+        await fireEvent.pointerDown(screen.getByLabelText('Действия с набором заметок'), {
+            button: 0,
+        });
+        await fireEvent.click(screen.getByRole('menuitem', { name: 'Переименовать' }));
         await fireEvent.input(screen.getByPlaceholderText('Новое имя'), {
             target: { value: 'Конспект' },
         });
@@ -153,7 +163,10 @@ describe('панель заметок-цитат', () => {
             },
         });
 
-        await fireEvent.click(screen.getByLabelText('Удалить набор'));
+        await fireEvent.pointerDown(screen.getByLabelText('Действия с набором заметок'), {
+            button: 0,
+        });
+        await fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить' }));
         expect(onRemoveSet).toHaveBeenCalledWith('ns-1');
     });
 });

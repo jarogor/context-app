@@ -225,9 +225,18 @@
   /** Видна ли страница «Библиотеки» (с учётом модального раздела настроек). */
   const librariesVisible = $derived(librariesOpen && !settingsOpen);
 
-  /** Показывать ли в шапке имя активной библиотеки. */
+  /** Показывать ли в шапке имя активной библиотеки.
+   *
+   * В открытом рабочем месте имя и провайдер библиотеки не показываются: шапка
+   * отображает только имя самого рабочего места. В списке рабочих мест имя
+   * библиотеки остаётся.
+   */
   function showLibrary(): boolean {
-    return activeLibrary !== null && !settingsOpen && (isMainSection() || workspaceOpen);
+    return (
+      activeLibrary !== null &&
+      !settingsOpen &&
+      (isMainSection() || (workspaceOpen && activeWorkspaceName === null))
+    );
   }
 
   /** Название текущего раздела в верхней панели. */
@@ -241,8 +250,13 @@
       : librariesOpen
         ? 'Библиотеки'
         : workspaceOpen
-          ? 'Рабочее место'
+          ? 'Рабочие места'
           : 'Библиотека',
+  );
+
+  /** Имя открытого рабочего места для шапки; null в списке рабочих мест. */
+  const activeWorkspaceName = $derived(
+    workspaceOpen && !workspaceListMode && workspace ? workspace.name : null,
   );
 
   /** Показывать ли в шапке название раздела помимо имени библиотеки. */
@@ -859,7 +873,17 @@
       </span>
     {/if}
     {#if showSectionLabel()}
-      <span class="text-sm text-[var(--muted-foreground)]">{sectionTitle}</span>
+      {#if activeWorkspaceName}
+        <span
+          class="max-w-[280px] truncate text-sm font-semibold text-[var(--foreground)]"
+          data-testid="header-workspace-name"
+          title={activeWorkspaceName}
+        >
+          {activeWorkspaceName}
+        </span>
+      {:else}
+        <span class="text-sm text-[var(--muted-foreground)]">{sectionTitle}</span>
+      {/if}
     {/if}
     <div class="ml-auto flex items-center gap-2">
       {#if registryError}

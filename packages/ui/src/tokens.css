@@ -52,10 +52,10 @@
   --accent-foreground: #3c3836;
   --destructive: #9d0006;
   --destructive-foreground: #fbf1c7;
-  /* Границы мягкие: смесь переднего плана с фоном, а не отдельный gruvbox-тон —
-   * линии лишь намечают контур и не спорят с тёплым фоном. */
+  /* Единая тонкая обводка поверхностей и контролов: одно значение для полей
+   * ввода, кнопок, карточек и пунктов списков, чтобы интерфейс был однородным. */
   --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 22%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 15%, var(--background));
   --ring: #076678;
   --radius: 0.625rem;
   --sidebar: #f9f5d7;
@@ -64,9 +64,9 @@
   --sidebar-primary-foreground: #fbf1c7;
   --sidebar-accent: #ebdbb2;
   --sidebar-accent-foreground: #3c3836;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 15%, var(--background));
+  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
   --sidebar-ring: #076678;
-  --success: #79740e;
+  --success: #427b58;
   --warning: #b57614;
 }
 
@@ -91,9 +91,9 @@
   --accent-foreground: #ebdbb2;
   --destructive: #fb4934;
   --destructive-foreground: #282828;
-  /* Границы мягкие: смесь переднего плана с фоном (см. светлый набор). */
-  --border: color-mix(in oklab, var(--foreground) 14%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
+  /* Единая тонкая обводка (см. светлый набор). */
+  --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 15%, var(--background));
   --ring: #83a598;
   --sidebar: #32302f;
   --sidebar-foreground: #ebdbb2;
@@ -101,9 +101,9 @@
   --sidebar-primary-foreground: #282828;
   --sidebar-accent: #3c3836;
   --sidebar-accent-foreground: #ebdbb2;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
+  --sidebar-border: color-mix(in oklab, var(--foreground) 13%, var(--background));
   --sidebar-ring: #83a598;
-  --success: #b8bb26;
+  --success: #8ec07c;
   --warning: #fabd2f;
 }
 

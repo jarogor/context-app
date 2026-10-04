@@ -39,6 +39,10 @@
       ? (node.props.options as Array<{ value: unknown; title: unknown }>)
       : [],
   );
+  /** Варианты выбора в форме выпадающего списка. */
+  const selectOptions = $derived(
+    options.map((option) => ({ value: String(option.value), label: String(option.title) })),
+  );
   /** Уровень заголовка. */
   const level = $derived(typeof node.props?.level === 'number' ? (node.props.level as number) : 2);
   /** Идентификатор контрола для связи с подписью. */
@@ -128,18 +132,16 @@
       id={controlId}
       class="max-w-[420px]"
       value={text()}
-      onchange={(event) => {
-        onvalue(name, event.currentTarget.value);
-        const next = action('change');
-        if (next) {
-          onaction(next);
+      items={selectOptions}
+      ariaLabel={node.props?.label ? String(node.props.label) : undefined}
+      onchange={(next) => {
+        onvalue(name, next);
+        const nextAction = action('change');
+        if (nextAction) {
+          onaction(nextAction);
         }
       }}
-    >
-      {#each options as option}
-        <option value={String(option.value)}>{String(option.title)}</option>
-      {/each}
-    </Select>
+    />
   </div>
 {:else if node.type === 'Button'}
   <Button

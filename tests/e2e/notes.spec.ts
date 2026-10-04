@@ -72,6 +72,33 @@ async function openNotes(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('notes-panel')).toBeVisible();
 }
 
+/** Триггер выпадающего списка наборов заметок. */
+function noteSetSelect(page: import('@playwright/test').Page) {
+    return page.getByRole('button', { name: 'Набор заметок' });
+}
+
+/** Выбор набора заметок в выпадающем списке. */
+async function selectNoteSet(page: import('@playwright/test').Page, name: string) {
+    await noteSetSelect(page).click();
+    await page.getByRole('option', { name: new RegExp(name) }).click();
+}
+
+/** Открытие списка наборов и проверка набора доступных вариантов. */
+async function expectNoteSetOptions(
+    page: import('@playwright/test').Page,
+    expected: string[],
+    absent: string[] = [],
+) {
+    await noteSetSelect(page).click();
+    for (const name of expected) {
+        await expect(page.getByRole('option', { name: new RegExp(name) })).toHaveCount(1);
+    }
+    for (const name of absent) {
+        await expect(page.getByRole('option', { name: new RegExp(name) })).toHaveCount(0);
+    }
+    await page.keyboard.press('Escape');
+}
+
 /** Документ активной вкладки в области чтения.
  *
  * Открытые вкладки остаются смонтированными (переключение не перезагружает
@@ -257,7 +284,8 @@ test('удаление заметки убирает подсветку из к�
     await openNotes(page);
     await highlightParagraph(page, 'Первый абзац книги.');
 
-    await page.getByTestId('notes-panel').getByTitle('Удалить заметку').click();
+    await page.getByLabel('Действия с заметкой').first().click();
+    await page.getByRole('menuitem', { name: 'Удалить' }).click();
 
     await expect(page.getByTestId('notes-item')).toHaveCount(0);
     await expect(bookDocument(page).locator('mark')).toHaveCount(0);
@@ -278,10 +306,11 @@ test('заметки книги общие для двух вкладок', asyn
 
 /** Создание набора заметок с указанным именем; он становится активным. */
 async function createNoteSet(page: import('@playwright/test').Page, name: string) {
-    await page.getByLabel('Создать набор').click();
+    await page.getByLabel('Действия с набором заметок').click();
+    await page.getByRole('menuitem', { name: 'Новый набор' }).click();
     await page.getByPlaceholder('Новый набор').fill(name);
     await page.getByRole('button', { name: 'Создать' }).click();
-    await expect(page.getByRole('option', { name: new RegExp(name) })).toHaveCount(1);
+    await expect(noteSetSelect(page)).toContainText(name);
 }
 
 test('переключение набора меняет список и изолирует заметки', async ({ page }) => {
@@ -303,7 +332,7 @@ test('переключение набора меняет список и изо�
     await expect(page.getByTestId('notes-item-link')).toContainText('Второй абзац книги.');
 
     // Возврат к первому набору показывает только его заметку и подсветку.
-    await page.getByRole('combobox').selectOption({ label: 'Конспект (1)' });
+    await selectNoteSet(page, 'Конспект');
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
     await expect(page.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
     await expect(bookDocument(page).locator('mark').first()).toHaveText('Первый абзац книги.');
@@ -331,7 +360,7 @@ test('активный набор книги сохраняется при пе�
         await page.getByRole('button', { name: 'Заметки' }).click();
     }
 
-    await expect(page.getByRole('combobox')).toHaveValue('ns-mock-2');
+    await expect(noteSetSelect(page)).toContainText('Черновик');
     await expect(page.getByTestId('notes-item')).toHaveCount(0);
     await expect(bookDocument(page).locator('mark')).toHaveCount(0);
 });
@@ -349,19 +378,17 @@ test('наборы одной книги не появляются у друго
         await page.getByRole('button', { name: 'Заметки' }).click();
     }
     await expect(page.getByTestId('notes-panel')).toBeVisible();
-    await expect(page.getByRole('option', { name: /Конспект/ })).toHaveCount(0);
-    await expect(page.getByRole('combobox')).toHaveValue('');
+    await expect(noteSetSelect(page)).toContainText('Наборов нет');
 
     // Свой набор второй книги не показывается у первой.
     await createNoteSet(page, 'Вторая книга');
-    await expect(page.getByRole('option', { name: /Вторая книга/ })).toHaveCount(1);
+    await expect(noteSetSelect(page)).toContainText('Вторая книга');
 
     await page.getByTestId('workplace-tab').first().click();
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
         await page.getByRole('button', { name: 'Заметки' }).click();
     }
-    await expect(page.getByRole('option', { name: /Конспект/ })).toHaveCount(1);
-    await expect(page.getByRole('option', { name: /Вторая книга/ })).toHaveCount(0);
+    await expectNoteSetOptions(page, ['Конспект'], ['Вторая книга']);
 });
 
 test('активный набор книги сохраняется после перезапуска', async ({ page }) => {
@@ -372,7 +399,7 @@ test('активный набор книги сохраняется после �
     await createNoteSet(page, 'Конспект');
     await createNoteSet(page, 'Черновик');
     await highlightParagraph(page, 'Второй абзац книги.');
-    await expect(page.getByRole('combobox')).toHaveValue('ns-mock-2');
+    await expect(noteSetSelect(page)).toContainText('Черновик');
 
     // Перезапуск приложения: активным должен остаться выбранный набор книги.
     await page.reload();
@@ -381,7 +408,7 @@ test('активный набор книги сохраняется после �
         await page.getByRole('button', { name: 'Заметки' }).click();
     }
 
-    await expect(page.getByRole('combobox')).toHaveValue('ns-mock-2');
+    await expect(noteSetSelect(page)).toContainText('Черновик');
     await expect(page.getByTestId('notes-item-link')).toContainText('Второй абзац книги.');
 });
 
@@ -394,14 +421,15 @@ test('создание, переименование и удаление наб�
     await createNoteSet(page, 'Черновик');
 
     // Переименование активного набора.
-    await page.getByLabel('Переименовать набор').click();
+    await page.getByLabel('Действия с набором заметок').click();
+    await page.getByRole('menuitem', { name: 'Переименовать' }).click();
     await page.getByPlaceholder('Новое имя').fill('Наброски');
     await page.getByRole('button', { name: 'Сохранить' }).click();
-    await expect(page.getByRole('option', { name: /Наброски/ })).toHaveCount(1);
+    await expect(noteSetSelect(page)).toContainText('Наброски');
 
     // Удаление активного набора переводит на оставшийся.
-    await page.getByLabel('Удалить набор').click();
-    await expect(page.getByRole('option', { name: /Наброски/ })).toHaveCount(0);
-    await expect(page.getByRole('combobox')).toHaveValue(/.+/);
-    await expect(page.getByRole('option', { name: /Конспект/ })).toHaveCount(1);
+    await page.getByLabel('Действия с набором заметок').click();
+    await page.getByRole('menuitem', { name: 'Удалить' }).click();
+    await expect(noteSetSelect(page)).toContainText('Конспект');
+    await expectNoteSetOptions(page, ['Конспект'], ['Наброски']);
 });

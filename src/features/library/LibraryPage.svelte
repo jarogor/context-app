@@ -82,8 +82,23 @@
     }
   }
 
-  /** Открытие библиотеки снаружи: перезагрузка каталога. */
-  async function onCatalogChanged() {
+  /** Открытие библиотеки снаружи: обновление корня и перезагрузка каталога.
+   *
+   * Корень берётся из события, а не только из разового чтения при монтировании:
+   * библиотека может быть открыта уже после первого кадра, и без обновления
+   * абсолютный путь книги собирался бы от пустого корня.
+   */
+  async function onCatalogChanged(value?: unknown) {
+    const payload = value as ActiveLibrary | null;
+    if (payload?.path) {
+      libraryRoot = payload.path;
+    } else {
+      try {
+        libraryRoot = await activeLibraryPath();
+      } catch {
+        libraryRoot = '';
+      }
+    }
     librarySelected = true;
     searchQuery = '';
     openedBook = null;
@@ -152,8 +167,8 @@
   onMount(() => {
     let unlisten: (() => void) | undefined;
     void (async () => {
-      unlisten = await listenEvent('source-catalog-changed', () => {
-        void onCatalogChanged();
+      unlisten = await listenEvent('source-catalog-changed', (value) => {
+        void onCatalogChanged(value);
       });
       try {
         const formats = await readerFormats();

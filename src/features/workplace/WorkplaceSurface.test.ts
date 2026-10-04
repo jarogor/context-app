@@ -144,7 +144,7 @@ describe('поверхность рабочего места: список и в
             },
         });
 
-        await fireEvent.click(screen.getByTestId('workplace-back-to-list'));
+        await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
 
         expect(base.onBackToList).toHaveBeenCalled();
     });

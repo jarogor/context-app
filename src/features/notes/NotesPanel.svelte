@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Input, Select } from '@texture/ui';
+  import { ActionMenu, Button, Input, Select, type MenuAction } from '@texture/ui';
   import type { Note, NoteListItem, NoteSetSummary } from './notes';
 
   interface Props {
@@ -71,11 +71,38 @@
     return items.filter((item) => item.name.toLowerCase().includes(needle));
   });
 
+  /** Варианты выпадающего списка наборов: имя и число заметок. */
+  const setOptions = $derived(
+    sets.map((set) => ({ value: set.id, label: `${set.name} (${set.noteCount})` })),
+  );
+
+  /** Пункты меню набора заметок. */
+  const setActions = $derived<MenuAction[]>([
+    { id: 'create', label: 'Новый набор' },
+    { id: 'rename', label: 'Переименовать', disabled: !activeSet },
+    { id: 'delete', label: 'Удалить', destructive: true, disabled: !activeSet },
+  ]);
+
+  /** Пункты меню заметки. */
+  const noteActions: MenuAction[] = [{ id: 'delete', label: 'Удалить', destructive: true }];
+
   /** Переключение активного набора из списка. */
-  function changeSet(event: Event & { currentTarget: HTMLSelectElement }) {
-    const setId = event.currentTarget.value;
+  function changeSet(setId: string) {
     if (setId && setId !== activeSetId) {
       onSelectSet?.(setId);
+    }
+  }
+
+  /** Выбор действия набора из меню. */
+  function runSetAction(action: string) {
+    if (action === 'create') {
+      startCreate();
+    }
+    if (action === 'rename') {
+      startRename();
+    }
+    if (action === 'delete' && activeSet) {
+      onRemoveSet?.(activeSet.id);
     }
   }
 
@@ -209,43 +236,20 @@
         <div class="flex items-center gap-2">
           <Select
             value={activeSetId ?? ''}
+            items={setOptions}
+            placeholder={sets.length === 0 ? 'Наборов нет' : 'Выберите набор'}
             disabled={sets.length === 0}
+            ariaLabel="Набор заметок"
             class="min-w-0 flex-1"
             onchange={changeSet}
-          >
-            {#if sets.length === 0}
-              <option value="">Наборов нет</option>
-            {/if}
-            {#each sets as set (set.id)}
-              <option value={set.id}>{set.name} ({set.noteCount})</option>
-            {/each}
-          </Select>
-          <Button
-            variant="secondary"
-            size="sm"
-            title="Создать набор"
-            ariaLabel="Создать набор"
-            onclick={startCreate}>Новый</Button
-          >
+          />
+          <ActionMenu
+            ariaLabel="Действия с набором заметок"
+            title="Действия"
+            items={setActions}
+            onselect={runSetAction}
+          />
         </div>
-        {#if activeSet}
-          <div class="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              title="Переименовать набор"
-              ariaLabel="Переименовать набор"
-              onclick={startRename}>Переименовать</Button
-            >
-            <Button
-              variant="danger"
-              size="sm"
-              title="Удалить набор"
-              ariaLabel="Удалить набор"
-              onclick={() => onRemoveSet?.(activeSet.id)}>Удалить</Button
-            >
-          </div>
-        {/if}
       {/if}
     </div>
 
@@ -262,36 +266,41 @@
       >
         {#each visible as item (item.note.id)}
           <li
-            class="rounded-md border border-[var(--border)] p-2 transition-colors {selectedId ===
+            class="group rounded-md border border-[var(--border)] p-2 transition-colors {selectedId ===
             item.note.id
-              ? 'border-[var(--accent)] bg-[var(--muted)]'
-              : ''}"
+              ? 'bg-[var(--primary-soft)]'
+              : 'hover:bg-[var(--muted)]'}"
             data-testid="notes-item"
             data-selected={selectedId === item.note.id ? 'true' : 'false'}
           >
-            <button
-              type="button"
-              class="block w-full cursor-pointer text-left [font:inherit]"
-              data-testid="notes-item-link"
-              onclick={() => onGoToNote?.(item.note)}
-            >
-              <span class="block text-[13px] leading-snug">{item.name}</span>
-            </button>
-            <div
-              class="mt-1 flex items-center gap-2 text-[11px] text-[var(--muted-foreground)]"
-            >
-              {#if item.place}
-                <span data-testid="notes-item-place">{item.place}</span>
-              {/if}
-              <span>{formatDate(item.createdAtMillis)}</span>
-            </div>
-            <div class="mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                title="Удалить заметку"
-                onclick={() => onDeleteNote?.(item.note.id)}>Удалить</Button
+            <div class="flex items-start gap-2">
+              <button
+                type="button"
+                class="min-w-0 flex-1 cursor-pointer text-left [font:inherit]"
+                data-testid="notes-item-link"
+                onclick={() => onGoToNote?.(item.note)}
               >
+                <span class="block text-[13px] leading-snug">{item.name}</span>
+                <span
+                  class="mt-1 flex items-center gap-2 text-[11px] text-[var(--muted-foreground)]"
+                >
+                  {#if item.place}
+                    <span data-testid="notes-item-place">{item.place}</span>
+                  {/if}
+                  <span>{formatDate(item.createdAtMillis)}</span>
+                </span>
+              </button>
+              <ActionMenu
+                ariaLabel="Действия с заметкой"
+                title="Действия"
+                class="h-7 w-7"
+                items={noteActions}
+                onselect={(action) => {
+                  if (action === 'delete') {
+                    onDeleteNote?.(item.note.id);
+                  }
+                }}
+              />
             </div>
           </li>
         {:else}

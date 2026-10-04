@@ -41,7 +41,7 @@ describe('экран списка рабочих мест', () => {
 
     const input = screen.getByRole('textbox');
     await fireEvent.input(input, { target: { value: 'Новое' } });
-    await fireEvent.click(screen.getByText('Создать'));
+    await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
 
     expect(base.onCreate).toHaveBeenCalledWith('Новое');
   });
@@ -50,7 +50,7 @@ describe('экран списка рабочих мест', () => {
     const base = handlers();
     render(WorkspacesPage, { props: { workspaces: [], activeId: null, ...base } });
 
-    await fireEvent.click(screen.getByText('Создать'));
+    await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
 
     expect(base.onCreate).not.toHaveBeenCalled();
   });
@@ -66,13 +66,14 @@ describe('экран списка рабочих мест', () => {
     expect(base.onOpen).toHaveBeenCalledWith('ws-1');
   });
 
-  it('переименовывает рабочее место', async () => {
+  it('переименовывает рабочее место через меню действий', async () => {
     const base = handlers();
     render(WorkspacesPage, {
       props: { workspaces: [{ id: 'ws-1', name: 'Старое' }], activeId: null, ...base },
     });
 
-    await fireEvent.click(screen.getByLabelText('Переименовать рабочее место'));
+    await fireEvent.pointerDown(screen.getByLabelText('Действия с рабочим местом'), { button: 0 });
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Переименовать' }));
     const input = screen.getAllByRole('textbox')[1];
     await fireEvent.input(input, { target: { value: 'Новое' } });
     await fireEvent.click(screen.getByText('Сохранить'));
@@ -80,13 +81,14 @@ describe('экран списка рабочих мест', () => {
     expect(base.onRename).toHaveBeenCalledWith('ws-1', 'Новое');
   });
 
-  it('удаляет рабочее место по кнопке', async () => {
+  it('удаляет рабочее место через меню действий', async () => {
     const base = handlers();
     render(WorkspacesPage, {
       props: { workspaces: [{ id: 'ws-1', name: 'Первое' }], activeId: null, ...base },
     });
 
-    await fireEvent.click(screen.getByLabelText('Удалить рабочее место'));
+    await fireEvent.pointerDown(screen.getByLabelText('Действия с рабочим местом'), { button: 0 });
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить' }));
 
     expect(base.onRemove).toHaveBeenCalledWith('ws-1');
   });

@@ -174,7 +174,6 @@
     <WorkplaceTabs
       tabs={workspace.tabs}
       activeTabId={workspace.activeTabId}
-      workspaceName={workspace.name}
       {booksOpen}
       {notesOpen}
       onSelect={onSelectTab}
