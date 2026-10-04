@@ -8,6 +8,7 @@
   import LibrariesPage from '../features/library/LibrariesPage.svelte';
   import AppInfoPage from '../features/settings/AppInfoPage.svelte';
   import WorkplaceSurface from '../features/workplace/WorkplaceSurface.svelte';
+  import WorkspacePickerDialog from '../features/workplace/WorkspacePickerDialog.svelte';
   import {
     closeTab,
     duplicateTab,
@@ -18,13 +19,13 @@
     activeTab,
   } from '../features/workplace/workplace';
   import {
-    activeWorkspace,
+    currentWorkspace,
     createWorkspace,
     removeWorkspace,
     renameWorkspace,
     selectWorkspace,
     serializeRegistry,
-    updateActiveWorkspaceTabs,
+    updateCurrentWorkspaceTabs,
     type WorkspaceRegistry,
   } from '../features/workplace/workspace-registry';
   import type { ActiveLibrary } from '../features/lifecycle/bootstrap';
@@ -121,6 +122,12 @@
   /** Показывается ли список рабочих мест вместо вкладок; точка входа приложения. */
   let workspaceListMode = $state(true);
 
+  /** Открыт ли диалог выбора рабочего места при открытии книги. */
+  let pickerOpen = $state(false);
+
+  /** Книга, ожидающая выбора рабочего места при открытии из библиотеки. */
+  let pendingBook: { path: string; title: string; format: string } | null = null;
+
   /** Открыта ли панель списка открытых книг. */
   let booksPanelOpen = $state(false);
 
@@ -184,10 +191,10 @@
   /** Реестр рабочих мест и активное место (загружен до первого рендера). */
   let registry: WorkspaceRegistry = $state(untrack(() => initialRegistry));
 
-  /** Активное рабочее место. */
-  const workspace = $derived(activeWorkspace(registry));
+  /** Текущее (открытое) рабочее место. */
+  const workspace = $derived(currentWorkspace(registry));
 
-  /** Активная вкладка активного рабочего места. */
+  /** Активная вкладка текущего рабочего места. */
   const currentTab = $derived(
     workspace ? activeTab({ tabs: workspace.tabs, activeTabId: workspace.activeTabId }) : null,
   );
@@ -333,22 +340,22 @@
 
   /** Выбор активной вкладки. */
   function selectTab(id: string) {
-    registry = updateActiveWorkspaceTabs(registry, (state) => activateTab(state, id));
+    registry = updateCurrentWorkspaceTabs(registry, (state) => activateTab(state, id));
   }
 
   /** Закрытие вкладки. */
   function removeTab(id: string) {
-    registry = updateActiveWorkspaceTabs(registry, (state) => closeTab(state, id));
+    registry = updateCurrentWorkspaceTabs(registry, (state) => closeTab(state, id));
   }
 
   /** Дублирование вкладки. */
   function duplicateCurrentTab(id: string) {
-    registry = updateActiveWorkspaceTabs(registry, (state) => duplicateTab(state, id));
+    registry = updateCurrentWorkspaceTabs(registry, (state) => duplicateTab(state, id));
   }
 
   /** Изменение состояния чтения вкладки. */
   function handleTabState(id: string, state: { zoom: number; position: number }) {
-    registry = updateActiveWorkspaceTabs(registry, (current) => updateTab(current, id, state));
+    registry = updateCurrentWorkspaceTabs(registry, (current) => updateTab(current, id, state));
   }
 
   /** Переключение панели списка открытых книг. */
@@ -700,12 +707,12 @@
   /** Удаление рабочего места. */
   function removeExistingWorkspace(id: string) {
     registry = removeWorkspace(registry, id);
-    if (registry.activeWorkspaceId === null) {
+    if (registry.currentWorkspaceId === null) {
       workspaceListMode = true;
     }
   }
 
-  /** Переход к библиотеке для добавления книги в рабочее место. */
+  /** Переход к библиотеке для добавления книги в текущее рабочее место. */
   function requestAddBook() {
     workspaceOpen = false;
     librariesOpen = false;
@@ -722,7 +729,39 @@
     void chooseBookFile();
   }
 
-  /** Выбор файла книги на диске и открытие его вкладкой или переуказание. */
+  /** Размещение книги: переуказание вкладки, текущее место или выбор места.
+   *
+   * Переуказание заменяет книгу вкладки; иначе книга открывается вкладкой в
+   * текущем рабочем месте, а при его отсутствии откладывается до выбора места.
+   * Возвращает, открылась ли книга сразу (без диалога выбора).
+   */
+  function placeBook(book: { path: string; title: string; format: string }): boolean {
+    if (repointTabId) {
+      registry = updateCurrentWorkspaceTabs(registry, (state) =>
+        replaceTabBook(state, repointTabId as string, book),
+      );
+      repointTabId = null;
+      return true;
+    }
+    if (registry.currentWorkspaceId !== null) {
+      registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, book));
+      return true;
+    }
+    // Текущего места нет: книга ждёт выбора или создания рабочего места.
+    pendingBook = book;
+    pickerOpen = true;
+    return false;
+  }
+
+  /** Показ поверхности рабочего места после открытия книги. */
+  function showWorkspaceSurface() {
+    workspaceOpen = true;
+    workspaceListMode = false;
+    settingsOpen = false;
+    librariesOpen = false;
+  }
+
+  /** Открытие выбранной с диска книги вкладкой или переуказание файла вкладки. */
   async function chooseBookFile() {
     const selected = await openDialog({
       multiple: false,
@@ -742,18 +781,9 @@
       title: fileName(chosen),
       format: formatFromPath(chosen),
     };
-    if (repointTabId) {
-      registry = updateActiveWorkspaceTabs(registry, (state) =>
-        replaceTabBook(state, repointTabId as string, book),
-      );
-      repointTabId = null;
-    } else {
-      registry = updateActiveWorkspaceTabs(registry, (state) => openBook(state, book), true);
+    if (placeBook(book)) {
+      showWorkspaceSurface();
     }
-    workspaceOpen = true;
-    workspaceListMode = false;
-    settingsOpen = false;
-    librariesOpen = false;
   }
 
   /** Человекочитаемое имя книги по последнему сегменту пути. */
@@ -763,7 +793,11 @@
     );
   }
 
-  /** Открытие книги вкладкой рабочего места из библиотеки. */
+  /** Открытие книги вкладкой рабочего места из библиотеки.
+   *
+   * Место выбирается явно: если рабочее место уже открыто, книга идёт в него;
+   * иначе показывается диалог выбора места.
+   */
   function openBookInWorkspace(value: { path: string; title: string; format: string }) {
     if (!value.path) {
       return;
@@ -773,18 +807,42 @@
       title: value.title || fileName(value.path),
       format: value.format || formatFromPath(value.path),
     };
-    if (repointTabId) {
-      registry = updateActiveWorkspaceTabs(registry, (state) =>
-        replaceTabBook(state, repointTabId as string, book),
-      );
-      repointTabId = null;
-    } else {
-      registry = updateActiveWorkspaceTabs(registry, (state) => openBook(state, book), true);
+    if (placeBook(book)) {
+      showWorkspaceSurface();
     }
-    workspaceOpen = true;
-    workspaceListMode = false;
-    settingsOpen = false;
-    librariesOpen = false;
+  }
+
+  /** Выбор рабочего места из диалога: книга открывается вкладкой в нём. */
+  function pickWorkspace(id: string) {
+    registry = selectWorkspace(registry, id);
+    pickerOpen = false;
+    if (pendingBook) {
+      registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, pendingBook as {
+        path: string;
+        title: string;
+        format: string;
+      }));
+      pendingBook = null;
+    }
+    showWorkspaceSurface();
+  }
+
+  /** Создание рабочего места из диалога выбора: становится текущим, книга — в нём. */
+  function createWorkspaceAndOpen(name: string) {
+    registry = createWorkspace(registry, name);
+    pickerOpen = false;
+    if (pendingBook) {
+      const book = pendingBook;
+      pendingBook = null;
+      registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, book));
+    }
+    showWorkspaceSurface();
+  }
+
+  /** Закрытие диалога выбора без открытия книги. */
+  function closeWorkspacePicker() {
+    pickerOpen = false;
+    pendingBook = null;
   }
 
   /** Обновление сведений об активной библиотеке из ядра. */
@@ -1045,6 +1103,7 @@
       >
         <LibraryPage
           initialActiveLibrary={activeLibrary}
+          targetWorkspaceName={workspace?.name ?? null}
           onOpenInWorkplace={openBookInWorkspace}
         />
       </div>
@@ -1053,7 +1112,7 @@
           bind:this={reader}
           workspace={workspace}
           workspaces={registry.workspaces}
-          activeWorkspaceId={registry.activeWorkspaceId}
+          currentWorkspaceId={registry.currentWorkspaceId}
           listMode={workspaceListMode}
           booksOpen={booksPanelOpen}
           notesOpen={notesPanelOpen}
@@ -1148,4 +1207,16 @@
       />
     </aside>
   </div>
+
+  <WorkspacePickerDialog
+    open={pickerOpen}
+    workspaces={registry.workspaces}
+    onSelect={pickWorkspace}
+    onCreate={createWorkspaceAndOpen}
+    onOpenChange={(value) => {
+      if (!value) {
+        closeWorkspacePicker();
+      }
+    }}
+  />
 </div>

@@ -31,15 +31,15 @@ test('клик по книге открывает страницу книги с
     await expect(library.getByTestId('book-page').getByText('Тестовый автор')).toBeVisible();
 });
 
-test('страница книги предлагает чтение и открытие в системе', async ({ page }) => {
+test('страница книги предлагает чтение и открытие', async ({ page }) => {
     await page.goto('/');
     await showLibrary(page);
     const library = page.locator('main');
 
     await library.getByRole('button', { name: /Демо-книга/ }).click();
 
-    await expect(library.getByRole('button', { name: 'Открыть в рабочем месте' })).toBeVisible();
-    await expect(library.getByRole('button', { name: 'Открыть в системе' })).toBeVisible();
+    await expect(library.getByRole('button', { name: /Добавить в/ })).toBeVisible();
+    await expect(library.getByRole('button', { name: 'Открыть' })).toBeVisible();
 });
 
 test('для неподдерживаемого формата нет кнопки открытия в рабочем месте', async ({ page }) => {
@@ -50,8 +50,8 @@ test('для неподдерживаемого формата нет кнопк
     await library.getByRole('button', { name: /Вторая книга/ }).click();
 
     await expect(library.getByTestId('book-title')).toHaveText('Вторая книга');
-    await expect(library.getByRole('button', { name: 'Открыть в рабочем месте' })).toHaveCount(0);
-    await expect(library.getByRole('button', { name: 'Открыть в системе' })).toBeVisible();
+    await expect(library.getByRole('button', { name: /Добавить в/ })).toHaveCount(0);
+    await expect(library.getByRole('button', { name: 'Открыть' })).toBeVisible();
 });
 
 test('возврат к списку сохраняет поиск', async ({ page }) => {

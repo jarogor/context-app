@@ -3,6 +3,14 @@ import { expect, test } from '@playwright/test';
 /** Ответ активной библиотеки для сценариев сохранения рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
 
+/** Выбор рабочего места в диалоге, если он появился при открытии книги. */
+async function pickWorkspaceIfAsked(page: import('@playwright/test').Page) {
+    const list = page.getByTestId('workspace-picker-list');
+    if (await list.isVisible().catch(() => false)) {
+        await page.getByTestId('workspace-picker-item').first().click();
+    }
+}
+
 test('состав и активная вкладка восстанавливаются после перезагрузки', async ({ page }) => {
     await page.addInitScript((active) => {
         (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ =
@@ -43,7 +51,8 @@ test('состав и активная вкладка восстанавлива
     }
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await pickWorkspaceIfAsked(page);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 
     await expect

@@ -38,6 +38,14 @@ async function backToList(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 }
 
+/** Выбор рабочего места в диалоге, если он появился при открытии книги. */
+async function pickWorkspaceIfAsked(page: import('@playwright/test').Page) {
+    const list = page.getByTestId('workspace-picker-list');
+    if (await list.isVisible().catch(() => false)) {
+        await page.getByTestId('workspace-picker-item').first().click();
+    }
+}
+
 test('до готовности реестра показывается загрузка, а не пустой список', async ({ page }) => {
     await page.addInitScript(() => {
         (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ =
@@ -147,17 +155,18 @@ test('создание рабочего места добавляет его в 
 
     await backToList(page);
     await expect(page.getByTestId('workspace-open')).toHaveText('Исследование');
-    await expect(page.getByTestId('workspace-active')).toBeVisible();
+    await expect(page.getByTestId('workspace-current')).toBeVisible();
 });
 
 test('переключение между рабочими местами сохраняет их вкладки', async ({ page }) => {
     await page.goto('/');
     await createWorkspace(page, 'Первое');
 
-    await page.getByRole('button', { name: 'Добавить книгу' }).click();
+    await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await pickWorkspaceIfAsked(page);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 
     await backToList(page);
@@ -201,7 +210,8 @@ test('удаление рабочего места убирает его из с
 
     await expect(page.getByTestId('workspace-item')).toHaveCount(1);
     await expect(page.getByTestId('workspace-open')).toHaveText('Второе');
-    await expect(page.getByTestId('workspace-active')).toBeVisible();
+    // Удалено не текущее место — Второе остаётся текущим.
+    await expect(page.getByTestId('workspace-current')).toBeVisible();
 });
 
 test('удаление последнего рабочего места показывает пустой список', async ({ page }) => {

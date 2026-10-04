@@ -75,11 +75,24 @@ describe('страница библиотеки', () => {
     await screen.findByText('Демо-книга');
 
     await fireEvent.click(screen.getByRole('button', { name: /Демо-книга/ }));
-    await fireEvent.click(screen.getByRole('button', { name: 'Открыть в рабочем месте' }));
+    await fireEvent.click(screen.getByRole('button', { name: /Добавить в/ }));
 
     // Путь книги — абсолютный: корень из события, а не пустой из монтирования.
     expect(onOpenInWorkplace).toHaveBeenCalledWith(
       expect.objectContaining({ path: '/demo-library/demo-1.epub' }),
     );
+  });
+
+  it('подписывает кнопку добавления именем рабочего места', async () => {
+    render(LibraryPage, {
+      props: { initialActiveLibrary: null, targetWorkspaceName: 'Исследование', onOpenInWorkplace: vi.fn() },
+    });
+
+    await waitFor(() => expect(catalogChanged).toBeTruthy());
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'library' });
+    await screen.findByText('Демо-книга');
+    await fireEvent.click(screen.getByRole('button', { name: /Демо-книга/ }));
+
+    expect(screen.getByRole('button', { name: 'Добавить в «Исследование»' })).toBeTruthy();
   });
 });

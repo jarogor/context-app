@@ -12,8 +12,8 @@
   interface Props {
     /** Рабочие места в порядке отображения. */
     workspaces: WorkspaceItem[];
-    /** Идентификатор активного рабочего места. */
-    activeId: string | null;
+    /** Идентификатор текущего (открытого) рабочего места. */
+    currentId: string | null;
     /** Создание рабочего места с указанным именем. */
     onCreate: (name: string) => void;
     /** Открытие рабочего места. */
@@ -24,7 +24,7 @@
     onRemove: (id: string) => void;
   }
 
-  let { workspaces, activeId, onCreate, onOpen, onRename, onRemove }: Props = $props();
+  let { workspaces, currentId, onCreate, onOpen, onRename, onRemove }: Props = $props();
 
   /** Пункты меню действий рабочего места. */
   const workspaceActions: MenuAction[] = [
@@ -35,11 +35,23 @@
   /** Ввод имени нового рабочего места. */
   let newName = $state('');
 
+  /** Строка поиска по имени рабочего места. */
+  let query = $state('');
+
   /** Идентификатор переименовываемого рабочего места. */
   let editingId: string | null = $state(null);
 
   /** Черновик имени при переименовании. */
   let editingName = $state('');
+
+  /** Рабочие места, отфильтрованные поиском по имени. */
+  const filtered = $derived.by(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) {
+      return workspaces;
+    }
+    return workspaces.filter((item) => item.name.toLowerCase().includes(needle));
+  });
 
   /** Создание рабочего места из поля ввода. */
   function create() {
@@ -104,16 +116,28 @@
     />
   </div>
 
+  {#if workspaces.length > 0}
+    <Input
+      bind:value={query}
+      placeholder="Поиск рабочего места"
+      class="mb-4"
+    />
+  {/if}
+
   {#if workspaces.length === 0}
     <p class="text-[var(--muted-foreground)]" data-testid="workspaces-empty">
       Рабочих мест нет. Создайте рабочее место, чтобы открыть в нём книги.
     </p>
+  {:else if filtered.length === 0}
+    <p class="text-[var(--muted-foreground)]" data-testid="workspaces-not-found">
+      Ничего не найдено.
+    </p>
   {:else}
     <ul class="flex list-none flex-col gap-2 p-0">
-      {#each workspaces as item (item.id)}
+      {#each filtered as item (item.id)}
         <li
           class="flex items-center gap-2 rounded-md border border-[var(--border)] p-2 {item.id ===
-          activeId
+          currentId
             ? 'bg-[var(--primary-soft)]'
             : 'bg-[var(--card)] hover:bg-[var(--muted)]'}"
           data-testid="workspace-item"
@@ -149,9 +173,9 @@
             >
               {item.name}
             </button>
-            {#if item.id === activeId}
-              <span class="text-xs text-[var(--success)]" data-testid="workspace-active">
-                активное
+            {#if item.id === currentId}
+              <span class="text-xs text-[var(--success)]" data-testid="workspace-current">
+                текущее
               </span>
             {/if}
             <ActionMenu

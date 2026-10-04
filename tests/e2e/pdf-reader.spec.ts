@@ -164,7 +164,8 @@ async function openPdf(page: Page, pageCount: number) {
     }
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await pickWorkspaceIfAsked(page);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
     // Готовность области содержимого: страницы построены, первая отрисована.
     await content(page).locator('.page canvas').first().waitFor({ timeout: 20000 });
@@ -173,6 +174,14 @@ async function openPdf(page: Page, pageCount: number) {
 /** Область содержимого плагина. */
 function content(page: Page) {
     return page.frameLocator('iframe[title="Содержимое книги"]');
+}
+
+/** Выбор рабочего места в диалоге, если он появился при открытии книги. */
+async function pickWorkspaceIfAsked(page: Page) {
+    const list = page.getByTestId('workspace-picker-list');
+    if (await list.isVisible().catch(() => false)) {
+        await page.getByTestId('workspace-picker-item').first().click();
+    }
 }
 
 /** Приведение области чтения к заданному масштабу (шаг кнопок — 10 %). */

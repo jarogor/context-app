@@ -50,7 +50,7 @@ describe('поверхность рабочего места: список и в
                 workspaces: [
                     { id: 'ws-1', name: 'Первое', createdAtMillis: 0, tabs: [], activeTabId: null },
                 ],
-                activeWorkspaceId: null,
+                currentWorkspaceId: null,
                 listMode: true,
                 booksOpen: false,
                 visible: true,
@@ -84,7 +84,7 @@ describe('поверхность рабочего места: список и в
                     activeTabId: 't1',
                 },
                 workspaces: [],
-                activeWorkspaceId: 'ws-1',
+                currentWorkspaceId: 'ws-1',
                 listMode: false,
                 booksOpen: false,
                 visible: true,
@@ -110,7 +110,7 @@ describe('поверхность рабочего места: список и в
                 workspaces: [
                     { id: 'ws-1', name: 'Первое', createdAtMillis: 0, tabs: [], activeTabId: null },
                 ],
-                activeWorkspaceId: 'ws-1',
+                currentWorkspaceId: 'ws-1',
                 listMode: true,
                 booksOpen: false,
                 visible: true,
@@ -120,7 +120,7 @@ describe('поверхность рабочего места: список и в
         });
 
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
-        expect(screen.getByTestId('workspace-active')).toBeTruthy();
+        expect(screen.getByTestId('workspace-current')).toBeTruthy();
     });
 
     it('передаёт возврат к списку из панели вкладок', async () => {
@@ -135,7 +135,7 @@ describe('поверхность рабочего места: список и в
                     activeTabId: null,
                 },
                 workspaces: [],
-                activeWorkspaceId: 'ws-1',
+                currentWorkspaceId: 'ws-1',
                 listMode: false,
                 booksOpen: false,
                 visible: true,

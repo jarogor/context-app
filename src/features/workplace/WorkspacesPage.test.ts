@@ -13,33 +13,65 @@ function handlers() {
 }
 
 describe('экран списка рабочих мест', () => {
-  it('показывает рабочие места и отмечает активное', () => {
+  it('показывает рабочие места и отмечает текущее', () => {
     render(WorkspacesPage, {
       props: {
         workspaces: [
           { id: 'ws-1', name: 'Первое' },
           { id: 'ws-2', name: 'Второе' },
         ],
-        activeId: 'ws-2',
+        currentId: 'ws-2',
         ...handlers(),
       },
     });
 
     expect(screen.getAllByTestId('workspace-item')).toHaveLength(2);
-    expect(screen.getByTestId('workspace-active').textContent?.trim()).toBe('активное');
+    expect(screen.getByTestId('workspace-current').textContent?.trim()).toBe('текущее');
   });
 
   it('показывает подсказку при пустом списке', () => {
-    render(WorkspacesPage, { props: { workspaces: [], activeId: null, ...handlers() } });
+    render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...handlers() } });
 
     expect(screen.getByTestId('workspaces-empty')).toBeTruthy();
   });
 
+  it('фильтрует рабочие места по имени', async () => {
+    render(WorkspacesPage, {
+      props: {
+        workspaces: [
+          { id: 'ws-1', name: 'Первое' },
+          { id: 'ws-2', name: 'Второе' },
+        ],
+        currentId: null,
+        ...handlers(),
+      },
+    });
+
+    await fireEvent.input(screen.getByPlaceholderText('Поиск рабочего места'), {
+      target: { value: 'втор' },
+    });
+
+    expect(screen.getAllByTestId('workspace-item')).toHaveLength(1);
+    expect(screen.getByTestId('workspace-open').textContent?.trim()).toBe('Второе');
+  });
+
+  it('показывает «ничего не найдено» при пустом результате поиска', async () => {
+    render(WorkspacesPage, {
+      props: { workspaces: [{ id: 'ws-1', name: 'Первое' }], currentId: null, ...handlers() },
+    });
+
+    await fireEvent.input(screen.getByPlaceholderText('Поиск рабочего места'), {
+      target: { value: 'нет такого' },
+    });
+
+    expect(screen.getByTestId('workspaces-not-found')).toBeTruthy();
+  });
+
   it('создаёт рабочее место из введённого имени', async () => {
     const base = handlers();
-    render(WorkspacesPage, { props: { workspaces: [], activeId: null, ...base } });
+    render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByPlaceholderText('Новое рабочее место');
     await fireEvent.input(input, { target: { value: 'Новое' } });
     await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
 
@@ -48,7 +80,7 @@ describe('экран списка рабочих мест', () => {
 
   it('не создаёт рабочее место с пустым именем', async () => {
     const base = handlers();
-    render(WorkspacesPage, { props: { workspaces: [], activeId: null, ...base } });
+    render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
 
     await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
 
@@ -58,7 +90,7 @@ describe('экран списка рабочих мест', () => {
   it('открывает рабочее место по клику', async () => {
     const base = handlers();
     render(WorkspacesPage, {
-      props: { workspaces: [{ id: 'ws-1', name: 'Первое' }], activeId: null, ...base },
+      props: { workspaces: [{ id: 'ws-1', name: 'Первое' }], currentId: null, ...base },
     });
 
     await fireEvent.click(screen.getByTestId('workspace-open'));
@@ -69,12 +101,12 @@ describe('экран списка рабочих мест', () => {
   it('переименовывает рабочее место через меню действий', async () => {
     const base = handlers();
     render(WorkspacesPage, {
-      props: { workspaces: [{ id: 'ws-1', name: 'Старое' }], activeId: null, ...base },
+      props: { workspaces: [{ id: 'ws-1', name: 'Старое' }], currentId: null, ...base },
     });
 
     await fireEvent.pointerDown(screen.getByLabelText('Действия с рабочим местом'), { button: 0 });
     await fireEvent.click(screen.getByRole('menuitem', { name: 'Переименовать' }));
-    const input = screen.getAllByRole('textbox')[1];
+    const input = screen.getByPlaceholderText('Новое имя');
     await fireEvent.input(input, { target: { value: 'Новое' } });
     await fireEvent.click(screen.getByText('Сохранить'));
 
@@ -84,7 +116,7 @@ describe('экран списка рабочих мест', () => {
   it('удаляет рабочее место через меню действий', async () => {
     const base = handlers();
     render(WorkspacesPage, {
-      props: { workspaces: [{ id: 'ws-1', name: 'Первое' }], activeId: null, ...base },
+      props: { workspaces: [{ id: 'ws-1', name: 'Первое' }], currentId: null, ...base },
     });
 
     await fireEvent.pointerDown(screen.getByLabelText('Действия с рабочим местом'), { button: 0 });

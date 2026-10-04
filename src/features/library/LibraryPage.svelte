@@ -16,11 +16,13 @@
   interface Props {
     /** Активная библиотека, загруженная до первого рендера. */
     initialActiveLibrary: ActiveLibrary | null;
+    /** Имя рабочего места, в которое попадёт книга; null — место ещё не выбрано. */
+    targetWorkspaceName?: string | null;
     /** Открытие книги вкладкой рабочего места. */
     onOpenInWorkplace: (book: { path: string; title: string; format: string }) => void;
   }
 
-  let { initialActiveLibrary, onOpenInWorkplace }: Props = $props();
+  let { initialActiveLibrary, targetWorkspaceName = null, onOpenInWorkplace }: Props = $props();
 
   /** Открыта ли библиотека (есть активный корень). */
   let librarySelected = $state(untrack(() => initialActiveLibrary?.path != null));
@@ -233,11 +235,13 @@
         <div class="mt-6 flex flex-wrap items-center gap-2">
           {#if canRead(openedBook)}
             <Button variant="primary" onclick={() => startReading(openedBook as BookWithCover)}>
-              Открыть в рабочем месте
+              {targetWorkspaceName
+                ? `Добавить в «${targetWorkspaceName}»`
+                : 'Добавить в рабочее место'}
             </Button>
           {/if}
           <Button variant="secondary" disabled={opening} onclick={() => openInSystem(openedBook as BookWithCover)}>
-            {opening ? 'Открытие…' : 'Открыть в системе'}
+            {opening ? 'Открытие…' : 'Открыть'}
           </Button>
         </div>
 

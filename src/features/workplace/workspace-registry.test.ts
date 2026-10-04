@@ -1,29 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_WORKSPACE_NAME,
-  activeTabsState,
-  activeWorkspace,
   addWorkspace,
   createWorkspace,
+  currentTabsState,
+  currentWorkspace,
   emptyRegistry,
   normalizeRegistry,
   removeWorkspace,
   renameWorkspace,
   selectWorkspace,
   serializeRegistry,
-  updateActiveWorkspaceTabs,
+  updateCurrentWorkspaceTabs,
   updateWorkspaceTabs,
 } from './workspace-registry';
 import { openBook } from './workplace';
 
 describe('реестр рабочих мест', () => {
-  it('создаёт рабочее место, делает его активным и открывает', () => {
+  it('создаёт рабочее место, делает его текущим и открывает', () => {
     const registry = createWorkspace(emptyRegistry(), 'Исследование');
 
     expect(registry.workspaces).toHaveLength(1);
     expect(registry.workspaces[0].name).toBe('Исследование');
-    expect(registry.activeWorkspaceId).toBe(registry.workspaces[0].id);
-    expect(activeWorkspace(registry)?.name).toBe('Исследование');
+    expect(registry.currentWorkspaceId).toBe(registry.workspaces[0].id);
+    expect(currentWorkspace(registry)?.name).toBe('Исследование');
   });
 
   it('заменяет пустое имя именем по умолчанию при создании', () => {
@@ -32,14 +32,14 @@ describe('реестр рабочих мест', () => {
     expect(registry.workspaces[0].name).toBe(DEFAULT_WORKSPACE_NAME);
   });
 
-  it('переключает активное рабочее место и игнорирует неизвестное', () => {
+  it('переключает текущее рабочее место и игнорирует неизвестное', () => {
     let registry = addWorkspace(emptyRegistry(), 'Первое', 'ws-1', 1);
     registry = addWorkspace(registry, 'Второе', 'ws-2', 2);
 
     const selected = selectWorkspace(registry, 'ws-1');
-    expect(selected.activeWorkspaceId).toBe('ws-1');
+    expect(selected.currentWorkspaceId).toBe('ws-1');
 
-    expect(selectWorkspace(registry, 'missing').activeWorkspaceId).toBe('ws-2');
+    expect(selectWorkspace(registry, 'missing').currentWorkspaceId).toBe('ws-2');
   });
 
   it('переименовывает рабочее место и отклоняет пустое имя', () => {
@@ -52,24 +52,24 @@ describe('реестр рабочих мест', () => {
     expect(unchanged.workspaces[0].name).toBe('Новое');
   });
 
-  it('удаляет рабочее место и переводит активность соседнему', () => {
+  it('при удалении текущего места не выбирает соседнее автоматически', () => {
     let registry = addWorkspace(emptyRegistry(), 'Первое', 'ws-1', 1);
     registry = addWorkspace(registry, 'Второе', 'ws-2', 2);
 
     const removed = removeWorkspace(registry, 'ws-2');
 
     expect(removed.workspaces).toHaveLength(1);
-    expect(removed.activeWorkspaceId).toBe('ws-1');
+    expect(removed.currentWorkspaceId).toBeNull();
   });
 
-  it('не оставляет активного места после удаления последнего', () => {
+  it('не оставляет текущего места после удаления последнего', () => {
     let registry = addWorkspace(emptyRegistry(), 'Единственное', 'ws-1', 1);
 
     registry = removeWorkspace(registry, 'ws-1');
 
     expect(registry.workspaces).toHaveLength(0);
-    expect(registry.activeWorkspaceId).toBeNull();
-    expect(activeWorkspace(registry)).toBeNull();
+    expect(registry.currentWorkspaceId).toBeNull();
+    expect(currentWorkspace(registry)).toBeNull();
   });
 
   it('применяет операцию вкладок к выбранному рабочему месту, не задевая другие', () => {
@@ -84,52 +84,39 @@ describe('реестр рабочих мест', () => {
     expect(registry.workspaces[1].tabs).toHaveLength(0);
   });
 
-  it('без активного места создаёт рабочее место по умолчанию при открытии книги', () => {
-    const registry = updateActiveWorkspaceTabs(
-      emptyRegistry(),
-      (state) => openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
-      true,
-    );
-
-    expect(registry.workspaces).toHaveLength(1);
-    expect(registry.workspaces[0].id).toBe('default');
-    expect(registry.workspaces[0].tabs).toHaveLength(1);
-    expect(registry.activeWorkspaceId).toBe('default');
-  });
-
-  it('без активного места и без создания ничего не меняет', () => {
-    const registry = updateActiveWorkspaceTabs(emptyRegistry(), (state) =>
+  it('без текущего места ничего не создаёт и не меняет', () => {
+    const registry = updateCurrentWorkspaceTabs(emptyRegistry(), (state) =>
       openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
     );
 
     expect(registry).toEqual(emptyRegistry());
   });
 
-  it('возвращает вкладки активного места и пустое состояние без активного', () => {
+  it('возвращает вкладки текущего места и пустое состояние без текущего', () => {
     let registry = addWorkspace(emptyRegistry(), 'Первое', 'ws-1', 1);
     registry = updateWorkspaceTabs(registry, 'ws-1', (state) =>
       openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
     );
 
-    expect(activeTabsState(registry).tabs).toHaveLength(1);
+    expect(currentTabsState(registry).tabs).toHaveLength(1);
 
     const empty = removeWorkspace(registry, 'ws-1');
-    expect(activeTabsState(empty).tabs).toHaveLength(0);
-    expect(activeTabsState(empty).activeTabId).toBeNull();
+    expect(currentTabsState(empty).tabs).toHaveLength(0);
+    expect(currentTabsState(empty).activeTabId).toBeNull();
   });
 
-  it('нормализует реестр из ядра и чинит активное место', () => {
+  it('нормализует реестр из ядра, но не восстанавливает текущее место', () => {
     const registry = normalizeRegistry({
       workspaces: [
         { id: 'ws-1', name: 'Первое', tabs: [{ id: 't1', path: '/lib/book-1.epub', title: 'Книга' }] },
       ],
-      active_workspace_id: 'missing',
+      active_workspace_id: 'ws-1',
     });
 
     expect(registry.workspaces).toHaveLength(1);
     expect(registry.workspaces[0].tabs[0].path).toBe('/lib/book-1.epub');
     expect(registry.workspaces[0].tabs[0].zoom).toBe(100);
-    expect(registry.activeWorkspaceId).toBe('ws-1');
+    expect(registry.currentWorkspaceId).toBeNull();
   });
 
   it('отбрасывает рабочие места без идентификатора при нормализации', () => {
@@ -139,13 +126,13 @@ describe('реестр рабочих мест', () => {
 
     expect(registry.workspaces).toHaveLength(1);
     expect(registry.workspaces[0].id).toBe('ws-2');
-    expect(registry.activeWorkspaceId).toBe('ws-2');
+    expect(registry.currentWorkspaceId).toBeNull();
   });
 
   it('сериализует реестр в контракт ядра (snake_case)', () => {
     let registry = createWorkspace(emptyRegistry(), 'Исследование');
-    const workspaceId = registry.activeWorkspaceId as string;
-    registry = updateActiveWorkspaceTabs(registry, (state) =>
+    const workspaceId = registry.currentWorkspaceId as string;
+    registry = updateCurrentWorkspaceTabs(registry, (state) =>
       openBook(state, { path: '/lib/book-1.epub', title: 'Книга', format: 'epub' }),
     );
 
@@ -174,6 +161,7 @@ describe('реестр рабочих мест', () => {
 
     expect(roundtrip.workspaces[0].createdAtMillis).toBe(42);
     expect(roundtrip.workspaces[0].tabs[0].path).toBe('/lib/book-1.epub');
-    expect(roundtrip.activeWorkspaceId).toBe('ws-1');
+    // Текущее место при запуске не восстанавливается даже из своего же снимка.
+    expect(roundtrip.currentWorkspaceId).toBeNull();
   });
 });

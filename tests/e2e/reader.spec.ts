@@ -20,13 +20,22 @@ async function showLibrary(page: import('@playwright/test').Page) {
     }
 }
 
+/** Выбор рабочего места в диалоге, если он появился при открытии книги. */
+async function pickWorkspaceIfAsked(page: import('@playwright/test').Page) {
+    const list = page.getByTestId('workspace-picker-list');
+    if (await list.isVisible().catch(() => false)) {
+        await page.getByTestId('workspace-picker-item').first().click();
+    }
+}
+
 /** Открытие книги вкладкой рабочего места через страницу книги. */
 async function openWorkplace(page: import('@playwright/test').Page) {
     await page.goto('/');
     await showLibrary(page);
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await pickWorkspaceIfAsked(page);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 }
 

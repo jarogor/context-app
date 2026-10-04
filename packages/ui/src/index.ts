@@ -5,6 +5,7 @@ export { default as DeleteButton } from './components/DeleteButton.svelte';
 export { default as AddButton } from './components/AddButton.svelte';
 export { default as ActionMenu } from './components/ActionMenu.svelte';
 export type { MenuAction } from './components/ActionMenu.svelte';
+export { default as Dialog } from './components/Dialog.svelte';
 export { default as Input } from './components/Input.svelte';
 export { default as Textarea } from './components/Textarea.svelte';
 export { default as Select } from './components/Select.svelte';

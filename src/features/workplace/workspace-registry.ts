@@ -1,8 +1,13 @@
-/** Реестр рабочих мест: список именованных рабочих мест и активное место.
+/** Реестр рабочих мест: список именованных рабочих мест и текущее место.
  *
  * Модуль хранит чистые операции над реестром, независимые от Svelte и IPC.
  * Вкладками управляет `workplace.ts`; реестр адресует их по рабочему месту, чтобы
  * состояние разных мест не смешивалось.
+ *
+ * Текущее место — это то, чьи вкладки сейчас показаны. Оно становится текущим
+ * только явным действием пользователя (открытие, создание, выбор при открытии
+ * книги) и не выбирается автоматически при запуске или удалении: сохранённый в
+ * файле указатель не восстанавливается, потому что скрытая «активность» путает.
  */
 
 import {
@@ -32,11 +37,11 @@ export interface WorkspaceRecord {
 export interface WorkspaceRegistry {
   /** Рабочие места в порядке отображения. */
   workspaces: WorkspaceRecord[];
-  /** Идентификатор активного рабочего места. */
-  activeWorkspaceId: string | null;
+  /** Идентификатор текущего (открытого) рабочего места или null. */
+  currentWorkspaceId: string | null;
 }
 
-/** Имя рабочего места, создаваемого по умолчанию при открытии книги. */
+/** Имя рабочего места, создаваемого с пустым именем. */
 export const DEFAULT_WORKSPACE_NAME = 'Рабочее место';
 
 /** Счётчик для уникальности идентификаторов в пределах сеанса. */
@@ -50,12 +55,18 @@ export function newWorkspaceId(): string {
 
 /** Пустой реестр. */
 export function emptyRegistry(): WorkspaceRegistry {
-  return { workspaces: [], activeWorkspaceId: null };
+  return { workspaces: [], currentWorkspaceId: null };
 }
 
-/** Приведение загруженного реестра к модели с безопасными значениями. */
+/** Приведение загруженного реестра к модели с безопасными значениями.
+ *
+ * Сохранённый указатель `active_workspace_id` намеренно не восстанавливается:
+ * после запуска текущего места нет, пока пользователь явно не откроет место.
+ * Поле остаётся в контракте файла ради совместимости и записывается при
+ * сохранении, но на выбор места при запуске не влияет.
+ */
 export function normalizeRegistry(value: unknown): WorkspaceRegistry {
-  const record = (value ?? {}) as { workspaces?: unknown; active_workspace_id?: unknown };
+  const record = (value ?? {}) as { workspaces?: unknown };
   const rawWorkspaces = Array.isArray(record.workspaces) ? record.workspaces : [];
   const workspaces: WorkspaceRecord[] = rawWorkspaces
     .map((item) => {
@@ -79,20 +90,15 @@ export function normalizeRegistry(value: unknown): WorkspaceRegistry {
     })
     .filter((item): item is WorkspaceRecord => item !== null);
 
-  const requested = record.active_workspace_id;
-  const activeWorkspaceId =
-    typeof requested === 'string' && workspaces.some((item) => item.id === requested)
-      ? requested
-      : (workspaces[0]?.id ?? null);
-  return { workspaces, activeWorkspaceId };
+  return { workspaces, currentWorkspaceId: null };
 }
 
-/** Активное рабочее место. */
-export function activeWorkspace(registry: WorkspaceRegistry): WorkspaceRecord | null {
-  return registry.workspaces.find((item) => item.id === registry.activeWorkspaceId) ?? null;
+/** Текущее (открытое) рабочее место. */
+export function currentWorkspace(registry: WorkspaceRegistry): WorkspaceRecord | null {
+  return registry.workspaces.find((item) => item.id === registry.currentWorkspaceId) ?? null;
 }
 
-/** Создание рабочего места и перевод активности на него. */
+/** Создание рабочего места и перевод текущего места на него. */
 export function createWorkspace(registry: WorkspaceRegistry, name: string): WorkspaceRegistry {
   return addWorkspace(registry, name, newWorkspaceId(), Date.now());
 }
@@ -113,16 +119,16 @@ export function addWorkspace(
   };
   return {
     workspaces: [...registry.workspaces, workspace],
-    activeWorkspaceId: workspace.id,
+    currentWorkspaceId: workspace.id,
   };
 }
 
-/** Открытие рабочего места: перевод активности и показ его вкладок. */
+/** Открытие рабочего места: перевод текущего места и показ его вкладок. */
 export function selectWorkspace(registry: WorkspaceRegistry, id: string): WorkspaceRegistry {
   if (!registry.workspaces.some((item) => item.id === id)) {
     return registry;
   }
-  return { ...registry, activeWorkspaceId: id };
+  return { ...registry, currentWorkspaceId: id };
 }
 
 /** Переименование рабочего места; пустое имя отклоняется. */
@@ -141,18 +147,20 @@ export function renameWorkspace(
   };
 }
 
-/** Удаление рабочего места вместе с его вкладками. */
+/** Удаление рабочего места вместе с его вкладками.
+ *
+ * Если удаляется текущее место, текущего места не остаётся: соседнее место не
+ * выбирается автоматически — пользователь выбирает его явно.
+ */
 export function removeWorkspace(registry: WorkspaceRegistry, id: string): WorkspaceRegistry {
-  const index = registry.workspaces.findIndex((item) => item.id === id);
-  if (index < 0) {
+  if (!registry.workspaces.some((item) => item.id === id)) {
     return registry;
   }
   const workspaces = registry.workspaces.filter((item) => item.id !== id);
-  if (registry.activeWorkspaceId !== id) {
-    return { workspaces, activeWorkspaceId: registry.activeWorkspaceId };
+  if (registry.currentWorkspaceId !== id) {
+    return { workspaces, currentWorkspaceId: registry.currentWorkspaceId };
   }
-  const neighbor = workspaces[Math.min(index, workspaces.length - 1)] ?? null;
-  return { workspaces, activeWorkspaceId: neighbor?.id ?? null };
+  return { workspaces, currentWorkspaceId: null };
 }
 
 /** Применение операции над вкладками к выбранному рабочему месту. */
@@ -169,32 +177,26 @@ export function updateWorkspaceTabs(
   };
 }
 
-/** Применение операции над вкладками к активному рабочему месту.
+/** Применение операции над вкладками к текущему рабочему месту.
  *
- * Если активного рабочего места нет, при `createDefault` создаётся рабочее место
- * по умолчанию, и операция применяется к нему.
+ * Если текущего места нет, реестр не меняется: операции с вкладками возможны
+ * только внутри открытого места.
  */
-export function updateActiveWorkspaceTabs(
+export function updateCurrentWorkspaceTabs(
   registry: WorkspaceRegistry,
   reduce: (state: WorkspaceState) => WorkspaceState,
-  createDefault = false,
 ): WorkspaceRegistry {
-  const active = activeWorkspace(registry);
-  if (!active) {
-    if (!createDefault) {
-      return registry;
-    }
-    const created = addWorkspace(registry, DEFAULT_WORKSPACE_NAME, 'default', Date.now());
-    const id = created.activeWorkspaceId;
-    return id ? updateWorkspaceTabs(created, id, reduce) : created;
+  const current = currentWorkspace(registry);
+  if (!current) {
+    return registry;
   }
-  return updateWorkspaceTabs(registry, active.id, reduce);
+  return updateWorkspaceTabs(registry, current.id, reduce);
 }
 
-/** Пустое состояние активного рабочего места (для безопасного чтения вкладок). */
-export function activeTabsState(registry: WorkspaceRegistry): WorkspaceState {
-  const active = activeWorkspace(registry);
-  return active ? { tabs: active.tabs, activeTabId: active.activeTabId } : emptyWorkspace();
+/** Пустое состояние текущего рабочего места (для безопасного чтения вкладок). */
+export function currentTabsState(registry: WorkspaceRegistry): WorkspaceState {
+  const current = currentWorkspace(registry);
+  return current ? { tabs: current.tabs, activeTabId: current.activeTabId } : emptyWorkspace();
 }
 
 /** Сериализация реестра к контракту ядра (`snake_case`).
@@ -210,9 +212,9 @@ export function serializeRegistry(registry: WorkspaceRegistry): Record<string, u
       created_at_millis: workspace.createdAtMillis,
       ...serializeWorkspace({ tabs: workspace.tabs, activeTabId: workspace.activeTabId }),
     })),
-    active_workspace_id: registry.activeWorkspaceId,
+    active_workspace_id: registry.currentWorkspaceId,
   };
 }
 
-/** Тип книги для открытия вкладки в активном рабочем месте. */
+/** Тип книги для открытия вкладки в текущем рабочем месте. */
 export type { BookRef };

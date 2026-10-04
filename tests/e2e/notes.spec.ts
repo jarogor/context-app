@@ -55,14 +55,14 @@ async function openWorkspace(page: import('@playwright/test').Page) {
 /** Добавление книги вкладкой в рабочее место. */
 async function addBook(page: import('@playwright/test').Page, title: string) {
     await openWorkspace(page);
-    await page.getByRole('button', { name: 'Добавить книгу' }).click();
+    await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
     const back = library.getByRole('button', { name: /К списку/ });
     if ((await back.count()) > 0) {
         await back.click();
     }
     await library.getByRole('button', { name: new RegExp(title) }).click();
-    await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+    await library.getByRole('button', { name: /Добавить в/ }).click();
     await expect(page.getByTestId('workplace-surface')).toBeVisible();
 }
 

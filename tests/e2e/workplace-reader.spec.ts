@@ -74,14 +74,14 @@ async function openWorkplace(page: import('@playwright/test').Page) {
             await open.click();
         }
     }
-    await page.getByRole('button', { name: 'Добавить книгу' }).click();
+    await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
     const back = library.getByRole('button', { name: /К списку/ });
     if ((await back.count()) > 0) {
         await back.click();
     }
     await library.getByRole('button', { name: /Демо-планшет/ }).click();
-    await library.getByRole('button', { name: 'Открыть в рабочем месте' }).click();
+    await library.getByRole('button', { name: /Добавить в/ }).click();
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-планшет');
 }
 

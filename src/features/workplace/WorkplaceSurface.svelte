@@ -10,12 +10,12 @@
   import type { QuoteAnchor } from '../reader/reader/anchor';
 
   interface Props {
-    /** Активное рабочее место или null, когда его нет. */
+    /** Текущее рабочее место или null, когда его нет. */
     workspace: WorkspaceRecord | null;
     /** Рабочие места для списка. */
     workspaces: WorkspaceRecord[];
-    /** Идентификатор активного рабочего места. */
-    activeWorkspaceId: string | null;
+    /** Идентификатор текущего (открытого) рабочего места. */
+    currentWorkspaceId: string | null;
     /** Показывать ли список рабочих мест вместо вкладок. */
     listMode: boolean;
     /** Открыта ли панель списка открытых книг. */
@@ -85,7 +85,7 @@
   let {
     workspace,
     workspaces,
-    activeWorkspaceId,
+    currentWorkspaceId,
     listMode,
     booksOpen,
     notesOpen,
@@ -164,7 +164,7 @@
   {#if listMode || workspace === null}
     <WorkspacesPage
       {workspaces}
-      activeId={activeWorkspaceId}
+      currentId={currentWorkspaceId}
       onCreate={onCreateWorkspace}
       onOpen={onOpenWorkspace}
       onRename={onRenameWorkspace}
