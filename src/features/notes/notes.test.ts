@@ -2,9 +2,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
     addQuote,
     bookKey,
+    changeNoteColor,
     createSet,
     deleteNote,
     deleteSet,
+    DEFAULT_NOTE_COLOR,
     DEFAULT_SET_NAME,
     ensureDefaultSet,
     filterNotes,
@@ -13,9 +15,11 @@ import {
     loadSets,
     noteList,
     noteName,
+    normalizeColor,
     normalizeNote,
     normalizeSet,
     normalizeSetSummary,
+    NOTE_COLORS,
     renameSet,
     resolveActiveSetId,
     setActiveSet,
@@ -97,6 +101,20 @@ describe('нормализация', () => {
         expect(normalizeNote({ id: 'n' }).percent).toBeNull();
         expect(normalizeNote({ id: 'n' }).page).toBeNull();
         expect(normalizeNote({ id: 'n', percent: null }).percent).toBeNull();
+    });
+
+    it('читает цвет заметки и подставляет цвет по умолчанию', () => {
+        expect(normalizeNote({ id: 'n', color: 'green' }).color).toBe('green');
+        expect(normalizeNote({ id: 'n' }).color).toBe(DEFAULT_NOTE_COLOR);
+        expect(normalizeNote({ id: 'n', color: 'chartreuse' }).color).toBe(DEFAULT_NOTE_COLOR);
+    });
+
+    it('normalizeColor знает палитру и отбрасывает чужие значения', () => {
+        expect(NOTE_COLORS).toHaveLength(6);
+        expect(normalizeColor('blue')).toBe('blue');
+        expect(normalizeColor('  purple  ')).toBe('purple');
+        expect(normalizeColor('')).toBe(DEFAULT_NOTE_COLOR);
+        expect(normalizeColor(undefined)).toBe(DEFAULT_NOTE_COLOR);
     });
 
     it('читает набор с заметками', () => {
@@ -187,7 +205,7 @@ describe('операции плагина заметок', () => {
         expect(set.id).toBe('ns-1');
     });
 
-    it('добавляет заметку-цитату с якорем', async () => {
+    it('добавляет заметку-цитату с якорем и цветом по умолчанию', async () => {
         invoke.mockResolvedValue(setResponse());
         const set = normalizeSet((setResponse() as { set: unknown }).set);
         const anchor = createAnchor({
@@ -209,10 +227,42 @@ describe('операции плагина заметок', () => {
                     anchor: serializeAnchor(anchor),
                     quote: 'цитата',
                     chapter: '1',
+                    color: 'yellow',
                     percent: 3.5,
                     page: null,
                     text: '',
                 },
+            },
+        });
+    });
+
+    it('добавляет заметку-цитату с выбранным цветом', async () => {
+        invoke.mockResolvedValue(setResponse());
+        const set = normalizeSet((setResponse() as { set: unknown }).set);
+        const anchor = createAnchor({ chapter: 1, start: 2, end: 8, quote: 'цитата' });
+        await addQuote('lib::book-1', anchor, set, 'blue');
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'add_note',
+            payload: expect.objectContaining({
+                note: expect.objectContaining({ color: 'blue' }),
+            }),
+        });
+    });
+
+    it('меняет цвет заметки', async () => {
+        invoke.mockResolvedValue(setResponse());
+        await changeNoteColor('lib::book-1', 'ns-1', 'note-1', 'purple');
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'update_note',
+            payload: {
+                book_key: 'lib::book-1',
+                set_id: 'ns-1',
+                note_id: 'note-1',
+                patch: { color: 'purple' },
             },
         });
     });

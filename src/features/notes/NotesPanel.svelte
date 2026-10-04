@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { ActionMenu, Button, Input, Select, type MenuAction } from '@texture/ui';
-  import type { Note, NoteListItem, NoteSetSummary } from './notes';
+  import { ActionMenu, Button, Input, Select, type MenuAction, type MenuColor } from '@texture/ui';
+  import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
 
   interface Props {
     /** Элементы списка заметок-цитат активного набора. */
@@ -19,6 +19,8 @@
     selectedId?: string | null;
     /** Удаление заметки. */
     onDeleteNote?: (noteId: string) => void;
+    /** Смена цвета подсветки заметки. */
+    onChangeColor?: (noteId: string, color: NoteColor) => void;
     /** Выбор активного набора книги. */
     onSelectSet?: (setId: string) => void;
     /** Создание набора книги с указанным именем. */
@@ -38,6 +40,7 @@
     onGoToNote,
     selectedId = null,
     onDeleteNote,
+    onChangeColor,
     onSelectSet,
     onCreateSet,
     onRenameSet,
@@ -83,8 +86,18 @@
     { id: 'delete', label: 'Удалить', destructive: true, disabled: !activeSet },
   ]);
 
-  /** Пункты меню заметки. */
+  /** Пункты меню заметки: только удаление; цвет выбирается образцами. */
   const noteActions: MenuAction[] = [{ id: 'delete', label: 'Удалить', destructive: true }];
+
+  /** Образцы выбора цвета для меню заметки: текущий цвет отмечен. */
+  function noteColorOptions(current: NoteColor): MenuColor[] {
+    return NOTE_COLORS.map((color) => ({
+      id: color,
+      label: NOTE_COLOR_LABELS[color],
+      color: NOTE_COLOR_SWATCHES[color],
+      selected: color === current,
+    }));
+  }
 
   /** Переключение активного набора из списка. */
   function changeSet(setId: string) {
@@ -254,7 +267,7 @@
     </div>
 
     <div class="border-b border-[var(--border)] p-2">
-      <Input bind:value={query} placeholder="Поиск по цитатам" />
+      <Input bind:value={query} placeholder="Поиск по заметкам" />
     </div>
 
     {#if loading && items.length === 0}
@@ -266,13 +279,20 @@
       >
         {#each visible as item (item.note.id)}
           <li
-            class="group rounded-md border border-[var(--border)] p-2 transition-colors {selectedId ===
+            class="group relative overflow-hidden rounded-md border border-[var(--border)] py-2 pl-4 pr-2 transition-colors {selectedId ===
             item.note.id
               ? 'bg-[var(--primary-soft)]'
               : 'hover:bg-[var(--muted)]'}"
             data-testid="notes-item"
+            data-color={item.note.color}
             data-selected={selectedId === item.note.id ? 'true' : 'false'}
           >
+            <span
+              class="absolute inset-y-0 left-0 w-1"
+              style="background: {NOTE_COLOR_SWATCHES[item.note.color]}"
+              data-testid="notes-item-color"
+              aria-hidden="true"
+            ></span>
             <div class="flex items-start gap-2">
               <button
                 type="button"
@@ -295,6 +315,9 @@
                 title="Действия"
                 class="h-7 w-7"
                 items={noteActions}
+                colors={noteColorOptions(item.note.color)}
+                colorsLabel="Цвет заметки"
+                oncolorselect={(color) => onChangeColor?.(item.note.id, color as NoteColor)}
                 onselect={(action) => {
                   if (action === 'delete') {
                     onDeleteNote?.(item.note.id);

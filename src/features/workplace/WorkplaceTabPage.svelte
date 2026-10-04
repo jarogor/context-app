@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import ReaderPage from '../reader/ReaderPage.svelte';
-  import type { Note } from '../notes/notes';
+  import type { Note, NoteColor } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
 
   /** Читалка вкладки для перехода к заметке. */
@@ -32,7 +32,7 @@
     /** Сообщение об изменении состояния чтения. */
     onStateChange?: (state: { zoom: number; position: number }) => void;
     /** Выделение пользователя, ставшее цитатой. */
-    onQuote?: (anchor: QuoteAnchor) => void;
+    onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Клик по подсветке заметки. */
     onNoteClick?: (noteId: string) => void;
     /** Просьба указать файл недоступной книги. */

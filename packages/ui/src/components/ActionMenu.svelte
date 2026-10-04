@@ -10,6 +10,18 @@
     /** Недоступность пункта. */
     disabled?: boolean;
   }
+
+  /** Образец выбора цвета в меню. */
+  export interface MenuColor {
+    /** Идентификатор цвета, передаваемый в обработчик выбора. */
+    id: string;
+    /** Подпись цвета для доступности и подсказки. */
+    label: string;
+    /** CSS-значение цвета образца. */
+    color: string;
+    /** Выбран ли цвет в данный момент. */
+    selected?: boolean;
+  }
 </script>
 
 <script lang="ts">
@@ -22,6 +34,12 @@
     items: MenuAction[];
     /** Обработчик выбора пункта. */
     onselect?: (id: string) => void;
+    /** Строка выбора цвета над пунктами меню. */
+    colors?: MenuColor[];
+    /** Обработчик выбора цвета. */
+    oncolorselect?: (id: string) => void;
+    /** Метка доступности строки цветов. */
+    colorsLabel?: string;
     /** Метка доступности кнопки-триггера. */
     ariaLabel: string;
     /** Подпись-подсказка триггера. */
@@ -35,11 +53,23 @@
   let {
     items,
     onselect,
+    colors = [],
+    oncolorselect,
+    colorsLabel = 'Выбор цвета',
     ariaLabel,
     title,
     disabled = false,
     class: className = '',
   }: Props = $props();
+
+  /** Состояние раскрытия меню: закрываем после выбора цвета. */
+  let open = $state(false);
+
+  /** Выбор цвета и закрытие меню. */
+  function pickColor(id: string): void {
+    oncolorselect?.(id);
+    open = false;
+  }
 
   /** Стили кнопки меню: тонкая рамка, как у прочих иконочных действий. */
   const triggerClass = $derived(
@@ -51,7 +81,7 @@
   );
 </script>
 
-<DropdownMenu.Root>
+<DropdownMenu.Root bind:open>
   <DropdownMenu.Trigger {disabled} {title} aria-label={ariaLabel} class={triggerClass}>
     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
       <circle cx="12" cy="5" r="1.6" fill="currentColor" />
@@ -65,6 +95,31 @@
       align="end"
       class="border-border bg-popover text-popover-foreground z-50 min-w-[180px] overflow-hidden rounded-md border p-1 shadow-md"
     >
+      {#if colors.length > 0}
+        <div
+          class="flex items-center gap-1 px-2 py-[6px]"
+          role="group"
+          aria-label={colorsLabel}
+        >
+          {#each colors as color (color.id)}
+            <button
+              type="button"
+              class="h-5 w-5 cursor-pointer rounded-full border transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {color.selected
+                ? 'border-[var(--foreground)] ring-1 ring-[var(--foreground)]'
+                : 'border-[var(--border)]'}"
+              style="background: {color.color}"
+              title={color.label}
+              aria-label={color.label}
+              aria-pressed={color.selected ? 'true' : 'false'}
+              data-testid="menu-color-{color.id}"
+              onclick={() => pickColor(color.id)}
+            ></button>
+          {/each}
+        </div>
+        {#if items.length > 0}
+          <div class="bg-[var(--border)] -mx-1 my-1 h-px"></div>
+        {/if}
+      {/if}
       {#each items as item (item.id)}
         <DropdownMenu.Item
           disabled={item.disabled}

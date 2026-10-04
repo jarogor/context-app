@@ -7,6 +7,7 @@ fn note_roundtrip_preserves_anchor_and_metadata() {
         anchor: "epubcfi(/6/4[chap01]!/4/2/2[para3])".to_string(),
         quote: "цитата".to_string(),
         chapter: "Глава 1".to_string(),
+        color: "green".to_string(),
         percent: Some(12.5),
         page: Some(42),
         text: "мысль".to_string(),
@@ -26,6 +27,27 @@ fn note_accepts_missing_optional_fields() {
     assert_eq!(note.page, None);
     assert!(note.anchor.is_empty());
     assert!(note.text.is_empty());
+    assert_eq!(
+        note.color, DEFAULT_NOTE_COLOR,
+        "заметка без цвета — цвет по умолчанию"
+    );
+}
+
+#[test]
+fn normalize_color_keeps_palette_and_defaults_unknown() {
+    assert_eq!(normalize_color("blue"), "blue");
+    assert_eq!(normalize_color("  purple  "), "purple", "пробелы снимаются");
+    assert_eq!(
+        normalize_color(""),
+        DEFAULT_NOTE_COLOR,
+        "пустое значение — по умолчанию"
+    );
+    assert_eq!(
+        normalize_color("chartreuse"),
+        DEFAULT_NOTE_COLOR,
+        "неизвестный цвет — по умолчанию"
+    );
+    assert_eq!(NOTE_COLORS.len(), 6);
 }
 
 #[test]

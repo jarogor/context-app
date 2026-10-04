@@ -208,6 +208,7 @@ fn add_note_returns_anchor_and_metadata() {
                     "anchor": "epubcfi(/6/4)",
                     "quote": "цитата",
                     "chapter": "Глава 1",
+                    "color": "green",
                     "percent": 7.5,
                     "text": "мысль"
                 }
@@ -219,6 +220,7 @@ fn add_note_returns_anchor_and_metadata() {
     assert_eq!(note["anchor"], "epubcfi(/6/4)");
     assert_eq!(note["quote"], "цитата");
     assert_eq!(note["chapter"], "Глава 1");
+    assert_eq!(note["color"], "green");
     assert_eq!(note["percent"], 7.5);
     assert_eq!(note["text"], "мысль");
     assert!(
@@ -259,17 +261,44 @@ fn update_and_delete_note() {
             json!({
                 "set_id": set_id,
                 "note_id": note_id,
-                "patch": { "text": "новый" }
+                "patch": { "text": "новый", "color": "blue" }
             }),
         ),
     )
     .expect("изменение");
     assert_eq!(parse(&updated)["note"]["text"], "новый");
+    assert_eq!(parse(&updated)["note"]["color"], "blue");
     assert_eq!(
         parse(&updated)["note"]["quote"],
         "ц",
         "непереданное поле сохранено"
     );
+
+    let defaulted = handle(
+        &host,
+        &request(
+            "add_note",
+            json!({ "set_id": set_id, "note": { "text": "без цвета", "quote": "ц2" } }),
+        ),
+    )
+    .expect("заметка по умолчанию");
+    assert_eq!(
+        parse(&defaulted)["note"]["color"],
+        "yellow",
+        "цвет по умолчанию"
+    );
+    let defaulted_id = parse(&defaulted)["note"]["id"]
+        .as_str()
+        .expect("идентификатор")
+        .to_string();
+    handle(
+        &host,
+        &request(
+            "delete_note",
+            json!({ "set_id": set_id, "note_id": defaulted_id }),
+        ),
+    )
+    .expect("удаление заметки по умолчанию");
 
     handle(
         &host,

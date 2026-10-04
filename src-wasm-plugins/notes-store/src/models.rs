@@ -5,6 +5,27 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Цвет подсветки заметки по умолчанию.
+pub const DEFAULT_NOTE_COLOR: &str = "yellow";
+
+/// Доступные цвета подсветки заметки.
+pub const NOTE_COLORS: [&str; 6] = ["yellow", "green", "blue", "pink", "orange", "purple"];
+
+/// Приведение цвета к палитре; неизвестное или пустое значение даёт цвет по умолчанию.
+pub fn normalize_color(value: &str) -> String {
+    let value = value.trim();
+    if NOTE_COLORS.contains(&value) {
+        value.to_string()
+    } else {
+        DEFAULT_NOTE_COLOR.to_string()
+    }
+}
+
+/// Цвет по умолчанию для полей, отсутствующих в сохранённых данных.
+fn default_color() -> String {
+    DEFAULT_NOTE_COLOR.to_string()
+}
+
 /// Заметка к месту в книге.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Note {
@@ -19,6 +40,9 @@ pub struct Note {
     /// Метка главы или раздела места в книге.
     #[serde(default)]
     pub chapter: String,
+    /// Цвет подсветки заметки.
+    #[serde(default = "default_color")]
+    pub color: String,
     /// Доля позиции в книге; может отсутствовать.
     #[serde(default)]
     pub percent: Option<f64>,
@@ -67,6 +91,9 @@ pub struct NoteInput {
     /// Метка главы или раздела места в книге.
     #[serde(default)]
     pub chapter: String,
+    /// Цвет подсветки заметки; отсутствие даёт цвет по умолчанию.
+    #[serde(default)]
+    pub color: Option<String>,
     /// Доля позиции в книге; может отсутствовать.
     #[serde(default)]
     pub percent: Option<f64>,
@@ -90,6 +117,9 @@ pub struct NotePatch {
     /// Новая метка главы или раздела; при отсутствии не меняется.
     #[serde(default)]
     pub chapter: Option<String>,
+    /// Новый цвет подсветки; при отсутствии не меняется.
+    #[serde(default)]
+    pub color: Option<String>,
     /// Новая доля позиции; при отсутствии не меняется.
     #[serde(default)]
     pub percent: Option<f64>,

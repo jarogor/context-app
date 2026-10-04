@@ -54,7 +54,7 @@ describe('панель заметок-цитат', () => {
             },
         });
 
-        await fireEvent.input(screen.getByPlaceholderText('Поиск по цитатам'), {
+        await fireEvent.input(screen.getByPlaceholderText('Поиск по заметкам'), {
             target: { value: 'деррида' },
         });
 
@@ -82,6 +82,38 @@ describe('панель заметок-цитат', () => {
         await fireEvent.pointerDown(screen.getByLabelText('Действия с заметкой'), { button: 0 });
         await fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить' }));
         expect(onDeleteNote).toHaveBeenCalledWith('note-1');
+    });
+
+    it('показывает цвет заметки боковой полосой', () => {
+        render(NotesPanel, {
+            props: {
+                items: items({ id: 'note-1', quote: 'Цветная', color: 'purple' }),
+                sets: [],
+                activeSetId: null,
+                hasBook: true,
+            },
+        });
+
+        const item = screen.getByTestId('notes-item');
+        expect(item.getAttribute('data-color')).toBe('purple');
+        expect(screen.getByTestId('notes-item-color')).toBeTruthy();
+    });
+
+    it('сообщает о смене цвета заметки', async () => {
+        const onChangeColor = vi.fn();
+        render(NotesPanel, {
+            props: {
+                items: items({ id: 'note-1', quote: 'Цитата' }),
+                sets: [],
+                activeSetId: null,
+                hasBook: true,
+                onChangeColor,
+            },
+        });
+
+        await fireEvent.pointerDown(screen.getByLabelText('Действия с заметкой'), { button: 0 });
+        await fireEvent.click(screen.getByTestId('menu-color-green'));
+        expect(onChangeColor).toHaveBeenCalledWith('note-1', 'green');
     });
 
     it('переключает активный набор', async () => {

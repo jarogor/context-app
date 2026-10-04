@@ -8,6 +8,7 @@
   import type { WorkspaceRecord } from './workspace-registry';
   import type { Note, NoteListItem, NoteSetSummary } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
+  import type { NoteColor } from '../notes/notes';
 
   interface Props {
     /** Текущее рабочее место или null, когда его нет. */
@@ -51,9 +52,11 @@
     /** Переключение панели заметок. */
     onToggleNotes: () => void;
     /** Создание заметки-цитаты выделением в книге. */
-    onQuote: (anchor: QuoteAnchor) => void;
+    onQuote: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Удаление заметки. */
     onDeleteNote: (noteId: string) => void;
+    /** Смена цвета подсветки заметки. */
+    onChangeNoteColor: (noteId: string, color: NoteColor) => void;
     /** Переход к заметке в тексте книги. */
     onGoToNote: (note: Note) => void;
     /** Клик по подсветке заметки в книге: открыть панель и выбрать заметку. */
@@ -105,6 +108,7 @@
     onToggleNotes,
     onQuote,
     onDeleteNote,
+    onChangeNoteColor,
     onGoToNote,
     onSelectNote,
     onSelectSet,
@@ -241,6 +245,7 @@
           selectedId={selectedNoteId}
           onGoToNote={onGoToNote}
           onDeleteNote={onDeleteNote}
+          onChangeColor={onChangeNoteColor}
           onSelectSet={onSelectSet}
           onCreateSet={onCreateSet}
           onRenameSet={onRenameSet}

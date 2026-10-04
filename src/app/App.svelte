@@ -36,6 +36,7 @@
   import {
     addQuote,
     bookKey,
+    changeNoteColor,
     createSet,
     deleteNote,
     deleteSet,
@@ -48,6 +49,7 @@
     resolveActiveSetId,
     setActiveSet,
     type Note,
+    type NoteColor,
     type NoteSetSummary,
   } from '../features/notes/notes';
   import type { QuoteAnchor } from '../features/reader/reader/anchor';
@@ -602,7 +604,7 @@
   }
 
   /** Добавление заметки-цитаты, созданной выделением в книге, в активный набор. */
-  async function addQuoteFromSelection(anchor: QuoteAnchor) {
+  async function addQuoteFromSelection(anchor: QuoteAnchor, color: NoteColor) {
     const key = notesBookKey;
     if (!key) {
       return;
@@ -614,13 +616,34 @@
         setId = set.id;
         notesSets = await listSets(key);
       }
-      const updated = await addQuote(key, anchor, {
-        id: setId,
-        bookKey: key,
-        name: '',
-        createdAtMillis: 0,
-        notes,
-      });
+      const updated = await addQuote(
+        key,
+        anchor,
+        {
+          id: setId,
+          bookKey: key,
+          name: '',
+          createdAtMillis: 0,
+          notes,
+        },
+        color,
+      );
+      showSetNotes(key, setId, updated.notes);
+      notesError = null;
+    } catch (error) {
+      notesError = String(error);
+    }
+  }
+
+  /** Смена цвета подсветки существующей заметки. */
+  async function recolorNote(noteId: string, color: NoteColor) {
+    const key = notesBookKey;
+    const setId = key ? (activeSetByBook[key] ?? notesSetId) : notesSetId;
+    if (!key || !setId) {
+      return;
+    }
+    try {
+      const updated = await changeNoteColor(key, setId, noteId, color);
       showSetNotes(key, setId, updated.notes);
       notesError = null;
     } catch (error) {
@@ -1132,6 +1155,7 @@
           onToggleNotes={toggleNotesPanel}
           onQuote={addQuoteFromSelection}
           onDeleteNote={removeNote}
+          onChangeNoteColor={recolorNote}
           onGoToNote={goToNote}
           onSelectNote={selectNote}
           onSelectSet={selectSet}

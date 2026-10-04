@@ -123,7 +123,7 @@ async function highlightParagraph(page: import('@playwright/test').Page, text: s
         element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     });
     await expect(page.getByTestId('quote-menu')).toBeVisible();
-    await page.getByTestId('quote-menu').getByRole('button', { name: 'Создать заметку' }).click();
+    await page.getByTestId('quote-menu').getByTestId('note-color-yellow').click();
     // Создание заметки асинхронно. Дожидаемся её появления, иначе следующий шаг
     // (например, перезагрузка страницы) прервёт незавершённую запись, и заметка
     // не сохранится.
@@ -185,6 +185,70 @@ test('выделение текста создаёт заметку-цитату
     await expect(page.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
     const highlighted = bookDocument(page).locator('mark').first();
     await expect(highlighted).toHaveText('Первый абзац книги.');
+});
+
+test('создание заметки с выбранным цветом и смена цвета', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    // Создаём заметку синим цветом: подсветка и полоса записи — синие.
+    const paragraph = bookDocument(page).getByText('Первый абзац книги.');
+    await paragraph.evaluate((element) => {
+        const range = element.ownerDocument.createRange();
+        range.selectNodeContents(element);
+        const selection = element.ownerDocument.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+    await expect(page.getByTestId('quote-menu')).toBeVisible();
+    await page.getByTestId('quote-menu').getByTestId('note-color-blue').click();
+    await expect(page.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
+
+    await expect(page.getByTestId('notes-item')).toHaveAttribute('data-color', 'blue');
+    const blueBackground = await bookDocument(page)
+        .locator('mark.texture-note')
+        .first()
+        .evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(blueBackground).toBe('rgb(191, 219, 254)');
+
+    // Смена цвета из меню заметки: полоса и подсветка становятся зелёными.
+    await page.getByLabel('Действия с заметкой').first().click();
+    await page.getByTestId('menu-color-green').click();
+
+    await expect(page.getByTestId('notes-item')).toHaveAttribute('data-color', 'green');
+    const greenBackground = await bookDocument(page)
+        .locator('mark.texture-note')
+        .first()
+        .evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(greenBackground).toBe('rgb(187, 247, 208)');
+});
+
+test('подсветка заметок разных цветов видна одновременно', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    await highlightParagraph(page, 'Первый абзац книги.');
+
+    const paragraph = bookDocument(page).getByText('Второй абзац книги.');
+    await paragraph.evaluate((element) => {
+        const range = element.ownerDocument.createRange();
+        range.selectNodeContents(element);
+        const selection = element.ownerDocument.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+    await page.getByTestId('quote-menu').getByTestId('note-color-purple').click();
+    await expect(page.getByTestId('notes-item')).toHaveCount(2);
+
+    const colors = await bookDocument(page)
+        .locator('mark.texture-note')
+        .evaluateAll((marks) => marks.map((mark) => mark.getAttribute('data-color')));
+    expect(colors).toContain('yellow');
+    expect(colors).toContain('purple');
 });
 
 test('заметки идут по расположению в книге, а не по времени добавления', async ({ page }) => {

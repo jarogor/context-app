@@ -106,6 +106,7 @@
         id: note.id,
         anchor: note.anchor,
         quote: note.quote,
+        color: note.color,
         page: note.page,
       })),
     });

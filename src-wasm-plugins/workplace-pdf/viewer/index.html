@@ -58,14 +58,14 @@
       .overlay .note {
         position: absolute;
         background: rgba(253, 224, 71, 0.65);
-        /* Умножение сохраняет тёмный текст контрастным, а фон делает жёлтым. */
+        /* Умножение сохраняет тёмный текст контрастным, а фон делает цветным. */
         mix-blend-mode: multiply;
         border-radius: 2px;
         pointer-events: auto;
         cursor: pointer;
       }
-      .overlay .note.flash {
-        background: rgba(245, 158, 11, 0.85);
+      .overlay .note[data-flash='true'] {
+        background: rgba(245, 158, 11, 0.85) !important;
       }
       .textLayer {
         position: absolute;
@@ -584,6 +584,21 @@
         return merged;
       }
 
+      /** Цвета подсветки заметок по идентификаторам палитры. */
+      const NOTE_COLORS = {
+        yellow: 'rgba(253, 224, 71, 0.65)',
+        green: 'rgba(187, 247, 208, 0.7)',
+        blue: 'rgba(191, 219, 254, 0.7)',
+        pink: 'rgba(251, 207, 232, 0.7)',
+        orange: 'rgba(254, 215, 170, 0.7)',
+        purple: 'rgba(221, 214, 254, 0.7)',
+      };
+
+      /** Цвет подсветки заметки; неизвестный идентификатор даёт жёлтый. */
+      function noteColor(color) {
+        return NOTE_COLORS[color] || NOTE_COLORS.yellow;
+      }
+
       /** Подсветка заметок на странице по долям её размера. */
       function drawNotes(pageEl) {
         const overlay = overlayOf(pageEl);
@@ -609,6 +624,7 @@
             const element = document.createElement('div');
             element.className = 'note';
             element.dataset.noteId = note.id;
+            element.style.background = noteColor(note.color);
             element.style.left = rect.x * 100 + '%';
             element.style.top = rect.y * 100 + '%';
             element.style.width = rect.width * 100 + '%';
@@ -679,8 +695,10 @@
           return;
         }
         for (const element of document.querySelectorAll(`.note[data-note-id="${noteId}"]`)) {
-          element.classList.add('flash');
-          setTimeout(() => element.classList.remove('flash'), 1200);
+          element.dataset.flash = 'true';
+          setTimeout(() => {
+            delete element.dataset.flash;
+          }, 1200);
         }
       }
 

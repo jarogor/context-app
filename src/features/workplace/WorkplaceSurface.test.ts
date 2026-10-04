@@ -14,6 +14,7 @@ function handlers() {
         onToggleNotes: vi.fn(),
         onQuote: vi.fn(),
         onDeleteNote: vi.fn(),
+        onChangeNoteColor: vi.fn(),
         onGoToNote: vi.fn(),
         onSelectNote: vi.fn(),
         onSelectSet: vi.fn(),

@@ -2,7 +2,8 @@
   import { onMount, untrack } from 'svelte';
   import { Button } from '@texture/ui';
   import type { BookContent } from './reader';
-  import type { Note } from '../notes/notes';
+  import type { Note, NoteColor } from '../notes/notes';
+  import NoteColorMenu from '../notes/NoteColorMenu.svelte';
   import {
     createAnchor,
     offsetsFromRange,
@@ -24,7 +25,7 @@
     /** Видима ли область чтения. */
     visible?: boolean;
     /** Выделение пользователя, ставшее цитатой. */
-    onQuote?: (anchor: QuoteAnchor) => void;
+    onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Изменение прогресса чтения в процентах. */
     onProgress?: (percent: number) => void;
     /** Выбор существующей заметки кликом по подсветке. */
@@ -98,7 +99,13 @@
       'img{max-width:100%;height:auto;}',
       'h1,h2,h3{line-height:1.25;}',
       'a{color:#4338ca;}',
-      `.${NOTE_CLASS}{background:#fde68a;border-radius:2px;cursor:pointer;}`,
+      `.${NOTE_CLASS}{border-radius:2px;cursor:pointer;}`,
+      `.${NOTE_CLASS}[data-color="yellow"]{background:#fde68a;}`,
+      `.${NOTE_CLASS}[data-color="green"]{background:#bbf7d0;}`,
+      `.${NOTE_CLASS}[data-color="blue"]{background:#bfdbfe;}`,
+      `.${NOTE_CLASS}[data-color="pink"]{background:#fbcfe8;}`,
+      `.${NOTE_CLASS}[data-color="orange"]{background:#fed7aa;}`,
+      `.${NOTE_CLASS}[data-color="purple"]{background:#ddd6fe;}`,
       `.${NOTE_CLASS}.${FLASH_CLASS}{background:#f59e0b;}`,
     ].join('');
     const body = value.chapters
@@ -132,7 +139,7 @@
     if (!section) {
       return;
     }
-    highlightTextRange(section, anchor.start, anchor.end, NOTE_CLASS, note.id);
+    highlightTextRange(section, anchor.start, anchor.end, NOTE_CLASS, note.id, note.color);
   }
 
   /** Перерисовка всех подсветок заметок. */
@@ -238,12 +245,12 @@
       y: Math.max(8, rect.bottom + 6),
     };  }
 
-  /** Создание заметки-цитаты по текущему выделению. */
-  function confirmQuote(): void {
+  /** Создание заметки-цитаты по текущему выделению заданным цветом. */
+  function confirmQuote(color: NoteColor): void {
     const anchor = pendingAnchor;
     dismissMenu();
     if (anchor) {
-      onQuote?.(anchor);
+      onQuote?.(anchor, color);
     }
   }
 
@@ -474,7 +481,7 @@
       data-testid="quote-menu"
       style={menuStyle()}
     >
-      <Button variant="primary" size="sm" onclick={confirmQuote}>Создать заметку</Button>
+      <NoteColorMenu labelPrefix="Создать заметку" onpick={confirmQuote} />
       <Button variant="ghost" size="sm" onclick={dismissMenu}>Отмена</Button>
     </div>
   {/if}

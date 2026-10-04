@@ -17,6 +17,43 @@ const NO_LIBRARY = 'no-library';
 /** Имя набора заметок, который книга заводит по умолчанию. */
 export const DEFAULT_SET_NAME = 'Основные';
 
+/** Цвет подсветки заметки по умолчанию. */
+export const DEFAULT_NOTE_COLOR = 'yellow';
+
+/** Доступные цвета подсветки заметки. */
+export const NOTE_COLORS = ['yellow', 'green', 'blue', 'pink', 'orange', 'purple'] as const;
+
+/** Идентификатор цвета подсветки заметки. */
+export type NoteColor = (typeof NOTE_COLORS)[number];
+
+/** Русские названия цветов подсветки для интерфейса. */
+export const NOTE_COLOR_LABELS: Record<NoteColor, string> = {
+    yellow: 'жёлтый',
+    green: 'зелёный',
+    blue: 'синий',
+    pink: 'розовый',
+    orange: 'оранжевый',
+    purple: 'фиолетовый',
+};
+
+/** CSS-значения цветов подсветки для образцов в интерфейсе. */
+export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
+    yellow: '#fde68a',
+    green: '#bbf7d0',
+    blue: '#bfdbfe',
+    pink: '#fbcfe8',
+    orange: '#fed7aa',
+    purple: '#ddd6fe',
+};
+
+/** Приведение значения к доступному цвету; неизвестное даёт цвет по умолчанию. */
+export function normalizeColor(value: unknown): NoteColor {
+    const candidate = String(value ?? '').trim();
+    return (NOTE_COLORS as readonly string[]).includes(candidate)
+        ? (candidate as NoteColor)
+        : DEFAULT_NOTE_COLOR;
+}
+
 /** Заметка-цитата к книге. */
 export interface Note {
     /** Идентификатор заметки. */
@@ -27,6 +64,8 @@ export interface Note {
     quote: string;
     /** Метка главы или раздела места в книге. */
     chapter: string;
+    /** Цвет подсветки заметки. */
+    color: NoteColor;
     /** Доля позиции выделения в книге в процентах. */
     percent: number | null;
     /** Номер страницы для страничных форматов; может отсутствовать. */
@@ -97,6 +136,7 @@ export function normalizeNote(value: unknown): Note {
         anchor: String(record.anchor ?? ''),
         quote: String(record.quote ?? ''),
         chapter: String(record.chapter ?? ''),
+        color: normalizeColor(record.color),
         percent: toOptionalNumber(record.percent),
         page: toOptionalNumber(record.page),
         createdAtMillis: toNumber(record.created_at_millis, 0),
@@ -228,9 +268,14 @@ export async function ensureDefaultSet(
 /** Добавление заметки-цитаты в набор книги.
  *
  * Набор задаётся явно: заметка добавляется в активный набор книги, а не в
- * единственный.
+ * единственный. Цвет подсветки выбирается при создании и по умолчанию жёлтый.
  */
-export async function addQuote(key: string, anchor: QuoteAnchor, set: NoteSet): Promise<NoteSet> {
+export async function addQuote(
+    key: string,
+    anchor: QuoteAnchor,
+    set: NoteSet,
+    color: NoteColor = DEFAULT_NOTE_COLOR,
+): Promise<NoteSet> {
     const response = await operation<{ set?: unknown }>('add_note', {
         book_key: key,
         set_id: set.id,
@@ -238,10 +283,27 @@ export async function addQuote(key: string, anchor: QuoteAnchor, set: NoteSet): 
             anchor: JSON.stringify(anchor),
             quote: anchor.quote,
             chapter: String(anchor.chapter),
+            color,
             percent: anchor.percent,
             page: anchor.page,
             text: '',
         },
+    });
+    return normalizeSet(response.set);
+}
+
+/** Смена цвета подсветки заметки в наборе книги. */
+export async function changeNoteColor(
+    key: string,
+    setId: string,
+    noteId: string,
+    color: NoteColor,
+): Promise<NoteSet> {
+    const response = await operation<{ set?: unknown }>('update_note', {
+        book_key: key,
+        set_id: setId,
+        note_id: noteId,
+        patch: { color },
     });
     return normalizeSet(response.set);
 }

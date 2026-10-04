@@ -366,7 +366,7 @@ async function selectTextOnPage(page: Page, pageNumber: number) {
             span.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
         });
     await expect(page.getByTestId('quote-menu')).toBeVisible();
-    await page.getByTestId('quote-menu').getByRole('button', { name: 'Создать заметку' }).click();
+    await page.getByTestId('quote-menu').getByTestId('note-color-yellow').click();
 }
 
 test('сильное увеличение не оставляет страницу белой', async ({ page }) => {

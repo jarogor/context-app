@@ -35,4 +35,25 @@ describe('ActionMenu', () => {
 
     expect(onselect).not.toHaveBeenCalled();
   });
+
+  it('показывает образцы цветов и передаёт выбранный цвет', async () => {
+    const oncolorselect = vi.fn();
+    render(ActionMenu, {
+      props: {
+        items: ITEMS,
+        ariaLabel: 'Действия',
+        colors: [
+          { id: 'yellow', label: 'жёлтый', color: '#fde68a', selected: true },
+          { id: 'green', label: 'зелёный', color: '#bbf7d0' },
+        ],
+        colorsLabel: 'Цвет заметки',
+        oncolorselect,
+      },
+    });
+
+    await fireEvent.pointerDown(screen.getByLabelText('Действия'), { button: 0 });
+    await fireEvent.click(screen.getByLabelText('зелёный'));
+
+    expect(oncolorselect).toHaveBeenCalledWith('green');
+  });
 });

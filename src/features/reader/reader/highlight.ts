@@ -34,6 +34,7 @@ export function highlightTextRange(
     end: number,
     className: string,
     noteId: string,
+    color = 'yellow',
 ): boolean {
     const document = root.ownerDocument;
     if (!document || end <= start) {
@@ -65,6 +66,7 @@ export function highlightTextRange(
         const mark = document.createElement('mark');
         mark.className = className;
         mark.dataset.noteId = noteId;
+        mark.dataset.color = color;
         range.surroundContents(mark);
     }
     return parts.length > 0;

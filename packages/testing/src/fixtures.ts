@@ -419,6 +419,7 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
                 anchor: String(body.note?.anchor ?? ''),
                 quote: String(body.note?.quote ?? ''),
                 chapter: String(body.note?.chapter ?? ''),
+                color: String(body.note?.color ?? 'yellow'),
                 percent: body.note?.percent ?? null,
                 page: body.note?.page ?? null,
                 text: String(body.note?.text ?? ''),

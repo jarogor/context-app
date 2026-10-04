@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::models::{Note, NoteInput, NotePatch, NoteSet};
+use crate::models::{normalize_color, Note, NoteInput, NotePatch, NoteSet};
 
 /// Текущая версия формата состояния.
 pub(crate) const STATE_VERSION: u32 = 1;
@@ -191,6 +191,7 @@ impl NotesState {
             anchor: input.anchor,
             quote: input.quote,
             chapter: input.chapter,
+            color: normalize_color(input.color.as_deref().unwrap_or_default()),
             percent: input.percent,
             page: input.page,
             text: input.text,
@@ -227,6 +228,9 @@ impl NotesState {
         }
         if let Some(chapter) = patch.chapter {
             note.chapter = chapter;
+        }
+        if let Some(color) = patch.color {
+            note.color = normalize_color(&color);
         }
         if let Some(percent) = patch.percent {
             note.percent = Some(percent);
@@ -282,6 +286,7 @@ fn normalize_note(note: Note) -> Option<Note> {
         anchor: note.anchor,
         quote: note.quote,
         chapter: note.chapter,
+        color: normalize_color(&note.color),
         percent: note.percent.filter(|value| value.is_finite()),
         page: note.page,
         text: note.text,

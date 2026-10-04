@@ -13,7 +13,8 @@
     type BookContent,
     type WorkplaceSelection,
   } from './reader';
-  import type { Note } from '../notes/notes';
+  import type { Note, NoteColor } from '../notes/notes';
+  import NoteColorMenu from '../notes/NoteColorMenu.svelte';
   import type { QuoteAnchor } from './reader/anchor';
   import { canStepPage, clampPage, pageProgress } from './reader/page-state';
 
@@ -33,7 +34,7 @@
     /** Сообщение об изменении состояния чтения вкладки. */
     onStateChange?: (state: { zoom: number; position: number }) => void;
     /** Выделение пользователя, ставшее цитатой. */
-    onQuote?: (anchor: QuoteAnchor) => void;
+    onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Просьба указать файл недоступной книги. */
     onRepoint?: () => void;
     /** Клик по подсветке заметки: открыть панель и выбрать заметку. */
@@ -153,12 +154,12 @@
     }
   }
 
-  /** Создание заметки-цитаты по выделению на странице. */
-  function confirmWorkplaceQuote() {
+  /** Создание заметки-цитаты по выделению на странице заданным цветом. */
+  function confirmWorkplaceQuote(color: NoteColor) {
     const anchor = pendingAnchor;
     dismissWorkplaceMenu();
     if (anchor) {
-      onQuote?.(anchor);
+      onQuote?.(anchor, color);
     }
   }
 
@@ -338,7 +339,7 @@
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >
-            <Button variant="primary" size="sm" onclick={confirmWorkplaceQuote}>Создать заметку</Button>
+            <NoteColorMenu labelPrefix="Создать заметку" onpick={confirmWorkplaceQuote} />
             <Button variant="ghost" size="sm" onclick={dismissWorkplaceMenu}>Отмена</Button>
           </div>
         {/if}
@@ -351,7 +352,7 @@
         {initialPosition}
         {notes}
         {visible}
-        onQuote={(anchor) => onQuote?.(anchor)}
+        onQuote={(anchor, color) => onQuote?.(anchor, color)}
         onSelectNote={(noteId) => onNoteClick?.(noteId)}
         onProgress={(value) => {
           progress = value;

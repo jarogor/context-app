@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::DEFAULT_NOTE_COLOR;
 
 #[test]
 fn new_state_is_versioned_and_empty() {
@@ -71,6 +72,80 @@ fn delete_set_removes_notes() {
 }
 
 #[test]
+fn add_note_applies_default_color_and_update_changes_it() {
+    let mut state = NotesState::new();
+    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    let input = NoteInput {
+        quote: "цитата".to_string(),
+        ..NoteInput::default()
+    };
+    let note = state
+        .add_note("ns-a", input, "note-1", 10)
+        .expect("заметка");
+    assert_eq!(note.color, DEFAULT_NOTE_COLOR, "без цвета — жёлтый");
+
+    let input = NoteInput {
+        quote: "цитата".to_string(),
+        color: Some("blue".to_string()),
+        ..NoteInput::default()
+    };
+    let note = state
+        .add_note("ns-a", input, "note-2", 11)
+        .expect("заметка");
+    assert_eq!(note.color, "blue");
+
+    let patch = NotePatch {
+        color: Some("chartreuse".to_string()),
+        ..NotePatch::default()
+    };
+    let note = state
+        .update_note("ns-a", "note-1", patch, 12)
+        .expect("смена цвета");
+    assert_eq!(
+        note.color, DEFAULT_NOTE_COLOR,
+        "неизвестный цвет заменён цветом по умолчанию"
+    );
+
+    let patch = NotePatch {
+        color: Some("purple".to_string()),
+        ..NotePatch::default()
+    };
+    let note = state
+        .update_note("ns-a", "note-2", patch, 13)
+        .expect("смена цвета");
+    assert_eq!(note.color, "purple");
+}
+
+#[test]
+fn normalized_replaces_bad_color_with_default() {
+    let raw = r#"{
+      "version": 1,
+      "sets": [
+        {
+          "id": "ns-1",
+          "book_key": "lib/a",
+          "name": "A",
+          "notes": [
+            { "id": "note-old" },
+            { "id": "note-bad", "color": "chartreuse" }
+          ]
+        }
+      ]
+    }"#;
+    let state: NotesState = serde_json::from_str(raw).expect("разбор");
+    let state = state.normalized();
+    let notes = &state.find("ns-1").expect("набор").notes;
+    assert_eq!(
+        notes[0].color, DEFAULT_NOTE_COLOR,
+        "старая заметка — жёлтая"
+    );
+    assert_eq!(
+        notes[1].color, DEFAULT_NOTE_COLOR,
+        "неизвестный цвет — жёлтый"
+    );
+}
+
+#[test]
 fn add_note_sets_times_and_allows_same_anchor() {
     let mut state = NotesState::new();
     state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
@@ -78,6 +153,7 @@ fn add_note_sets_times_and_allows_same_anchor() {
         anchor: "cfi".to_string(),
         quote: "цитата".to_string(),
         chapter: "Глава".to_string(),
+        color: None,
         percent: Some(3.0),
         page: Some(4),
         text: "первая".to_string(),

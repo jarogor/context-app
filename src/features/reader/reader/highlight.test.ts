@@ -51,4 +51,21 @@ describe('подсветка диапазона текста', () => {
         expect(highlightTextRange(chapter, 2, 2, 'note', 'n4')).toBe(false);
         expect(chapter.querySelectorAll('mark').length).toBe(0);
     });
+
+    it('наносит цвет заметки на подсветку', () => {
+        const chapter = root('<p>Цветной текст.</p>');
+        highlightTextRange(chapter, 0, 6, 'texture-note', 'n5', 'purple');
+
+        const marks = chapter.querySelectorAll('mark.texture-note');
+        expect(marks.length).toBeGreaterThan(0);
+        for (const mark of Array.from(marks)) {
+            expect((mark as HTMLElement).dataset.color).toBe('purple');
+        }
+    });
+
+    it('без цвета использует цвет по умолчанию', () => {
+        const chapter = root('<p>Текст.</p>');
+        highlightTextRange(chapter, 0, 5, 'texture-note', 'n6');
+        expect((chapter.querySelector('mark') as HTMLElement).dataset.color).toBe('yellow');
+    });
 });
