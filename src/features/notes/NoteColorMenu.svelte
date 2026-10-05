@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ColorPicker, type ColorSwatch } from '@texture/ui';
   import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type NoteColor } from './notes';
 
   interface Props {
@@ -6,21 +7,26 @@
     onpick: (color: NoteColor) => void;
     /** Тексты подсказок цветов (для доступности и тестов). */
     labelPrefix?: string;
+    /** Выбранный цвет, если он задан. */
+    selected?: NoteColor | null;
   }
 
-  let { onpick, labelPrefix = 'Создать заметку' }: Props = $props();
+  let { onpick, labelPrefix = 'Создать заметку', selected = null }: Props = $props();
+
+  /** Образцы палитры с подписями выбранного контекста. */
+  const swatches = $derived<ColorSwatch[]>(
+    NOTE_COLORS.map((color) => ({
+      id: color,
+      label: NOTE_COLOR_LABELS[color],
+      value: NOTE_COLOR_SWATCHES[color],
+      selected: selected === color,
+    })),
+  );
 </script>
 
-<div class="flex items-center gap-1" data-testid="note-color-menu">
-  {#each NOTE_COLORS as color (color)}
-    <button
-      type="button"
-      class="h-6 w-6 cursor-pointer rounded-full border border-[var(--border)] transition-transform hover:scale-110"
-      style="background: {NOTE_COLOR_SWATCHES[color]}"
-      title="{labelPrefix}: {NOTE_COLOR_LABELS[color]}"
-      aria-label="{labelPrefix}: {NOTE_COLOR_LABELS[color]}"
-      data-testid="note-color-{color}"
-      onclick={() => onpick(color)}
-    ></button>
-  {/each}
-</div>
+<ColorPicker
+  colors={swatches}
+  onpick={(id) => onpick(id as NoteColor)}
+  ariaLabel={labelPrefix}
+  testIdPrefix="note-color"
+/>

@@ -2,7 +2,8 @@
   import { onMount, untrack } from 'svelte';
   import { Button } from '@texture/ui';
   import type { BookContent } from './reader';
-  import type { Note, NoteColor } from '../notes/notes';
+  import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
+  import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
   import {
     createAnchor,
@@ -12,6 +13,17 @@
     type QuoteAnchor,
   } from './reader/anchor';
   import { clearNoteMarks, highlightTextRange } from './reader/highlight';
+  import {
+    clearNoteOverlays,
+    NOTE_OVERLAY_CLASS,
+    NOTE_CARD_CLASS,
+    NOTE_SHAPE_CLASS,
+    parseGeometry,
+    renderShape,
+    renderTextCard,
+    serializeGeometry,
+    type ShapeGeometry,
+  } from './reader/overlay';
 
   interface Props {
     /** Содержимое книги главами. */
@@ -20,16 +32,24 @@
     zoom: number;
     /** Начальная позиция чтения в процентах. */
     initialPosition?: number;
-    /** Заметки-цитаты книги для подсветки. */
+    /** Заметки книги для подсветки и наложений. */
     notes?: Note[];
     /** Видима ли область чтения. */
     visible?: boolean;
+    /** Активный инструмент создания заметок. */
+    tool?: NoteTool;
     /** Выделение пользователя, ставшее цитатой. */
     onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
+    /** Клик при инструменте «текст»: запрос текстовой карточки в точке. */
+    onTextPoint?: (anchor: QuoteAnchor, color: NoteColor) => void;
+    /** Протяжка при инструменте «фигура»: готовая заметка-фигура. */
+    onShape?: (anchor: QuoteAnchor, shape: ShapeKind, geometry: string, color: NoteColor) => void;
     /** Изменение прогресса чтения в процентах. */
     onProgress?: (percent: number) => void;
-    /** Выбор существующей заметки кликом по подсветке. */
+    /** Выбор существующей заметки кликом по подсветке или наложению. */
     onSelectNote?: (noteId: string) => void;
+    /** Перемещение карточки/фигуры или сдвиг границ цитаты. */
+    onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
   }
 
   let {
@@ -38,9 +58,13 @@
     initialPosition = 0,
     notes = [],
     visible = true,
+    tool = DEFAULT_NOTE_TOOL,
     onQuote,
+    onTextPoint,
+    onShape,
     onProgress,
     onSelectNote,
+    onPlaceNote,
   }: Props = $props();
 
   /** Класс подсветки заметки. */
@@ -68,6 +92,50 @@
   /** Ширина и высота области чтения для удержания меню внутри неё. */
   let readerAreaWidth = $state(0);
   let readerAreaHeight = $state(0);
+  /** Была ли протяжка при инструменте текста/фигуры (гасит клик выбора). */
+  let dragged = false;
+  /** Раздел главы текущей протяжки фигуры. */
+  let dragSection: Element | null = null;
+  /** Начальная точка протяжки фигуры в долях раздела. */
+  let dragStart: { x: number; y: number } | null = null;
+  /** Текущая точка протяжки фигуры в долях раздела. */
+  let dragCurrent: { x: number; y: number } | null = null;
+  /** Последняя точка протяжки в координатах документа книги. */
+  let dragLastClient: { x: number; y: number } | null = null;
+  /** Пунктирная рамка предпросмотра фигуры во время протяжки. */
+  let dragPreview: HTMLElement | null = null;
+  /** Контекстное меню заметки на странице: заметка и её экранная позиция. */
+  let noteMenu: { noteId: string; x: number; y: number; type: NoteType } | null = $state(null);
+  /** Режим правки заметки: перемещение карточки/фигуры или границы цитаты. */
+  let editing: { noteId: string; mode: 'move' | 'resize' } | null = $state(null);
+  /** Тяга перемещения наложения: исходное место и точка захвата. */
+  let moveDrag: {
+    noteId: string;
+    section: Element;
+    anchor: QuoteAnchor;
+    geometry: ShapeGeometry | null;
+    startX: number;
+    startY: number;
+    width: number;
+    height: number;
+  } | null = null;
+  /** Заметка в режиме перемещения: для неё показываются направляющие осей. */
+  let moveGuide: { noteId: string } | null = $state(null);
+  /** Счётчик кадров для пересчёта направляющих перемещения. */
+  let moveTick = $state(0);
+  /** Тяга границы цитаты: край и исходный якорь. */
+  let resizeDrag: { noteId: string; edge: 'start' | 'end'; anchor: QuoteAnchor } | null = null;
+  /** Черновое размещение заметки во время правки (до сохранения). */
+  let placementDraft: { noteId: string; anchor: QuoteAnchor } | null = null;
+  /** Живой черновик перемещения: новая точка и геометрия до сохранения.
+   *
+   * Пока идёт перетаскивание, наложение рисуется по черновику, поэтому заметка
+   * следует за курсором. После отпускания черновик удерживается до прихода
+   * сохранённого места: иначе заметка на миг возвращалась бы на прежнее место.
+   */
+  let moveDraft: { noteId: string; anchor: QuoteAnchor; geometry: string | null } | null = null;
+  /** Подавление выбора заметки сразу после завершения правки. */
+  let suppressClick = false;
 
   /** Ограничение позиции меню внутри области чтения. */
   function menuStyle(): string {
@@ -99,14 +167,73 @@
       'img{max-width:100%;height:auto;}',
       'h1,h2,h3{line-height:1.25;}',
       'a{color:#4338ca;}',
+      // Инструменты текста и фигуры не работают с выделением текста: курсор
+      // меняется на прицел, а протяжка не выделяет текст под собой.
+      'body[data-tool="text"],body[data-tool="shape"]{cursor:crosshair;user-select:none;}',
+      'body[data-tool="text"] *,body[data-tool="shape"] *{cursor:crosshair;}',
       `.${NOTE_CLASS}{border-radius:2px;cursor:pointer;}`,
       `.${NOTE_CLASS}[data-color="yellow"]{background:#fde68a;}`,
       `.${NOTE_CLASS}[data-color="green"]{background:#bbf7d0;}`,
       `.${NOTE_CLASS}[data-color="blue"]{background:#bfdbfe;}`,
-      `.${NOTE_CLASS}[data-color="pink"]{background:#fbcfe8;}`,
-      `.${NOTE_CLASS}[data-color="orange"]{background:#fed7aa;}`,
+      `.${NOTE_CLASS}[data-color="red"]{background:#fecaca;}`,
       `.${NOTE_CLASS}[data-color="purple"]{background:#ddd6fe;}`,
+      `.${NOTE_CLASS}[data-color="black"]{background:#d1d5db;}`,
+      `.texture-chapter{position:relative;}`,
+      // Карточка окрашена тем же мягким тоном, что цитата и фигура: цвет заметки
+      // одинаков на всех поверхностях, без тени и тёмной полосы.
+      `.texture-note-card{position:absolute;max-width:220px;padding:6px 8px;border-radius:6px;`,
+      'font-size:13px;line-height:1.4;white-space:pre-wrap;cursor:pointer;z-index:2;}',
+      '.texture-note-card[data-color="yellow"]{background:#fde68a;}',
+      '.texture-note-card[data-color="green"]{background:#bbf7d0;}',
+      '.texture-note-card[data-color="blue"]{background:#bfdbfe;}',
+      '.texture-note-card[data-color="red"]{background:#fecaca;}',
+      '.texture-note-card[data-color="purple"]{background:#ddd6fe;}',
+      '.texture-note-card[data-color="black"]{background:#d1d5db;}',
+      // Слой фигуры позиционируется по рамке самой фигуры (инлайн-стили из
+      // `renderShape`), а не растягивается на всю главу: у высоких глав WebKit
+      // не рисует слишком большой композитный слой. Умножение задано здесь:
+      // на дочерних SVG-элементах оно в WebKit не применяется.
+      '.texture-note-shape{position:absolute;pointer-events:none;overflow:visible;',
+      'mix-blend-mode:multiply;}',
+      // Фигура — полупрозрачная заливка цветом заметки, как подсветка цитаты,
+      // без обводки: прямоугольник и эллипс залиты, линия — толстый штрих. Цвет
+      // мягкий, чтобы заметка была видна, но не затмевала текст.
+      '.texture-note-shape rect,.texture-note-shape ellipse{stroke:none;fill-opacity:0.5;',
+      'vector-effect:non-scaling-stroke;pointer-events:none;}',
+      '.texture-note-shape line{fill:none;stroke-width:4;stroke-opacity:0.6;',
+      'vector-effect:non-scaling-stroke;pointer-events:none;}',
+      '.texture-note-shape path{fill:transparent;stroke:transparent;stroke-width:16;',
+      'vector-effect:non-scaling-stroke;pointer-events:all;cursor:pointer;}',
+      // Рамка будущей фигуры во время протяжки: без неё рисование было «слепым»
+      // (в PDF такая рамка есть). Пунктир и осевые линии показывают, где встанет
+      // фигура ещё до отпускания кнопки.
+      '.texture-note-preview{position:absolute;z-index:3;pointer-events:none;',
+      'border:1px dashed #2563eb;box-sizing:border-box;}',
+      '.texture-note-preview::before{content:"";position:absolute;left:0;right:0;top:50%;',
+      'height:1px;background:#2563eb;opacity:0.6;}',
+      '.texture-note-preview::after{content:"";position:absolute;top:0;bottom:0;left:50%;',
+      'width:1px;background:#2563eb;opacity:0.6;}',
+      '.texture-note-shape[data-color="yellow"] rect,.texture-note-shape[data-color="yellow"] ellipse{fill:#fde68a;}',
+      '.texture-note-shape[data-color="yellow"] line{stroke:#fde68a;}',
+      '.texture-note-shape[data-color="green"] rect,.texture-note-shape[data-color="green"] ellipse{fill:#bbf7d0;}',
+      '.texture-note-shape[data-color="green"] line{stroke:#bbf7d0;}',
+      '.texture-note-shape[data-color="blue"] rect,.texture-note-shape[data-color="blue"] ellipse{fill:#bfdbfe;}',
+      '.texture-note-shape[data-color="blue"] line{stroke:#bfdbfe;}',
+      '.texture-note-shape[data-color="red"] rect,.texture-note-shape[data-color="red"] ellipse{fill:#fecaca;}',
+      '.texture-note-shape[data-color="red"] line{stroke:#fecaca;}',
+      '.texture-note-shape[data-color="purple"] rect,.texture-note-shape[data-color="purple"] ellipse{fill:#ddd6fe;}',
+      '.texture-note-shape[data-color="purple"] line{stroke:#ddd6fe;}',
+      '.texture-note-shape[data-color="black"] rect,.texture-note-shape[data-color="black"] ellipse{fill:#d1d5db;}',
+      '.texture-note-shape[data-color="black"] line{stroke:#d1d5db;}',
       `.${NOTE_CLASS}.${FLASH_CLASS}{background:#f59e0b;}`,
+      `.texture-overlay.${FLASH_CLASS}{opacity:0.4;}`,
+      // Правка заметки: перемещение показывается хваткой, границы цитаты — маркерами.
+      'body[data-editing="move"]{cursor:move;}',
+      'body[data-editing="move"] .texture-overlay{cursor:move;}',
+      'body[data-editing="resize"],body[data-editing="resize"] *{cursor:ew-resize;}',
+      '.texture-note-handle{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;',
+      'border-radius:50%;background:#1d4ed8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);',
+      'cursor:ew-resize;z-index:5;}',
     ].join('');
     const body = value.chapters
       .map((chapter, index) => `<section class="texture-chapter" data-chapter="${index}">${chapter.html}</section>`)
@@ -119,6 +246,19 @@
     return document()?.querySelector(`.texture-chapter[data-chapter="${index}"]`) ?? null;
   }
 
+  /** Применение активного инструмента к документу книги (курсор и выделение). */
+  function applyTool(): void {
+    const body = document()?.body as HTMLElement | null;
+    if (body) {
+      body.dataset.tool = tool.type;
+      if (editing) {
+        body.dataset.editing = editing.mode;
+      } else {
+        delete body.dataset.editing;
+      }
+    }
+  }
+
   /** Снятие подсветок всех заметок без изменения текста. */
   function clearHighlights(): void {
     const value = document();
@@ -128,11 +268,20 @@
     clearNoteMarks(value, `mark.${NOTE_CLASS}`);
   }
 
-  /** Подсветка одной заметки; неподходящий якорь пропускается. */
-  function highlightNote(note: Note): void {
+  /** Снятие наложений карточек и фигур. */
+  function clearOverlays(): void {
     const value = document();
-    const anchor = parseAnchor(note.anchor);
-    if (!value || !anchor) {
+    if (!value) {
+      return;
+    }
+    clearNoteOverlays(value, `.${NOTE_OVERLAY_CLASS}`);
+  }
+
+  /** Подсветка одной заметки-цитаты; неподходящий якорь пропускается. */
+  function highlightNote(note: Note, anchorOverride?: QuoteAnchor): void {
+    const value = document();
+    const anchor = anchorOverride ?? parseAnchor(note.anchor);
+    if (!value || !anchor || note.type !== 'quote') {
       return;
     }
     const section = chapterSection(anchor.chapter);
@@ -142,11 +291,44 @@
     highlightTextRange(section, anchor.start, anchor.end, NOTE_CLASS, note.id, note.color);
   }
 
-  /** Перерисовка всех подсветок заметок. */
-  function drawHighlights(): void {
+  /** Наложение одной текстовой карточки или фигуры. */
+  function drawOverlay(note: Note, anchorOverride?: QuoteAnchor, geometryOverride?: string): void {
+    const value = document();
+    const anchor = anchorOverride ?? parseAnchor(note.anchor);
+    if (!value || !anchor) {
+      return;
+    }
+    const section = chapterSection(anchor.chapter);
+    if (!section) {
+      return;
+    }
+    if (note.type === 'text') {
+      const placed: Note = anchorOverride ? { ...note, anchor: JSON.stringify(anchor) } : note;
+      renderTextCard(section, placed);
+    } else if (note.type === 'shape') {
+      const placed: Note = geometryOverride ? { ...note, geometry: geometryOverride } : note;
+      renderShape(section, placed);
+    }
+  }
+
+  /** Перерисовка подсветок и наложений всех заметок. */
+  function drawNotes(): void {
     clearHighlights();
+    clearOverlays();
     for (const note of notes) {
-      highlightNote(note);
+      // Живой черновик перемещения важнее черновика правки границ.
+      const moving = moveDraft?.noteId === note.id ? moveDraft : null;
+      const resizing = placementDraft?.noteId === note.id ? placementDraft : null;
+      const override = moving?.anchor ?? resizing?.anchor;
+      const geometry = moving ? (moving.geometry ?? undefined) : undefined;
+      if (note.type === 'quote') {
+        highlightNote(note, override);
+      } else {
+        drawOverlay(note, override, geometry);
+      }
+    }
+    if (editing?.mode === 'resize') {
+      renderResizeHandles();
     }
   }
 
@@ -160,18 +342,35 @@
     const win = value.defaultView;
     const anchor = parseAnchor(note.anchor);
     const section = anchor ? chapterSection(anchor.chapter) : null;
-    const range = anchor && section ? rangeFromOffsets(section, anchor.start, anchor.end) : null;
-    const target = range ?? (section ? section : null);
-    if (target && win && root) {
-      const rect = target.getBoundingClientRect();
-      win.scrollTo({ top: root.scrollTop + rect.top - 80, behavior: 'smooth' });
-    } else if (anchor && anchor.percent > 0) {
-      gotoPercent(anchor.percent);
+    if (anchor?.kind === 'point' && section) {
+      // Точка: прокручиваем к её доле внутри раздела главы.
+      const rect = section.getBoundingClientRect();
+      const target = rect.top + rect.height * Math.max(0, Math.min(1, anchor.y ?? 0));
+      if (win && root) {
+        win.scrollTo({ top: root.scrollTop + target - 120, behavior: 'smooth' });
+      }
+    } else {
+      const range = anchor && section ? rangeFromOffsets(section, anchor.start, anchor.end) : null;
+      const target = range ?? (section ? section : null);
+      if (target && win && root) {
+        const rect = target.getBoundingClientRect();
+        win.scrollTo({ top: root.scrollTop + rect.top - 80, behavior: 'smooth' });
+      } else if (anchor && anchor.percent > 0) {
+        gotoPercent(anchor.percent);
+      }
     }
     const id = note.id;
-    for (const mark of Array.from(value.querySelectorAll(`mark.${NOTE_CLASS}[data-note-id="${id}"]`))) {
+    for (const mark of Array.from(
+      value.querySelectorAll(`mark.${NOTE_CLASS}[data-note-id="${id}"]`),
+    )) {
       mark.classList.add(FLASH_CLASS);
-      setTimeout(() => mark.classList.remove(FLASH_CLASS), 1200);
+      setTimeout(() => mark.classList.remove(FLASH_CLASS), 300);
+    }
+    for (const overlay of Array.from(
+      value.querySelectorAll(`.${NOTE_OVERLAY_CLASS}[data-note-id="${id}"]`),
+    )) {
+      overlay.classList.add(FLASH_CLASS);
+      setTimeout(() => overlay.classList.remove(FLASH_CLASS), 300);
     }
   }
 
@@ -194,6 +393,622 @@
     pendingAnchor = null;
     menuPosition = null;
     document()?.getSelection()?.removeAllRanges();
+  }
+
+  /** Доли точки внутри раздела главы по координатам события. */
+  function pointFraction(
+    section: Element,
+    clientX: number,
+    clientY: number,
+  ): { x: number; y: number } {
+    const rect = section.getBoundingClientRect();
+    const x = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
+    const y = rect.height > 0 ? (clientY - rect.top) / rect.height : 0;
+    return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+  }
+
+  /** Раздел главы под координатами события. */
+  function chapterAt(clientX: number, clientY: number): Element | null {
+    const value = document();
+    const element = value?.elementFromPoint(clientX, clientY) as Element | null;
+    return element?.closest?.('.texture-chapter') ?? null;
+  }
+
+  /** Доля позиции точки в книге в процентах по координате вертикали. */
+  function percentAt(clientY: number): number {
+    const value = document();
+    const win = value?.defaultView;
+    const root = value?.scrollingElement ?? value?.documentElement;
+    const height = root?.scrollHeight ?? 0;
+    if (!win || !root || height <= 0) {
+      return 0;
+    }
+    return Math.max(0, Math.min(100, ((clientY + root.scrollTop) / height) * 100));
+  }
+
+  /** Прямоугольник в системе координат документа книги. */
+  interface DocRect {
+    /** Отступ слева. */
+    x: number;
+    /** Отступ сверху. */
+    y: number;
+    /** Ширина. */
+    width: number;
+    /** Высота. */
+    height: number;
+  }
+
+  /** Смещение узла в символах относительно начала главы. */
+  function charOffset(root: Node, node: Node, offset: number): number | null {
+    const value = root.ownerDocument;
+    if (!value || !root.contains(node)) {
+      return null;
+    }
+    const range = value.createRange();
+    range.setStart(root, 0);
+    range.setEnd(node, offset);
+    return range.toString().length;
+  }
+
+  /** Позиция меню заметки: под рамкой её элемента, в координатах области.
+   *
+   * Прямоугольники элементов берутся из документа книги, поэтому они уже
+   * отсчитываются от области чтения; смещать их на положение кадра нельзя —
+   * иначе меню уезжало к верхнему краю области.
+   */
+  function noteMenuStyle(): string {
+    const menuWidth = 210;
+    const menuHeight = 40;
+    const x = Math.max(
+      8,
+      Math.min(noteMenu?.x ?? 0, Math.max(8, readerAreaWidth - menuWidth - 8)),
+    );
+    const preferred = (noteMenu?.y ?? 0) + 6;
+    const y =
+      readerAreaHeight > 0 && preferred + menuHeight > readerAreaHeight
+        ? Math.max(8, preferred - menuHeight - 18)
+        : Math.max(8, preferred);
+    return `left: ${x}px; top: ${y}px;`;
+  }
+
+  /** Ограничение доли диапазоном [0, 1]. */
+  function clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  /** Рамка выбранной заметки в координатах области чтения (для направляющих).
+   *
+   * Возвращает прямоугольник и положение осей через центр: направляющие
+   * показывают, что заметку можно двигать, и рисуются в оболочке поверх книги.
+   */
+  const moveGuideBox = $derived.by(() => {
+    const value = doc;
+    const target = moveGuide;
+    // Счётчик читается, чтобы пересчитывать рамку при прокрутке и тяге.
+    void moveTick;
+    if (!value || !target) {
+      return null;
+    }
+    const note = notes.find((candidate) => candidate.id === target.noteId);
+    const anchor = note ? parseAnchor(note.anchor) : null;
+    const section = anchor ? chapterSection(anchor.chapter) : null;
+    if (!note || !anchor || !section) {
+      return null;
+    }
+    let left: number;
+    let top: number;
+    let width: number;
+    let height: number;
+    if (note.type === 'shape') {
+      const element = value.querySelector(
+        `.${NOTE_SHAPE_CLASS}[data-note-id="${note.id}"]`,
+      ) as SVGGraphicsElement | null;
+      const shape = element?.querySelector('line,rect,ellipse') ?? null;
+      const rect = shape?.getBoundingClientRect();
+      if (!rect) {
+        return null;
+      }
+      left = rect.left;
+      top = rect.top;
+      width = rect.width;
+      height = rect.height;
+    } else {
+      const element = value.querySelector(
+        `.${NOTE_OVERLAY_CLASS}.${NOTE_CARD_CLASS}[data-note-id="${note.id}"]`,
+      ) as HTMLElement | null;
+      if (!element) {
+        return null;
+      }
+      const rect = element.getBoundingClientRect();
+      left = rect.left;
+      top = rect.top;
+      width = rect.width;
+      height = rect.height;
+    }
+    // Прямоугольники из документа книги уже отсчитаны от области чтения:
+    // смещать их на положение кадра нельзя, иначе направляющие уезжают.
+    return {
+      left,
+      top,
+      width,
+      height,
+      centerX: left + width / 2,
+      centerY: top + height / 2,
+    };
+  });
+
+  /** Открытие контекстного меню заметки по её элементу. */
+  function openNoteMenu(noteId: string, element: Element): void {
+    const note = notes.find((candidate) => candidate.id === noteId);
+    if (!note) {
+      return;
+    }
+    // У фигуры наложение — SVG во всю главу; для привязки меню к самой фигуре
+    // берётся её графический элемент внутри слоя.
+    const shape = element.querySelector('line,rect,ellipse');
+    const rect = (shape ?? element).getBoundingClientRect();
+    noteMenu = { noteId, x: rect.left, y: rect.bottom, type: note.type };
+  }
+
+  /** Закрытие контекстного меню заметки. */
+  function closeNoteMenu(): void {
+    noteMenu = null;
+    moveGuide = null;
+  }
+
+  /** Начало перемещения карточки или фигуры. */
+  function startMove(): void {
+    if (!noteMenu) {
+      return;
+    }
+    moveGuide = { noteId: noteMenu.noteId };
+    editing = { noteId: noteMenu.noteId, mode: 'move' };
+    noteMenu = null;
+  }
+
+  /** Начало сдвига границ цитаты. */
+  function startResize(): void {
+    if (!noteMenu) {
+      return;
+    }
+    const note = notes.find((candidate) => candidate.id === noteMenu?.noteId);
+    const anchor = note ? parseAnchor(note.anchor) : null;
+    if (!note || !anchor) {
+      noteMenu = null;
+      return;
+    }
+    moveGuide = null;
+    editing = { noteId: note.id, mode: 'resize' };
+    resizeDrag = { noteId: note.id, edge: 'start', anchor };
+    noteMenu = null;
+    placementDraft = null;
+    renderResizeHandles();
+  }
+
+  /** Остановка правки заметки со снятием подвижных маркеров. */
+  function cancelEditing(): void {
+    const value = document();
+    value?.removeEventListener('mousemove', handleResizeMove);
+    value?.removeEventListener('mouseup', handleResizeEnd);
+    editing = null;
+    resizeDrag = null;
+    moveDrag = null;
+    moveDraft = null;
+    placementDraft = null;
+    moveGuide = null;
+    clearResizeHandles();
+    drawNotes();
+  }
+
+  /** Рамка маленького диапазона в начале или конце цитаты (для маркеров). */
+  function rangeHandleRect(
+    section: Element,
+    from: number,
+    to: number,
+    edge: 'start' | 'end',
+  ): DocRect | null {
+    const range = rangeFromOffsets(section, Math.max(0, from), Math.max(0, to));
+    if (!range) {
+      return null;
+    }
+    const rects = Array.from(range.getClientRects());
+    const rect = edge === 'start' ? rects[0] : rects[rects.length - 1] ?? rects[0];
+    const bounds = section.getBoundingClientRect();
+    if (!rect) {
+      return null;
+    }
+    return {
+      x: rect.left - bounds.left,
+      y: rect.top - bounds.top,
+      width: rect.width,
+      height: rect.height,
+    };
+  }
+
+  /** Снятие маркеров границ цитаты из документа книги. */
+  function clearResizeHandles(): void {
+    const value = document();
+    for (const handle of Array.from(value?.querySelectorAll('.texture-note-handle') ?? [])) {
+      handle.remove();
+    }
+  }
+
+  /** Отрисовка маркеров границ цитаты внутри документа книги.
+   *
+   * Маркеры живут в том же документе, что и текст: тогда браузер сам ведёт
+   * протяжку, и не нужно ловить события между двумя окнами.
+   */
+  function renderResizeHandles(): void {
+    clearResizeHandles();
+    const anchor = placementDraft?.anchor ?? resizeDrag?.anchor;
+    const section = anchor ? chapterSection(anchor.chapter) : null;
+    if (!anchor || !section || !resizeDrag) {
+      return;
+    }
+    const startRect = rangeHandleRect(section, anchor.start, anchor.start + 1, 'start');
+    const endRect = rangeHandleRect(section, anchor.end - 1, anchor.end, 'end');
+    if (!startRect || !endRect) {
+      return;
+    }
+    for (const [edge, rect] of [
+      ['start', startRect],
+      ['end', endRect],
+    ] as const) {
+      const handle = section.ownerDocument.createElement('div');
+      handle.className = 'texture-note-handle';
+      handle.dataset.noteHandle = edge;
+      handle.style.left = `${rect.x + (edge === 'start' ? 0 : rect.width)}px`;
+      handle.style.top = `${rect.y + rect.height / 2}px`;
+      section.appendChild(handle);
+    }
+  }
+
+  /** Смещение символа в главе по координатам указателя. */
+  function offsetAtPoint(section: Element, clientX: number, clientY: number): number | null {
+    const value = document();
+    if (!value) {
+      return null;
+    }
+    const caret = (
+      value as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null }
+    ).caretRangeFromPoint;
+    if (typeof caret !== 'function') {
+      return null;
+    }
+    const range = caret.call(value, clientX, clientY);
+    if (!range) {
+      return null;
+    }
+    const element = (node: Node) =>
+      node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    if (element(range.startContainer)?.closest('.texture-chapter') !== section) {
+      return null;
+    }
+    return charOffset(section, range.startContainer, range.startOffset);
+  }
+
+  /** Начало тяги перемещения карточки или фигуры. */
+  function beginMoveDrag(event: MouseEvent): void {
+    const noteId = editing?.noteId;
+    const note = notes.find((candidate) => candidate.id === noteId);
+    const anchor = note ? parseAnchor(note.anchor) : null;
+    if (!note || !anchor) {
+      return;
+    }
+    const section = chapterSection(anchor.chapter);
+    if (!section) {
+      return;
+    }
+    const rect = section.getBoundingClientRect();
+    const geometry = note.type === 'shape' ? parseGeometry(note.geometry) : null;
+    moveDrag = {
+      noteId: note.id,
+      section,
+      anchor,
+      geometry,
+      startX: event.clientX,
+      startY: event.clientY,
+      width: rect.width,
+      height: rect.height,
+    };
+    moveDraft = {
+      noteId: note.id,
+      anchor,
+      geometry: geometry ? serializeGeometry(geometry) : null,
+    };
+    dragged = true;
+  }
+
+  /** Живое перемещение заметки: наложение следует за курсором.
+   *
+   * Превью рисуется по черновику, поэтому заметка не ждёт сохранения и не
+   * откатывается на прежнее место между отпусканием и ответом хранилища.
+   */
+  function moveNotePreview(event: MouseEvent): void {
+    const drag = moveDrag;
+    if (!drag) {
+      return;
+    }
+    const dx = drag.width > 0 ? (event.clientX - drag.startX) / drag.width : 0;
+    const dy = drag.height > 0 ? (event.clientY - drag.startY) / drag.height : 0;
+    const anchor = createAnchor({
+      ...drag.anchor,
+      x: clamp01((drag.anchor.x ?? 0) + dx),
+      y: clamp01((drag.anchor.y ?? 0) + dy),
+    });
+    const geometry = drag.geometry
+      ? serializeGeometry({
+          x1: clamp01(drag.geometry.x1 + dx),
+          y1: clamp01(drag.geometry.y1 + dy),
+          x2: clamp01(drag.geometry.x2 + dx),
+          y2: clamp01(drag.geometry.y2 + dy),
+        })
+      : null;
+    moveDraft = { noteId: drag.noteId, anchor, geometry };
+    drawNotes();
+  }
+
+  /** Начало тяги маркера границы цитаты. */
+  function beginResizeDrag(event: MouseEvent, edge: 'start' | 'end'): void {
+    if (!editing || editing.mode !== 'resize' || !resizeDrag) {
+      return;
+    }
+    event.preventDefault();
+    resizeDrag = { ...resizeDrag, edge };
+    const value = document();
+    value?.addEventListener('mousemove', handleResizeMove);
+    value?.addEventListener('mouseup', handleResizeEnd);
+  }
+
+  /** Обновление границ цитаты во время тяги маркера. */
+  function handleResizeMove(event: MouseEvent): void {
+    if (!resizeDrag) {
+      return;
+    }
+    const section = chapterSection(resizeDrag.anchor.chapter);
+    if (!section) {
+      return;
+    }
+    const point = offsetAtPoint(section, event.clientX, event.clientY);
+    if (point === null) {
+      return;
+    }
+    let start = resizeDrag.anchor.start;
+    let end = resizeDrag.anchor.end;
+    if (resizeDrag.edge === 'start') {
+      start = Math.max(0, Math.min(point, end - 1));
+    } else {
+      end = Math.max(start + 1, point);
+    }
+    const range = rangeFromOffsets(section, start, end);
+    const quote = range ? range.toString().replace(/\s+/g, ' ').trim() : resizeDrag.anchor.quote;
+    const next = createAnchor({ ...resizeDrag.anchor, start, end, quote });
+    placementDraft = { noteId: resizeDrag.noteId, anchor: next };
+    drawNotes();
+    renderResizeHandles();
+  }
+
+  /** Завершение сдвига границ цитаты: сохранение нового якоря. */
+  function handleResizeEnd(): void {
+    const value = document();
+    value?.removeEventListener('mousemove', handleResizeMove);
+    value?.removeEventListener('mouseup', handleResizeEnd);
+    const draft = placementDraft;
+    if (draft && resizeDrag) {
+      resizeDrag = { ...resizeDrag, anchor: draft.anchor };
+      placementDraft = null;
+      onPlaceNote?.(draft.noteId, draft.anchor);
+    }
+    suppressClick = true;
+    renderResizeHandles();
+  }
+
+  /** Завершение перемещения карточки или фигуры. */
+  function commitMove(event: MouseEvent): void {
+    const drag = moveDrag;
+    if (!drag) {
+      return;
+    }
+    moveDrag = null;
+    editing = null;
+    moveGuide = null;
+    const dx = drag.width > 0 ? (event.clientX - drag.startX) / drag.width : 0;
+    const dy = drag.height > 0 ? (event.clientY - drag.startY) / drag.height : 0;
+    const anchor = createAnchor({
+      ...drag.anchor,
+      x: clamp01((drag.anchor.x ?? 0) + dx),
+      y: clamp01((drag.anchor.y ?? 0) + dy),
+    });
+    const geometry = drag.geometry
+      ? serializeGeometry({
+          x1: clamp01(drag.geometry.x1 + dx),
+          y1: clamp01(drag.geometry.y1 + dy),
+          x2: clamp01(drag.geometry.x2 + dx),
+          y2: clamp01(drag.geometry.y2 + dy),
+        })
+      : null;
+    // Черновик удерживается до прихода сохранённого места: иначе заметка на миг
+    // вернулась бы на прежнее место, пока хранилище не ответит.
+    moveDraft = { noteId: drag.noteId, anchor, geometry };
+    drawNotes();
+    onPlaceNote?.(drag.noteId, anchor, geometry ?? undefined);
+  }
+
+  /** Начало жеста: запоминается точка отсчёта для фигуры или карточки. */
+  function handleGestureStart(event: MouseEvent): void {
+    if (editing?.mode === 'move') {
+      // В режиме перемещения заметка хватается из любой точки своей рамки, а не
+      // только по контуру: у прямоугольника и эллипса заливка прозрачна для
+      // указателя, и нажатие в середине попадало в текст — начиналось выделение
+      // и всплывало меню создания цитаты, хотя ожидалось перемещение.
+      event.preventDefault();
+      const target = event.target as Element | null;
+      const overlay = target?.closest?.(`.${NOTE_OVERLAY_CLASS}`) as HTMLElement | null;
+      const box = moveGuideBox;
+      const insideFrame =
+        !!box &&
+        event.clientX >= box.left &&
+        event.clientX <= box.left + box.width &&
+        event.clientY >= box.top &&
+        event.clientY <= box.top + box.height;
+      if (overlay?.dataset.noteId === editing.noteId || insideFrame) {
+        beginMoveDrag(event);
+      } else {
+        // Нажатие вне заметки завершает режим перемещения.
+        cancelEditing();
+      }
+      return;
+    }
+    // Во время правки создание новых заметок не начинается.
+    if (editing) {
+      return;
+    }
+    if (tool.type !== 'shape' && tool.type !== 'text') {
+      return;
+    }
+    // Клик по существующей заметке не создаёт новую.
+    const target = event.target as Element | null;
+    if (target?.closest?.(`mark.${NOTE_CLASS}, .${NOTE_OVERLAY_CLASS}`)) {
+      return;
+    }
+    const section = chapterAt(event.clientX, event.clientY);
+    if (!section) {
+      return;
+    }
+    // Протяжка инструмента не должна выделять текст книги под собой.
+    event.preventDefault();
+    dragSection = section;
+    dragStart = pointFraction(section, event.clientX, event.clientY);
+    dragCurrent = { ...dragStart };
+    dragLastClient = { x: event.clientX, y: event.clientY };
+    dragged = false;
+    if (tool.type === 'shape') {
+      dragPreview = createDragPreview(section);
+    }
+  }
+
+  /** Создание пунктирной рамки предпросмотра фигуры внутри раздела главы.
+   *
+   * Без предпросмотра протяжка выглядела «слепой»: до отпускания кнопки на
+   * странице не было никаких признаков будущей фигуры (в PDF такая рамка есть).
+   */
+  function createDragPreview(section: Element): HTMLElement {
+    const doc = section.ownerDocument;
+    const preview = doc.createElement('div');
+    preview.className = 'texture-note-preview';
+    section.appendChild(preview);
+    return preview;
+  }
+
+  /** Обновление рамки предпросмотра по текущей точке протяжки. */
+  function updateDragPreview(): void {
+    if (!dragPreview || !dragSection || !dragStart || !dragCurrent) {
+      return;
+    }
+    const rect = dragSection.getBoundingClientRect();
+    const left = Math.min(dragStart.x, dragCurrent.x) * rect.width;
+    const top = Math.min(dragStart.y, dragCurrent.y) * rect.height;
+    const width = Math.abs(dragCurrent.x - dragStart.x) * rect.width;
+    const height = Math.abs(dragCurrent.y - dragStart.y) * rect.height;
+    dragPreview.style.left = `${left}px`;
+    dragPreview.style.top = `${top}px`;
+    dragPreview.style.width = `${width}px`;
+    dragPreview.style.height = `${height}px`;
+  }
+
+  /** Снятие рамки предпросмотра протяжки. */
+  function clearDragPreview(): void {
+    if (dragPreview) {
+      dragPreview.remove();
+      dragPreview = null;
+    }
+  }
+
+  /** Обновление протяжки фигуры. */
+  function handleGestureMove(event: MouseEvent): void {
+    if (moveDrag) {
+      moveNotePreview(event);
+      return;
+    }
+    if (!dragSection || !dragStart) {
+      return;
+    }
+    dragCurrent = pointFraction(dragSection, event.clientX, event.clientY);
+    dragLastClient = { x: event.clientX, y: event.clientY };
+    dragged = true;
+    updateDragPreview();
+  }
+
+  /** Завершение жеста: создание фигуры или точки текстовой карточки. */
+  function handleGestureEnd(event: MouseEvent): void {
+    if (moveDrag) {
+      commitMove(event);
+      suppressClick = true;
+      return;
+    }
+    finishShapeOrTextGesture(event.clientY);
+  }
+
+  /** Завершение жеста протяжки фигуры или точки карточки по известным точкам.
+   *
+   * Вызывается и с отпусканием кнопки над областью чтения, и при отпускании вне
+   * неё: тогда точка берётся из последнего движения внутри области, а не из
+   * координат за её пределами. Раньше отпускание вне области оставляло рамку
+   * предпросмотра и незавершённый жест.
+   */
+  function finishShapeOrTextGesture(fallbackY: number): void {
+    const section = dragSection;
+    const start = dragStart;
+    const lastClient = dragLastClient;
+    dragSection = null;
+    dragStart = null;
+    dragCurrent = null;
+    dragLastClient = null;
+    clearDragPreview();
+    if (tool.type === 'shape') {
+      const end = section && start && lastClient
+        ? pointFraction(section, lastClient.x, lastClient.y)
+        : start;
+      if (!section || !start || !end) {
+        dragged = false;
+        return;
+      }
+      // Пустой жест (нажатие без перемещения) фигуру не создаёт.
+      const moved = Math.abs(end.x - start.x) > 0.005 || Math.abs(end.y - start.y) > 0.005;
+      if (!moved) {
+        dragged = false;
+        return;
+      }
+      const chapter = Number((section as HTMLElement).dataset.chapter ?? '0');
+      const anchor = createAnchor({
+        kind: 'point',
+        chapter: Number.isFinite(chapter) ? chapter : 0,
+        x: start.x,
+        y: start.y,
+        percent: percentAt(lastClient?.y ?? fallbackY),
+      });
+      onShape?.(
+        anchor,
+        tool.shape,
+        serializeGeometry({ x1: start.x, y1: start.y, x2: end.x, y2: end.y }),
+        tool.color,
+      );
+      return;
+    }
+    // Карточка ставится только когда жест начался на пустом месте страницы:
+    // клик по существующей заметке (её выбор или перемещение) новой не создаёт.
+    if (tool.type === 'text' && !dragged && section && start) {
+      const chapter = Number((section as HTMLElement).dataset.chapter ?? '0');
+      const anchor = createAnchor({
+        kind: 'point',
+        chapter: Number.isFinite(chapter) ? chapter : 0,
+        x: start.x,
+        y: start.y,
+        percent: percentAt(lastClient?.y ?? fallbackY),
+      });
+      onTextPoint?.(anchor, tool.color);
+    }
+    dragged = false;
   }
 
   /** Обработка выделения пользователя: подготовка меню создания заметки. */
@@ -254,20 +1069,46 @@
     }
   }
 
-  /** Обработка клика по подсветке: выбор заметки. */
+  /** Обработка клика по подсветке или наложению: выбор заметки и меню действий. */
   function handleClick(event: MouseEvent): void {
-    const target = event.target as HTMLElement | null;
+    if (suppressClick) {
+      suppressClick = false;
+      return;
+    }
+    if (dragged && (tool.type === 'text' || tool.type === 'shape')) {
+      // Только что завершённая протяжка не должна выбирать заметку.
+      dragged = false;
+      return;
+    }
+    const target = event.target as HTMLElement | SVGElement | null;
     const mark = target?.closest?.(`mark.${NOTE_CLASS}`) as HTMLElement | null;
-    if (mark?.dataset.noteId) {
-      onSelectNote?.(mark.dataset.noteId);
+    const overlay = target?.closest?.(`.${NOTE_OVERLAY_CLASS}`) as HTMLElement | null;
+    const element = mark ?? overlay;
+    const noteId = element?.dataset.noteId;
+    if (noteId && element) {
+      onSelectNote?.(noteId);
+      openNoteMenu(noteId, element);
     }
   }
 
-  /** Отмена меню при начале нового взаимодействия с текстом. */
-  function handleMouseDown(): void {
+  /** Отмена меню и правки при начале нового взаимодействия с текстом. */
+  function handleMouseDown(event: MouseEvent): void {
     if (pendingAnchor) {
       pendingAnchor = null;
       menuPosition = null;
+    }
+    if (noteMenu) {
+      noteMenu = null;
+    }
+    if (editing && editing.mode === 'resize') {
+      const target = event.target as Element | null;
+      const handle = target?.closest?.('[data-note-handle]') as Element | null;
+      if (handle) {
+        beginResizeDrag(event, handle.getAttribute('data-note-handle') === 'start' ? 'start' : 'end');
+        return;
+      }
+      // Клик по тексту вне маркеров завершает правку границ.
+      handleResizeEnd();
     }
   }
 
@@ -413,6 +1254,13 @@
 
   /** Переход к заметке извне (панель заметок). */
   export function goto(note: Note): void {
+    // Переход к другой заметке — новое взаимодействие: меню и правка снимаются.
+    if (noteMenu) {
+      noteMenu = null;
+    }
+    if (editing) {
+      cancelEditing();
+    }
     gotoAnchor(note);
   }
 
@@ -428,12 +1276,16 @@
     value.addEventListener('click', handleClick);
     value.addEventListener('selectionchange', handleSelectionChange);
     value.addEventListener('scroll', handleDocumentScroll, { passive: true });
+    value.addEventListener('mousedown', handleGestureStart);
+    value.addEventListener('mousemove', handleGestureMove);
+    value.addEventListener('mouseup', handleGestureEnd);
     value.defaultView?.addEventListener('resize', handleResize);
     applyZoom(zoom);
+    applyTool();
     if (startPosition > 0) {
       gotoPercent(startPosition);
     }
-    drawHighlights();
+    drawNotes();
     handleScroll();
     captureAnchor();
   }
@@ -442,6 +1294,21 @@
   let html = $state('');
   onMount(() => {
     html = buildDocument(content);
+    /** Завершение протяжки фигуры при отпускании кнопки вне области чтения.
+     *
+     * `mouseup` внутри документа книги не приходит, если курсор вышел за пределы
+     * iframe (например, на панель заметок): тогда жест оставался незавершённым —
+     * висела рамка предпросмотра, а следующая протяжка начиналась со старых
+     * точек. Обработчик окна приложения ловит отпускание в любом месте.
+     */
+    const onWindowMouseUp = () => {
+      if (!dragSection || moveDrag) {
+        return;
+      }
+      finishShapeOrTextGesture(0);
+    };
+    window.addEventListener('mouseup', onWindowMouseUp, true);
+    return () => window.removeEventListener('mouseup', onWindowMouseUp, true);
   });
 
   /** Применение внешнего масштаба. */
@@ -453,12 +1320,142 @@
     }
   });
 
-  /** Перерисовка подсветок при смене заметок. */
+  /** Перерисовка подсветок и наложений при смене заметок. */
   $effect(() => {
     if (doc) {
-      drawHighlights();
+      drawNotes();
       captureAnchor();
     }
+  });
+
+  /** Снятие черновика перемещения после прихода сохранённого места.
+   *
+   * Заметки обновляются после сохранения, поэтому черновик (который удерживал
+   * позицию, пока хранилище отвечало) снимается только когда сохранённое место
+   * совпало с черновиком — иначе он снялся бы сразу и заметка мигнула.
+   */
+  $effect(() => {
+    const value = notes;
+    untrack(() => {
+      const draft = moveDraft;
+      if (!draft) {
+        return;
+      }
+      const note = value.find((candidate) => candidate.id === draft.noteId);
+      if (!note) {
+        return;
+      }
+      const anchor = parseAnchor(note.anchor);
+      const sameAnchor =
+        anchor !== null &&
+        Math.abs((anchor.x ?? 0) - (draft.anchor.x ?? 0)) < 1e-6 &&
+        Math.abs((anchor.y ?? 0) - (draft.anchor.y ?? 0)) < 1e-6;
+      const savedGeometry = note.geometry ?? '';
+      const draftGeometry = parseGeometry(draft.geometry);
+      const storedGeometry = parseGeometry(savedGeometry);
+      const sameGeometry =
+        draft.geometry === null ||
+        (draftGeometry !== null &&
+          storedGeometry !== null &&
+          Math.abs(draftGeometry.x1 - storedGeometry.x1) < 1e-6 &&
+          Math.abs(draftGeometry.y1 - storedGeometry.y1) < 1e-6 &&
+          Math.abs(draftGeometry.x2 - storedGeometry.x2) < 1e-6 &&
+          Math.abs(draftGeometry.y2 - storedGeometry.y2) < 1e-6);
+      if (sameAnchor && sameGeometry) {
+        moveDraft = null;
+      }
+    });
+  });
+
+  /** Смена инструмента или режима правки меняет курсор содержимого. */
+  $effect(() => {
+    const value = tool.type;
+    const mode = editing?.mode ?? null;
+    if (doc) {
+      void value;
+      void mode;
+      applyTool();
+    }
+  });
+
+  /** Сброс меню и правки заметки при взаимодействии вне меню.
+   *
+   * Меню и правка живут в документе приложения, поэтому клики по панели заметок
+   * или панели инструментов доходят сюда. Раньше меню оставалось открытым, и
+   * последующее случайное нажатие могло сработать не туда. Теперь любое
+   * взаимодействие вне меню, Escape, смена инструмента и уход поверхности
+   * закрывают меню и завершают правку.
+   */
+  $effect(() => {
+    if (!noteMenu && !editing) {
+      return;
+    }
+    /** Закрытие меню и завершение правки. */
+    const dismiss = () => {
+      if (noteMenu) {
+        noteMenu = null;
+      }
+      if (editing) {
+        cancelEditing();
+      }
+    };
+    /** Клик вне меню и подсказки правки закрывает их. */
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (
+        target?.closest?.(
+          '[data-testid="note-menu"], [data-testid="note-editing-hint"]',
+        )
+      ) {
+        return;
+      }
+      dismiss();
+    };
+    /** Escape закрывает меню и правку. */
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        dismiss();
+      }
+    };
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+  });
+
+  /** Уход поверхности из вида снимает меню и правку. */
+  $effect(() => {
+    if (visible) {
+      return;
+    }
+    if (noteMenu) {
+      noteMenu = null;
+    }
+    if (editing) {
+      cancelEditing();
+    }
+  });
+
+  /** Пересчёт направляющих перемещения при прокрутке и тяге.
+   *
+   * Положение рамки выбранной заметки меняется при прокрутке книги и во время
+   * перетаскивания; счётчик кадров заставляет `moveGuideBox` пересчитаться.
+   */
+  $effect(() => {
+    const active = editing?.mode === 'move';
+    if (!active) {
+      moveTick = 0;
+      return;
+    }
+    let raf = 0;
+    const tick = () => {
+      moveTick += 1;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   });
 </script>
 
@@ -483,6 +1480,97 @@
     >
       <NoteColorMenu labelPrefix="Создать заметку" onpick={confirmQuote} />
       <Button variant="ghost" size="sm" onclick={dismissMenu}>Отмена</Button>
+    </div>
+  {/if}
+
+  {#if noteMenu}
+    <div
+      class="absolute z-20 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[4px] shadow-lg"
+      data-testid="note-menu"
+      style={noteMenuStyle()}
+    >
+      {#if noteMenu.type === 'quote'}
+        <Button
+          variant="secondary"
+          size="icon"
+          title="Изменить выделение"
+          ariaLabel="Изменить выделение"
+          onclick={startResize}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path
+              d="M4 9h13M4 9l3-3M4 9l3 3M20 15H7M20 15l-3-3M20 15l-3 3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </Button>
+      {:else}
+        <Button
+          variant="secondary"
+          size="icon"
+          title="Переместить"
+          ariaLabel="Переместить"
+          onclick={startMove}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path
+              d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </Button>
+      {/if}
+      <Button variant="ghost" size="icon" title="Закрыть" ariaLabel="Закрыть" onclick={closeNoteMenu}>
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </Button>
+    </div>
+  {/if}
+
+  {#if moveGuideBox}
+    <div
+      class="pointer-events-none absolute z-[15]"
+      data-testid="note-move-guide"
+      style="left: {moveGuideBox.left}px; top: {moveGuideBox.top}px; width: {moveGuideBox.width}px; height: {moveGuideBox.height}px;"
+    >
+      <div
+        class="absolute inset-0 rounded-sm border-2 border-dashed border-[var(--primary)] bg-[var(--primary-soft)]"
+      ></div>
+      <div
+        class="absolute top-1/2 left-0 h-px w-full bg-[var(--primary)] opacity-70"
+      ></div>
+      <div
+        class="absolute top-0 left-1/2 h-full w-px bg-[var(--primary)] opacity-70"
+      ></div>
+    </div>
+  {/if}
+
+  {#if editing}
+    <div
+      class="pointer-events-none absolute inset-x-0 bottom-2 z-20 flex justify-center"
+      data-testid="note-editing-hint"
+    >
+      <div
+        class="pointer-events-auto flex items-center gap-2 rounded-md border border-[var(--input)] bg-[var(--card)] px-3 py-1 text-[12px] shadow-lg"
+      >
+        <span>{editing.mode === 'move' ? 'Перетащите заметку' : 'Потяните маркеры выделения'}</span>
+        <Button variant="ghost" size="sm" onclick={cancelEditing}>Готово</Button>
+      </div>
     </div>
   {/if}
 </div>

@@ -416,6 +416,7 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
         if (set) {
             set.notes.push({
                 id: `note-mock-${set.notes.length + 1}`,
+                type: String(body.note?.type ?? 'quote'),
                 anchor: String(body.note?.anchor ?? ''),
                 quote: String(body.note?.quote ?? ''),
                 chapter: String(body.note?.chapter ?? ''),
@@ -423,6 +424,8 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
                 percent: body.note?.percent ?? null,
                 page: body.note?.page ?? null,
                 text: String(body.note?.text ?? ''),
+                shape: String(body.note?.shape ?? 'line'),
+                geometry: String(body.note?.geometry ?? ''),
                 created_at_millis: 1_700_000_000_000,
                 updated_at_millis: 1_700_000_000_000,
             });

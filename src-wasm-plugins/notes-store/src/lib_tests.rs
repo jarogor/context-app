@@ -345,6 +345,81 @@ fn note_operations_reject_unknown_set() {
 }
 
 #[test]
+fn add_note_accepts_type_shape_and_geometry() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "lib/a", "A");
+    let output = handle(
+        &host,
+        &request(
+            "add_note",
+            json!({
+                "set_id": set_id,
+                "note": {
+                    "type": "shape",
+                    "shape": "ellipse",
+                    "geometry": "{\"x\":0.1,\"y\":0.2}",
+                    "color": "black"
+                }
+            }),
+        ),
+    )
+    .expect("фигура");
+    let note = &parse(&output)["note"];
+    assert_eq!(note["type"], "shape");
+    assert_eq!(note["shape"], "ellipse");
+    assert_eq!(note["geometry"], "{\"x\":0.1,\"y\":0.2}");
+    assert_eq!(note["color"], "black");
+
+    let defaulted = handle(
+        &host,
+        &request(
+            "add_note",
+            json!({ "set_id": set_id, "note": { "text": "карточка" } }),
+        ),
+    )
+    .expect("заметка по умолчанию");
+    assert_eq!(
+        parse(&defaulted)["note"]["type"],
+        "quote",
+        "без типа — цитата"
+    );
+}
+
+#[test]
+fn update_note_patches_type_and_geometry() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "lib/a", "A");
+    let added = handle(
+        &host,
+        &request(
+            "add_note",
+            json!({ "set_id": set_id, "note": { "text": "ц" } }),
+        ),
+    )
+    .expect("заметка");
+    let note_id = parse(&added)["note"]["id"]
+        .as_str()
+        .expect("идентификатор")
+        .to_string();
+
+    let updated = handle(
+        &host,
+        &request(
+            "update_note",
+            json!({
+                "set_id": set_id,
+                "note_id": note_id,
+                "patch": { "type": "text", "text": "новая мысль", "geometry": "g2" }
+            }),
+        ),
+    )
+    .expect("изменение");
+    assert_eq!(parse(&updated)["note"]["type"], "text");
+    assert_eq!(parse(&updated)["note"]["text"], "новая мысль");
+    assert_eq!(parse(&updated)["note"]["geometry"], "g2");
+}
+
+#[test]
 fn state_survives_reload() {
     let host = FakeHost::default();
     let set_id = create(&host, "lib/a", "A");

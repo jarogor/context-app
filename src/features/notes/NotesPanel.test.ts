@@ -62,6 +62,33 @@ describe('панель заметок-цитат', () => {
         expect(screen.getByText('Деррида')).toBeTruthy();
     });
 
+    it('показывает тип заметки и фильтрует по тексту карточки', async () => {
+        render(NotesPanel, {
+            props: {
+                items: items(
+                    { id: '1', type: 'text', text: 'Хайдеггер', page: 3 },
+                    { id: '2', shape: 'ellipse', type: 'shape', page: 1 },
+                ),
+                sets: [],
+                activeSetId: null,
+                hasBook: true,
+            },
+        });
+
+        const types = screen
+            .getAllByTestId('notes-item-type')
+            .map((element) => element.textContent);
+        expect(types).toContain('Текст');
+        expect(types).toContain('Фигура');
+
+        await fireEvent.input(screen.getByPlaceholderText('Поиск по заметкам'), {
+            target: { value: 'хайдеггер' },
+        });
+
+        expect(screen.getAllByTestId('notes-item')).toHaveLength(1);
+        expect(screen.getByTestId('notes-item-type').textContent).toBe('Текст');
+    });
+
     it('сообщает о переходе к заметке и удалении', async () => {
         const onGoToNote = vi.fn();
         const onDeleteNote = vi.fn();
@@ -99,7 +126,7 @@ describe('панель заметок-цитат', () => {
         expect(screen.getByTestId('notes-item-color')).toBeTruthy();
     });
 
-    it('сообщает о смене цвета заметки', async () => {
+    it('сообщает о смене цвета заметки, включая чёрный', async () => {
         const onChangeColor = vi.fn();
         render(NotesPanel, {
             props: {
@@ -112,8 +139,8 @@ describe('панель заметок-цитат', () => {
         });
 
         await fireEvent.pointerDown(screen.getByLabelText('Действия с заметкой'), { button: 0 });
-        await fireEvent.click(screen.getByTestId('menu-color-green'));
-        expect(onChangeColor).toHaveBeenCalledWith('note-1', 'green');
+        await fireEvent.click(screen.getByTestId('menu-color-black'));
+        expect(onChangeColor).toHaveBeenCalledWith('note-1', 'black');
     });
 
     it('переключает активный набор', async () => {

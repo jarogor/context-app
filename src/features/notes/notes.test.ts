@@ -1,13 +1,17 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
     addQuote,
+    addShapeNote,
+    addTextNote,
     bookKey,
     changeNoteColor,
     createSet,
     deleteNote,
     deleteSet,
     DEFAULT_NOTE_COLOR,
+    DEFAULT_NOTE_TYPE,
     DEFAULT_SET_NAME,
+    DEFAULT_SHAPE_KIND,
     ensureDefaultSet,
     filterNotes,
     getSet,
@@ -19,10 +23,18 @@ import {
     normalizeNote,
     normalizeSet,
     normalizeSetSummary,
+    normalizeShapeKind,
+    normalizeType,
     NOTE_COLORS,
+    NOTE_COLOR_HIGHLIGHTS,
+    NOTE_COLOR_SWATCHES,
+    noteMarkerColor,
+    NOTE_TYPES,
     renameSet,
     resolveActiveSetId,
     setActiveSet,
+    SHAPE_KINDS,
+    updateNoteText,
 } from './notes';
 import { createAnchor, createPageAnchor, serializeAnchor } from '../reader/reader/anchor';
 import { invokeCommand } from '../../shared/app-bridge';
@@ -109,12 +121,55 @@ describe('нормализация', () => {
         expect(normalizeNote({ id: 'n', color: 'chartreuse' }).color).toBe(DEFAULT_NOTE_COLOR);
     });
 
+    it('читает тип и вид фигуры и подставляет значения по умолчанию', () => {
+        expect(normalizeNote({ id: 'n', type: 'text' }).type).toBe('text');
+        expect(normalizeNote({ id: 'n', type: 'shape' }).type).toBe('shape');
+        expect(normalizeNote({ id: 'n' }).type).toBe(DEFAULT_NOTE_TYPE);
+        expect(normalizeNote({ id: 'n', type: 'sticker' }).type).toBe(DEFAULT_NOTE_TYPE);
+        expect(normalizeNote({ id: 'n', shape: 'ellipse' }).shape).toBe('ellipse');
+        expect(normalizeNote({ id: 'n' }).shape).toBe(DEFAULT_SHAPE_KIND);
+        expect(normalizeNote({ id: 'n', shape: 'hexagon' }).shape).toBe(DEFAULT_SHAPE_KIND);
+    });
+
+    it('читает текст и геометрию заметки', () => {
+        const note = normalizeNote({ id: 'n', text: 'мысль', geometry: 'g' });
+        expect(note.text).toBe('мысль');
+        expect(note.geometry).toBe('g');
+        expect(normalizeNote({ id: 'n' }).text).toBe('');
+        expect(normalizeNote({ id: 'n' }).geometry).toBe('');
+    });
+
     it('normalizeColor знает палитру и отбрасывает чужие значения', () => {
         expect(NOTE_COLORS).toHaveLength(6);
+        expect(NOTE_COLORS).toContain('black');
+        expect(NOTE_COLORS).toContain('red');
         expect(normalizeColor('blue')).toBe('blue');
+        expect(normalizeColor('black')).toBe('black');
         expect(normalizeColor('  purple  ')).toBe('purple');
         expect(normalizeColor('')).toBe(DEFAULT_NOTE_COLOR);
         expect(normalizeColor(undefined)).toBe(DEFAULT_NOTE_COLOR);
+    });
+
+    it('normalizeType и normalizeShapeKind знают наборы и отбрасывают чужие значения', () => {
+        expect(NOTE_TYPES).toHaveLength(3);
+        expect(SHAPE_KINDS).toHaveLength(3);
+        expect(normalizeType('text')).toBe('text');
+        expect(normalizeType('')).toBe(DEFAULT_NOTE_TYPE);
+        expect(normalizeType('sticker')).toBe(DEFAULT_NOTE_TYPE);
+        expect(normalizeShapeKind('ellipse')).toBe('ellipse');
+        expect(normalizeShapeKind('')).toBe(DEFAULT_SHAPE_KIND);
+        expect(normalizeShapeKind('hexagon')).toBe(DEFAULT_SHAPE_KIND);
+    });
+
+    it('метка заметки берёт один мягкий тон для всех типов', () => {
+        // Вид заметки на странице и метка в списке совпадают: жёлтая заметка
+        // светло-жёлтая и для цитаты, и для текста, и для фигуры.
+        for (const type of NOTE_TYPES) {
+            expect(noteMarkerColor({ type, color: 'yellow' })).toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
+        }
+        expect(noteMarkerColor({ type: 'text', color: 'black' })).toBe(NOTE_COLOR_HIGHLIGHTS.black);
+        // Насыщенный акцент остаётся только у образцов выбора цвета.
+        expect(NOTE_COLOR_SWATCHES.yellow).not.toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
     });
 
     it('читает набор с заметками', () => {
@@ -224,6 +279,7 @@ describe('операции плагина заметок', () => {
                 book_key: 'lib::book-1',
                 set_id: 'ns-1',
                 note: {
+                    type: 'quote',
                     anchor: serializeAnchor(anchor),
                     quote: 'цитата',
                     chapter: '1',
@@ -263,6 +319,61 @@ describe('операции плагина заметок', () => {
                 set_id: 'ns-1',
                 note_id: 'note-1',
                 patch: { color: 'purple' },
+            },
+        });
+    });
+
+    it('добавляет текстовую карточку с якорем точки', async () => {
+        invoke.mockResolvedValue(setResponse());
+        const anchor = createAnchor({ kind: 'point', chapter: 1, x: 0.2, y: 0.3, percent: 4 });
+        await addTextNote('lib::book-1', 'ns-1', anchor, 'мысль', 'black');
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'add_note',
+            payload: expect.objectContaining({
+                set_id: 'ns-1',
+                note: expect.objectContaining({
+                    type: 'text',
+                    text: 'мысль',
+                    color: 'black',
+                    anchor: serializeAnchor(anchor),
+                }),
+            }),
+        });
+    });
+
+    it('добавляет фигуру с видом и геометрией', async () => {
+        invoke.mockResolvedValue(setResponse());
+        const anchor = createAnchor({ kind: 'point', chapter: 0, x: 0.1, y: 0.1 });
+        await addShapeNote('lib::book-1', 'ns-1', anchor, 'ellipse', 'geometry', 'green');
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'add_note',
+            payload: expect.objectContaining({
+                note: expect.objectContaining({
+                    type: 'shape',
+                    shape: 'ellipse',
+                    geometry: 'geometry',
+                    color: 'green',
+                }),
+            }),
+        });
+    });
+
+    it('изменяет текст заметки', async () => {
+        invoke.mockResolvedValue(setResponse());
+        await updateNoteText('lib::book-1', 'ns-1', 'note-1', 'новый текст');
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'update_note',
+            payload: {
+                book_key: 'lib::book-1',
+                set_id: 'ns-1',
+                note_id: 'note-1',
+                patch: { text: 'новый текст' },
             },
         });
     });
@@ -351,6 +462,19 @@ describe('имя и место заметки', () => {
         expect(noteName(normalizeNote({ id: '2' }), 2)).toBe('Заметка 3');
     });
 
+    it('берёт имя текстовой карточки из её текста', () => {
+        const note = normalizeNote({ id: '1', type: 'text', text: 'моя мысль' });
+        expect(noteName(note, 0)).toBe('моя мысль');
+        expect(noteName(normalizeNote({ id: '2', type: 'text' }), 1)).toBe('Заметка 2');
+    });
+
+    it('берёт имя фигуры из её вида', () => {
+        expect(noteName(normalizeNote({ id: '1', type: 'shape', shape: 'ellipse' }), 0)).toBe(
+            'Эллипс',
+        );
+        expect(noteName(normalizeNote({ id: '2', type: 'shape' }), 1)).toBe('Линия');
+    });
+
     it('показывает страницу либо долю позиции', () => {
         expect(noteList([normalizeNote({ id: '1', page: 7 })])[0].place).toBe('Стр. 7');
         expect(noteList([normalizeNote({ id: '1', percent: 12.3456 })])[0].place).toBe('12.35 %');
@@ -432,6 +556,14 @@ describe('поиск по заметкам', () => {
     it('ищет по цитате и метке места', () => {
         expect(filterNotes(notes, 'деррида').map((note) => note.id)).toEqual(['2']);
         expect(filterNotes(notes, 'введение').map((note) => note.id)).toEqual(['1']);
+    });
+
+    it('ищет по тексту заметки', () => {
+        const withText = [
+            normalizeNote({ id: '1', type: 'text', text: 'Хайдеггер' }),
+            normalizeNote({ id: '2', quote: 'Деррида' }),
+        ];
+        expect(filterNotes(withText, 'хайдеггер').map((note) => note.id)).toEqual(['1']);
     });
 
     it('без совпадений возвращает пустой список', () => {

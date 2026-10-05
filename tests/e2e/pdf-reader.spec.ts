@@ -39,6 +39,11 @@ function viewerFiles(): Array<{ path: string; mime: string; data: string }> {
 
 /** Минимальный многостраничный PDF без текстового слоя. */
 function buildPdf(pageCount: number): string {
+    return buildPdfWithLines(pageCount, false);
+}
+
+/** PDF с заданным числом страниц; по желанию — две строки текста на странице. */
+function buildPdfWithLines(pageCount: number, twoLines: boolean): string {
     const objects: string[] = [];
     const kids: string[] = [];
     // 1 — каталог, 2 — дерево страниц, далее по три объекта на страницу.
@@ -51,7 +56,10 @@ function buildPdf(pageCount: number): string {
     for (let index = 0; index < pageCount; index += 1) {
         const pageId = 3 + index * 3;
         const contentId = pageId + 1;
-        const stream = `BT /F1 36 Tf 72 700 Td (Page ${index + 1}) Tj ET`;
+        const text = twoLines
+            ? `(Page ${index + 1}) Tj 0 -30 Td (Second line) Tj`
+            : `(Page ${index + 1}) Tj`;
+        const stream = `BT /F1 36 Tf 72 700 Td ${text} ET`;
         objects.push(
             `${pageId} 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents ${contentId} 0 R/Resources<</Font<</F1 ${pageId + 2} 0 R>>>>>>endobj`,
         );
@@ -68,6 +76,11 @@ function buildPdf(pageCount: number): string {
 /** PDF в base64 (как его отдаёт ядро постранично). */
 function pdfBase64(pageCount: number): string {
     return Buffer.from(buildPdf(pageCount), 'binary').toString('base64');
+}
+
+/** PDF в base64 с двумя строками текста на странице. */
+function pdfBase64TwoLines(pageCount: number): string {
+    return Buffer.from(buildPdfWithLines(pageCount, true), 'binary').toString('base64');
 }
 
 /** Каталог с книгой формата pdf, обслуживаемой плагином рабочего места. */
@@ -87,7 +100,7 @@ const PDF_BOOKS = {
 };
 
 /** Установка мока: плагин PDF и книга формата pdf. */
-async function installPdfMock(page: Page, pageCount: number) {
+async function installPdfMock(page: Page, pageCount: number, twoLines = false) {
     const files = viewerFiles();
     const entry = viewerEntry();
     await page.addInitScript(
@@ -149,13 +162,13 @@ async function installPdfMock(page: Page, pageCount: number) {
                 },
             };
         },
-        { data: pdfBase64(pageCount), books: PDF_BOOKS, entry, files },
+        { data: twoLines ? pdfBase64TwoLines(pageCount) : pdfBase64(pageCount), books: PDF_BOOKS, entry, files },
     );
 }
 
 /** Открытие PDF вкладкой рабочего места. */
-async function openPdf(page: Page, pageCount: number) {
-    await installPdfMock(page, pageCount);
+async function openPdf(page: Page, pageCount: number, twoLines = false) {
+    await installPdfMock(page, pageCount, twoLines);
     await page.goto('/');
     await page.getByLabel('Рабочее место', { exact: true }).click();
     const open = page.getByTestId('workspace-open').first();
@@ -593,6 +606,79 @@ test('выделение текста создаёт заметку-цитату
 
     await expect(page.getByTestId('notes-item-link')).toContainText('Page 1');
     await expect(content(page).locator('.note')).toHaveCount(1);
+
+    // Подсветка ложится умножением: текст остаётся контрастным, а не выбеливается.
+    const blend = await content(page)
+        .locator('.note')
+        .first()
+        .evaluate((element) => getComputedStyle(element).mixBlendMode);
+    expect(blend).toBe('multiply');
+});
+
+test('полосы подсветки соседних строк не накладываются друг на друга', async ({ page }) => {
+    await openPdf(page, 3, true);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    // Выделяем обе строки страницы: у текстового слоя высота строки включает
+    // межстрочный интервал, и без среза наложения полупрозрачная подсветка в
+    // местах стыка темнела.
+    await content(page)
+        .locator('.page')
+        .first()
+        .locator('.textLayer')
+        .evaluate((layer) => {
+            const spans = Array.from(layer.querySelectorAll('span')).filter(
+                (span) => span.firstChild,
+            );
+            if (spans.length < 2) {
+                return;
+            }
+            const document = layer.ownerDocument;
+            const range = document.createRange();
+            range.setStartBefore(spans[0]);
+            range.setEndAfter(spans[spans.length - 1]);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            spans[0].dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        });
+    await expect(page.getByTestId('quote-menu')).toBeVisible();
+    await page.getByTestId('quote-menu').getByTestId('note-color-yellow').click();
+
+    const boxes = await content(page)
+        .locator('.note')
+        .evaluateAll((elements) =>
+            elements
+                .map((element) => element.getBoundingClientRect())
+                .sort((a, b) => a.top - b.top)
+                .map((rect) => ({ top: rect.top, bottom: rect.bottom })),
+        );
+    expect(boxes.length).toBeGreaterThanOrEqual(2);
+    for (let index = 1; index < boxes.length; index += 1) {
+        // Полоса следующей строки начинается на уровне низа предыдущей, а не выше.
+        expect(boxes[index].top).toBeGreaterThanOrEqual(boxes[index - 1].bottom - 1);
+    }
+
+    // Исходные прямоугольники текстового слоя действительно перекрывались:
+    // иначе проверка выше ничего не доказывала бы.
+    const rawOverlap = await content(page)
+        .locator('.page')
+        .first()
+        .evaluate(() => {
+            const spans = Array.from(
+                document.querySelectorAll('.page .textLayer span'),
+            ).filter((span) => span.firstChild);
+            const rects = spans.map((span) => span.getBoundingClientRect());
+            let overlap = 0;
+            for (let index = 1; index < rects.length; index += 1) {
+                overlap = Math.max(
+                    overlap,
+                    rects[index - 1].bottom - rects[index].top,
+                );
+            }
+            return overlap;
+        });
+    expect(rawOverlap).toBeGreaterThan(0);
 });
 
 test('меню заметки закрывается при снятии выделения', async ({ page }) => {
@@ -686,5 +772,209 @@ test('клик по подсветке открывает панель заме�
 
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
+});
+
+/** Выбор инструмента заметок в панели инструментов рабочего места. */
+async function selectTool(page: Page, name: string) {
+    await page.getByTestId('note-toolbar').getByRole('button', { name }).click();
+}
+
+test('текстовая карточка создаётся кликом по странице', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTool(page, 'Текст');
+    await content(page).locator('.page').first().click({ position: { x: 120, y: 120 } });
+
+    const editor = page.getByTestId('text-card-editor');
+    await expect(editor).toBeVisible();
+    await editor.getByLabel('Текст заметки').fill('Мысль о странице');
+    await editor.getByRole('button', { name: 'Сохранить' }).click();
+
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+    await expect(page.getByTestId('notes-item-type')).toHaveText('Текст');
+    await expect(content(page).locator('.note-card').first()).toHaveText('Мысль о странице');
+});
+
+test('фигура рисуется протяжкой по странице', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTool(page, 'Фигура');
+    const pageEl = content(page).locator('.page').first();
+    await pageEl.dragTo(pageEl, {
+        sourcePosition: { x: 80, y: 80 },
+        targetPosition: { x: 220, y: 180 },
+    });
+
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+    await expect(page.getByTestId('notes-item-type')).toHaveText('Фигура');
+    await expect(content(page).locator('.note-shape line')).toHaveCount(1);
+
+    // Фигура, как и подсветка, ложится умножением (на слое фигуры): текст под ней не выбеливается.
+    const blend = await content(page)
+        .locator('.note-shape')
+        .first()
+        .evaluate((element) => getComputedStyle(element).mixBlendMode);
+    expect(blend).toBe('multiply');
+});
+
+test('фигура-эллипс рисуется и переживает смену масштаба', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTool(page, 'Фигура');
+    await page.getByRole('button', { name: 'Вид фигуры' }).click();
+    await page.getByRole('option', { name: 'Эллипс' }).click();
+
+    const pageEl = content(page).locator('.page').first();
+    await pageEl.dragTo(pageEl, {
+        sourcePosition: { x: 80, y: 80 },
+        targetPosition: { x: 220, y: 180 },
+    });
+    await expect(content(page).locator('.note-shape ellipse')).toHaveCount(1);
+
+    const ellipse = content(page).locator('.note-shape ellipse');
+    // Эллипс — полупрозрачная заливка цветом заметки, без обводки (как цитата).
+    await expect(ellipse).toHaveAttribute('fill', /rgba/);
+    await expect(ellipse).toHaveAttribute('stroke', 'none');
+
+    const before = await content(page)
+        .locator('.note-shape')
+        .first()
+        .evaluate((element) => element.getBoundingClientRect().width);
+    await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
+    await expect
+        .poll(async () =>
+            content(page)
+                .locator('.note-shape')
+                .first()
+                .evaluate((element) => element.getBoundingClientRect().width),
+        )
+        .toBeGreaterThan(before);
+    await expect(content(page).locator('.note-shape ellipse')).toHaveCount(1);
+});
+
+test('текстовую карточку в PDF можно переместить через контекстное меню', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTool(page, 'Текст');
+    await content(page).locator('.page').first().click({ position: { x: 120, y: 120 } });
+    const editor = page.getByTestId('text-card-editor');
+    await editor.getByLabel('Текст заметки').fill('Сдвинь меня');
+    await editor.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    const card = content(page).locator('.note-card').first();
+    await card.click();
+    // Клик по карточке (инструмент «текст» активен) не открывает редактор.
+    await expect(content(page).locator('.note-menu')).toBeVisible();
+    await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
+    await content(page).locator('.note-menu').getByRole('button', { name: 'Переместить' }).click();
+    const guide = content(page).locator('.note-move-guide');
+    await expect(guide).toBeVisible();
+    // Рамка направляющих совпадает с карточкой, включая её рамку: у направляющих
+    // не должно быть content-box, иначе рамка добавляет заметку справа и снизу.
+    const cardBox = await card.boundingBox();
+    const guideBox = await guide.boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(guideBox).not.toBeNull();
+    expect(Math.abs(guideBox!.width - cardBox!.width)).toBeLessThan(2);
+    expect(Math.abs(guideBox!.height - cardBox!.height)).toBeLessThan(2);
+
+    const before = await card.evaluate((element) => element.style.left);
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box!.x + 5, box!.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(box!.x + 80, box!.y + 60, { steps: 8 });
+    await page.mouse.up();
+
+    await expect
+        .poll(async () => card.evaluate((element) => element.style.left))
+        .not.toBe(before);
+});
+
+test('перемещение в PDF работает и под инструментом фигуры', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTool(page, 'Текст');
+    await content(page).locator('.page').first().click({ position: { x: 120, y: 120 } });
+    const editor = page.getByTestId('text-card-editor');
+    await editor.getByLabel('Текст заметки').fill('Сдвинь');
+    await editor.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    // Инструмент фигуры активен: клик по карточке переключает его на «текст»,
+    // поэтому реальное нажатие «Переместить» не перехватывается протяжкой.
+    await selectTool(page, 'Фигура');
+    const card = content(page).locator('.note-card').first();
+    await card.click();
+    await expect(page.getByTestId('note-toolbar').getByRole('button', { name: 'Текст' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+    );
+    await expect(content(page).locator('.note-menu')).toBeVisible();
+    await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
+
+    await content(page).locator('.note-menu').getByRole('button', { name: 'Переместить' }).click();
+    await expect(content(page).locator('.note-move-guide')).toBeVisible();
+
+    const before = await card.evaluate((element) => element.style.left);
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box!.x + 5, box!.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(box!.x + 70, box!.y + 50, { steps: 8 });
+    await page.mouse.up();
+
+    await expect
+        .poll(async () => card.evaluate((element) => element.style.left))
+        .not.toBe(before);
+});
+
+test('фигуру в PDF можно выбрать кликом по контуру', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTool(page, 'Фигура');
+    const pageEl = content(page).locator('.page').first();
+    await pageEl.dragTo(pageEl, {
+        sourcePosition: { x: 80, y: 80 },
+        targetPosition: { x: 240, y: 160 },
+    });
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    // Клик по прозрачной мишени контура открывает контекстное меню фигуры.
+    // Клик идёт по координатам середины фигуры: наложение перерисовывается, и
+    // проверка устойчивости Playwright на этом спотыкается.
+    const box = await content(page).locator('.note-shape path').first().boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    const menu = content(page).locator('.note-menu');
+    await expect(menu).toBeVisible();
+    // Меню привязано к самой фигуре, а не к SVG-слою во всю страницу.
+    const menuBox = await menu.boundingBox();
+    expect(menuBox).not.toBeNull();
+    expect(menuBox!.y).toBeLessThan(box!.y + box!.height + 80);
+    expect(menuBox!.y).toBeGreaterThan(box!.y);
+    await menu.getByRole('button', { name: 'Переместить' }).dispatchEvent('click');
+    await expect(content(page).locator('body')).toHaveAttribute('data-editing', 'move');
+});
+
+test('границы цитаты в PDF правятся маркерами по тексту', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await selectTextOnPage(page, 1);
+
+    await content(page).locator('.overlay .note').first().click();
+    await expect(content(page).locator('.note-menu')).toBeVisible();
+    await content(page)
+        .locator('.note-menu')
+        .getByRole('button', { name: 'Изменить выделение' })
+        .click();
+    await expect(content(page).locator('.note-handle')).toHaveCount(2);
 });
 

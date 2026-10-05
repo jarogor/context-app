@@ -28,6 +28,7 @@
   import { DropdownMenu } from 'bits-ui';
   import { cn } from '../utils';
   import { buttonVariants } from './Button.svelte';
+  import ColorPicker from './ColorPicker.svelte';
 
   interface Props {
     /** Пункты меню. */
@@ -65,6 +66,16 @@
   /** Состояние раскрытия меню: закрываем после выбора цвета. */
   let open = $state(false);
 
+  /** Образцы палитры в форме общего компонента выбора цвета. */
+  const swatches = $derived(
+    colors.map((color) => ({
+      id: color.id,
+      label: color.label,
+      value: color.color,
+      selected: color.selected,
+    })),
+  );
+
   /** Выбор цвета и закрытие меню. */
   function pickColor(id: string): void {
     oncolorselect?.(id);
@@ -96,25 +107,13 @@
       class="border-border bg-popover text-popover-foreground z-50 min-w-[180px] overflow-hidden rounded-md border p-1 shadow-md"
     >
       {#if colors.length > 0}
-        <div
-          class="flex items-center gap-1 px-2 py-[6px]"
-          role="group"
-          aria-label={colorsLabel}
-        >
-          {#each colors as color (color.id)}
-            <button
-              type="button"
-              class="h-5 w-5 cursor-pointer rounded-full border transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {color.selected
-                ? 'border-[var(--foreground)] ring-1 ring-[var(--foreground)]'
-                : 'border-[var(--border)]'}"
-              style="background: {color.color}"
-              title={color.label}
-              aria-label={color.label}
-              aria-pressed={color.selected ? 'true' : 'false'}
-              data-testid="menu-color-{color.id}"
-              onclick={() => pickColor(color.id)}
-            ></button>
-          {/each}
+        <div class="px-1.5 py-[6px]">
+          <ColorPicker
+            colors={swatches}
+            onpick={pickColor}
+            ariaLabel={colorsLabel}
+            testIdPrefix="menu-color"
+          />
         </div>
         {#if items.length > 0}
           <div class="bg-[var(--border)] -mx-1 my-1 h-px"></div>

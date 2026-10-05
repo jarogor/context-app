@@ -10,7 +10,7 @@
  */
 
 import { invokeCommand } from '../../shared/app-bridge';
-import { parseAnchor, isPageAnchor, type QuoteAnchor } from '../reader/reader/anchor';
+import { parseAnchor, isPageAnchor, isPointAnchor, type QuoteAnchor } from '../reader/reader/anchor';
 
 /** Идентификатор активной библиотеки в ключе книги. */
 const NO_LIBRARY = 'no-library';
@@ -21,7 +21,14 @@ export const DEFAULT_SET_NAME = 'Основные';
 export const DEFAULT_NOTE_COLOR = 'yellow';
 
 /** Доступные цвета подсветки заметки. */
-export const NOTE_COLORS = ['yellow', 'green', 'blue', 'pink', 'orange', 'purple'] as const;
+export const NOTE_COLORS = [
+    'yellow',
+    'green',
+    'blue',
+    'red',
+    'purple',
+    'black',
+] as const;
 
 /** Идентификатор цвета подсветки заметки. */
 export type NoteColor = (typeof NOTE_COLORS)[number];
@@ -31,19 +38,98 @@ export const NOTE_COLOR_LABELS: Record<NoteColor, string> = {
     yellow: 'жёлтый',
     green: 'зелёный',
     blue: 'синий',
-    pink: 'розовый',
-    orange: 'оранжевый',
+    red: 'красный',
     purple: 'фиолетовый',
+    black: 'чёрный',
 };
 
-/** CSS-значения цветов подсветки для образцов в интерфейсе. */
+/** Насыщенные акценты палитры: образцы выбора цвета (панель, меню, список).
+ *
+ * Один набор на все поверхности выбора: насыщенные базовые цвета, чтобы образец
+ * был узнаваем. Для чёрного берётся почти чёрный. Сам вид заметки на странице и
+ * её метка в списке берут мягкий тон (`NOTE_COLOR_HIGHLIGHTS`), а не этот акцент.
+ */
 export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
+    yellow: '#eab308',
+    green: '#16a34a',
+    blue: '#2563eb',
+    red: '#dc2626',
+    purple: '#9333ea',
+    black: '#111827',
+};
+
+/** Мягкие тона заметок: фон цитаты, заливка фигуры и карточки, метка списка.
+ *
+ * Один набор на все типы и поверхности: заметка видна, но не затемняет текст.
+ * Тот же тон используется и как цвет карточки, и как метка в списке, поэтому
+ * жёлтая заметка выглядит жёлтой одинаково везде — и в книге, и в списке.
+ */
+export const NOTE_COLOR_HIGHLIGHTS: Record<NoteColor, string> = {
     yellow: '#fde68a',
     green: '#bbf7d0',
     blue: '#bfdbfe',
-    pink: '#fbcfe8',
-    orange: '#fed7aa',
+    red: '#fecaca',
     purple: '#ddd6fe',
+    black: '#d1d5db',
+};
+
+/** Цвет метки заметки в списке: он совпадает с её видом на странице.
+ *
+ * Заметка любого типа показывается мягким тоном (подсветка цитаты, заливка
+ * фигуры, фон карточки), поэтому и метка в списке мягкая — жёлтая заметка
+ * одинакова в списке и в книге.
+ */
+export function noteMarkerColor(note: Pick<Note, 'type' | 'color'>): string {
+    return NOTE_COLOR_HIGHLIGHTS[note.color];
+}
+
+/** Тип заметки по умолчанию: цитата. */
+export const DEFAULT_NOTE_TYPE = 'quote';
+
+/** Известные типы заметок. */
+export const NOTE_TYPES = ['quote', 'text', 'shape'] as const;
+
+/** Тип заметки: цитата, текстовая карточка или фигура. */
+export type NoteType = (typeof NOTE_TYPES)[number];
+
+/** Русские названия типов заметок для интерфейса. */
+export const NOTE_TYPE_LABELS: Record<NoteType, string> = {
+    quote: 'Цитата',
+    text: 'Текст',
+    shape: 'Фигура',
+};
+
+/** Вид фигуры по умолчанию: линия. */
+export const DEFAULT_SHAPE_KIND = 'line';
+
+/** Известные виды фигур. */
+export const SHAPE_KINDS = ['line', 'rectangle', 'ellipse'] as const;
+
+/** Вид геометрической фигуры. */
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Активный инструмент создания заметок: тип, вид фигуры и цвет. */
+export interface NoteTool {
+    /** Тип создаваемой заметки. */
+    type: NoteType;
+    /** Вид фигуры для типа `shape`. */
+    shape: ShapeKind;
+    /** Цвет создаваемой заметки. */
+    color: NoteColor;
+}
+
+/** Инструмент заметок по умолчанию: цитата жёлтого цвета. */
+export const DEFAULT_NOTE_TOOL: NoteTool = {
+    type: DEFAULT_NOTE_TYPE,
+    shape: DEFAULT_SHAPE_KIND,
+    color: DEFAULT_NOTE_COLOR,
+};
+
+/** Русские названия видов фигур для интерфейса. */
+export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
+    line: 'Линия',
+    rectangle: 'Прямоугольник',
+    ellipse: 'Эллипс',
 };
 
 /** Приведение значения к доступному цвету; неизвестное даёт цвет по умолчанию. */
@@ -54,13 +140,31 @@ export function normalizeColor(value: unknown): NoteColor {
         : DEFAULT_NOTE_COLOR;
 }
 
-/** Заметка-цитата к книге. */
+/** Приведение значения к известному типу; неизвестное даёт цитату. */
+export function normalizeType(value: unknown): NoteType {
+    const candidate = String(value ?? '').trim();
+    return (NOTE_TYPES as readonly string[]).includes(candidate)
+        ? (candidate as NoteType)
+        : DEFAULT_NOTE_TYPE;
+}
+
+/** Приведение значения к известному виду фигуры; неизвестное даёт линию. */
+export function normalizeShapeKind(value: unknown): ShapeKind {
+    const candidate = String(value ?? '').trim();
+    return (SHAPE_KINDS as readonly string[]).includes(candidate)
+        ? (candidate as ShapeKind)
+        : DEFAULT_SHAPE_KIND;
+}
+
+/** Заметка к книге: цитата, текстовая карточка или фигура. */
 export interface Note {
     /** Идентификатор заметки. */
     id: string;
-    /** Непрозрачный якорь выделения. */
+    /** Тип заметки. */
+    type: NoteType;
+    /** Непрозрачный якорь места в книге. */
     anchor: string;
-    /** Выделенный текст. */
+    /** Выделенный текст цитаты. */
     quote: string;
     /** Метка главы или раздела места в книге. */
     chapter: string;
@@ -70,6 +174,12 @@ export interface Note {
     percent: number | null;
     /** Номер страницы для страничных форматов; может отсутствовать. */
     page: number | null;
+    /** Текст текстовой карточки. */
+    text: string;
+    /** Вид фигуры для заметки типа `shape`. */
+    shape: ShapeKind;
+    /** Непрозрачная геометрия фигуры. */
+    geometry: string;
     /** Время создания (Unix, мс). */
     createdAtMillis: number;
     /** Время последнего изменения (Unix, мс). */
@@ -133,12 +243,16 @@ export function normalizeNote(value: unknown): Note {
     const record = (value ?? {}) as Record<string, unknown>;
     return {
         id: String(record.id ?? ''),
+        type: normalizeType(record.type),
         anchor: String(record.anchor ?? ''),
         quote: String(record.quote ?? ''),
         chapter: String(record.chapter ?? ''),
         color: normalizeColor(record.color),
         percent: toOptionalNumber(record.percent),
         page: toOptionalNumber(record.page),
+        text: String(record.text ?? ''),
+        shape: normalizeShapeKind(record.shape),
+        geometry: String(record.geometry ?? ''),
         createdAtMillis: toNumber(record.created_at_millis, 0),
         updatedAtMillis: toNumber(record.updated_at_millis, 0),
     };
@@ -276,18 +390,146 @@ export async function addQuote(
     set: NoteSet,
     color: NoteColor = DEFAULT_NOTE_COLOR,
 ): Promise<NoteSet> {
+    return addNote(key, set.id, {
+        type: 'quote',
+        anchor: JSON.stringify(anchor),
+        quote: anchor.quote,
+        chapter: String(anchor.chapter),
+        color,
+        percent: anchor.percent,
+        page: anchor.page,
+    });
+}
+
+/** Добавление текстовой карточки в набор книги.
+ *
+ * Место задаётся непрозрачным якорем точки (`point`). Пустой текст отклоняется.
+ */
+export async function addTextNote(
+    key: string,
+    setId: string,
+    anchor: QuoteAnchor,
+    text: string,
+    color: NoteColor = DEFAULT_NOTE_COLOR,
+): Promise<NoteSet> {
+    return addNote(key, setId, {
+        type: 'text',
+        anchor: JSON.stringify(anchor),
+        quote: '',
+        chapter: String(anchor.chapter),
+        color,
+        percent: anchor.percent,
+        page: anchor.page,
+        text,
+    });
+}
+
+/** Добавление фигуры в набор книги.
+ *
+ * Место и геометрия задаются плагином формата и непрозрачны для ядра. Вид
+ * фигуры — линия, прямоугольник или эллипс.
+ */
+export async function addShapeNote(
+    key: string,
+    setId: string,
+    anchor: QuoteAnchor,
+    shape: ShapeKind,
+    geometry: string,
+    color: NoteColor = DEFAULT_NOTE_COLOR,
+): Promise<NoteSet> {
+    return addNote(key, setId, {
+        type: 'shape',
+        anchor: JSON.stringify(anchor),
+        quote: '',
+        chapter: String(anchor.chapter),
+        color,
+        percent: anchor.percent,
+        page: anchor.page,
+        shape,
+        geometry,
+    });
+}
+
+/** Нормализованное поле заметки для opaque-операции добавления. */
+interface NotePayload {
+    /** Тип заметки. */
+    type: NoteType;
+    /** Непрозрачный якорь места. */
+    anchor: string;
+    /** Цитата для заметки-цитаты. */
+    quote: string;
+    /** Метка главы или раздела. */
+    chapter: string;
+    /** Цвет подсветки. */
+    color: NoteColor;
+    /** Доля позиции в книге. */
+    percent: number;
+    /** Номер страницы; может отсутствовать. */
+    page: number | null;
+    /** Текст карточки. */
+    text?: string;
+    /** Вид фигуры. */
+    shape?: ShapeKind;
+    /** Непрозрачная геометрия фигуры. */
+    geometry?: string;
+}
+
+/** Добавление заметки любого типа в набор книги через операцию `add_note`. */
+async function addNote(key: string, setId: string, note: NotePayload): Promise<NoteSet> {
     const response = await operation<{ set?: unknown }>('add_note', {
         book_key: key,
-        set_id: set.id,
-        note: {
-            anchor: JSON.stringify(anchor),
-            quote: anchor.quote,
-            chapter: String(anchor.chapter),
-            color,
-            percent: anchor.percent,
-            page: anchor.page,
-            text: '',
-        },
+        set_id: setId,
+        note: { text: '', ...note },
+    });
+    return normalizeSet(response.set);
+}
+
+/** Изменение текста заметки (например, текстовой карточки). */
+export async function updateNoteText(
+    key: string,
+    setId: string,
+    noteId: string,
+    text: string,
+): Promise<NoteSet> {
+    const response = await operation<{ set?: unknown }>('update_note', {
+        book_key: key,
+        set_id: setId,
+        note_id: noteId,
+        patch: { text },
+    });
+    return normalizeSet(response.set);
+}
+
+/** Изменение размещения заметки на странице.
+ *
+ * Перемещение карточки или фигуры меняет непрозрачный якорь места (и геометрию
+ * фигуры); сдвиг границ цитаты — тот же якорь с новыми смещениями и текстом.
+ * Ядро переносит поля как есть, не интерпретируя модель места.
+ */
+export async function updateNotePlacement(
+    key: string,
+    setId: string,
+    noteId: string,
+    placement: { anchor: string; quote?: string; chapter?: string; percent?: number; geometry?: string },
+): Promise<NoteSet> {
+    const patch: Record<string, unknown> = { anchor: placement.anchor };
+    if (placement.quote !== undefined) {
+        patch.quote = placement.quote;
+    }
+    if (placement.chapter !== undefined) {
+        patch.chapter = placement.chapter;
+    }
+    if (placement.percent !== undefined) {
+        patch.percent = placement.percent;
+    }
+    if (placement.geometry !== undefined) {
+        patch.geometry = placement.geometry;
+    }
+    const response = await operation<{ set?: unknown }>('update_note', {
+        book_key: key,
+        set_id: setId,
+        note_id: noteId,
+        patch,
     });
     return normalizeSet(response.set);
 }
@@ -318,13 +560,20 @@ export async function deleteNote(key: string, setId: string, noteId: string): Pr
     return normalizeSet(response.set);
 }
 
-/** Имя заметки: начало цитаты либо номер при пустой цитате. */
+/** Имя заметки: содержимое по типу, иначе номер.
+ *
+ * Для цитаты имя берётся из цитаты, для текстовой карточки — из её текста, для
+ * фигуры — из подписи вида фигуры. Пустое содержимое даёт номер заметки.
+ */
 export function noteName(note: Note, index: number): string {
-    const quote = note.quote.trim();
-    if (!quote) {
+    if (note.type === 'shape') {
+        return SHAPE_KIND_LABELS[note.shape];
+    }
+    const content = (note.type === 'text' ? note.text : note.quote).trim();
+    if (!content) {
         return `Заметка ${index + 1}`;
     }
-    return quote.length > 80 ? `${quote.slice(0, 80)}…` : quote;
+    return content.length > 80 ? `${content.slice(0, 80)}…` : content;
 }
 
 /** Отображаемое место заметки: страница либо доля позиции. */
@@ -365,8 +614,8 @@ function fallbackLocation(note: Note): number {
  *
  * Порядок отражает расположение в книге: заметка, созданная позже, но стоящая
  * выше по тексту, идёт раньше. Якорь даёт точную позицию: для текстового якоря —
- * глава и смещение символов, для страничного — номер страницы. Без якоря опорой
- * служат страница или доля позиции.
+ * глава и смещение символов, для страничного — номер страницы, для якоря точки —
+ * глава и доля вертикали. Без якоря опорой служат страница или доля позиции.
  */
 function byPosition(left: Note, right: Note): number {
     const a = parseAnchor(left.anchor);
@@ -378,8 +627,17 @@ function byPosition(left: Note, right: Note): number {
             if (leftPage !== rightPage) {
                 return leftPage - rightPage;
             }
-        } else if (isPageAnchor(a) || isPageAnchor(b)) {
-            // Страничный якорь сопоставим с текстовым лишь по месту книги.
+        } else if (isPointAnchor(a) && isPointAnchor(b)) {
+            if (a.chapter !== b.chapter) {
+                return a.chapter - b.chapter;
+            }
+            const leftY = a.y ?? 0;
+            const rightY = b.y ?? 0;
+            if (leftY !== rightY) {
+                return leftY - rightY;
+            }
+        } else if (isPageAnchor(a) || isPageAnchor(b) || isPointAnchor(a) || isPointAnchor(b)) {
+            // Якорь страницы или точки сопоставим с прочими лишь по месту книги.
             const difference = fallbackLocation(left) - fallbackLocation(right);
             if (difference !== 0) {
                 return difference;
@@ -420,13 +678,15 @@ export function noteList(notes: Note[]): NoteListItem[] {
     }));
 }
 
-/** Фильтрация заметок по запросу: цитата и метка места без учёта регистра. */
+/** Фильтрация заметок по запросу: цитата, текст и метка места без учёта регистра. */
 export function filterNotes(notes: Note[], query: string): Note[] {
     const needle = query.trim().toLowerCase();
     if (!needle) {
         return notes;
     }
     return notes.filter((note) =>
-        [note.quote, note.chapter].some((value) => value.toLowerCase().includes(needle)),
+        [note.quote, note.text, note.chapter].some((value) =>
+            value.toLowerCase().includes(needle),
+        ),
     );
 }

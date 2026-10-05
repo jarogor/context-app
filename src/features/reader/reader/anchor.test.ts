@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
     createAnchor,
     createPageAnchor,
+    createPointAnchor,
     isPageAnchor,
+    isPointAnchor,
     offsetsFromRange,
     parseAnchor,
     rangeFromOffsets,
@@ -130,5 +132,44 @@ describe('страничный якорь', () => {
         expect(restored?.kind).toBe('text');
         expect(restored?.chapter).toBe(2);
         expect(restored?.rects).toBeUndefined();
+    });
+});
+
+describe('якорь точки', () => {
+    it('создаётся по долям положения в книге', () => {
+        const anchor = createPointAnchor({ chapter: 1, x: 0.25, y: 0.5, percent: 40 });
+        expect(anchor.kind).toBe('point');
+        expect(anchor.chapter).toBe(1);
+        expect(anchor.x).toBe(0.25);
+        expect(anchor.y).toBe(0.5);
+        expect(anchor.start).toBe(0);
+        expect(anchor.end).toBe(0);
+        expect(isPointAnchor(anchor)).toBe(true);
+        expect(isPageAnchor(anchor)).toBe(false);
+    });
+
+    it('переживает круговой обход', () => {
+        const anchor = createPointAnchor({ chapter: 2, x: 0.1, y: 0.9, percent: 12 });
+        expect(parseAnchor(serializeAnchor(anchor))).toEqual(anchor);
+    });
+
+    it('отсутствующие доли дают ноль', () => {
+        const anchor = createPointAnchor({ chapter: 0 });
+        expect(anchor.x).toBe(0);
+        expect(anchor.y).toBe(0);
+    });
+
+    it('старые якоря text и page читаются без изменений', () => {
+        const text = createAnchor({ chapter: 2, start: 4, end: 9, quote: 'ц' });
+        expect(parseAnchor(serializeAnchor(text))).toEqual(text);
+        const page = createPageAnchor({ page: 5, quote: 'стр', percent: 40 });
+        expect(parseAnchor(serializeAnchor(page))).toEqual(page);
+    });
+
+    it('повреждённая точка не читается как валидный якорь', () => {
+        expect(parseAnchor('{"kind":"point"}')).toBeNull();
+        expect(parseAnchor('{"kind":"point","x":0.1}')).toBeNull();
+        expect(parseAnchor('не json')).toBeNull();
+        expect(parseAnchor('{"start":1}')).toBeNull();
     });
 });

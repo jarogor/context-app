@@ -10,6 +10,10 @@
     id?: string;
     /** Недоступность. */
     disabled?: boolean;
+    /** Доступное имя поля для программ чтения с экрана. */
+    ariaLabel?: string;
+    /** Число видимых строк. */
+    rows?: number;
     /** Дополнительные классы. */
     class?: string;
     /** Обработчик ввода. */
@@ -21,6 +25,8 @@
     placeholder = '',
     id,
     disabled = false,
+    ariaLabel,
+    rows,
     class: className = '',
     oninput,
   }: Props = $props();
@@ -30,6 +36,8 @@
   {id}
   {placeholder}
   {disabled}
+  {rows}
+  aria-label={ariaLabel}
   bind:value
   {oninput}
   spellcheck="false"

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { ActionMenu, Button, Input, Select, type MenuAction, type MenuColor } from '@texture/ui';
-  import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
+  import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, noteMarkerColor, NOTE_TYPE_LABELS, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
 
   interface Props {
-    /** Элементы списка заметок-цитат активного набора. */
+    /** Элементы списка заметок активного набора. */
     items: NoteListItem[];
     /** Наборы заметок книги. */
     sets: NoteSetSummary[];
@@ -65,13 +65,16 @@
   /** Активный набор среди наборов книги. */
   const activeSet = $derived(sets.find((set) => set.id === activeSetId) ?? null);
 
-  /** Элементы с учётом поиска. */
+  /** Элементы с учётом поиска по имени и месту. */
   const visible = $derived.by(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) {
       return items;
     }
-    return items.filter((item) => item.name.toLowerCase().includes(needle));
+    return items.filter(
+      (item) =>
+        item.name.toLowerCase().includes(needle) || item.place.toLowerCase().includes(needle),
+    );
   });
 
   /** Варианты выпадающего списка наборов: имя и число заметок. */
@@ -289,7 +292,7 @@
           >
             <span
               class="absolute inset-y-0 left-0 w-1"
-              style="background: {NOTE_COLOR_SWATCHES[item.note.color]}"
+              style="background: {noteMarkerColor(item.note)}"
               data-testid="notes-item-color"
               aria-hidden="true"
             ></span>
@@ -304,6 +307,7 @@
                 <span
                   class="mt-1 flex items-center gap-2 text-[11px] text-[var(--muted-foreground)]"
                 >
+                  <span data-testid="notes-item-type">{NOTE_TYPE_LABELS[item.note.type]}</span>
                   {#if item.place}
                     <span data-testid="notes-item-place">{item.place}</span>
                   {/if}

@@ -3,10 +3,11 @@
   import WorkplaceTabs from './WorkplaceTabs.svelte';
   import OpenBooksPanel from './OpenBooksPanel.svelte';
   import NotesPanel from '../notes/NotesPanel.svelte';
+  import NoteToolbar from './NoteToolbar.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
   import { activeTab } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
-  import type { Note, NoteListItem, NoteSetSummary } from '../notes/notes';
+  import type { Note, NoteListItem, NoteSetSummary, NoteTool, ShapeKind } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
 
@@ -53,6 +54,14 @@
     onToggleNotes: () => void;
     /** Создание заметки-цитаты выделением в книге. */
     onQuote: (anchor: QuoteAnchor, color: NoteColor) => void;
+    /** Подтверждение текстовой карточки. */
+    onTextNote: (anchor: QuoteAnchor, text: string, color: NoteColor) => void;
+    /** Готовая заметка-фигура. */
+    onShape: (anchor: QuoteAnchor, shape: ShapeKind, geometry: string, color: NoteColor) => void;
+    /** Активный инструмент создания заметок. */
+    tool: NoteTool;
+    /** Смена активного инструмента заметок. */
+    onToolChange: (tool: NoteTool) => void;
     /** Удаление заметки. */
     onDeleteNote: (noteId: string) => void;
     /** Смена цвета подсветки заметки. */
@@ -61,6 +70,8 @@
     onGoToNote: (note: Note) => void;
     /** Клик по подсветке заметки в книге: открыть панель и выбрать заметку. */
     onSelectNote: (noteId: string) => void;
+    /** Перемещение заметки или сдвиг границ цитаты. */
+    onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
     /** Выбор активного набора заметок книги. */
     onSelectSet: (setId: string) => void;
     /** Создание набора заметок книги. */
@@ -107,10 +118,15 @@
     onToggleBooks,
     onToggleNotes,
     onQuote,
+    onTextNote,
+    onShape,
+    tool,
+    onToolChange,
     onDeleteNote,
     onChangeNoteColor,
     onGoToNote,
     onSelectNote,
+    onPlaceNote,
     onSelectSet,
     onCreateSet,
     onRenameSet,
@@ -189,6 +205,9 @@
       onToggleNotes={onToggleNotes}
       onBackToList={onBackToList}
     />
+    {#if workspace.tabs.length > 0}
+      <NoteToolbar {tool} onChange={onToolChange} />
+    {/if}
     <div class="flex min-h-0 flex-1">
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         {#if workspace.tabs.length === 0}
@@ -221,12 +240,16 @@
                   zoom={item.zoom}
                   position={item.position}
                   notes={notesByTab[item.id] ?? []}
+                  {tool}
                   active={item.id === workspace.activeTabId}
                   {visible}
                   onReader={registerReader}
                   onStateChange={(state) => onTabState(item.id, state)}
                   onQuote={onQuote}
+                  onTextNote={onTextNote}
+                  onShape={onShape}
                   onNoteClick={onSelectNote}
+                  onPlaceNote={onPlaceNote}
                   onRepoint={() => onRepointTab(item.id)}
                   onRemove={() => onCloseTab(item.id)}
                 />

@@ -13,8 +13,10 @@
     type BookContent,
     type WorkplaceSelection,
   } from './reader';
-  import type { Note, NoteColor } from '../notes/notes';
+  import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
+  import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
+  import NoteTextEditor from './NoteTextEditor.svelte';
   import type { QuoteAnchor } from './reader/anchor';
   import { canStepPage, clampPage, pageProgress } from './reader/page-state';
 
@@ -29,16 +31,24 @@
     initialPosition?: number;
     /** Видима ли поверхность рабочего места. */
     visible?: boolean;
-    /** Заметки-цитаты книги для подсветки. */
+    /** Заметки книги для подсветки. */
     notes?: Note[];
+    /** Активный инструмент создания заметок. */
+    tool?: NoteTool;
     /** Сообщение об изменении состояния чтения вкладки. */
     onStateChange?: (state: { zoom: number; position: number }) => void;
     /** Выделение пользователя, ставшее цитатой. */
     onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
+    /** Подтверждение текстовой карточки в выбранном месте. */
+    onTextNote?: (anchor: QuoteAnchor, text: string, color: NoteColor) => void;
+    /** Готовая заметка-фигура. */
+    onShape?: (anchor: QuoteAnchor, shape: ShapeKind, geometry: string, color: NoteColor) => void;
     /** Просьба указать файл недоступной книги. */
     onRepoint?: () => void;
     /** Клик по подсветке заметки: открыть панель и выбрать заметку. */
     onNoteClick?: (noteId: string) => void;
+    /** Перемещение заметки или сдвиг границ цитаты. */
+    onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
     /** Убрать вкладку. */
     onRemove?: () => void;
   }
@@ -50,10 +60,14 @@
     initialPosition = 0,
     visible = true,
     notes = [],
+    tool = DEFAULT_NOTE_TOOL,
     onStateChange,
     onQuote,
+    onTextNote,
+    onShape,
     onRepoint,
     onNoteClick,
+    onPlaceNote,
     onRemove,
   }: Props = $props();
 
@@ -109,6 +123,8 @@
   let pendingAnchor: QuoteAnchor | null = $state(null);
   /** Позиция меню создания заметки. */
   let menuPosition: { x: number; y: number } | null = $state(null);
+  /** Незавершённая точка создания текстовой карточки. */
+  let pendingTextAnchor: QuoteAnchor | null = $state(null);
   /** Ширина области содержимого: по ней ограничивается позиция меню. */
   let readerAreaWidth = $state(0);
   /** Высота области содержимого: по ней меню переносится выше выделения. */
@@ -167,6 +183,25 @@
   function dismissWorkplaceMenu() {
     pendingAnchor = null;
     menuPosition = null;
+  }
+
+  /** Начало ввода текстовой карточки в выбранной точке. */
+  function startTextCard(anchor: QuoteAnchor) {
+    pendingTextAnchor = anchor;
+  }
+
+  /** Подтверждение текстовой карточки: пустой текст не сохраняется. */
+  function commitTextCard(text: string) {
+    const anchor = pendingTextAnchor;
+    pendingTextAnchor = null;
+    if (anchor) {
+      onTextNote?.(anchor, text, tool.color);
+    }
+  }
+
+  /** Отмена ввода текстовой карточки. */
+  function cancelTextCard() {
+    pendingTextAnchor = null;
   }
 
   /** Загрузка содержимого книги.
@@ -308,6 +343,7 @@
           {zoom}
           initialPosition={initialPosition}
           {notes}
+          {tool}
           onCapabilities={(value) => {
             workplaceZoom = value.zoom !== false;
             workplacePages = value.pages === true;
@@ -330,7 +366,11 @@
             menuPosition = position;
           }}
           onSelectionCleared={dismissWorkplaceMenu}
+          onTextPoint={(anchor) => startTextCard(anchor)}
+          onShape={(anchor, shape, geometry, color) =>
+            onShape?.(anchor, shape, geometry, color)}
           onNoteClick={(noteId) => onNoteClick?.(noteId)}
+          onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
           onError={(value) => (error = value)}
         />
         {#if menuPosition && pendingAnchor}
@@ -343,22 +383,34 @@
             <Button variant="ghost" size="sm" onclick={dismissWorkplaceMenu}>Отмена</Button>
           </div>
         {/if}
+        {#if pendingTextAnchor}
+          <NoteTextEditor onConfirm={commitTextCard} onCancel={cancelTextCard} />
+        {/if}
       </div>
     {:else if content}
-      <BookReader
-        bind:this={reader}
-        {content}
-        {zoom}
-        {initialPosition}
-        {notes}
-        {visible}
-        onQuote={(anchor, color) => onQuote?.(anchor, color)}
-        onSelectNote={(noteId) => onNoteClick?.(noteId)}
-        onProgress={(value) => {
-          progress = value;
-          reportState();
-        }}
-      />
+      <div class="relative h-full w-full">
+        <BookReader
+          bind:this={reader}
+          {content}
+          {zoom}
+          {initialPosition}
+          {notes}
+          {visible}
+          {tool}
+          onQuote={(anchor, color) => onQuote?.(anchor, color)}
+          onTextPoint={(anchor) => startTextCard(anchor)}
+          onShape={(anchor, shape, geometry, color) => onShape?.(anchor, shape, geometry, color)}
+          onSelectNote={(noteId) => onNoteClick?.(noteId)}
+          onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
+          onProgress={(value) => {
+            progress = value;
+            reportState();
+          }}
+        />
+        {#if pendingTextAnchor}
+          <NoteTextEditor onConfirm={commitTextCard} onCancel={cancelTextCard} />
+        {/if}
+      </div>
     {/if}
   </div>
 

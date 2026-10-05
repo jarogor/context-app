@@ -25,6 +25,8 @@
     id?: string;
     /** Недоступность. */
     disabled?: boolean;
+    /** Компактный размер триггера для панелей. */
+    size?: 'md' | 'sm';
     /** Дополнительные классы триггера. */
     class?: string;
     /** Метка доступности триггера. */
@@ -39,6 +41,7 @@
     placeholder,
     id,
     disabled = false,
+    size = 'md',
     class: className = '',
     ariaLabel,
     onchange,
@@ -61,7 +64,8 @@
     {id}
     aria-label={ariaLabel}
     class={cn(
-      'border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 data-[placeholder]:text-muted-foreground box-border flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-md border px-3 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+      'border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 data-[placeholder]:text-muted-foreground box-border flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border px-3 shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+      size === 'sm' ? 'h-8 text-[12px]' : 'h-9 text-sm',
       className,
     )}
   >

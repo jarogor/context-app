@@ -6,7 +6,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::models::{normalize_color, Note, NoteInput, NotePatch, NoteSet};
+use crate::models::{
+    normalize_color, normalize_shape, normalize_type, Note, NoteInput, NotePatch, NoteSet,
+};
 
 /// Текущая версия формата состояния.
 pub(crate) const STATE_VERSION: u32 = 1;
@@ -188,6 +190,7 @@ impl NotesState {
             .ok_or_else(|| format!("неизвестный набор заметок: {set_id}"))?;
         let note = Note {
             id: id.to_string(),
+            note_type: normalize_type(input.note_type.as_deref().unwrap_or_default()),
             anchor: input.anchor,
             quote: input.quote,
             chapter: input.chapter,
@@ -195,6 +198,8 @@ impl NotesState {
             percent: input.percent,
             page: input.page,
             text: input.text,
+            shape: normalize_shape(input.shape.as_deref().unwrap_or_default()),
+            geometry: input.geometry,
             created_at_millis: now_millis,
             updated_at_millis: now_millis,
         };
@@ -220,11 +225,17 @@ impl NotesState {
             .iter_mut()
             .find(|note| note.id == note_id)
             .ok_or_else(|| format!("неизвестная заметка: {note_id}"))?;
+        if let Some(note_type) = patch.note_type {
+            note.note_type = normalize_type(&note_type);
+        }
         if let Some(text) = patch.text {
             note.text = text;
         }
         if let Some(quote) = patch.quote {
             note.quote = quote;
+        }
+        if let Some(anchor) = patch.anchor {
+            note.anchor = anchor;
         }
         if let Some(chapter) = patch.chapter {
             note.chapter = chapter;
@@ -237,6 +248,12 @@ impl NotesState {
         }
         if let Some(page) = patch.page {
             note.page = Some(page);
+        }
+        if let Some(shape) = patch.shape {
+            note.shape = normalize_shape(&shape);
+        }
+        if let Some(geometry) = patch.geometry {
+            note.geometry = geometry;
         }
         note.updated_at_millis = now_millis;
         Ok(note.clone())
@@ -283,6 +300,7 @@ fn normalize_note(note: Note) -> Option<Note> {
     }
     Some(Note {
         id,
+        note_type: normalize_type(&note.note_type),
         anchor: note.anchor,
         quote: note.quote,
         chapter: note.chapter,
@@ -290,6 +308,8 @@ fn normalize_note(note: Note) -> Option<Note> {
         percent: note.percent.filter(|value| value.is_finite()),
         page: note.page,
         text: note.text,
+        shape: normalize_shape(&note.shape),
+        geometry: note.geometry,
         created_at_millis: note.created_at_millis.max(0),
         updated_at_millis: note.updated_at_millis.max(0),
     })

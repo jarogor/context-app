@@ -212,3 +212,50 @@
   --color-destructive-soft: var(--destructive-soft);
   --color-destructive-border: var(--destructive-border);
 }
+.marker-yellow {
+  background-color: rgba(255, 217, 102, 0.4);
+}
+
+.marker-blue {
+  background-color: rgba(68, 114, 196, 0.3);
+}
+
+.marker-green {
+  background-color: rgba(112, 173, 71, 0.35);
+}
+
+.marker-red {
+  background-color: rgba(231, 76, 60, 0.35);
+}
+
+.marker-purple {
+  background-color: rgba(155, 89, 182, 0.35);
+}
+
+.marker-black {
+  background-color: rgba(51, 51, 51, 0.2);
+}
+
+.marker-yellow {
+  background-color: rgba(255, 255, 0, 0.35);
+}
+
+.marker-blue {
+  background-color: rgba(0, 102, 255, 0.3);
+}
+
+.marker-green {
+  background-color: rgba(0, 204, 0, 0.3);
+}
+
+.marker-red {
+  background-color: rgba(255, 51, 51, 0.3);
+}
+
+.marker-purple {
+  background-color: rgba(221, 0, 255, 0.3);
+}
+
+.marker-black {
+  background-color: rgba(0, 0, 0, 0.15);
+}

@@ -1,10 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import WorkplaceSurface from './WorkplaceSurface.svelte';
+import { DEFAULT_NOTE_TOOL } from '../notes/notes';
 
 /** Обязательные обработчики поверхности с заглушками. */
 function handlers() {
     return {
+        tool: DEFAULT_NOTE_TOOL,
+        onToolChange: vi.fn(),
         onSelectTab: vi.fn(),
         onCloseTab: vi.fn(),
         onDuplicateTab: vi.fn(),
@@ -13,6 +16,8 @@ function handlers() {
         onToggleBooks: vi.fn(),
         onToggleNotes: vi.fn(),
         onQuote: vi.fn(),
+        onTextNote: vi.fn(),
+        onShape: vi.fn(),
         onDeleteNote: vi.fn(),
         onChangeNoteColor: vi.fn(),
         onGoToNote: vi.fn(),

@@ -35,11 +35,14 @@
   import type { StoreBootstrap } from '../features/lifecycle/bootstrap';
   import {
     addQuote,
+    addShapeNote,
+    addTextNote,
     bookKey,
     changeNoteColor,
     createSet,
     deleteNote,
     deleteSet,
+    DEFAULT_NOTE_TOOL,
     DEFAULT_SET_NAME,
     getSet,
     listSets,
@@ -48,9 +51,12 @@
     renameSet,
     resolveActiveSetId,
     setActiveSet,
+    updateNotePlacement,
     type Note,
     type NoteColor,
     type NoteSetSummary,
+    type NoteTool,
+    type ShapeKind,
   } from '../features/notes/notes';
   import type { QuoteAnchor } from '../features/reader/reader/anchor';
   import { formatFromPath } from '../features/reader/reader';
@@ -177,6 +183,35 @@
 
   /** Идентификатор книги, к которой относятся загруженные наборы. */
   let loadedNotesBook: string | null = null;
+
+  /** Активный инструмент создания заметок (оболочка владеет выбором). */
+  let noteTool: NoteTool = $state({ ...DEFAULT_NOTE_TOOL });
+
+  /** Смена активного инструмента заметок. */
+  function changeNoteTool(tool: NoteTool) {
+    noteTool = tool;
+  }
+
+  /** Переключение инструмента на тип заметки и палитра её цвета.
+   *
+   * При выборе существующей заметки логично продолжить работу её инструментом:
+   * иначе под инструментом «фигура» карточка лишь выделяется, а перемещение и
+   * создание новых заметок конфликтуют (в PDF протяжка вообще перехватывала
+   * клик по меню). Клик по заметке делает активным её тип, а её цвет становится
+   * цветом инструмента — так создание следующей заметки идёт тем же цветом.
+   */
+  function activateNoteTool(noteId: string) {
+    const note = notes.find((candidate) => candidate.id === noteId);
+    if (!note) {
+      return;
+    }
+    const next: NoteTool = { ...noteTool, type: note.type };
+    if (note.type === 'shape') {
+      next.shape = note.shape;
+    }
+    next.color = note.color;
+    noteTool = next;
+  }
 
   /** Активный набор заметок по книге: ключ книги → идентификатор выбранного набора. */
   let activeSetByBook: Record<string, string> = {};
@@ -635,6 +670,54 @@
     }
   }
 
+  /** Добавление текстовой карточки в точке книги в активный набор. */
+  async function addTextNoteAtPoint(anchor: QuoteAnchor, text: string, color: NoteColor) {
+    const key = notesBookKey;
+    const setId = key ? await ensureActiveSet(key) : null;
+    if (!key || !setId) {
+      return;
+    }
+    try {
+      const updated = await addTextNote(key, setId, anchor, text, color);
+      showSetNotes(key, setId, updated.notes);
+      notesError = null;
+    } catch (error) {
+      notesError = String(error);
+    }
+  }
+
+  /** Добавление заметки-фигуры, нарисованной в книге, в активный набор. */
+  async function addShapeFromDrawing(
+    anchor: QuoteAnchor,
+    shape: ShapeKind,
+    geometry: string,
+    color: NoteColor,
+  ) {
+    const key = notesBookKey;
+    const setId = key ? await ensureActiveSet(key) : null;
+    if (!key || !setId) {
+      return;
+    }
+    try {
+      const updated = await addShapeNote(key, setId, anchor, shape, geometry, color);
+      showSetNotes(key, setId, updated.notes);
+      notesError = null;
+    } catch (error) {
+      notesError = String(error);
+    }
+  }
+
+  /** Получение активного набора книги, при отсутствии — его создание. */
+  async function ensureActiveSet(key: string): Promise<string> {
+    let setId = activeSetByBook[key] ?? notesSetId;
+    if (!setId) {
+      const set = await createSet(key, DEFAULT_SET_NAME);
+      setId = set.id;
+      notesSets = await listSets(key);
+    }
+    return setId;
+  }
+
   /** Смена цвета подсветки существующей заметки. */
   async function recolorNote(noteId: string, color: NoteColor) {
     const key = notesBookKey;
@@ -644,6 +727,28 @@
     }
     try {
       const updated = await changeNoteColor(key, setId, noteId, color);
+      showSetNotes(key, setId, updated.notes);
+      notesError = null;
+    } catch (error) {
+      notesError = String(error);
+    }
+  }
+
+  /** Перемещение заметки на странице или сдвиг границ её цитаты. */
+  async function placeNote(noteId: string, anchor: QuoteAnchor, geometry?: string) {
+    const key = notesBookKey;
+    const setId = key ? (activeSetByBook[key] ?? notesSetId) : notesSetId;
+    if (!key || !setId) {
+      return;
+    }
+    try {
+      const updated = await updateNotePlacement(key, setId, noteId, {
+        anchor: JSON.stringify(anchor),
+        quote: anchor.quote,
+        chapter: String(anchor.chapter),
+        percent: anchor.percent,
+        geometry,
+      });
       showSetNotes(key, setId, updated.notes);
       notesError = null;
     } catch (error) {
@@ -677,6 +782,9 @@
   function selectNote(noteId: string) {
     selectedNoteId = noteId;
     notesPanelOpen = true;
+    // Инструмент следует за выбранной заметкой: дальнейшее перемещение и
+    // создание новых заметок идут её типом и цветом (см. activateNoteTool).
+    activateNoteTool(noteId);
     void loadNotes();
   }
 
@@ -1146,6 +1254,8 @@
           hasBook={notesBookKey !== null}
           visible={workspaceVisible}
           selectedNoteId={selectedNoteId}
+          tool={noteTool}
+          onToolChange={changeNoteTool}
           onSelectTab={selectTab}
           onCloseTab={removeTab}
           onDuplicateTab={duplicateCurrentTab}
@@ -1154,6 +1264,9 @@
           onToggleBooks={toggleBooksPanel}
           onToggleNotes={toggleNotesPanel}
           onQuote={addQuoteFromSelection}
+          onTextNote={addTextNoteAtPoint}
+          onShape={addShapeFromDrawing}
+          onPlaceNote={placeNote}
           onDeleteNote={removeNote}
           onChangeNoteColor={recolorNote}
           onGoToNote={goToNote}

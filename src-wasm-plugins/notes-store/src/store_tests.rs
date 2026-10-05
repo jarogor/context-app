@@ -157,6 +157,7 @@ fn add_note_sets_times_and_allows_same_anchor() {
         percent: Some(3.0),
         page: Some(4),
         text: "первая".to_string(),
+        ..NoteInput::default()
     };
     let first = state
         .add_note("ns-a", input.clone(), "note-1", 10)
@@ -188,6 +189,7 @@ fn update_note_patches_fields_and_time() {
     let patch = NotePatch {
         text: Some("новый".to_string()),
         chapter: Some("Новая глава".to_string()),
+        anchor: Some("{\"v\":1}".to_string()),
         ..NotePatch::default()
     };
     let note = state
@@ -195,9 +197,158 @@ fn update_note_patches_fields_and_time() {
         .expect("изменение");
     assert_eq!(note.text, "новый");
     assert_eq!(note.chapter, "Новая глава");
+    assert_eq!(note.anchor, "{\"v\":1}", "якорь места обновлён");
     assert_eq!(note.quote, "старая", "непереданное поле сохранено");
     assert_eq!(note.updated_at_millis, 20);
     assert_eq!(note.created_at_millis, 10);
+}
+
+#[test]
+fn add_note_applies_default_type_shape_and_black_color() {
+    let mut state = NotesState::new();
+    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+
+    // Заметка без типа — цитата; без вида фигуры — вид по умолчанию.
+    let note = state
+        .add_note("ns-a", NoteInput::default(), "note-1", 10)
+        .expect("заметка");
+    assert_eq!(note.note_type, crate::models::DEFAULT_NOTE_TYPE);
+    assert_eq!(note.shape, crate::models::DEFAULT_SHAPE);
+    assert!(note.geometry.is_empty());
+
+    // Чёрный цвет принимается как часть палитры.
+    let input = NoteInput {
+        note_type: Some("shape".to_string()),
+        color: Some("black".to_string()),
+        shape: Some("ellipse".to_string()),
+        geometry: "g".to_string(),
+        ..NoteInput::default()
+    };
+    let note = state.add_note("ns-a", input, "note-2", 11).expect("фигура");
+    assert_eq!(note.note_type, "shape");
+    assert_eq!(note.color, "black");
+    assert_eq!(note.shape, "ellipse");
+    assert_eq!(note.geometry, "g");
+}
+
+#[test]
+fn add_note_defaults_unknown_type_and_shape() {
+    let mut state = NotesState::new();
+    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    let input = NoteInput {
+        note_type: Some("sticker".to_string()),
+        shape: Some("hexagon".to_string()),
+        ..NoteInput::default()
+    };
+    let note = state.add_note("ns-a", input, "note-1", 1).expect("заметка");
+    assert_eq!(note.note_type, "quote", "неизвестный тип — цитата");
+    assert_eq!(
+        note.shape, "line",
+        "неизвестный вид фигуры — вид по умолчанию"
+    );
+}
+
+#[test]
+fn update_note_patches_type_and_geometry() {
+    let mut state = NotesState::new();
+    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .add_note("ns-a", NoteInput::default(), "note-1", 10)
+        .expect("заметка");
+    let patch = NotePatch {
+        note_type: Some("text".to_string()),
+        text: Some("мысль".to_string()),
+        geometry: Some("g2".to_string()),
+        ..NotePatch::default()
+    };
+    let note = state
+        .update_note("ns-a", "note-1", patch, 20)
+        .expect("изменение");
+    assert_eq!(note.note_type, "text");
+    assert_eq!(note.text, "мысль");
+    assert_eq!(note.geometry, "g2");
+    assert_eq!(note.quote, "", "непереданное поле сохранено");
+}
+
+#[test]
+fn normalized_reads_legacy_note_as_quote_without_geometry() {
+    let raw = r#"{
+      "version": 1,
+      "sets": [
+        {
+          "id": "ns-1",
+          "book_key": "lib/a",
+          "name": "A",
+          "notes": [ { "id": "note-old", "quote": "цитата" } ]
+        }
+      ]
+    }"#;
+    let state: NotesState = serde_json::from_str(raw).expect("разбор");
+    let state = state.normalized();
+    let note = &state.find("ns-1").expect("набор").notes[0];
+    assert_eq!(note.note_type, "quote", "старая заметка — цитата");
+    assert_eq!(note.shape, "line");
+    assert!(note.geometry.is_empty());
+}
+
+#[test]
+fn normalized_replaces_bad_type_and_shape() {
+    let raw = r#"{
+      "version": 1,
+      "sets": [
+        {
+          "id": "ns-1",
+          "book_key": "lib/a",
+          "name": "A",
+          "notes": [
+            { "id": "note-1", "type": "sticker", "shape": "hexagon" }
+          ]
+        }
+      ]
+    }"#;
+    let state: NotesState = serde_json::from_str(raw).expect("разбор");
+    let state = state.normalized();
+    let note = &state.find("ns-1").expect("набор").notes[0];
+    assert_eq!(note.note_type, "quote");
+    assert_eq!(note.shape, "line");
+}
+
+#[test]
+fn normalized_shape_note_without_geometry_is_safe() {
+    let raw = r#"{
+      "version": 1,
+      "sets": [
+        {
+          "id": "ns-1",
+          "book_key": "lib/a",
+          "name": "A",
+          "notes": [ { "id": "note-1", "type": "shape" } ]
+        }
+      ]
+    }"#;
+    let state: NotesState = serde_json::from_str(raw).expect("разбор");
+    let state = state.normalized();
+    let note = &state.find("ns-1").expect("набор").notes[0];
+    assert_eq!(note.note_type, "shape");
+    assert!(note.geometry.is_empty(), "пустая геометрия безопасна");
+}
+
+#[test]
+fn normalized_accepts_black_color() {
+    let raw = r#"{
+      "version": 1,
+      "sets": [
+        {
+          "id": "ns-1",
+          "book_key": "lib/a",
+          "name": "A",
+          "notes": [ { "id": "note-1", "color": "black" } ]
+        }
+      ]
+    }"#;
+    let state: NotesState = serde_json::from_str(raw).expect("разбор");
+    let state = state.normalized();
+    assert_eq!(state.find("ns-1").expect("набор").notes[0].color, "black");
 }
 
 #[test]

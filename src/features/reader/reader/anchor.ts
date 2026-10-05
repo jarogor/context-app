@@ -12,7 +12,7 @@
 export const ANCHOR_VERSION = 1;
 
 /** Вид якоря выделения. */
-export type AnchorKind = 'text' | 'page';
+export type AnchorKind = 'text' | 'page' | 'point';
 
 /** Прямоугольник выделения в долях размера страницы. */
 export interface AnchorRect {
@@ -26,17 +26,17 @@ export interface AnchorRect {
     height: number;
 }
 
-/** Якорь выделения: внутри главы (текст) или на странице (страничный формат). */
+/** Якорь выделения: внутри главы (текст), на странице (страничный) или точке. */
 export interface QuoteAnchor {
     /** Версия формата. */
     v: number;
-    /** Вид якоря: смещения символов либо страница с прямоугольниками. */
+    /** Вид якоря: смещения символов, страница с прямоугольниками или точка. */
     kind: AnchorKind;
-    /** Индекс главы книги (0 для страничного якоря). */
+    /** Индекс главы книги (0 для якоря страницы и точки). */
     chapter: number;
-    /** Смещение начала выделения в символах внутри главы (0 для страничного). */
+    /** Смещение начала выделения в символах внутри главы (0 для страницы и точки). */
     start: number;
-    /** Смещение конца выделения в символах внутри главы (0 для страничного). */
+    /** Смещение конца выделения в символах внутри главы (0 для страницы и точки). */
     end: number;
     /** Выделенный текст. */
     quote: string;
@@ -46,11 +46,16 @@ export interface QuoteAnchor {
     page: number | null;
     /** Прямоугольники выделения в долях страницы (только страничный якорь). */
     rects?: AnchorRect[];
+    /** Доля горизонтали точки в книге (только якорь точки). */
+    x?: number;
+    /** Доля вертикали точки в книге (только якорь точки). */
+    y?: number;
 }
 
 /** Создание якоря выделения с безопасными значениями. */
 export function createAnchor(value: Partial<QuoteAnchor>): QuoteAnchor {
-    const kind: AnchorKind = value.kind === 'page' ? 'page' : 'text';
+    const kind: AnchorKind =
+        value.kind === 'page' ? 'page' : value.kind === 'point' ? 'point' : 'text';
     const anchor: QuoteAnchor = {
         v: ANCHOR_VERSION,
         kind,
@@ -64,6 +69,10 @@ export function createAnchor(value: Partial<QuoteAnchor>): QuoteAnchor {
     if (kind === 'page') {
         anchor.rects = normalizeRects(value.rects);
     }
+    if (kind === 'point') {
+        anchor.x = Number.isFinite(value.x) ? Number(value.x) : 0;
+        anchor.y = Number.isFinite(value.y) ? Number(value.y) : 0;
+    }
     return anchor;
 }
 
@@ -72,9 +81,19 @@ export function createPageAnchor(value: Partial<QuoteAnchor>): QuoteAnchor {
     return createAnchor({ ...value, kind: 'page', chapter: 0, start: 0, end: 0 });
 }
 
+/** Создание якоря точки по долям её положения в книге. */
+export function createPointAnchor(value: Partial<QuoteAnchor>): QuoteAnchor {
+    return createAnchor({ ...value, kind: 'point', start: 0, end: 0 });
+}
+
 /** Признак страничного якоря. */
 export function isPageAnchor(anchor: QuoteAnchor): boolean {
     return anchor.kind === 'page';
+}
+
+/** Признак якоря точки (текстовая карточка или фигура). */
+export function isPointAnchor(anchor: QuoteAnchor): boolean {
+    return anchor.kind === 'point';
 }
 
 /** Нормализация прямоугольников: конечные числа, неотрицательные размеры. */
@@ -113,7 +132,16 @@ export function parseAnchor(value: string | null | undefined): QuoteAnchor | nul
             return null;
         }
         const isPage = parsed.kind === 'page';
-        if (!isPage && (typeof parsed.chapter !== 'number' || typeof parsed.start !== 'number')) {
+        const isPoint = parsed.kind === 'point';
+        if (isPoint && (typeof parsed.x !== 'number' || typeof parsed.y !== 'number')) {
+            // Якорь точки без координат бессмысленен — считаем повреждённым.
+            return null;
+        }
+        if (
+            !isPage &&
+            !isPoint &&
+            (typeof parsed.chapter !== 'number' || typeof parsed.start !== 'number')
+        ) {
             return null;
         }
         return createAnchor(parsed);
