@@ -20,6 +20,7 @@ function handlers() {
         onShape: vi.fn(),
         onDeleteNote: vi.fn(),
         onChangeNoteColor: vi.fn(),
+        onEditNote: vi.fn(),
         onGoToNote: vi.fn(),
         onSelectNote: vi.fn(),
         onSelectSet: vi.fn(),

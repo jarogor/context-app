@@ -3,8 +3,9 @@
   import { Button } from '@texture/ui';
   import type { BookContent } from './reader';
   import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
-  import { DEFAULT_NOTE_TOOL } from '../notes/notes';
+  import { DEFAULT_NOTE_COLOR, DEFAULT_NOTE_TOOL, FLOWING_NOTE_TYPES, NOTE_COLOR_HIGHLIGHTS } from '../notes/notes';
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
+  import NoteMenu from '../notes/NoteMenu.svelte';
   import {
     createAnchor,
     offsetsFromRange,
@@ -71,6 +72,10 @@
   const NOTE_CLASS = 'texture-note';
   /** Класс временной вспышки подсветки при переходе. */
   const FLASH_CLASS = 'texture-note-flash';
+  /** Класс превью подсветки при правке границ цитаты. */
+  const NOTE_PREVIEW_CLASS = 'texture-resize-preview';
+  /** Доступные типы заметок текучего чтения: только цитата. */
+  const ALLOWED_TYPES = FLOWING_NOTE_TYPES;
   /** Отступ сверху до опорной строки при масштабировании, в пикселях. */
   const ZOOM_ANCHOR_MARGIN = 18;
 
@@ -234,6 +239,9 @@
       '.texture-note-handle{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;',
       'border-radius:50%;background:#1d4ed8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);',
       'cursor:ew-resize;z-index:5;}',
+      // Превью подсветки при правке границ цитаты: прямоугольники поверх текста,
+      // чтобы не перестраивать сам текст и не сбрасывать выделение.
+      `.${NOTE_PREVIEW_CLASS}{position:absolute;pointer-events:none;opacity:0.45;z-index:1;}`,
     ].join('');
     const body = value.chapters
       .map((chapter, index) => `<section class="texture-chapter" data-chapter="${index}">${chapter.html}</section>`)
@@ -291,8 +299,15 @@
     highlightTextRange(section, anchor.start, anchor.end, NOTE_CLASS, note.id, note.color);
   }
 
-  /** Наложение одной текстовой карточки или фигуры. */
+  /** Наложение одной текстовой карточки или фигуры.
+   *
+   * Текучее чтение держит только цитаты: карточки и фигуры здесь не рисуются,
+   * потому что их точки и геометрия неустойчивы к перестройке потока текста.
+   */
   function drawOverlay(note: Note, anchorOverride?: QuoteAnchor, geometryOverride?: string): void {
+    if (!ALLOWED_TYPES.includes(note.type)) {
+      return;
+    }
     const value = document();
     const anchor = anchorOverride ?? parseAnchor(note.anchor);
     if (!value || !anchor) {
@@ -450,27 +465,6 @@
     return range.toString().length;
   }
 
-  /** Позиция меню заметки: под рамкой её элемента, в координатах области.
-   *
-   * Прямоугольники элементов берутся из документа книги, поэтому они уже
-   * отсчитываются от области чтения; смещать их на положение кадра нельзя —
-   * иначе меню уезжало к верхнему краю области.
-   */
-  function noteMenuStyle(): string {
-    const menuWidth = 210;
-    const menuHeight = 40;
-    const x = Math.max(
-      8,
-      Math.min(noteMenu?.x ?? 0, Math.max(8, readerAreaWidth - menuWidth - 8)),
-    );
-    const preferred = (noteMenu?.y ?? 0) + 6;
-    const y =
-      readerAreaHeight > 0 && preferred + menuHeight > readerAreaHeight
-        ? Math.max(8, preferred - menuHeight - 18)
-        : Math.max(8, preferred);
-    return `left: ${x}px; top: ${y}px;`;
-  }
-
   /** Ограничение доли диапазоном [0, 1]. */
   function clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
@@ -582,6 +576,7 @@
     resizeDrag = { noteId: note.id, edge: 'start', anchor };
     noteMenu = null;
     placementDraft = null;
+    clearResizePreview();
     renderResizeHandles();
   }
 
@@ -597,7 +592,49 @@
     placementDraft = null;
     moveGuide = null;
     clearResizeHandles();
+    clearResizePreview();
     drawNotes();
+  }
+
+  /** Снятие маркеров границ цитаты из документа книги. */
+  function clearResizeHandles(): void {
+    const value = document();
+    for (const handle of Array.from(value?.querySelectorAll('.texture-note-handle') ?? [])) {
+      handle.remove();
+    }
+  }
+
+  /** Отрисовка маркеров границ цитаты внутри документа книги.
+   *
+   * Маркеры строятся по диапазону символов текущего якоря и живут в том же
+   * документе, что и текст: браузер сам ведёт протяжку через `mouseup`, как в
+   * страничном формате. Маркеры не пересчитываются во время протяжки — иначе
+   * текст перерисовывался бы под курсором и выделение «соскакивало»; во время
+   * тяги обновляется только превью подсветки.
+   */
+  function renderResizeHandles(): void {
+    clearResizeHandles();
+    const anchor = resizeDrag?.anchor;
+    const section = anchor ? chapterSection(anchor.chapter) : null;
+    if (!anchor || !section) {
+      return;
+    }
+    const startRect = rangeHandleRect(section, anchor.start, anchor.start + 1, 'start');
+    const endRect = rangeHandleRect(section, anchor.end - 1, anchor.end, 'end');
+    if (!startRect || !endRect) {
+      return;
+    }
+    for (const [edge, rect] of [
+      ['start', startRect],
+      ['end', endRect],
+    ] as const) {
+      const handle = section.ownerDocument.createElement('div');
+      handle.className = 'texture-note-handle';
+      handle.dataset.noteHandle = edge;
+      handle.style.left = `${rect.x + (edge === 'start' ? 0 : rect.width)}px`;
+      handle.style.top = `${rect.y + rect.height / 2}px`;
+      section.appendChild(handle);
+    }
   }
 
   /** Рамка маленького диапазона в начале или конце цитаты (для маркеров). */
@@ -625,41 +662,52 @@
     };
   }
 
-  /** Снятие маркеров границ цитаты из документа книги. */
-  function clearResizeHandles(): void {
+  /** Отрисовка превью подсветки при правке границ цитаты.
+   *
+   * Во время тяги диапазон не перестраивается: вместо снятия и повторного
+   * оборачивания текста рисуются прямоугольники поверх него. Так текст под
+   * курсором не пересоздаётся, `caretRangeFromPoint` работает стабильно, и
+   * маркеры не дрожат.
+   */
+  function renderResizePreview(): void {
     const value = document();
-    for (const handle of Array.from(value?.querySelectorAll('.texture-note-handle') ?? [])) {
-      handle.remove();
+    const draft = placementDraft;
+    const anchor = draft?.anchor;
+    const section = anchor ? chapterSection(anchor.chapter) : null;
+    for (const box of Array.from(value?.querySelectorAll(`.${NOTE_PREVIEW_CLASS}`) ?? [])) {
+      box.remove();
+    }
+    if (!value || !draft || !anchor || !section) {
+      return;
+    }
+    const range = rangeFromOffsets(section, anchor.start, anchor.end);
+    if (!range) {
+      return;
+    }
+    const bounds = section.getBoundingClientRect();
+    const color = NOTE_COLOR_HIGHLIGHTS[
+      notes.find((note) => note.id === draft.noteId)?.color ?? DEFAULT_NOTE_COLOR
+    ];
+    for (const rect of Array.from(range.getClientRects())) {
+      if (rect.width <= 0 || rect.height <= 0) {
+        continue;
+      }
+      const box = value.createElement('div');
+      box.className = NOTE_PREVIEW_CLASS;
+      box.style.left = `${rect.left - bounds.left}px`;
+      box.style.top = `${rect.top - bounds.top}px`;
+      box.style.width = `${rect.width}px`;
+      box.style.height = `${rect.height}px`;
+      box.style.background = color;
+      section.appendChild(box);
     }
   }
 
-  /** Отрисовка маркеров границ цитаты внутри документа книги.
-   *
-   * Маркеры живут в том же документе, что и текст: тогда браузер сам ведёт
-   * протяжку, и не нужно ловить события между двумя окнами.
-   */
-  function renderResizeHandles(): void {
-    clearResizeHandles();
-    const anchor = placementDraft?.anchor ?? resizeDrag?.anchor;
-    const section = anchor ? chapterSection(anchor.chapter) : null;
-    if (!anchor || !section || !resizeDrag) {
-      return;
-    }
-    const startRect = rangeHandleRect(section, anchor.start, anchor.start + 1, 'start');
-    const endRect = rangeHandleRect(section, anchor.end - 1, anchor.end, 'end');
-    if (!startRect || !endRect) {
-      return;
-    }
-    for (const [edge, rect] of [
-      ['start', startRect],
-      ['end', endRect],
-    ] as const) {
-      const handle = section.ownerDocument.createElement('div');
-      handle.className = 'texture-note-handle';
-      handle.dataset.noteHandle = edge;
-      handle.style.left = `${rect.x + (edge === 'start' ? 0 : rect.width)}px`;
-      handle.style.top = `${rect.y + rect.height / 2}px`;
-      section.appendChild(handle);
+  /** Снятие превью подсветки при правке границ. */
+  function clearResizePreview(): void {
+    const value = document();
+    for (const box of Array.from(value?.querySelectorAll(`.${NOTE_PREVIEW_CLASS}`) ?? [])) {
+      box.remove();
     }
   }
 
@@ -760,7 +808,12 @@
     value?.addEventListener('mouseup', handleResizeEnd);
   }
 
-  /** Обновление границ цитаты во время тяги маркера. */
+  /** Обновление границ цитаты во время тяги маркера.
+   *
+   * Пересчитывается только превью подсветки: полный `drawNotes` снял бы и снова
+   * обернул текст, и выделение под курсором «соскакивало». Новый якорь
+   * сохраняется по отпусканию (`handleResizeEnd`), как в страничном формате.
+   */
   function handleResizeMove(event: MouseEvent): void {
     if (!resizeDrag) {
       return;
@@ -784,23 +837,31 @@
     const quote = range ? range.toString().replace(/\s+/g, ' ').trim() : resizeDrag.anchor.quote;
     const next = createAnchor({ ...resizeDrag.anchor, start, end, quote });
     placementDraft = { noteId: resizeDrag.noteId, anchor: next };
-    drawNotes();
-    renderResizeHandles();
+    renderResizePreview();
   }
 
-  /** Завершение сдвига границ цитаты: сохранение нового якоря. */
+  /** Завершение сдвига границ цитаты: сохранение нового якоря по отпусканию.
+   *
+   * Правка всегда завершается по отпусканию кнопки мыши: и после протяжки
+   * маркера, и при клике мимо него. Отдельного подтверждения нет — поведение
+   * совпадает со страничным форматом.
+   */
   function handleResizeEnd(): void {
     const value = document();
     value?.removeEventListener('mousemove', handleResizeMove);
     value?.removeEventListener('mouseup', handleResizeEnd);
+    clearResizePreview();
     const draft = placementDraft;
-    if (draft && resizeDrag) {
-      resizeDrag = { ...resizeDrag, anchor: draft.anchor };
-      placementDraft = null;
+    placementDraft = null;
+    if (draft) {
+      resizeDrag = resizeDrag ? { ...resizeDrag, anchor: draft.anchor } : null;
       onPlaceNote?.(draft.noteId, draft.anchor);
     }
+    editing = null;
+    resizeDrag = null;
+    clearResizeHandles();
     suppressClick = true;
-    renderResizeHandles();
+    drawNotes();
   }
 
   /** Завершение перемещения карточки или фигуры. */
@@ -861,6 +922,10 @@
     }
     // Во время правки создание новых заметок не начинается.
     if (editing) {
+      return;
+    }
+    // Текучее чтение создаёт только цитаты: жесты текста и фигуры недоступны.
+    if (!ALLOWED_TYPES.includes(tool.type)) {
       return;
     }
     if (tool.type !== 'shape' && tool.type !== 'text') {
@@ -1302,6 +1367,11 @@
      * точек. Обработчик окна приложения ловит отпускание в любом месте.
      */
     const onWindowMouseUp = () => {
+      if (resizeDrag && placementDraft) {
+        // Отпускание ушло за пределы iframe: правка границ тоже завершается.
+        handleResizeEnd();
+        return;
+      }
       if (!dragSection || moveDrag) {
         return;
       }
@@ -1399,14 +1469,10 @@
         cancelEditing();
       }
     };
-    /** Клик вне меню и подсказки правки закрывает их. */
+    /** Клик вне меню заметки закрывает его и завершает правку. */
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
-      if (
-        target?.closest?.(
-          '[data-testid="note-menu"], [data-testid="note-editing-hint"]',
-        )
-      ) {
+      if (target?.closest?.('[data-testid="note-menu"]')) {
         return;
       }
       dismiss();
@@ -1484,62 +1550,14 @@
   {/if}
 
   {#if noteMenu}
-    <div
-      class="absolute z-20 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[4px] shadow-lg"
-      data-testid="note-menu"
-      style={noteMenuStyle()}
-    >
-      {#if noteMenu.type === 'quote'}
-        <Button
-          variant="secondary"
-          size="icon"
-          title="Изменить выделение"
-          ariaLabel="Изменить выделение"
-          onclick={startResize}
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <path
-              d="M4 9h13M4 9l3-3M4 9l3 3M20 15H7M20 15l-3-3M20 15l-3 3"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </Button>
-      {:else}
-        <Button
-          variant="secondary"
-          size="icon"
-          title="Переместить"
-          ariaLabel="Переместить"
-          onclick={startMove}
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <path
-              d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </Button>
-      {/if}
-      <Button variant="ghost" size="icon" title="Закрыть" ariaLabel="Закрыть" onclick={closeNoteMenu}>
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path
-            d="M6 6l12 12M18 6L6 18"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
-      </Button>
-    </div>
+    <NoteMenu
+      type={noteMenu.type}
+      at={{ left: noteMenu.x, top: noteMenu.y, bottom: noteMenu.y }}
+      area={{ width: readerAreaWidth, height: readerAreaHeight }}
+      onMove={startMove}
+      onResize={startResize}
+      onClose={closeNoteMenu}
+    />
   {/if}
 
   {#if moveGuideBox}
@@ -1557,20 +1575,6 @@
       <div
         class="absolute top-0 left-1/2 h-full w-px bg-[var(--primary)] opacity-70"
       ></div>
-    </div>
-  {/if}
-
-  {#if editing}
-    <div
-      class="pointer-events-none absolute inset-x-0 bottom-2 z-20 flex justify-center"
-      data-testid="note-editing-hint"
-    >
-      <div
-        class="pointer-events-auto flex items-center gap-2 rounded-md border border-[var(--input)] bg-[var(--card)] px-3 py-1 text-[12px] shadow-lg"
-      >
-        <span>{editing.mode === 'move' ? 'Перетащите заметку' : 'Потяните маркеры выделения'}</span>
-        <Button variant="ghost" size="sm" onclick={cancelEditing}>Готово</Button>
-      </div>
     </div>
   {/if}
 </div>

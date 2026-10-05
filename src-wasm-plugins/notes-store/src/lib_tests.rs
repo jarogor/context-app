@@ -316,6 +316,48 @@ fn update_and_delete_note() {
 }
 
 #[test]
+fn title_and_comment_pass_through_operations() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "lib/a", "A");
+    let added = handle(
+        &host,
+        &request(
+            "add_note",
+            json!({
+                "set_id": set_id,
+                "note": { "quote": "ц", "title": "Идея", "comment": "Разобрать" }
+            }),
+        ),
+    )
+    .expect("заметка");
+    assert_eq!(parse(&added)["note"]["title"], "Идея");
+    assert_eq!(parse(&added)["note"]["comment"], "Разобрать");
+    let note_id = parse(&added)["note"]["id"]
+        .as_str()
+        .expect("идентификатор")
+        .to_string();
+
+    let updated = handle(
+        &host,
+        &request(
+            "update_note",
+            json!({
+                "set_id": set_id,
+                "note_id": note_id,
+                "patch": { "title": "Итог", "comment": "" }
+            }),
+        ),
+    )
+    .expect("изменение");
+    assert_eq!(parse(&updated)["note"]["title"], "Итог");
+    assert_eq!(
+        parse(&updated)["note"]["comment"],
+        "",
+        "пустой комментарий допустим"
+    );
+}
+
+#[test]
 fn note_operations_reject_unknown_set() {
     let host = FakeHost::default();
     assert!(handle(

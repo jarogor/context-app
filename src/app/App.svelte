@@ -37,6 +37,7 @@
     addQuote,
     addShapeNote,
     addTextNote,
+    allowedNoteTypes,
     bookKey,
     changeNoteColor,
     createSet,
@@ -48,18 +49,21 @@
     listSets,
     loadSets,
     noteList,
+    normalizeNoteTool,
     renameSet,
     resolveActiveSetId,
     setActiveSet,
+    updateNoteDetails,
     updateNotePlacement,
     type Note,
     type NoteColor,
     type NoteSetSummary,
     type NoteTool,
+    type NoteType,
     type ShapeKind,
   } from '../features/notes/notes';
   import type { QuoteAnchor } from '../features/reader/reader/anchor';
-  import { formatFromPath } from '../features/reader/reader';
+  import { formatFromPath, isSupportedFormat } from '../features/reader/reader';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
   import {
     APP_SETTINGS_SECTION,
@@ -189,7 +193,7 @@
 
   /** Смена активного инструмента заметок. */
   function changeNoteTool(tool: NoteTool) {
-    noteTool = tool;
+    noteTool = normalizeNoteTool(tool, currentNoteTypes);
   }
 
   /** Переключение инструмента на тип заметки и палитра её цвета.
@@ -210,7 +214,7 @@
       next.shape = note.shape;
     }
     next.color = note.color;
-    noteTool = next;
+    noteTool = normalizeNoteTool(next, currentNoteTypes);
   }
 
   /** Активный набор заметок по книге: ключ книги → идентификатор выбранного набора. */
@@ -244,6 +248,18 @@
   const notesBookKey = $derived.by(() => {
     const tab = currentTab;
     return tab ? bookKey(tab.path) : null;
+  });
+
+  /** Доступные типы заметок активной книги: текучий формат — только цитата.
+   *
+   * Встроенное текстовое чтение (EPUB, позже FB2) — текучее: поток текста
+   * перестраивается, поэтому точки и фигуры неустойчивы, и доступна только
+   * цитата. Страничные форматы (плагин рабочего места, PDF) — все три типа.
+   */
+  const currentNoteTypes: readonly NoteType[] = $derived.by(() => {
+    const tab = currentTab;
+    const format = tab ? formatFromPath(tab.path) : '';
+    return allowedNoteTypes(!isSupportedFormat(format));
   });
 
   /** Вкладка, для которой выбирается новая книга (переуказание файла). */
@@ -408,8 +424,14 @@
     }
   }
 
-  /** Элементы списка заметок-цитат для панели. */
-  const noteItems = $derived(noteList(notes));
+  /** Элементы списка заметок для панели: только доступные типы текущей книги.
+   *
+   * В текучем формате (EPUB) недоступные типы (текст, фигура) не показываются ни
+   * в панели, ни в книге — те же элементы идут и в читалку. Данные сохраняются.
+   */
+  const noteItems = $derived(
+    noteList(notes.filter((note) => currentNoteTypes.includes(note.type))),
+  );
 
   /** Показ заметок набора, запоминание выбора для книги и кеш загруженных наборов. */
   function showSetNotes(key: string | null, setId: string, value: Note[]) {
@@ -734,6 +756,22 @@
     }
   }
 
+  /** Изменение названия и комментария существующей заметки. */
+  async function editNoteDetails(noteId: string, details: { title: string; comment: string }) {
+    const key = notesBookKey;
+    const setId = key ? (activeSetByBook[key] ?? notesSetId) : notesSetId;
+    if (!key || !setId) {
+      return;
+    }
+    try {
+      const updated = await updateNoteDetails(key, setId, noteId, details);
+      showSetNotes(key, setId, updated.notes);
+      notesError = null;
+    } catch (error) {
+      notesError = String(error);
+    }
+  }
+
   /** Перемещение заметки на странице или сдвиг границ её цитаты. */
   async function placeNote(noteId: string, anchor: QuoteAnchor, geometry?: string) {
     const key = notesBookKey;
@@ -811,6 +849,20 @@
     // сбрасывается, чтобы панель показала актуальное состояние.
     loadedNotesSets = {};
     void loadNotes();
+  });
+
+  /** Приведение инструмента к доступным типам при смене книги активной вкладки.
+   *
+   * Если активным был инструмент, недоступный текучему формату (например,
+   * «фигура»), он становится цитатой; цвет сохраняется. Иначе скрытый инструмент
+   * остался бы активным и создавал недоступную заметку.
+   */
+  $effect(() => {
+    const types = currentNoteTypes;
+    const next = normalizeNoteTool(noteTool, types);
+    if (next !== noteTool) {
+      noteTool = next;
+    }
   });
 
   /** Возврат к списку рабочих мест. */
@@ -1255,6 +1307,7 @@
           visible={workspaceVisible}
           selectedNoteId={selectedNoteId}
           tool={noteTool}
+          allowedNoteTypes={currentNoteTypes}
           onToolChange={changeNoteTool}
           onSelectTab={selectTab}
           onCloseTab={removeTab}
@@ -1269,6 +1322,7 @@
           onPlaceNote={placeNote}
           onDeleteNote={removeNote}
           onChangeNoteColor={recolorNote}
+          onEditNote={editNoteDetails}
           onGoToNote={goToNote}
           onSelectNote={selectNote}
           onSelectSet={selectSet}

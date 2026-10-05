@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import NotesPanel from './NotesPanel.svelte';
 import { noteList, normalizeNote, normalizeSetSummary, type NoteListItem } from './notes';
@@ -20,13 +20,14 @@ describe('панель заметок-цитат', () => {
     });
 
     it('показывает цитаты, место и дату', () => {
+        const createdAt = new Date(1_700_000_000_000).getTime();
         render(NotesPanel, {
             props: {
                 items: items({
                     id: '1',
                     quote: 'Мысль о тексте',
                     percent: 12.5,
-                    created_at_millis: 1,
+                    created_at_millis: createdAt,
                 }),
                 sets: [],
                 activeSetId: null,
@@ -36,7 +37,13 @@ describe('панель заметок-цитат', () => {
 
         expect(screen.getByTestId('notes-item')).toBeTruthy();
         expect(screen.getByText('Мысль о тексте')).toBeTruthy();
-        expect(screen.getByTestId('notes-item-place').textContent).toBe('12.50 %');
+        const place = screen.getByTestId('notes-item-place');
+        expect(place.textContent).toBe('12.50 %');
+
+        // Дата стоит в той же строке, что тип и место, а не отдельной строкой ниже.
+        const date = screen.getByTestId('notes-item-date');
+        expect(date.textContent).not.toBe('');
+        expect(date.parentElement).toBe(place.parentElement);
     });
 
     it('напоминает выделить текст, когда заметок нет', () => {
@@ -124,6 +131,111 @@ describe('панель заметок-цитат', () => {
         const item = screen.getByTestId('notes-item');
         expect(item.getAttribute('data-color')).toBe('purple');
         expect(screen.getByTestId('notes-item-color')).toBeTruthy();
+    });
+
+    it('показывает название, тип и начало цитаты, а также комментарий', () => {
+        render(NotesPanel, {
+            props: {
+                items: items({
+                    id: 'note-1',
+                    quote: 'Длинная цитата',
+                    title: 'Тезис',
+                    comment: 'Разобрать позже',
+                }),
+                sets: [],
+                activeSetId: null,
+                hasBook: true,
+            },
+        });
+
+        expect(screen.getByText('Тезис')).toBeTruthy();
+        // Тип показан лейблом, начало цитаты — отдельной строкой под названием.
+        expect(screen.getByTestId('notes-item-type').textContent).toContain('Цитата');
+        expect(screen.getByTestId('notes-item-preview').textContent).toContain('Длинная цитата');
+        expect(screen.getByTestId('notes-item-comment').textContent).toBe('Разобрать позже');
+    });
+
+    it('без названия показывает цитату как имя, без дублирующей строки', () => {
+        render(NotesPanel, {
+            props: {
+                items: items({ id: 'note-1', quote: 'Короткая цитата' }),
+                sets: [],
+                activeSetId: null,
+                hasBook: true,
+            },
+        });
+
+        expect(screen.getByTestId('notes-item-link').textContent).toContain('Короткая цитата');
+        expect(screen.queryByTestId('notes-item-preview')).toBeNull();
+    });
+
+    it('ищет по названию и комментарию', async () => {
+        render(NotesPanel, {
+            props: {
+                items: items(
+                    { id: '1', quote: 'цитата', title: 'Онтология', comment: 'позже' },
+                    { id: '2', quote: 'другое' },
+                ),
+                sets: [],
+                activeSetId: null,
+                hasBook: true,
+            },
+        });
+
+        await fireEvent.input(screen.getByPlaceholderText('Поиск по заметкам'), {
+            target: { value: 'позже' },
+        });
+
+        expect(screen.getAllByTestId('notes-item')).toHaveLength(1);
+        expect(screen.getByTestId('notes-item-comment').textContent).toBe('позже');
+    });
+
+    it('редактирует название и комментарий заметки', async () => {
+        const onEditNote = vi.fn();
+        render(NotesPanel, {
+            props: {
+                items: items({ id: 'note-1', quote: 'Цитата', title: 'Черновик', comment: 'Старый' }),
+                sets: [],
+                activeSetId: null,
+                hasBook: true,
+                onEditNote,
+            },
+        });
+
+        await fireEvent.pointerDown(screen.getByLabelText('Действия с заметкой'), { button: 0 });
+        await fireEvent.click(screen.getByRole('menuitem', { name: 'Изменить' }));
+
+        const editor = screen.getByTestId('notes-item-editor');
+        await fireEvent.input(screen.getByLabelText('Название заметки'), {
+            target: { value: 'Итог' },
+        });
+        await fireEvent.input(screen.getByLabelText('Комментарий заметки'), {
+            target: { value: 'Готово' },
+        });
+        await fireEvent.click(within(editor).getByRole('button', { name: 'Сохранить' }));
+
+        expect(onEditNote).toHaveBeenCalledWith('note-1', { title: 'Итог', comment: 'Готово' });
+    });
+
+    it('удаляет комментарий, очищая поле, не трогая название', async () => {
+        const onEditNote = vi.fn();
+        render(NotesPanel, {
+            props: {
+                items: items({ id: 'note-1', quote: 'Цитата', title: 'Тезис', comment: 'Старый' }),
+                sets: [],
+                activeSetId: null,
+                hasBook: true,
+                onEditNote,
+            },
+        });
+
+        await fireEvent.pointerDown(screen.getByLabelText('Действия с заметкой'), { button: 0 });
+        await fireEvent.click(screen.getByRole('menuitem', { name: 'Изменить' }));
+        const editor = screen.getByTestId('notes-item-editor');
+        await fireEvent.click(within(editor).getByRole('button', { name: 'Удалить комментарий' }));
+        await fireEvent.click(within(editor).getByRole('button', { name: 'Сохранить' }));
+
+        expect(onEditNote).toHaveBeenCalledWith('note-1', { title: 'Тезис', comment: '' });
     });
 
     it('сообщает о смене цвета заметки, включая чёрный', async () => {

@@ -204,6 +204,48 @@ fn update_note_patches_fields_and_time() {
 }
 
 #[test]
+fn update_note_sets_and_clears_title_and_comment() {
+    let mut state = NotesState::new();
+    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    let input = NoteInput {
+        quote: "цитата".to_string(),
+        title: "Черновик".to_string(),
+        comment: "Проверить".to_string(),
+        ..NoteInput::default()
+    };
+    let note = state
+        .add_note("ns-a", input, "note-1", 10)
+        .expect("заметка");
+    assert_eq!(note.title, "Черновик");
+    assert_eq!(note.comment, "Проверить");
+
+    // Частичный патч меняет только название и не трогает комментарий.
+    let patch = NotePatch {
+        title: Some("Итог".to_string()),
+        ..NotePatch::default()
+    };
+    let note = state
+        .update_note("ns-a", "note-1", patch, 11)
+        .expect("изменение названия");
+    assert_eq!(note.title, "Итог");
+    assert_eq!(
+        note.comment, "Проверить",
+        "комментарий не передан — сохранён"
+    );
+
+    // Явная пустая строка очищает комментарий, поле остаётся допустимым.
+    let patch = NotePatch {
+        comment: Some(String::new()),
+        ..NotePatch::default()
+    };
+    let note = state
+        .update_note("ns-a", "note-1", patch, 12)
+        .expect("очистка комментария");
+    assert!(note.comment.is_empty());
+    assert_eq!(note.updated_at_millis, 12);
+}
+
+#[test]
 fn add_note_applies_default_type_shape_and_black_color() {
     let mut state = NotesState::new();
     state.create_set("lib/a", "A", "ns-a", 1).expect("набор");

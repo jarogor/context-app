@@ -783,6 +783,12 @@ test('текстовая карточка создаётся кликом по �
     await openPdf(page, 3);
     await page.getByRole('button', { name: 'Заметки' }).click();
 
+    // Страничный формат сохраняет все три типа: текст и фигура доступны.
+    const toolbar = page.getByTestId('note-toolbar');
+    await expect(toolbar.getByRole('button', { name: 'Цитата' })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Текст' })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Фигура' })).toBeVisible();
+
     await selectTool(page, 'Текст');
     await content(page).locator('.page').first().click({ position: { x: 120, y: 120 } });
 
@@ -794,6 +800,16 @@ test('текстовая карточка создаётся кликом по �
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
     await expect(page.getByTestId('notes-item-type')).toHaveText('Текст');
     await expect(content(page).locator('.note-card').first()).toHaveText('Мысль о странице');
+
+    // Название и комментарий доступны заметке любого типа и правятся в панели.
+    await page.getByLabel('Действия с заметкой').first().click();
+    await page.getByRole('menuitem', { name: 'Изменить' }).click();
+    await page.getByLabel('Название заметки').fill('Мысль');
+    await page.getByLabel('Комментарий заметки').fill('Вернуться к ней');
+    await page.getByTestId('notes-item-editor').getByRole('button', { name: 'Сохранить' }).click();
+
+    await expect(page.getByTestId('notes-item-link')).toContainText('Мысль');
+    await expect(page.getByTestId('notes-item-comment')).toHaveText('Вернуться к ней');
 });
 
 test('фигура рисуется протяжкой по странице', async ({ page }) => {
@@ -869,9 +885,9 @@ test('текстовую карточку в PDF можно переместит
     const card = content(page).locator('.note-card').first();
     await card.click();
     // Клик по карточке (инструмент «текст» активен) не открывает редактор.
-    await expect(content(page).locator('.note-menu')).toBeVisible();
+    await expect(page.getByTestId('note-menu')).toBeVisible();
     await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
-    await content(page).locator('.note-menu').getByRole('button', { name: 'Переместить' }).click();
+    await page.getByTestId('note-menu').getByRole('button', { name: 'Переместить' }).click();
     const guide = content(page).locator('.note-move-guide');
     await expect(guide).toBeVisible();
     // Рамка направляющих совпадает с карточкой, включая её рамку: у направляющих
@@ -916,10 +932,10 @@ test('перемещение в PDF работает и под инструме�
         'aria-pressed',
         'true',
     );
-    await expect(content(page).locator('.note-menu')).toBeVisible();
+    await expect(page.getByTestId('note-menu')).toBeVisible();
     await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
 
-    await content(page).locator('.note-menu').getByRole('button', { name: 'Переместить' }).click();
+    await page.getByTestId('note-menu').getByRole('button', { name: 'Переместить' }).click();
     await expect(content(page).locator('.note-move-guide')).toBeVisible();
 
     const before = await card.evaluate((element) => element.style.left);
@@ -953,14 +969,14 @@ test('фигуру в PDF можно выбрать кликом по конту
     const box = await content(page).locator('.note-shape path').first().boundingBox();
     expect(box).not.toBeNull();
     await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    const menu = content(page).locator('.note-menu');
+    const menu = page.getByTestId('note-menu');
     await expect(menu).toBeVisible();
     // Меню привязано к самой фигуре, а не к SVG-слою во всю страницу.
     const menuBox = await menu.boundingBox();
     expect(menuBox).not.toBeNull();
     expect(menuBox!.y).toBeLessThan(box!.y + box!.height + 80);
     expect(menuBox!.y).toBeGreaterThan(box!.y);
-    await menu.getByRole('button', { name: 'Переместить' }).dispatchEvent('click');
+    await menu.getByRole('button', { name: 'Переместить' }).click();
     await expect(content(page).locator('body')).toHaveAttribute('data-editing', 'move');
 });
 
@@ -970,9 +986,9 @@ test('границы цитаты в PDF правятся маркерами п�
     await selectTextOnPage(page, 1);
 
     await content(page).locator('.overlay .note').first().click();
-    await expect(content(page).locator('.note-menu')).toBeVisible();
-    await content(page)
-        .locator('.note-menu')
+    await expect(page.getByTestId('note-menu')).toBeVisible();
+    await page
+        .getByTestId('note-menu')
         .getByRole('button', { name: 'Изменить выделение' })
         .click();
     await expect(content(page).locator('.note-handle')).toHaveCount(2);

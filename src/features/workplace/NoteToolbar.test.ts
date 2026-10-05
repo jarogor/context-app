@@ -56,4 +56,19 @@ describe('панель инструментов заметок', () => {
         const classes = shape.className;
         expect(classes.includes('ml-auto')).toBe(false);
     });
+
+    it('в текучем формате показывает только цитату и не показывает вид фигуры', () => {
+        render(NoteToolbar, {
+            props: {
+                tool: { ...DEFAULT_NOTE_TOOL, type: 'quote' },
+                allowedTypes: ['quote'],
+                onChange: vi.fn(),
+            },
+        });
+
+        expect(screen.getByRole('button', { name: 'Цитата' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Текст' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Фигура' })).toBeNull();
+        expect(screen.queryByTestId('note-tool-shape')).toBeNull();
+    });
 });

@@ -13,9 +13,10 @@
     type BookContent,
     type WorkplaceSelection,
   } from './reader';
-  import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
+  import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
+  import NoteMenu from '../notes/NoteMenu.svelte';
   import NoteTextEditor from './NoteTextEditor.svelte';
   import type { QuoteAnchor } from './reader/anchor';
   import { canStepPage, clampPage, pageProgress } from './reader/page-state';
@@ -117,12 +118,24 @@
   let reader: { goto: (note: Note) => void } | undefined = $state();
   /** Область содержимого плагина для перехода к странице и заметке. */
   let workplaceContent:
-    | { gotoPage: (page: number) => void; gotoAnchor: (anchor: string, noteId?: string) => void }
+    | {
+        gotoPage: (page: number) => void;
+        gotoAnchor: (anchor: string, noteId?: string) => void;
+        noteMenuAction: (noteId: string, action: 'move' | 'resize') => void;
+      }
     | undefined = $state();
   /** Незавершённый якорь выделения для создания заметки. */
   let pendingAnchor: QuoteAnchor | null = $state(null);
   /** Позиция меню создания заметки. */
   let menuPosition: { x: number; y: number } | null = $state(null);
+  /** Контекстное меню заметки страничного формата (прямоугольник и тип). */
+  let noteMenu: {
+    noteId: string;
+    noteType: NoteType;
+    left: number;
+    top: number;
+    bottom: number;
+  } | null = $state(null);
   /** Незавершённая точка создания текстовой карточки. */
   let pendingTextAnchor: QuoteAnchor | null = $state(null);
   /** Ширина области содержимого: по ней ограничивается позиция меню. */
@@ -183,6 +196,20 @@
   function dismissWorkplaceMenu() {
     pendingAnchor = null;
     menuPosition = null;
+  }
+
+  /** Закрытие контекстного меню заметки страничного формата. */
+  function closeNoteMenu() {
+    noteMenu = null;
+  }
+
+  /** Команда меню заметки: перемещение или правка границ. */
+  function runNoteMenuAction(action: 'move' | 'resize') {
+    const menu = noteMenu;
+    noteMenu = null;
+    if (menu) {
+      workplaceContent?.noteMenuAction(menu.noteId, action);
+    }
   }
 
   /** Начало ввода текстовой карточки в выбранной точке. */
@@ -270,6 +297,7 @@
    * Используется панелью заметок: чтение возвращается к выделению заметки.
    */
   export function goto(note: Note) {
+    noteMenu = null;
     reader?.goto(note);
     if (workplace) {
       workplaceContent?.gotoAnchor(note.anchor, note.id);
@@ -370,9 +398,21 @@
           onShape={(anchor, shape, geometry, color) =>
             onShape?.(anchor, shape, geometry, color)}
           onNoteClick={(noteId) => onNoteClick?.(noteId)}
+          onNoteMenu={(menu) => (noteMenu = menu)}
+          onNoteMenuClose={closeNoteMenu}
           onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
           onError={(value) => (error = value)}
         />
+        {#if noteMenu}
+          <NoteMenu
+            type={noteMenu.noteType}
+            at={{ left: noteMenu.left, top: noteMenu.top, bottom: noteMenu.bottom }}
+            area={{ width: readerAreaWidth, height: readerAreaHeight }}
+            onMove={() => runNoteMenuAction('move')}
+            onResize={() => runNoteMenuAction('resize')}
+            onClose={closeNoteMenu}
+          />
+        {/if}
         {#if menuPosition && pendingAnchor}
           <div
             class="absolute z-10 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[4px] shadow-lg"

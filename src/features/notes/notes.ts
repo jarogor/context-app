@@ -125,6 +125,33 @@ export const DEFAULT_NOTE_TOOL: NoteTool = {
     color: DEFAULT_NOTE_COLOR,
 };
 
+/** Типы заметок, доступные **текучему** режиму чтения.
+ *
+ * Текучий режим — встроенное текстовое чтение разметки (EPUB, позже FB2 и
+ * подобные): поток текста перестраивается при смене размера области и масштаба,
+ * поэтому точки и геометрия заметок неустойчивы. Здесь надёжна только цитата,
+ * привязанная текстовыми смещениями.
+ */
+export const FLOWING_NOTE_TYPES: readonly NoteType[] = ['quote'];
+
+/** Доступные типы заметок по режиму чтения: страничный — все три, текучий — цитата. */
+export function allowedNoteTypes(paged: boolean): readonly NoteType[] {
+    return paged ? NOTE_TYPES : FLOWING_NOTE_TYPES;
+}
+
+/** Приведение инструмента к доступным типам режима.
+ *
+ * Если активный тип недоступен (например, при переключении на текучий формат с
+ * инструмента «фигура»), инструмент становится цитатой; выбранный цвет и вид
+ * фигуры сохраняются.
+ */
+export function normalizeNoteTool(tool: NoteTool, types: readonly NoteType[]): NoteTool {
+    if (types.includes(tool.type)) {
+        return tool;
+    }
+    return { ...tool, type: DEFAULT_NOTE_TYPE };
+}
+
 /** Русские названия видов фигур для интерфейса. */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
     line: 'Линия',
@@ -168,6 +195,10 @@ export interface Note {
     quote: string;
     /** Метка главы или раздела места в книге. */
     chapter: string;
+    /** Пользовательское название заметки; пустое, если не задано. */
+    title: string;
+    /** Пользовательский комментарий к заметке; пустой, если не задан. */
+    comment: string;
     /** Цвет подсветки заметки. */
     color: NoteColor;
     /** Доля позиции выделения в книге в процентах. */
@@ -247,6 +278,8 @@ export function normalizeNote(value: unknown): Note {
         anchor: String(record.anchor ?? ''),
         quote: String(record.quote ?? ''),
         chapter: String(record.chapter ?? ''),
+        title: String(record.title ?? ''),
+        comment: String(record.comment ?? ''),
         color: normalizeColor(record.color),
         percent: toOptionalNumber(record.percent),
         page: toOptionalNumber(record.page),
@@ -460,6 +493,10 @@ interface NotePayload {
     quote: string;
     /** Метка главы или раздела. */
     chapter: string;
+    /** Пользовательское название заметки. */
+    title?: string;
+    /** Пользовательский комментарий к заметке. */
+    comment?: string;
     /** Цвет подсветки. */
     color: NoteColor;
     /** Доля позиции в книге. */
@@ -496,6 +533,33 @@ export async function updateNoteText(
         set_id: setId,
         note_id: noteId,
         patch: { text },
+    });
+    return normalizeSet(response.set);
+}
+
+/** Изменение названия и комментария заметки.
+ *
+ * Поля пользовательские и доступны заметкам всех типов; вызывающая сторона
+ * передаёт актуальные значения, а отсутствие поля означает «не менять».
+ */
+export async function updateNoteDetails(
+    key: string,
+    setId: string,
+    noteId: string,
+    details: { title?: string; comment?: string },
+): Promise<NoteSet> {
+    const patch: Record<string, unknown> = {};
+    if (details.title !== undefined) {
+        patch.title = details.title;
+    }
+    if (details.comment !== undefined) {
+        patch.comment = details.comment;
+    }
+    const response = await operation<{ set?: unknown }>('update_note', {
+        book_key: key,
+        set_id: setId,
+        note_id: noteId,
+        patch,
     });
     return normalizeSet(response.set);
 }
@@ -560,12 +624,17 @@ export async function deleteNote(key: string, setId: string, noteId: string): Pr
     return normalizeSet(response.set);
 }
 
-/** Имя заметки: содержимое по типу, иначе номер.
+/** Имя заметки: пользовательское название, затем содержимое по типу, иначе номер.
  *
- * Для цитаты имя берётся из цитаты, для текстовой карточки — из её текста, для
- * фигуры — из подписи вида фигуры. Пустое содержимое даёт номер заметки.
+ * Название, заданное пользователем, имеет приоритет над содержимым: заметка
+ * узнаётся по смыслу, а не по началу цитаты. Без названия имя берётся из цитаты,
+ * текста карточки или подписи вида фигуры. Пустое содержимое даёт номер заметки.
  */
 export function noteName(note: Note, index: number): string {
+    const title = note.title.trim();
+    if (title) {
+        return title.length > 80 ? `${title.slice(0, 80)}…` : title;
+    }
     if (note.type === 'shape') {
         return SHAPE_KIND_LABELS[note.shape];
     }
@@ -574,6 +643,20 @@ export function noteName(note: Note, index: number): string {
         return `Заметка ${index + 1}`;
     }
     return content.length > 80 ? `${content.slice(0, 80)}…` : content;
+}
+
+/** Содержимое заметки для списка: цитата, текст карточки или вид фигуры.
+ *
+ * Имя заметки может быть перекрыто пользовательским названием, поэтому
+ * содержимое выводится отдельной строкой и позволяет сопоставить запись с
+ * фрагментом книги. Для фигуры содержимого нет — показывается её вид.
+ */
+export function notePreview(note: Note): string {
+    if (note.type === 'shape') {
+        return '';
+    }
+    const content = (note.type === 'text' ? note.text : note.quote).trim();
+    return content.length > 120 ? `${content.slice(0, 120)}…` : content;
 }
 
 /** Отображаемое место заметки: страница либо доля позиции. */
@@ -591,8 +674,10 @@ export function notePlace(note: Note): string {
 export interface NoteListItem {
     /** Заметка-цитата. */
     note: Note;
-    /** Отображаемое имя заметки. */
+    /** Отображаемое имя заметки (название или содержимое). */
     name: string;
+    /** Начало содержимого заметки (цитата, текст или вид фигуры). */
+    preview: string;
     /** Отображаемое место заметки. */
     place: string;
     /** Дата создания заметки (Unix, мс). */
@@ -673,19 +758,24 @@ export function noteList(notes: Note[]): NoteListItem[] {
     return [...notes].sort(byPosition).map((note, index) => ({
         note,
         name: noteName(note, index),
+        preview: notePreview(note),
         place: notePlace(note),
         createdAtMillis: note.createdAtMillis,
     }));
 }
 
-/** Фильтрация заметок по запросу: цитата, текст и метка места без учёта регистра. */
+/** Фильтрация заметок по запросу: название, комментарий, цитата, текст и место.
+ *
+ * Название и комментарий — пользовательский текст, поэтому поиск по ним находит
+ * заметку так же, как по её содержимому. Регистр не учитывается.
+ */
 export function filterNotes(notes: Note[], query: string): Note[] {
     const needle = query.trim().toLowerCase();
     if (!needle) {
         return notes;
     }
     return notes.filter((note) =>
-        [note.quote, note.text, note.chapter].some((value) =>
+        [note.title, note.comment, note.quote, note.text, note.chapter].some((value) =>
             value.toLowerCase().includes(needle),
         ),
     );

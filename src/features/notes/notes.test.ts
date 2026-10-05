@@ -3,24 +3,29 @@ import {
     addQuote,
     addShapeNote,
     addTextNote,
+    allowedNoteTypes,
     bookKey,
     changeNoteColor,
     createSet,
     deleteNote,
     deleteSet,
     DEFAULT_NOTE_COLOR,
+    DEFAULT_NOTE_TOOL,
     DEFAULT_NOTE_TYPE,
     DEFAULT_SET_NAME,
     DEFAULT_SHAPE_KIND,
     ensureDefaultSet,
     filterNotes,
+    FLOWING_NOTE_TYPES,
     getSet,
     listSets,
     loadSets,
     noteList,
     noteName,
+    notePreview,
     normalizeColor,
     normalizeNote,
+    normalizeNoteTool,
     normalizeSet,
     normalizeSetSummary,
     normalizeShapeKind,
@@ -34,6 +39,7 @@ import {
     resolveActiveSetId,
     setActiveSet,
     SHAPE_KINDS,
+    updateNoteDetails,
     updateNoteText,
 } from './notes';
 import { createAnchor, createPageAnchor, serializeAnchor } from '../reader/reader/anchor';
@@ -137,6 +143,14 @@ describe('нормализация', () => {
         expect(note.geometry).toBe('g');
         expect(normalizeNote({ id: 'n' }).text).toBe('');
         expect(normalizeNote({ id: 'n' }).geometry).toBe('');
+    });
+
+    it('читает название и комментарий, отсутствие даёт пустые строки', () => {
+        const note = normalizeNote({ id: 'n', title: 'Идея', comment: 'Разобрать' });
+        expect(note.title).toBe('Идея');
+        expect(note.comment).toBe('Разобрать');
+        expect(normalizeNote({ id: 'n' }).title).toBe('');
+        expect(normalizeNote({ id: 'n' }).comment).toBe('');
     });
 
     it('normalizeColor знает палитру и отбрасывает чужие значения', () => {
@@ -378,6 +392,41 @@ describe('операции плагина заметок', () => {
         });
     });
 
+    it('изменяет название и комментарий заметки', async () => {
+        invoke.mockResolvedValue(setResponse());
+        await updateNoteDetails('lib::book-1', 'ns-1', 'note-1', {
+            title: 'Идея',
+            comment: 'Разобрать',
+        });
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'update_note',
+            payload: {
+                book_key: 'lib::book-1',
+                set_id: 'ns-1',
+                note_id: 'note-1',
+                patch: { title: 'Идея', comment: 'Разобрать' },
+            },
+        });
+    });
+
+    it('очищает комментарий явной пустой строкой и не трогает название', async () => {
+        invoke.mockResolvedValue(setResponse());
+        await updateNoteDetails('lib::book-1', 'ns-1', 'note-1', { comment: '' });
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'update_note',
+            payload: {
+                book_key: 'lib::book-1',
+                set_id: 'ns-1',
+                note_id: 'note-1',
+                patch: { comment: '' },
+            },
+        });
+    });
+
     it('удаляет заметку из набора', async () => {
         invoke.mockResolvedValue(setResponse());
         await deleteNote('lib::book-1', 'ns-1', 'note-1');
@@ -462,6 +511,13 @@ describe('имя и место заметки', () => {
         expect(noteName(normalizeNote({ id: '2' }), 2)).toBe('Заметка 3');
     });
 
+    it('ставит пользовательское название впереди содержимого', () => {
+        const note = normalizeNote({ id: '1', quote: 'Длинная цитата', title: 'Тезис' });
+        expect(noteName(note, 0)).toBe('Тезис');
+        // Название обрезается по той же длине, что и содержимое.
+        expect(noteName(normalizeNote({ id: '2', title: 'x'.repeat(100) }), 0)).toHaveLength(81);
+    });
+
     it('берёт имя текстовой карточки из её текста', () => {
         const note = normalizeNote({ id: '1', type: 'text', text: 'моя мысль' });
         expect(noteName(note, 0)).toBe('моя мысль');
@@ -479,6 +535,17 @@ describe('имя и место заметки', () => {
         expect(noteList([normalizeNote({ id: '1', page: 7 })])[0].place).toBe('Стр. 7');
         expect(noteList([normalizeNote({ id: '1', percent: 12.3456 })])[0].place).toBe('12.35 %');
         expect(noteList([normalizeNote({ id: '1' })])[0].place).toBe('');
+    });
+
+    it('выводит начало содержимого отдельно от имени', () => {
+        expect(notePreview(normalizeNote({ id: '1', quote: 'Начало цитаты' }))).toBe(
+            'Начало цитаты',
+        );
+        expect(notePreview(normalizeNote({ id: '1', type: 'text', text: 'мысль' }))).toBe('мысль');
+        // У фигуры содержимого нет: вид показывает имя, превью пустое.
+        expect(notePreview(normalizeNote({ id: '1', type: 'shape', shape: 'ellipse' }))).toBe('');
+        // Длинное содержимое обрезается.
+        expect(notePreview(normalizeNote({ id: '1', quote: 'x'.repeat(200) }))).toHaveLength(121);
     });
 });
 
@@ -566,7 +633,42 @@ describe('поиск по заметкам', () => {
         expect(filterNotes(withText, 'хайдеггер').map((note) => note.id)).toEqual(['1']);
     });
 
+    it('ищет по названию и комментарию', () => {
+        const named = [
+            normalizeNote({ id: '1', quote: 'цитата', title: 'Онтология', comment: 'позже' }),
+            normalizeNote({ id: '2', quote: 'другое' }),
+        ];
+        expect(filterNotes(named, 'онтология').map((note) => note.id)).toEqual(['1']);
+        expect(filterNotes(named, 'позже').map((note) => note.id)).toEqual(['1']);
+    });
+
     it('без совпадений возвращает пустой список', () => {
         expect(filterNotes(notes, 'нетттакого')).toHaveLength(0);
+    });
+});
+
+describe('доступные типы заметок по режиму чтения', () => {
+    it('в текучем режиме доступна только цитата', () => {
+        expect(allowedNoteTypes(false)).toEqual(FLOWING_NOTE_TYPES);
+        expect(allowedNoteTypes(false)).toEqual(['quote']);
+    });
+
+    it('в страничном режиме доступны все типы', () => {
+        expect(allowedNoteTypes(true)).toEqual(NOTE_TYPES);
+    });
+
+    it('приводит недоступный инструмент к цитате, сохраняя цвет', () => {
+        const tool = {
+            ...DEFAULT_NOTE_TOOL,
+            type: 'shape' as const,
+            shape: 'ellipse' as const,
+            color: 'blue' as const,
+        };
+        expect(normalizeNoteTool(tool, FLOWING_NOTE_TYPES)).toEqual({
+            ...tool,
+            type: 'quote',
+        });
+        // Доступный инструмент не меняется.
+        expect(normalizeNoteTool(tool, NOTE_TYPES)).toEqual(tool);
     });
 });

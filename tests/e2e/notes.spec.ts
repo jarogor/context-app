@@ -498,161 +498,37 @@ test('создание, переименование и удаление наб�
     await expectNoteSetOptions(page, ['Конспект'], ['Наброски']);
 });
 
-/** Выбор инструмента заметок в панели инструментов рабочего места. */
-async function selectTool(page: import('@playwright/test').Page, name: string) {
-    await page.getByTestId('note-toolbar').getByRole('button', { name }).click();
-}
-
-test('текстовая карточка создаётся кликом и отображается в книге', async ({ page }) => {
+test('в EPUB доступен только инструмент «цитата»', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');
     await openNotes(page);
 
-    await selectTool(page, 'Текст');
-    await page.getByTestId('note-tool-color-black').click();
-    await bookDocument(page).locator('.texture-chapter').first().click({ position: { x: 40, y: 30 } });
-
-    const editor = page.getByTestId('text-card-editor');
-    await expect(editor).toBeVisible();
-    await editor.getByLabel('Текст заметки').fill('Моя мысль');
-    await editor.getByRole('button', { name: 'Сохранить' }).click();
-
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
-    await expect(page.getByTestId('notes-item-type')).toHaveText('Текст');
-    await expect(page.getByTestId('notes-item')).toHaveAttribute('data-color', 'black');
-    await expect(bookDocument(page).locator('.texture-note-card').first()).toHaveText('Моя мысль');
+    const toolbar = page.getByTestId('note-toolbar');
+    await expect(toolbar.getByRole('button', { name: 'Цитата' })).toBeVisible();
+    // Текучее чтение не предлагает текст и фигуру: их точки неустойчивы к потоку.
+    await expect(toolbar.getByRole('button', { name: 'Текст' })).toHaveCount(0);
+    await expect(toolbar.getByRole('button', { name: 'Фигура' })).toHaveCount(0);
+    await expect(page.getByTestId('note-tool-shape')).toHaveCount(0);
 });
 
-test('фигура рисуется протяжкой и отображается в книге', async ({ page }) => {
-    await page.goto('/');
-    await addBook(page, 'Демо-книга');
-    await openNotes(page);
-
-    await selectTool(page, 'Фигура');
-    // Вид фигуры по умолчанию — линия; протяжка в разделе главы.
-    const chapter = bookDocument(page).locator('.texture-chapter').first();
-    await chapter.dragTo(chapter, {
-        sourcePosition: { x: 30, y: 20 },
-        targetPosition: { x: 160, y: 90 },
-    });
-
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
-    await expect(page.getByTestId('notes-item-type')).toHaveText('Фигура');
-    await expect(bookDocument(page).locator('.texture-note-shape line')).toHaveCount(1);
-});
-
-test('протяжка фигуры показывает предпросмотр и завершается вне области чтения', async ({
+test('название и комментарий заметки правятся в панели и переживают перезагрузку', async ({
     page,
 }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');
     await openNotes(page);
+    await highlightParagraph(page, 'Первый абзац книги.');
 
-    await selectTool(page, 'Фигура');
-    const chapter = bookDocument(page).locator('.texture-chapter').first();
-    const chapterBox = await chapter.boundingBox();
-    expect(chapterBox).not.toBeNull();
+    // Пункт «Изменить» разворачивает форму названия и комментария.
+    await page.getByLabel('Действия с заметкой').first().click();
+    await page.getByRole('menuitem', { name: 'Изменить' }).click();
+    await page.getByLabel('Название заметки').fill('Тезис о тексте');
+    await page.getByLabel('Комментарий заметки').fill('Разобрать позже');
+    await page.getByTestId('notes-item-editor').getByRole('button', { name: 'Сохранить' }).click();
 
-    // Во время протяжки видна пунктирная рамка будущей фигуры (как в PDF).
-    await page.mouse.move(chapterBox!.x + 40, chapterBox!.y + 40);
-    await page.mouse.down();
-    await page.mouse.move(chapterBox!.x + 120, chapterBox!.y + 90, { steps: 5 });
-    await expect(bookDocument(page).locator('.texture-note-preview')).toHaveCount(1);
-
-    // Отпускание за пределами области чтения (на панели заметок) завершает жест:
-    // рамка снимается, а фигура создаётся по последней точке внутри книги.
-    await page.mouse.move(page.viewportSize()!.width - 10, 300, { steps: 5 });
-    await page.mouse.up();
-    await expect(bookDocument(page).locator('.texture-note-preview')).toHaveCount(0);
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
-    await expect(bookDocument(page).locator('.texture-note-shape line')).toHaveCount(1);
-});
-
-test('фигура-прямоугольник отображается в книге', async ({ page }) => {
-    await page.goto('/');
-    await addBook(page, 'Демо-книга');
-    await openNotes(page);
-
-    await selectTool(page, 'Фигура');
-    await page.getByRole('button', { name: 'Вид фигуры' }).click();
-    await page.getByRole('option', { name: 'Прямоугольник' }).click();
-
-    const chapter = bookDocument(page).locator('.texture-chapter').first();
-    await chapter.dragTo(chapter, {
-        sourcePosition: { x: 30, y: 30 },
-        targetPosition: { x: 180, y: 110 },
-    });
-
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
-    await expect(page.getByTestId('notes-item-type')).toHaveText('Фигура');
-    const rect = bookDocument(page).locator('.texture-note-shape rect');
-    await expect(rect).toHaveCount(1);
-    // Слой фигуры занимает её рамку, а не всю главу: слой во всю высоту главы
-    // движок не рисует у больших глав — фигура есть в разметке, но невидима.
-    const heightPercent = await bookDocument(page)
-        .locator('.texture-note-shape')
-        .first()
-        .evaluate((element) => parseFloat((element as HTMLElement).style.height));
-    expect(heightPercent).toBeLessThan(50);
-    // viewBox единичный: крошечный viewBox (доли рамки, масштаб в десятки тысяч)
-    // движок тоже не отрисовывает, поэтому координаты нормированы в 0..1.
-    await expect(bookDocument(page).locator('.texture-note-shape').first()).toHaveAttribute(
-        'viewBox',
-        '0 0 1 1',
-    );
-    // Прямоугольник — полупрозрачная заливка цветом заметки, без обводки.
-    await expect(rect).toHaveCSS('fill-opacity', '0.5');
-    await expect(rect).toHaveCSS('stroke', 'none');
-    const box = await rect.boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.width).toBeGreaterThan(50);
-    expect(box!.height).toBeGreaterThan(20);
-});
-
-test('инструмент фигуры поддерживает прямоугольник и эллипс', async ({ page }) => {
-    await page.goto('/');
-    await addBook(page, 'Демо-книга');
-    await openNotes(page);
-
-    await selectTool(page, 'Фигура');
-    await page.getByRole('button', { name: 'Вид фигуры' }).click();
-    await page.getByRole('option', { name: 'Эллипс' }).click();
-
-    const chapter = bookDocument(page).locator('.texture-chapter').first();
-    await chapter.dragTo(chapter, {
-        sourcePosition: { x: 20, y: 20 },
-        targetPosition: { x: 140, y: 100 },
-    });
-
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
-    const ellipse = bookDocument(page).locator('.texture-note-shape ellipse');
-    await expect(ellipse).toHaveCount(1);
-    // Эллипс — полупрозрачная заливка цветом заметки, без обводки (как цитата).
-    await expect(ellipse).toHaveCSS('fill-opacity', '0.5');
-    await expect(ellipse).toHaveCSS('stroke', 'none');
-    // Фигура ложится умножением (на слое фигуры), как подсветка: текст не выбеливается.
-    await expect(bookDocument(page).locator('.texture-note-shape')).toHaveCSS(
-        'mix-blend-mode',
-        'multiply',
-    );
-
-    // Клик по залитой области (не по тонкому контуру) открывает меню фигуры.
-    const box = await ellipse.boundingBox();
-    expect(box).not.toBeNull();
-    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await expect(page.getByTestId('note-menu')).toBeVisible();
-});
-
-test('типы заметок в книге сохраняются после перезагрузки', async ({ page }) => {
-    await page.goto('/');
-    await addBook(page, 'Демо-книга');
-    await openNotes(page);
-
-    await selectTool(page, 'Текст');
-    await bookDocument(page).locator('.texture-chapter').first().click({ position: { x: 40, y: 30 } });
-    await page.getByTestId('text-card-editor').getByLabel('Текст заметки').fill('Мысль');
-    await page.getByTestId('text-card-editor').getByRole('button', { name: 'Сохранить' }).click();
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+    // Название вытесняет цитату в имени записи, комментарий виден отдельной строкой.
+    await expect(page.getByTestId('notes-item-link')).toContainText('Тезис о тексте');
+    await expect(page.getByTestId('notes-item-comment')).toHaveText('Разобрать позже');
 
     await expect
         .poll(async () => {
@@ -666,176 +542,97 @@ test('типы заметок в книге сохраняются после п
     await openWorkspace(page);
     await openNotes(page);
 
-    await expect(page.getByTestId('notes-item-type')).toHaveText('Текст');
-    await expect(bookDocument(page).locator('.texture-note-card').first()).toHaveText('Мысль');
+    await expect(page.getByTestId('notes-item-link')).toContainText('Тезис о тексте');
+    await expect(page.getByTestId('notes-item-comment')).toHaveText('Разобрать позже');
 });
 
-test('текстовую карточку можно переместить через контекстное меню', async ({ page }) => {
+test('в списке виден тип заметки и начало цитаты', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');
     await openNotes(page);
-
-    await selectTool(page, 'Текст');
-    await bookDocument(page).locator('.texture-chapter').first().click({ position: { x: 40, y: 30 } });
-    await page.getByTestId('text-card-editor').getByLabel('Текст заметки').fill('Сдвинь меня');
-    await page.getByTestId('text-card-editor').getByRole('button', { name: 'Сохранить' }).click();
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
-
-    const card = bookDocument(page).locator('.texture-note-card').first();
-    const before = await card.evaluate((element) => element.style.left);
-    await card.click();
-    // Клик по существующей карточке (инструмент «текст» уже активен) выбирает
-    // её, но не открывает редактор новой заметки.
-    await expect(page.getByTestId('note-menu')).toBeVisible();
-    await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
-    await page.getByTestId('note-menu').getByRole('button', { name: 'Переместить' }).click();
-    // В режиме перемещения показаны направляющие осей, совпадающие с карточкой.
-    const guide = page.getByTestId('note-move-guide');
-    await expect(guide).toBeVisible();
-    const guideBox = await guide.boundingBox();
-    const cardBox = await card.boundingBox();
-    expect(guideBox).not.toBeNull();
-    expect(cardBox).not.toBeNull();
-    expect(Math.abs(guideBox!.y - cardBox!.y)).toBeLessThan(2);
-    // Рамка направляющих не выходит за карточку ни по одной стороне.
-    expect(Math.abs(guideBox!.width - cardBox!.width)).toBeLessThan(2);
-    expect(Math.abs(guideBox!.height - cardBox!.height)).toBeLessThan(2);
-
-    const box = await card.boundingBox();
-    expect(box).not.toBeNull();
-    await page.mouse.move(box!.x + 5, box!.y + 5);
-    await page.mouse.down();
-    // Во время протяжки заметка следует за курсором, а не ждёт сохранения.
-    await page.mouse.move(box!.x + 35, box!.y + 25);
-    const during = await card.boundingBox();
-    expect(during).not.toBeNull();
-    expect(during!.x - cardBox!.x).toBeGreaterThan(10);
-    await page.mouse.move(box!.x + 65, box!.y + 45, { steps: 6 });
-    await page.mouse.up();
-
-    await expect
-        .poll(async () => card.evaluate((element) => element.style.left))
-        .not.toBe(before);
-});
-
-test('клик по заметке переключает инструмент на её тип и позволяет переместить', async ({
-    page,
-}) => {
-    await page.goto('/');
-    await addBook(page, 'Демо-книга');
-    await openNotes(page);
-
-    // Создаём текстовую карточку, затем переключаемся на инструмент фигуры.
-    await selectTool(page, 'Текст');
-    await bookDocument(page).locator('.texture-chapter').first().click({ position: { x: 40, y: 30 } });
-    await page.getByTestId('text-card-editor').getByLabel('Текст заметки').fill('Сдвинь');
-    await page.getByTestId('text-card-editor').getByRole('button', { name: 'Сохранить' }).click();
-    await expect(page.getByTestId('notes-item')).toHaveCount(1);
-
-    await selectTool(page, 'Фигура');
-    const shapeButton = page.getByTestId('note-toolbar').getByRole('button', { name: 'Фигура' });
-    await expect(shapeButton).toHaveAttribute('aria-pressed', 'true');
-
-    const card = bookDocument(page).locator('.texture-note-card').first();
-    await card.click();
-    // Инструмент следует за типом заметки: карточка переводит панель в «Текст».
-    const textButton = page.getByTestId('note-toolbar').getByRole('button', { name: 'Текст' });
-    await expect(textButton).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('note-menu')).toBeVisible();
-
-    await page.getByTestId('note-menu').getByRole('button', { name: 'Переместить' }).click();
-    await expect(page.getByTestId('note-move-guide')).toBeVisible();
-
-    const before = await card.evaluate((element) => element.style.left);
-    const box = await card.boundingBox();
-    expect(box).not.toBeNull();
-    await page.mouse.move(box!.x + 5, box!.y + 5);
-    await page.mouse.down();
-    await page.mouse.move(box!.x + 60, box!.y + 40, { steps: 6 });
-    await page.mouse.up();
-
-    await expect.poll(async () => card.evaluate((element) => element.style.left)).not.toBe(before);
-});
-
-test('границы цитаты сдвигаются через контекстное меню', async ({ page }) => {
-    await page.goto('/');
-    await addBook(page, 'Демо-книга');
-    await openNotes(page);
-
-    await selectTool(page, 'Цитата');
     await highlightParagraph(page, 'Первый абзац книги.');
 
-    const mark = bookDocument(page).locator('mark.texture-note').first();
-    await mark.click();
-    await expect(page.getByTestId('note-menu')).toBeVisible();
-    await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить выделение' }).click();
-    await expect(page.getByTestId('note-editing-hint')).toBeVisible();
-    await expect(bookDocument(page).locator('.texture-note-handle')).toHaveCount(2);
+    // Название не задано: имя — это цитата, отдельного повтора нет.
+    await expect(page.getByTestId('notes-item-type')).toHaveText('Цитата');
+    await expect(page.getByTestId('notes-item-preview')).toHaveCount(0);
+
+    // После задания названия цитата остаётся видна отдельной строкой.
+    await page.getByLabel('Действия с заметкой').first().click();
+    await page.getByRole('menuitem', { name: 'Изменить' }).click();
+    await page.getByLabel('Название заметки').fill('Тезис');
+    await page.getByTestId('notes-item-editor').getByRole('button', { name: 'Сохранить' }).click();
+
+    await expect(page.getByTestId('notes-item-link')).toContainText('Тезис');
+    await expect(page.getByTestId('notes-item-preview')).toContainText('Первый абзац книги.');
 });
 
-test('фигуру можно выбрать и переместить через контекстное меню', async ({ page }) => {
+test('комментарий заметки можно удалить из формы правки', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');
     await openNotes(page);
+    await highlightParagraph(page, 'Первый абзац книги.');
 
-    await selectTool(page, 'Фигура');
-    // Диагональная линия: её середина лежит на контуре, поэтому клик по центру
-    // мишени попадает по фигуре.
-    const chapter = bookDocument(page).locator('.texture-chapter').first();
-    await chapter.dragTo(chapter, {
-        sourcePosition: { x: 40, y: 40 },
-        targetPosition: { x: 220, y: 120 },
-    });
+    await page.getByLabel('Действия с заметкой').first().click();
+    await page.getByRole('menuitem', { name: 'Изменить' }).click();
+    await page.getByLabel('Комментарий заметки').fill('Временный');
+    await page.getByTestId('notes-item-editor').getByRole('button', { name: 'Сохранить' }).click();
+    await expect(page.getByTestId('notes-item-comment')).toHaveText('Временный');
+
+    // Кнопка «Удалить комментарий» очищает поле, заметка остаётся.
+    await page.getByLabel('Действия с заметкой').first().click();
+    await page.getByRole('menuitem', { name: 'Изменить' }).click();
+    await page.getByTestId('notes-item-editor').getByRole('button', { name: 'Удалить комментарий' }).click();
+    await page.getByTestId('notes-item-editor').getByRole('button', { name: 'Сохранить' }).click();
+
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
+    await expect(page.getByTestId('notes-item-comment')).toHaveCount(0);
+});
 
-    const shape = bookDocument(page).locator('.texture-note-shape').first();
-    await shape.locator('path').click();
+test('при малой высоте окна форма правки остаётся доступной', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 420 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+    await highlightParagraph(page, 'Первый абзац книги.');
+
+    await page.getByLabel('Действия с заметкой').first().click();
+    await page.getByRole('menuitem', { name: 'Изменить' }).click();
+
+    // Форма не сжата и не обрезана: её кнопки видны и попадают в область панели.
+    const save = page.getByTestId('notes-item-editor').getByRole('button', { name: 'Сохранить' });
+    await expect(save).toBeVisible();
+    const box = await save.boundingBox();
+    const panel = await page.getByTestId('notes-panel').boundingBox();
+    expect(box).not.toBeNull();
+    expect(panel).not.toBeNull();
+    expect(box!.y + box!.height).toBeLessThanOrEqual(panel!.y + panel!.height + 1);
+});
+
+test('границы цитаты в EPUB применяются по отпусканию маркера', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+    await highlightParagraph(page, 'Первый абзац книги.');
+
+    // Меню заметки (общий компонент) открывает правку границ.
+    const frame = page.frameLocator('iframe[title="Чтение книги"]');
+    await frame.locator('mark.texture-note').first().click();
     await expect(page.getByTestId('note-menu')).toBeVisible();
-    await page.getByTestId('note-menu').getByRole('button', { name: 'Переместить' }).click();
-    // Направляющие перемещения показывают, что фигура готова к перетаскиванию
-    // и совпадают с положением фигуры (раньше они были смещены вверх).
-    const guide = page.getByTestId('note-move-guide');
-    await expect(guide).toBeVisible();
-    const lineBox = await shape.locator('line').boundingBox();
-    const guideBox = await guide.boundingBox();
-    expect(guideBox).not.toBeNull();
-    expect(lineBox).not.toBeNull();
-    expect(Math.abs(guideBox!.y - lineBox!.y)).toBeLessThan(4);
+    await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить выделение' }).click();
 
-    const line = shape.locator('line');
-    const beforeLeft = await shape.evaluate((el) => (el as HTMLElement).style.left);
-    const box = await line.boundingBox();
+    // Плашки с подтверждением нет: правка завершается по отпусканию кнопки.
+    await expect(page.getByTestId('note-editing-hint')).toHaveCount(0);
+    await expect(frame.locator('.texture-note-handle')).toHaveCount(2);
+
+    const handle = frame.locator('.texture-note-handle[data-note-handle="end"]').first();
+    const box = await handle.boundingBox();
     expect(box).not.toBeNull();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
     await page.mouse.down();
-    await page.mouse.move(box!.x + box!.width / 2 + 50, box!.y + box!.height / 2 + 30, { steps: 6 });
+    await page.mouse.move(box!.x + box!.width / 2 + 40, box!.y + box!.height / 2, { steps: 6 });
     await page.mouse.up();
 
-    // Перемещение смещает слой фигуры: координаты внутри слоя нормированы, и
-    // положение задаётся рамкой слоя, а не атрибутами фигуры.
-    await expect
-        .poll(async () => shape.evaluate((el) => (el as HTMLElement).style.left))
-        .not.toBe(beforeLeft);
-});
-
-test('меню заметки закрывается при клике в списке заметок', async ({ page }) => {
-    await page.goto('/');
-    await addBook(page, 'Демо-книга');
-    await openNotes(page);
-
-    await selectTool(page, 'Цитата');
-    await highlightParagraph(page, 'Первый абзац книги.');
-    await selectTool(page, 'Текст');
-    await bookDocument(page).locator('.texture-chapter').first().click({ position: { x: 40, y: 30 } });
-    await page.getByTestId('text-card-editor').getByLabel('Текст заметки').fill('Вторая');
-    await page.getByTestId('text-card-editor').getByRole('button', { name: 'Сохранить' }).click();
-    await expect(page.getByTestId('notes-item')).toHaveCount(2);
-
-    const card = bookDocument(page).locator('.texture-note-card').first();
-    await card.click();
-    await expect(page.getByTestId('note-menu')).toBeVisible();
-
-    // Взаимодействие вне меню (заметка в списке) закрывает его.
-    await page.getByTestId('notes-item-link').first().click();
-    await expect(page.getByTestId('note-menu')).toHaveCount(0);
+    // После отпускания маркеры и правка снимаются, цитата остаётся подсвеченной.
+    await expect(frame.locator('.texture-note-handle')).toHaveCount(0);
+    await expect(frame.locator('mark.texture-note').first()).toBeVisible();
 });

@@ -85,6 +85,12 @@ pub struct Note {
     /// Метка главы или раздела места в книге.
     #[serde(default)]
     pub chapter: String,
+    /// Пользовательское название заметки.
+    #[serde(default)]
+    pub title: String,
+    /// Пользовательский комментарий к заметке.
+    #[serde(default)]
+    pub comment: String,
     /// Цвет подсветки заметки.
     #[serde(default = "default_color")]
     pub color: String,
@@ -145,6 +151,12 @@ pub struct NoteInput {
     /// Метка главы или раздела места в книге.
     #[serde(default)]
     pub chapter: String,
+    /// Пользовательское название заметки.
+    #[serde(default)]
+    pub title: String,
+    /// Пользовательский комментарий к заметке.
+    #[serde(default)]
+    pub comment: String,
     /// Цвет подсветки заметки; отсутствие даёт цвет по умолчанию.
     #[serde(default)]
     pub color: Option<String>,
@@ -183,6 +195,12 @@ pub struct NotePatch {
     /// Новая метка главы или раздела; при отсутствии не меняется.
     #[serde(default)]
     pub chapter: Option<String>,
+    /// Новое пользовательское название; при отсутствии не меняется.
+    #[serde(default)]
+    pub title: Option<String>,
+    /// Новый пользовательский комментарий; при отсутствии не меняется.
+    #[serde(default)]
+    pub comment: Option<String>,
     /// Новый цвет подсветки; при отсутствии не меняется.
     #[serde(default)]
     pub color: Option<String>,

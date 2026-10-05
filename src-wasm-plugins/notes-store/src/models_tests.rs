@@ -8,6 +8,8 @@ fn note_roundtrip_preserves_anchor_and_metadata() {
         anchor: "epubcfi(/6/4[chap01]!/4/2/2[para3])".to_string(),
         quote: "цитата".to_string(),
         chapter: "Глава 1".to_string(),
+        title: "Тезис".to_string(),
+        comment: "Проверить позже".to_string(),
         color: "green".to_string(),
         percent: Some(12.5),
         page: Some(42),
@@ -30,6 +32,14 @@ fn note_accepts_missing_optional_fields() {
     assert_eq!(note.page, None);
     assert!(note.anchor.is_empty());
     assert!(note.text.is_empty());
+    assert!(
+        note.title.is_empty(),
+        "заметка без названия — пустое название"
+    );
+    assert!(
+        note.comment.is_empty(),
+        "заметка без комментария — пустой комментарий"
+    );
     assert_eq!(
         note.color, DEFAULT_NOTE_COLOR,
         "заметка без цвета — цвет по умолчанию"
@@ -121,6 +131,8 @@ fn note_patch_ignores_absent_fields() {
     assert_eq!(patch.text.as_deref(), Some("новый"));
     assert_eq!(patch.quote, None);
     assert_eq!(patch.chapter, None);
+    assert_eq!(patch.title, None);
+    assert_eq!(patch.comment, None);
     assert_eq!(patch.percent, None);
     assert_eq!(patch.page, None);
     assert_eq!(patch.note_type, None);
@@ -136,6 +148,8 @@ fn note_roundtrip_preserves_type_shape_and_geometry() {
         anchor: "{\"kind\":\"point\"}".to_string(),
         quote: String::new(),
         chapter: String::new(),
+        title: String::new(),
+        comment: String::new(),
         color: "black".to_string(),
         percent: Some(1.0),
         page: None,
@@ -162,4 +176,22 @@ fn note_input_reads_json_type_field() {
     assert_eq!(input.note_type.as_deref(), Some("text"));
     assert_eq!(input.shape.as_deref(), Some("rectangle"));
     assert_eq!(input.geometry, "g");
+}
+
+#[test]
+fn note_and_patch_carry_title_and_comment() {
+    let note: Note =
+        serde_json::from_str(r#"{ "id": "note-1", "title": "Идея", "comment": "Разобрать" }"#)
+            .expect("заметка без полей");
+    assert_eq!(note.title, "Идея");
+    assert_eq!(note.comment, "Разобрать");
+
+    let patch: NotePatch =
+        serde_json::from_str(r#"{ "title": "Новое", "comment": "" }"#).expect("патч");
+    assert_eq!(patch.title.as_deref(), Some("Новое"));
+    assert_eq!(
+        patch.comment.as_deref(),
+        Some(""),
+        "явная пустая строка очищает комментарий"
+    );
 }

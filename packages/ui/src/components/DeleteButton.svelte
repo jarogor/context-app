@@ -10,6 +10,8 @@
     ariaLabel?: string;
     /** Размер кнопки. */
     size?: 'md' | 'sm' | 'icon';
+    /** Недоступность. */
+    disabled?: boolean;
     /** Дополнительные классы. */
     class?: string;
   }
@@ -19,6 +21,7 @@
     title = 'Удалить',
     ariaLabel,
     size = 'icon',
+    disabled = false,
     class: className = '',
   }: Props = $props();
 </script>
@@ -28,6 +31,7 @@
   {size}
   {title}
   ariaLabel={ariaLabel ?? title}
+  {disabled}
   {onclick}
   class={className}
 >

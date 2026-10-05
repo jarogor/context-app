@@ -194,6 +194,8 @@ impl NotesState {
             anchor: input.anchor,
             quote: input.quote,
             chapter: input.chapter,
+            title: input.title,
+            comment: input.comment,
             color: normalize_color(input.color.as_deref().unwrap_or_default()),
             percent: input.percent,
             page: input.page,
@@ -239,6 +241,12 @@ impl NotesState {
         }
         if let Some(chapter) = patch.chapter {
             note.chapter = chapter;
+        }
+        if let Some(title) = patch.title {
+            note.title = title;
+        }
+        if let Some(comment) = patch.comment {
+            note.comment = comment;
         }
         if let Some(color) = patch.color {
             note.color = normalize_color(&color);
@@ -304,6 +312,8 @@ fn normalize_note(note: Note) -> Option<Note> {
         anchor: note.anchor,
         quote: note.quote,
         chapter: note.chapter,
+        title: note.title,
+        comment: note.comment,
         color: normalize_color(&note.color),
         percent: note.percent.filter(|value| value.is_finite()),
         page: note.page,

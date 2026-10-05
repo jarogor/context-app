@@ -7,7 +7,8 @@
   import WorkspacesPage from './WorkspacesPage.svelte';
   import { activeTab } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
-  import type { Note, NoteListItem, NoteSetSummary, NoteTool, ShapeKind } from '../notes/notes';
+  import type { Note, NoteListItem, NoteSetSummary, NoteTool, NoteType, ShapeKind } from '../notes/notes';
+  import { NOTE_TYPES } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
 
@@ -62,10 +63,14 @@
     tool: NoteTool;
     /** Смена активного инструмента заметок. */
     onToolChange: (tool: NoteTool) => void;
+    /** Доступные типы заметок текущего формата (текучий — только цитата). */
+    allowedNoteTypes?: readonly NoteType[];
     /** Удаление заметки. */
     onDeleteNote: (noteId: string) => void;
     /** Смена цвета подсветки заметки. */
     onChangeNoteColor: (noteId: string, color: NoteColor) => void;
+    /** Изменение названия и комментария заметки. */
+    onEditNote: (noteId: string, details: { title: string; comment: string }) => void;
     /** Переход к заметке в тексте книги. */
     onGoToNote: (note: Note) => void;
     /** Клик по подсветке заметки в книге: открыть панель и выбрать заметку. */
@@ -122,8 +127,10 @@
     onShape,
     tool,
     onToolChange,
+    allowedNoteTypes = NOTE_TYPES,
     onDeleteNote,
     onChangeNoteColor,
+    onEditNote,
     onGoToNote,
     onSelectNote,
     onPlaceNote,
@@ -206,7 +213,7 @@
       onBackToList={onBackToList}
     />
     {#if workspace.tabs.length > 0}
-      <NoteToolbar {tool} onChange={onToolChange} />
+      <NoteToolbar {tool} allowedTypes={allowedNoteTypes} onChange={onToolChange} />
     {/if}
     <div class="flex min-h-0 flex-1">
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -269,6 +276,7 @@
           onGoToNote={onGoToNote}
           onDeleteNote={onDeleteNote}
           onChangeColor={onChangeNoteColor}
+          onEditNote={onEditNote}
           onSelectSet={onSelectSet}
           onCreateSet={onCreateSet}
           onRenameSet={onRenameSet}

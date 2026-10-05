@@ -1034,10 +1034,10 @@
         }
       }
 
-      /** Закрытие контекстного меню заметки. */
+      /** Закрытие контекстного меню заметки: снимается состояние и меню оболочки. */
       function closeNoteMenu() {
-        if (noteMenu && noteMenu.element) {
-          noteMenu.element.remove();
+        if (noteMenu) {
+          post({ type: 'note-menu-close' });
         }
         noteMenu = null;
       }
@@ -1086,63 +1086,29 @@
         moveGuide = guide;
       }
 
-      /** Иконки действий меню заметки (совпадают с интерфейсом оболочки). */
-      const NOTE_MENU_ICONS = {
-        move:
-          '<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>',
-        resize:
-          '<path d="M4 9h13M4 9l3-3M4 9l3 3M20 15H7M20 15l-3-3M20 15l-3 3"/>',
-        close: '<path d="M6 6l12 12M18 6L6 18"/>',
-      };
-
-      /** Кнопка-иконка контекстного меню заметки. */
-      function menuIconButton(icon, label, onClick) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.title = label;
-        button.setAttribute('aria-label', label);
-        button.innerHTML =
-          '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" ' +
-          'fill="none" stroke="currentColor" stroke-width="2" ' +
-          `stroke-linecap="round" stroke-linejoin="round">${NOTE_MENU_ICONS[icon]}</svg>`;
-        button.addEventListener('click', (event) => {
-          event.stopPropagation();
-          onClick();
-        });
-        return button;
-      }
-
-      /** Открытие контекстного меню заметки у её элемента. */
-      function openNoteMenu(note, element, overlay, pageEl) {
-        closeNoteMenu();
-        const menu = document.createElement('div');
-        menu.className = 'note-menu';
+      /** Сообщение оболочке об открытии или закрытии меню заметки.
+       *
+       * Собственную копию меню плагин не строит: меню принадлежит оболочке и
+       * общее для всех режимов чтения. Плагин лишь сообщает прямоугольник
+       * заметки в координатах области чтения, а команды перемещения и правки
+       * границ приходят обратно сообщением `note-menu-action`.
+       */
+      function openNoteMenu(note, element) {
         // У фигуры наложение — SVG во всю страницу; для привязки меню берётся
         // её графический элемент, иначе меню уезжает к низу страницы.
         const graphic = element.querySelector('line,rect,ellipse') || element;
         const rect = graphic.getBoundingClientRect();
-        const pageBounds = pageEl.getBoundingClientRect();
-        menu.style.left = Math.max(0, rect.left - pageBounds.left) + 'px';
-        menu.style.top = Math.max(0, rect.bottom - pageBounds.top + 6) + 'px';
-        const type = note.type || 'quote';
-        if (type === 'quote') {
-          menu.appendChild(
-            menuIconButton('resize', 'Изменить выделение', () => {
-              startResize(note);
-              closeNoteMenu();
-            }),
-          );
-        } else {
-          menu.appendChild(
-            menuIconButton('move', 'Переместить', () => {
-              startMove(note);
-              closeNoteMenu();
-            }),
-          );
-        }
-        menu.appendChild(menuIconButton('close', 'Закрыть', closeNoteMenu));
-        overlay.appendChild(menu);
-        noteMenu = { noteId: note.id, element: menu, overlay, pageEl, noteType: type };
+        noteMenu = { noteId: note.id, noteType: note.type || 'quote' };
+        post({
+          type: 'note-menu',
+          value: {
+            noteId: note.id,
+            noteType: noteMenu.noteType,
+            left: rect.left,
+            top: rect.top,
+            bottom: rect.bottom,
+          },
+        });
       }
 
       /** Сообщение приложению о новом размещении заметки. */
@@ -1964,6 +1930,19 @@
           } else if (anchor && anchor.page) {
             gotoPage(anchor.page);
           }
+        } else if (message.type === 'note-menu-action') {
+          // Команда меню оболочки: перемещение заметки или правка границ цитаты.
+          const value = message.value || {};
+          const note = value.noteId ? noteById(value.noteId) : null;
+          closeNoteMenu();
+          if (!note) {
+            return;
+          }
+          if (value.action === 'move') {
+            startMove(note);
+          } else if (value.action === 'resize') {
+            startResize(note);
+          }
         } else if (message.type === 'notes') {
           notes = Array.isArray(message.value) ? message.value : [];
           redrawAllNotes();
@@ -2015,11 +1994,9 @@
           return;
         }
         post({ type: 'note-click', value: { noteId: element.dataset.noteId } });
-        const pageEl = element.closest('.page');
-        const overlay = pageEl ? overlayOf(pageEl) : null;
         const note = noteById(element.dataset.noteId);
-        if (note && pageEl && overlay) {
-          openNoteMenu(note, element, overlay, pageEl);
+        if (note) {
+          openNoteMenu(note, element);
         }
       });
       /** Перерисовка при смене плотности пикселей (перемещение между экранами). */

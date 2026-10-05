@@ -17,16 +17,21 @@
   interface Props {
     /** Активный инструмент создания заметок. */
     tool: NoteTool;
+    /** Доступные типы заметок текущего формата; по умолчанию все три. */
+    allowedTypes?: readonly NoteType[];
     /** Сообщение о выборе инструмента или цвета. */
     onChange: (tool: NoteTool) => void;
   }
 
-  let { tool, onChange }: Props = $props();
+  let { tool, allowedTypes = NOTE_TYPES, onChange }: Props = $props();
 
   /** Варианты видов фигур для выпадающего списка. */
   const shapeOptions = $derived(
     SHAPE_KINDS.map((kind) => ({ value: kind, label: SHAPE_KIND_LABELS[kind] })),
   );
+
+  /** Доступные инструменты типов в порядке панели. */
+  const typeOptions = $derived(NOTE_TYPES.filter((type) => allowedTypes.includes(type)));
 
   /** Образцы выбора цвета заметки. */
   const colorSwatches = $derived<ColorSwatch[]>(
@@ -77,7 +82,7 @@
   />
 
   <div class="flex items-center gap-1" role="group" aria-label="Тип заметки">
-    {#each NOTE_TYPES as type (type)}
+    {#each typeOptions as type (type)}
       <Button
         variant={tool.type === type ? 'primary' : 'ghost'}
         size="sm"
@@ -91,7 +96,7 @@
     {/each}
   </div>
 
-  {#if tool.type === 'shape'}
+  {#if tool.type === 'shape' && typeOptions.includes('shape')}
     <div class="flex items-center" data-testid="note-tool-shape">
       <Select
         value={tool.shape}

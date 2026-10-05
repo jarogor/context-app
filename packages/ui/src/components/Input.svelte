@@ -8,6 +8,8 @@
     type?: string;
     /** Плейсхолдер. */
     placeholder?: string;
+    /** Доступное имя поля (aria-label). */
+    ariaLabel?: string;
     /** Идентификатор для label. */
     id?: string;
     /** Недоступность. */
@@ -24,6 +26,7 @@
     value = $bindable(''),
     type = 'text',
     placeholder = '',
+    ariaLabel,
     id,
     disabled = false,
     class: className = '',
@@ -37,6 +40,7 @@
   {type}
   {placeholder}
   {disabled}
+  aria-label={ariaLabel}
   bind:value
   {oninput}
   {onkeydown}

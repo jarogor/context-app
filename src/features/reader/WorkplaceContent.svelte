@@ -6,7 +6,7 @@
     readWorkplaceBook,
   } from './reader';
   import { buildViewerDocument } from './viewer-bundle';
-  import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
+  import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import type { QuoteAnchor } from './reader/anchor';
 
@@ -43,6 +43,16 @@
     onShape?: (anchor: QuoteAnchor, shape: ShapeKind, geometry: string, color: NoteColor) => void;
     /** Клик по подсветке заметки: открыть панель и выбрать заметку. */
     onNoteClick?: (noteId: string) => void;
+    /** Открытие контекстного меню заметки: прямоугольник в координатах области. */
+    onNoteMenu?: (menu: {
+      noteId: string;
+      noteType: NoteType;
+      left: number;
+      top: number;
+      bottom: number;
+    }) => void;
+    /** Закрытие контекстного меню заметки. */
+    onNoteMenuClose?: () => void;
     /** Перемещение заметки или сдвиг границ цитаты (страничные форматы). */
     onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
     /** Ошибка отображения содержимого. */
@@ -66,6 +76,8 @@
     onTextPoint,
     onShape,
     onNoteClick,
+    onNoteMenu,
+    onNoteMenuClose,
     onPlaceNote,
     onError,
   }: Props = $props();
@@ -198,6 +210,26 @@
       if (typeof value.noteId === 'string') {
         onNoteClick?.(value.noteId);
       }
+    } else if (message.type === 'note-menu') {
+      const value =
+        (message.value as {
+          noteId?: unknown;
+          noteType?: unknown;
+          left?: unknown;
+          top?: unknown;
+          bottom?: unknown;
+        }) ?? {};
+      if (typeof value.noteId === 'string') {
+        onNoteMenu?.({
+          noteId: value.noteId,
+          noteType: String(value.noteType ?? 'quote') as NoteType,
+          left: Number(value.left) || 0,
+          top: Number(value.top) || 0,
+          bottom: Number(value.bottom) || 0,
+        });
+      }
+    } else if (message.type === 'note-menu-close') {
+      onNoteMenuClose?.();
     } else if (message.type === 'place-note') {
       const value =
         (message.value as { noteId?: unknown; anchor?: QuoteAnchor; geometry?: unknown }) ?? {};
@@ -257,6 +289,11 @@
   /** Переход к якорю заметки. */
   export function gotoAnchor(anchor: string, noteId = '') {
     post({ type: 'goto', value: { anchor, noteId } });
+  }
+
+  /** Команда меню заметки плагину: перемещение или правка границ. */
+  export function noteMenuAction(noteId: string, action: 'move' | 'resize') {
+    post({ type: 'note-menu-action', value: { noteId, action } });
   }
 </script>
 

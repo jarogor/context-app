@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { ActionMenu, Button, Input, Select, type MenuAction, type MenuColor } from '@texture/ui';
+  import { ActionMenu, Badge, Button, DeleteButton, Input, Select, Textarea, type MenuAction, type MenuColor } from '@texture/ui';
+  import { tick } from 'svelte';
   import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, noteMarkerColor, NOTE_TYPE_LABELS, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
 
   interface Props {
@@ -21,6 +22,8 @@
     onDeleteNote?: (noteId: string) => void;
     /** Смена цвета подсветки заметки. */
     onChangeColor?: (noteId: string, color: NoteColor) => void;
+    /** Изменение названия и комментария заметки. */
+    onEditNote?: (noteId: string, details: { title: string; comment: string }) => void;
     /** Выбор активного набора книги. */
     onSelectSet?: (setId: string) => void;
     /** Создание набора книги с указанным именем. */
@@ -41,6 +44,7 @@
     selectedId = null,
     onDeleteNote,
     onChangeColor,
+    onEditNote,
     onSelectSet,
     onCreateSet,
     onRenameSet,
@@ -62,10 +66,19 @@
   /** Черновик имени при переименовании. */
   let renameName = $state('');
 
+  /** Идентификатор заметки, у которой открыта форма названия и комментария. */
+  let editingNoteId: string | null = $state(null);
+
+  /** Черновик названия редактируемой заметки. */
+  let editTitle = $state('');
+
+  /** Черновик комментария редактируемой заметки. */
+  let editComment = $state('');
+
   /** Активный набор среди наборов книги. */
   const activeSet = $derived(sets.find((set) => set.id === activeSetId) ?? null);
 
-  /** Элементы с учётом поиска по имени и месту. */
+  /** Элементы с учётом поиска по имени, комментарию и месту. */
   const visible = $derived.by(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) {
@@ -73,7 +86,9 @@
     }
     return items.filter(
       (item) =>
-        item.name.toLowerCase().includes(needle) || item.place.toLowerCase().includes(needle),
+        item.name.toLowerCase().includes(needle) ||
+        item.note.comment.toLowerCase().includes(needle) ||
+        item.place.toLowerCase().includes(needle),
     );
   });
 
@@ -89,8 +104,11 @@
     { id: 'delete', label: 'Удалить', destructive: true, disabled: !activeSet },
   ]);
 
-  /** Пункты меню заметки: только удаление; цвет выбирается образцами. */
-  const noteActions: MenuAction[] = [{ id: 'delete', label: 'Удалить', destructive: true }];
+  /** Пункты меню заметки: изменение и удаление; цвет выбирается образцами. */
+  const noteActions: MenuAction[] = [
+    { id: 'edit', label: 'Изменить' },
+    { id: 'delete', label: 'Удалить', destructive: true },
+  ];
 
   /** Образцы выбора цвета для меню заметки: текущий цвет отмечен. */
   function noteColorOptions(current: NoteColor): MenuColor[] {
@@ -100,6 +118,54 @@
       color: NOTE_COLOR_SWATCHES[color],
       selected: color === current,
     }));
+  }
+
+  /** Начало правки названия и комментария заметки.
+   *
+   * Форма разворачивается внутри записи у нижнего края списка, поэтому после
+   * раскрытия её прокручивают в поле зрения: при малой высоте окна кнопки формы
+   * иначе оставались ниже края панели.
+   */
+  async function startEditNote(note: Note) {
+    editingNoteId = note.id;
+    editTitle = note.title;
+    editComment = note.comment;
+    await tick();
+    const editor = document.querySelector('[data-testid="notes-item-editor"]');
+    if (editor && typeof editor.scrollIntoView === 'function') {
+      editor.scrollIntoView({ block: 'end' });
+    }
+  }
+
+  /** Завершение правки без сохранения. */
+  function cancelEditNote() {
+    editingNoteId = null;
+    editTitle = '';
+    editComment = '';
+  }
+
+  /** Сохранение названия и комментария заметки. */
+  function commitEditNote(noteId: string) {
+    onEditNote?.(noteId, { title: editTitle, comment: editComment });
+    cancelEditNote();
+  }
+
+  /** Удаление комментария заметки: поле очищается, название остаётся. */
+  function clearEditComment() {
+    editComment = '';
+  }
+
+  /** Обработка пункта меню заметки. */
+  function runNoteAction(noteId: string, action: string) {
+    if (action === 'delete') {
+      onDeleteNote?.(noteId);
+    }
+    if (action === 'edit') {
+      const item = items.find((candidate) => candidate.note.id === noteId);
+      if (item) {
+        startEditNote(item.note);
+      }
+    }
   }
 
   /** Переключение активного набора из списка. */
@@ -277,12 +343,12 @@
       <p class="p-3 text-[13px] text-[var(--muted-foreground)]">Загрузка…</p>
     {:else}
       <ul
-        class="m-0 flex list-none flex-col gap-2 overflow-y-auto p-2"
+        class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2"
         data-testid="notes-list"
       >
         {#each visible as item (item.note.id)}
           <li
-            class="group relative overflow-hidden rounded-md border border-[var(--border)] py-2 pl-4 pr-2 transition-colors {selectedId ===
+            class="group relative shrink-0 overflow-hidden rounded-md border border-[var(--border)] py-2 pl-4 pr-2 transition-colors {selectedId ===
             item.note.id
               ? 'bg-[var(--primary-soft)]'
               : 'hover:bg-[var(--muted)]'}"
@@ -303,16 +369,34 @@
                 data-testid="notes-item-link"
                 onclick={() => onGoToNote?.(item.note)}
               >
-                <span class="block text-[13px] leading-snug">{item.name}</span>
-                <span
-                  class="mt-1 flex items-center gap-2 text-[11px] text-[var(--muted-foreground)]"
-                >
-                  <span data-testid="notes-item-type">{NOTE_TYPE_LABELS[item.note.type]}</span>
+                <span class="mb-1 flex items-center gap-2">
+                  <span data-testid="notes-item-type">
+                    <Badge>{NOTE_TYPE_LABELS[item.note.type]}</Badge>
+                  </span>
                   {#if item.place}
-                    <span data-testid="notes-item-place">{item.place}</span>
+                    <span
+                      class="text-[11px] text-[var(--muted-foreground)]"
+                      data-testid="notes-item-place">{item.place}</span
+                    >
                   {/if}
-                  <span>{formatDate(item.createdAtMillis)}</span>
+                  <span
+                    class="ml-auto text-[11px] text-[var(--muted-foreground)]"
+                    data-testid="notes-item-date">{formatDate(item.createdAtMillis)}</span
+                  >
                 </span>
+                <span class="block text-[13px] leading-snug">{item.name}</span>
+                {#if item.note.title.trim() && item.preview}
+                  <span
+                    class="mt-0.5 block whitespace-pre-wrap text-[12px] leading-snug italic text-[var(--muted-foreground)]"
+                    data-testid="notes-item-preview">«{item.preview}»</span
+                  >
+                {/if}
+                {#if item.note.comment}
+                  <span
+                    class="mt-0.5 block whitespace-pre-wrap text-[12px] leading-snug text-[var(--muted-foreground)]"
+                    data-testid="notes-item-comment">{item.note.comment}</span
+                  >
+                {/if}
               </button>
               <ActionMenu
                 ariaLabel="Действия с заметкой"
@@ -322,13 +406,73 @@
                 colors={noteColorOptions(item.note.color)}
                 colorsLabel="Цвет заметки"
                 oncolorselect={(color) => onChangeColor?.(item.note.id, color as NoteColor)}
-                onselect={(action) => {
-                  if (action === 'delete') {
-                    onDeleteNote?.(item.note.id);
-                  }
-                }}
+                onselect={(action) => runNoteAction(item.note.id, action)}
               />
             </div>
+            {#if editingNoteId === item.note.id}
+              <div
+                class="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-2"
+                data-testid="notes-item-editor"
+              >
+                <Input
+                  bind:value={editTitle}
+                  placeholder="Название"
+                  ariaLabel="Название заметки"
+                />
+                <Textarea
+                  bind:value={editComment}
+                  placeholder="Комментарий"
+                  ariaLabel="Комментарий заметки"
+                  rows={3}
+                />
+                <div class="flex items-center justify-between gap-2">
+                  <!-- Удаление комментария — отдельно слева, чтобы не задеть сохранение/отмену. -->
+                  <DeleteButton
+                    title="Удалить комментарий"
+                    ariaLabel="Удалить комментарий"
+                    disabled={!editComment}
+                    onclick={clearEditComment}
+                  />
+                  <div class="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      title="Отмена"
+                      ariaLabel="Отмена"
+                      onclick={cancelEditNote}
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                        <path
+                          d="M6 6l12 12M18 6L6 18"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                        />
+                      </svg>
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="icon"
+                      title="Сохранить"
+                      ariaLabel="Сохранить"
+                      onclick={() => commitEditNote(item.note.id)}
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                        <path
+                          d="M5 13l4 4L19 7"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            {/if}
           </li>
         {:else}
           <li
