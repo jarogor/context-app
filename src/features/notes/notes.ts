@@ -223,6 +223,8 @@ export interface NoteSet {
     id: string;
     /** Ключ книги, которой принадлежит набор. */
     bookKey: string;
+    /** Отображаемое имя книги; пустое, если не задано. */
+    bookTitle: string;
     /** Человекочитаемое имя набора. */
     name: string;
     /** Время создания (Unix, мс). */
@@ -231,12 +233,21 @@ export interface NoteSet {
     notes: Note[];
 }
 
+/** Набор реестра заметок: набор со всеми заметками и метаданными книги.
+ *
+ * Агрегат `list_all_sets` отдаёт наборы всех книг целиком — этого же типа, что
+ * и одиночный набор. Отдельное имя подчёркивает, что набор пришёл из реестра.
+ */
+export type AggregateNoteSet = NoteSet;
+
 /** Краткое описание набора в списке. */
 export interface NoteSetSummary {
     /** Идентификатор набора. */
     id: string;
     /** Ключ книги. */
     bookKey: string;
+    /** Отображаемое имя книги; пустое, если не задано. */
+    bookTitle: string;
     /** Человекочитаемое имя набора. */
     name: string;
     /** Число заметок в наборе. */
@@ -298,6 +309,7 @@ export function normalizeSet(value: unknown): NoteSet {
     return {
         id: String(record.id ?? ''),
         bookKey: String(record.book_key ?? ''),
+        bookTitle: String(record.book_title ?? ''),
         name: String(record.name ?? ''),
         createdAtMillis: toNumber(record.created_at_millis, 0),
         notes,
@@ -310,6 +322,7 @@ export function normalizeSetSummary(value: unknown): NoteSetSummary {
     return {
         id: String(record.id ?? ''),
         bookKey: String(record.book_key ?? ''),
+        bookTitle: String(record.book_title ?? ''),
         name: String(record.name ?? ''),
         noteCount: toNumber(record.note_count, 0),
     };
@@ -327,6 +340,16 @@ async function operation<T>(action: string, payload: unknown): Promise<T> {
 /** Наборы книги с идентификатором, именем и числом заметок. */
 export async function listSets(key: string): Promise<NoteSetSummary[]> {
     return (await loadSets(key)).sets;
+}
+
+/** Все наборы всех книг с заметками: агрегат для реестра заметок.
+ *
+ * Реестр получает наборы одним запросом, без опроса книг по отдельности.
+ * Порядок — порядок хранения наборов в хранилище.
+ */
+export async function listAllSets(): Promise<AggregateNoteSet[]> {
+    const response = await operation<{ sets?: unknown[] }>('list_all_sets', {});
+    return (response.sets ?? []).map(normalizeSet);
 }
 
 /** Список наборов книги вместе с сохранённым активным набором.
@@ -376,10 +399,20 @@ export async function getSet(setId: string): Promise<NoteSet> {
     return normalizeSet(response.set);
 }
 
-/** Создание набора с именем для книги. */
-export async function createSet(key: string, name: string): Promise<NoteSet> {
+/** Создание набора с именем для книги.
+ *
+ * Отображаемое имя книги необязательно: оболочка передаёт человекочитаемое имя
+ * открытой книги, чтобы реестр заметок группировал наборы по книге. Ключ книги
+ * остаётся непрозрачным и единственным идентификатором связи.
+ */
+export async function createSet(
+    key: string,
+    name: string,
+    bookTitle = '',
+): Promise<NoteSet> {
     const response = await operation<{ set?: unknown }>('create_set', {
         book_key: key,
+        book_title: bookTitle,
         name,
     });
     return normalizeSet(response.set);
@@ -668,6 +701,21 @@ export function notePlace(note: Note): string {
         return `${note.percent.toFixed(2)} %`;
     }
     return '';
+}
+
+/** Дата в коротком формате для списков заметок; ноль даёт пустую строку. */
+export function formatNoteDate(millis: number): string {
+    if (!millis) {
+        return '';
+    }
+    return new Date(millis).toLocaleString(undefined, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
 }
 
 /** Заметка-цитата в объёме списка. */

@@ -136,6 +136,87 @@ fn list_sets_is_scoped_to_book() {
 }
 
 #[test]
+fn list_all_sets_returns_all_books_without_event() {
+    let host = FakeHost::default();
+    handle(
+        &host,
+        &request(
+            "create_set",
+            json!({ "book_key": "lib/a", "book_title": "Книга A", "name": "A" }),
+        ),
+    )
+    .expect("набор A");
+    let second = create(&host, "lib/b", "B");
+    let events_before = host.events.borrow().len();
+
+    let output = handle(&host, &request("list_all_sets", json!({}))).expect("агрегат");
+    let sets = parse(&output)["sets"].as_array().expect("наборы").clone();
+    assert_eq!(sets.len(), 2, "наборы всех книг");
+    assert_eq!(sets[0]["book_title"], "Книга A");
+    assert_eq!(sets[1]["id"], second.as_str());
+    assert!(sets[0]["notes"].as_array().expect("заметки").is_empty());
+    assert_eq!(
+        host.events.borrow().len(),
+        events_before,
+        "чтение агрегата не публикует событие"
+    );
+}
+
+#[test]
+fn list_all_sets_is_empty_without_sets() {
+    let host = FakeHost::default();
+    let output = handle(&host, &request("list_all_sets", json!({}))).expect("агрегат");
+    assert!(parse(&output)["sets"]
+        .as_array()
+        .expect("наборы")
+        .is_empty());
+}
+
+#[test]
+fn create_set_keeps_book_title_and_survives_reload() {
+    let host = FakeHost::default();
+    let output = handle(
+        &host,
+        &request(
+            "create_set",
+            json!({ "book_key": "lib/a", "book_title": "  Война и мир  ", "name": "A" }),
+        ),
+    )
+    .expect("создание");
+    assert_eq!(parse(&output)["set"]["book_title"], "Война и мир");
+
+    let listed =
+        handle(&host, &request("list_sets", json!({ "book_key": "lib/a" }))).expect("список");
+    assert_eq!(parse(&listed)["sets"][0]["book_title"], "Война и мир");
+
+    let stored = host.state.borrow().clone().expect("состояние записано");
+    let state: NotesState = serde_json::from_str(&stored).expect("состояние парсится");
+    assert_eq!(
+        state
+            .find(parse(&output)["set"]["id"].as_str().expect("идентификатор"))
+            .expect("набор")
+            .book_title,
+        "Война и мир",
+        "имя книги переживает перезагрузку"
+    );
+}
+
+#[test]
+fn create_set_without_book_title_keeps_it_empty() {
+    let host = FakeHost::default();
+    let output = handle(
+        &host,
+        &request("create_set", json!({ "book_key": "lib/a", "name": "A" })),
+    )
+    .expect("создание");
+    assert_eq!(
+        parse(&output)["set"]["book_title"],
+        "",
+        "имя книги не выводится из ключа"
+    );
+}
+
+#[test]
 fn get_set_returns_full_set_and_rejects_unknown() {
     let host = FakeHost::default();
     let set_id = create(&host, "lib/a", "A");

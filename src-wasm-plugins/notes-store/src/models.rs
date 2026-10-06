@@ -125,6 +125,9 @@ pub struct NoteSet {
     /// Непрозрачный ключ книги, которой принадлежит набор.
     #[serde(default)]
     pub book_key: String,
+    /// Отображаемое имя книги, задаваемое вызывающей стороной; может отсутствовать.
+    #[serde(default)]
+    pub book_title: String,
     /// Человекочитаемое имя набора.
     #[serde(default)]
     pub name: String,

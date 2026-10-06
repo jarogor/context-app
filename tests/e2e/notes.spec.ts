@@ -72,6 +72,12 @@ async function openNotes(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('notes-panel')).toBeVisible();
 }
 
+/** Открытие раздела «Заметки» (реестр) из верхней панели. */
+async function openNotesRegistry(page: import('@playwright/test').Page) {
+    await page.getByRole('button', { name: 'Реестр заметок' }).click();
+    await expect(page.getByTestId('notes-library')).toBeVisible();
+}
+
 /** Триггер выпадающего списка наборов заметок. */
 function noteSetSelect(page: import('@playwright/test').Page) {
     return page.getByRole('button', { name: 'Набор заметок' });
@@ -635,4 +641,124 @@ test('границы цитаты в EPUB применяются по отпус
     // После отпускания маркеры и правка снимаются, цитата остаётся подсвеченной.
     await expect(frame.locator('.texture-note-handle')).toHaveCount(0);
     await expect(frame.locator('mark.texture-note').first()).toBeVisible();
+});
+
+/** Создание заметки в наборе книги и возврат к реестру. */
+async function noteInBook(
+    page: import('@playwright/test').Page,
+    book: string,
+    text: string,
+) {
+    await addBook(page, book);
+    if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
+        await page.getByRole('button', { name: 'Заметки' }).click();
+    }
+    await expect(page.getByTestId('notes-panel')).toBeVisible();
+    await highlightParagraph(page, text);
+    await expect(page.getByTestId('notes-item-link')).toContainText(text);
+}
+
+test('реестр заметок сворачивает заметки набора и раскрывает по клику', async ({ page }) => {
+    await page.goto('/');
+    // Заметка в первой книге создаёт набор с именем книги.
+    await noteInBook(page, 'Демо-книга', 'Первый абзац книги.');
+    // Вторая книга со своим набором.
+    await noteInBook(page, 'Третья книга', 'Первый абзац книги.');
+
+    await openNotesRegistry(page);
+
+    // В списке видны наборы с книгой-подписью, а не заметки.
+    const sets = page.getByTestId('notes-library-set');
+    await expect(sets).toHaveCount(2);
+    await expect(sets.filter({ hasText: 'Демо-книга' })).toHaveCount(1);
+    await expect(sets.filter({ hasText: 'Третья книга' })).toHaveCount(1);
+    await expect(page.getByTestId('notes-library-notes')).toHaveCount(0);
+
+    // Раскрытие набора по клику показывает заметки с типом.
+    const first = sets.filter({ hasText: 'Демо-книга' });
+    await first.getByTestId('notes-library-set-toggle').click();
+    const notes = first.getByTestId('notes-library-notes');
+    await expect(notes.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
+    await expect(notes.getByTestId('notes-item-type')).toHaveText('Цитата');
+});
+
+test('реестр заметок находит записи глобальным поиском', async ({ page }) => {
+    await page.goto('/');
+    await noteInBook(page, 'Демо-книга', 'Первый абзац книги.');
+    await noteInBook(page, 'Третья книга', 'Первый абзац книги.');
+
+    await openNotesRegistry(page);
+    await expect(page.getByTestId('notes-library-set')).toHaveCount(2);
+
+    const registry = page.getByTestId('notes-library');
+    const search = registry.getByPlaceholder('Поиск по заметкам');
+
+    // Поиск по имени книги оставляет только её.
+    await search.fill('Третья книга');
+    await expect(page.getByTestId('notes-library-set')).toHaveCount(1);
+    await expect(page.getByTestId('notes-library-book')).toContainText('Третья книга');
+
+    // Поиск без совпадений сообщает об этом.
+    await search.fill('нет такого');
+    await expect(page.getByTestId('notes-library-empty')).toContainText('ничего не найдено');
+});
+
+test('реестр заметок ведёт к книге и заметке', async ({ page }) => {
+    await page.goto('/');
+    await noteInBook(page, 'Демо-книга', 'Второй абзац книги.');
+
+    await openNotesRegistry(page);
+    const registry = page.getByTestId('notes-library');
+    await registry.getByTestId('notes-library-set-toggle').click();
+    await registry.getByTestId('notes-item-link').click();
+
+    // Открылась книга, панель заметок показывает выбранную заметку.
+    await expect(page.getByTestId('workplace-surface')).toBeVisible();
+    await expect(page.getByTestId('workplace-tab').last()).toHaveText('Демо-книга');
+    await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
+
+    await openNotesRegistry(page);
+    await expect(page.getByTestId('notes-library-book')).toContainText('Демо-книга');
+});
+
+test('реестр заметок перечитывается при изменении хранилища', async ({ page }) => {
+    await page.goto('/');
+    await openNotesRegistry(page);
+    await expect(page.getByTestId('notes-library-empty')).toBeVisible();
+
+    // Заметка в книге меняет хранилище: реестр обновляется по событию.
+    await noteInBook(page, 'Демо-книга', 'Первый абзац книги.');
+    await openNotesRegistry(page);
+    await expect(page.getByTestId('notes-library-book')).toContainText('Демо-книга');
+});
+
+test('реестр заметок сообщает о книге набора без файла', async ({ page }) => {
+    // Набор без файла-книги: переход из реестра должен сообщить о недоступности.
+    await page.addInitScript(() => {
+        window.localStorage.setItem(
+            'texture-notes',
+            JSON.stringify([
+                {
+                    id: 'ns-missing',
+                    bookKey: 'no-library',
+                    bookTitle: 'Без файла',
+                    name: 'Основные',
+                    notes: [],
+                },
+            ]),
+        );
+    });
+    await page.goto('/');
+
+    await openNotesRegistry(page);
+    await expect(page.getByTestId('notes-library-book')).toContainText('Без файла');
+
+    await page
+        .getByTestId('notes-library')
+        .getByLabel('Действия с набором заметок')
+        .click();
+    await page.getByRole('menuitem', { name: 'Открыть книгу' }).click();
+
+    // Раздел остаётся открытым и показывает диагностику недоступности.
+    await expect(page.getByTestId('notes-library-error')).toContainText('недоступна');
 });

@@ -35,6 +35,7 @@ import {
   type PluginEntry,
   type Store,
 } from '../store/plugin-store';
+import { listAllSets, type AggregateNoteSet } from '../notes/notes';
 import { invokeCommand } from '../../shared/app-bridge';
 
 /** Активная библиотека для шапки. */
@@ -59,6 +60,8 @@ export interface BootstrapState {
     notifications: NotificationsBootstrap;
     /** Каталог плагинов и сторов, загруженный до первого рендера. */
     store: StoreBootstrap;
+    /** Реестр наборов заметок, загруженный до первого рендера. */
+    notesLibrary: NotesLibraryBootstrap;
 }
 
 /** Оформление, прочитанное и применённое на бутстрапе. */
@@ -99,6 +102,14 @@ export interface StoreBootstrap {
     error: string;
 }
 
+/** Реестр наборов заметок на бутстрапе. */
+export interface NotesLibraryBootstrap {
+    /** Наборы заметок всех книг (агрегат `list_all_sets`). */
+    sets: AggregateNoteSet[];
+    /** Ошибка загрузки реестра, иначе пустая строка. */
+    error: string;
+}
+
 /** Загрузка начального состояния приложения: реестр, библиотека, поверхности.
  *
  * Сведения о библиотеке необязательны — при ошибке она считается не открытой;
@@ -108,15 +119,25 @@ export interface StoreBootstrap {
  * не должна мешать входу в приложение.
  */
 export async function loadBootstrap(): Promise<BootstrapState> {
-    const [registry, library, appearance, settings, notifications, store] = await Promise.all([
-        invokeCommand('get_workspaces', {}),
-        loadActiveLibrary(),
-        applyAppearance(),
-        loadSettingsBootstrap(),
-        loadNotificationsBootstrap(),
-        loadStoreBootstrap(),
-    ]);
-    return { registry, activeLibrary: library, appearance, settings, notifications, store };
+    const [registry, library, appearance, settings, notifications, store, notesLibrary] =
+        await Promise.all([
+            invokeCommand('get_workspaces', {}),
+            loadActiveLibrary(),
+            applyAppearance(),
+            loadSettingsBootstrap(),
+            loadNotificationsBootstrap(),
+            loadStoreBootstrap(),
+            loadNotesLibraryBootstrap(),
+        ]);
+    return {
+        registry,
+        activeLibrary: library,
+        appearance,
+        settings,
+        notifications,
+        store,
+        notesLibrary,
+    };
 }
 
 /** Чтение и применение оформления до первого кадра.
@@ -192,5 +213,14 @@ async function loadActiveLibrary(): Promise<ActiveLibrary | null> {
         return result?.path ? result : null;
     } catch {
         return null;
+    }
+}
+
+/** Загрузка реестра наборов заметок; ошибка даёт пустой реестр с диагностикой. */
+async function loadNotesLibraryBootstrap(): Promise<NotesLibraryBootstrap> {
+    try {
+        return { sets: await listAllSets(), error: '' };
+    } catch (cause) {
+        return { sets: [], error: String(cause) };
     }
 }

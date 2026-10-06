@@ -6,6 +6,7 @@
     loadBootstrap,
     type ActiveLibrary,
     type AppearanceBootstrap,
+    type NotesLibraryBootstrap,
     type NotificationsBootstrap,
     type SettingsBootstrap,
     type StoreBootstrap,
@@ -52,6 +53,9 @@
     error: '',
   });
 
+  /** Реестр наборов заметок, загруженный до первого рендера. */
+  let initialNotesLibrary: NotesLibraryBootstrap = $state({ sets: [], error: '' });
+
   /** Счётчик повторных попыток: перезапускает эффект загрузки. */
   let attempt = $state(0);
 
@@ -83,6 +87,7 @@
         initialSettings = state.settings;
         initialNotifications = state.notifications;
         initialStore = state.store;
+        initialNotesLibrary = state.notesLibrary;
         phase = 'ready';
       } catch (error) {
         if (!active) {
@@ -109,6 +114,7 @@
     initialSettings={initialSettings}
     initialNotifications={initialNotifications}
     initialStore={initialStore}
+    initialNotesLibrary={initialNotesLibrary}
   />
 {:else if phase === 'error'}
   <BootstrapError error={bootstrapError} onRetry={retry} />

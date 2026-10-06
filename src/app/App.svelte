@@ -7,6 +7,8 @@
   import LibraryPage from '../features/library/LibraryPage.svelte';
   import LibrariesPage from '../features/library/LibrariesPage.svelte';
   import AppInfoPage from '../features/settings/AppInfoPage.svelte';
+  import NotesLibraryPage from '../features/notes-library/NotesLibraryPage.svelte';
+  import { bookTitleOf } from '../features/notes-library/notes-library';
   import WorkplaceSurface from '../features/workplace/WorkplaceSurface.svelte';
   import WorkspacePickerDialog from '../features/workplace/WorkspacePickerDialog.svelte';
   import {
@@ -32,6 +34,7 @@
   import type { AppearanceBootstrap } from '../features/lifecycle/bootstrap';
   import type { SettingsBootstrap } from '../features/lifecycle/bootstrap';
   import type { NotificationsBootstrap } from '../features/lifecycle/bootstrap';
+  import type { NotesLibraryBootstrap } from '../features/lifecycle/bootstrap';
   import type { StoreBootstrap } from '../features/lifecycle/bootstrap';
   import {
     addQuote,
@@ -46,6 +49,7 @@
     DEFAULT_NOTE_TOOL,
     DEFAULT_SET_NAME,
     getSet,
+    listAllSets,
     listSets,
     loadSets,
     noteList,
@@ -55,6 +59,7 @@
     setActiveSet,
     updateNoteDetails,
     updateNotePlacement,
+    type AggregateNoteSet,
     type Note,
     type NoteColor,
     type NoteSetSummary,
@@ -89,6 +94,8 @@
     initialNotifications: NotificationsBootstrap;
     /** Каталог плагинов и сторов, загруженный до первого рендера. */
     initialStore: StoreBootstrap;
+    /** Реестр наборов заметок, загруженный до первого рендера. */
+    initialNotesLibrary: NotesLibraryBootstrap;
   }
 
   let {
@@ -98,6 +105,7 @@
     initialSettings,
     initialNotifications,
     initialStore,
+    initialNotesLibrary,
   }: Props = $props();
 
   /** Страница раздела настроек. */
@@ -111,6 +119,25 @@
 
   /** Открыта ли страница «Библиотеки»; состояние принадлежит оболочке. */
   let librariesOpen = $state(false);
+
+  /** Открыт ли раздел «Заметки»; состояние принадлежит оболочке. */
+  let notesLibraryOpen = $state(false);
+
+  /** Реестр наборов заметок всех книг (агрегат `list_all_sets`). */
+  let notesLibrarySets: AggregateNoteSet[] = $state(untrack(() => initialNotesLibrary.sets));
+
+  /** Ошибка загрузки реестра заметок для сообщения в разделе. */
+  let notesLibraryError: string = $state(untrack(() => initialNotesLibrary.error));
+
+  /** Идёт ли загрузка реестра заметок. */
+  let notesLibraryLoading = $state(false);
+
+  /** Номер последнего запроса реестра: ответы устаревших запросов отбрасываются. */
+  let notesLibraryLoadToken = 0;
+
+  /** Отложенный переход из реестра: книга открывается асинхронно. */
+  let pendingNoteTarget: { bookKey: string; setId: string; noteId: string | null } | null =
+    $state(null);
 
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
@@ -276,14 +303,17 @@
 
   /** Показан ли основной раздел библиотеки. */
   function isMainSection(): boolean {
-    return !settingsOpen && !librariesOpen && !workspaceOpen;
+    return !settingsOpen && !librariesOpen && !notesLibraryOpen && !workspaceOpen;
   }
 
   /** Видна ли поверхность рабочего места (с учётом модальных разделов). */
-  const workspaceVisible = $derived(workspaceOpen && !settingsOpen && !librariesOpen);
+  const workspaceVisible = $derived(workspaceOpen && !settingsOpen && !librariesOpen && !notesLibraryOpen);
 
   /** Видна ли страница «Библиотеки» (с учётом модального раздела настроек). */
-  const librariesVisible = $derived(librariesOpen && !settingsOpen);
+  const librariesVisible = $derived(librariesOpen && !settingsOpen && !notesLibraryOpen);
+
+  /** Виден ли раздел «Заметки» (с учётом модальных разделов). */
+  const notesLibraryVisible = $derived(notesLibraryOpen && !settingsOpen && !librariesOpen);
 
   /** Показывать ли в шапке имя активной библиотеки.
    *
@@ -309,9 +339,11 @@
           : 'Настройки'
       : librariesOpen
         ? 'Библиотеки'
-        : workspaceOpen
-          ? 'Рабочие места'
-          : 'Библиотека',
+        : notesLibraryOpen
+          ? 'Заметки'
+          : workspaceOpen
+            ? 'Рабочие места'
+            : 'Библиотека',
   );
 
   /** Имя открытого рабочего места для шапки; null в списке рабочих мест. */
@@ -338,6 +370,44 @@
     librariesOpen = !librariesOpen;
     if (librariesOpen) {
       settingsOpen = false;
+      notesLibraryOpen = false;
+    }
+  }
+
+  /** Переключение раздела «Заметки».
+   *
+   * Данные реестра загружены на бутстрапе и обновляются по событию
+   * `notes:changed`, поэтому открытие раздела не делает запрос и не показывает
+   * промежуточный пустой кадр.
+   */
+  function toggleNotesLibrary() {
+    notesLibraryOpen = !notesLibraryOpen;
+    if (notesLibraryOpen) {
+      settingsOpen = false;
+      librariesOpen = false;
+    }
+  }
+
+  /** Загрузка реестра наборов заметок всех книг. */
+  async function loadNotesLibrary() {
+    const token = ++notesLibraryLoadToken;
+    notesLibraryLoading = notesLibrarySets.length === 0;
+    try {
+      const sets = await listAllSets();
+      if (token !== notesLibraryLoadToken) {
+        return;
+      }
+      notesLibrarySets = sets;
+      notesLibraryError = '';
+    } catch (error) {
+      if (token !== notesLibraryLoadToken) {
+        return;
+      }
+      notesLibraryError = String(error);
+    } finally {
+      if (token === notesLibraryLoadToken) {
+        notesLibraryLoading = false;
+      }
     }
   }
 
@@ -350,6 +420,7 @@
     const wasActive = workspaceVisible;
     settingsOpen = false;
     librariesOpen = false;
+    notesLibraryOpen = false;
     if (wasActive) {
       workspaceOpen = false;
     } else {
@@ -560,6 +631,11 @@
     }
   }
 
+  /** Отображаемое имя книги активной вкладки; для набора заметок. */
+  function currentBookTitle(): string {
+    return currentTab?.title ?? '';
+  }
+
   /** Создание набора книги с непустым именем; он становится активным и пустым. */
   async function createNoteSet(name: string) {
     const key = notesBookKey;
@@ -568,7 +644,7 @@
       return;
     }
     try {
-      const set = await createSet(key, trimmed);
+      const set = await createSet(key, trimmed, currentBookTitle());
       // Пользователь мог переключить книгу, пока набор создавался: результат
       // принадлежит прежней книге и в текущей панели показываться не должен.
       if (notesBookKey !== key) {
@@ -669,7 +745,7 @@
     try {
       let setId = activeSetByBook[key] ?? notesSetId;
       if (!setId) {
-        const set = await createSet(key, DEFAULT_SET_NAME);
+        const set = await createSet(key, DEFAULT_SET_NAME, currentBookTitle());
         setId = set.id;
         notesSets = await listSets(key);
       }
@@ -679,6 +755,7 @@
         {
           id: setId,
           bookKey: key,
+          bookTitle: currentBookTitle(),
           name: '',
           createdAtMillis: 0,
           notes,
@@ -733,7 +810,7 @@
   async function ensureActiveSet(key: string): Promise<string> {
     let setId = activeSetByBook[key] ?? notesSetId;
     if (!setId) {
-      const set = await createSet(key, DEFAULT_SET_NAME);
+      const set = await createSet(key, DEFAULT_SET_NAME, currentBookTitle());
       setId = set.id;
       notesSets = await listSets(key);
     }
@@ -849,6 +926,43 @@
     // сбрасывается, чтобы панель показала актуальное состояние.
     loadedNotesSets = {};
     void loadNotes();
+    // Реестр заметок перечитывается всегда (а не только когда открыт), чтобы
+    // раздел «Заметки» показывал актуальное состояние без перезапуска и без
+    // запроса при открытии. Вызов не отслеживается: иначе запись реестра
+    // перезапустила бы этот же эффект.
+    untrack(() => {
+      void loadNotesLibrary();
+    });
+  });
+
+  /** Потребление отложенного перехода к заметке после появления вкладки.
+   *
+   * Цель ждёт, пока книга станет активной, набор — загруженным, а читалка —
+   * доступной, и только затем делает заметку выбранной и переводит к ней чтение.
+   */
+  $effect(() => {
+    const target = pendingNoteTarget;
+    if (!target) {
+      return;
+    }
+    if (notesBookKey !== target.bookKey) {
+      return;
+    }
+    if (notesSetId !== target.setId) {
+      return;
+    }
+    if (!target.noteId) {
+      pendingNoteTarget = null;
+      notesPanelOpen = true;
+      return;
+    }
+    const note = notes.find((candidate) => candidate.id === target.noteId);
+    if (!note) {
+      return;
+    }
+    pendingNoteTarget = null;
+    notesPanelOpen = true;
+    goToNote(note);
   });
 
   /** Приведение инструмента к доступным типам при смене книги активной вкладки.
@@ -900,6 +1014,7 @@
     workspaceOpen = false;
     librariesOpen = false;
     settingsOpen = false;
+    notesLibraryOpen = false;
   }
 
   /** Переуказание файла недоступной книги вкладки.
@@ -942,6 +1057,7 @@
     workspaceListMode = false;
     settingsOpen = false;
     librariesOpen = false;
+    notesLibraryOpen = false;
   }
 
   /** Открытие выбранной с диска книги вкладкой или переуказание файла вкладки. */
@@ -989,6 +1105,47 @@
       path: value.path,
       title: value.title || fileName(value.path),
       format: value.format || formatFromPath(value.path),
+    };
+    if (placeBook(book)) {
+      showWorkspaceSurface();
+    }
+  }
+
+  /** Переход из реестра заметок к книге набора.
+   *
+   * Книга открывается вкладкой в рабочем месте, набор становится активным, а
+   * переход к конкретной заметке запоминается как отложенная цель: вкладка
+   * появляется асинхронно, поэтому `reader.goto` вызывается, когда заметки книги
+   * уже загружены.
+   */
+  function openNotesLibrarySet(set: AggregateNoteSet) {
+    openNotesTarget(set, null);
+  }
+
+  /** Переход из реестра заметок к конкретной заметке набора. */
+  function openNotesLibraryNote(set: AggregateNoteSet, note: Note) {
+    openNotesTarget(set, note.id);
+  }
+
+  /** Общий переход из реестра: книга, активный набор и цель по заметке. */
+  function openNotesTarget(set: AggregateNoteSet, noteId: string | null) {
+    const key = set.bookKey.trim();
+    if (!key || key === 'no-library') {
+      notesLibraryError = 'Книга набора недоступна: у набора нет файла.';
+      return;
+    }
+    // Активный набор запоминается до загрузки заметок: `loadNotes` выберет его,
+    // когда вкладка книги появится.
+    activeSetByBook = { ...activeSetByBook, [key]: set.id };
+    void setActiveSet(key, set.id).catch((error) => {
+      notesError = String(error);
+    });
+    pendingNoteTarget = { bookKey: key, setId: set.id, noteId };
+    notesLibraryOpen = false;
+    const book = {
+      path: key,
+      title: bookTitleOf(set),
+      format: formatFromPath(key),
     };
     if (placeBook(book)) {
       showWorkspaceSurface();
@@ -1201,6 +1358,31 @@
         </svg>
       </Button>
       <Button
+        variant={notesLibraryVisible ? 'primary' : 'secondary'}
+        size="icon"
+        title="Реестр заметок"
+        ariaLabel="Реестр заметок"
+        ariaPressed={notesLibraryVisible}
+        onclick={toggleNotesLibrary}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            d="M6 3.5h9.5L19.5 7v13.5a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+          />
+          <path d="M15 3.5V7h3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+          <path
+            d="M8.5 12h7M8.5 15.5h7"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </Button>
+      <Button
         variant={workspaceVisible ? 'primary' : 'secondary'}
         size="icon"
         title="Рабочее место"
@@ -1282,7 +1464,7 @@
     <main class="flex min-w-0 flex-1">
       <div
         class="min-h-0 min-w-0 flex-1"
-        class:hidden={settingsOpen || librariesOpen || workspaceOpen}
+        class:hidden={settingsOpen || librariesOpen || notesLibraryOpen || workspaceOpen}
       >
         <LibraryPage
           initialActiveLibrary={activeLibrary}
@@ -1290,6 +1472,17 @@
           onOpenInWorkplace={openBookInWorkspace}
         />
       </div>
+      {#if notesLibraryVisible}
+        <div class="flex min-h-0 min-w-0 flex-1">
+          <NotesLibraryPage
+            sets={notesLibrarySets}
+            loading={notesLibraryLoading}
+            error={notesLibraryError}
+            onOpenSet={openNotesLibrarySet}
+            onOpenNote={openNotesLibraryNote}
+          />
+        </div>
+      {/if}
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!workspaceVisible}>
         <WorkplaceSurface
           bind:this={reader}

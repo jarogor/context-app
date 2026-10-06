@@ -86,12 +86,22 @@ impl NotesState {
                 serde_json::json!({
                     "id": set.id,
                     "book_key": set.book_key,
+                    "book_title": set.book_title,
                     "name": set.name,
                     "created_at_millis": set.created_at_millis,
                     "note_count": set.notes.len(),
                 })
             })
             .collect()
+    }
+
+    /// Все наборы всех книг вместе с их заметками.
+    ///
+    /// Агрегат для реестра заметок: отдаёт наборы целиком (с ключом и
+    /// отображаемым именем книги), чтобы реестр и поиск не делали запрос по
+    /// каждой книге отдельно. Порядок — порядок хранения наборов.
+    pub fn list_all(&self) -> &[NoteSet] {
+        &self.sets
     }
 
     /// Активный набор книги или None, если выбор не сохранён.
@@ -123,6 +133,7 @@ impl NotesState {
     pub fn create_set(
         &mut self,
         book_key: &str,
+        book_title: &str,
         name: &str,
         id: &str,
         created_at_millis: i64,
@@ -134,6 +145,7 @@ impl NotesState {
         let set = NoteSet {
             id: id.to_string(),
             book_key: book_key.to_string(),
+            book_title: book_title.trim().to_string(),
             name: name.to_string(),
             created_at_millis,
             notes: Vec::new(),
@@ -294,6 +306,7 @@ fn normalize_set(set: NoteSet) -> Option<NoteSet> {
     Some(NoteSet {
         id,
         book_key: set.book_key.trim().to_string(),
+        book_title: set.book_title.trim().to_string(),
         name: set.name.trim().to_string(),
         created_at_millis: set.created_at_millis.max(0),
         notes,

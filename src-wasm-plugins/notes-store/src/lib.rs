@@ -47,6 +47,7 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
     let request: Request = serde_json::from_str(input).map_err(|error| error.to_string())?;
     match request.action.as_str() {
         "list_sets" => list_sets(host, &request.payload),
+        "list_all_sets" => list_all_sets(host, &request.payload),
         "get_set" => get_set(host, &request.payload),
         "create_set" => create_set(host, &request.payload),
         "rename_set" => rename_set(host, &request.payload),
@@ -59,12 +60,20 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
     }
 }
 
-/// Список наборов книги с идентификатором, именем, числом заметок и активным набором.
+/// Наборы указанной книги с активным набором.
 fn list_sets(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
     let book_key = string_field(payload, "book_key");
     let state = load(host)?;
     let active = state.active_for_book(&book_key).map(str::to_string);
     Ok(json!({ "sets": state.list_for_book(&book_key), "active_set_id": active }).to_string())
+}
+
+/// Список всех наборов всех книг вместе с заметками для реестра заметок.
+///
+/// Чтение не меняет состояние и не публикует событие `notes:changed`.
+fn list_all_sets(host: &impl Host, _payload: &serde_json::Value) -> Result<String, String> {
+    let state = load(host)?;
+    Ok(json!({ "sets": state.list_all() }).to_string())
 }
 
 /// Набор целиком со всеми заметками.
@@ -81,11 +90,12 @@ fn get_set(host: &impl Host, payload: &serde_json::Value) -> Result<String, Stri
 /// Создание набора для книги и публикация события.
 fn create_set(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
     let book_key = string_field(payload, "book_key");
+    let book_title = string_field(payload, "book_title");
     let name = string_field(payload, "name");
     let now = host.now_millis();
     let id = new_id(SET_ID_PREFIX, now);
     let mut state = load(host)?;
-    let set = state.create_set(&book_key, &name, &id, now)?;
+    let set = state.create_set(&book_key, &book_title, &name, &id, now)?;
     save(host, &state)?;
     emit_changed(host, &set.book_key, &set.id)?;
     Ok(set_response(&set))

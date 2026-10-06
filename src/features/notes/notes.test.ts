@@ -18,6 +18,7 @@ import {
     filterNotes,
     FLOWING_NOTE_TYPES,
     getSet,
+    listAllSets,
     listSets,
     loadSets,
     noteList,
@@ -211,7 +212,7 @@ describe('операции плагина заметок', () => {
             operation: 'list_sets',
             payload: { book_key: 'lib::book-1' },
         });
-        expect(sets).toEqual([{ id: 'ns-1', bookKey: '', name: 'Основные', noteCount: 2 }]);
+        expect(sets).toEqual([{ id: 'ns-1', bookKey: '', bookTitle: '', name: 'Основные', noteCount: 2 }]);
     });
 
     it('читает сохранённый активный набор книги', async () => {
@@ -255,7 +256,7 @@ describe('операции плагина заметок', () => {
         expect(invoke).toHaveBeenNthCalledWith(2, 'invoke_base_plugin_operation', {
             capability: 'notes.store@1',
             operation: 'create_set',
-            payload: { book_key: 'lib::book-1', name: DEFAULT_SET_NAME },
+            payload: { book_key: 'lib::book-1', book_title: '', name: DEFAULT_SET_NAME },
         });
         expect(set.id).toBe('ns-1');
     });
@@ -443,11 +444,58 @@ describe('операции плагина заметок', () => {
         expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
             capability: 'notes.store@1',
             operation: 'create_set',
-            payload: { book_key: 'lib::book-1', name: 'Основные' },
+            payload: { book_key: 'lib::book-1', book_title: '', name: 'Основные' },
         });
 
         const set = await getSet('ns-1');
         expect(set.notes[0].quote).toBe('цитата');
+    });
+
+    it('передаёт отображаемое имя книги при создании набора', async () => {
+        invoke.mockResolvedValue(setResponse());
+        await createSet('lib::book-1', 'Основные', 'Война и мир');
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'create_set',
+            payload: {
+                book_key: 'lib::book-1',
+                book_title: 'Война и мир',
+                name: 'Основные',
+            },
+        });
+    });
+
+    it('читает агрегат наборов всех книг', async () => {
+        invoke.mockResolvedValue({
+            sets: [
+                {
+                    id: 'ns-1',
+                    book_key: '/lib/a.epub',
+                    book_title: 'Книга A',
+                    name: 'Основные',
+                    created_at_millis: 1,
+                    notes: [],
+                },
+                {
+                    id: 'ns-2',
+                    book_key: '/lib/b.pdf',
+                    name: 'B',
+                    created_at_millis: 2,
+                    notes: [{ id: 'n1', quote: 'ц' }],
+                },
+            ],
+        });
+        const sets = await listAllSets();
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'list_all_sets',
+            payload: {},
+        });
+        expect(sets).toHaveLength(2);
+        expect(sets[0].bookTitle).toBe('Книга A');
+        expect(sets[1].bookTitle).toBe('');
+        expect(sets[1].notes[0].quote).toBe('ц');
     });
 
     it('переименовывает набор', async () => {

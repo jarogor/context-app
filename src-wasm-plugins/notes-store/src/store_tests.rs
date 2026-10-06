@@ -12,27 +12,72 @@ fn new_state_is_versioned_and_empty() {
 fn create_set_trims_name_and_keeps_book() {
     let mut state = NotesState::new();
     let set = state
-        .create_set("lib/book", "  Набор  ", "ns-1", 100)
+        .create_set("lib/book", "Война и мир", "  Набор  ", "ns-1", 100)
         .expect("создание");
     assert_eq!(set.name, "Набор");
     assert_eq!(set.book_key, "lib/book");
+    assert_eq!(set.book_title, "Война и мир");
     assert_eq!(set.created_at_millis, 100);
     assert!(set.notes.is_empty());
     assert_eq!(state.sets().len(), 1);
 }
 
 #[test]
+fn create_set_keeps_empty_book_title() {
+    let mut state = NotesState::new();
+    let set = state
+        .create_set("lib/book", "  ", "Набор", "ns-1", 100)
+        .expect("создание");
+    assert!(
+        set.book_title.is_empty(),
+        "имя книги не выводится из ключа и обрезается"
+    );
+}
+
+#[test]
 fn create_set_rejects_empty_name() {
     let mut state = NotesState::new();
-    assert!(state.create_set("lib/book", "   ", "ns-1", 100).is_err());
+    assert!(state
+        .create_set("lib/book", "", "   ", "ns-1", 100)
+        .is_err());
     assert!(state.sets().is_empty());
+}
+
+#[test]
+fn list_all_returns_sets_of_all_books_with_notes() {
+    let mut state = NotesState::new();
+    state
+        .create_set("lib/a", "Книга A", "A", "ns-a", 1)
+        .expect("набор A");
+    state
+        .create_set("lib/b", "Книга B", "B", "ns-b", 2)
+        .expect("набор B");
+    let note = NoteInput {
+        text: "текст".to_string(),
+        ..NoteInput::default()
+    };
+    state.add_note("ns-a", note, "note-1", 3).expect("заметка");
+
+    let all = state.list_all();
+    assert_eq!(all.len(), 2, "наборы всех книг");
+    assert_eq!(all[0].book_key, "lib/a");
+    assert_eq!(all[0].book_title, "Книга A");
+    assert_eq!(all[0].notes.len(), 1, "заметки набора в агрегате");
+    assert_eq!(all[1].book_key, "lib/b");
+    assert_eq!(all[1].notes.len(), 0);
+
+    assert!(NotesState::new().list_all().is_empty(), "пустое состояние");
 }
 
 #[test]
 fn list_for_book_filters_and_counts_notes() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор A");
-    state.create_set("lib/b", "B", "ns-b", 1).expect("набор B");
+    state
+        .create_set("lib/a", "Книга A", "A", "ns-a", 1)
+        .expect("набор A");
+    state
+        .create_set("lib/b", "Книга B", "B", "ns-b", 1)
+        .expect("набор B");
     let note = NoteInput {
         text: "текст".to_string(),
         ..NoteInput::default()
@@ -42,6 +87,7 @@ fn list_for_book_filters_and_counts_notes() {
     let listed = state.list_for_book("lib/a");
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0]["id"], "ns-a");
+    assert_eq!(listed[0]["book_title"], "Книга A");
     assert_eq!(listed[0]["note_count"], 1);
 
     assert!(state.list_for_book("lib/missing").is_empty());
@@ -50,7 +96,9 @@ fn list_for_book_filters_and_counts_notes() {
 #[test]
 fn rename_set_rejects_empty_and_unknown() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     assert!(state.rename_set("ns-a", "  ").is_err());
     assert!(state.rename_set("ns-missing", "B").is_err());
     assert_eq!(state.find("ns-a").expect("набор").name, "A");
@@ -59,7 +107,9 @@ fn rename_set_rejects_empty_and_unknown() {
 #[test]
 fn delete_set_removes_notes() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     let note = NoteInput {
         text: "текст".to_string(),
         ..NoteInput::default()
@@ -74,7 +124,9 @@ fn delete_set_removes_notes() {
 #[test]
 fn add_note_applies_default_color_and_update_changes_it() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     let input = NoteInput {
         quote: "цитата".to_string(),
         ..NoteInput::default()
@@ -148,7 +200,9 @@ fn normalized_replaces_bad_color_with_default() {
 #[test]
 fn add_note_sets_times_and_allows_same_anchor() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     let input = NoteInput {
         anchor: "cfi".to_string(),
         quote: "цитата".to_string(),
@@ -176,7 +230,9 @@ fn add_note_sets_times_and_allows_same_anchor() {
 #[test]
 fn update_note_patches_fields_and_time() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     let input = NoteInput {
         quote: "старая".to_string(),
         chapter: "Старая глава".to_string(),
@@ -206,7 +262,9 @@ fn update_note_patches_fields_and_time() {
 #[test]
 fn update_note_sets_and_clears_title_and_comment() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     let input = NoteInput {
         quote: "цитата".to_string(),
         title: "Черновик".to_string(),
@@ -248,7 +306,9 @@ fn update_note_sets_and_clears_title_and_comment() {
 #[test]
 fn add_note_applies_default_type_shape_and_black_color() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
 
     // Заметка без типа — цитата; без вида фигуры — вид по умолчанию.
     let note = state
@@ -276,7 +336,9 @@ fn add_note_applies_default_type_shape_and_black_color() {
 #[test]
 fn add_note_defaults_unknown_type_and_shape() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     let input = NoteInput {
         note_type: Some("sticker".to_string()),
         shape: Some("hexagon".to_string()),
@@ -293,7 +355,9 @@ fn add_note_defaults_unknown_type_and_shape() {
 #[test]
 fn update_note_patches_type_and_geometry() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     state
         .add_note("ns-a", NoteInput::default(), "note-1", 10)
         .expect("заметка");
@@ -437,7 +501,9 @@ fn normalized_drops_items_without_id_and_reports_bad_fields() {
 #[test]
 fn normalized_drops_non_finite_percent() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-1", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-1", 1)
+        .expect("набор");
     let input = NoteInput {
         percent: Some(f64::NAN),
         ..NoteInput::default()
@@ -458,18 +524,26 @@ fn missing_version_defaults_to_current() {
 #[test]
 fn create_set_becomes_active_for_book() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     assert_eq!(state.active_for_book("lib/a"), Some("ns-a"));
 
-    state.create_set("lib/a", "B", "ns-b", 2).expect("набор");
+    state
+        .create_set("lib/a", "", "B", "ns-b", 2)
+        .expect("набор");
     assert_eq!(state.active_for_book("lib/a"), Some("ns-b"));
 }
 
 #[test]
 fn set_active_requires_set_of_same_book() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
-    state.create_set("lib/b", "B", "ns-b", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
+    state
+        .create_set("lib/b", "", "B", "ns-b", 1)
+        .expect("набор");
 
     state.set_active("lib/a", "ns-a").expect("выбор");
     assert_eq!(state.active_for_book("lib/a"), Some("ns-a"));
@@ -482,7 +556,9 @@ fn set_active_requires_set_of_same_book() {
 #[test]
 fn delete_active_set_clears_selection() {
     let mut state = NotesState::new();
-    state.create_set("lib/a", "A", "ns-a", 1).expect("набор");
+    state
+        .create_set("lib/a", "", "A", "ns-a", 1)
+        .expect("набор");
     state.set_active("lib/a", "ns-a").expect("выбор");
     state.delete_set("ns-a").expect("удаление");
     assert_eq!(state.active_for_book("lib/a"), None);

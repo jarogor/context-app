@@ -286,6 +286,8 @@ interface MockNoteSet {
     id: string;
     /** Ключ книги. */
     bookKey: string;
+    /** Отображаемое имя книги; может отсутствовать. */
+    bookTitle: string;
     /** Имя набора. */
     name: string;
     /** Заметки набора. */
@@ -301,7 +303,9 @@ const NOTES_ACTIVE_STORAGE_KEY = 'texture-notes-active';
 function loadMockNotes(): MockNoteSet[] {
     try {
         const raw = window.localStorage.getItem(NOTES_STORAGE_KEY);
-        return raw ? (JSON.parse(raw) as MockNoteSet[]) : [];
+        const sets = raw ? (JSON.parse(raw) as MockNoteSet[]) : [];
+        // Наборы прежнего формата не несли отображаемого имени книги.
+        return sets.map((set) => ({ ...set, bookTitle: set.bookTitle ?? '' }));
     } catch {
         return [];
     }
@@ -340,6 +344,7 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
     const sets = loadMockNotes();
     const body = (payload ?? {}) as {
         book_key?: string;
+        book_title?: string;
         set_id?: string;
         note_id?: string;
         name?: string;
@@ -353,10 +358,22 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
                 .map((set) => ({
                     id: set.id,
                     book_key: set.bookKey,
+                    book_title: set.bookTitle,
                     name: set.name,
                     note_count: set.notes.length,
                 })),
             active_set_id: loadMockActive()[body.book_key ?? ''] ?? null,
+        };
+    }
+    if (operation === 'list_all_sets') {
+        return {
+            sets: sets.map((set) => ({
+                id: set.id,
+                book_key: set.bookKey,
+                book_title: set.bookTitle,
+                name: set.name,
+                notes: set.notes,
+            })),
         };
     }
     if (operation === 'set_active') {
@@ -378,6 +395,7 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
         const created: MockNoteSet = {
             id: `ns-mock-${issued + 1}`,
             bookKey: body.book_key ?? '',
+            bookTitle: body.book_title ?? '',
             name: body.name ?? '',
             notes: [],
         };
@@ -420,6 +438,8 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
                 anchor: String(body.note?.anchor ?? ''),
                 quote: String(body.note?.quote ?? ''),
                 chapter: String(body.note?.chapter ?? ''),
+                title: String(body.note?.title ?? ''),
+                comment: String(body.note?.comment ?? ''),
                 color: String(body.note?.color ?? 'yellow'),
                 percent: body.note?.percent ?? null,
                 page: body.note?.page ?? null,

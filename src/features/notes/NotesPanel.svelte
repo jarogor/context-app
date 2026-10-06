@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { ActionMenu, Badge, Button, DeleteButton, Input, Select, Textarea, type MenuAction, type MenuColor } from '@texture/ui';
+  import { ActionMenu, Button, DeleteButton, Input, Select, Textarea, type MenuAction, type MenuColor } from '@texture/ui';
   import { tick } from 'svelte';
-  import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, noteMarkerColor, NOTE_TYPE_LABELS, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
+  import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
+  import NoteEntry from './NoteEntry.svelte';
 
   interface Props {
     /** Элементы списка заметок активного набора. */
@@ -228,21 +229,6 @@
     renaming = false;
     renameName = '';
   }
-
-  /** Формат даты создания заметки. */
-  function formatDate(millis: number): string {
-    if (!millis) {
-      return '';
-    }
-    return new Date(millis).toLocaleString(undefined, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  }
 </script>
 
 <aside
@@ -347,57 +333,12 @@
         data-testid="notes-list"
       >
         {#each visible as item (item.note.id)}
-          <li
-            class="group relative shrink-0 overflow-hidden rounded-md border border-[var(--border)] py-2 pl-4 pr-2 transition-colors {selectedId ===
-            item.note.id
-              ? 'bg-[var(--primary-soft)]'
-              : 'hover:bg-[var(--muted)]'}"
-            data-testid="notes-item"
-            data-color={item.note.color}
-            data-selected={selectedId === item.note.id ? 'true' : 'false'}
+          <NoteEntry
+            {item}
+            selected={selectedId === item.note.id}
+            onclick={(note) => onGoToNote?.(note)}
           >
-            <span
-              class="absolute inset-y-0 left-0 w-1"
-              style="background: {noteMarkerColor(item.note)}"
-              data-testid="notes-item-color"
-              aria-hidden="true"
-            ></span>
-            <div class="flex items-start gap-2">
-              <button
-                type="button"
-                class="min-w-0 flex-1 cursor-pointer text-left [font:inherit]"
-                data-testid="notes-item-link"
-                onclick={() => onGoToNote?.(item.note)}
-              >
-                <span class="mb-1 flex items-center gap-2">
-                  <span data-testid="notes-item-type">
-                    <Badge>{NOTE_TYPE_LABELS[item.note.type]}</Badge>
-                  </span>
-                  {#if item.place}
-                    <span
-                      class="text-[11px] text-[var(--muted-foreground)]"
-                      data-testid="notes-item-place">{item.place}</span
-                    >
-                  {/if}
-                  <span
-                    class="ml-auto text-[11px] text-[var(--muted-foreground)]"
-                    data-testid="notes-item-date">{formatDate(item.createdAtMillis)}</span
-                  >
-                </span>
-                <span class="block text-[13px] leading-snug">{item.name}</span>
-                {#if item.note.title.trim() && item.preview}
-                  <span
-                    class="mt-0.5 block whitespace-pre-wrap text-[12px] leading-snug italic text-[var(--muted-foreground)]"
-                    data-testid="notes-item-preview">«{item.preview}»</span
-                  >
-                {/if}
-                {#if item.note.comment}
-                  <span
-                    class="mt-0.5 block whitespace-pre-wrap text-[12px] leading-snug text-[var(--muted-foreground)]"
-                    data-testid="notes-item-comment">{item.note.comment}</span
-                  >
-                {/if}
-              </button>
+            {#snippet actions()}
               <ActionMenu
                 ariaLabel="Действия с заметкой"
                 title="Действия"
@@ -408,72 +349,74 @@
                 oncolorselect={(color) => onChangeColor?.(item.note.id, color as NoteColor)}
                 onselect={(action) => runNoteAction(item.note.id, action)}
               />
-            </div>
-            {#if editingNoteId === item.note.id}
-              <div
-                class="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-2"
-                data-testid="notes-item-editor"
-              >
-                <Input
-                  bind:value={editTitle}
-                  placeholder="Название"
-                  ariaLabel="Название заметки"
-                />
-                <Textarea
-                  bind:value={editComment}
-                  placeholder="Комментарий"
-                  ariaLabel="Комментарий заметки"
-                  rows={3}
-                />
-                <div class="flex items-center justify-between gap-2">
-                  <!-- Удаление комментария — отдельно слева, чтобы не задеть сохранение/отмену. -->
-                  <DeleteButton
-                    title="Удалить комментарий"
-                    ariaLabel="Удалить комментарий"
-                    disabled={!editComment}
-                    onclick={clearEditComment}
+            {/snippet}
+            {#snippet children()}
+              {#if editingNoteId === item.note.id}
+                <div
+                  class="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-2"
+                  data-testid="notes-item-editor"
+                >
+                  <Input
+                    bind:value={editTitle}
+                    placeholder="Название"
+                    ariaLabel="Название заметки"
                   />
-                  <div class="flex items-center gap-2">
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      title="Отмена"
-                      ariaLabel="Отмена"
-                      onclick={cancelEditNote}
-                    >
-                      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                        <path
-                          d="M6 6l12 12M18 6L6 18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                        />
-                      </svg>
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="icon"
-                      title="Сохранить"
-                      ariaLabel="Сохранить"
-                      onclick={() => commitEditNote(item.note.id)}
-                    >
-                      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                        <path
-                          d="M5 13l4 4L19 7"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </Button>
+                  <Textarea
+                    bind:value={editComment}
+                    placeholder="Комментарий"
+                    ariaLabel="Комментарий заметки"
+                    rows={3}
+                  />
+                  <div class="flex items-center justify-between gap-2">
+                    <!-- Удаление комментария — отдельно слева, чтобы не задеть сохранение/отмену. -->
+                    <DeleteButton
+                      title="Удалить комментарий"
+                      ariaLabel="Удалить комментарий"
+                      disabled={!editComment}
+                      onclick={clearEditComment}
+                    />
+                    <div class="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        title="Отмена"
+                        ariaLabel="Отмена"
+                        onclick={cancelEditNote}
+                      >
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                          <path
+                            d="M6 6l12 12M18 6L6 18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                          />
+                        </svg>
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="icon"
+                        title="Сохранить"
+                        ariaLabel="Сохранить"
+                        onclick={() => commitEditNote(item.note.id)}
+                      >
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                          <path
+                            d="M5 13l4 4L19 7"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            {/if}
-          </li>
+              {/if}
+            {/snippet}
+          </NoteEntry>
         {:else}
           <li
             class="px-2 py-3 text-center text-[13px] text-[var(--muted-foreground)]"

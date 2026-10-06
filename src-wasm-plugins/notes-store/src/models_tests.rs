@@ -116,6 +116,7 @@ fn note_set_roundtrip() {
     let set = NoteSet {
         id: "ns-1".to_string(),
         book_key: "lib/book".to_string(),
+        book_title: "Война и мир".to_string(),
         name: "Набор".to_string(),
         created_at_millis: 5,
         notes: Vec::new(),
@@ -123,6 +124,17 @@ fn note_set_roundtrip() {
     let json = serde_json::to_string(&set).expect("сериализация");
     let restored: NoteSet = serde_json::from_str(&json).expect("десериализация");
     assert_eq!(restored, set);
+}
+
+#[test]
+fn note_set_reads_missing_book_title_as_empty() {
+    let set: NoteSet =
+        serde_json::from_str(r#"{ "id": "ns-1", "book_key": "lib/book", "name": "A" }"#)
+            .expect("набор без имени книги");
+    assert!(
+        set.book_title.is_empty(),
+        "набор без имени книги — пустое отображаемое имя"
+    );
 }
 
 #[test]

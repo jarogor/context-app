@@ -1,0 +1,81 @@
+<script lang="ts">
+  import { Badge } from '@texture/ui';
+  import type { Snippet } from 'svelte';
+  import { formatNoteDate, noteMarkerColor, NOTE_TYPE_LABELS, type NoteListItem } from './notes';
+
+  /** Общая карточка заметки в списке: цветовая полоса, тип, место, дата и содержимое.
+   *
+   * Один компонент на все списки заметок — панель рабочего места и реестр
+   * заметок, — чтобы вид и поведение записи не расходились. Основная область
+   * кликабельна, а действия и дополнительное содержимое передаются снаружи
+   * снипетами.
+   */
+  interface Props {
+    /** Элемент списка заметок. */
+    item: NoteListItem;
+    /** Отмечена ли заметка как выбранная. */
+    selected?: boolean;
+    /** Переход к заметке в книге. */
+    onclick?: (note: NoteListItem['note']) => void;
+    /** Правый блок действий над заметкой. */
+    actions?: Snippet;
+    /** Дополнительное содержимое под карточкой (например, форма правки). */
+    children?: Snippet;
+  }
+
+  let { item, selected = false, onclick, actions, children }: Props = $props();
+</script>
+
+<li
+  class="group relative shrink-0 overflow-hidden rounded-md border border-[var(--border)] py-2 pl-4 pr-2 transition-colors {selected
+    ? 'bg-[var(--primary-soft)]'
+    : 'hover:bg-[var(--muted)]'}"
+  data-testid="notes-item"
+  data-color={item.note.color}
+  data-selected={selected ? 'true' : 'false'}
+>
+  <span
+    class="absolute inset-y-0 left-0 w-1"
+    style="background: {noteMarkerColor(item.note)}"
+    data-testid="notes-item-color"
+    aria-hidden="true"
+  ></span>
+  <div class="flex items-start gap-2">
+    <button
+      type="button"
+      class="min-w-0 flex-1 cursor-pointer text-left [font:inherit]"
+      data-testid="notes-item-link"
+      onclick={() => onclick?.(item.note)}
+    >
+      <span class="mb-1 flex items-center gap-2">
+        <span data-testid="notes-item-type">
+          <Badge>{NOTE_TYPE_LABELS[item.note.type]}</Badge>
+        </span>
+        {#if item.place}
+          <span class="text-[11px] text-[var(--muted-foreground)]" data-testid="notes-item-place"
+            >{item.place}</span
+          >
+        {/if}
+        <span
+          class="ml-auto text-[11px] text-[var(--muted-foreground)]"
+          data-testid="notes-item-date">{formatNoteDate(item.createdAtMillis)}</span
+        >
+      </span>
+      <span class="block text-[13px] leading-snug">{item.name}</span>
+      {#if item.note.title.trim() && item.preview}
+        <span
+          class="mt-0.5 block whitespace-pre-wrap text-[12px] leading-snug italic text-[var(--muted-foreground)]"
+          data-testid="notes-item-preview">«{item.preview}»</span
+        >
+      {/if}
+      {#if item.note.comment}
+        <span
+          class="mt-0.5 block whitespace-pre-wrap text-[12px] leading-snug text-[var(--muted-foreground)]"
+          data-testid="notes-item-comment">{item.note.comment}</span
+        >
+      {/if}
+    </button>
+    {@render actions?.()}
+  </div>
+  {@render children?.()}
+</li>
