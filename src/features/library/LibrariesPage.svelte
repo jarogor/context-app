@@ -1,7 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Badge, Button, DeleteButton, Progress, Spinner, cn } from '@texture/ui';
+  import {
+    ActionMenu,
+    Badge,
+    Button,
+    Icon,
+    ListRow,
+    MetaList,
+    PageShell,
+    Progress,
+    SearchCreate,
+    Spinner,
+    type MenuAction,
+    type MetaItem,
+  } from '@texture/ui';
   import { invokeCommand, listenEvent, openDialog } from '../../shared/app-bridge';
+  import { formatDateTime } from '../../shared/format';
   import appConfig from './app-config.json';
 
   interface Props {
@@ -33,6 +47,9 @@
   /** Прогресс построения индекса открываемой библиотеки (в процентах). */
   let progress: { done: number; total: number; percent: number } | null = $state(null);
 
+  /** Строка поиска по имени библиотеки. */
+  let query = $state('');
+
   /** Идёт ли открытие библиотеки. */
   const opening = $derived(openingPath !== null);
 
@@ -41,34 +58,39 @@
     openingPath !== null && !entries.some((entry) => entry.path === openingPath),
   );
 
+  /** Записи истории, отфильтрованные поиском по имени библиотеки. */
+  const filtered = $derived.by(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) {
+      return entries;
+    }
+    return entries.filter((entry) => libraryName(entry.path).toLowerCase().includes(needle));
+  });
+
   /** Имя библиотеки по последнему сегменту пути. */
   function libraryName(path: string): string {
     return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
   }
 
-  /** Время открытия в 24-часовом формате. */
-  function formatTime(millis: number): string {
-    if (!millis) {
-      return '';
+  /** Метаинформация записи истории: время открытия (иконкой) и путь. */
+  function metaItems(entry: HistoryEntry): MetaItem[] {
+    const items: MetaItem[] = [];
+    const opened = formatDateTime(entry.added_at_millis);
+    if (opened) {
+      items.push({ icon: 'clock', value: opened, title: `Открыта ${opened}` });
     }
-    return new Date(millis).toLocaleString(undefined, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
+    if (entry.path) {
+      items.push({ icon: 'folder', value: entry.path, title: entry.path });
+    }
+    return items;
   }
 
-  /** Классы карточки записи с учётом активной библиотеки. */
-  function itemClass(entry: HistoryEntry): string {
-    return cn(
-      'flex flex-1 cursor-pointer flex-col gap-[3px] rounded-md border bg-[var(--card)] p-2 text-left [font:inherit] hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--card)] disabled:text-[var(--muted-foreground)]',
-      activePath === entry.path
-        ? 'border-[var(--primary)] bg-[var(--primary-soft)]'
-        : 'border-[var(--input)]',
-    );
+  /** Пункты меню действий записи истории. */
+  function entryActions(entry: HistoryEntry): MenuAction[] {
+    return [
+      { id: 'open', label: 'Открыть', disabled: !entry.available || opening },
+      { id: 'forget', label: 'Убрать из списка', destructive: true },
+    ];
   }
 
   /** Загрузка истории открытых библиотек. */
@@ -147,6 +169,16 @@
     }
   }
 
+  /** Выбор действия записи истории из меню. */
+  function runEntryAction(entry: HistoryEntry, action: string) {
+    if (action === 'open') {
+      void openLibrary(entry.path);
+    }
+    if (action === 'forget') {
+      void forget(entry.path);
+    }
+  }
+
   onMount(() => {
     let unlisten: (() => void) | undefined;
     void (async () => {
@@ -167,97 +199,105 @@
   });
 </script>
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-6">
-  <div class="mb-4 flex items-center justify-between gap-4">
-    <h1 class="text-lg font-semibold">Библиотеки</h1>
-    <Button variant="primary" disabled={opening} onclick={pickLibrary}>
+<PageShell
+  testId="libraries-page"
+  loading={loading && entries.length === 0}
+  loadingText="Загрузка…"
+  empty={entries.length === 0}
+  emptyText="Нет открытых библиотек. Откройте директорию с книгами."
+>
+  {#snippet form()}
+    <Button
+      variant="primary"
+      disabled={opening}
+      onclick={pickLibrary}
+      class="w-full"
+    >
       {#if openingNew}
         <Spinner class="h-4 w-4" />
       {/if}
       Открыть библиотеку
     </Button>
-  </div>
+  {/snippet}
 
-  {#if error}
-    <p class="mb-4 text-[var(--destructive)]">{error}</p>
-  {/if}
+  {#snippet toolbar()}
+    <SearchCreate bind:query searchPlaceholder="Поиск библиотеки" />
 
-  {#if opening && progress}
-    <div class="mb-4 flex flex-col gap-1">
-      <div class="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
-        <span>Индексация библиотеки…</span>
-        <span>{progress.percent}%</span>
+    {#if error}
+      <p class="text-[var(--destructive)]">{error}</p>
+    {/if}
+
+    {#if opening && progress}
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+          <span>Индексация библиотеки…</span>
+          <span>{progress.percent}%</span>
+        </div>
+        <Progress value={progress.percent} />
       </div>
-      <Progress value={progress.percent} />
-    </div>
-  {/if}
+    {/if}
+  {/snippet}
 
-  {#if loading && entries.length === 0}
-    <p class="text-[var(--muted-foreground)]">Загрузка…</p>
-  {:else if entries.length === 0}
-    <p class="text-[var(--muted-foreground)]">
-      Нет открытых библиотек. Откройте директорию с книгами.
+  {#if entries.length > 0 && filtered.length === 0}
+    <p class="text-[var(--muted-foreground)]" data-testid="libraries-not-found">
+      Ничего не найдено.
     </p>
   {:else}
     <ul class="flex list-none flex-col gap-2 p-0">
-      {#each entries as entry (entry.path)}
-        <li class="flex items-stretch gap-2">
-          <button
-            class={itemClass(entry)}
-            type="button"
+      {#each filtered as entry (entry.path)}
+        <li data-testid="library-item">
+          <ListRow
+            selected={activePath === entry.path}
             disabled={!entry.available || opening}
-            onclick={() => openLibrary(entry.path)}
+            onclick={() => void openLibrary(entry.path)}
           >
-            <span class="flex items-center gap-2">
-              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center" aria-live="polite">
+            {#snippet titleContent()}
+              <span
+                class="inline-flex h-4 w-4 shrink-0 items-center justify-center"
+                aria-live="polite"
+                title={entry.available ? 'доступна' : 'недоступна'}
+                aria-label={entry.available ? 'доступна' : 'недоступна'}
+              >
                 {#if openingPath === entry.path}
-                  <Spinner class="h-3 w-3 text-[var(--primary)]" />
-                {:else if activePath === entry.path}
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    class="text-[var(--success)]"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M20 6 9 17l-5-5"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
+                  <Spinner class="h-3.5 w-3.5 text-[var(--primary)]" />
+                {:else if entry.available}
+                  <Icon name="check" class="h-4 w-4 text-[var(--success)]" />
                 {:else}
-                  <span
-                    class="inline-block h-2 w-2 rounded-full"
-                    style:background={entry.available
-                      ? 'var(--success)'
-                      : 'var(--input)'}
-                  ></span>
+                  <Icon name="close" class="h-4 w-4 text-[var(--muted-foreground)]" />
                 {/if}
               </span>
+              <strong
+                class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
+                data-testid="library-name"
+              >
+                {libraryName(entry.path)}
+              </strong>
+            {/snippet}
+
+            {#snippet trailing()}
               <Badge>{entry.provider_name}</Badge>
-              <strong>{libraryName(entry.path)}</strong>
-              <span class="text-xs text-[var(--muted-foreground)]">
-                {entry.available ? 'доступна' : 'недоступна'}
+            {/snippet}
+
+            {#snippet meta()}
+              <span
+                class="flex flex-wrap items-center gap-x-3 gap-y-1"
+                data-testid="library-meta"
+              >
+                <MetaList items={metaItems(entry)} />
               </span>
-              <span class="ml-auto text-xs text-[var(--muted-foreground)]">
-                {formatTime(entry.added_at_millis)}
-              </span>
-            </span>
-            <span class="text-xs text-[var(--muted-foreground)] [overflow-wrap:anywhere]">
-              {entry.path}
-            </span>
-          </button>
-          <DeleteButton
-            title="Убрать библиотеку"
-            ariaLabel="Убрать библиотеку"
-            onclick={() => forget(entry.path)}
-          />
+            {/snippet}
+
+            {#snippet actions()}
+              <ActionMenu
+                ariaLabel="Действия с библиотекой"
+                title="Действия"
+                items={entryActions(entry)}
+                onselect={(action) => runEntryAction(entry, action)}
+              />
+            {/snippet}
+          </ListRow>
         </li>
       {/each}
     </ul>
   {/if}
-</div>
+</PageShell>

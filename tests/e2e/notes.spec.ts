@@ -762,3 +762,19 @@ test('реестр заметок сообщает о книге набора б
     // Раздел остаётся открытым и показывает диагностику недоступности.
     await expect(page.getByTestId('notes-library-error')).toContainText('недоступна');
 });
+
+test('реестр заметок адаптивен к ширине окна', async ({ page }) => {
+    await page.goto('/');
+    await noteInBook(page, 'Демо-книга', 'Первый абзац книги.');
+
+    // Узкое окно: реестр не даёт горизонтальной прокрутки и сохраняет поиск.
+    await page.setViewportSize({ width: 600, height: 700 });
+    await openNotesRegistry(page);
+    await expect(
+        page.getByTestId('notes-library').getByPlaceholder('Поиск по заметкам'),
+    ).toBeVisible();
+    const narrow = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    );
+    expect(narrow).toBe(true);
+});

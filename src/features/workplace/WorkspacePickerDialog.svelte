@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AddButton, Dialog, Input } from '@texture/ui';
+  import { Dialog, SearchCreate } from '@texture/ui';
 
   /** Рабочее место в диалоге выбора. */
   interface WorkspaceItem {
@@ -27,9 +27,6 @@
   /** Строка поиска по имени рабочего места. */
   let query = $state('');
 
-  /** Ввод имени нового рабочего места. */
-  let newName = $state('');
-
   /** Рабочие места, отфильтрованные поиском по имени. */
   const filtered = $derived.by(() => {
     const needle = query.trim().toLowerCase();
@@ -38,16 +35,6 @@
     }
     return workspaces.filter((item) => item.name.toLowerCase().includes(needle));
   });
-
-  /** Создание рабочего места из поля ввода. */
-  function create() {
-    const name = newName.trim();
-    if (!name) {
-      return;
-    }
-    onCreate(name);
-    newName = '';
-  }
 </script>
 
 <Dialog
@@ -60,7 +47,14 @@
     onOpenChange?.(value);
   }}
 >
-  <Input bind:value={query} placeholder="Поиск рабочего места" />
+  <SearchCreate
+    bind:query
+    createPlaceholder="Новое рабочее место"
+    createTitle="Создать рабочее место"
+    createAriaLabel="Создать рабочее место"
+    searchPlaceholder="Поиск рабочего места"
+    {onCreate}
+  />
 
   {#if filtered.length === 0}
     <p class="text-sm text-[var(--muted-foreground)]" data-testid="workspace-picker-empty">
@@ -86,23 +80,4 @@
       {/each}
     </ul>
   {/if}
-
-  <div class="flex items-center gap-2 border-t border-[var(--border)] pt-3">
-    <Input
-      bind:value={newName}
-      placeholder="Новое рабочее место"
-      class="min-w-0 flex-1"
-      onkeydown={(event) => {
-        if (event.key === 'Enter') {
-          create();
-        }
-      }}
-    />
-    <AddButton
-      title="Создать рабочее место"
-      ariaLabel="Создать рабочее место"
-      disabled={!newName.trim()}
-      onclick={create}
-    />
-  </div>
 </Dialog>

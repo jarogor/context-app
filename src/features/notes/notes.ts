@@ -10,6 +10,7 @@
  */
 
 import { invokeCommand } from '../../shared/app-bridge';
+import { formatDateTime } from '../../shared/format';
 import { parseAnchor, isPageAnchor, isPointAnchor, type QuoteAnchor } from '../reader/reader/anchor';
 
 /** Идентификатор активной библиотеки в ключе книги. */
@@ -703,19 +704,13 @@ export function notePlace(note: Note): string {
     return '';
 }
 
-/** Дата в коротком формате для списков заметок; ноль даёт пустую строку. */
+/** Дата в коротком формате для списков заметок; ноль даёт пустую строку.
+ *
+ * Использует общий по проекту русский формат `ДД.ММ.ГГГГ чч:мм`, чтобы дата
+ * заметки совпадала по виду с датами рабочих мест и библиотек.
+ */
 export function formatNoteDate(millis: number): string {
-    if (!millis) {
-        return '';
-    }
-    return new Date(millis).toLocaleString(undefined, {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-    });
+    return formatDateTime(millis);
 }
 
 /** Заметка-цитата в объёме списка. */

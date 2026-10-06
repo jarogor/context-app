@@ -155,7 +155,7 @@ test('создание рабочего места добавляет его в 
 
     await backToList(page);
     await expect(page.getByTestId('workspace-open')).toHaveText('Исследование');
-    await expect(page.getByTestId('workspace-current')).toBeVisible();
+    await expect(page.getByTestId('workspace-meta')).toContainText('текущее');
 });
 
 test('переключение между рабочими местами сохраняет их вкладки', async ({ page }) => {
@@ -211,7 +211,7 @@ test('удаление рабочего места убирает его из с
     await expect(page.getByTestId('workspace-item')).toHaveCount(1);
     await expect(page.getByTestId('workspace-open')).toHaveText('Второе');
     // Удалено не текущее место — Второе остаётся текущим.
-    await expect(page.getByTestId('workspace-current')).toBeVisible();
+    await expect(page.getByTestId('workspace-meta')).toContainText('текущее');
 });
 
 test('удаление последнего рабочего места показывает пустой список', async ({ page }) => {
@@ -245,4 +245,31 @@ test('реестр рабочих мест переживает перезагр
     // При запуске открывается список рабочих мест — он и есть точка входа.
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
     await expect(page.getByTestId('workspace-open')).toHaveCount(2);
+});
+
+test('список рабочих мест адаптивен к ширине окна', async ({ page }) => {
+    // Узкое окно: список занимает ширину без горизонтальной прокрутки.
+    await page.setViewportSize({ width: 600, height: 700 });
+    await page.goto('/');
+    await createWorkspace(page, 'Первое');
+    await backToList(page);
+    await createWorkspace(page, 'Второе');
+    await backToList(page);
+
+    await expect(
+        page.getByTestId('workspaces-page').getByPlaceholder('Поиск рабочего места'),
+    ).toBeVisible();
+    const narrow = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    );
+    expect(narrow).toBe(true);
+
+    // Широкое окно: список остаётся колонкой, а форма поиска/создания уходит влево.
+    await page.setViewportSize({ width: 1400, height: 800 });
+    const list = page.locator('ul', { has: page.getByTestId('workspace-item') });
+    const listBox = await list.boundingBox();
+    const searchBox = await page.getByPlaceholder('Поиск рабочего места').boundingBox();
+    expect(listBox).not.toBeNull();
+    expect(searchBox).not.toBeNull();
+    expect(searchBox!.x).toBeLessThan(listBox!.x);
 });

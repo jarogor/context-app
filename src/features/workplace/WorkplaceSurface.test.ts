@@ -127,7 +127,7 @@ describe('поверхность рабочего места: список и в
         });
 
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
-        expect(screen.getByTestId('workspace-current')).toBeTruthy();
+        expect(screen.getByTestId('workspace-meta').textContent).toContain('текущее');
     });
 
     it('передаёт возврат к списку из панели вкладок', async () => {

@@ -1256,7 +1256,7 @@
 
 <div class="flex h-full flex-col">
   <header
-    class="flex flex-[0_0_48px] items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4"
+    class="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4 py-2"
   >
     <span class="text-base font-bold text-[var(--primary)]">Текстура</span>
     {#if showLibrary()}
@@ -1280,7 +1280,9 @@
           {activeWorkspaceName}
         </span>
       {:else}
-        <span class="text-sm text-[var(--muted-foreground)]">{sectionTitle}</span>
+        <span class="text-sm text-[var(--muted-foreground)]" data-testid="section-title"
+          >{sectionTitle}</span
+        >
       {/if}
     {/if}
     <div class="ml-auto flex items-center gap-2">
@@ -1317,28 +1319,27 @@
         </span>
       {/if}
       <Button
-        variant={notificationsOpen ? 'primary' : 'secondary'}
+        variant={workspaceVisible ? 'primary' : 'secondary'}
         size="icon"
-        title="Уведомления"
-        ariaLabel="Уведомления"
-        ariaPressed={notificationsOpen}
-        class="relative"
-        onclick={toggleNotifications}
+        title="Рабочее место"
+        ariaLabel="Рабочее место"
+        ariaPressed={workspaceVisible}
+        onclick={toggleWorkspace}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path
-            d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5v-1l-1.7-1.7V10a5.3 5.3 0 0 0-4-5.2V4a1.3 1.3 0 0 0-2.6 0v.8A5.3 5.3 0 0 0 6.7 10v4.3L5 16v1Z"
-            fill="currentColor"
+        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
+          <rect
+            x="3.5"
+            y="4"
+            width="17"
+            height="16"
+            rx="2"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
           />
+          <path d="M3.5 8.5h17" stroke="currentColor" stroke-width="2" />
+          <path d="M9 8.5V20" stroke="currentColor" stroke-width="2" />
         </svg>
-        <span
-          class="absolute -top-[6px] -right-[6px] flex h-[18px] min-w-[18px] items-center justify-center rounded-[9px] px-[5px] text-[11px] font-bold text-[var(--primary-foreground)]"
-          style:background={unreadCount === 0
-            ? 'var(--input)'
-            : 'var(--success)'}
-        >
-          {unreadCount}
-        </span>
       </Button>
       <Button
         variant={librariesVisible ? 'primary' : 'secondary'}
@@ -1348,7 +1349,7 @@
         ariaPressed={librariesVisible}
         onclick={toggleLibraries}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
           <rect x="4" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
           <rect x="10" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
           <path
@@ -1365,7 +1366,7 @@
         ariaPressed={notesLibraryVisible}
         onclick={toggleNotesLibrary}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
           <path
             d="M6 3.5h9.5L19.5 7v13.5a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z"
             fill="none"
@@ -1382,28 +1383,30 @@
           />
         </svg>
       </Button>
+      <span class="mx-1 h-6 w-px shrink-0 bg-[var(--border)]" aria-hidden="true"></span>
       <Button
-        variant={workspaceVisible ? 'primary' : 'secondary'}
+        variant={notificationsOpen ? 'primary' : 'secondary'}
         size="icon"
-        title="Рабочее место"
-        ariaLabel="Рабочее место"
-        ariaPressed={workspaceVisible}
-        onclick={toggleWorkspace}
+        title="Уведомления"
+        ariaLabel="Уведомления"
+        ariaPressed={notificationsOpen}
+        class="relative"
+        onclick={toggleNotifications}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <rect
-            x="3.5"
-            y="4"
-            width="17"
-            height="16"
-            rx="2"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
+        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
+          <path
+            d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5v-1l-1.7-1.7V10a5.3 5.3 0 0 0-4-5.2V4a1.3 1.3 0 0 0-2.6 0v.8A5.3 5.3 0 0 0 6.7 10v4.3L5 16v1Z"
+            fill="currentColor"
           />
-          <path d="M3.5 8.5h17" stroke="currentColor" stroke-width="2" />
-          <path d="M9 8.5V20" stroke="currentColor" stroke-width="2" />
         </svg>
+        <span
+          class="absolute -top-[0.35rem] -right-[0.35rem] flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-[0.3rem] text-[0.7rem] font-bold text-[var(--primary-foreground)]"
+          style:background={unreadCount === 0
+            ? 'var(--input)'
+            : 'var(--success)'}
+        >
+          {unreadCount}
+        </span>
       </Button>
       <Button
         variant="secondary"
@@ -1412,7 +1415,7 @@
         ariaLabel="Переключить тему"
         onclick={cycleTheme}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
           {#if themePreference === 'light'}
             <circle cx="12" cy="12" r="4.5" fill="currentColor" />
             <path
@@ -1447,7 +1450,7 @@
         ariaPressed={settingsOpen}
         onclick={toggleSettings}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
           <path
             d="M4 6h16M4 12h16M4 18h16"
             stroke="currentColor"

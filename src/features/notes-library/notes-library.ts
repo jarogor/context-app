@@ -67,6 +67,8 @@ export interface LibrarySetView {
     name: string;
     /** Заметки набора для показа (в порядке хода текста). */
     noteItems: NoteListItem[];
+    /** Дата создания набора (Unix, мс). */
+    createdAtMillis: number;
     /** Дата последнего изменения набора (Unix, мс); 0, если заметок нет. */
     updatedAtMillis: number;
 }
@@ -89,8 +91,7 @@ function noteMatches(note: Note, needle: string): boolean {
 /** Подходит ли набор под запрос: имя набора или имя книги. */
 function setMatches(set: AggregateNoteSet, needle: string): boolean {
     return (
-        set.name.toLowerCase().includes(needle) ||
-        bookTitleOf(set).toLowerCase().includes(needle)
+        set.name.toLowerCase().includes(needle) || bookTitleOf(set).toLowerCase().includes(needle)
     );
 }
 
@@ -119,6 +120,7 @@ export function librarySets(sets: AggregateNoteSet[], query: string): LibrarySet
         bookTitle: bookTitleOf(set),
         name: set.name,
         noteItems: noteList(set.notes),
+        createdAtMillis: set.createdAtMillis,
         updatedAtMillis: lastUpdatedAt(set.notes),
     }));
 }

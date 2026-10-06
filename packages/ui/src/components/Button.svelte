@@ -17,7 +17,7 @@
       size: {
         md: 'h-9 px-4 py-2',
         sm: 'h-8 gap-1.5 px-3',
-        icon: 'size-9',
+        icon: 'size-9 [&_svg]:size-[1.125em]',
       },
     },
     defaultVariants: {

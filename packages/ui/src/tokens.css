@@ -34,6 +34,11 @@
   --destructive-soft: color-mix(in oklab, var(--destructive) 14%, var(--background));
   --destructive-border: color-mix(in oklab, var(--destructive) 45%, var(--border));
 
+  /* Единая максимальная ширина контента страницы: каркас страницы центрирует
+   * содержимое этим пределом, чтобы широкие окна не растягивали списки в одну
+   * длинную строку. */
+  --content-max-width: 1400px;
+
   /* Палитра Gruvbox по умолчанию, светлый набор (bg0 #fbf1c7, bg1 #ebdbb2,
    * fg1 #3c3836, blue #076678, red #9d0006, green #79740e, yellow #b57614). */
   --background: #fbf1c7;
