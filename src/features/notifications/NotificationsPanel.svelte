@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Checkbox } from '@texture/ui';
+  import { Badge, Button, Checkbox, ErrorToast, createAsyncState } from '@texture/ui';
+  import { formatTime } from '../../shared/format';
   import {
     clearNotifications,
     listNotifications,
@@ -30,7 +31,10 @@
   let technicalVisible = $state(untrack(() => initialTechnicalVisible ?? false));
 
   /** Ошибка загрузки или операции журнала. */
-  let errorMessage = $state(untrack(() => initialError ?? ''));
+  const asyncState = createAsyncState();
+
+  // Ошибка, переданная с бутстрапа, показывается сразу при монтировании.
+  asyncState.error = untrack(() => initialError ?? '');
 
   /** Отфильтрованные записи: без технического уровня показываем только User. */
   let visibleEntries = $derived(
@@ -47,11 +51,9 @@
 
   /** Загрузка журнала уведомлений. */
   async function load() {
-    try {
-      entries = await listNotifications();
-      errorMessage = '';
-    } catch (error) {
-      errorMessage = String(error);
+    const loaded = await asyncState.run(listNotifications);
+    if (loaded) {
+      entries = loaded;
     }
   }
 
@@ -69,22 +71,18 @@
 
   /** Пометка всех записей прочитанными. */
   async function markAllRead() {
-    try {
-      await markAllNotificationsRead();
+    await asyncState.run(markAllNotificationsRead);
+    if (!asyncState.error) {
       entries = entries.map((entry) => ({ ...entry, read: true }));
-    } catch (error) {
-      errorMessage = String(error);
     }
   }
 
   /** Полная очистка журнала. */
   async function clearEntries() {
-    try {
+    await asyncState.run(async () => {
       await clearNotifications();
       await load();
-    } catch (error) {
-      errorMessage = String(error);
-    }
+    });
   }
 
   onMount(() => {
@@ -132,15 +130,6 @@
     trace: 'TRACE',
   };
 
-  /** Время записи в 24-часовом формате. */
-  function formatTime(timestamp: number): string {
-    return new Date(timestamp).toLocaleTimeString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-  }
 </script>
 
 <div class="flex h-full flex-col overflow-hidden bg-[var(--card)]">
@@ -200,11 +189,4 @@
   </div>
 </div>
 
-{#if errorMessage}
-  <div
-    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-md bg-[var(--destructive-soft)] p-2 text-xs text-[var(--destructive)]"
-    role="alert"
-  >
-    {errorMessage}
-  </div>
-{/if}
+<ErrorToast message={asyncState.error} />

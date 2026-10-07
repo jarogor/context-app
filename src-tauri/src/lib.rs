@@ -1,9 +1,11 @@
 #[cfg(test)]
 pub mod test_util;
 
+pub mod atomic_file;
 pub mod commands;
 pub mod constants;
 pub mod library_history;
+pub mod paths;
 pub mod plugin;
 pub mod workspace_state;
 
@@ -132,9 +134,7 @@ pub fn run() {
 /// плагина не должна перекрываться устаревшей копией в `target`.
 fn base_plugin_directories(bundled: &Path) -> Vec<PathBuf> {
     let mut directories = Vec::new();
-    let development = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join(BASE_PLUGINS_DIR_NAME);
+    let development = crate::paths::resources_dir().join(BASE_PLUGINS_DIR_NAME);
     if development != bundled && development.is_dir() {
         directories.push(development);
     }
@@ -144,11 +144,7 @@ fn base_plugin_directories(bundled: &Path) -> Vec<PathBuf> {
 
 /// Корень служебного хранилища базовых плагинов в рабочей директории проекта.
 fn base_storage_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("родитель папки src-tauri")
-        .join("dev_data")
-        .join(BASE_PLUGINS_DIR_NAME)
+    crate::paths::dev_data_dir().join(BASE_PLUGINS_DIR_NAME)
 }
 
 /// Директории session-плагинов для перечня стора: пользовательская и ресурсные
@@ -159,9 +155,7 @@ fn base_storage_root() -> PathBuf {
 /// устаревшей копией в `target`).
 fn session_plugin_directories(bundled: &Path, user: &Path) -> Vec<PathBuf> {
     let mut directories = vec![user.to_path_buf()];
-    let development = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join(PLUGINS_DIR_NAME);
+    let development = crate::paths::resources_dir().join(PLUGINS_DIR_NAME);
     if development != *bundled && development.is_dir() {
         directories.push(development);
     }

@@ -35,8 +35,9 @@ import {
   type PluginEntry,
   type Store,
 } from '../store/plugin-store';
-import { listAllSets, type AggregateNoteSet } from '../notes/notes';
+import { listAllSets, type NoteSet } from '../notes/notes';
 import { invokeCommand } from '../../shared/app-bridge';
+import { activeLibrary } from '../../shared/base-plugin';
 
 /** Активная библиотека для шапки. */
 export interface ActiveLibrary {
@@ -105,7 +106,7 @@ export interface StoreBootstrap {
 /** Реестр наборов заметок на бутстрапе. */
 export interface NotesLibraryBootstrap {
     /** Наборы заметок всех книг (агрегат `list_all_sets`). */
-    sets: AggregateNoteSet[];
+    sets: NoteSet[];
     /** Ошибка загрузки реестра, иначе пустая строка. */
     error: string;
 }
@@ -209,8 +210,8 @@ async function loadStoreBootstrap(): Promise<StoreBootstrap> {
 /** Загрузка сведений об активной библиотеке; ошибка даёт «не открыта». */
 async function loadActiveLibrary(): Promise<ActiveLibrary | null> {
     try {
-        const result = (await invokeCommand('active_library', {})) as ActiveLibrary | null;
-        return result?.path ? result : null;
+        const result = await activeLibrary();
+        return result as ActiveLibrary | null;
     } catch {
         return null;
     }

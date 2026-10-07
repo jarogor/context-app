@@ -95,4 +95,38 @@ describe('страница библиотеки', () => {
 
     expect(screen.getByRole('button', { name: 'Добавить в «Исследование»' })).toBeTruthy();
   });
+
+  it('отправляет серверный поиск с задержкой, а не на каждый символ', async () => {
+    render(LibraryPage, {
+      props: { initialActiveLibrary: null, onOpenInWorkplace: vi.fn() },
+    });
+
+    await waitFor(() => expect(catalogChanged).toBeTruthy());
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'library' });
+    await screen.findByText('Демо-книга');
+
+    const search = screen.getByPlaceholderText('Название или автор');
+    await fireEvent.input(search, { target: { value: 'Де' } });
+    await fireEvent.input(search, { target: { value: 'Демо' } });
+
+    await waitFor(() =>
+      expect(
+        invoke.mock.calls.some(
+          ([command, args]) =>
+            command === 'invoke_plugin_operation' &&
+            (args as { operation?: string }).operation === 'search',
+        ),
+      ).toBe(true),
+    );
+    // Задержка схлопывает ввод в один вызов: поиск отработал по последнему значению.
+    await waitFor(() =>
+      expect(
+        invoke.mock.calls.filter(
+          ([command, args]) =>
+            command === 'invoke_plugin_operation' &&
+            (args as { operation?: string; payload?: { query?: string } }).operation === 'search',
+        ),
+      ).toHaveLength(1),
+    );
+  });
 });

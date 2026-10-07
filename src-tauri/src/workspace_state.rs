@@ -11,6 +11,8 @@ use std::time::UNIX_EPOCH;
 
 use serde::{Deserialize, Serialize};
 
+use crate::atomic_file;
+
 /// Имя файла реестра рабочих мест в служебном каталоге.
 const WORKSPACES_FILE_NAME: &str = "workspaces.json";
 
@@ -97,8 +99,8 @@ fn default_zoom() -> u32 {
 /// Порядок чтения: реестр `workspaces.json`; при его отсутствии — перенос
 /// прежнего `workspace.json` в рабочее место по умолчанию; иначе — пустой реестр.
 pub fn load(root: &Path) -> Result<WorkspacesFile, String> {
-    match std::fs::read_to_string(workspaces_path(root)) {
-        Ok(value) => serde_json::from_str(&value).map_err(|error| error.to_string()),
+    match atomic_file::read_json::<WorkspacesFile>(&workspaces_path(root)) {
+        Ok(file) => Ok(file),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(migrate_legacy(root)),
         Err(error) => Err(error.to_string()),
     }
@@ -106,12 +108,7 @@ pub fn load(root: &Path) -> Result<WorkspacesFile, String> {
 
 /// Сохранение реестра рабочих мест атомарной записью.
 pub fn save(root: &Path, file: &WorkspacesFile) -> Result<(), String> {
-    std::fs::create_dir_all(root).map_err(|error| error.to_string())?;
-    let value = serde_json::to_string(file).map_err(|error| error.to_string())?;
-    let path = workspaces_path(root);
-    let temporary = path.with_extension("tmp");
-    std::fs::write(&temporary, value).map_err(|error| error.to_string())?;
-    std::fs::rename(&temporary, &path).map_err(|error| error.to_string())
+    atomic_file::write_json(&workspaces_path(root), file).map_err(|error| error.to_string())
 }
 
 /// Перенос прежнего одиночного состояния в рабочее место по умолчанию.

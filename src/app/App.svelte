@@ -37,39 +37,18 @@
   import type { NotesLibraryBootstrap } from '../features/lifecycle/bootstrap';
   import type { StoreBootstrap } from '../features/lifecycle/bootstrap';
   import {
-    addQuote,
-    addShapeNote,
-    addTextNote,
     allowedNoteTypes,
     bookKey,
-    changeNoteColor,
-    createSet,
-    deleteNote,
-    deleteSet,
-    DEFAULT_NOTE_TOOL,
-    DEFAULT_SET_NAME,
-    getSet,
     listAllSets,
-    listSets,
-    loadSets,
-    noteList,
-    normalizeNoteTool,
-    renameSet,
-    resolveActiveSetId,
-    setActiveSet,
-    updateNoteDetails,
-    updateNotePlacement,
-    type AggregateNoteSet,
     type Note,
-    type NoteColor,
-    type NoteSetSummary,
-    type NoteTool,
+    type NoteSet,
     type NoteType,
-    type ShapeKind,
   } from '../features/notes/notes';
-  import type { QuoteAnchor } from '../features/reader/reader/anchor';
+  import { createNotesController } from '../features/notes/notes-controller.svelte';
   import { formatFromPath, isSupportedFormat } from '../features/reader/reader';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
+  import { activeLibrary as fetchActiveLibrary } from '../shared/base-plugin';
+  import { lastSegment } from '../shared/path';
   import {
     APP_SETTINGS_SECTION,
     applyAppPalette,
@@ -124,7 +103,7 @@
   let notesLibraryOpen = $state(false);
 
   /** Реестр наборов заметок всех книг (агрегат `list_all_sets`). */
-  let notesLibrarySets: AggregateNoteSet[] = $state(untrack(() => initialNotesLibrary.sets));
+  let notesLibrarySets: NoteSet[] = $state(untrack(() => initialNotesLibrary.sets));
 
   /** Ошибка загрузки реестра заметок для сообщения в разделе. */
   let notesLibraryError: string = $state(untrack(() => initialNotesLibrary.error));
@@ -176,11 +155,8 @@
   /** Выбранная в списке заметка (для подсветки и после клика по подсветке). */
   let selectedNoteId: string | null = $state(null);
 
-  /** Номер внешнего изменения заметок из события хранилища. */
+  /** Номер внешнего изменения заметок из события хранилища (перечитывание реестра). */
   let notesRevision = $state(0);
-
-  /** Ошибка операций заметок для сообщения в шапке. */
-  let notesError = $state<string | null>(null);
 
   /** Предпочтение темы для кнопки-переключателя в шапке. */
   let themePreference = $state<ThemePreference>(
@@ -199,59 +175,6 @@
     dark: 'Тёмная',
     system: 'Как в системе',
   };
-
-  /** Заметки-цитаты активного набора книги. */
-  let notes: Note[] = $state([]);
-
-  /** Идёт ли загрузка заметок книги. */
-  let notesLoading = $state(false);
-
-  /** Наборы заметок книги активной вкладки. */
-  let notesSets: NoteSetSummary[] = $state([]);
-
-  /** Идентификатор активного набора заметок книги. */
-  let notesSetId: string | null = $state(null);
-
-  /** Идентификатор книги, к которой относятся загруженные наборы. */
-  let loadedNotesBook: string | null = null;
-
-  /** Активный инструмент создания заметок (оболочка владеет выбором). */
-  let noteTool: NoteTool = $state({ ...DEFAULT_NOTE_TOOL });
-
-  /** Смена активного инструмента заметок. */
-  function changeNoteTool(tool: NoteTool) {
-    noteTool = normalizeNoteTool(tool, currentNoteTypes);
-  }
-
-  /** Переключение инструмента на тип заметки и палитра её цвета.
-   *
-   * При выборе существующей заметки логично продолжить работу её инструментом:
-   * иначе под инструментом «фигура» карточка лишь выделяется, а перемещение и
-   * создание новых заметок конфликтуют (в PDF протяжка вообще перехватывала
-   * клик по меню). Клик по заметке делает активным её тип, а её цвет становится
-   * цветом инструмента — так создание следующей заметки идёт тем же цветом.
-   */
-  function activateNoteTool(noteId: string) {
-    const note = notes.find((candidate) => candidate.id === noteId);
-    if (!note) {
-      return;
-    }
-    const next: NoteTool = { ...noteTool, type: note.type };
-    if (note.type === 'shape') {
-      next.shape = note.shape;
-    }
-    next.color = note.color;
-    noteTool = normalizeNoteTool(next, currentNoteTypes);
-  }
-
-  /** Активный набор заметок по книге: ключ книги → идентификатор выбранного набора. */
-  let activeSetByBook: Record<string, string> = {};
-
-  /** Загруженные заметки наборов книги: идентификатор набора → заметки. */
-  let loadedNotesSets: Record<string, Note[]> = {};
-
-  /** Номер последнего запроса заметок: ответы устаревших запросов отбрасываются. */
-  let notesLoadToken = 0;
 
   /** Читалка активной вкладки для перехода к заметке. */
   let reader: { goto: (note: Note) => void } | undefined = $state();
@@ -289,6 +212,13 @@
     return allowedNoteTypes(!isSupportedFormat(format));
   });
 
+  /** Контроллер заметок активной книги: состояние набора и операции хранилища. */
+  const notesController = createNotesController(
+    () => notesBookKey,
+    () => currentNoteTypes,
+    () => currentTab?.title ?? '',
+  );
+
   /** Вкладка, для которой выбирается новая книга (переуказание файла). */
   let repointTabId: string | null = $state(null);
 
@@ -298,7 +228,7 @@
     if (!library?.path) {
       return null;
     }
-    return library.path.split(/[\\/]/).filter(Boolean).pop() ?? library.path;
+    return lastSegment(library.path);
   }
 
   /** Показан ли основной раздел библиотеки. */
@@ -491,399 +421,7 @@
   function toggleNotesPanel() {
     notesPanelOpen = !notesPanelOpen;
     if (notesPanelOpen) {
-      void loadNotes();
-    }
-  }
-
-  /** Элементы списка заметок для панели: только доступные типы текущей книги.
-   *
-   * В текучем формате (EPUB) недоступные типы (текст, фигура) не показываются ни
-   * в панели, ни в книге — те же элементы идут и в читалку. Данные сохраняются.
-   */
-  const noteItems = $derived(
-    noteList(notes.filter((note) => currentNoteTypes.includes(note.type))),
-  );
-
-  /** Показ заметок набора, запоминание выбора для книги и кеш загруженных наборов. */
-  function showSetNotes(key: string | null, setId: string, value: Note[]) {
-    notesSetId = setId;
-    notes = value;
-    loadedNotesSets = { ...loadedNotesSets, [setId]: value };
-    if (key) {
-      activeSetByBook = { ...activeSetByBook, [key]: setId };
-      // Выбор дублируется в хранилище: активный набор переживает перезапуск.
-      void setActiveSet(key, setId).catch((error) => {
-        notesError = String(error);
-      });
-    }
-  }
-
-  /** Сброс состояния заметок, относящегося к прежней книге.
-   *
-   * Наборы принадлежат книге, поэтому при смене ключа книги список наборов и
-   * заметки активного набора очищаются синхронно, не дожидаясь ответа хранилища.
-   * Иначе до ответа (или при ошибке загрузки) панель показывала бы наборы и
-   * заметки прежней книги — «протечка» между книгами.
-   */
-  function resetNotesForBook(key: string | null) {
-    loadedNotesBook = key;
-    loadedNotesSets = {};
-    notesSets = [];
-    notes = [];
-    notesSetId = null;
-    notesLoading = false;
-    notesLoadToken += 1;
-  }
-
-  /** Загрузка наборов заметок книги и заметок активного набора.
-   *
-   * Активный набор выбирается на книгу: предпочтительный сохраняется, пока
-   * принадлежит книге, иначе им становится первый набор. Заметки набора берутся
-   * из кеша, если уже загружались: переключение вкладок не перечитывает их и не
-   * показывает содержимое другого набора. Ответы устаревших запросов
-   * отбрасываются по номеру запроса, чтобы фоновое событие не перетёрло
-   * результат только что созданного или выбранного набора.
-   */
-  async function loadNotes() {
-    const key = notesBookKey;
-    if (!key) {
-      resetNotesForBook(null);
-      return;
-    }
-    if (loadedNotesBook !== key) {
-      resetNotesForBook(key);
-    }
-    const token = ++notesLoadToken;
-    const preferredId = activeSetByBook[key] ?? null;
-    notesLoading = preferredId === null || loadedNotesSets[preferredId] === undefined;
-    try {
-      const { sets, activeSetId } = await loadSets(key);
-      if (token !== notesLoadToken) {
-        return;
-      }
-      // Сохранённый в хранилище выбор используется, пока не выбран другой набор
-      // в этом сеансе: так активный набор переживает перезапуск приложения.
-      const preferred = activeSetByBook[key] ?? activeSetId ?? null;
-      const activeId = resolveActiveSetId(sets, preferred);
-      notesSets = sets;
-      if (!activeId) {
-        notesSetId = null;
-        notes = [];
-        notesError = null;
-        return;
-      }
-      const cached = loadedNotesSets[activeId];
-      if (cached !== undefined) {
-        showSetNotes(key, activeId, cached);
-        notesError = null;
-        return;
-      }
-      const set = await getSet(activeId);
-      if (token !== notesLoadToken) {
-        return;
-      }
-      showSetNotes(key, activeId, set.notes);
-      notesError = null;
-    } catch (error) {
-      if (token !== notesLoadToken) {
-        return;
-      }
-      notesError = String(error);
-    } finally {
-      if (token === notesLoadToken) {
-        notesLoading = false;
-      }
-    }
-  }
-
-  /** Переключение активного набора книги. */
-  async function selectSet(setId: string) {
-    const key = notesBookKey;
-    if (!key || setId === notesSetId) {
-      return;
-    }
-    const token = ++notesLoadToken;
-    const cached = loadedNotesSets[setId];
-    if (cached !== undefined) {
-      showSetNotes(key, setId, cached);
-      notesError = null;
-      notesLoading = false;
-      return;
-    }
-    notesSetId = setId;
-    notesLoading = true;
-    try {
-      const set = await getSet(setId);
-      if (token !== notesLoadToken) {
-        return;
-      }
-      showSetNotes(key, setId, set.notes);
-      notesError = null;
-    } catch (error) {
-      if (token !== notesLoadToken) {
-        return;
-      }
-      notesError = String(error);
-    } finally {
-      if (token === notesLoadToken) {
-        notesLoading = false;
-      }
-    }
-  }
-
-  /** Отображаемое имя книги активной вкладки; для набора заметок. */
-  function currentBookTitle(): string {
-    return currentTab?.title ?? '';
-  }
-
-  /** Создание набора книги с непустым именем; он становится активным и пустым. */
-  async function createNoteSet(name: string) {
-    const key = notesBookKey;
-    const trimmed = name.trim();
-    if (!key || !trimmed) {
-      return;
-    }
-    try {
-      const set = await createSet(key, trimmed, currentBookTitle());
-      // Пользователь мог переключить книгу, пока набор создавался: результат
-      // принадлежит прежней книге и в текущей панели показываться не должен.
-      if (notesBookKey !== key) {
-        return;
-      }
-      // Новый набор — самый свежий запрос: фоновое событие `notes:changed`
-      // не должно перетереть показанный пустой набор прежним активным.
-      notesLoadToken += 1;
-      notesSets = await listSets(key);
-      if (notesBookKey !== key) {
-        return;
-      }
-      showSetNotes(key, set.id, set.notes);
-      notesError = null;
-      notesLoading = false;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Переименование набора книги. */
-  async function renameNoteSet(setId: string, name: string) {
-    const key = notesBookKey;
-    const trimmed = name.trim();
-    if (!trimmed) {
-      return;
-    }
-    try {
-      await renameSet(setId, trimmed);
-      if (key && notesBookKey === key) {
-        const sets = await listSets(key);
-        if (notesBookKey === key) {
-          notesSets = sets;
-        }
-      }
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Удаление набора книги; активным становится оставшийся набор. */
-  async function removeNoteSet(setId: string) {
-    const key = notesBookKey;
-    if (!key) {
-      return;
-    }
-    try {
-      await deleteSet(setId);
-      // Список и активный набор пересчитываются только для той же книги:
-      // ответ по прежней книге не должен подменять текущую панель.
-      if (notesBookKey !== key) {
-        return;
-      }
-      notesLoadToken += 1;
-      const remaining = { ...loadedNotesSets };
-      delete remaining[setId];
-      loadedNotesSets = remaining;
-      const remembered = activeSetByBook[key] === setId ? null : (activeSetByBook[key] ?? null);
-      const sets = await listSets(key);
-      if (notesBookKey !== key) {
-        return;
-      }
-      const activeId = resolveActiveSetId(sets, remembered);
-      notesSets = sets;
-      if (!activeId) {
-        notesSetId = null;
-        notes = [];
-        const cleared = { ...activeSetByBook };
-        delete cleared[key];
-        activeSetByBook = cleared;
-        notesError = null;
-        return;
-      }
-      const active = remaining[activeId];
-      if (active !== undefined) {
-        showSetNotes(key, activeId, active);
-        notesError = null;
-        return;
-      }
-      notes = (await getSet(activeId)).notes;
-      if (notesBookKey !== key) {
-        return;
-      }
-      showSetNotes(key, activeId, notes);
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Добавление заметки-цитаты, созданной выделением в книге, в активный набор. */
-  async function addQuoteFromSelection(anchor: QuoteAnchor, color: NoteColor) {
-    const key = notesBookKey;
-    if (!key) {
-      return;
-    }
-    try {
-      let setId = activeSetByBook[key] ?? notesSetId;
-      if (!setId) {
-        const set = await createSet(key, DEFAULT_SET_NAME, currentBookTitle());
-        setId = set.id;
-        notesSets = await listSets(key);
-      }
-      const updated = await addQuote(
-        key,
-        anchor,
-        {
-          id: setId,
-          bookKey: key,
-          bookTitle: currentBookTitle(),
-          name: '',
-          createdAtMillis: 0,
-          notes,
-        },
-        color,
-      );
-      showSetNotes(key, setId, updated.notes);
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Добавление текстовой карточки в точке книги в активный набор. */
-  async function addTextNoteAtPoint(anchor: QuoteAnchor, text: string, color: NoteColor) {
-    const key = notesBookKey;
-    const setId = key ? await ensureActiveSet(key) : null;
-    if (!key || !setId) {
-      return;
-    }
-    try {
-      const updated = await addTextNote(key, setId, anchor, text, color);
-      showSetNotes(key, setId, updated.notes);
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Добавление заметки-фигуры, нарисованной в книге, в активный набор. */
-  async function addShapeFromDrawing(
-    anchor: QuoteAnchor,
-    shape: ShapeKind,
-    geometry: string,
-    color: NoteColor,
-  ) {
-    const key = notesBookKey;
-    const setId = key ? await ensureActiveSet(key) : null;
-    if (!key || !setId) {
-      return;
-    }
-    try {
-      const updated = await addShapeNote(key, setId, anchor, shape, geometry, color);
-      showSetNotes(key, setId, updated.notes);
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Получение активного набора книги, при отсутствии — его создание. */
-  async function ensureActiveSet(key: string): Promise<string> {
-    let setId = activeSetByBook[key] ?? notesSetId;
-    if (!setId) {
-      const set = await createSet(key, DEFAULT_SET_NAME, currentBookTitle());
-      setId = set.id;
-      notesSets = await listSets(key);
-    }
-    return setId;
-  }
-
-  /** Смена цвета подсветки существующей заметки. */
-  async function recolorNote(noteId: string, color: NoteColor) {
-    const key = notesBookKey;
-    const setId = key ? (activeSetByBook[key] ?? notesSetId) : notesSetId;
-    if (!key || !setId) {
-      return;
-    }
-    try {
-      const updated = await changeNoteColor(key, setId, noteId, color);
-      showSetNotes(key, setId, updated.notes);
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Изменение названия и комментария существующей заметки. */
-  async function editNoteDetails(noteId: string, details: { title: string; comment: string }) {
-    const key = notesBookKey;
-    const setId = key ? (activeSetByBook[key] ?? notesSetId) : notesSetId;
-    if (!key || !setId) {
-      return;
-    }
-    try {
-      const updated = await updateNoteDetails(key, setId, noteId, details);
-      showSetNotes(key, setId, updated.notes);
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Перемещение заметки на странице или сдвиг границ её цитаты. */
-  async function placeNote(noteId: string, anchor: QuoteAnchor, geometry?: string) {
-    const key = notesBookKey;
-    const setId = key ? (activeSetByBook[key] ?? notesSetId) : notesSetId;
-    if (!key || !setId) {
-      return;
-    }
-    try {
-      const updated = await updateNotePlacement(key, setId, noteId, {
-        anchor: JSON.stringify(anchor),
-        quote: anchor.quote,
-        chapter: String(anchor.chapter),
-        percent: anchor.percent,
-        geometry,
-      });
-      showSetNotes(key, setId, updated.notes);
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
-    }
-  }
-
-  /** Удаление заметки-цитаты. */
-  async function removeNote(noteId: string) {
-    const key = notesBookKey;
-    const setId = key ? (activeSetByBook[key] ?? notesSetId) : notesSetId;
-    if (!key || !setId) {
-      return;
-    }
-    try {
-      const updated = await deleteNote(key, setId, noteId);
-      showSetNotes(key, setId, updated.notes);
-      notesError = null;
-    } catch (error) {
-      notesError = String(error);
+      void notesController.load();
     }
   }
 
@@ -899,37 +437,24 @@
     notesPanelOpen = true;
     // Инструмент следует за выбранной заметкой: дальнейшее перемещение и
     // создание новых заметок идут её типом и цветом (см. activateNoteTool).
-    activateNoteTool(noteId);
-    void loadNotes();
+    notesController.activateTool(noteId);
+    void notesController.load();
   }
 
-  /** Загрузка заметок при смене книги активной вкладки.
-   *
-   * Состояние прежней книги сбрасывается внутри самой загрузки, поэтому панель
-   * не показывает наборы и заметки прошлой книги даже до ответа хранилища.
-   */
-  $effect(() => {
-    if (!notesBookKey) {
-      resetNotesForBook(null);
-      return;
-    }
-    void loadNotes();
-  });
 
-  /** Перечитывание заметок при внешнем изменении хранилища. */
+  /** Перечитывание реестра заметок при внешнем изменении хранилища.
+   *
+   * Реестр заметок перечитывается всегда (а не только когда открыт раздел),
+   * чтобы «Заметки» показывали актуальное состояние без перезапуска и без
+   * запроса при открытии. Вызов не отслеживается: иначе запись реестра
+   * перезапустила бы этот же эффект. Заметки активной книги перечитывает
+   * контроллер по своему событию (`markChanged`).
+   */
   $effect(() => {
     const marker = notesRevision;
     if (marker === 0) {
       return;
     }
-    // Внешнее изменение могло затронуть любой набор: кеш заметок книги
-    // сбрасывается, чтобы панель показала актуальное состояние.
-    loadedNotesSets = {};
-    void loadNotes();
-    // Реестр заметок перечитывается всегда (а не только когда открыт), чтобы
-    // раздел «Заметки» показывал актуальное состояние без перезапуска и без
-    // запроса при открытии. Вызов не отслеживается: иначе запись реестра
-    // перезапустила бы этот же эффект.
     untrack(() => {
       void loadNotesLibrary();
     });
@@ -948,7 +473,7 @@
     if (notesBookKey !== target.bookKey) {
       return;
     }
-    if (notesSetId !== target.setId) {
+    if (notesController.setId !== target.setId) {
       return;
     }
     if (!target.noteId) {
@@ -956,27 +481,13 @@
       notesPanelOpen = true;
       return;
     }
-    const note = notes.find((candidate) => candidate.id === target.noteId);
+    const note = notesController.findNote(target.noteId);
     if (!note) {
       return;
     }
     pendingNoteTarget = null;
     notesPanelOpen = true;
     goToNote(note);
-  });
-
-  /** Приведение инструмента к доступным типам при смене книги активной вкладки.
-   *
-   * Если активным был инструмент, недоступный текучему формату (например,
-   * «фигура»), он становится цитатой; цвет сохраняется. Иначе скрытый инструмент
-   * остался бы активным и создавал недоступную заметку.
-   */
-  $effect(() => {
-    const types = currentNoteTypes;
-    const next = normalizeNoteTool(noteTool, types);
-    if (next !== noteTool) {
-      noteTool = next;
-    }
   });
 
   /** Возврат к списку рабочих мест. */
@@ -1087,9 +598,7 @@
 
   /** Человекочитаемое имя книги по последнему сегменту пути. */
   function fileName(path: string): string {
-    return (
-      path.split(/[\\/]/).filter(Boolean).pop()?.replace(/\.[^.]+$/, '') ?? path
-    );
+    return lastSegment(path, { stripExt: true });
   }
 
   /** Открытие книги вкладкой рабочего места из библиотеки.
@@ -1118,28 +627,25 @@
    * появляется асинхронно, поэтому `reader.goto` вызывается, когда заметки книги
    * уже загружены.
    */
-  function openNotesLibrarySet(set: AggregateNoteSet) {
+  function openNotesLibrarySet(set: NoteSet) {
     openNotesTarget(set, null);
   }
 
   /** Переход из реестра заметок к конкретной заметке набора. */
-  function openNotesLibraryNote(set: AggregateNoteSet, note: Note) {
+  function openNotesLibraryNote(set: NoteSet, note: Note) {
     openNotesTarget(set, note.id);
   }
 
   /** Общий переход из реестра: книга, активный набор и цель по заметке. */
-  function openNotesTarget(set: AggregateNoteSet, noteId: string | null) {
+  function openNotesTarget(set: NoteSet, noteId: string | null) {
     const key = set.bookKey.trim();
     if (!key || key === 'no-library') {
       notesLibraryError = 'Книга набора недоступна: у набора нет файла.';
       return;
     }
-    // Активный набор запоминается до загрузки заметок: `loadNotes` выберет его,
+    // Активный набор запоминается до загрузки заметок: `load` выберет его,
     // когда вкладка книги появится.
-    activeSetByBook = { ...activeSetByBook, [key]: set.id };
-    void setActiveSet(key, set.id).catch((error) => {
-      notesError = String(error);
-    });
+    notesController.rememberActiveSet(key, set.id);
     pendingNoteTarget = { bookKey: key, setId: set.id, noteId };
     notesLibraryOpen = false;
     const book = {
@@ -1188,8 +694,8 @@
   /** Обновление сведений об активной библиотеке из ядра. */
   async function refreshActiveLibrary() {
     try {
-      const result = (await invokeCommand('active_library', {})) as ActiveLibrary | null;
-      activeLibrary = result?.path ? result : null;
+      const result = await fetchActiveLibrary();
+      activeLibrary = (result as ActiveLibrary | null) ?? null;
     } catch {
       activeLibrary = null;
     }
@@ -1210,6 +716,7 @@
       });
       unlistenNotes = await listenEvent('notes:changed', () => {
         notesRevision += 1;
+        notesController.markChanged();
       });
       unlistenSettings = await listenEvent('settings:changed', (value) => {
         const theme = themeFromSettingsEvent(value);
@@ -1234,11 +741,16 @@
   /** Сообщение об ошибке загрузки или сохранения реестра. */
   let registryError = $state<string | null>(null);
 
-  /** Сохранение реестра рабочих мест с небольшой задержкой. */
+  /** Сохранение реестра рабочих мест с небольшой задержкой.
+   *
+   * Глубокий снимок берётся лениво — уже в момент сохранения, а не на каждое
+   * изменение реестра: до истечения задержки сериализовать нечего.
+   */
   $effect(() => {
-    const snapshot = $state.snapshot(registry);
+    // Подписка на изменения реестра; сам снимок берётся отложенно.
+    void registry;
     const timer = setTimeout(() => {
-      void saveRegistry(snapshot);
+      void saveRegistry($state.snapshot(registry));
     }, 300);
     return () => clearTimeout(timer);
   });
@@ -1294,10 +806,10 @@
           Не удалось сохранить рабочее место
         </span>
       {/if}
-      {#if notesError}
+      {#if notesController.error}
         <span
           class="whitespace-nowrap rounded-md border border-[var(--destructive)] px-2 py-[2px] text-[12px] text-[var(--destructive)]"
-          title={notesError}
+          title={notesController.error}
         >
           Ошибка заметок
         </span>
@@ -1495,16 +1007,16 @@
           listMode={workspaceListMode}
           booksOpen={booksPanelOpen}
           notesOpen={notesPanelOpen}
-          notes={noteItems}
-          noteSets={notesSets}
-          activeSetId={notesSetId}
-          notesLoading={notesLoading}
+          notes={notesController.items}
+          noteSets={notesController.sets}
+          activeSetId={notesController.setId}
+          notesLoading={notesController.loading}
           hasBook={notesBookKey !== null}
           visible={workspaceVisible}
           selectedNoteId={selectedNoteId}
-          tool={noteTool}
+          tool={notesController.tool}
           allowedNoteTypes={currentNoteTypes}
-          onToolChange={changeNoteTool}
+          onToolChange={notesController.setTool}
           onSelectTab={selectTab}
           onCloseTab={removeTab}
           onDuplicateTab={duplicateCurrentTab}
@@ -1512,19 +1024,19 @@
           onAddFile={chooseBookFile}
           onToggleBooks={toggleBooksPanel}
           onToggleNotes={toggleNotesPanel}
-          onQuote={addQuoteFromSelection}
-          onTextNote={addTextNoteAtPoint}
-          onShape={addShapeFromDrawing}
-          onPlaceNote={placeNote}
-          onDeleteNote={removeNote}
-          onChangeNoteColor={recolorNote}
-          onEditNote={editNoteDetails}
+          onQuote={notesController.addQuote}
+          onTextNote={notesController.addTextNote}
+          onShape={notesController.addShape}
+          onPlaceNote={notesController.place}
+          onDeleteNote={notesController.remove}
+          onChangeNoteColor={notesController.recolor}
+          onEditNote={notesController.editDetails}
           onGoToNote={goToNote}
           onSelectNote={selectNote}
-          onSelectSet={selectSet}
-          onCreateSet={createNoteSet}
-          onRenameSet={renameNoteSet}
-          onRemoveSet={removeNoteSet}
+          onSelectSet={notesController.selectSet}
+          onCreateSet={notesController.createSet}
+          onRenameSet={notesController.renameSet}
+          onRemoveSet={notesController.removeSet}
           onTabState={handleTabState}
           onRepointTab={requestRepoint}
           onBackToList={backToList}

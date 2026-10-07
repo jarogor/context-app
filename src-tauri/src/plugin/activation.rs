@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::atomic_file;
+
 /// Имя файла реестра в служебном каталоге состояния.
 const FILE_NAME: &str = "disabled-plugins.json";
 
@@ -21,15 +23,9 @@ struct ActivationFile {
 
 /// Загрузка множества отключённых плагинов.
 pub fn load(root: &Path) -> Result<Vec<String>, String> {
-    match std::fs::read_to_string(file_path(root)) {
-        Ok(value) => {
-            let file: ActivationFile =
-                serde_json::from_str(&value).map_err(|error| error.to_string())?;
-            Ok(file.disabled)
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
-        Err(error) => Err(error.to_string()),
-    }
+    atomic_file::read_json_or_default::<ActivationFile>(&file_path(root))
+        .map(|file| file.disabled)
+        .map_err(|error| error.to_string())
 }
 
 /// Признак, что плагин с указанным идентификатором отключён.
@@ -51,15 +47,10 @@ pub fn set_enabled(root: &Path, id: &str, enabled: bool) -> Result<(), String> {
 
 /// Полная замена реестра отключённых (для инициализации и тестов).
 pub fn save(root: &Path, disabled: &[String]) -> Result<(), String> {
-    std::fs::create_dir_all(root).map_err(|error| error.to_string())?;
     let file = ActivationFile {
         disabled: disabled.to_vec(),
     };
-    let value = serde_json::to_string(&file).map_err(|error| error.to_string())?;
-    let path = file_path(root);
-    let temporary = path.with_extension("tmp");
-    std::fs::write(&temporary, value).map_err(|error| error.to_string())?;
-    std::fs::rename(&temporary, &path).map_err(|error| error.to_string())
+    atomic_file::write_json(&file_path(root), &file).map_err(|error| error.to_string())
 }
 
 /// Путь файла реестра.

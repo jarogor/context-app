@@ -1,10 +1,8 @@
 <script lang="ts">
   import {
-    ActionMenu,
     Button,
+    EntityList,
     Input,
-    ListRow,
-    MetaList,
     PageShell,
     SearchCreate,
     type MenuAction,
@@ -133,70 +131,51 @@
     {/if}
   {/snippet}
 
-  {#if workspaces.length > 0 && filtered.length === 0}
-    <p class="text-[var(--muted-foreground)]" data-testid="workspaces-not-found">
-      Ничего не найдено.
-    </p>
-  {:else}
-    <ul class="flex list-none flex-col gap-2 p-0">
-      {#each filtered as item (item.id)}
-        {#if editingId === item.id}
-          <li
-            class="flex items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2"
-            data-testid="workspace-item"
-          >
-            <label class="flex min-w-0 flex-1 flex-col gap-1">
-              <span class="text-xs text-[var(--muted-foreground)]">Новое имя</span>
-              <Input
-                bind:value={editingName}
-                placeholder="Новое имя"
-                onkeydown={(event) => {
-                  if (event.key === 'Enter') {
-                    commitRename();
-                  }
-                  if (event.key === 'Escape') {
-                    editingId = null;
-                  }
-                }}
-              />
-            </label>
-            <Button variant="primary" size="sm" onclick={commitRename}>Сохранить</Button>
-            <Button variant="secondary" size="sm" onclick={() => (editingId = null)}>Отмена</Button>
-          </li>
-        {:else}
-          <li data-testid="workspace-item">
-            <ListRow
-              selected={item.id === currentId}
-              onclick={() => onOpen(item.id)}
-            >
-              {#snippet titleContent()}
-                <span
-                  class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
-                  data-testid="workspace-open"
-                  title={item.name}
-                >
-                  {item.name}
-                </span>
-              {/snippet}
+  <EntityList
+    items={filtered}
+    key={(item) => item.id}
+    itemTestId="workspace-item"
+    notFound={workspaces.length > 0 && filtered.length === 0}
+    notFoundTestId="workspaces-not-found"
+    selected={(item) => item.id === currentId}
+    onSelect={(item) => onOpen(item.id)}
+    metaItems={metaItems}
+    metaTestId="workspace-meta"
+    actions={() => workspaceActions}
+    actionsLabel="Действия с рабочим местом"
+    onAction={runWorkspaceAction}
+    isEditing={(item) => editingId === item.id}
+  >
+    {#snippet titleContent(item)}
+      <span
+        class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
+        data-testid="workspace-open"
+        title={item.name}
+      >
+        {item.name}
+      </span>
+    {/snippet}
 
-              {#snippet meta()}
-                <span data-testid="workspace-meta">
-                  <MetaList items={metaItems(item)} />
-                </span>
-              {/snippet}
-
-              {#snippet actions()}
-                <ActionMenu
-                  ariaLabel="Действия с рабочим местом"
-                  title="Действия"
-                  items={workspaceActions}
-                  onselect={(action) => runWorkspaceAction(item, action)}
-                />
-              {/snippet}
-            </ListRow>
-          </li>
-        {/if}
-      {/each}
-    </ul>
-  {/if}
+    {#snippet editContent()}
+      <div class="flex items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2">
+        <label class="flex min-w-0 flex-1 flex-col gap-1">
+          <span class="text-xs text-[var(--muted-foreground)]">Новое имя</span>
+          <Input
+            bind:value={editingName}
+            placeholder="Новое имя"
+            onkeydown={(event) => {
+              if (event.key === 'Enter') {
+                commitRename();
+              }
+              if (event.key === 'Escape') {
+                editingId = null;
+              }
+            }}
+          />
+        </label>
+        <Button variant="primary" size="sm" onclick={commitRename}>Сохранить</Button>
+        <Button variant="secondary" size="sm" onclick={() => (editingId = null)}>Отмена</Button>
+      </div>
+    {/snippet}
+  </EntityList>
 </PageShell>

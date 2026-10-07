@@ -6,9 +6,17 @@
     readWorkplaceBook,
   } from './reader';
   import { buildViewerDocument } from './viewer-bundle';
-  import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
+  import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import type { QuoteAnchor } from './reader/anchor';
+  import {
+    WORKPLACE_CHANNEL,
+    isWorkplaceMessage,
+    parseViewerMessage,
+    type WorkplaceCapabilities,
+    type WorkplaceNoteMenu,
+    type WorkplaceState,
+  } from './workplace-protocol';
 
   interface Props {
     /** Идентификатор плагина рабочего места. */
@@ -26,9 +34,9 @@
     /** Активный инструмент создания заметок. */
     tool?: NoteTool;
     /** Возможности плагина, сообщённые после загрузки. */
-    onCapabilities?: (capabilities: { zoom?: boolean; pages?: boolean; selection?: boolean }) => void;
+    onCapabilities?: (capabilities: WorkplaceCapabilities) => void;
     /** Состояние позиции: страница и их общее число. */
-    onState?: (state: { page: number | null; pages: number | null }) => void;
+    onState?: (state: WorkplaceState) => void;
     /** Прогресс чтения в процентах. */
     onProgress?: (value: number) => void;
     /** Прогресс загрузки содержимого в процентах (`null` — загрузка завершена). */
@@ -44,13 +52,7 @@
     /** Клик по подсветке заметки: открыть панель и выбрать заметку. */
     onNoteClick?: (noteId: string) => void;
     /** Открытие контекстного меню заметки: прямоугольник в координатах области. */
-    onNoteMenu?: (menu: {
-      noteId: string;
-      noteType: NoteType;
-      left: number;
-      top: number;
-      bottom: number;
-    }) => void;
+    onNoteMenu?: (menu: WorkplaceNoteMenu) => void;
     /** Закрытие контекстного меню заметки. */
     onNoteMenuClose?: () => void;
     /** Перемещение заметки или сдвиг границ цитаты (страничные форматы). */
@@ -83,7 +85,7 @@
   }: Props = $props();
 
   /** Канал сообщений между областью содержимого и приложением. */
-  const CHANNEL = 'texture-workplace';
+  const CHANNEL = WORKPLACE_CHANNEL;
 
   /** Точка входа с внедрёнными файлами модуля. */
   let html = $state('');
@@ -151,96 +153,59 @@
 
   /** Обработка сообщений модуля рисования. */
   function handleMessage(event: MessageEvent) {
-    if (event.source !== frame?.contentWindow) {
+    if (!isWorkplaceMessage(event, frame?.contentWindow)) {
       return;
     }
-    const message = event.data as
-      | { channel?: string; type?: string; value?: unknown; message?: unknown }
-      | null
-      | undefined;
-    if (!message || message.channel !== CHANNEL) {
+    const message = parseViewerMessage(event.data, tool);
+    if (!message) {
       return;
     }
-    if (message.type === 'ready') {
-      ready = true;
-      void sendBook();
-      sendTool();
-    } else if (message.type === 'capabilities') {
-      onCapabilities?.(
-        (message.value as { zoom?: boolean; pages?: boolean; selection?: boolean }) ?? {},
-      );
-    } else if (message.type === 'state') {
-      const value = (message.value as { page?: unknown; pages?: unknown }) ?? {};
-      const page = Number.isFinite(Number(value.page)) ? Number(value.page) : null;
-      const pages = Number.isFinite(Number(value.pages)) ? Number(value.pages) : null;
-      onState?.({ page, pages });
-    } else if (message.type === 'progress' && typeof message.value === 'number') {
-      onProgress?.(Math.max(0, Math.min(100, message.value)));
-    } else if (message.type === 'selection') {
-      const value = (message.value as { anchor?: QuoteAnchor; x?: number; y?: number }) ?? {};
-      if (value.anchor) {
-        onSelection?.(value.anchor, { x: Number(value.x) || 0, y: Number(value.y) || 0 });
-      }
-    } else if (message.type === 'selection-cleared') {
-      onSelectionCleared?.();
-    } else if (message.type === 'text-point') {
-      const value = (message.value as { anchor?: QuoteAnchor; color?: unknown }) ?? {};
-      if (value.anchor) {
-        const color = String(value.color ?? tool.color);
-        onTextPoint?.(value.anchor, color as NoteColor);
-      }
-    } else if (message.type === 'shape') {
-      const value =
-        (message.value as {
-          anchor?: QuoteAnchor;
-          shape?: unknown;
-          geometry?: unknown;
-          color?: unknown;
-        }) ?? {};
-      if (value.anchor) {
-        onShape?.(
-          value.anchor,
-          String(value.shape ?? tool.shape) as ShapeKind,
-          String(value.geometry ?? ''),
-          String(value.color ?? tool.color) as NoteColor,
-        );
-      }
-    } else if (message.type === 'note-click') {
-      const value = (message.value as { noteId?: unknown }) ?? {};
-      if (typeof value.noteId === 'string') {
-        onNoteClick?.(value.noteId);
-      }
-    } else if (message.type === 'note-menu') {
-      const value =
-        (message.value as {
-          noteId?: unknown;
-          noteType?: unknown;
-          left?: unknown;
-          top?: unknown;
-          bottom?: unknown;
-        }) ?? {};
-      if (typeof value.noteId === 'string') {
-        onNoteMenu?.({
-          noteId: value.noteId,
-          noteType: String(value.noteType ?? 'quote') as NoteType,
-          left: Number(value.left) || 0,
-          top: Number(value.top) || 0,
-          bottom: Number(value.bottom) || 0,
-        });
-      }
-    } else if (message.type === 'note-menu-close') {
-      onNoteMenuClose?.();
-    } else if (message.type === 'place-note') {
-      const value =
-        (message.value as { noteId?: unknown; anchor?: QuoteAnchor; geometry?: unknown }) ?? {};
-      if (typeof value.noteId === 'string' && value.anchor) {
-        onPlaceNote?.(value.noteId, value.anchor, value.geometry === undefined ? undefined : String(value.geometry));
-      }
-    } else if (message.type === 'error') {
-      error = String(message.message ?? 'не удалось отобразить книгу');
-      onError?.(error);
-    } else if (message.type === 'open-external') {
-      void openBookExternally(path);
+    switch (message.type) {
+      case 'ready':
+        ready = true;
+        void sendBook();
+        sendTool();
+        break;
+      case 'capabilities':
+        onCapabilities?.(message.value);
+        break;
+      case 'state':
+        onState?.(message.value);
+        break;
+      case 'progress':
+        onProgress?.(message.value);
+        break;
+      case 'selection':
+        onSelection?.(message.anchor, { x: message.x, y: message.y });
+        break;
+      case 'selection-cleared':
+        onSelectionCleared?.();
+        break;
+      case 'text-point':
+        onTextPoint?.(message.anchor, message.color);
+        break;
+      case 'shape':
+        onShape?.(message.anchor, message.shape, message.geometry, message.color);
+        break;
+      case 'note-click':
+        onNoteClick?.(message.noteId);
+        break;
+      case 'note-menu':
+        onNoteMenu?.(message.value);
+        break;
+      case 'note-menu-close':
+        onNoteMenuClose?.();
+        break;
+      case 'place-note':
+        onPlaceNote?.(message.noteId, message.anchor, message.geometry);
+        break;
+      case 'error':
+        error = message.message;
+        onError?.(error);
+        break;
+      case 'open-external':
+        void openBookExternally(path);
+        break;
     }
   }
 

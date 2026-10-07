@@ -13,6 +13,6 @@ use crate::plugin::{AppInfo, AppState};
 /// подвисает интерфейс.
 #[tauri::command]
 pub async fn app_info(state: State<'_, Mutex<AppState>>) -> Result<AppInfo, String> {
-    let state = state.lock().map_err(|error| error.to_string())?;
+    let state = crate::commands::lock_state(state.inner())?;
     Ok(state.app_info())
 }

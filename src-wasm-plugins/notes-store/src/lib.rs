@@ -5,18 +5,18 @@
 //! Экспортирует функцию `invoke` по контракту приложения. Модель заметки для ядра
 //! непрозрачна: набор адресуется ключом книги, заметка — непрозрачным якорем.
 
-pub mod host;
 pub mod models;
 pub mod store;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
-use serde::Deserialize;
 use serde_json::json;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::host::Host;
+use plugin_host::state;
+use plugin_host::{Host, Request};
+
 use crate::models::{NoteInput, NotePatch, NoteSet};
 use crate::store::NotesState;
 
@@ -32,19 +32,9 @@ const NOTE_ID_PREFIX: &str = "note";
 /// Счётчик для уникальности идентификаторов в пределах запуска.
 static SEQUENCE: AtomicU32 = AtomicU32::new(0);
 
-/// Запрос от приложения по контракту.
-#[derive(Deserialize)]
-struct Request {
-    /// Действие плагина заметок.
-    action: String,
-    /// Данные операции.
-    #[serde(default)]
-    payload: serde_json::Value,
-}
-
 /// Диспетчеризация действий плагина заметок.
 pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
-    let request: Request = serde_json::from_str(input).map_err(|error| error.to_string())?;
+    let request = Request::parse(input)?;
     match request.action.as_str() {
         "list_sets" => list_sets(host, &request.payload),
         "list_all_sets" => list_all_sets(host, &request.payload),
@@ -232,17 +222,12 @@ fn string_field(payload: &serde_json::Value, key: &str) -> String {
 
 /// Загрузка состояния из служебного хранилища с нормализацией.
 fn load(host: &impl Host) -> Result<NotesState, String> {
-    let Some(value) = host.state_read(STATE_KEY)? else {
-        return Ok(NotesState::new());
-    };
-    let state: NotesState = serde_json::from_str(&value).map_err(|error| error.to_string())?;
-    Ok(state.normalized())
+    Ok(state::load::<NotesState>(host, STATE_KEY)?.normalized())
 }
 
 /// Сохранение состояния в служебное хранилище.
 fn save(host: &impl Host, state: &NotesState) -> Result<(), String> {
-    let value = serde_json::to_string(state).map_err(|error| error.to_string())?;
-    host.state_write(STATE_KEY, &value)
+    state::save(host, STATE_KEY, state)
 }
 
 #[cfg(test)]

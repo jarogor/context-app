@@ -18,7 +18,7 @@ pub async fn library_history_forget(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
-    let state = state.lock().map_err(|error| error.to_string())?;
+    let state = crate::commands::lock_state(state.inner())?;
     library_history::forget(state.app_state_root(), &path).map_err(|error| error.to_string())?;
     Ok(serde_json::json!({ "forgotten": path }))
 }

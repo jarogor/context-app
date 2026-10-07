@@ -18,7 +18,7 @@ pub async fn save_workspaces(
     state: State<'_, Mutex<AppState>>,
     workspaces: WorkspacesFile,
 ) -> Result<Value, String> {
-    let state = state.lock().map_err(|error| error.to_string())?;
+    let state = crate::commands::lock_state(state.inner())?;
     workspace_state::save(state.app_state_root(), &workspaces)
         .map_err(|error| error.to_string())?;
     Ok(serde_json::json!({ "ok": true }))

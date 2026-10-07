@@ -4,36 +4,26 @@
 //! публикует событие `notifications:added` при добавлении записи. Экспортирует
 //! функцию `invoke` по контракту приложения.
 
-pub mod host;
 pub mod journal;
 pub mod models;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
-use serde::Deserialize;
 use serde_json::json;
 
-use crate::host::Host;
+use plugin_host::state;
+use plugin_host::{Host, Request};
+
 use crate::journal::Journal;
 use crate::models::{Level, Severity};
 
 /// Ключ служебного состояния с журналом.
 const STATE_KEY: &str = "journal.json";
 
-/// Запрос от приложения по контракту.
-#[derive(Deserialize)]
-struct Request {
-    /// Действие плагина уведомлений.
-    action: String,
-    /// Данные операции.
-    #[serde(default)]
-    payload: serde_json::Value,
-}
-
 /// Диспетчеризация действий плагина уведомлений.
 pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
-    let request: Request = serde_json::from_str(input).map_err(|error| error.to_string())?;
+    let request = Request::parse(input)?;
     match request.action.as_str() {
         "publish" => publish(host, &request.payload),
         "list" => list(host, &request.payload),
@@ -115,16 +105,12 @@ fn mark_read(host: &impl Host, payload: &serde_json::Value) -> Result<String, St
 
 /// Загрузка журнала из служебного состояния.
 fn load(host: &impl Host) -> Result<Journal, String> {
-    let Some(value) = host.state_read(STATE_KEY)? else {
-        return Ok(Journal::new());
-    };
-    serde_json::from_str(&value).map_err(|error| error.to_string())
+    state::load::<Journal>(host, STATE_KEY)
 }
 
 /// Сохранение журнала в служебное состояние.
 fn save(host: &impl Host, journal: &Journal) -> Result<(), String> {
-    let value = serde_json::to_string(journal).map_err(|error| error.to_string())?;
-    host.state_write(STATE_KEY, &value)
+    state::save(host, STATE_KEY, journal)
 }
 
 #[cfg(test)]

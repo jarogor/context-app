@@ -18,7 +18,7 @@ use crate::plugin::AppState;
 /// потоке — иначе подвисает интерфейс.
 #[tauri::command]
 pub async fn reader_formats(state: State<'_, Mutex<AppState>>) -> Result<Vec<String>, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     Ok(state.reader()?.workplace_formats())
 }
 
@@ -28,7 +28,7 @@ pub async fn reader_plugin_for_format(
     state: State<'_, Mutex<AppState>>,
     format: String,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     match state.reader()?.workplace_plugin_for_format(&format) {
         Some(id) => Ok(Value::String(id)),
         None => Ok(Value::Null),
@@ -41,7 +41,7 @@ pub async fn reader_viewer(
     state: State<'_, Mutex<AppState>>,
     plugin_id: String,
 ) -> Result<String, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     let path = state
         .reader()?
         .viewer_path(&plugin_id)
@@ -56,7 +56,7 @@ pub async fn reader_viewer_files(
     state: State<'_, Mutex<AppState>>,
     plugin_id: String,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     state.viewer_files(&plugin_id)
 }
 
@@ -67,7 +67,7 @@ pub async fn reader_viewer_file(
     plugin_id: String,
     path: String,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     state.viewer_file(&plugin_id, &path)
 }
 
@@ -77,7 +77,7 @@ pub async fn reader_content(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     state.reader_content(&path)
 }
 
@@ -87,7 +87,7 @@ pub async fn reader_open_external(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     state.reader_open_external(&path)?;
     Ok(serde_json::json!({ "opened": true }))
 }
@@ -100,7 +100,7 @@ pub async fn reader_book_chunk(
     offset: usize,
     length: usize,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     state.workplace_chunk(&path, offset, length)
 }
 
@@ -110,7 +110,7 @@ pub async fn reader_forget_book(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     state.forget_workplace_file(&path);
     Ok(serde_json::json!({ "forgotten": true }))
 }

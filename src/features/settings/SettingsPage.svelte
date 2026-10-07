@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { UiRenderer } from '@texture/ui';
+  import { ErrorToast, UiRenderer, createAsyncState } from '@texture/ui';
   import type { UiIntent } from '@texture/ui-schema';
   import { listenEvent } from '../../shared/app-bridge';
   import { loadSettingsUi, sendSettingsIntent, type NormalizedDeclaration } from './settings';
@@ -17,28 +17,27 @@
   /** Декларации пространства «секция настроек», отданные плагином. */
   let declarations = $state<NormalizedDeclaration[]>(untrack(() => initialDeclarations ?? []));
 
-  /** Ошибка загрузки или выполнения действия. */
-  let errorMessage = $state(untrack(() => initialError));
+  /** Состояние загрузки и ошибок страницы настроек. */
+  const asyncState = createAsyncState();
+
+  // Ошибка, переданная с бутстрапа, показывается сразу при монтировании.
+  asyncState.error = untrack(() => initialError);
 
   /** Загрузка деклараций интерфейса настроек. */
   async function load() {
-    try {
-      const result = await loadSettingsUi();
+    const result = await asyncState.run(loadSettingsUi);
+    if (result) {
       declarations = result.declarations;
-      errorMessage = result.error;
-    } catch (error) {
-      errorMessage = String(error);
+      asyncState.error = result.error;
     }
   }
 
   /** Передача действия плагину и обновление деклараций. */
   async function dispatch(intent: UiIntent) {
-    try {
-      const result = await sendSettingsIntent(intent);
+    const result = await asyncState.run(() => sendSettingsIntent(intent));
+    if (result) {
       declarations = result.declarations;
-      errorMessage = result.error;
-    } catch (error) {
-      errorMessage = String(error);
+      asyncState.error = result.error;
     }
   }
 
@@ -79,11 +78,4 @@
   {/if}
 </div>
 
-{#if errorMessage}
-  <div
-    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-md bg-[var(--destructive-soft)] p-2 text-xs text-[var(--destructive)]"
-    role="alert"
-  >
-    {errorMessage}
-  </div>
-{/if}
+<ErrorToast message={asyncState.error} />

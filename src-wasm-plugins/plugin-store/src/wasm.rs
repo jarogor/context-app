@@ -1,23 +1,19 @@
 //! WASM-точка входа базового плагина стора.
 //!
 //! Модуль собирается только под целевую архитектуру `wasm32`: объявляет
-//! host-функции приложения и экспортируемую функцию `invoke` по контракту.
+//! привилегированные host-функции стора, берёт общую host-обвязку из
+//! `plugin-host` и экспортирует функцию `invoke` по контракту.
 
 use base64::Engine;
 use extism_pdk::{host_fn, plugin_fn, FnResult};
+use plugin_host::wasm::HostEnv as BaseHostEnv;
 
 use crate::host::Host;
 use crate::models::{Installed, PluginEntry};
 
-/// Host-функции, доступные плагину стора.
+/// Привилегированные host-функции, доступные плагину стора.
 #[host_fn]
 extern "ExtismHost" {
-    /// Чтение служебного состояния по ключу.
-    fn state_read(key: String) -> String;
-    /// Запись служебного состояния по ключу.
-    fn state_write(key: String, value: String) -> String;
-    /// Публикация именованного прикладного события.
-    fn emit_event(name: String, payload: String) -> String;
     /// Чтение выбранного пользователем файла в base64.
     fn import_read_bytes(path: String) -> String;
     /// Инспекция пакета плагина без установки.
@@ -35,9 +31,30 @@ extern "ExtismHost" {
 }
 
 /// Реализация `Host` поверх host-функций приложения.
-struct HostEnv;
+///
+/// Общие операции (`state_read`/`state_write`/`emit_event`) делегируются
+/// [`BaseHostEnv`], привилегированные объявлены локально.
+struct StoreHostEnv;
 
-impl Host for HostEnv {
+impl plugin_host::Host for StoreHostEnv {
+    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
+        BaseHostEnv.state_read(key)
+    }
+
+    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
+        BaseHostEnv.state_write(key, value)
+    }
+
+    fn emit_event(&self, name: &str, payload: &str) -> Result<(), String> {
+        BaseHostEnv.emit_event(name, payload)
+    }
+
+    fn now_millis(&self) -> i64 {
+        BaseHostEnv.now_millis()
+    }
+}
+
+impl Host for StoreHostEnv {
     fn store_inspect(&self, path: &str) -> Result<Installed, String> {
         let value =
             unsafe { store_inspect(path.to_string()) }.map_err(|error| error.to_string())?;
@@ -80,32 +97,11 @@ impl Host for HostEnv {
             .map_err(|error| error.to_string())?;
         String::from_utf8(bytes).map_err(|error| error.to_string())
     }
-
-    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
-        let value = unsafe { state_read(key.to_string()) }.map_err(|error| error.to_string())?;
-        if value.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(value))
-        }
-    }
-
-    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
-        unsafe { state_write(key.to_string(), value.to_string()) }
-            .map(|_| ())
-            .map_err(|error| error.to_string())
-    }
-
-    fn emit_event(&self, name: &str, payload: &str) -> Result<(), String> {
-        unsafe { emit_event(name.to_string(), payload.to_string()) }
-            .map(|_| ())
-            .map_err(|error| error.to_string())
-    }
 }
 
 /// Точка расширения: диспетчеризация действий плагина стора.
 #[plugin_fn]
 pub fn invoke(input: String) -> FnResult<String> {
-    let output = crate::handle(&HostEnv, &input).map_err(extism_pdk::Error::msg)?;
+    let output = crate::handle(&StoreHostEnv, &input).map_err(extism_pdk::Error::msg)?;
     Ok(output)
 }

@@ -142,18 +142,12 @@ impl PluginSession {
                 "core",
                 serde_json::json!({}),
             );
-            return Err(PluginError::Call {
-                plugin: "runtime".into(),
-                message: "ни один source-плагин не подтвердил директорию".into(),
-            });
+            return Err(PluginError::runtime(
+                "ни один source-плагин не подтвердил директорию",
+            ));
         };
         self.active_plugin = Some(provider.clone());
         Ok(provider)
-    }
-
-    /// Идентификатор активного плагина сессии.
-    pub fn active_plugin(&self) -> Option<&str> {
-        self.active_plugin.as_deref()
     }
 
     /// Активная библиотека: путь, идентификатор и имя провайдера.
@@ -180,24 +174,14 @@ impl PluginSession {
         let plugin = self
             .active_plugin
             .clone()
-            .ok_or_else(|| PluginError::Call {
-                plugin: "runtime".into(),
-                message: "plugin не выбран".into(),
-            })?;
+            .ok_or_else(|| PluginError::runtime("plugin не выбран"))?;
         self.runtime.invoke_operation(&plugin, operation, payload)
     }
 
     /// Корень сессии.
+    #[cfg(test)]
     pub fn root(&self) -> &Path {
         &self.root
-    }
-    /// Runtime для диагностики.
-    pub fn runtime(&self) -> &PluginRuntime {
-        &self.runtime
-    }
-    /// Runtime для host actions.
-    pub fn runtime_mut(&mut self) -> &mut PluginRuntime {
-        &mut self.runtime
     }
 
     /// Декларации настроек плагинов активной сессии.
@@ -223,19 +207,18 @@ impl PluginSession {
         let root = if root.is_absolute() {
             root
         } else {
-            project_root().join(root)
+            crate::paths::project_root().join(root)
         };
         if writable {
-            std::fs::create_dir_all(&root).map_err(|error| PluginError::Call {
-                plugin: "runtime".into(),
-                message: format!("не удалось подготовить sandbox: {error}"),
+            std::fs::create_dir_all(&root).map_err(|error| {
+                PluginError::runtime(format!("не удалось подготовить sandbox: {error}"))
             })?;
         }
         if !root.is_dir() {
-            return Err(PluginError::Call {
-                plugin: "runtime".into(),
-                message: format!("путь не является директорией: {}", root.display()),
-            });
+            return Err(PluginError::runtime(format!(
+                "путь не является директорией: {}",
+                root.display()
+            )));
         }
         Ok(root)
     }
@@ -291,14 +274,6 @@ fn pick_best(candidates: Vec<(String, i32)>) -> Option<String> {
     best.map(|(name, _)| name)
 }
 
-/// Корень проекта приложения.
-fn project_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("родитель папки src-tauri")
-        .to_path_buf()
-}
-
 /// Директории загрузки плагинов в порядке приоритета.
 ///
 /// При совпадении имён побеждает первый загруженный плагин, поэтому порядок
@@ -325,9 +300,7 @@ fn plugin_directories(
 /// Ресурсный каталог плагинов рабочей копии (только если он отличается от
 /// каталога сборки). В dev-запуске из него читаются свежие исходные артефакты.
 fn development_plugins() -> Option<PathBuf> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join(PLUGINS_DIR_NAME);
+    let path = crate::paths::resources_dir().join(PLUGINS_DIR_NAME);
     path.is_dir().then_some(path)
 }
 
@@ -336,7 +309,7 @@ fn resolve_project_path(path: PathBuf) -> PathBuf {
     if path.is_absolute() {
         return path;
     }
-    project_root().join(path)
+    crate::paths::project_root().join(path)
 }
 
 #[cfg(test)]

@@ -8,7 +8,6 @@ import {
   loadWorkplaceViewer,
   readWorkplaceBook,
   selectWorkplacePlugin,
-  supportedFormats,
   type ReaderBackend,
 } from './index';
 
@@ -99,20 +98,6 @@ function workplaceBackend(overrides: Partial<Record<string, unknown>> = {}): Rea
     },
   };
 }
-
-describe('supportedFormats', () => {
-  it('добавляет форматы плагинов рабочего места к встроенным', async () => {
-    const formats = await supportedFormats(workplaceBackend());
-    expect(formats).toContain('epub');
-    expect(formats).toContain('pdf');
-  });
-
-  it('переживает недоступность плагинов', async () => {
-    const backend = workplaceBackend({ reader_formats: [] });
-    const formats = await supportedFormats(backend);
-    expect(formats).toEqual(['epub']);
-  });
-});
 
 describe('selectWorkplacePlugin', () => {
   it('выбирает плагин по формату файла', async () => {

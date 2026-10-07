@@ -15,7 +15,8 @@ pub const UI_SCHEMA_VERSION: u32 = 1;
 pub const SPACE_SETTINGS_SECTION: &str = "settings.section";
 
 /// Создание текстового узла дерева интерфейса.
-pub fn text(value: &str) -> Value {
+#[cfg(test)]
+pub(crate) fn text(value: &str) -> Value {
     json!({ "type": "#text", "value": value })
 }
 
@@ -55,12 +56,6 @@ impl Element {
     pub fn action(mut self, event: &str, action: &str) -> Self {
         self.on
             .insert(event.to_string(), Value::String(action.to_string()));
-        self
-    }
-
-    /// Добавление одного дочернего узла.
-    pub fn child(mut self, node: Value) -> Self {
-        self.children.push(node);
         self
     }
 

@@ -25,6 +25,21 @@
     serializeGeometry,
     type ShapeGeometry,
   } from './reader/overlay';
+  import {
+    buildDocument,
+    CHAPTER_CLASS,
+    FLASH_CLASS,
+    NOTE_CLASS,
+    NOTE_PREVIEW_CLASS,
+  } from './reader/reader-document';
+  import {
+    chapterAt,
+    charOffset,
+    clamp01,
+    pointFraction,
+    rangeHandleRect,
+  } from './reader/geometry';
+  import { applyZoom, captureAnchor, restoreAnchor } from './reader/zoom-anchor';
 
   interface Props {
     /** Содержимое книги главами. */
@@ -68,16 +83,8 @@
     onPlaceNote,
   }: Props = $props();
 
-  /** Класс подсветки заметки. */
-  const NOTE_CLASS = 'texture-note';
-  /** Класс временной вспышки подсветки при переходе. */
-  const FLASH_CLASS = 'texture-note-flash';
-  /** Класс превью подсветки при правке границ цитаты. */
-  const NOTE_PREVIEW_CLASS = 'texture-resize-preview';
   /** Доступные типы заметок текучего чтения: только цитата. */
   const ALLOWED_TYPES = FLOWING_NOTE_TYPES;
-  /** Отступ сверху до опорной строки при масштабировании, в пикселях. */
-  const ZOOM_ANCHOR_MARGIN = 18;
 
   /** Область отображения книги. */
   let frame: HTMLIFrameElement | undefined = $state();
@@ -85,10 +92,8 @@
   let doc: Document | null = $state(null);
   /** Начальная позиция, взятая один раз при создании вкладки. */
   const startPosition = untrack(() => initialPosition);
-  /** Живой диапазон опорной строки для удержания места при перестройке. */
-  let anchorRange: Range | null = null;
-  /** Экранная координата опорной строки в момент захвата. */
-  let anchorTop = 0;
+  /** Опорная строка для удержания места при перестройке: диапазон и его отступ. */
+  let zoomAnchor = captureAnchor(null);
 
   /** Незавершённое выделение для создания заметки. */
   let pendingAnchor: QuoteAnchor | null = $state(null);
@@ -126,8 +131,8 @@
   } | null = null;
   /** Заметка в режиме перемещения: для неё показываются направляющие осей. */
   let moveGuide: { noteId: string } | null = $state(null);
-  /** Счётчик кадров для пересчёта направляющих перемещения. */
-  let moveTick = $state(0);
+  /** Счётчик обновлений направляющих перемещения (пересчёт по событиям). */
+  let moveGuideTick = $state(0);
   /** Тяга границы цитаты: край и исходный якорь. */
   let resizeDrag: { noteId: string; edge: 'start' | 'end'; anchor: QuoteAnchor } | null = null;
   /** Черновое размещение заметки во время правки (до сохранения). */
@@ -163,95 +168,9 @@
     return frame?.contentDocument ?? null;
   }
 
-  /** Сборка документа книги из глав. */
-  function buildDocument(value: BookContent): string {
-    const style = [
-      'html{font-size:100%;}',
-      "body{margin:0 auto;max-width:760px;padding:24px 32px;background:#fff;",
-      "color:#1f2937;font-family:Georgia,'Times New Roman',serif;line-height:1.6;}",
-      'img{max-width:100%;height:auto;}',
-      'h1,h2,h3{line-height:1.25;}',
-      'a{color:#4338ca;}',
-      // Инструменты текста и фигуры не работают с выделением текста: курсор
-      // меняется на прицел, а протяжка не выделяет текст под собой.
-      'body[data-tool="text"],body[data-tool="shape"]{cursor:crosshair;user-select:none;}',
-      'body[data-tool="text"] *,body[data-tool="shape"] *{cursor:crosshair;}',
-      `.${NOTE_CLASS}{border-radius:2px;cursor:pointer;}`,
-      `.${NOTE_CLASS}[data-color="yellow"]{background:#fde68a;}`,
-      `.${NOTE_CLASS}[data-color="green"]{background:#bbf7d0;}`,
-      `.${NOTE_CLASS}[data-color="blue"]{background:#bfdbfe;}`,
-      `.${NOTE_CLASS}[data-color="red"]{background:#fecaca;}`,
-      `.${NOTE_CLASS}[data-color="purple"]{background:#ddd6fe;}`,
-      `.${NOTE_CLASS}[data-color="black"]{background:#d1d5db;}`,
-      `.texture-chapter{position:relative;}`,
-      // Карточка окрашена тем же мягким тоном, что цитата и фигура: цвет заметки
-      // одинаков на всех поверхностях, без тени и тёмной полосы.
-      `.texture-note-card{position:absolute;max-width:220px;padding:6px 8px;border-radius:6px;`,
-      'font-size:13px;line-height:1.4;white-space:pre-wrap;cursor:pointer;z-index:2;}',
-      '.texture-note-card[data-color="yellow"]{background:#fde68a;}',
-      '.texture-note-card[data-color="green"]{background:#bbf7d0;}',
-      '.texture-note-card[data-color="blue"]{background:#bfdbfe;}',
-      '.texture-note-card[data-color="red"]{background:#fecaca;}',
-      '.texture-note-card[data-color="purple"]{background:#ddd6fe;}',
-      '.texture-note-card[data-color="black"]{background:#d1d5db;}',
-      // Слой фигуры позиционируется по рамке самой фигуры (инлайн-стили из
-      // `renderShape`), а не растягивается на всю главу: у высоких глав WebKit
-      // не рисует слишком большой композитный слой. Умножение задано здесь:
-      // на дочерних SVG-элементах оно в WebKit не применяется.
-      '.texture-note-shape{position:absolute;pointer-events:none;overflow:visible;',
-      'mix-blend-mode:multiply;}',
-      // Фигура — полупрозрачная заливка цветом заметки, как подсветка цитаты,
-      // без обводки: прямоугольник и эллипс залиты, линия — толстый штрих. Цвет
-      // мягкий, чтобы заметка была видна, но не затмевала текст.
-      '.texture-note-shape rect,.texture-note-shape ellipse{stroke:none;fill-opacity:0.5;',
-      'vector-effect:non-scaling-stroke;pointer-events:none;}',
-      '.texture-note-shape line{fill:none;stroke-width:4;stroke-opacity:0.6;',
-      'vector-effect:non-scaling-stroke;pointer-events:none;}',
-      '.texture-note-shape path{fill:transparent;stroke:transparent;stroke-width:16;',
-      'vector-effect:non-scaling-stroke;pointer-events:all;cursor:pointer;}',
-      // Рамка будущей фигуры во время протяжки: без неё рисование было «слепым»
-      // (в PDF такая рамка есть). Пунктир и осевые линии показывают, где встанет
-      // фигура ещё до отпускания кнопки.
-      '.texture-note-preview{position:absolute;z-index:3;pointer-events:none;',
-      'border:1px dashed #2563eb;box-sizing:border-box;}',
-      '.texture-note-preview::before{content:"";position:absolute;left:0;right:0;top:50%;',
-      'height:1px;background:#2563eb;opacity:0.6;}',
-      '.texture-note-preview::after{content:"";position:absolute;top:0;bottom:0;left:50%;',
-      'width:1px;background:#2563eb;opacity:0.6;}',
-      '.texture-note-shape[data-color="yellow"] rect,.texture-note-shape[data-color="yellow"] ellipse{fill:#fde68a;}',
-      '.texture-note-shape[data-color="yellow"] line{stroke:#fde68a;}',
-      '.texture-note-shape[data-color="green"] rect,.texture-note-shape[data-color="green"] ellipse{fill:#bbf7d0;}',
-      '.texture-note-shape[data-color="green"] line{stroke:#bbf7d0;}',
-      '.texture-note-shape[data-color="blue"] rect,.texture-note-shape[data-color="blue"] ellipse{fill:#bfdbfe;}',
-      '.texture-note-shape[data-color="blue"] line{stroke:#bfdbfe;}',
-      '.texture-note-shape[data-color="red"] rect,.texture-note-shape[data-color="red"] ellipse{fill:#fecaca;}',
-      '.texture-note-shape[data-color="red"] line{stroke:#fecaca;}',
-      '.texture-note-shape[data-color="purple"] rect,.texture-note-shape[data-color="purple"] ellipse{fill:#ddd6fe;}',
-      '.texture-note-shape[data-color="purple"] line{stroke:#ddd6fe;}',
-      '.texture-note-shape[data-color="black"] rect,.texture-note-shape[data-color="black"] ellipse{fill:#d1d5db;}',
-      '.texture-note-shape[data-color="black"] line{stroke:#d1d5db;}',
-      `.${NOTE_CLASS}.${FLASH_CLASS}{background:#f59e0b;}`,
-      `.texture-overlay.${FLASH_CLASS}{opacity:0.4;}`,
-      // Правка заметки: перемещение показывается хваткой, границы цитаты — маркерами.
-      'body[data-editing="move"]{cursor:move;}',
-      'body[data-editing="move"] .texture-overlay{cursor:move;}',
-      'body[data-editing="resize"],body[data-editing="resize"] *{cursor:ew-resize;}',
-      '.texture-note-handle{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;',
-      'border-radius:50%;background:#1d4ed8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);',
-      'cursor:ew-resize;z-index:5;}',
-      // Превью подсветки при правке границ цитаты: прямоугольники поверх текста,
-      // чтобы не перестраивать сам текст и не сбрасывать выделение.
-      `.${NOTE_PREVIEW_CLASS}{position:absolute;pointer-events:none;opacity:0.45;z-index:1;}`,
-    ].join('');
-    const body = value.chapters
-      .map((chapter, index) => `<section class="texture-chapter" data-chapter="${index}">${chapter.html}</section>`)
-      .join('\n');
-    return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}</body></html>`;
-  }
-
   /** Раздел главы книги по индексу. */
   function chapterSection(index: number): Element | null {
-    return document()?.querySelector(`.texture-chapter[data-chapter="${index}"]`) ?? null;
+    return document()?.querySelector(`.${CHAPTER_CLASS}[data-chapter="${index}"]`) ?? null;
   }
 
   /** Применение активного инструмента к документу книги (курсор и выделение). */
@@ -274,6 +193,24 @@
       return;
     }
     clearNoteMarks(value, `mark.${NOTE_CLASS}`);
+  }
+
+  /** Снятие подсветки одной заметки перед её перерисовкой. */
+  function clearNoteHighlight(noteId: string): void {
+    const value = document();
+    if (!value) {
+      return;
+    }
+    clearNoteMarks(value, `mark.${NOTE_CLASS}[data-note-id="${noteId}"]`);
+  }
+
+  /** Снятие наложения (карточки или фигуры) одной заметки. */
+  function clearNoteOverlay(noteId: string): void {
+    const value = document();
+    if (!value) {
+      return;
+    }
+    clearNoteOverlays(value, `.${NOTE_OVERLAY_CLASS}[data-note-id="${noteId}"]`);
   }
 
   /** Снятие наложений карточек и фигур. */
@@ -326,7 +263,12 @@
     }
   }
 
-  /** Перерисовка подсветок и наложений всех заметок. */
+  /** Перерисовка подсветок и наложений всех заметок.
+   *
+   * Полная перерисовка применяется только при входе в документ или смене
+   * инструмента/правки. При обычной смене набора заметок используется
+   * `syncNotes`, чтобы не снимать и не ставить заново всю разметку.
+   */
   function drawNotes(): void {
     clearHighlights();
     clearOverlays();
@@ -344,6 +286,47 @@
     }
     if (editing?.mode === 'resize') {
       renderResizeHandles();
+    }
+  }
+
+  /** Инкрементальное обновление подсветок и наложений по списку заметок.
+   *
+   * Для каждой существующей заметки, чей якорь и цвет не изменились, разметка
+   * остаётся на месте; заново рисуются только добавленные и изменившиеся, а
+   * разметка удалённых снимается. Так правка имени или комментария не снимает и
+   * не ставит подсветку заново (без мигания и лишних перестроек текста).
+   */
+  function syncNotes(previous: Note[]): void {
+    const value = document();
+    if (!value) {
+      return;
+    }
+    const current = new Map(notes.map((note) => [note.id, note]));
+    for (const note of previous) {
+      if (!current.has(note.id)) {
+        clearNoteHighlight(note.id);
+        clearNoteOverlay(note.id);
+      }
+    }
+    for (const note of notes) {
+      const was = previous.find((candidate) => candidate.id === note.id);
+      // Разметка зависит только от якоря, типа и цвета; прочие поля (имя,
+      // комментарий) перерисовки не требуют.
+      const unchanged =
+        was !== undefined &&
+        was.type === note.type &&
+        was.anchor === note.anchor &&
+        was.color === note.color;
+      if (unchanged) {
+        continue;
+      }
+      clearNoteHighlight(note.id);
+      clearNoteOverlay(note.id);
+      if (note.type === 'quote') {
+        highlightNote(note);
+      } else {
+        drawOverlay(note);
+      }
     }
   }
 
@@ -410,25 +393,6 @@
     document()?.getSelection()?.removeAllRanges();
   }
 
-  /** Доли точки внутри раздела главы по координатам события. */
-  function pointFraction(
-    section: Element,
-    clientX: number,
-    clientY: number,
-  ): { x: number; y: number } {
-    const rect = section.getBoundingClientRect();
-    const x = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
-    const y = rect.height > 0 ? (clientY - rect.top) / rect.height : 0;
-    return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
-  }
-
-  /** Раздел главы под координатами события. */
-  function chapterAt(clientX: number, clientY: number): Element | null {
-    const value = document();
-    const element = value?.elementFromPoint(clientX, clientY) as Element | null;
-    return element?.closest?.('.texture-chapter') ?? null;
-  }
-
   /** Доля позиции точки в книге в процентах по координате вертикали. */
   function percentAt(clientY: number): number {
     const value = document();
@@ -441,35 +405,6 @@
     return Math.max(0, Math.min(100, ((clientY + root.scrollTop) / height) * 100));
   }
 
-  /** Прямоугольник в системе координат документа книги. */
-  interface DocRect {
-    /** Отступ слева. */
-    x: number;
-    /** Отступ сверху. */
-    y: number;
-    /** Ширина. */
-    width: number;
-    /** Высота. */
-    height: number;
-  }
-
-  /** Смещение узла в символах относительно начала главы. */
-  function charOffset(root: Node, node: Node, offset: number): number | null {
-    const value = root.ownerDocument;
-    if (!value || !root.contains(node)) {
-      return null;
-    }
-    const range = value.createRange();
-    range.setStart(root, 0);
-    range.setEnd(node, offset);
-    return range.toString().length;
-  }
-
-  /** Ограничение доли диапазоном [0, 1]. */
-  function clamp01(value: number): number {
-    return Math.max(0, Math.min(1, value));
-  }
-
   /** Рамка выбранной заметки в координатах области чтения (для направляющих).
    *
    * Возвращает прямоугольник и положение осей через центр: направляющие
@@ -479,7 +414,7 @@
     const value = doc;
     const target = moveGuide;
     // Счётчик читается, чтобы пересчитывать рамку при прокрутке и тяге.
-    void moveTick;
+    void moveGuideTick;
     if (!value || !target) {
       return null;
     }
@@ -619,8 +554,10 @@
     if (!anchor || !section) {
       return;
     }
-    const startRect = rangeHandleRect(section, anchor.start, anchor.start + 1, 'start');
-    const endRect = rangeHandleRect(section, anchor.end - 1, anchor.end, 'end');
+    const startRange = rangeFromOffsets(section, Math.max(0, anchor.start), Math.max(0, anchor.start + 1));
+    const endRange = rangeFromOffsets(section, Math.max(0, anchor.end - 1), Math.max(0, anchor.end));
+    const startRect = rangeHandleRect(section, startRange, 'start');
+    const endRect = rangeHandleRect(section, endRange, 'end');
     if (!startRect || !endRect) {
       return;
     }
@@ -635,31 +572,6 @@
       handle.style.top = `${rect.y + rect.height / 2}px`;
       section.appendChild(handle);
     }
-  }
-
-  /** Рамка маленького диапазона в начале или конце цитаты (для маркеров). */
-  function rangeHandleRect(
-    section: Element,
-    from: number,
-    to: number,
-    edge: 'start' | 'end',
-  ): DocRect | null {
-    const range = rangeFromOffsets(section, Math.max(0, from), Math.max(0, to));
-    if (!range) {
-      return null;
-    }
-    const rects = Array.from(range.getClientRects());
-    const rect = edge === 'start' ? rects[0] : rects[rects.length - 1] ?? rects[0];
-    const bounds = section.getBoundingClientRect();
-    if (!rect) {
-      return null;
-    }
-    return {
-      x: rect.left - bounds.left,
-      y: rect.top - bounds.top,
-      width: rect.width,
-      height: rect.height,
-    };
   }
 
   /** Отрисовка превью подсветки при правке границ цитаты.
@@ -936,7 +848,7 @@
     if (target?.closest?.(`mark.${NOTE_CLASS}, .${NOTE_OVERLAY_CLASS}`)) {
       return;
     }
-    const section = chapterAt(event.clientX, event.clientY);
+    const section = chapterAt(document(), event.clientX, event.clientY);
     if (!section) {
       return;
     }
@@ -1018,8 +930,8 @@
    *
    * Вызывается и с отпусканием кнопки над областью чтения, и при отпускании вне
    * неё: тогда точка берётся из последнего движения внутри области, а не из
-   * координат за её пределами. Раньше отпускание вне области оставляло рамку
-   * предпросмотра и незавершённый жест.
+   * координат за её пределами, поэтому рамка предпросмотра не остаётся, а жест
+   * всегда завершается.
    */
   function finishShapeOrTextGesture(fallbackY: number): void {
     const section = dragSection;
@@ -1192,39 +1104,16 @@
   /** Захват опорной строки: читаемое место остаётся на экране при перестройке.
    *
    * Опорой служит живой диапазон второй видимой строки: пока строка живёт в
-   * документе, её позиция восстанавливается точно — раньше браузерного reflow,
+   * документе, её позиция восстанавливается точно — до браузерного reflow,
    * который смещал бы текст при изменении ширины или масштаба.
    */
-  function captureAnchor(): void {
-    const value = doc ?? document();
-    if (!value) {
-      return;
-    }
-    anchorRange = topAnchorRange(value);
-    anchorTop = anchorRange ? anchorRange.getBoundingClientRect().top : 0;
+  function captureAnchorNow(): void {
+    zoomAnchor = captureAnchor(doc ?? document());
   }
 
   /** Восстановление захваченной опорной строки после перестройки текста. */
-  function restoreAnchor(): void {
-    const value = doc ?? document();
-    const root = value?.scrollingElement ?? value?.documentElement;
-    if (!value || !root || !anchorRange) {
-      return;
-    }
-    // Диапазон мог быть разрушен перерисовкой (например, подсветками).
-    try {
-      if (!value.body?.contains(anchorRange.startContainer)) {
-        anchorRange = null;
-        return;
-      }
-    } catch {
-      anchorRange = null;
-      return;
-    }
-    const delta = anchorRange.getBoundingClientRect().top - anchorTop;
-    if (delta) {
-      root.scrollTop += delta;
-    }
+  function restoreAnchorNow(): void {
+    restoreAnchor(doc ?? document(), zoomAnchor);
   }
 
   /** Скрытие меню при прокрутке книги и обновление опорной строки. */
@@ -1234,14 +1123,14 @@
       menuPosition = null;
     }
     handleScroll();
-    captureAnchor();
+    captureAnchorNow();
   }
 
   /** Удержание читаемого места при изменении ширины области (например, панелью). */
   function handleResize(): void {
-    restoreAnchor();
+    restoreAnchorNow();
     handleScroll();
-    captureAnchor();
+    captureAnchorNow();
   }
 
   /** Отчёт о позиции чтения при прокрутке. */
@@ -1256,65 +1145,6 @@
     }
     const max = root.scrollHeight - root.clientHeight;
     onProgress?.(max > 0 ? (root.scrollTop / max) * 100 : 0);
-  }
-
-  /** Живая ссылка на опорную строку у верха области чтения.
-   *
-   * Возвращает диапазон, привязанный к символу во второй видимой строке. Пока
-   * строка живёт в документе, её `getBoundingClientRect` остаётся точкой опоры
-   * даже при перестройке текста, поэтому масштаб не сдвигает читаемое место.
-   */
-  function topAnchorRange(value: Document): Range | null {
-    const win = value.defaultView;
-    if (!win) {
-      return null;
-    }
-    const x = Math.round(win.innerWidth / 2);
-    const body = value.body ?? value.documentElement;
-    const lineHeight = body ? parseFloat(win.getComputedStyle(body).lineHeight) || 24 : 24;
-    const y = Math.round(ZOOM_ANCHOR_MARGIN + lineHeight);
-    const caretRange = (
-      value as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null }
-    ).caretRangeFromPoint;
-    if (typeof caretRange === 'function') {
-      const range = caretRange.call(value, x, y);
-      if (range) {
-        return range;
-      }
-    }
-    const caretPosition = (
-      value as Document & {
-        caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
-      }
-    ).caretPositionFromPoint;
-    if (typeof caretPosition === 'function') {
-      const position = caretPosition.call(value, x, y);
-      if (position) {
-        const range = value.createRange();
-        range.setStart(position.offsetNode, position.offset);
-        range.setEnd(position.offsetNode, position.offset);
-        return range;
-      }
-    }
-    return null;
-  }
-
-  /** Применение масштаба с удержанием опорной строки на месте. */
-  function applyZoom(value: number): void {
-    const current = document();
-    const win = current?.defaultView;
-    const root = current?.scrollingElement ?? current?.documentElement;
-    if (!current || !win || !root) {
-      return;
-    }
-    const anchor = topAnchorRange(current);
-    const topBefore = anchor ? anchor.getBoundingClientRect().top : 0;
-    current.documentElement.style.fontSize = `${value}%`;
-    const topAfter = anchor ? anchor.getBoundingClientRect().top : 0;
-    const delta = topAfter - topBefore;
-    if (delta) {
-      root.scrollTop += delta;
-    }
   }
 
   /** Переход к заметке извне (панель заметок). */
@@ -1345,14 +1175,14 @@
     value.addEventListener('mousemove', handleGestureMove);
     value.addEventListener('mouseup', handleGestureEnd);
     value.defaultView?.addEventListener('resize', handleResize);
-    applyZoom(zoom);
+    applyZoom(value, zoom);
     applyTool();
     if (startPosition > 0) {
       gotoPercent(startPosition);
     }
     drawNotes();
     handleScroll();
-    captureAnchor();
+    captureAnchorNow();
   }
 
   /** Документ книги собирается один раз при загрузке. */
@@ -1385,17 +1215,32 @@
   $effect(() => {
     const value = zoom;
     if (doc) {
-      applyZoom(value);
-      captureAnchor();
+      applyZoom(doc, value);
+      captureAnchorNow();
     }
   });
 
-  /** Перерисовка подсветок и наложений при смене заметок. */
+  /** Инкрементальное обновление разметки при смене заметок.
+   *
+   * При первой отрисовке после загрузки документа строится вся разметка; далее
+   * перерисовываются только изменившиеся заметки (см. `syncNotes`). Это убирает
+   * мигание и полную перестройку текста при правке имени или комментария.
+   */
+  let syncedNotes: Note[] = [];
+  let notesSynced = false;
   $effect(() => {
-    if (doc) {
-      drawNotes();
-      captureAnchor();
+    const value = notes;
+    if (!doc) {
+      return;
     }
+    if (!notesSynced) {
+      drawNotes();
+      notesSynced = true;
+    } else {
+      syncNotes(syncedNotes);
+    }
+    syncedNotes = value;
+    captureAnchorNow();
   });
 
   /** Снятие черновика перемещения после прихода сохранённого места.
@@ -1451,10 +1296,9 @@
   /** Сброс меню и правки заметки при взаимодействии вне меню.
    *
    * Меню и правка живут в документе приложения, поэтому клики по панели заметок
-   * или панели инструментов доходят сюда. Раньше меню оставалось открытым, и
-   * последующее случайное нажатие могло сработать не туда. Теперь любое
-   * взаимодействие вне меню, Escape, смена инструмента и уход поверхности
-   * закрывают меню и завершают правку.
+   * или панели инструментов доходят сюда. Любое взаимодействие вне меню, Escape,
+   * смена инструмента и уход поверхности закрывают меню и завершают правку —
+   * случайное нажатие не попадает в уже ненужное меню.
    */
   $effect(() => {
     if (!noteMenu && !editing) {
@@ -1504,24 +1348,32 @@
     }
   });
 
-  /** Пересчёт направляющих перемещения при прокрутке и тяге.
+  /** Пересчёт направляющих перемещения по событиям, а не покадрово.
    *
-   * Положение рамки выбранной заметки меняется при прокрутке книги и во время
-   * перетаскивания; счётчик кадров заставляет `moveGuideBox` пересчитаться.
+   * Положение рамки выбранной заметки зависит от прокрутки книги и от тяги;
+   * рамка пересчитывается при этих событиях (счётчик `moveGuideTick`), а не
+   * каждый кадр, что убирает постоянный `requestAnimationFrame` при правке.
    */
   $effect(() => {
     const active = editing?.mode === 'move';
     if (!active) {
-      moveTick = 0;
+      moveGuideTick = 0;
       return;
     }
-    let raf = 0;
-    const tick = () => {
-      moveTick += 1;
-      raf = requestAnimationFrame(tick);
+    const value = document();
+    const win = value?.defaultView;
+    /** Обновление рамки направляющих на очередном событии перемещения/прокрутки. */
+    const refresh = () => {
+      moveGuideTick += 1;
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    win?.addEventListener('scroll', refresh, { passive: true });
+    value?.addEventListener('mousemove', refresh);
+    window.addEventListener('mousemove', refresh);
+    return () => {
+      win?.removeEventListener('scroll', refresh);
+      value?.removeEventListener('mousemove', refresh);
+      window.removeEventListener('mousemove', refresh);
+    };
   });
 </script>
 

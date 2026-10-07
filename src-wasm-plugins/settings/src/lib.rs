@@ -4,7 +4,7 @@
 //! служебном состоянии плагина и публикует событие `settings:changed` при
 //! сохранении значений. Экспортирует функцию `invoke` по контракту приложения.
 
-pub mod host;
+pub mod coerce;
 pub mod models;
 pub mod registry;
 pub mod store;
@@ -13,30 +13,21 @@ pub mod ui;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
-use serde::Deserialize;
 use serde_json::json;
 
-use crate::host::Host;
-use crate::models::{FieldSchema, Source};
+use plugin_host::state;
+use plugin_host::{Host, Request};
+
+use crate::models::Source;
 use crate::registry::Registry;
 use crate::store::SettingsState;
 
 /// Ключ служебного состояния с реестром и значениями настроек.
 const STATE_KEY: &str = "settings.json";
 
-/// Запрос от приложения по контракту.
-#[derive(Deserialize)]
-struct Request {
-    /// Действие плагина настроек.
-    action: String,
-    /// Данные операции.
-    #[serde(default)]
-    payload: serde_json::Value,
-}
-
 /// Диспетчеризация действий плагина настроек.
 pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
-    let request: Request = serde_json::from_str(input).map_err(|error| error.to_string())?;
+    let request = Request::parse(input)?;
     match request.action.as_str() {
         "register" => register(host, &request.payload),
         "list" => list(host),
@@ -127,7 +118,7 @@ fn intent(host: &impl Host, payload: &serde_json::Value) -> Result<String, Strin
             "неизвестное действие интерфейса настроек: {action}"
         ));
     }
-    let coerced = match coerce_values(&section.fields, &values) {
+    let coerced = match crate::coerce::coerce_values(&section.fields, &values) {
         Ok(coerced) => coerced,
         Err(message) => return Ok(declarations_response(&state, Some(&message))),
     };
@@ -157,57 +148,6 @@ fn declarations_response(state: &SettingsState, error: Option<&str>) -> String {
     response.to_string()
 }
 
-/// Приведение значений контролов к типам полей секции.
-///
-/// Возвращает ошибку с человекочитаемым названием поля, если значение не
-/// соответствует типу; в этом случае интент не сохраняется.
-fn coerce_values(
-    fields: &[FieldSchema],
-    values: &serde_json::Value,
-) -> Result<serde_json::Value, String> {
-    let incoming = values
-        .as_object()
-        .ok_or_else(|| "значения секции должны быть объектом".to_string())?;
-    let mut result = serde_json::Map::new();
-    for (key, value) in incoming {
-        let field = fields.iter().find(|field| &field.key == key);
-        let coerced = match field {
-            Some(field) => coerce_value(field, value)?,
-            None => value.clone(),
-        };
-        result.insert(key.clone(), coerced);
-    }
-    Ok(serde_json::Value::Object(result))
-}
-
-/// Приведение одного значения к типу поля.
-fn coerce_value(
-    field: &FieldSchema,
-    value: &serde_json::Value,
-) -> Result<serde_json::Value, String> {
-    let invalid = || format!("Некорректное значение поля «{}»", field.title);
-    match field.field_type.as_str() {
-        "boolean" => Ok(serde_json::Value::Bool(match value {
-            serde_json::Value::Bool(flag) => *flag,
-            serde_json::Value::String(text) => text == "true",
-            _ => false,
-        })),
-        "number" => match value {
-            serde_json::Value::Number(_) => Ok(value.clone()),
-            serde_json::Value::String(text) => text
-                .parse::<f64>()
-                .map(|number| json!(number))
-                .map_err(|_| invalid()),
-            _ => Err(invalid()),
-        },
-        "json" => match value {
-            serde_json::Value::String(text) => serde_json::from_str(text).map_err(|_| invalid()),
-            other => Ok(other.clone()),
-        },
-        _ => Ok(value.clone()),
-    }
-}
-
 /// Извлечение полного идентификатора секции из payload.
 fn section_id(payload: &serde_json::Value) -> String {
     payload
@@ -219,16 +159,12 @@ fn section_id(payload: &serde_json::Value) -> String {
 
 /// Загрузка состояния из служебного хранилища.
 fn load(host: &impl Host) -> Result<SettingsState, String> {
-    let Some(value) = host.state_read(STATE_KEY)? else {
-        return Ok(SettingsState::new());
-    };
-    serde_json::from_str(&value).map_err(|error| error.to_string())
+    state::load::<SettingsState>(host, STATE_KEY)
 }
 
 /// Сохранение состояния в служебное хранилище.
 fn save(host: &impl Host, state: &SettingsState) -> Result<(), String> {
-    let value = serde_json::to_string(state).map_err(|error| error.to_string())?;
-    host.state_write(STATE_KEY, &value)
+    state::save(host, STATE_KEY, state)
 }
 
 #[cfg(test)]

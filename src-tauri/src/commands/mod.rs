@@ -1,5 +1,9 @@
 //! Generic IPC-команды host-приложения.
 
+use std::sync::{Mutex, MutexGuard};
+
+use crate::plugin::AppState;
+
 pub mod active_library;
 pub mod app_info;
 pub mod base_plugin_operation;
@@ -94,3 +98,8 @@ pub use theme_palette::theme_palette;
 pub use show_window::__cmd__show_window;
 pub use show_window::__tauri_command_name_show_window;
 pub use show_window::show_window;
+
+/// Захват общего состояния приложения с единым сообщением об ошибке.
+pub fn lock_state(state: &Mutex<AppState>) -> Result<MutexGuard<'_, AppState>, String> {
+    Mutex::lock(state).map_err(|error| error.to_string())
+}

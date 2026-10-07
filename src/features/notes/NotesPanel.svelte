@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { ActionMenu, Button, DeleteButton, Input, Select, Textarea, type MenuAction, type MenuColor } from '@texture/ui';
-  import { tick } from 'svelte';
+  import { ActionMenu, Input, type MenuAction, type MenuColor } from '@texture/ui';
   import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
   import NoteEntry from './NoteEntry.svelte';
+  import NoteSetsControl from './NoteSetsControl.svelte';
+  import NoteEditor from './NoteEditor.svelte';
 
   interface Props {
     /** Элементы списка заметок активного набора. */
@@ -55,29 +56,11 @@
   /** Запрос поиска по цитатам. */
   let query = $state('');
 
-  /** Идёт ли ввод имени нового набора. */
-  let creating = $state(false);
-
-  /** Черновик имени нового набора. */
-  let newSetName = $state('');
-
-  /** Идёт ли переименование активного набора. */
-  let renaming = $state(false);
-
-  /** Черновик имени при переименовании. */
-  let renameName = $state('');
-
   /** Идентификатор заметки, у которой открыта форма названия и комментария. */
   let editingNoteId: string | null = $state(null);
 
-  /** Черновик названия редактируемой заметки. */
-  let editTitle = $state('');
-
-  /** Черновик комментария редактируемой заметки. */
-  let editComment = $state('');
-
-  /** Активный набор среди наборов книги. */
-  const activeSet = $derived(sets.find((set) => set.id === activeSetId) ?? null);
+  /** Черновики правки текущей заметки. */
+  let editingNote: Note | null = $state(null);
 
   /** Элементы с учётом поиска по имени, комментарию и месту. */
   const visible = $derived.by(() => {
@@ -92,18 +75,6 @@
         item.place.toLowerCase().includes(needle),
     );
   });
-
-  /** Варианты выпадающего списка наборов: имя и число заметок. */
-  const setOptions = $derived(
-    sets.map((set) => ({ value: set.id, label: `${set.name} (${set.noteCount})` })),
-  );
-
-  /** Пункты меню набора заметок. */
-  const setActions = $derived<MenuAction[]>([
-    { id: 'create', label: 'Новый набор' },
-    { id: 'rename', label: 'Переименовать', disabled: !activeSet },
-    { id: 'delete', label: 'Удалить', destructive: true, disabled: !activeSet },
-  ]);
 
   /** Пункты меню заметки: изменение и удаление; цвет выбирается образцами. */
   const noteActions: MenuAction[] = [
@@ -121,39 +92,22 @@
     }));
   }
 
-  /** Начало правки названия и комментария заметки.
-   *
-   * Форма разворачивается внутри записи у нижнего края списка, поэтому после
-   * раскрытия её прокручивают в поле зрения: при малой высоте окна кнопки формы
-   * иначе оставались ниже края панели.
-   */
-  async function startEditNote(note: Note) {
+  /** Начало правки названия и комментария заметки. */
+  function startEditNote(note: Note) {
     editingNoteId = note.id;
-    editTitle = note.title;
-    editComment = note.comment;
-    await tick();
-    const editor = document.querySelector('[data-testid="notes-item-editor"]');
-    if (editor && typeof editor.scrollIntoView === 'function') {
-      editor.scrollIntoView({ block: 'end' });
-    }
+    editingNote = note;
   }
 
   /** Завершение правки без сохранения. */
   function cancelEditNote() {
     editingNoteId = null;
-    editTitle = '';
-    editComment = '';
+    editingNote = null;
   }
 
   /** Сохранение названия и комментария заметки. */
-  function commitEditNote(noteId: string) {
-    onEditNote?.(noteId, { title: editTitle, comment: editComment });
+  function commitEditNote(noteId: string, details: { title: string; comment: string }) {
+    onEditNote?.(noteId, details);
     cancelEditNote();
-  }
-
-  /** Удаление комментария заметки: поле очищается, название остаётся. */
-  function clearEditComment() {
-    editComment = '';
   }
 
   /** Обработка пункта меню заметки. */
@@ -167,67 +121,6 @@
         startEditNote(item.note);
       }
     }
-  }
-
-  /** Переключение активного набора из списка. */
-  function changeSet(setId: string) {
-    if (setId && setId !== activeSetId) {
-      onSelectSet?.(setId);
-    }
-  }
-
-  /** Выбор действия набора из меню. */
-  function runSetAction(action: string) {
-    if (action === 'create') {
-      startCreate();
-    }
-    if (action === 'rename') {
-      startRename();
-    }
-    if (action === 'delete' && activeSet) {
-      onRemoveSet?.(activeSet.id);
-    }
-  }
-
-  /** Начало ввода имени нового набора. */
-  function startCreate() {
-    creating = true;
-    renaming = false;
-    newSetName = '';
-  }
-
-  /** Создание набора с непустым именем. */
-  function commitCreate() {
-    const name = newSetName.trim();
-    if (!name) {
-      return;
-    }
-    onCreateSet?.(name);
-    creating = false;
-    newSetName = '';
-  }
-
-  /** Начало переименования активного набора. */
-  function startRename() {
-    if (!activeSet) {
-      return;
-    }
-    renaming = true;
-    creating = false;
-    renameName = activeSet.name;
-  }
-
-  /** Подтверждение переименования набора. */
-  function commitRename() {
-    if (!activeSet) {
-      return;
-    }
-    const name = renameName.trim();
-    if (name) {
-      onRenameSet?.(activeSet.id, name);
-    }
-    renaming = false;
-    renameName = '';
   }
 </script>
 
@@ -252,74 +145,14 @@
       Откройте книгу, чтобы вести заметки.
     </div>
   {:else}
-    <div
-      class="flex flex-col gap-2 border-b border-[var(--border)] p-2"
-      data-testid="notes-sets"
-    >
-      {#if creating}
-        <label class="flex flex-col gap-1">
-          <span class="text-xs text-[var(--muted-foreground)]">Имя набора</span>
-          <Input
-            bind:value={newSetName}
-            placeholder="Новый набор"
-            onkeydown={(event) => {
-              if (event.key === 'Enter') {
-                commitCreate();
-              }
-              if (event.key === 'Escape') {
-                creating = false;
-              }
-            }}
-          />
-        </label>
-        <div class="flex gap-2">
-          <Button variant="primary" size="sm" disabled={!newSetName.trim()} onclick={commitCreate}>
-            Создать
-          </Button>
-          <Button variant="secondary" size="sm" onclick={() => (creating = false)}>Отмена</Button>
-        </div>
-      {:else if renaming}
-        <label class="flex flex-col gap-1">
-          <span class="text-xs text-[var(--muted-foreground)]">Новое имя</span>
-          <Input
-            bind:value={renameName}
-            placeholder="Новое имя"
-            onkeydown={(event) => {
-              if (event.key === 'Enter') {
-                commitRename();
-              }
-              if (event.key === 'Escape') {
-                renaming = false;
-              }
-            }}
-          />
-        </label>
-        <div class="flex gap-2">
-          <Button variant="primary" size="sm" disabled={!renameName.trim()} onclick={commitRename}>
-            Сохранить
-          </Button>
-          <Button variant="secondary" size="sm" onclick={() => (renaming = false)}>Отмена</Button>
-        </div>
-      {:else}
-        <div class="flex items-center gap-2">
-          <Select
-            value={activeSetId ?? ''}
-            items={setOptions}
-            placeholder={sets.length === 0 ? 'Наборов нет' : 'Выберите набор'}
-            disabled={sets.length === 0}
-            ariaLabel="Набор заметок"
-            class="min-w-0 flex-1"
-            onchange={changeSet}
-          />
-          <ActionMenu
-            ariaLabel="Действия с набором заметок"
-            title="Действия"
-            items={setActions}
-            onselect={runSetAction}
-          />
-        </div>
-      {/if}
-    </div>
+    <NoteSetsControl
+      {sets}
+      {activeSetId}
+      onSelect={(setId) => onSelectSet?.(setId)}
+      onCreate={(name) => onCreateSet?.(name)}
+      onRename={(setId, name) => onRenameSet?.(setId, name)}
+      onRemove={(setId) => onRemoveSet?.(setId)}
+    />
 
     <div class="border-b border-[var(--border)] p-2">
       <Input bind:value={query} placeholder="Поиск по заметкам" />
@@ -351,69 +184,14 @@
               />
             {/snippet}
             {#snippet children()}
-              {#if editingNoteId === item.note.id}
-                <div
-                  class="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-2"
-                  data-testid="notes-item-editor"
-                >
-                  <Input
-                    bind:value={editTitle}
-                    placeholder="Название"
-                    ariaLabel="Название заметки"
-                  />
-                  <Textarea
-                    bind:value={editComment}
-                    placeholder="Комментарий"
-                    ariaLabel="Комментарий заметки"
-                    rows={3}
-                  />
-                  <div class="flex items-center justify-between gap-2">
-                    <!-- Удаление комментария — отдельно слева, чтобы не задеть сохранение/отмену. -->
-                    <DeleteButton
-                      title="Удалить комментарий"
-                      ariaLabel="Удалить комментарий"
-                      disabled={!editComment}
-                      onclick={clearEditComment}
-                    />
-                    <div class="flex items-center gap-2">
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        title="Отмена"
-                        ariaLabel="Отмена"
-                        onclick={cancelEditNote}
-                      >
-                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                          <path
-                            d="M6 6l12 12M18 6L6 18"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                          />
-                        </svg>
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="icon"
-                        title="Сохранить"
-                        ariaLabel="Сохранить"
-                        onclick={() => commitEditNote(item.note.id)}
-                      >
-                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                          <path
-                            d="M5 13l4 4L19 7"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+              {#if editingNoteId === item.note.id && editingNote}
+                <NoteEditor
+                  noteId={item.note.id}
+                  initialTitle={editingNote.title}
+                  initialComment={editingNote.comment}
+                  onCommit={commitEditNote}
+                  onCancel={cancelEditNote}
+                />
               {/if}
             {/snippet}
           </NoteEntry>

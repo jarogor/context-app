@@ -168,6 +168,7 @@ impl EventBus {
     }
 
     /// Проверка отсутствия накопленных событий.
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.inner
             .lock()

@@ -122,12 +122,14 @@ impl Journal {
     }
 
     /// Количество всех записей.
-    pub fn len(&self) -> usize {
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
         self.entries.len()
     }
 
     /// Проверка пустоты журнала.
-    pub fn is_empty(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 }

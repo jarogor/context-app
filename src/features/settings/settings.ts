@@ -11,7 +11,7 @@ import {
   type UiIntent,
   type UiSpaceDeclaration,
 } from '@texture/ui-schema';
-import { invokeCommand } from '../../shared/app-bridge';
+import { basePluginOperation } from '../../shared/base-plugin';
 
 /** Capability базового плагина настроек. */
 export const SETTINGS_CAPABILITY = 'settings.store@1';
@@ -34,13 +34,9 @@ export interface SettingsUiResponse {
   error?: string;
 }
 
-/** Вызов opaque-операции базового плагина настроек. */
+/** Вызов непрозрачной операции базового плагина настроек. */
 async function operation<T>(action: string, payload: unknown = {}): Promise<T> {
-  return (await invokeCommand('invoke_base_plugin_operation', {
-    capability: SETTINGS_CAPABILITY,
-    operation: action,
-    payload,
-  })) as T;
+  return basePluginOperation<T>(SETTINGS_CAPABILITY, action, payload);
 }
 
 /** Нормализованная декларация с диагностикой отклонённых узлов. */

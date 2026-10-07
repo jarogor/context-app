@@ -12,10 +12,7 @@ import {
     DEFAULT_NOTE_COLOR,
     DEFAULT_NOTE_TOOL,
     DEFAULT_NOTE_TYPE,
-    DEFAULT_SET_NAME,
     DEFAULT_SHAPE_KIND,
-    ensureDefaultSet,
-    filterNotes,
     FLOWING_NOTE_TYPES,
     getSet,
     listAllSets,
@@ -41,7 +38,6 @@ import {
     setActiveSet,
     SHAPE_KINDS,
     updateNoteDetails,
-    updateNoteText,
 } from './notes';
 import { createAnchor, createPageAnchor, serializeAnchor } from '../reader/reader/anchor';
 import { invokeCommand } from '../../shared/app-bridge';
@@ -176,13 +172,12 @@ describe('нормализация', () => {
         expect(normalizeShapeKind('hexagon')).toBe(DEFAULT_SHAPE_KIND);
     });
 
-    it('метка заметки берёт один мягкий тон для всех типов', () => {
+    it('метка заметки берёт один мягкий тон по цвету', () => {
         // Вид заметки на странице и метка в списке совпадают: жёлтая заметка
-        // светло-жёлтая и для цитаты, и для текста, и для фигуры.
-        for (const type of NOTE_TYPES) {
-            expect(noteMarkerColor({ type, color: 'yellow' })).toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
-        }
-        expect(noteMarkerColor({ type: 'text', color: 'black' })).toBe(NOTE_COLOR_HIGHLIGHTS.black);
+        // светло-жёлтая и для цитаты, и для текста, и для фигуры, поэтому тип
+        // на цвет метки не влияет.
+        expect(noteMarkerColor({ color: 'yellow' })).toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
+        expect(noteMarkerColor({ color: 'black' })).toBe(NOTE_COLOR_HIGHLIGHTS.black);
         // Насыщенный акцент остаётся только у образцов выбора цвета.
         expect(NOTE_COLOR_SWATCHES.yellow).not.toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
     });
@@ -242,37 +237,6 @@ describe('операции плагина заметок', () => {
             operation: 'set_active',
             payload: { book_key: 'lib::book-1', set_id: 'ns-2' },
         });
-    });
-
-    it('заводит набор по умолчанию, если наборов нет', async () => {
-        invoke.mockResolvedValueOnce({ sets: [] }).mockResolvedValueOnce(setResponse());
-        const set = await ensureDefaultSet('lib::book-1');
-
-        expect(invoke).toHaveBeenNthCalledWith(1, 'invoke_base_plugin_operation', {
-            capability: 'notes.store@1',
-            operation: 'list_sets',
-            payload: { book_key: 'lib::book-1' },
-        });
-        expect(invoke).toHaveBeenNthCalledWith(2, 'invoke_base_plugin_operation', {
-            capability: 'notes.store@1',
-            operation: 'create_set',
-            payload: { book_key: 'lib::book-1', book_title: '', name: DEFAULT_SET_NAME },
-        });
-        expect(set.id).toBe('ns-1');
-    });
-
-    it('берёт существующий набор по умолчанию', async () => {
-        invoke
-            .mockResolvedValueOnce({ sets: [{ id: 'ns-9', name: 'Основные', note_count: 0 }] })
-            .mockResolvedValueOnce(setResponse());
-        const set = await ensureDefaultSet('lib::book-1');
-
-        expect(invoke).toHaveBeenNthCalledWith(2, 'invoke_base_plugin_operation', {
-            capability: 'notes.store@1',
-            operation: 'get_set',
-            payload: { set_id: 'ns-9' },
-        });
-        expect(set.id).toBe('ns-1');
     });
 
     it('добавляет заметку-цитату с якорем и цветом по умолчанию', async () => {
@@ -374,22 +338,6 @@ describe('операции плагина заметок', () => {
                     color: 'green',
                 }),
             }),
-        });
-    });
-
-    it('изменяет текст заметки', async () => {
-        invoke.mockResolvedValue(setResponse());
-        await updateNoteText('lib::book-1', 'ns-1', 'note-1', 'новый текст');
-
-        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
-            capability: 'notes.store@1',
-            operation: 'update_note',
-            payload: {
-                book_key: 'lib::book-1',
-                set_id: 'ns-1',
-                note_id: 'note-1',
-                patch: { text: 'новый текст' },
-            },
         });
     });
 
@@ -534,22 +482,6 @@ describe('выбор активного набора', () => {
     it('без наборов активного набора нет', () => {
         expect(resolveActiveSetId([], null)).toBeNull();
     });
-
-    it('ensureDefaultSet берёт активный набор, а не первый', async () => {
-        invoke.mockResolvedValueOnce({
-            sets: [
-                { id: 'ns-1', book_key: 'lib::book-1', name: 'Первый', note_count: 0 },
-                { id: 'ns-2', book_key: 'lib::book-1', name: 'Второй', note_count: 0 },
-            ],
-        }).mockResolvedValueOnce(setResponse());
-        await ensureDefaultSet('lib::book-1', 'ns-2');
-
-        expect(invoke).toHaveBeenNthCalledWith(2, 'invoke_base_plugin_operation', {
-            capability: 'notes.store@1',
-            operation: 'get_set',
-            payload: { set_id: 'ns-2' },
-        });
-    });
 });
 
 describe('имя и место заметки', () => {
@@ -654,44 +586,6 @@ describe('порядок заметок', () => {
         });
 
         expect(noteList([later, earlier]).map((item) => item.note.id)).toEqual(['p3', 'p9']);
-    });
-});
-
-describe('поиск по заметкам', () => {
-    const notes = [
-        normalizeNote({ id: '1', quote: 'Хайдеггер', chapter: 'Введение' }),
-        normalizeNote({ id: '2', quote: 'Деррида' }),
-        normalizeNote({ id: '3', quote: 'Карнап' }),
-    ];
-
-    it('пустой запрос возвращает все заметки', () => {
-        expect(filterNotes(notes, '   ')).toHaveLength(3);
-    });
-
-    it('ищет по цитате и метке места', () => {
-        expect(filterNotes(notes, 'деррида').map((note) => note.id)).toEqual(['2']);
-        expect(filterNotes(notes, 'введение').map((note) => note.id)).toEqual(['1']);
-    });
-
-    it('ищет по тексту заметки', () => {
-        const withText = [
-            normalizeNote({ id: '1', type: 'text', text: 'Хайдеггер' }),
-            normalizeNote({ id: '2', quote: 'Деррида' }),
-        ];
-        expect(filterNotes(withText, 'хайдеггер').map((note) => note.id)).toEqual(['1']);
-    });
-
-    it('ищет по названию и комментарию', () => {
-        const named = [
-            normalizeNote({ id: '1', quote: 'цитата', title: 'Онтология', comment: 'позже' }),
-            normalizeNote({ id: '2', quote: 'другое' }),
-        ];
-        expect(filterNotes(named, 'онтология').map((note) => note.id)).toEqual(['1']);
-        expect(filterNotes(named, 'позже').map((note) => note.id)).toEqual(['1']);
-    });
-
-    it('без совпадений возвращает пустой список', () => {
-        expect(filterNotes(notes, 'нетттакого')).toHaveLength(0);
     });
 });
 

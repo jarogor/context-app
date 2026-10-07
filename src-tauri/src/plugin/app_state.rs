@@ -1,5 +1,6 @@
 //! Объединённое состояние plugin host приложения.
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -155,6 +156,27 @@ impl AppState {
         &self.app_state_root
     }
 
+    /// Идентификаторы отключённых плагинов из реестра активности.
+    pub fn disabled_plugins(&self) -> Vec<String> {
+        crate::plugin::activation::load(&self.app_state_root).unwrap_or_default()
+    }
+
+    /// Перечитывание реестра настроек сессии и уведомление стора.
+    ///
+    /// Вызывается после перезагрузки состава плагинов сессии: декларации
+    /// настроек активных плагинов передаются базовому плагину настроек, а стор
+    /// получает событие об изменении применённого состояния.
+    pub fn after_session_reload(&mut self) {
+        let sources = self.session.settings_sources();
+        if let Ok(host) = self.app_host() {
+            let _ = host.refresh_settings_registry(&sources);
+        }
+        crate::plugin::relay::emit(
+            "plugin-store:changed",
+            serde_json::json!({ "reason": "session" }),
+        );
+    }
+
     /// Runtime чтения книг по вложению.
     ///
     /// Собирается лениво при первом обращении: до открытия книги рабочего места
@@ -266,14 +288,14 @@ impl AppState {
     /// Файл читается напрямую, без песочницы библиотеки: рабочее место не знает,
     /// откуда книга. Байты кэшируются; ядро их не интерпретирует.
     pub fn workplace_file(&mut self, path: &str) -> Result<&[u8], String> {
-        if !self.workplace_files.contains_key(path) {
-            let bytes = std::fs::read(path).map_err(|_| "файл книги не читается".to_string())?;
-            self.workplace_files.insert(path.to_string(), bytes);
+        match self.workplace_files.entry(path.to_string()) {
+            Entry::Occupied(entry) => Ok(entry.into_mut().as_slice()),
+            Entry::Vacant(entry) => {
+                let bytes =
+                    std::fs::read(path).map_err(|_| "файл книги не читается".to_string())?;
+                Ok(entry.insert(bytes).as_slice())
+            }
         }
-        self.workplace_files
-            .get(path)
-            .map(Vec::as_slice)
-            .ok_or_else(|| "содержимое книги недоступно".to_string())
     }
 
     /// Забывание кэша содержимого файла вложения.
@@ -291,11 +313,8 @@ impl AppState {
         offset: usize,
         length: usize,
     ) -> Result<serde_json::Value, String> {
-        let total = self.workplace_file(path)?.len();
-        let bytes = self
-            .workplace_files
-            .get(path)
-            .ok_or_else(|| "содержимое книги недоступно".to_string())?;
+        let bytes = self.workplace_file(path)?;
+        let total = bytes.len();
         let start = offset.min(total);
         let end = start.saturating_add(length).min(total);
         let encoded = base64::Engine::encode(

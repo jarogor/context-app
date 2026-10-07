@@ -18,7 +18,7 @@ pub async fn select_source_library(
     path: String,
     storage_root: String,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
 
     let provider = state
         .session
@@ -34,22 +34,14 @@ pub async fn select_source_library(
         )
         .map_err(|error| error.to_string())?;
 
-    let sources = state.session.settings_sources();
-    if let Ok(host) = state.app_host() {
-        let _ = host.refresh_settings_registry(&sources);
-    }
-
     let history_root = state.app_state_root.clone();
     library_history::remember(&history_root, &path, &provider)
         .map_err(|error| error.to_string())?;
 
-    let _ = state.app_host().map(|host| host.drain_and_deliver());
+    // Сессия перезагружена — перечитываем настройки и сообщаем стору.
+    state.after_session_reload();
 
-    // Сессия перезагружена — сообщаем стору, что применённое состояние обновилось.
-    crate::plugin::relay::emit(
-        "plugin-store:changed",
-        serde_json::json!({ "reason": "session" }),
-    );
+    let _ = state.app_host().map(|host| host.drain_and_deliver());
 
     // Библиотека открыта — сообщаем интерфейсу, что активная библиотека сменилась.
     crate::plugin::relay::emit(

@@ -101,29 +101,3 @@ pub const STORE_HOST_FUNCTIONS: &[&str] = &[
     HOST_STORE_PLUGINS,
     HOST_STORE_SET_ENABLED,
 ];
-
-/// Capability стора плагинов, предоставляемая базовым плагином.
-pub const CAPABILITY_PLUGIN_STORE: &str = "plugin-store@1";
-
-/// Список host-функций, предоставляемых приложением.
-pub const HOST_FUNCTIONS: &[&str] = &[
-    HOST_LOG_FUNCTION,
-    HOST_NOTIFY_FUNCTION,
-    HOST_FS_LIST_DIR,
-    HOST_FS_READ_TEXT,
-    HOST_FS_READ_BYTES,
-    HOST_IMPORT_READ_BYTES,
-    HOST_FS_WRITE_BYTES,
-    HOST_OPEN_FILE,
-    HOST_EMIT_EVENT,
-    HOST_STATE_READ,
-    HOST_STATE_WRITE,
-    HOST_STATE_DELETE,
-    HOST_NOW_FUNCTION,
-    HOST_SQL_EXECUTE,
-    HOST_SQL_QUERY,
-    HOST_STORE_INSPECT,
-    HOST_STORE_INSTALL,
-    HOST_STORE_UNINSTALL,
-    HOST_STORE_INSTALLED,
-];

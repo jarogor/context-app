@@ -6,13 +6,13 @@
 
 use std::fs::{self, File};
 use std::io::{self, Read};
-use std::path::{Component, Path};
+use std::path::Path;
 
 use serde::Serialize;
 use zip::ZipArchive;
 
 use crate::plugin::contract::MANIFEST_FILE_NAME;
-use crate::plugin::plugin_manifest::PluginManifest;
+use crate::plugin::plugin_manifest::{is_safe_relative_path, PluginManifest};
 use crate::plugin::{PluginError, PluginKind};
 
 /// Максимальное число записей в пакете.
@@ -42,7 +42,7 @@ impl From<&PluginManifest> for InstalledPlugin {
         Self {
             id: manifest.id.clone(),
             name: manifest.name.clone(),
-            kind: kind_name(manifest.kind),
+            kind: manifest.kind.to_string(),
             contract_version: manifest.contract_version,
             description: manifest.description.clone(),
         }
@@ -81,7 +81,7 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
         });
     }
     if !manifest.module.trim().is_empty() {
-        if !is_safe_module(&manifest.module) {
+        if !is_safe_relative_path(&manifest.module) {
             return Err(PluginError::Package {
                 reason: format!("некорректный путь модуля в манифесте: {}", manifest.module),
             });
@@ -94,7 +94,7 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
     }
     if manifest.kind == PluginKind::Workplace {
         let viewer = manifest.viewer.as_deref().unwrap_or_default();
-        if !is_safe_module(viewer) {
+        if !is_safe_relative_path(viewer) {
             return Err(PluginError::Package {
                 reason: format!("некорректный путь модуля рисования в манифесте: {viewer}"),
             });
@@ -245,26 +245,6 @@ fn extract_package(archive: &Path, destination: &Path) -> Result<PluginManifest,
         })?;
     manifest.validate(destination)?;
     Ok(manifest)
-}
-
-/// Проверка, что путь модуля относительный и не выходит за каталог плагина.
-fn is_safe_module(module: &str) -> bool {
-    if module.is_empty() {
-        return false;
-    }
-    let path = Path::new(module);
-    !path.is_absolute()
-        && !path
-            .components()
-            .any(|component| !matches!(component, Component::Normal(_)))
-}
-
-/// Строковое имя категории плагина.
-fn kind_name(kind: PluginKind) -> String {
-    serde_json::to_value(kind)
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_string))
-        .unwrap_or_default()
 }
 
 /// Преобразование произвольной ошибки в ошибку пакета.

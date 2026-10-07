@@ -34,6 +34,24 @@ pub enum PluginError {
     DependencyCycle(String),
 }
 
+impl PluginError {
+    /// Ошибка вызова runtime плагинной подсистемы.
+    pub fn runtime(message: impl Into<String>) -> Self {
+        Self::Call {
+            plugin: "runtime".to_string(),
+            message: message.into(),
+        }
+    }
+
+    /// Ошибка вызова конкретного плагина.
+    pub fn call(plugin: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::Call {
+            plugin: plugin.into(),
+            message: message.into(),
+        }
+    }
+}
+
 impl From<io::Error> for PluginError {
     /// Преобразование ошибки ввода-вывода в ошибку плагинной подсистемы.
     fn from(value: io::Error) -> Self {

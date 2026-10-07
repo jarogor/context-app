@@ -9,6 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
+use crate::atomic_file;
 use crate::plugin::SourceProvider;
 
 /// Имя файла истории в служебном каталоге состояния.
@@ -107,21 +108,12 @@ fn history_path(root: &Path) -> PathBuf {
 
 /// Загрузка истории; отсутствующий файл — пустая история.
 fn load(root: &Path) -> Result<HistoryFile, String> {
-    match std::fs::read_to_string(history_path(root)) {
-        Ok(value) => serde_json::from_str(&value).map_err(|error| error.to_string()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(HistoryFile::default()),
-        Err(error) => Err(error.to_string()),
-    }
+    atomic_file::read_json_or_default(&history_path(root)).map_err(|error| error.to_string())
 }
 
 /// Атомарная запись истории.
 fn save(root: &Path, file: &HistoryFile) -> Result<(), String> {
-    std::fs::create_dir_all(root).map_err(|error| error.to_string())?;
-    let value = serde_json::to_string(file).map_err(|error| error.to_string())?;
-    let path = history_path(root);
-    let temporary = path.with_extension("tmp");
-    std::fs::write(&temporary, value).map_err(|error| error.to_string())?;
-    std::fs::rename(&temporary, &path).map_err(|error| error.to_string())
+    atomic_file::write_json(&history_path(root), file).map_err(|error| error.to_string())
 }
 
 /// Текущее время Unix в миллисекундах.

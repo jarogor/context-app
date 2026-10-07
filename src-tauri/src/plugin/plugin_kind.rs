@@ -22,3 +22,22 @@ impl Default for PluginKind {
         Self::Extension
     }
 }
+
+impl PluginKind {
+    /// Строковое имя категории плагина (совпадает с сериализацией).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Base => "base",
+            Self::Source => "source",
+            Self::Extension => "extension",
+            Self::Workplace => "workplace",
+        }
+    }
+}
+
+impl std::fmt::Display for PluginKind {
+    /// Форматирование имени категории плагина.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}

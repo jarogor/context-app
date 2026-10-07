@@ -1,5 +1,5 @@
 use super::*;
-use std::io::Write;
+use std::io::{Cursor, Write};
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 

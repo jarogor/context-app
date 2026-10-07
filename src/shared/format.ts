@@ -23,3 +23,12 @@ export function formatDateTime(millis: number): string {
         date.getHours(),
     )}:${pad(date.getMinutes())}`;
 }
+
+/** Время в русском 24-часовом формате `чч:мм:сс`; ноль даёт пустую строку. */
+export function formatTime(millis: number): string {
+    if (!millis) {
+        return '';
+    }
+    const date = new Date(millis);
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}

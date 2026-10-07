@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{book_from_file, list_files, probe, PROBE_PRIORITY};
+use super::{list_files, probe, PROBE_PRIORITY};
 use crate::test_fs::TestFs;
 
 /// Счётчик для уникальных имён временных папок каждого теста.
@@ -65,7 +65,7 @@ fn book_has_no_author_and_no_cover() {
     fs::create_dir_all(&root).expect("создание корня");
     fs::write(root.join("Название книги.fb2"), "fb2").expect("книга");
 
-    let book = book_from_file(&TestFs::new(root), "Название книги.fb2");
+    let (book, _cover) = super::read_book(&TestFs::new(root), "Название книги.fb2");
 
     assert_eq!(book.title, "Название книги");
     assert!(book.authors.is_empty());

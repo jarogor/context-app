@@ -290,6 +290,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "source-common",
  "zip",
 ]
 
@@ -304,6 +305,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "source-common",
  "zip",
 ]
 
@@ -358,6 +360,7 @@ name = "notes-store"
 version = "0.1.0"
 dependencies = [
  "extism-pdk",
+ "plugin-host",
  "serde",
  "serde_json",
 ]
@@ -367,6 +370,7 @@ name = "notifications"
 version = "0.1.0"
 dependencies = [
  "extism-pdk",
+ "plugin-host",
  "serde",
  "serde_json",
 ]
@@ -393,11 +397,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
+name = "plugin-host"
+version = "0.1.0"
+dependencies = [
+ "extism-pdk",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "plugin-store"
 version = "0.1.0"
 dependencies = [
  "base64",
  "extism-pdk",
+ "plugin-host",
  "serde",
  "serde_json",
 ]
@@ -570,6 +584,7 @@ name = "settings"
 version = "0.1.0"
 dependencies = [
  "extism-pdk",
+ "plugin-host",
  "serde",
  "serde_json",
  "ui-sdk",
@@ -592,6 +607,20 @@ name = "smallvec"
 version = "1.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
+
+[[package]]
+name = "source-common"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "extism-pdk",
+ "index-migrations",
+ "quick-xml",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "zip",
+]
 
 [[package]]
 name = "sqlite-wasm-rs"

@@ -180,7 +180,10 @@ impl PluginManifest {
 }
 
 /// Проверка, что путь относительный и не выходит за каталог плагина.
-pub(crate) fn is_safe_relative_path(value: &str) -> bool {
+///
+/// Служит общей проверкой безопасного относительного пути (модуль пакета,
+/// файл модуля рисования, ключ storage) для ядра.
+pub fn is_safe_relative_path(value: &str) -> bool {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return false;

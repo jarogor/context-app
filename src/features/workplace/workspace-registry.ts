@@ -14,7 +14,6 @@ import {
   type BookRef,
   type WorkspaceState,
   type WorkspaceTab,
-  emptyWorkspace,
   normalizeWorkspace,
   serializeWorkspace,
 } from './workplace';
@@ -53,7 +52,7 @@ export function newWorkspaceId(): string {
   return `ws-${Date.now().toString(36)}-${sequence}`;
 }
 
-/** Пустой реестр. */
+/** Пустой реестр (используется тестами реестра и оболочки). */
 export function emptyRegistry(): WorkspaceRegistry {
   return { workspaces: [], currentWorkspaceId: null };
 }
@@ -191,12 +190,6 @@ export function updateCurrentWorkspaceTabs(
     return registry;
   }
   return updateWorkspaceTabs(registry, current.id, reduce);
-}
-
-/** Пустое состояние текущего рабочего места (для безопасного чтения вкладок). */
-export function currentTabsState(registry: WorkspaceRegistry): WorkspaceState {
-  const current = currentWorkspace(registry);
-  return current ? { tabs: current.tabs, activeTabId: current.activeTabId } : emptyWorkspace();
 }
 
 /** Сериализация реестра к контракту ядра (`snake_case`).

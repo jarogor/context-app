@@ -1,5 +1,5 @@
 <script lang="ts">
-  import AddButton from './AddButton.svelte';
+  import IconButton from './IconButton.svelte';
   import Input from './Input.svelte';
   import { cn } from '../utils';
 
@@ -60,7 +60,8 @@
           }
         }}
       />
-      <AddButton
+      <IconButton
+        action="add"
         title={createTitle}
         ariaLabel={createAriaLabel ?? createTitle}
         disabled={!newName.trim()}

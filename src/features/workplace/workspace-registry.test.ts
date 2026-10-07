@@ -3,7 +3,6 @@ import {
   DEFAULT_WORKSPACE_NAME,
   addWorkspace,
   createWorkspace,
-  currentTabsState,
   currentWorkspace,
   emptyRegistry,
   normalizeRegistry,
@@ -92,17 +91,17 @@ describe('реестр рабочих мест', () => {
     expect(registry).toEqual(emptyRegistry());
   });
 
-  it('возвращает вкладки текущего места и пустое состояние без текущего', () => {
+  it('возвращает вкладки текущего места и сбрасывает текущее при удалении', () => {
     let registry = addWorkspace(emptyRegistry(), 'Первое', 'ws-1', 1);
     registry = updateWorkspaceTabs(registry, 'ws-1', (state) =>
       openBook(state, { path: '/lib/book-1.epub', title: 'Книга' }),
     );
 
-    expect(currentTabsState(registry).tabs).toHaveLength(1);
+    expect(currentWorkspace(registry)?.tabs).toHaveLength(1);
 
     const empty = removeWorkspace(registry, 'ws-1');
-    expect(currentTabsState(empty).tabs).toHaveLength(0);
-    expect(currentTabsState(empty).activeTabId).toBeNull();
+    expect(currentWorkspace(empty)).toBeNull();
+    expect(empty.workspaces).toHaveLength(0);
   });
 
   it('нормализует реестр из ядра, но не восстанавливает текущее место', () => {

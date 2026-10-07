@@ -82,6 +82,7 @@ impl AppPluginHost {
     /// Создание runtime базовых плагинов из указанных директорий.
     ///
     /// `storage_root` — корень служебного хранилища базовых плагинов.
+    #[cfg(test)]
     pub fn load(
         directories: &[PathBuf],
         storage_root: impl Into<PathBuf>,
@@ -163,9 +164,8 @@ impl AppPluginHost {
             return Ok(());
         }
         for event in get_bus().drain() {
-            let payload = serde_json::to_value(&event).map_err(|error| PluginError::Call {
-                plugin: "runtime".to_string(),
-                message: format!("не удалось сериализовать событие: {error}"),
+            let payload = serde_json::to_value(&event).map_err(|error| {
+                PluginError::runtime(format!("не удалось сериализовать событие: {error}"))
             })?;
             self.runtime
                 .invoke_capability(CAPABILITY_NOTIFICATIONS, "publish", payload)?;
@@ -186,6 +186,7 @@ impl AppPluginHost {
     }
 
     /// Публикация технического события и его доставка плагину уведомлений.
+    #[cfg(test)]
     pub fn notify_technical(
         &mut self,
         severity: Severity,
@@ -220,10 +221,9 @@ impl AppPluginHost {
                     "core",
                     serde_json::json!({}),
                 );
-                return Err(PluginError::Call {
-                    plugin: "runtime".to_string(),
-                    message: format!("некорректная схема настроек приложения: {error}"),
-                });
+                return Err(PluginError::runtime(format!(
+                    "некорректная схема настроек приложения: {error}"
+                )));
             }
         };
         sources.push(serde_json::json!({

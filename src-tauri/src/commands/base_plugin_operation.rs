@@ -20,14 +20,14 @@ pub async fn invoke_base_plugin_operation(
     operation: String,
     payload: Value,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
     let response = state
         .app_host()?
         .invoke_capability(&capability, &operation, payload)
         .map_err(|error| error.to_string())?;
 
     // Стор мог изменить активность плагинов — обновляем набор сессии.
-    let disabled = crate::plugin::activation::load(&state.app_state_root).unwrap_or_default();
+    let disabled = state.disabled_plugins();
     state.session.set_disabled_plugins(disabled);
 
     // Изменение настроек могло затронуть порог логирования.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDateTime } from './format';
+import { formatDateTime, formatTime } from './format';
 
 describe('formatDateTime', () => {
     it('форматирует дату по-русски: ДД.ММ.ГГГГ чч:мм', () => {
@@ -19,5 +19,23 @@ describe('formatDateTime', () => {
 
     it('ноль даёт пустую строку', () => {
         expect(formatDateTime(0)).toBe('');
+    });
+});
+
+describe('formatTime', () => {
+    it('форматирует время по-русски: чч:мм:сс', () => {
+        const millis = new Date(2023, 10, 15, 1, 13, 5).getTime();
+
+        expect(formatTime(millis)).toBe('01:13:05');
+    });
+
+    it('дополняет час, минуту и секунду нулями', () => {
+        const millis = new Date(2024, 0, 5, 9, 7, 3).getTime();
+
+        expect(formatTime(millis)).toBe('09:07:03');
+    });
+
+    it('ноль даёт пустую строку', () => {
+        expect(formatTime(0)).toBe('');
     });
 });

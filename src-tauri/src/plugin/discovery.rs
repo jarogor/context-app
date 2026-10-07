@@ -3,6 +3,7 @@
 //! Используется для доступных провайдеров истории библиотек и для перечня
 //! отключаемых плагинов: плагин определяется по манифесту в одной из директорий.
 
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
@@ -25,6 +26,7 @@ pub struct SourceProvider {
 /// по идентификатору и сортируются по идентификатору.
 pub fn discover_source_plugins(directories: &[PathBuf]) -> Vec<SourceProvider> {
     let mut providers: Vec<SourceProvider> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
     for directory in directories {
         let Ok(entries) = std::fs::read_dir(directory) else {
             continue;
@@ -37,9 +39,7 @@ pub fn discover_source_plugins(directories: &[PathBuf]) -> Vec<SourceProvider> {
             let Ok(manifest) = PluginManifest::load(&manifest_path) else {
                 continue;
             };
-            if manifest.kind != PluginKind::Source
-                || providers.iter().any(|provider| provider.id == manifest.id)
-            {
+            if manifest.kind != PluginKind::Source || !seen.insert(manifest.id.clone()) {
                 continue;
             }
             providers.push(SourceProvider {
@@ -84,8 +84,8 @@ pub fn list_disableable(
     disabled: &[String],
 ) -> Vec<PluginEntry> {
     let mut entries: Vec<PluginEntry> = Vec::new();
-    let mut index_by_id: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    let mut index_by_id: HashMap<String, usize> = HashMap::new();
+    let disabled: HashSet<&str> = disabled.iter().map(String::as_str).collect();
     for directory in directories {
         let Ok(dir_entries) = std::fs::read_dir(directory) else {
             continue;
@@ -117,9 +117,9 @@ pub fn list_disableable(
             entries.push(PluginEntry {
                 id: manifest.id.clone(),
                 name: manifest.name.clone(),
-                kind: kind_name(manifest.kind),
+                kind: manifest.kind.to_string(),
                 description: manifest.description.clone(),
-                enabled: !disabled.iter().any(|id| id == &manifest.id),
+                enabled: !disabled.contains(manifest.id.as_str()),
                 removable,
                 sample: manifest.sample,
             });
@@ -130,18 +130,27 @@ pub fn list_disableable(
 }
 
 /// Признак, что в директориях есть отключаемый плагин с указанным идентификатором.
+///
+/// Сканирование прекращается на первом совпадении: полный перечень отключаемых
+/// плагинов для проверки существования не строится.
 pub fn is_disableable(directories: &[PathBuf], id: &str) -> bool {
-    list_disableable(directories, None, &[])
-        .iter()
-        .any(|entry| entry.id == id)
-}
-
-/// Строковое имя категории плагина.
-fn kind_name(kind: PluginKind) -> String {
-    serde_json::to_value(kind)
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_string))
-        .unwrap_or_default()
+    for directory in directories {
+        let Ok(dir_entries) = std::fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in dir_entries.flatten() {
+            if !entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let Ok(manifest) = PluginManifest::load(&entry.path().join(MANIFEST_FILE_NAME)) else {
+                continue;
+            };
+            if manifest.kind != PluginKind::Base && manifest.id == id {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[cfg(test)]

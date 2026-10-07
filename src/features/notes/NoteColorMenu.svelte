@@ -7,11 +7,9 @@
     onpick: (color: NoteColor) => void;
     /** Тексты подсказок цветов (для доступности и тестов). */
     labelPrefix?: string;
-    /** Выбранный цвет, если он задан. */
-    selected?: NoteColor | null;
   }
 
-  let { onpick, labelPrefix = 'Создать заметку', selected = null }: Props = $props();
+  let { onpick, labelPrefix = 'Создать заметку' }: Props = $props();
 
   /** Образцы палитры с подписями выбранного контекста. */
   const swatches = $derived<ColorSwatch[]>(
@@ -19,7 +17,6 @@
       id: color,
       label: NOTE_COLOR_LABELS[color],
       value: NOTE_COLOR_SWATCHES[color],
-      selected: selected === color,
     })),
   );
 </script>

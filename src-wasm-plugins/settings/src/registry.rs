@@ -54,7 +54,8 @@ impl Registry {
     }
 
     /// Поиск секции по полному идентификатору.
-    pub fn find(&self, id: &str) -> Option<&RegisteredSection> {
+    #[cfg(test)]
+    pub(crate) fn find(&self, id: &str) -> Option<&RegisteredSection> {
         self.sections.iter().find(|section| section.id == id)
     }
 }

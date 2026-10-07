@@ -1,12 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import {
-    ActionMenu,
     Badge,
     Button,
+    EntityList,
     Icon,
-    ListRow,
-    MetaList,
     PageShell,
     Progress,
     SearchCreate,
@@ -16,6 +14,8 @@
   } from '@texture/ui';
   import { invokeCommand, listenEvent, openDialog } from '../../shared/app-bridge';
   import { formatDateTime } from '../../shared/format';
+  import { lastSegment } from '../../shared/path';
+  import { activeLibrary } from '../../shared/base-plugin';
   import appConfig from './app-config.json';
 
   interface Props {
@@ -32,11 +32,23 @@
     /** Идентификатор провайдера. */
     provider: string;
     /** Человекочитаемое имя провайдера. */
-    provider_name: string;
+    providerName: string;
     /** Время открытия записи (Unix, мс). */
-    added_at_millis: number;
+    addedAtMillis: number;
     /** Доступна ли библиотека на диске. */
     available: boolean;
+  }
+
+  /** Нормализация записи истории из ответа команды (snake_case → camelCase). */
+  function normalizeHistoryEntry(value: unknown): HistoryEntry {
+    const record = (value ?? {}) as Record<string, unknown>;
+    return {
+      path: String(record.path ?? ''),
+      provider: String(record.provider ?? ''),
+      providerName: String(record.provider_name ?? ''),
+      addedAtMillis: Number(record.added_at_millis ?? 0),
+      available: Boolean(record.available),
+    };
   }
 
   let entries: HistoryEntry[] = $state([]);
@@ -69,13 +81,13 @@
 
   /** Имя библиотеки по последнему сегменту пути. */
   function libraryName(path: string): string {
-    return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+    return lastSegment(path);
   }
 
   /** Метаинформация записи истории: время открытия (иконкой) и путь. */
   function metaItems(entry: HistoryEntry): MetaItem[] {
     const items: MetaItem[] = [];
-    const opened = formatDateTime(entry.added_at_millis);
+    const opened = formatDateTime(entry.addedAtMillis);
     if (opened) {
       items.push({ icon: 'clock', value: opened, title: `Открыта ${opened}` });
     }
@@ -98,9 +110,9 @@
     loading = true;
     try {
       const response = (await invokeCommand('library_history_list', {})) as {
-        entries?: HistoryEntry[];
+        entries?: unknown[];
       };
-      entries = response.entries ?? [];
+      entries = (response.entries ?? []).map(normalizeHistoryEntry);
       error = null;
     } catch (e) {
       error = String(e);
@@ -112,7 +124,7 @@
   /** Загрузка сведений об активной библиотеке. */
   async function loadActive() {
     try {
-      const response = (await invokeCommand('active_library', {})) as { path?: string } | null;
+      const response = await activeLibrary();
       activePath = response?.path ?? null;
     } catch {
       // Отсутствие активной библиотеки не является ошибкой страницы.
@@ -238,66 +250,46 @@
     {/if}
   {/snippet}
 
-  {#if entries.length > 0 && filtered.length === 0}
-    <p class="text-[var(--muted-foreground)]" data-testid="libraries-not-found">
-      Ничего не найдено.
-    </p>
-  {:else}
-    <ul class="flex list-none flex-col gap-2 p-0">
-      {#each filtered as entry (entry.path)}
-        <li data-testid="library-item">
-          <ListRow
-            selected={activePath === entry.path}
-            disabled={!entry.available || opening}
-            onclick={() => void openLibrary(entry.path)}
-          >
-            {#snippet titleContent()}
-              <span
-                class="inline-flex h-4 w-4 shrink-0 items-center justify-center"
-                aria-live="polite"
-                title={entry.available ? 'доступна' : 'недоступна'}
-                aria-label={entry.available ? 'доступна' : 'недоступна'}
-              >
-                {#if openingPath === entry.path}
-                  <Spinner class="h-3.5 w-3.5 text-[var(--primary)]" />
-                {:else if entry.available}
-                  <Icon name="check" class="h-4 w-4 text-[var(--success)]" />
-                {:else}
-                  <Icon name="close" class="h-4 w-4 text-[var(--muted-foreground)]" />
-                {/if}
-              </span>
-              <strong
-                class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
-                data-testid="library-name"
-              >
-                {libraryName(entry.path)}
-              </strong>
-            {/snippet}
+  <EntityList
+    items={filtered}
+    key={(entry) => entry.path}
+    itemTestId="library-item"
+    notFound={entries.length > 0 && filtered.length === 0}
+    notFoundTestId="libraries-not-found"
+    selected={(entry) => activePath === entry.path}
+    disabled={(entry) => !entry.available || opening}
+    onSelect={(entry) => void openLibrary(entry.path)}
+    metaItems={metaItems}
+    metaTestId="library-meta"
+    actions={entryActions}
+    actionsLabel="Действия с библиотекой"
+    onAction={runEntryAction}
+  >
+    {#snippet titleContent(entry)}
+      <span
+        class="inline-flex h-4 w-4 shrink-0 items-center justify-center"
+        aria-live="polite"
+        title={entry.available ? 'доступна' : 'недоступна'}
+        aria-label={entry.available ? 'доступна' : 'недоступна'}
+      >
+        {#if openingPath === entry.path}
+          <Spinner class="h-3.5 w-3.5 text-[var(--primary)]" />
+        {:else if entry.available}
+          <Icon name="check" class="h-4 w-4 text-[var(--success)]" />
+        {:else}
+          <Icon name="close" class="h-4 w-4 text-[var(--muted-foreground)]" />
+        {/if}
+      </span>
+      <strong
+        class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
+        data-testid="library-name"
+      >
+        {libraryName(entry.path)}
+      </strong>
+    {/snippet}
 
-            {#snippet trailing()}
-              <Badge>{entry.provider_name}</Badge>
-            {/snippet}
-
-            {#snippet meta()}
-              <span
-                class="flex flex-wrap items-center gap-x-3 gap-y-1"
-                data-testid="library-meta"
-              >
-                <MetaList items={metaItems(entry)} />
-              </span>
-            {/snippet}
-
-            {#snippet actions()}
-              <ActionMenu
-                ariaLabel="Действия с библиотекой"
-                title="Действия"
-                items={entryActions(entry)}
-                onselect={(action) => runEntryAction(entry, action)}
-              />
-            {/snippet}
-          </ListRow>
-        </li>
-      {/each}
-    </ul>
-  {/if}
+    {#snippet trailing(entry)}
+      <Badge>{entry.providerName}</Badge>
+    {/snippet}
+  </EntityList>
 </PageShell>

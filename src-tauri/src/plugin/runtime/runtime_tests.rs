@@ -1,9 +1,17 @@
 use super::*;
-use crate::plugin::{get_bus, set_log_level, Severity};
+use crate::plugin::contract::{HOST_STORE_INSTALLED, MANIFEST_FILE_NAME, STORE_HOST_FUNCTIONS};
+use crate::plugin::{get_bus, set_log_level, PluginManifest, Severity};
 use crate::test_util;
 use crate::test_util::cleanup;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
+use super::host::fs::read_directory_entries;
+use super::host::registration::declares_host_function;
+use super::host::sql::{execute_sql, parse_sql_params, query_sql, sqlite_database_path};
+use super::host::store::store_root;
+use super::host_state::{resolve_sandboxed, resolve_storage_key, HostState, SandboxRoot};
 
 /// WAT-модуль, экспортирующий функцию `invoke`, возвращающую код 0.
 const WAT_WITH_INVOKE: &str = r#"
@@ -126,7 +134,7 @@ fn sandbox_resolves_paths_inside_root() {
     cleanup(&root);
     fs::create_dir_all(root.join("data")).expect("создание папки");
     fs::write(root.join("data").join("note.txt"), "текст").expect("запись файла");
-    let sandbox_root = Arc::new(Mutex::new(root.clone()));
+    let sandbox_root = Arc::new(Mutex::new(SandboxRoot::new(root.clone())));
 
     let resolved = resolve_sandboxed(&sandbox_root, "data").expect("разрешение папки");
     assert_eq!(
@@ -153,7 +161,7 @@ fn sandbox_rejects_paths_outside_root() {
     let root = parent.join("source-root");
     let outside = parent.join("target");
     fs::create_dir_all(&outside).expect("создание внешней папки");
-    let sandbox_root = Arc::new(Mutex::new(root));
+    let sandbox_root = Arc::new(Mutex::new(SandboxRoot::new(root)));
 
     let attempt = resolve_sandboxed(&sandbox_root, "../target/");
     assert!(attempt.is_err(), "путь за пределами корня отклоняется");
@@ -167,12 +175,14 @@ fn storage_accepts_only_single_file_keys() {
     let root = test_util::test_root("plugin-storage-root");
     cleanup(&root);
     fs::create_dir_all(&root).expect("создание storage");
-    let storage = Arc::new(Mutex::new(Some(root.clone())));
+    let mut runtime = PluginRuntime::empty();
+    runtime.set_storage_root(root.clone());
+    let state = runtime.roots.host_state(TEST_PLUGIN_ID);
 
-    assert!(resolve_storage_key(&storage, "state.json").is_ok());
-    assert!(resolve_storage_key(&storage, "nested/state.json").is_err());
-    assert!(resolve_storage_key(&storage, "../state.json").is_err());
-    assert!(resolve_storage_key(&storage, "/tmp/state.json").is_err());
+    assert!(resolve_storage_key(&state, "state.json").is_ok());
+    assert!(resolve_storage_key(&state, "nested/state.json").is_err());
+    assert!(resolve_storage_key(&state, "../state.json").is_err());
+    assert!(resolve_storage_key(&state, "/tmp/state.json").is_err());
 
     cleanup(&root);
 }
@@ -324,16 +334,7 @@ fn plugin_store_root_reaches_host_state() {
     let dir = test_util::test_root("plugin-runtime-store-root");
     let mut runtime = PluginRuntime::empty();
     runtime.set_plugin_store_root(dir.clone());
-    let plugin_dirs = Arc::new(Mutex::new(Vec::new()));
-    let state = PluginRuntime::host_state(
-        &runtime.sandbox_root,
-        &runtime.storage_root,
-        &runtime.plugin_store_root,
-        &runtime.activation_root,
-        &plugin_dirs,
-        &runtime.sandbox_writable,
-        TEST_PLUGIN_ID,
-    );
+    let state = runtime.roots.host_state(TEST_PLUGIN_ID);
     let resolved = store_root(&state).expect("корень стора доступен");
     assert_eq!(resolved, dir, "корень доходит до host-функций стора");
     cleanup(&dir);
@@ -342,16 +343,7 @@ fn plugin_store_root_reaches_host_state() {
 #[test]
 fn plugin_store_root_absent_without_configuration() {
     let runtime = PluginRuntime::empty();
-    let plugin_dirs = Arc::new(Mutex::new(Vec::new()));
-    let state = PluginRuntime::host_state(
-        &runtime.sandbox_root,
-        &runtime.storage_root,
-        &runtime.plugin_store_root,
-        &runtime.activation_root,
-        &plugin_dirs,
-        &runtime.sandbox_writable,
-        TEST_PLUGIN_ID,
-    );
+    let state = runtime.roots.host_state(TEST_PLUGIN_ID);
     assert!(
         store_root(&state).is_err(),
         "без настройки корень стора недоступен"
@@ -562,16 +554,8 @@ fn trace_suppressed_at_info_threshold() {
 fn sqlite_host_state(storage: PathBuf, sandbox: PathBuf, plugin_id: &str) -> HostState {
     let mut runtime = PluginRuntime::empty();
     runtime.set_storage_root(storage);
-    let state = PluginRuntime::host_state(
-        &runtime.sandbox_root,
-        &runtime.storage_root,
-        &runtime.plugin_store_root,
-        &runtime.activation_root,
-        &runtime.catalog_dirs,
-        &runtime.sandbox_writable,
-        plugin_id,
-    );
-    *state.sandbox_root.lock().expect("песочный корень") = sandbox;
+    let state = runtime.roots.host_state(plugin_id);
+    *state.roots.sandbox_root.lock().expect("песочный корень") = SandboxRoot::new(sandbox);
     state
 }
 
@@ -603,6 +587,7 @@ fn sql_database_path_is_isolated_per_library() {
 /// Корень служебного хранилища host-состояния.
 fn storage_path(state: &HostState) -> PathBuf {
     state
+        .roots
         .storage_root
         .lock()
         .expect("storage")
@@ -613,15 +598,7 @@ fn storage_path(state: &HostState) -> PathBuf {
 #[test]
 fn sql_requires_configured_storage() {
     let runtime = PluginRuntime::empty();
-    let state = PluginRuntime::host_state(
-        &runtime.sandbox_root,
-        &runtime.storage_root,
-        &runtime.plugin_store_root,
-        &runtime.activation_root,
-        &runtime.catalog_dirs,
-        &runtime.sandbox_writable,
-        TEST_PLUGIN_ID,
-    );
+    let state = runtime.roots.host_state(TEST_PLUGIN_ID);
     assert!(
         sqlite_database_path(&state).is_err(),
         "без служебного хранилища SQL недоступен"

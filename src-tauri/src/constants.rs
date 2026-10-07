@@ -25,11 +25,7 @@ pub const APP_STATE_DIR_NAME: &str = "app-state";
 /// данных приложения.
 #[cfg(debug_assertions)]
 pub fn resolve_app_state_root(_app_data_dir: Option<&Path>) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("родитель папки src-tauri")
-        .join("dev_data")
-        .join(APP_STATE_DIR_NAME)
+    crate::paths::dev_data_dir().join(APP_STATE_DIR_NAME)
 }
 
 /// Разрешение корня служебного состояния приложения в release.
@@ -47,11 +43,7 @@ pub fn resolve_app_state_root(app_data_dir: Option<&Path>) -> PathBuf {
 /// библиотек.
 #[cfg(debug_assertions)]
 pub fn resolve_user_plugins_root(_app_data_dir: Option<&Path>) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("родитель папки src-tauri")
-        .join("dev_data")
-        .join(USER_PLUGINS_DIR_NAME)
+    crate::paths::dev_data_dir().join(USER_PLUGINS_DIR_NAME)
 }
 
 /// Разрешение корня пользовательского каталога плагинов приложения в release.

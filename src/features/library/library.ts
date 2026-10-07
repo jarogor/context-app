@@ -1,8 +1,9 @@
-//! Обращения оболочки к каталогу активной библиотеки.
-//!
-//! Каталог предоставляет активный source-плагин через opaque-операции; оболочка
-//! не знает устройства каталога и интерпретирует лишь нейтральное представление
-//! книг.
+/** Обращения оболочки к каталогу активной библиотеки.
+ *
+ * Каталог предоставляет активный source-плагин через непрозрачные операции;
+ * оболочка не знает устройства каталога и интерпретирует лишь нейтральное
+ * представление книг.
+ */
 
 import { invokeCommand } from '../../shared/app-bridge';
 import appConfig from './app-config.json';
@@ -36,7 +37,7 @@ export interface Book {
 /** Книга с извлечённой обложкой (data URI). */
 export type BookWithCover = Book & { coverUri?: string };
 
-/** Вызов opaque-операции активного source-плагина сессии. */
+/** Вызов непрозрачной операции активного source-плагина сессии. */
 async function operation<T>(action: string, payload: unknown = {}): Promise<T> {
   return (await invokeCommand('invoke_plugin_operation', {
     operation: action,

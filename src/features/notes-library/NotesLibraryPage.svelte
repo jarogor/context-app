@@ -1,8 +1,6 @@
 <script lang="ts">
   import {
-    ActionMenu,
-    ListRow,
-    MetaList,
+    EntityList,
     PageShell,
     SearchCreate,
     Spinner,
@@ -11,30 +9,28 @@
   } from '@texture/ui';
   import { formatDateTime } from '../../shared/format';
   import NoteEntry from '../notes/NoteEntry.svelte';
-  import type { AggregateNoteSet, Note } from '../notes/notes';
+  import type { NoteSet, Note } from '../notes/notes';
   import { librarySets, noteCountLabel } from './notes-library';
 
-  /** Реестр наборов заметок по всем книгам.
+  /** Реестр наборов заметок всех книг.
    *
    * Поверхность презентационна: получает агрегат наборов и отдаёт интенты
-   * перехода. **Заметки — первичны, книга — подпись:** основной акцент на наборе,
-   * а книга показана компактным контекстом рядом. Заметки набора **свёрнуты**:
-   * список раскрывается кликом по набору, поэтому реестр читается как список
-   * наборов, а содержимое показывается по требованию. Группировка, поиск и
-   * представление заметок вынесены в `notes-library.ts` и общий клиент заметок;
-   * запись заметки рисует общий `NoteEntry`, а не собственную копию.
+   * перехода. **Заметки — первичны, книга — подпись:** акцент на наборе, книга —
+   * компактный контекст рядом. Наборы свёрнуты и раскрываются кликом; группировка,
+   * поиск и представление вынесены в `notes-library.ts`, запись заметки рисует
+   * общий `NoteEntry`.
    */
   interface Props {
     /** Наборы всех книг (агрегат `list_all_sets`). */
-    sets: AggregateNoteSet[];
+    sets: NoteSet[];
     /** Загружается ли реестр. */
     loading?: boolean;
     /** Ошибка загрузки реестра, иначе пустая строка. */
     error?: string;
     /** Переход к книге набора (открыть в рабочем месте, набор — активный). */
-    onOpenSet?: (set: AggregateNoteSet) => void;
+    onOpenSet?: (set: NoteSet) => void;
     /** Переход к конкретной заметке набора. */
-    onOpenNote?: (set: AggregateNoteSet, note: Note) => void;
+    onOpenNote?: (set: NoteSet, note: Note) => void;
   }
 
   let { sets, loading = false, error = '', onOpenSet, onOpenNote }: Props = $props();
@@ -134,84 +130,73 @@
     <SearchCreate bind:query searchPlaceholder="Поиск по заметкам" />
   {/snippet}
 
-  <div class="flex flex-col gap-2">
-    {#each view as set (set.id)}
-      <section class="flex flex-col gap-2" data-testid="notes-library-set">
-        <ListRow
-          selected={false}
-          expanded={isExpanded(set.id)}
-          buttonTestId="notes-library-set-toggle"
-          onclick={() => toggle(set.id)}
-        >
-          {#snippet titleContent()}
-            <svg
-              class="h-4 w-4 shrink-0 text-[var(--muted-foreground)] transition-transform"
-              class:rotate-90={isExpanded(set.id)}
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M6 4l4 4-4 4"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <span
-              class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
-              data-testid="notes-library-set-name"
-            >
-              {set.name}
-            </span>
-          {/snippet}
+  <EntityList
+    items={view}
+    key={(set) => set.id}
+    container="div"
+    itemTestId="notes-library-set"
+    buttonTestId="notes-library-set-toggle"
+    expanded={(set) => isExpanded(set.id)}
+    onSelect={(set) => toggle(set.id)}
+    metaItems={metaItems}
+    metaTestId="notes-library-set-meta"
+    actions={() => setActions}
+    actionsLabel="Действия с набором заметок"
+    onAction={(set) => openBookOfSet(set)}
+  >
+    {#snippet titleContent(set)}
+      <svg
+        class="h-4 w-4 shrink-0 text-[var(--muted-foreground)] transition-transform"
+        class:rotate-90={isExpanded(set.id)}
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M6 4l4 4-4 4"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <span
+        class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
+        data-testid="notes-library-set-name"
+      >
+        {set.name}
+      </span>
+    {/snippet}
 
-          {#snippet meta()}
-            <span data-testid="notes-library-set-meta">
-              <MetaList items={metaItems(set)} />
-            </span>
-          {/snippet}
+    {#snippet trailing(set)}
+      <span
+        class="text-[0.8rem] text-[var(--muted-foreground)]"
+        data-testid="notes-library-count"
+      >
+        {noteCountLabel(set.noteItems.length)}
+      </span>
+    {/snippet}
 
-          {#snippet trailing()}
-            <span
-              class="text-[0.8rem] text-[var(--muted-foreground)]"
-              data-testid="notes-library-count"
-            >
-              {noteCountLabel(set.noteItems.length)}
-            </span>
-          {/snippet}
-
-          {#snippet actions()}
-            <ActionMenu
-              ariaLabel="Действия с набором заметок"
-              title="Действия"
-              items={setActions}
-              onselect={() => openBookOfSet(set)}
-            />
-          {/snippet}
-        </ListRow>
-
-        {#if isExpanded(set.id)}
-          {#if set.noteItems.length === 0}
-            <p
-              class="px-3 text-[0.9rem] text-[var(--muted-foreground)]"
-              data-testid="notes-library-set-empty"
-            >
-              В наборе нет заметок.
-            </p>
-          {:else}
-            <ul
-              class="m-0 flex list-none flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2"
-              data-testid="notes-library-notes"
-            >
-              {#each set.noteItems as item (item.note.id)}
-                <NoteEntry {item} onclick={(note) => openNoteOfSet(set, note)} />
-              {/each}
-            </ul>
-          {/if}
+    {#snippet body(set)}
+      {#if isExpanded(set.id)}
+        {#if set.noteItems.length === 0}
+          <p
+            class="px-3 text-[0.9rem] text-[var(--muted-foreground)]"
+            data-testid="notes-library-set-empty"
+          >
+            В наборе нет заметок.
+          </p>
+        {:else}
+          <ul
+            class="m-0 flex list-none flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2"
+            data-testid="notes-library-notes"
+          >
+            {#each set.noteItems as item (item.note.id)}
+              <NoteEntry {item} onclick={(note) => openNoteOfSet(set, note)} />
+            {/each}
+          </ul>
         {/if}
-      </section>
-    {/each}
-  </div>
+      {/if}
+    {/snippet}
+  </EntityList>
 </PageShell>

@@ -28,11 +28,13 @@ pub(crate) fn import_book(fs: &impl Fs, path: &str) -> Result<ExternalBook, Stri
         }],
     };
     fs.write_bytes(&book_path, &bytes)?;
-    let mut catalog = lifecycle::catalog().unwrap_or(SourceCatalog {
-        protocol_version: SOURCE_PROTOCOL_VERSION,
-        revision: 0,
-        books: Vec::new(),
-    });
+    let mut catalog = lifecycle::catalog()
+        .map(|catalog| (*catalog).clone())
+        .unwrap_or(SourceCatalog {
+            protocol_version: SOURCE_PROTOCOL_VERSION,
+            revision: 0,
+            books: Vec::new(),
+        });
     catalog.books.retain(|current| current.id != id);
     catalog.books.push(book.clone());
     lifecycle::replace(fs, catalog)?;

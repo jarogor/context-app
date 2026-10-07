@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { BookCoverPlaceholder, Button, Input } from '@texture/ui';
+  import { BookCoverPlaceholder, SearchCreate } from '@texture/ui';
+  import BookPage from './BookPage.svelte';
   import { listenEvent } from '../../shared/app-bridge';
   import {
     activeLibraryPath,
@@ -48,6 +49,20 @@
   /** Корень активной библиотеки для сборки абсолютного пути книги. */
   let libraryRoot = $state('');
 
+  /** Задержка перед серверным поиском, чтобы не слать вызов на каждый символ. */
+  const SEARCH_DEBOUNCE_MS = 300;
+
+  /** Таймер отложенного поиска. */
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Отложенный поиск при вводе, отменяющий предыдущий таймер. */
+  function onSearchInput() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      void load();
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
   /** Загрузка каталога активной библиотеки. */
   async function load() {
     if (!librarySelected) {
@@ -68,20 +83,30 @@
     }
   }
 
-  /** Последовательная загрузка обложек, не блокирующая каталог. */
+  /** Параллельная загрузка обложек с однократным применением к списку по id. */
   async function loadCovers(list: Book[]) {
-    for (const book of list) {
-      try {
-        const coverUri = await loadCover(book.id);
-        if (coverUri) {
-          books = books.map((current) =>
-            current.id === book.id ? { ...current, coverUri } : current,
-          );
+    const results = await Promise.all(
+      list.map(async (book) => {
+        try {
+          return { id: book.id, coverUri: await loadCover(book.id) };
+        } catch {
+          // Отсутствие обложки не должно блокировать каталог.
+          return { id: book.id, coverUri: null };
         }
-      } catch {
-        // Отсутствие обложки не должно блокировать каталог.
-      }
+      }),
+    );
+    const covers = new Map(
+      results
+        .filter((entry): entry is { id: string; coverUri: string } => entry.coverUri !== null)
+        .map((entry) => [entry.id, entry.coverUri]),
+    );
+    if (covers.size === 0) {
+      return;
     }
+    books = books.map((current) => {
+      const coverUri = covers.get(current.id);
+      return coverUri ? { ...current, coverUri } : current;
+    });
   }
 
   /** Открытие библиотеки снаружи: обновление корня и перезагрузка каталога.
@@ -103,6 +128,7 @@
     }
     librarySelected = true;
     searchQuery = '';
+    clearTimeout(searchTimer);
     openedBook = null;
     await load();
   }
@@ -188,83 +214,32 @@
       }
     })();
     return () => {
+      clearTimeout(searchTimer);
       unlisten?.();
     };
   });
 </script>
 
 {#if openedBook}
-  <div class="mx-auto max-w-[760px] p-6" data-testid="book-page">
-    <Button variant="ghost" size="sm" class="mb-4" onclick={closeBook}>
-      ← К списку
-    </Button>
-
-    <div class="flex flex-col gap-6 sm:flex-row">
-      <div class="w-[180px] flex-none">
-        {#if openedBook.coverUri}
-          <img
-            class="aspect-[2/3] w-full rounded-md object-cover"
-            src={openedBook.coverUri}
-            alt=""
-          />
-        {:else}
-          <BookCoverPlaceholder />
-        {/if}
-      </div>
-
-      <div class="min-w-0 flex-1">
-        <h1 class="text-xl font-semibold" data-testid="book-title">{openedBook.title}</h1>
-        {#if openedBook.authors.length > 0}
-          <p class="mt-1 text-[var(--muted-foreground)]">
-            {openedBook.authors.map((author) => author.name).join(', ')}
-          </p>
-        {/if}
-
-        {#if openedBook.series.length > 0}
-          <p class="mt-2 text-[13px] text-[var(--muted-foreground)]">
-            Серия: {openedBook.series.map((entry) => entry.series.name).join(', ')}
-          </p>
-        {/if}
-
-        {#if openedBook.tags.length > 0}
-          <p class="mt-1 text-[13px] text-[var(--muted-foreground)]">
-            Теги: {openedBook.tags.map((tag) => tag.name).join(', ')}
-          </p>
-        {/if}
-
-        <div class="mt-6 flex flex-wrap items-center gap-2">
-          {#if canRead(openedBook)}
-            <Button variant="primary" onclick={() => startReading(openedBook as BookWithCover)}>
-              {targetWorkspaceName
-                ? `Добавить в «${targetWorkspaceName}»`
-                : 'Добавить в рабочее место'}
-            </Button>
-          {/if}
-          <Button variant="secondary" disabled={opening} onclick={() => openInSystem(openedBook as BookWithCover)}>
-            {opening ? 'Открытие…' : 'Открыть'}
-          </Button>
-        </div>
-
-        {#if externalError}
-          <p class="mt-3 text-[var(--destructive)]">{externalError}</p>
-        {/if}
-      </div>
-    </div>
-  </div>
+  <BookPage
+    book={openedBook}
+    {targetWorkspaceName}
+    canRead={canRead(openedBook)}
+    {opening}
+    {externalError}
+    onClose={closeBook}
+    onAdd={() => startReading(openedBook as BookWithCover)}
+    onOpenExternal={() => openInSystem(openedBook as BookWithCover)}
+  />
 {:else}
   <div class="p-6">
     {#if librarySelected}
-      <label
-        class="mb-4 flex flex-col gap-1 text-[13px] text-[var(--muted-foreground)]"
-      >
-        <span>Поиск</span>
-        <Input
-          bind:value={searchQuery}
-          oninput={load}
-          placeholder="Название или автор"
-          class="max-w-[420px]"
-        />
-      </label>
+      <SearchCreate
+        bind:query={searchQuery}
+        searchPlaceholder="Название или автор"
+        class="mb-4 max-w-[420px]"
+        onSearch={onSearchInput}
+      />
     {/if}
 
     {#if !librarySelected}

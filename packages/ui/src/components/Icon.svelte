@@ -11,10 +11,8 @@
     | 'clock'
     | 'book'
     | 'folder'
-    | 'tag'
     | 'check'
-    | 'close'
-    | 'dot';
+    | 'close';
 </script>
 
 <script lang="ts">
@@ -54,14 +52,9 @@
     <path d="M8 3v12" />
   {:else if name === 'folder'}
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-  {:else if name === 'tag'}
-    <path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z" />
-    <circle cx="8" cy="8" r="1.4" />
   {:else if name === 'check'}
     <path d="M20 6 9 17l-5-5" stroke-width="2.4" />
   {:else if name === 'close'}
     <path d="M6 6l12 12M18 6 6 18" />
-  {:else if name === 'dot'}
-    <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
   {/if}
 </svg>

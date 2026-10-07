@@ -15,10 +15,11 @@
 import {
     noteList,
     notePlace,
-    type AggregateNoteSet,
+    type NoteSet,
     type Note,
     type NoteListItem,
 } from '../notes/notes';
+import { lastSegment } from '../../shared/path';
 
 /** Склонение числа заметок: 1 заметка, 2 заметки, 5 заметок. */
 export function pluralNotes(count: number): string {
@@ -44,13 +45,11 @@ export function noteCountLabel(count: number): string {
  * остаётся непрозрачным — имя выводится только для показа и не сохраняется.
  */
 export function fallbackBookTitle(bookKey: string): string {
-    const segments = bookKey.split(/[\\/]/).filter(Boolean);
-    const last = segments.length > 0 ? segments[segments.length - 1] : bookKey;
-    return last.replace(/\.[^.]+$/, '') || bookKey;
+    return lastSegment(bookKey, { stripExt: true }) || bookKey;
 }
 
 /** Отображаемое имя книги набора: сохранённое имя или резервное по ключу. */
-export function bookTitleOf(set: AggregateNoteSet): string {
+export function bookTitleOf(set: NoteSet): string {
     const title = set.bookTitle.trim();
     return title || fallbackBookTitle(set.bookKey);
 }
@@ -89,7 +88,7 @@ function noteMatches(note: Note, needle: string): boolean {
 }
 
 /** Подходит ли набор под запрос: имя набора или имя книги. */
-function setMatches(set: AggregateNoteSet, needle: string): boolean {
+function setMatches(set: NoteSet, needle: string): boolean {
     return (
         set.name.toLowerCase().includes(needle) || bookTitleOf(set).toLowerCase().includes(needle)
     );
@@ -102,7 +101,7 @@ function setMatches(set: AggregateNoteSet, needle: string): boolean {
  * совпадении по имени набора или книги набор показывается целиком; иначе — с
  * одними подходящими заметками; без совпадений набор отбрасывается.
  */
-export function librarySets(sets: AggregateNoteSet[], query: string): LibrarySetView[] {
+export function librarySets(sets: NoteSet[], query: string): LibrarySetView[] {
     const needle = query.trim().toLowerCase();
     const filtered = sets
         .map((set) => {
@@ -112,7 +111,7 @@ export function librarySets(sets: AggregateNoteSet[], query: string): LibrarySet
             const notes = set.notes.filter((note) => noteMatches(note, needle));
             return notes.length > 0 ? { ...set, notes } : null;
         })
-        .filter((set): set is AggregateNoteSet => set !== null);
+        .filter((set): set is NoteSet => set !== null);
 
     return filtered.map((set) => ({
         id: set.id,

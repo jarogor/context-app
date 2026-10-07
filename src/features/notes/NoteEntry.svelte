@@ -1,7 +1,8 @@
 <script lang="ts">
   import { Badge } from '@texture/ui';
   import type { Snippet } from 'svelte';
-  import { formatNoteDate, noteMarkerColor, NOTE_TYPE_LABELS, type NoteListItem } from './notes';
+  import { formatDateTime } from '../../shared/format';
+  import { noteMarkerColor, NOTE_TYPE_LABELS, type NoteListItem } from './notes';
 
   /** Общая карточка заметки в списке: цветовая полоса, тип, место, дата и содержимое.
    *
@@ -58,7 +59,7 @@
         {/if}
         <span
           class="ml-auto text-[11px] text-[var(--muted-foreground)]"
-          data-testid="notes-item-date">{formatNoteDate(item.createdAtMillis)}</span
+          data-testid="notes-item-date">{formatDateTime(item.createdAtMillis)}</span
         >
       </span>
       <span class="block text-[13px] leading-snug">{item.name}</span>

@@ -10,8 +10,10 @@ pub mod models;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
-use serde::Deserialize;
 use serde_json::json;
+
+use plugin_host::state;
+use plugin_host::Request;
 
 use crate::host::Host;
 use crate::models::{Installed, Store, StoreIndex, StoreState};
@@ -25,19 +27,9 @@ const PROVIDER_CONTRACT: &str = "plugin-store.provider@1";
 /// Имя прикладного события об изменении состава установленных плагинов.
 const EVENT_CHANGED: &str = "plugin-store:changed";
 
-/// Запрос от приложения по контракту.
-#[derive(Deserialize)]
-struct Request {
-    /// Действие плагина стора.
-    action: String,
-    /// Данные операции.
-    #[serde(default)]
-    payload: serde_json::Value,
-}
-
 /// Диспетчеризация действий плагина стора.
 pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
-    let request: Request = serde_json::from_str(input).map_err(|error| error.to_string())?;
+    let request = Request::parse(input)?;
     match request.action.as_str() {
         "capabilities" => Ok(capabilities()),
         "list" => list(host),
@@ -205,16 +197,12 @@ fn load_index(host: &impl Host, store: &Store) -> Result<StoreIndex, String> {
 
 /// Загрузка состояния из служебного хранилища.
 fn load_state(host: &impl Host) -> Result<StoreState, String> {
-    let Some(value) = host.state_read(STATE_KEY)? else {
-        return Ok(StoreState::default());
-    };
-    serde_json::from_str(&value).map_err(|error| error.to_string())
+    state::load::<StoreState>(host, STATE_KEY)
 }
 
 /// Сохранение состояния в служебное хранилище.
 fn save_state(host: &impl Host, state: &StoreState) -> Result<(), String> {
-    let value = serde_json::to_string(state).map_err(|error| error.to_string())?;
-    host.state_write(STATE_KEY, &value)
+    state::save(host, STATE_KEY, state)
 }
 
 /// Извлечение обязательной строки из payload.

@@ -25,7 +25,7 @@ pub use app_state::{AppHostConfig, AppState, ReaderConfig};
 pub use bus::{get_bus, set_log_level, EventBus, PluginEvent, Severity};
 pub use contract::{
     CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS, CONTRACT_VERSION, EXPORT_FUNCTION,
-    HOST_FS_LIST_DIR, HOST_FS_READ_TEXT, HOST_FUNCTIONS, HOST_LOG_FUNCTION, MANIFEST_FILE_NAME,
+    HOST_FS_LIST_DIR, HOST_FS_READ_TEXT, HOST_LOG_FUNCTION, MANIFEST_FILE_NAME,
 };
 pub use discovery::{discover_source_plugins, SourceProvider};
 pub use error::PluginError;

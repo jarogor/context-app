@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Card, Checkbox, DeleteButton, Input, Select } from '@texture/ui';
+  import { Badge, Button, Card, Checkbox, ErrorToast, IconButton, Input, Select, createAsyncState } from '@texture/ui';
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import {
     addStore as addStoreEntry,
@@ -56,7 +56,10 @@
   let unsupported: string = $state('');
 
   /** Ошибка операции стора. */
-  let errorMessage: string = $state(untrack(() => initialError ?? ''));
+  const asyncState = createAsyncState();
+
+  // Ошибка, переданная с бутстрапа, показывается сразу при монтировании.
+  asyncState.error = untrack(() => initialError ?? '');
 
   /** Черновик формы добавления стора. */
   let storeId = $state('');
@@ -83,13 +86,10 @@
 
   /** Загрузка перечня плагинов, реестра сторов и признака изменений. */
   async function load() {
-    try {
-      const catalog = await loadStoreCatalog();
+    const catalog = await asyncState.run(loadStoreCatalog);
+    if (catalog) {
       plugins = catalog.plugins;
       stores = catalog.stores;
-      errorMessage = '';
-    } catch (error) {
-      errorMessage = String(error);
     }
     try {
       publishPending(await loadActivationPending());
@@ -100,17 +100,15 @@
 
   /** Переключение активности плагина. */
   async function setEnabled(id: string, enabled: boolean) {
-    try {
+    await asyncState.run(async () => {
       await setPluginEnabled(id, enabled);
       await load();
-    } catch (error) {
-      errorMessage = String(error);
-    }
+    });
   }
 
   /** Установка пакета из выбранного zip-файла. */
   async function installFromFile() {
-    try {
+    await asyncState.run(async () => {
       const selected = await openDialog({
         multiple: false,
         directory: false,
@@ -122,19 +120,15 @@
       }
       await installPluginFromFile(path);
       await load();
-    } catch (error) {
-      errorMessage = String(error);
-    }
+    });
   }
 
   /** Удаление установленного плагина. */
   async function uninstall(id: string) {
-    try {
+    await asyncState.run(async () => {
       await uninstallPlugin(id);
       await load();
-    } catch (error) {
-      errorMessage = String(error);
-    }
+    });
   }
 
   /** Добавление стора из формы. */
@@ -142,7 +136,7 @@
     if (!storeId.trim()) {
       return;
     }
-    try {
+    await asyncState.run(async () => {
       await addStoreEntry({
         id: storeId.trim(),
         kind: storeKind,
@@ -153,37 +147,32 @@
       storeTitle = '';
       storeLocation = '';
       await load();
-    } catch (error) {
-      errorMessage = String(error);
-    }
+    });
   }
 
   /** Удаление стора из реестра. */
   async function removeStore(id: string) {
-    try {
+    await asyncState.run(async () => {
       await removeStoreEntry(id);
       packages = [];
       unsupported = '';
       await load();
-    } catch (error) {
-      errorMessage = String(error);
-    }
+    });
   }
 
   /** Показ пакетов, предлагаемых стором. */
   async function showAvailable(id: string) {
     unsupported = '';
     packages = [];
-    try {
-      const result = await listStorePackages(id);
-      if (!result.supported) {
-        unsupported = 'Сетевой стор пока не поддерживается';
-        return;
-      }
-      packages = result.packages;
-    } catch (error) {
-      errorMessage = String(error);
+    const result = await asyncState.run(() => listStorePackages(id));
+    if (!result) {
+      return;
     }
+    if (!result.supported) {
+      unsupported = 'Сетевой стор пока не поддерживается';
+      return;
+    }
+    packages = result.packages;
   }
 
   onMount(() => {
@@ -240,7 +229,8 @@
               </span>
             </label>
             {#if plugin.removable}
-              <DeleteButton
+              <IconButton
+                action="delete"
                 title="Удалить плагин"
                 ariaLabel="Удалить плагин"
                 onclick={() => uninstall(plugin.id)}
@@ -276,7 +266,8 @@
                   </span>
                 </label>
                 {#if plugin.removable}
-                  <DeleteButton
+                  <IconButton
+                    action="delete"
                     title="Удалить плагин"
                     ariaLabel="Удалить плагин"
                     onclick={() => uninstall(plugin.id)}
@@ -312,7 +303,8 @@
               <Button variant="secondary" size="sm" onclick={() => showAvailable(store.id)}>
                 Пакеты
               </Button>
-              <DeleteButton
+              <IconButton
+                action="delete"
                 title="Удалить стор"
                 ariaLabel="Удалить стор"
                 onclick={() => removeStore(store.id)}
@@ -355,11 +347,4 @@
   </Card>
 </div>
 
-{#if errorMessage}
-  <div
-    class="fixed right-[8px] bottom-[8px] left-[8px] z-10 rounded-md bg-[var(--destructive-soft)] p-2 text-xs text-[var(--destructive)]"
-    role="alert"
-  >
-    {errorMessage}
-  </div>
-{/if}
+<ErrorToast message={asyncState.error} />

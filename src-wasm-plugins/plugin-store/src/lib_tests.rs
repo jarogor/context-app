@@ -67,6 +67,24 @@ impl FakeHost {
     }
 }
 
+impl plugin_host::Host for FakeHost {
+    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
+        Ok(self.state.borrow().get(key).cloned())
+    }
+
+    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
+        self.state
+            .borrow_mut()
+            .insert(key.to_string(), value.to_string());
+        Ok(())
+    }
+
+    fn emit_event(&self, name: &str, payload: &str) -> Result<(), String> {
+        self.events.borrow_mut().push(format!("{name}:{payload}"));
+        Ok(())
+    }
+}
+
 impl Host for FakeHost {
     fn store_inspect(&self, path: &str) -> Result<Installed, String> {
         Ok(Self::artifact(path))
@@ -110,22 +128,6 @@ impl Host for FakeHost {
             .get(path)
             .cloned()
             .ok_or_else(|| format!("файл {path} не найден"))
-    }
-
-    fn state_read(&self, key: &str) -> Result<Option<String>, String> {
-        Ok(self.state.borrow().get(key).cloned())
-    }
-
-    fn state_write(&self, key: &str, value: &str) -> Result<(), String> {
-        self.state
-            .borrow_mut()
-            .insert(key.to_string(), value.to_string());
-        Ok(())
-    }
-
-    fn emit_event(&self, name: &str, payload: &str) -> Result<(), String> {
-        self.events.borrow_mut().push(format!("{name}:{payload}"));
-        Ok(())
     }
 }
 

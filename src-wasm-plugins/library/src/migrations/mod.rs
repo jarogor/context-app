@@ -4,9 +4,9 @@
 //! возрастанию версии. Новая версия добавляется новым файлом.
 
 mod v1;
-mod v2;
 
 use index_migrations::Migration;
+use source_common::index::COVERS_MIGRATION;
 
 /// Упорядоченный список миграций схемы индекса.
-pub(crate) const MIGRATIONS: &[Migration] = &[v1::MIGRATION, v2::MIGRATION];
+pub(crate) const MIGRATIONS: &[Migration] = &[v1::MIGRATION, COVERS_MIGRATION];

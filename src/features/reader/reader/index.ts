@@ -64,24 +64,6 @@ export async function openBookExternally(
   await backend.invoke('reader_open_external', { path });
 }
 
-/** Форматы, доступные встроенному чтению: EPUB и форматы плагинов рабочего места. */
-export async function supportedFormats(
-  backend: ReaderBackend = defaultBackend(),
-): Promise<string[]> {
-  const formats = new Set<string>(SUPPORTED_FORMATS);
-  try {
-    const list = (await backend.invoke('reader_formats', {})) as string[] | null;
-    for (const format of list ?? []) {
-      if (format) {
-        formats.add(format.toLowerCase());
-      }
-    }
-  } catch {
-    // Плагины рабочего места могут быть недоступны — остаются встроенные форматы.
-  }
-  return [...formats];
-}
-
 /** Выбранный плагин рабочего места для книги. */
 export interface WorkplaceSelection {
   /** Идентификатор плагина рабочего места. */
@@ -218,14 +200,6 @@ export async function readWorkplaceBook(
   }
   onProgress?.(100);
   return btoa(binary);
-}
-
-/** Сброс кэша содержимого книги после переуказания файла. */
-export async function forgetBook(
-  path: string,
-  backend: ReaderBackend = defaultBackend(),
-): Promise<void> {
-  await backend.invoke('reader_forget_book', { path });
 }
 
 /** Приведение ответа плагина к модели содержимого. */

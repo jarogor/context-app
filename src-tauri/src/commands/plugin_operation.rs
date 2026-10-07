@@ -21,7 +21,7 @@ pub async fn invoke_plugin_operation(
     operation: String,
     payload: Value,
 ) -> Result<Value, String> {
-    let mut state = state.lock().map_err(|error| error.to_string())?;
+    let mut state = crate::commands::lock_state(state.inner())?;
 
     if let Some(plugin) = plugin {
         let root = root.ok_or_else(|| "не указан root plugin".to_string())?;
@@ -31,14 +31,7 @@ pub async fn invoke_plugin_operation(
             .configure(root, plugin, writable.unwrap_or(false), storage_root)
             .map_err(|error| error.to_string())?;
 
-        let sources = state.session.settings_sources();
-        if let Ok(host) = state.app_host() {
-            let _ = host.refresh_settings_registry(&sources);
-        }
-        crate::plugin::relay::emit(
-            "plugin-store:changed",
-            serde_json::json!({ "reason": "session" }),
-        );
+        state.after_session_reload();
     }
 
     let response = state
