@@ -138,6 +138,74 @@ test('список библиотек адаптивен к ширине окн�
     expect(formBox!.x).toBeLessThan(listBox!.x);
 });
 
+test('открытие панели уведомлений не ломает список библиотек', async ({ page }) => {
+    // Окно 1200px: открытие панели сужает область настолько, что список не
+    // должен переполняться — поверхность переходит на одноколоночную раскладку.
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await expect(page.getByTestId('libraries-page')).toBeVisible();
+
+    await page.getByLabel('Уведомления').click();
+
+    const columns = page.getByTestId('libraries-page').locator('[class*="max-w-"]').first().locator(':scope > div').first();
+    const direction = await columns.evaluate((node) => getComputedStyle(node).flexDirection);
+    expect(direction).toBe('column');
+
+    const noHorizontalScroll = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    );
+    expect(noHorizontalScroll).toBe(true);
+});
+
+test('открытие панели уведомлений не ломает список рабочих мест', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.goto('/');
+    // Список рабочих мест открыт при запуске.
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+
+    await page.getByLabel('Уведомления').click();
+
+    const columns = page.getByTestId('workspaces-page').locator('[class*="max-w-"]').first().locator(':scope > div').first();
+    const direction = await columns.evaluate((node) => getComputedStyle(node).flexDirection);
+    expect(direction).toBe('column');
+
+    const noHorizontalScroll = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    );
+    expect(noHorizontalScroll).toBe(true);
+});
+
+test('открытие панели уведомлений не ломает реестр заметок', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Реестр заметок', exact: true }).click();
+    await expect(page.getByTestId('notes-library')).toBeVisible();
+
+    await page.getByLabel('Уведомления').click();
+
+    const columns = page.getByTestId('notes-library').locator('[class*="max-w-"]').first().locator(':scope > div').first();
+    const direction = await columns.evaluate((node) => getComputedStyle(node).flexDirection);
+    expect(direction).toBe('column');
+
+    const noHorizontalScroll = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    );
+    expect(noHorizontalScroll).toBe(true);
+});
+
+test('без открытой панели форма списка остаётся колонкой слева', async ({ page }) => {
+    // Широкое окно без панели: раскладка не должна измениться из-за новой точки.
+    await page.setViewportSize({ width: 1600, height: 800 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await expect(page.getByTestId('libraries-page')).toBeVisible();
+
+    const columns = page.getByTestId('libraries-page').locator('[class*="max-w-"]').first().locator(':scope > div').first();
+    const direction = await columns.evaluate((node) => getComputedStyle(node).flexDirection);
+    expect(direction).toBe('row');
+});
+
 test('шапка масштабируется и группирует кнопки', async ({ page }) => {
     // Шапка не должна обрезать кнопки: их границы внутри шапки, а не у её краёв.
     await page.setViewportSize({ width: 1600, height: 800 });

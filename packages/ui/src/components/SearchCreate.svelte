@@ -47,13 +47,13 @@
   }
 </script>
 
-<div class={cn('flex flex-col gap-3', className)}>
+<div class={cn('@container flex flex-col gap-3', className)}>
   {#if createPlaceholder}
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div class="flex flex-col gap-3 @min-[18rem]:flex-row @min-[18rem]:items-center">
       <Input
         bind:value={newName}
         placeholder={createPlaceholder}
-        class="min-w-0 sm:flex-1"
+        class="min-w-0 @min-[18rem]:flex-1"
         onkeydown={(event) => {
           if (event.key === 'Enter') {
             create();
@@ -66,7 +66,7 @@
         ariaLabel={createAriaLabel ?? createTitle}
         disabled={!newName.trim()}
         onclick={create}
-        class="sm:flex-none"
+        class="@min-[18rem]:flex-none"
       />
     </div>
   {/if}

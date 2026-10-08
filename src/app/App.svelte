@@ -975,7 +975,7 @@
     </div>
   </header>
 
-  <div class="flex min-h-0 flex-1 overflow-hidden">
+  <div class="relative flex min-h-0 flex-1 overflow-hidden">
     <main class="flex min-w-0 flex-1">
       <div
         class="min-h-0 min-w-0 flex-1"
@@ -1095,7 +1095,7 @@
       </div>
     </main>
     <aside
-      class="flex min-w-0 flex-[0_0_500px] border-l border-[var(--border)] max-[899px]:fixed max-[899px]:inset-x-0 max-[899px]:top-[48px] max-[899px]:bottom-0 max-[899px]:z-[1000] max-[899px]:flex-none max-[899px]:border-l-0"
+      class="flex w-[var(--notifications-panel-width)] min-w-0 flex-none border-l border-[var(--border)] max-[899px]:absolute max-[899px]:inset-0 max-[899px]:w-auto max-[899px]:border-l-0"
       class:hidden={!notificationsOpen}
     >
       <NotificationsPanel

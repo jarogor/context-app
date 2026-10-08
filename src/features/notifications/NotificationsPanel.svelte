@@ -132,7 +132,7 @@
 
 </script>
 
-<div class="flex h-full flex-col overflow-hidden bg-[var(--card)]">
+<div class="flex h-full w-full min-w-0 flex-col overflow-hidden bg-[var(--card)]">
   <div
     class="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--muted)] px-4 py-3"
   >

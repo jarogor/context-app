@@ -85,15 +85,15 @@
 {/snippet}
 
 <div
-  class={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto', className)}
+  class={cn('@container flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto', className)}
   data-testid={testId}
 >
   <div
     class="flex w-full max-w-[var(--content-max-width)] flex-col gap-4 px-4 py-5 md:px-6 md:py-6"
   >
     {#if form}
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
-        <div class="flex flex-col gap-3 lg:w-[20rem] lg:flex-none">
+      <div class="flex flex-col gap-4 @min-[44rem]:flex-row @min-[44rem]:items-start @min-[44rem]:gap-6">
+        <div class="flex flex-col gap-3 @min-[44rem]:w-[20rem] @min-[44rem]:flex-none">
           {@render form()}
           {#if toolbar}
             <div class="flex flex-col gap-3">{@render toolbar()}</div>
