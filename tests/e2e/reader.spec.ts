@@ -159,6 +159,29 @@ test('прогресс обновляется при прокрутке книг
         .toBeGreaterThan(0);
 });
 
+test('переключатель меняет тему области чтения, не трогая тему интерфейса', async ({
+    page,
+}) => {
+    await openWorkplace(page);
+
+    const root = page.locator('html');
+    const readerHtml = page.frameLocator('iframe[title="Чтение книги"]').locator('html');
+    await expect(root).toHaveAttribute('data-theme', 'light');
+    await expect(root).toHaveAttribute('data-reader-theme', 'light');
+    await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
+
+    await page.getByLabel('Тёмная тема области чтения').click();
+
+    await expect(root).toHaveAttribute('data-reader-theme', 'dark');
+    await expect(readerHtml).toHaveAttribute('data-reader-theme', 'dark');
+    // Интерфейсная тема независима и не меняется вместе с областью чтения.
+    await expect(root).toHaveAttribute('data-theme', 'light');
+
+    await page.getByLabel('Светлая тема области чтения').click();
+    await expect(root).toHaveAttribute('data-reader-theme', 'light');
+    await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
+});
+
 test('возврат к библиотеке сохраняет состояние', async ({ page }) => {
     await openWorkplace(page);
 

@@ -234,6 +234,44 @@ fn refresh_registry_includes_theme_field() {
     cleanup(&storage);
 }
 
+/// Проверка, что поле выбора темы области чтения зарегистрировано.
+#[test]
+fn refresh_registry_includes_reader_theme_field() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-reader-theme-field");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+
+    let output = host
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
+        .expect("список секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
+    let app_section = parsed["sections"]
+        .as_array()
+        .expect("массив секций")
+        .iter()
+        .find(|section| section["id"] == "app.general")
+        .expect("секция приложения");
+    let reader_field = app_section["fields"]
+        .as_array()
+        .expect("поля секции")
+        .iter()
+        .find(|field| field["key"] == "reader.theme")
+        .expect("поле темы области чтения");
+    assert_eq!(
+        reader_field["type"], "select",
+        "тип поля темы области чтения"
+    );
+    assert_eq!(
+        app_section["values"]["reader.theme"], "light",
+        "значение по умолчанию для темы области чтения"
+    );
+    cleanup(&storage);
+}
+
 /// Проверка, что поле выбора палитры зарегистрировано в секции приложения.
 #[test]
 fn refresh_registry_includes_palette_field() {
@@ -530,6 +568,50 @@ fn theme_palette_reads_setting() {
         host.theme_palette(),
         "mist",
         "палитра прочитана из настроек"
+    );
+    cleanup(&storage);
+}
+
+/// Проверка чтения темы области чтения из настроек приложения.
+#[test]
+fn reader_theme_reads_setting() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-reader-theme");
+    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+    assert_eq!(host.reader_theme(), "light", "значение по умолчанию");
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "reader.theme": "dark" }
+        }),
+    )
+    .expect("сохранение темы области чтения");
+    assert_eq!(
+        host.reader_theme(),
+        "dark",
+        "тема области чтения прочитана из настроек"
+    );
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "reader.theme": "неизвестная" }
+        }),
+    )
+    .expect("сохранение неизвестного значения");
+    assert_eq!(
+        host.reader_theme(),
+        "light",
+        "неизвестное значение приведено к light"
     );
     cleanup(&storage);
 }

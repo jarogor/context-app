@@ -19,11 +19,19 @@ import type { NormalizedDeclaration } from '../settings/settings';
 import { loadSettingsUi } from '../settings/settings';
 import {
   applyAppPalette,
+  applyAppReaderTheme,
   applyAppThemeTracked,
+  loadReaderTheme,
   loadThemePalette,
   loadThemePreference,
 } from '../appearance/theme';
-import { DEFAULT_PALETTE, type PaletteId, type ThemePreference } from '@texture/ui';
+import {
+  DEFAULT_PALETTE,
+  DEFAULT_READER_THEME,
+  type PaletteId,
+  type ReaderThemeId,
+  type ThemePreference,
+} from '@texture/ui';
 import {
   listNotifications,
   loadTechnicalVisibleDefault,
@@ -71,6 +79,8 @@ export interface AppearanceBootstrap {
     theme: ThemePreference;
     /** Активная палитра оформления. */
     palette: PaletteId;
+    /** Тема области чтения (светлая или тёмная), независимая от интерфейса. */
+    readerTheme: ReaderThemeId;
 }
 
 /** Декларации интерфейса настроек и ошибка их загрузки на бутстрапе. */
@@ -143,17 +153,20 @@ export async function loadBootstrap(): Promise<BootstrapState> {
 
 /** Чтение и применение оформления до первого кадра.
  *
- * Тема и палитра читаются параллельно; ошибка чтения каждой оставляет значение
- * по умолчанию (системная тема, палитра по умолчанию) и не прерывает вход.
+ * Тема, палитра и тема области чтения читаются параллельно; ошибка чтения
+ * каждой оставляет значение по умолчанию (системная тема, палитра по умолчанию,
+ * светлая область чтения) и не прерывает вход.
  */
 async function applyAppearance(): Promise<AppearanceBootstrap> {
-    const [theme, palette] = await Promise.all([
+    const [theme, palette, readerTheme] = await Promise.all([
         loadThemePreference().catch(() => 'system' as ThemePreference),
         loadThemePalette().catch(() => DEFAULT_PALETTE),
+        loadReaderTheme().catch(() => DEFAULT_READER_THEME),
     ]);
     applyAppThemeTracked(theme);
     applyAppPalette(palette);
-    return { theme, palette };
+    applyAppReaderTheme(readerTheme);
+    return { theme, palette, readerTheme };
 }
 
 /** Загрузка деклараций настроек; ошибка даёт пустое пространство с диагностикой. */

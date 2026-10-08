@@ -12,7 +12,7 @@
     type StoreBootstrap,
   } from '../features/lifecycle/bootstrap';
   import { normalizeRegistry } from '../features/workplace/workspace-registry';
-  import { DEFAULT_PALETTE } from '@texture/ui';
+  import { DEFAULT_PALETTE, DEFAULT_READER_THEME } from '@texture/ui';
 
   /** Фаза начальной загрузки приложения. */
   type Phase = 'boot' | 'ready' | 'error';
@@ -33,6 +33,7 @@
   let initialAppearance: AppearanceBootstrap = $state({
     theme: 'system',
     palette: DEFAULT_PALETTE,
+    readerTheme: DEFAULT_READER_THEME,
   });
 
   /** Декларации настроек, загруженные до первого рендера. */

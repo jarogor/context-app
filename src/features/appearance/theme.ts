@@ -8,10 +8,13 @@
 
 import {
   applyPalette,
+  applyReaderTheme,
   applyTheme,
   normalizePaletteId,
+  normalizeReaderThemeId,
   normalizeThemePreference,
   type PaletteId,
+  type ReaderThemeId,
   type ThemePreference,
   type UnsubscribeTheme,
 } from '@texture/ui';
@@ -25,6 +28,9 @@ export const THEME_SETTING_KEY = 'appearance.theme';
 
 /** Ключ значения палитры в секции настроек приложения. */
 export const PALETTE_SETTING_KEY = 'appearance.palette';
+
+/** Ключ темы области чтения в секции настроек приложения. */
+export const READER_THEME_SETTING_KEY = 'reader.theme';
 
 /** Чтение сохранённого предпочтения темы из ядра.
  *
@@ -44,6 +50,16 @@ export async function loadThemePreference(): Promise<ThemePreference> {
 export async function loadThemePalette(): Promise<PaletteId> {
   const value = await invokeCommand('theme_palette', {});
   return normalizePaletteId(value);
+}
+
+/** Чтение сохранённой темы области чтения из ядра.
+ *
+ * Неизвестное или отсутствующее значение приводится к светлой теме; ошибку
+ * чтения вызывающий обрабатывает сам.
+ */
+export async function loadReaderTheme(): Promise<ReaderThemeId> {
+  const value = await invokeCommand('reader_theme', {});
+  return normalizeReaderThemeId(value);
 }
 
 /** Применение предпочтения темы к документу.
@@ -78,6 +94,15 @@ export function applyAppPalette(palette: unknown, root?: HTMLElement): void {
   applyPalette(normalizePaletteId(palette), root);
 }
 
+/** Применение темы области чтения к корню документа.
+ *
+ * Сторона темы области чтения независима от темы интерфейса и выставляется
+ * отдельным атрибутом `data-reader-theme`; компоненты о ней не знают.
+ */
+export function applyAppReaderTheme(theme: unknown, root?: HTMLElement): void {
+  applyReaderTheme(normalizeReaderThemeId(theme), root);
+}
+
 /** Извлечение темы из события `settings:changed`.
  *
  * Возвращает предпочтение только для секции приложения; для других секций или
@@ -104,6 +129,20 @@ export function paletteFromSettingsEvent(payload: unknown): PaletteId | null {
   }
   const value = values[PALETTE_SETTING_KEY];
   return value === undefined ? null : normalizePaletteId(value);
+}
+
+/** Извлечение темы области чтения из события `settings:changed`.
+ *
+ * Возвращает тему только для секции приложения; для других секций или при
+ * отсутствии значения — `null`, чтобы оболочка не меняла область чтения зря.
+ */
+export function readerThemeFromSettingsEvent(payload: unknown): ReaderThemeId | null {
+  const values = appSettingsValues(payload);
+  if (values === null) {
+    return null;
+  }
+  const value = values[READER_THEME_SETTING_KEY];
+  return value === undefined ? null : normalizeReaderThemeId(value);
 }
 
 /** Значения секции приложения из события `settings:changed` или `null`. */

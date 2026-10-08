@@ -60,6 +60,16 @@ const SETTINGS_FIELDS: Record<
                 { value: 'mist', title: 'Mist' },
             ],
         },
+        {
+            key: 'reader.theme',
+            title: 'Тема области чтения',
+            type: 'select',
+            default: 'light',
+            options: [
+                { value: 'light', title: 'Светлая' },
+                { value: 'dark', title: 'Тёмная' },
+            ],
+        },
     ],
 };
 
@@ -70,6 +80,7 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
         'diagnostics.log_level': 'info',
         'appearance.theme': 'system',
         'appearance.palette': 'gruvbox',
+        'reader.theme': 'light',
     },
 };
 
@@ -590,6 +601,7 @@ export function defaultMockConfig(): MockBridgeConfig {
             active_library: () => null,
             theme_preference: () => SETTINGS_VALUES['app.general']['appearance.theme'],
             theme_palette: () => SETTINGS_VALUES['app.general']['appearance.palette'],
+            reader_theme: () => SETTINGS_VALUES['app.general']['reader.theme'],
             show_window: () => null,
             app_info: () => ({
                 name: 'Текстура',

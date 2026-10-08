@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Button, Progress } from '@texture/ui';
+  import { Button, Icon, Progress } from '@texture/ui';
+  import type { ReaderThemeId } from '@texture/ui';
 
   interface Props {
     /** Текущий масштаб текста в процентах. */
@@ -22,12 +23,16 @@
     pageInput?: string;
     /** Прогресс чтения в процентах. */
     progress: number;
+    /** Текущая тема области чтения. */
+    readerTheme: ReaderThemeId;
     /** Изменение масштаба на заданную величину. */
     onChangeZoom: (delta: number) => void;
     /** Переход к соседней странице. */
     onStepPage: (delta: number) => void;
     /** Переход к введённому номеру страницы. */
     onGoToPage: () => void;
+    /** Смена темы области чтения. */
+    onChangeReaderTheme: (theme: ReaderThemeId) => void;
   }
 
   let {
@@ -41,9 +46,11 @@
     workplacePageCount,
     pageInput = $bindable(''),
     progress,
+    readerTheme,
     onChangeZoom,
     onStepPage,
     onGoToPage,
+    onChangeReaderTheme,
   }: Props = $props();
 </script>
 
@@ -70,6 +77,28 @@
         onclick={() => onChangeZoom(10)}>+</Button
       >
     {/if}
+  </div>
+  <div class="flex items-center gap-1" data-testid="reader-theme-toggle">
+    <Button
+      size="icon"
+      variant={readerTheme === 'light' ? 'secondary' : 'ghost'}
+      title="Светлая тема области чтения"
+      ariaLabel="Светлая тема области чтения"
+      ariaPressed={readerTheme === 'light'}
+      onclick={() => onChangeReaderTheme('light')}
+    >
+      <Icon name="sun" />
+    </Button>
+    <Button
+      size="icon"
+      variant={readerTheme === 'dark' ? 'secondary' : 'ghost'}
+      title="Тёмная тема области чтения"
+      ariaLabel="Тёмная тема области чтения"
+      ariaPressed={readerTheme === 'dark'}
+      onclick={() => onChangeReaderTheme('dark')}
+    >
+      <Icon name="moon" />
+    </Button>
   </div>
   <div class="ml-auto flex items-center gap-2">
     {#if workplace && workplacePages && workplacePage !== null}

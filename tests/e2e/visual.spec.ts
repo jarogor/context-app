@@ -18,3 +18,44 @@ test('снимок тёмной темы совпадает с эталоном'
 
   await expect(page).toHaveScreenshot('shell-dark.png');
 });
+
+/** Выбор рабочего места в диалоге, если он появился при открытии книги. */
+async function pickWorkspaceIfAsked(page: import('@playwright/test').Page) {
+  const list = page.getByTestId('workspace-picker-list');
+  if (await list.isVisible().catch(() => false)) {
+    await page.getByTestId('workspace-picker-item').first().click();
+  }
+}
+
+/** Открытие демо-книги вкладкой рабочего места. */
+async function openWorkplaceBook(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
+      handlers: { active_library: () => ({ path: '/demo-library', provider_name: 'library' }) },
+    };
+  });
+  await page.goto('/');
+  // Показ основного раздела библиотеки: рабочее место должно быть закрыто.
+  const workspace = page.getByLabel('Рабочее место', { exact: true });
+  if ((await workspace.getAttribute('aria-pressed')) === 'true') {
+    await workspace.click();
+  }
+  const library = page.locator('main');
+  await library.getByRole('button', { name: /Демо-книга/ }).click();
+  await library.getByRole('button', { name: /Добавить в/ }).click();
+  await pickWorkspaceIfAsked(page);
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+}
+
+test('снимок нижней панели читалки в светлой теме области чтения', async ({ page }) => {
+  await openWorkplaceBook(page);
+  await expect(page.locator('html')).toHaveAttribute('data-reader-theme', 'light');
+  await expect(page.locator('footer')).toHaveScreenshot('reader-footer-light.png');
+});
+
+test('снимок области чтения в тёмной теме', async ({ page }) => {
+  await openWorkplaceBook(page);
+  await page.getByLabel('Тёмная тема области чтения').click();
+  await expect(page.locator('html')).toHaveAttribute('data-reader-theme', 'dark');
+  await expect(page.locator('footer')).toHaveScreenshot('reader-footer-dark.png');
+});

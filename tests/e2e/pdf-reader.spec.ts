@@ -276,6 +276,72 @@ test('PDF открывается плагином рабочего места с
     await expect(page.getByTestId('reader-page-count')).toHaveText('из 3');
 });
 
+test('тема области чтения перекрашивает и фон плагина, и страницу', async ({ page }) => {
+    await openPdf(page, 2);
+
+    const pluginRoot = content(page).locator('html');
+    const body = content(page).locator('body');
+    const canvas = content(page).locator('.page canvas').first();
+    await expect(pluginRoot).toHaveAttribute('data-reader-theme', 'light');
+    const lightBackground = await body.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const lightPaper = await paperColor(canvas);
+
+    await page.getByLabel('Тёмная тема области чтения').click();
+
+    await expect(pluginRoot).toHaveAttribute('data-reader-theme', 'dark');
+    await expect
+        .poll(async () => body.evaluate((element) => getComputedStyle(element).backgroundColor))
+        .not.toBe(lightBackground);
+    // Интерфейсная тема независима.
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    // Страница перекрашена: бумага стала тёмной, но не почти чёрной и с оттенком
+    // (у Gruvbox каналы не равны — тёплый фон темы).
+    await expect.poll(async () => (await paperColor(canvas)) !== null).toBe(true);
+    const paper = await paperColor(canvas);
+    expect(paper).not.toBeNull();
+    const luminance = 0.299 * paper!.r + 0.587 * paper!.g + 0.114 * paper!.b;
+    // Бумага заметно темнее нейтрального чёрного (≈24) и теплее — с оттенком.
+    expect(luminance).toBeLessThan(140);
+    expect(luminance).toBeGreaterThan(38);
+    expect(new Set([paper!.r, paper!.g, paper!.b]).size).toBeGreaterThan(1);
+    // Выделение текста берёт синеватый цвет из темы области чтения, на тёмной
+    // стороне — отдельный, чтобы было различимо.
+    const darkSelection = await pluginRoot.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue('--reader-selection').trim(),
+    );
+    expect(darkSelection).not.toBe('');
+    expect(darkSelection).not.toBe('rgba(96, 140, 180, 0.35)');
+});
+
+/** Преобладающий цвет (мода) пикселей канваса — «бумага» страницы. */
+async function paperColor(
+    canvas: import('@playwright/test').Locator,
+): Promise<{ r: number; g: number; b: number } | null> {
+    return canvas.evaluate((element) => {
+        const target = element as HTMLCanvasElement;
+        const context = target.getContext('2d');
+        if (!context || !target.width || !target.height) {
+            return null;
+        }
+        const { data } = context.getImageData(0, 0, target.width, target.height);
+        const counts = new Map<string, number>();
+        for (let offset = 0; offset < data.length; offset += 4 * 211) {
+            const key = `${data[offset]},${data[offset + 1]},${data[offset + 2]}`;
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+        }
+        let best = '';
+        let bestCount = 0;
+        for (const [key, count] of counts) {
+            if (count > bestCount) {
+                best = key;
+                bestCount = count;
+            }
+        }
+        const [r, g, b] = best.split(',').map(Number);
+        return { r, g, b };
+    });
+}
+
 test('листание по страницам обновляет номер и прогресс', async ({ page }) => {
     await openPdf(page, 4);
 
@@ -681,6 +747,66 @@ test('полосы подсветки соседних строк не накл�
     expect(rawOverlap).toBeGreaterThan(0);
 });
 
+// Выделение текста рисует собственный слой, а не браузер: браузерные
+// прямоугольники строк перекрываются и мутят растр. Полосы слоя слиты и
+// обрезаны по стыкам, а заливка ложится на страницу умножением (осветлением в
+// тёмной теме), как подсветка цитаты.
+test('выделение текста ложится ровными полосами, не перекрываясь', async ({ page }) => {
+    await openPdf(page, 3, true);
+
+    await content(page)
+        .locator('.page')
+        .first()
+        .locator('.textLayer')
+        .evaluate((layer) => {
+            const spans = Array.from(layer.querySelectorAll('span')).filter(
+                (span) => span.firstChild,
+            );
+            if (spans.length < 2) {
+                return;
+            }
+            const document = layer.ownerDocument;
+            const range = document.createRange();
+            range.setStartBefore(spans[0]);
+            range.setEndAfter(spans[spans.length - 1]);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            spans[0].dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        });
+
+    await expect(content(page).locator('.selection-layer')).toHaveCount(1);
+    const bands = await content(page)
+        .locator('.selection-band')
+        .evaluateAll((elements) =>
+            elements
+                .map((element) => element.getBoundingClientRect())
+                .sort((a, b) => a.top - b.top)
+                .map((rect) => ({ top: rect.top, bottom: rect.bottom })),
+        );
+    expect(bands.length).toBeGreaterThanOrEqual(2);
+    for (let index = 1; index < bands.length; index += 1) {
+        // Полоса следующей строки начинается на уровне низа предыдущей, а не выше.
+        expect(bands[index].top).toBeGreaterThanOrEqual(bands[index - 1].bottom - 1);
+    }
+    // Нативное выделение прозрачно: подсветку рисует только слой.
+    const native = await content(page)
+        .locator('.textLayer')
+        .first()
+        .evaluate((layer) => {
+            const span = Array.from(layer.querySelectorAll('span')).find(
+                (candidate) => candidate.firstChild,
+            );
+            return span ? getComputedStyle(span, '::selection').backgroundColor : '';
+        });
+    expect(native).toBe('rgba(0, 0, 0, 0)');
+    // Заливка ложится на страницу умножением, а не поверх текста.
+    const blend = await content(page)
+        .locator('.selection-layer')
+        .evaluate((element) => getComputedStyle(element).mixBlendMode);
+    expect(blend).toBe('multiply');
+});
+
 test('меню заметки закрывается при снятии выделения', async ({ page }) => {
     await openPdf(page, 3);
 
@@ -852,8 +978,10 @@ test('фигура-эллипс рисуется и переживает сме�
 
     const ellipse = content(page).locator('.note-shape ellipse');
     // Эллипс — полупрозрачная заливка цветом заметки, без обводки (как цитата).
-    await expect(ellipse).toHaveAttribute('fill', /rgba/);
+    await expect(ellipse).toHaveAttribute('fill', /^#|rgb/);
     await expect(ellipse).toHaveAttribute('stroke', 'none');
+    const fillOpacity = await ellipse.evaluate((element) => getComputedStyle(element).fillOpacity);
+    expect(Number(fillOpacity)).toBeLessThan(1);
 
     const before = await content(page)
         .locator('.note-shape')

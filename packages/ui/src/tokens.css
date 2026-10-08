@@ -116,6 +116,53 @@
   --warning: #fabd2f;
 }
 
+/* Токены области чтения: оформление поверхности книги и метки заметок.
+ *
+ * Выбираются вторым, независимым от темы интерфейса атрибутом
+ * `data-reader-theme` (модуль `reader-theme.ts`): интерфейс может быть светлым
+ * при тёмной книге и наоборот. Светлая сторона Gruvbox совпадает с общим
+ * светлым набором (метка заметки — прежний мягкий жёлтый). Значения служат
+ * хосту (метка в списке заметок) и визуальной проверке; изолированные
+ * документы читалки берут те же значения из `reader-theme.ts`. */
+:root[data-reader-theme='light'] {
+  --reader-background: #fbf1c7;
+  --reader-foreground: #3c3836;
+  --reader-muted-foreground: #7c6f64;
+  --reader-link: #076678;
+  --reader-selection: rgba(96, 140, 180, 0.35);
+  --reader-note-mark: #fde68a;
+}
+
+/* Тёмная сторона области чтения (Gruvbox). */
+:root[data-reader-theme='dark'] {
+  --reader-background: #282828;
+  --reader-foreground: #ebdbb2;
+  --reader-muted-foreground: #a89984;
+  --reader-link: #83a598;
+  --reader-selection: rgba(120, 160, 195, 0.33);
+  --reader-note-mark: rgba(250, 189, 47, 0.75);
+}
+
+/* Палитра Mist: светлая сторона области чтения. */
+:root[data-palette='mist'][data-reader-theme='light'] {
+  --reader-background: #ffffff;
+  --reader-foreground: #1c2125;
+  --reader-muted-foreground: #6b7280;
+  --reader-link: #2563eb;
+  --reader-selection: rgba(59, 130, 246, 0.32);
+  --reader-note-mark: #fde68a;
+}
+
+/* Палитра Mist: тёмная сторона области чтения. */
+:root[data-palette='mist'][data-reader-theme='dark'] {
+  --reader-background: #16191c;
+  --reader-foreground: #f1f3f4;
+  --reader-muted-foreground: #8b949b;
+  --reader-link: #7aa2d6;
+  --reader-selection: rgba(96, 165, 250, 0.33);
+  --reader-note-mark: rgba(234, 179, 8, 0.75);
+}
+
 /* Палитра Mist — прежний стандартный набор shadcn-svelte; светлый набор.
  *
  * Селектор специфичнее `:root`, поэтому перекрывает светлую сторону Gruvbox;

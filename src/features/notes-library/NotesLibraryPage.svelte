@@ -11,6 +11,7 @@
   import NoteEntry from '../notes/NoteEntry.svelte';
   import type { NoteSet, Note } from '../notes/notes';
   import { librarySets, noteCountLabel } from './notes-library';
+  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
 
   /** Реестр наборов заметок всех книг.
    *
@@ -23,6 +24,10 @@
   interface Props {
     /** Наборы всех книг (агрегат `list_all_sets`). */
     sets: NoteSet[];
+    /** Тема области чтения: цвет меток заметок следует ей. */
+    readerTheme?: ReaderThemeId;
+    /** Палитра оформления: общий реестр дизайн-системы. */
+    palette?: PaletteId;
     /** Загружается ли реестр. */
     loading?: boolean;
     /** Ошибка загрузки реестра, иначе пустая строка. */
@@ -33,7 +38,15 @@
     onOpenNote?: (set: NoteSet, note: Note) => void;
   }
 
-  let { sets, loading = false, error = '', onOpenSet, onOpenNote }: Props = $props();
+  let {
+    sets,
+    readerTheme = DEFAULT_READER_THEME,
+    palette = DEFAULT_PALETTE,
+    loading = false,
+    error = '',
+    onOpenSet,
+    onOpenNote,
+  }: Props = $props();
 
   /** Запрос поиска по реестру. */
   let query = $state('');
@@ -192,7 +205,7 @@
             data-testid="notes-library-notes"
           >
             {#each set.noteItems as item (item.note.id)}
-              <NoteEntry {item} onclick={(note) => openNoteOfSet(set, note)} />
+              <NoteEntry {item} {readerTheme} {palette} onclick={(note) => openNoteOfSet(set, note)} />
             {/each}
           </ul>
         {/if}

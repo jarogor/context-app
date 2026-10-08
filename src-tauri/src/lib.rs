@@ -113,6 +113,7 @@ pub fn run() {
             commands::plugin_activation_pending,
             commands::theme_preference,
             commands::theme_palette,
+            commands::reader_theme,
             commands::show_window,
             commands::reader_formats,
             commands::reader_plugin_for_format,

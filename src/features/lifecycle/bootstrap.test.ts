@@ -130,9 +130,10 @@ describe('загрузка начального состояния', () => {
         await expect(loadBootstrap()).rejects.toThrow('реестр недоступен');
     });
 
-    it('применяет сохранённые тему и палитру до готовности оболочки', async () => {
+    it('применяет сохранённые тему, палитру и тему области чтения до готовности оболочки', async () => {
         document.documentElement.removeAttribute('data-theme');
         document.documentElement.removeAttribute('data-palette');
+        document.documentElement.removeAttribute('data-reader-theme');
         invoke.mockImplementation(async (command: string) => {
             if (command === 'get_workspaces') {
                 return { workspaces: [] };
@@ -143,14 +144,18 @@ describe('загрузка начального состояния', () => {
             if (command === 'theme_palette') {
                 return 'mist';
             }
+            if (command === 'reader_theme') {
+                return 'dark';
+            }
             return null;
         });
 
         const state = await loadBootstrap();
 
-        expect(state.appearance).toEqual({ theme: 'dark', palette: 'mist' });
+        expect(state.appearance).toEqual({ theme: 'dark', palette: 'mist', readerTheme: 'dark' });
         expect(document.documentElement.dataset.theme).toBe('dark');
         expect(document.documentElement.dataset.palette).toBe('mist');
+        expect(document.documentElement.dataset.readerTheme).toBe('dark');
     });
 
     it('оставляет оформление по умолчанию, если чтение не удалось', async () => {
@@ -166,13 +171,17 @@ describe('загрузка начального состояния', () => {
             if (command === 'theme_palette') {
                 throw new Error('палитра недоступна');
             }
+            if (command === 'reader_theme') {
+                throw new Error('тема области чтения недоступна');
+            }
             return null;
         });
 
         const state = await loadBootstrap();
 
-        expect(state.appearance).toEqual({ theme: 'system', palette: 'gruvbox' });
+        expect(state.appearance).toEqual({ theme: 'system', palette: 'gruvbox', readerTheme: 'light' });
         expect(document.documentElement.dataset.theme).toBe('light');
         expect(document.documentElement.dataset.palette).toBe('gruvbox');
+        expect(document.documentElement.dataset.readerTheme).toBe('light');
     });
 });

@@ -49,3 +49,19 @@ export {
   type Palette,
   type PaletteId,
 } from './palettes';
+export {
+  applyReaderTheme,
+  DEFAULT_READER_THEME,
+  isReaderThemeId,
+  normalizeReaderThemeId,
+  READER_NOTE_COLOR_IDS,
+  READER_THEMES,
+  readerPageColors,
+  readerThemeNoteTones,
+  readerThemeTokens,
+  type ReaderNoteColorId,
+  type ReaderNoteTones,
+  type ReaderPageColors,
+  type ReaderThemeId,
+  type ReaderThemeTokens,
+} from './reader-theme';

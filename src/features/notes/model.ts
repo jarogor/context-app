@@ -5,6 +5,14 @@
  * наборов заметок. Модуль чист от Svelte и обращений к мосту: только данные.
  */
 
+import {
+    DEFAULT_PALETTE,
+    DEFAULT_READER_THEME,
+    readerThemeNoteTones,
+    type PaletteId,
+    type ReaderThemeId,
+} from '@texture/ui';
+
 /** Идентификатор активной библиотеки в ключе книги. */
 const NO_LIBRARY = 'no-library';
 /** Имя набора заметок, который книга заводит по умолчанию. */
@@ -56,24 +64,32 @@ export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
  * Один набор на все типы и поверхности: заметка видна, но не затемняет текст.
  * Тот же тон используется и как цвет карточки, и как метка в списке, поэтому
  * жёлтая заметка выглядит жёлтой одинаково везде — и в книге, и в списке.
+ *
+ * Значения заданы дизайн-системой (`@texture/ui`) по палитре и стороне темы
+ * области чтения: цвет заметки следует выбранной теме, как и поверхность книги.
  */
-export const NOTE_COLOR_HIGHLIGHTS: Record<NoteColor, string> = {
-    yellow: '#fde68a',
-    green: '#bbf7d0',
-    blue: '#bfdbfe',
-    red: '#fecaca',
-    purple: '#ddd6fe',
-    black: '#d1d5db',
-};
+export function noteHighlights(
+    readerTheme: ReaderThemeId = DEFAULT_READER_THEME,
+    palette: PaletteId = DEFAULT_PALETTE,
+): Record<NoteColor, string> {
+    return readerThemeNoteTones(palette, readerTheme);
+}
+
+/** Мягкие тона заметок светлой стороны: значения по умолчанию для совместимости. */
+export const NOTE_COLOR_HIGHLIGHTS: Record<NoteColor, string> = noteHighlights();
 
 /** Цвет метки заметки в списке: он совпадает с её видом на странице.
  *
  * Заметка любого типа показывается мягким тоном (подсветка цитаты, заливка
  * фигуры, фон карточки), поэтому и метка в списке мягкая — жёлтая заметка
- * одинакова в списке и в книге.
+ * одинакова в списке и в книге. Тон берётся из темы области чтения.
  */
-export function noteMarkerColor(note: { color: NoteColor }): string {
-    return NOTE_COLOR_HIGHLIGHTS[note.color];
+export function noteMarkerColor(
+    note: { color: NoteColor },
+    readerTheme: ReaderThemeId = DEFAULT_READER_THEME,
+    palette: PaletteId = DEFAULT_PALETTE,
+): string {
+    return noteHighlights(readerTheme, palette)[note.color];
 }
 
 /** Тип заметки по умолчанию: цитата. */

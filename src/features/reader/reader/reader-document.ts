@@ -4,7 +4,23 @@
  * экспортирует классы, по которым компонент чтения находит подсветки и
  * наложения заметок. Разметка и оформление собраны здесь, чтобы компонент
  * занимался поведением, а не вёрсткой документа.
+ *
+ * Оформление поверхности чтения задаётся **темой области чтения**: единый
+ * набор значений дизайн-системы (`@texture/ui`), общий для встроенного чтения и
+ * плагина рабочего места. Документ изолирован и не наследует CSS оболочки,
+ * поэтому значения встраиваются сюда, а их сторона выбирается атрибутом
+ * `data-reader-theme` на корне документа (переключается без пересборки).
  */
+
+import {
+  normalizePaletteId,
+  normalizeReaderThemeId,
+  READER_NOTE_COLOR_IDS,
+  readerThemeNoteTones,
+  readerThemeTokens,
+  type PaletteId,
+  type ReaderThemeId,
+} from '@texture/ui';
 
 import type { BookContent } from './types';
 
@@ -19,37 +35,70 @@ export const CHAPTER_CLASS = 'texture-chapter';
 /** Отступ сверху до опорной строки при масштабировании, в пикселях. */
 export const ZOOM_ANCHOR_MARGIN = 18;
 
-/** Сборка документа книги из глав: оформление и разметка глав. */
-export function buildDocument(value: BookContent): string {
-  const style = [
+/** Настройки оформления документа книги. */
+export interface ReaderDocumentOptions {
+  /** Палитра оформления: общий реестр дизайн-системы. */
+  palette?: PaletteId;
+  /** Сторона темы области чтения. */
+  readerTheme?: ReaderThemeId;
+}
+
+/** CSS-переменные темы области чтения для палитры и стороны. */
+function themeVariables(palette: PaletteId, id: ReaderThemeId): string {
+  const tokens = readerThemeTokens(palette, id);
+  const tones = readerThemeNoteTones(palette, id);
+  return [
+    `--rt-background:${tokens.background};`,
+    `--rt-foreground:${tokens.text};`,
+    `--rt-muted:${tokens.muted};`,
+    `--rt-link:${tokens.link};`,
+    `--rt-selection:${tokens.selection};`,
+    ...READER_NOTE_COLOR_IDS.map((color) => `--note-${color}:${tones[color]};`),
+  ].join('');
+}
+
+/** Стиль документа книги: общая вёрстка и оформление по стороне темы. */
+function buildStyle(palette: PaletteId): string {
+  const light = themeVariables(palette, 'light');
+  const dark = themeVariables(palette, 'dark');
+  return [
     'html{font-size:100%;}',
-    'body{margin:0 auto;max-width:760px;padding:24px 32px;background:#fff;',
-    "color:#1f2937;font-family:Georgia,'Times New Roman',serif;line-height:1.6;}",
+    // Светлая сторона — база; сторона выбирается атрибутом на корне и меняется
+    // без пересборки документа.
+    `html{${light}}`,
+    `html[data-reader-theme='light']{${light}}`,
+    `html[data-reader-theme='dark']{${dark}}`,
+    'body{margin:0 auto;max-width:760px;padding:24px 32px;background:var(--rt-background);',
+    "color:var(--rt-foreground);font-family:Georgia,'Times New Roman',serif;line-height:1.6;}",
     'img{max-width:100%;height:auto;}',
     'h1,h2,h3{line-height:1.25;}',
-    'a{color:#4338ca;}',
+    'a{color:var(--rt-link);}',
+    'small,figcaption{color:var(--rt-muted);}',
     // Инструменты текста и фигуры не работают с выделением текста: курсор
     // меняется на прицел, а протяжка не выделяет текст под собой.
     'body[data-tool="text"],body[data-tool="shape"]{cursor:crosshair;user-select:none;}',
     'body[data-tool="text"] *,body[data-tool="shape"] *{cursor:crosshair;}',
+    // Выделение текста — синеватое, из темы области чтения: на тёмной стороне
+    // оно светлее и плотнее, чтобы читаться так же ясно, как на светлой.
+    '::selection{background:var(--rt-selection);}',
     `.${NOTE_CLASS}{border-radius:2px;cursor:pointer;}`,
-    `.${NOTE_CLASS}[data-color="yellow"]{background:#fde68a;}`,
-    `.${NOTE_CLASS}[data-color="green"]{background:#bbf7d0;}`,
-    `.${NOTE_CLASS}[data-color="blue"]{background:#bfdbfe;}`,
-    `.${NOTE_CLASS}[data-color="red"]{background:#fecaca;}`,
-    `.${NOTE_CLASS}[data-color="purple"]{background:#ddd6fe;}`,
-    `.${NOTE_CLASS}[data-color="black"]{background:#d1d5db;}`,
+    `.${NOTE_CLASS}[data-color="yellow"]{background:var(--note-yellow);}`,
+    `.${NOTE_CLASS}[data-color="green"]{background:var(--note-green);}`,
+    `.${NOTE_CLASS}[data-color="blue"]{background:var(--note-blue);}`,
+    `.${NOTE_CLASS}[data-color="red"]{background:var(--note-red);}`,
+    `.${NOTE_CLASS}[data-color="purple"]{background:var(--note-purple);}`,
+    `.${NOTE_CLASS}[data-color="black"]{background:var(--note-black);}`,
     `.${CHAPTER_CLASS}{position:relative;}`,
     // Карточка окрашена тем же мягким тоном, что цитата и фигура: цвет заметки
     // одинаков на всех поверхностях, без тени и тёмной полосы.
     '.texture-note-card{position:absolute;max-width:220px;padding:6px 8px;border-radius:6px;',
     'font-size:13px;line-height:1.4;white-space:pre-wrap;cursor:pointer;z-index:2;}',
-    '.texture-note-card[data-color="yellow"]{background:#fde68a;}',
-    '.texture-note-card[data-color="green"]{background:#bbf7d0;}',
-    '.texture-note-card[data-color="blue"]{background:#bfdbfe;}',
-    '.texture-note-card[data-color="red"]{background:#fecaca;}',
-    '.texture-note-card[data-color="purple"]{background:#ddd6fe;}',
-    '.texture-note-card[data-color="black"]{background:#d1d5db;}',
+    '.texture-note-card[data-color="yellow"]{background:var(--note-yellow);}',
+    '.texture-note-card[data-color="green"]{background:var(--note-green);}',
+    '.texture-note-card[data-color="blue"]{background:var(--note-blue);}',
+    '.texture-note-card[data-color="red"]{background:var(--note-red);}',
+    '.texture-note-card[data-color="purple"]{background:var(--note-purple);}',
+    '.texture-note-card[data-color="black"]{background:var(--note-black);}',
     // Слой фигуры позиционируется по рамке самой фигуры (инлайн-стили из
     // `renderShape`), а не растягивается на всю главу: у высоких глав WebKit
     // не рисует слишком большой композитный слой. Умножение задано здесь:
@@ -74,18 +123,19 @@ export function buildDocument(value: BookContent): string {
     'height:1px;background:#2563eb;opacity:0.6;}',
     '.texture-note-preview::after{content:"";position:absolute;top:0;bottom:0;left:50%;',
     'width:1px;background:#2563eb;opacity:0.6;}',
-    '.texture-note-shape[data-color="yellow"] rect,.texture-note-shape[data-color="yellow"] ellipse{fill:#fde68a;}',
-    '.texture-note-shape[data-color="yellow"] line{stroke:#fde68a;}',
-    '.texture-note-shape[data-color="green"] rect,.texture-note-shape[data-color="green"] ellipse{fill:#bbf7d0;}',
-    '.texture-note-shape[data-color="green"] line{stroke:#bbf7d0;}',
-    '.texture-note-shape[data-color="blue"] rect,.texture-note-shape[data-color="blue"] ellipse{fill:#bfdbfe;}',
-    '.texture-note-shape[data-color="blue"] line{stroke:#bfdbfe;}',
-    '.texture-note-shape[data-color="red"] rect,.texture-note-shape[data-color="red"] ellipse{fill:#fecaca;}',
-    '.texture-note-shape[data-color="red"] line{stroke:#fecaca;}',
-    '.texture-note-shape[data-color="purple"] rect,.texture-note-shape[data-color="purple"] ellipse{fill:#ddd6fe;}',
-    '.texture-note-shape[data-color="purple"] line{stroke:#ddd6fe;}',
-    '.texture-note-shape[data-color="black"] rect,.texture-note-shape[data-color="black"] ellipse{fill:#d1d5db;}',
-    '.texture-note-shape[data-color="black"] line{stroke:#d1d5db;}',
+    '.texture-note-shape[data-color="yellow"] rect,.texture-note-shape[data-color="yellow"] ellipse{fill:var(--note-yellow);}',
+    '.texture-note-shape[data-color="yellow"] line{stroke:var(--note-yellow);}',
+    '.texture-note-shape[data-color="green"] rect,.texture-note-shape[data-color="green"] ellipse{fill:var(--note-green);}',
+    '.texture-note-shape[data-color="green"] line{stroke:var(--note-green);}',
+    '.texture-note-shape[data-color="blue"] rect,.texture-note-shape[data-color="blue"] ellipse{fill:var(--note-blue);}',
+    '.texture-note-shape[data-color="blue"] line{stroke:var(--note-blue);}',
+    '.texture-note-shape[data-color="red"] rect,.texture-note-shape[data-color="red"] ellipse{fill:var(--note-red);}',
+    '.texture-note-shape[data-color="red"] line{stroke:var(--note-red);}',
+    '.texture-note-shape[data-color="purple"] rect,.texture-note-shape[data-color="purple"] ellipse{fill:var(--note-purple);}',
+    '.texture-note-shape[data-color="purple"] line{stroke:var(--note-purple);}',
+    '.texture-note-shape[data-color="black"] rect,.texture-note-shape[data-color="black"] ellipse{fill:var(--note-black);}',
+    '.texture-note-shape[data-color="black"] line{stroke:var(--note-black);}',
+    // Вспышка при переходе к заметке: оранжевая, различима на обеих сторонах.
     `.${NOTE_CLASS}.${FLASH_CLASS}{background:#f59e0b;}`,
     `.texture-overlay.${FLASH_CLASS}{opacity:0.4;}`,
     // Правка заметки: перемещение показывается хваткой, границы цитаты — маркерами.
@@ -99,11 +149,18 @@ export function buildDocument(value: BookContent): string {
     // чтобы не перестраивать сам текст и не сбрасывать выделение.
     `.${NOTE_PREVIEW_CLASS}{position:absolute;pointer-events:none;opacity:0.45;z-index:1;}`,
   ].join('');
+}
+
+/** Сборка документа книги из глав: оформление и разметка глав. */
+export function buildDocument(value: BookContent, options: ReaderDocumentOptions = {}): string {
+  const palette = normalizePaletteId(options.palette);
+  const readerTheme = normalizeReaderThemeId(options.readerTheme);
+  const style = buildStyle(palette);
   const body = value.chapters
     .map(
       (chapter, index) =>
         `<section class="${CHAPTER_CLASS}" data-chapter="${index}">${chapter.html}</section>`,
     )
     .join('\n');
-  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}</body></html>`;
+  return `<!doctype html><html lang="ru" data-reader-theme="${readerTheme}"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}</body></html>`;
 }

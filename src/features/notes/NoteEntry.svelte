@@ -3,19 +3,24 @@
   import type { Snippet } from 'svelte';
   import { formatDateTime } from '../../shared/format';
   import { noteMarkerColor, NOTE_TYPE_LABELS, type NoteListItem } from './notes';
+  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
 
   /** Общая карточка заметки в списке: цветовая полоса, тип, место, дата и содержимое.
    *
    * Один компонент на все списки заметок — панель рабочего места и реестр
    * заметок, — чтобы вид и поведение записи не расходились. Основная область
    * кликабельна, а действия и дополнительное содержимое передаются снаружи
-   * снипетами.
+   * снипетами. Цветовая полоса берёт мягкий тон темы области чтения.
    */
   interface Props {
     /** Элемент списка заметок. */
     item: NoteListItem;
     /** Отмечена ли заметка как выбранная. */
     selected?: boolean;
+    /** Тема области чтения: цвет полосы следует ей. */
+    readerTheme?: ReaderThemeId;
+    /** Палитра оформления: общий реестр дизайн-системы. */
+    palette?: PaletteId;
     /** Переход к заметке в книге. */
     onclick?: (note: NoteListItem['note']) => void;
     /** Правый блок действий над заметкой. */
@@ -24,7 +29,15 @@
     children?: Snippet;
   }
 
-  let { item, selected = false, onclick, actions, children }: Props = $props();
+  let {
+    item,
+    selected = false,
+    readerTheme = DEFAULT_READER_THEME,
+    palette = DEFAULT_PALETTE,
+    onclick,
+    actions,
+    children,
+  }: Props = $props();
 </script>
 
 <li
@@ -37,7 +50,7 @@
 >
   <span
     class="absolute inset-y-0 left-0 w-1"
-    style="background: {noteMarkerColor(item.note)}"
+    style="background: {noteMarkerColor(item.note, readerTheme, palette)}"
     data-testid="notes-item-color"
     aria-hidden="true"
   ></span>

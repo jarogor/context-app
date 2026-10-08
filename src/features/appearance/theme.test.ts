@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyAppPalette,
+  applyAppReaderTheme,
   applyAppTheme,
+  loadReaderTheme,
   loadThemePalette,
   loadThemePreference,
   paletteFromSettingsEvent,
+  readerThemeFromSettingsEvent,
   themeFromSettingsEvent,
   APP_SETTINGS_SECTION,
 } from './theme';
@@ -76,6 +79,39 @@ describe('loadThemePalette', () => {
     invoke.mockResolvedValue('solarized');
 
     await expect(loadThemePalette()).resolves.toBe('gruvbox');
+  });
+});
+
+describe('loadReaderTheme', () => {
+  it('возвращает сохранённую тему области чтения', async () => {
+    invoke.mockResolvedValue('dark');
+
+    await expect(loadReaderTheme()).resolves.toBe('dark');
+    expect(invoke).toHaveBeenCalledWith('reader_theme', {});
+  });
+
+  it('приводит неизвестное значение к светлой теме', async () => {
+    invoke.mockResolvedValue('sepia');
+
+    await expect(loadReaderTheme()).resolves.toBe('light');
+  });
+});
+
+describe('applyAppReaderTheme', () => {
+  it('выставляет data-reader-theme', () => {
+    const root = { dataset: {} } as unknown as HTMLElement;
+
+    applyAppReaderTheme('dark', root);
+
+    expect(root.dataset.readerTheme).toBe('dark');
+  });
+
+  it('неизвестную тему заменяет светлой', () => {
+    const root = { dataset: {} } as unknown as HTMLElement;
+
+    applyAppReaderTheme('неизвестно', root);
+
+    expect(root.dataset.readerTheme).toBe('light');
   });
 });
 
@@ -181,5 +217,32 @@ describe('paletteFromSettingsEvent', () => {
       paletteFromSettingsEvent({ section: APP_SETTINGS_SECTION, values: {} }),
     ).toBeNull();
     expect(paletteFromSettingsEvent(null)).toBeNull();
+  });
+});
+
+describe('readerThemeFromSettingsEvent', () => {
+  it('извлекает тему области чтения из события секции приложения', () => {
+    const value = readerThemeFromSettingsEvent({
+      section: APP_SETTINGS_SECTION,
+      values: { 'reader.theme': 'dark' },
+    });
+
+    expect(value).toBe('dark');
+  });
+
+  it('игнорирует события других секций', () => {
+    const value = readerThemeFromSettingsEvent({
+      section: 'notifications.notifications',
+      values: { 'reader.theme': 'dark' },
+    });
+
+    expect(value).toBeNull();
+  });
+
+  it('возвращает null, если значение темы области чтения отсутствует', () => {
+    expect(
+      readerThemeFromSettingsEvent({ section: APP_SETTINGS_SECTION, values: {} }),
+    ).toBeNull();
+    expect(readerThemeFromSettingsEvent(null)).toBeNull();
   });
 });

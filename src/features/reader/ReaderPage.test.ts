@@ -61,4 +61,20 @@ describe('ReaderPage как содержимое вкладки', () => {
         expect(screen.getByText('Пропавшая книга')).toBeTruthy();
         expect(screen.getByText('Указать файл')).toBeTruthy();
     });
+
+    it('передаёт наружу смену темы области чтения из нижней панели', async () => {
+        const onChangeReaderTheme = vi.fn();
+        render(ReaderPage, {
+            props: {
+                path: '/lib/book.epub',
+                title: 'Книга',
+                readerTheme: 'light',
+                onChangeReaderTheme,
+            },
+        });
+
+        await fireEvent.click(await screen.findByLabelText('Тёмная тема области чтения'));
+
+        expect(onChangeReaderTheme).toHaveBeenCalledWith('dark');
+    });
 });

@@ -64,6 +64,17 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
             { "value": "gruvbox", "title": "Gruvbox" },
             { "value": "mist", "title": "Mist" }
           ]
+        },
+        {
+          "key": "reader.theme",
+          "title": "Тема области чтения",
+          "type": "select",
+          "description": "Светлое или тёмное оформление поверхности книги; не связано с темой интерфейса",
+          "default": "light",
+          "options": [
+            { "value": "light", "title": "Светлая" },
+            { "value": "dark", "title": "Тёмная" }
+          ]
         }
       ]
     }
@@ -323,6 +334,18 @@ impl AppPluginHost {
     pub fn theme_palette(&mut self) -> String {
         self.app_setting_string("appearance.palette")
             .unwrap_or_else(|| "gruvbox".to_string())
+    }
+
+    /// Тема области чтения из настроек приложения.
+    ///
+    /// Область чтения оформляется независимо от темы интерфейса: значения
+    /// `light` и `dark` возвращаются как есть; неизвестное или отсутствующее
+    /// значение трактуется как `light`.
+    pub fn reader_theme(&mut self) -> String {
+        match self.app_setting_string("reader.theme").as_deref() {
+            Some("dark") => "dark".to_string(),
+            _ => "light".to_string(),
+        }
     }
 
     /// Чтение логического значения из секции настроек приложения.

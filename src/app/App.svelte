@@ -52,13 +52,25 @@
   import {
     APP_SETTINGS_SECTION,
     applyAppPalette,
+    applyAppReaderTheme,
     applyAppThemeTracked,
     paletteFromSettingsEvent,
+    READER_THEME_SETTING_KEY,
+    readerThemeFromSettingsEvent,
     THEME_SETTING_KEY,
     themeFromSettingsEvent,
   } from '../features/appearance/theme';
   import { saveSettingsValues } from '../features/settings/settings';
-  import { normalizeThemePreference, type ThemePreference } from '@texture/ui';
+  import {
+    DEFAULT_PALETTE,
+    DEFAULT_READER_THEME,
+    normalizePaletteId,
+    normalizeReaderThemeId,
+    normalizeThemePreference,
+    type PaletteId,
+    type ReaderThemeId,
+    type ThemePreference,
+  } from '@texture/ui';
 
   interface Props {
     /** Реестр рабочих мест, загруженный до первого рендера. */
@@ -165,6 +177,16 @@
 
   /** Ошибка смены темы из шапки. */
   let appearanceError = $state<string | null>(null);
+
+  /** Тема области чтения: общая настройка, независимая от темы интерфейса. */
+  let readerTheme = $state<ReaderThemeId>(
+    untrack(() => normalizeReaderThemeId(initialAppearance.readerTheme ?? DEFAULT_READER_THEME)),
+  );
+
+  /** Активная палитра оформления: общий реестр дизайн-системы. */
+  let palette = $state<PaletteId>(
+    untrack(() => normalizePaletteId(initialAppearance.palette ?? DEFAULT_PALETTE)),
+  );
 
   /** Порядок цикла темы кнопкой в шапке. */
   const THEME_CYCLE: readonly ThemePreference[] = ['light', 'dark', 'system'];
@@ -390,6 +412,22 @@
     themePreference = next;
     applyAppThemeTracked(next);
     void saveAppearance({ [THEME_SETTING_KEY]: next });
+  }
+
+  /** Смена темы области чтения (переключатель в нижней панели читалки).
+   *
+   * Тема области чтения общая для приложения и применяется ко всем вкладкам
+   * сразу. Как и тема интерфейса, она применяется немедленно, а сохранение идёт
+   * асинхронно; событие `settings:changed` подтверждает значение.
+   */
+  function changeReaderTheme(theme: ReaderThemeId) {
+    const next = normalizeReaderThemeId(theme);
+    if (next === readerTheme) {
+      return;
+    }
+    readerTheme = next;
+    applyAppReaderTheme(next);
+    void saveAppearance({ [READER_THEME_SETTING_KEY]: next });
   }
 
   /** Выбор активной вкладки. */
@@ -727,7 +765,15 @@
         // Палитра меняется в настройках; здесь достаточно применить её.
         const nextPalette = paletteFromSettingsEvent(value);
         if (nextPalette !== null) {
+          palette = nextPalette;
           applyAppPalette(nextPalette);
+        }
+        // Тема области чтения меняется как из нижней панели читалки, так и из
+        // настроек; применяется ко всем вкладкам сразу.
+        const nextReaderTheme = readerThemeFromSettingsEvent(value);
+        if (nextReaderTheme !== null) {
+          readerTheme = nextReaderTheme;
+          applyAppReaderTheme(nextReaderTheme);
         }
       });
     })();
@@ -993,6 +1039,8 @@
             sets={notesLibrarySets}
             loading={notesLibraryLoading}
             error={notesLibraryError}
+            {readerTheme}
+            {palette}
             onOpenSet={openNotesLibrarySet}
             onOpenNote={openNotesLibraryNote}
           />
@@ -1015,6 +1063,9 @@
           visible={workspaceVisible}
           selectedNoteId={selectedNoteId}
           tool={notesController.tool}
+          {readerTheme}
+          {palette}
+          onChangeReaderTheme={changeReaderTheme}
           allowedNoteTypes={currentNoteTypes}
           onToolChange={notesController.setTool}
           onSelectTab={selectTab}

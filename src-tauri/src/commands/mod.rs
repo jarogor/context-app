@@ -13,6 +13,7 @@ pub mod library_history_list;
 pub mod plugin_activation_pending;
 pub mod plugin_operation;
 pub mod reader;
+pub mod reader_theme;
 pub mod save_workspaces;
 pub mod select_source_library;
 pub mod show_window;
@@ -94,6 +95,10 @@ pub use theme_preference::theme_preference;
 pub use theme_palette::__cmd__theme_palette;
 pub use theme_palette::__tauri_command_name_theme_palette;
 pub use theme_palette::theme_palette;
+
+pub use reader_theme::__cmd__reader_theme;
+pub use reader_theme::__tauri_command_name_reader_theme;
+pub use reader_theme::reader_theme;
 
 pub use show_window::__cmd__show_window;
 pub use show_window::__tauri_command_name_show_window;

@@ -1,6 +1,14 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { Button } from '@texture/ui';
+  import {
+    applyReaderTheme,
+    DEFAULT_PALETTE,
+    DEFAULT_READER_THEME,
+    readerThemeTokens,
+    type PaletteId,
+    type ReaderThemeId,
+  } from '@texture/ui';
   import type { BookContent } from './reader';
   import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_COLOR, DEFAULT_NOTE_TOOL, FLOWING_NOTE_TYPES, NOTE_COLOR_HIGHLIGHTS } from '../notes/notes';
@@ -54,6 +62,10 @@
     visible?: boolean;
     /** Активный инструмент создания заметок. */
     tool?: NoteTool;
+    /** Тема области чтения (светлая или тёмная). */
+    readerTheme?: ReaderThemeId;
+    /** Палитра оформления: общий реестр дизайн-системы. */
+    palette?: PaletteId;
     /** Выделение пользователя, ставшее цитатой. */
     onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Клик при инструменте «текст»: запрос текстовой карточки в точке. */
@@ -75,6 +87,8 @@
     notes = [],
     visible = true,
     tool = DEFAULT_NOTE_TOOL,
+    readerTheme = DEFAULT_READER_THEME,
+    palette = DEFAULT_PALETTE,
     onQuote,
     onTextPoint,
     onShape,
@@ -90,6 +104,8 @@
   let frame: HTMLIFrameElement | undefined = $state();
   /** Документ книги после загрузки области. */
   let doc: Document | null = $state(null);
+  /** Фон области чтения по теме: убирает белую вспышку до отрисовки документа. */
+  const frameBackground = $derived(readerThemeTokens(palette, readerTheme).background);
   /** Начальная позиция, взятая один раз при создании вкладки. */
   const startPosition = untrack(() => initialPosition);
   /** Опорная строка для удержания места при перестройке: диапазон и его отступ. */
@@ -1175,6 +1191,7 @@
     value.addEventListener('mousemove', handleGestureMove);
     value.addEventListener('mouseup', handleGestureEnd);
     value.defaultView?.addEventListener('resize', handleResize);
+    applyReaderTheme(readerTheme, value.documentElement);
     applyZoom(value, zoom);
     applyTool();
     if (startPosition > 0) {
@@ -1185,10 +1202,16 @@
     captureAnchorNow();
   }
 
-  /** Документ книги собирается один раз при загрузке. */
+  /** Документ книги собирается один раз при загрузке.
+   *
+   * Тема области чтения и палитра задаются при сборке, но сторона темы живёт
+   * атрибутом на корне документа и переключается без пересборки (см. `$effect`
+   * ниже): смена темы не сбрасывает позицию чтения и уже построенную разметку
+   * заметок.
+   */
   let html = $state('');
   onMount(() => {
-    html = buildDocument(content);
+    html = buildDocument(content, { palette, readerTheme });
     /** Завершение протяжки фигуры при отпускании кнопки вне области чтения.
      *
      * `mouseup` внутри документа книги не приходит, если курсор вышел за пределы
@@ -1217,6 +1240,19 @@
     if (doc) {
       applyZoom(doc, value);
       captureAnchorNow();
+    }
+  });
+
+  /** Применение темы области чтения к документу книги.
+   *
+   * Сторона темы ставится атрибутом на корне документа и не требует пересборки
+   * содержимого: позиция чтения и разметка заметок сохраняются. Переменные
+   * обеих сторон заданы в стиле документа (см. `reader-document.ts`).
+   */
+  $effect(() => {
+    const value = readerTheme;
+    if (doc) {
+      applyReaderTheme(value, doc.documentElement);
     }
   });
 
@@ -1384,7 +1420,8 @@
 >
   <iframe
     bind:this={frame}
-    class="h-full w-full border-0 bg-white"
+    class="h-full w-full border-0"
+    style="background: {frameBackground}"
     title="Чтение книги"
     srcdoc={html}
     onload={handleLoad}

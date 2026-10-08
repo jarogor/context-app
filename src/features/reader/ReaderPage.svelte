@@ -14,6 +14,7 @@
     type BookContent,
     type WorkplaceSelection,
   } from './reader';
+  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
   import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
@@ -37,6 +38,12 @@
     notes?: Note[];
     /** Активный инструмент создания заметок. */
     tool?: NoteTool;
+    /** Тема области чтения (светлая или тёмная). */
+    readerTheme?: ReaderThemeId;
+    /** Палитра оформления: общий реестр дизайн-системы. */
+    palette?: PaletteId;
+    /** Смена темы области чтения (нижняя панель). */
+    onChangeReaderTheme?: (theme: ReaderThemeId) => void;
     /** Сообщение об изменении состояния чтения вкладки. */
     onStateChange?: (state: { zoom: number; position: number }) => void;
     /** Выделение пользователя, ставшее цитатой. */
@@ -63,6 +70,9 @@
     visible = true,
     notes = [],
     tool = DEFAULT_NOTE_TOOL,
+    readerTheme = DEFAULT_READER_THEME,
+    palette = DEFAULT_PALETTE,
+    onChangeReaderTheme,
     onStateChange,
     onQuote,
     onTextNote,
@@ -373,6 +383,8 @@
           initialPosition={initialPosition}
           {notes}
           {tool}
+          {readerTheme}
+          {palette}
           onCapabilities={(value) => {
             workplaceZoom = value.zoom !== false;
             workplacePages = value.pages === true;
@@ -438,6 +450,8 @@
           {notes}
           {visible}
           {tool}
+          {readerTheme}
+          {palette}
           onQuote={(anchor, color) => onQuote?.(anchor, color)}
           onTextPoint={(anchor) => startTextCard(anchor)}
           onShape={(anchor, shape, geometry, color) => onShape?.(anchor, shape, geometry, color)}
@@ -466,8 +480,10 @@
     {workplacePageCount}
     bind:pageInput
     {progress}
+    {readerTheme}
     onChangeZoom={changeZoom}
     onStepPage={stepPage}
     onGoToPage={goToPageInput}
+    onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
   />
 </div>

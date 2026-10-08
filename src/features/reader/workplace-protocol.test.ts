@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_NOTE_TOOL, type NoteTool } from '../notes/notes';
 import {
+  buildReaderThemeMessage,
   isWorkplaceMessage,
   parseViewerMessage,
   WORKPLACE_CHANNEL,
 } from './workplace-protocol';
+import { readerPageColors, readerThemeNoteTones, readerThemeTokens } from '@texture/ui';
 
 /** Активный инструмент страничного формата для значений по умолчанию. */
 const TOOL: NoteTool = { ...DEFAULT_NOTE_TOOL, type: 'shape', shape: 'ellipse', color: 'blue' };
@@ -132,5 +134,30 @@ describe('протокол рабочего места: разбор сообщ�
       type: 'error',
       message: 'не удалось отобразить книгу',
     });
+  });
+});
+
+describe('протокол рабочего места: тема области чтения', () => {
+  it('собирает сообщение с токенами палитры и стороны', () => {
+    const dark = buildReaderThemeMessage('gruvbox', 'dark');
+    expect(dark.type).toBe('reader-theme');
+    expect(dark.value.id).toBe('dark');
+    expect(dark.value.tokens).toEqual(readerThemeTokens('gruvbox', 'dark'));
+    expect(dark.value.notes).toEqual(readerThemeNoteTones('gruvbox', 'dark'));
+    expect(dark.value.page).toEqual(readerPageColors('gruvbox'));
+  });
+
+  it('для светлой стороны отдаёт светлые токены и тона', () => {
+    const light = buildReaderThemeMessage('mist', 'light');
+    expect(light.value.id).toBe('light');
+    expect(light.value.tokens.background).toBe('#ffffff');
+    expect(light.value.notes.yellow).toBe('#fde68a');
+  });
+
+  it('стороны различаются фоном и тонами заметок', () => {
+    const light = buildReaderThemeMessage('gruvbox', 'light');
+    const dark = buildReaderThemeMessage('gruvbox', 'dark');
+    expect(light.value.tokens.background).not.toBe(dark.value.tokens.background);
+    expect(light.value.notes.yellow).not.toBe(dark.value.notes.yellow);
   });
 });

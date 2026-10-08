@@ -24,6 +24,9 @@ const listen = vi.mocked(listenEvent);
 /** Событие хранилища заметок, перехваченное оболочкой. */
 let notesChanged: ((value: unknown) => void) | undefined;
 
+/** Событие изменения настроек, перехваченное оболочкой. */
+let settingsChanged: ((value: unknown) => void) | undefined;
+
 /** Набор реестра в ответе хранилища. */
 function aggregateSet(overrides: Record<string, unknown> = {}) {
     return {
@@ -42,7 +45,11 @@ function appProps(notesLibrary: NotesLibraryBootstrap) {
     return {
         initialRegistry: emptyRegistry() as WorkspaceRegistry,
         initialLibrary: null,
-        initialAppearance: { theme: 'system' as const, palette: DEFAULT_PALETTE },
+        initialAppearance: {
+            theme: 'system' as const,
+            palette: DEFAULT_PALETTE,
+            readerTheme: 'light' as const,
+        },
         initialSettings: { declarations: [], error: '' },
         initialNotifications: { entries: [], technicalVisible: false, error: '' },
         initialStore: { plugins: [], stores: [], activationPending: false, error: '' },
@@ -52,12 +59,16 @@ function appProps(notesLibrary: NotesLibraryBootstrap) {
 
 beforeEach(() => {
     notesChanged = undefined;
+    settingsChanged = undefined;
     invoke.mockReset();
     listen.mockReset();
     invoke.mockImplementation(async () => null);
     listen.mockImplementation(async (event, handler) => {
         if (event === 'notes:changed') {
             notesChanged = handler;
+        }
+        if (event === 'settings:changed') {
+            settingsChanged = handler;
         }
         return () => {};
     });
@@ -219,5 +230,22 @@ describe('раздел «Заметки» в оболочке', () => {
 
         // Раздел остаётся открытым и показывает диагностику недоступности.
         expect(screen.getByTestId('notes-library-error').textContent).toContain('недоступна');
+    });
+});
+
+describe('тема области чтения в оболочке', () => {
+    it('применяется событием settings:changed, не меняя тему интерфейса', async () => {
+        document.documentElement.removeAttribute('data-reader-theme');
+        document.documentElement.removeAttribute('data-theme');
+        render(App, { props: appProps({ sets: [], error: '' }) });
+
+        await waitFor(() => expect(settingsChanged).toBeTypeOf('function'));
+        const themeBefore = document.documentElement.dataset.theme;
+        settingsChanged?.({ section: 'app.general', values: { 'reader.theme': 'dark' } });
+
+        await waitFor(() =>
+            expect(document.documentElement.dataset.readerTheme).toBe('dark'),
+        );
+        expect(document.documentElement.dataset.theme).toBe(themeBefore);
     });
 });

@@ -31,6 +31,7 @@ import {
     NOTE_COLORS,
     NOTE_COLOR_HIGHLIGHTS,
     NOTE_COLOR_SWATCHES,
+    noteHighlights,
     noteMarkerColor,
     NOTE_TYPES,
     renameSet,
@@ -180,6 +181,20 @@ describe('нормализация', () => {
         expect(noteMarkerColor({ color: 'black' })).toBe(NOTE_COLOR_HIGHLIGHTS.black);
         // Насыщенный акцент остаётся только у образцов выбора цвета.
         expect(NOTE_COLOR_SWATCHES.yellow).not.toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
+    });
+
+    it('метка заметки следует стороне темы области чтения', () => {
+        const dark = noteMarkerColor({ color: 'yellow' }, 'dark', 'gruvbox');
+        const light = noteMarkerColor({ color: 'yellow' }, 'light', 'gruvbox');
+        expect(dark).not.toBe(light);
+        expect(light).toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
+        // Тёмная сторона задана и различима для всех цветов.
+        const tones = noteHighlights('dark', 'gruvbox');
+        for (const color of NOTE_COLORS) {
+            expect(tones[color]).toBeTruthy();
+            expect(tones[color]).not.toBe(NOTE_COLOR_HIGHLIGHTS[color]);
+            expect(noteMarkerColor({ color }, 'dark', 'gruvbox')).toBe(tones[color]);
+        }
     });
 
     it('читает набор с заметками', () => {

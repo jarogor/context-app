@@ -3,6 +3,7 @@
   import ReaderPage from '../reader/ReaderPage.svelte';
   import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
+  import type { PaletteId, ReaderThemeId } from '@texture/ui';
 
   /** Читалка вкладки для перехода к заметке. */
   export interface TabReader {
@@ -25,6 +26,12 @@
     notes: Note[];
     /** Активный инструмент создания заметок. */
     tool?: NoteTool;
+    /** Тема области чтения: общая настройка приложения. */
+    readerTheme?: ReaderThemeId;
+    /** Палитра оформления: общий реестр дизайн-системы. */
+    palette?: PaletteId;
+    /** Смена темы области чтения (нижняя панель читалки). */
+    onReaderThemeChange?: (theme: ReaderThemeId) => void;
     /** Видима ли вкладка (активна и показана поверхность). */
     active: boolean;
     /** Видима ли поверхность рабочего места. */
@@ -57,6 +64,9 @@
     position,
     notes,
     tool,
+    readerTheme,
+    palette,
+    onReaderThemeChange,
     active,
     visible,
     onReader,
@@ -87,8 +97,11 @@
   initialPosition={position}
   {notes}
   {tool}
+  {readerTheme}
+  {palette}
   visible={visible && active}
   {onStateChange}
+  onChangeReaderTheme={onReaderThemeChange}
   {onQuote}
   {onTextNote}
   {onShape}

@@ -7,9 +7,56 @@
 
 import type { NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
 import type { QuoteAnchor } from './reader/anchor';
+import {
+  readerPageColors,
+  readerThemeNoteTones,
+  readerThemeTokens,
+  type PaletteId,
+  type ReaderNoteTones,
+  type ReaderPageColors,
+  type ReaderThemeId,
+  type ReaderThemeTokens,
+} from '@texture/ui';
 
 /** Канал сообщений между областью содержимого и модулем рисования. */
 export const WORKPLACE_CHANNEL = 'texture-workplace';
+
+/** Тема области чтения, передаваемая модулю рисования.
+ *
+ * Модуль рисуется в изолированной песочнице и не наследует CSS оболочки, поэтому
+ * приложение передаёт ему готовые значения темы: сторону (идентификатор) и
+ * токены поверхности и мягких тонов заметок.
+ */
+export interface WorkplaceReaderTheme {
+  /** Сторона темы области чтения. */
+  id: ReaderThemeId;
+  /** Токены поверхности чтения (фон, текст, вторичный текст, ссылки). */
+  tokens: ReaderThemeTokens;
+  /** Мягкие тона заметок по стороне темы. */
+  notes: ReaderNoteTones;
+  /** Цвета перекраски страницы в тёмной теме (бумага и текст). */
+  page: ReaderPageColors;
+}
+
+/** Сборка сообщения о теме области чтения для модуля рисования.
+ *
+ * Значения берутся из дизайн-системы по палитре и стороне, поэтому у хоста и
+ * встроенного чтения один источник токенов.
+ */
+export function buildReaderThemeMessage(
+  palette: PaletteId,
+  theme: ReaderThemeId,
+): { type: 'reader-theme'; value: WorkplaceReaderTheme } {
+  return {
+    type: 'reader-theme',
+    value: {
+      id: theme,
+      tokens: readerThemeTokens(palette, theme),
+      notes: readerThemeNoteTones(palette, theme),
+      page: readerPageColors(palette),
+    },
+  };
+}
 
 /** Возможности модуля рисования, сообщённые после загрузки. */
 export interface WorkplaceCapabilities {

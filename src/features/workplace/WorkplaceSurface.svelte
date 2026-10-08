@@ -11,6 +11,7 @@
   import { NOTE_TYPES } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
+  import type { PaletteId, ReaderThemeId } from '@texture/ui';
 
   interface Props {
     /** Текущее рабочее место или null, когда его нет. */
@@ -63,6 +64,12 @@
     tool: NoteTool;
     /** Смена активного инструмента заметок. */
     onToolChange: (tool: NoteTool) => void;
+    /** Тема области чтения (светлая или тёмная). */
+    readerTheme?: ReaderThemeId;
+    /** Палитра оформления: общий реестр дизайн-системы. */
+    palette?: PaletteId;
+    /** Смена темы области чтения (нижняя панель читалки). */
+    onChangeReaderTheme?: (theme: ReaderThemeId) => void;
     /** Доступные типы заметок текущего формата (текучий — только цитата). */
     allowedNoteTypes?: readonly NoteType[];
     /** Удаление заметки. */
@@ -127,6 +134,9 @@
     onShape,
     tool,
     onToolChange,
+    readerTheme,
+    palette,
+    onChangeReaderTheme,
     allowedNoteTypes = NOTE_TYPES,
     onDeleteNote,
     onChangeNoteColor,
@@ -248,10 +258,13 @@
                   position={item.position}
                   notes={notesByTab[item.id] ?? []}
                   {tool}
+                  {readerTheme}
+                  {palette}
                   active={item.id === workspace.activeTabId}
                   {visible}
                   onReader={registerReader}
                   onStateChange={(state) => onTabState(item.id, state)}
+                  onReaderThemeChange={onChangeReaderTheme}
                   onQuote={onQuote}
                   onTextNote={onTextNote}
                   onShape={onShape}
@@ -270,6 +283,8 @@
           items={tabItems}
           sets={noteSets}
           activeSetId={activeSetId}
+          {readerTheme}
+          {palette}
           loading={notesLoading}
           {hasBook}
           selectedId={selectedNoteId}
