@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, Progress, Spinner } from '@texture/ui';
+  import { Button, Icon, Progress, Spinner } from '@texture/ui';
   import BookReader from './BookReader.svelte';
   import WorkplaceContent from './WorkplaceContent.svelte';
   import ReaderFooter from './ReaderFooter.svelte';
@@ -433,7 +433,15 @@
             style={quoteMenuStyle()}
           >
             <NoteColorMenu labelPrefix="Создать заметку" onpick={confirmWorkplaceQuote} />
-            <Button variant="ghost" size="sm" onclick={dismissWorkplaceMenu}>Отмена</Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Отмена"
+              ariaLabel="Отмена"
+              onclick={dismissWorkplaceMenu}
+            >
+              <Icon name="close" />
+            </Button>
           </div>
         {/if}
         {#if pendingTextAnchor}

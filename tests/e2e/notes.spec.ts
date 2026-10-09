@@ -159,11 +159,67 @@ test('выделение показывает меню создания и от�
     await expect(page.getByTestId('quote-menu').getByTestId('note-color-black')).toHaveCount(0);
     await expect(page.getByTestId('quote-menu').getByTestId('note-color-purple')).toBeVisible();
 
-    await page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' }).click();
+    // Палитра одной высоты с соседней иконочной кнопкой: контролы базового
+    // размера не должны выглядеть разного масштаба.
+    const paletteBox = await page.getByTestId('note-color-picker').boundingBox();
+    const cancelBox = await page
+        .getByTestId('quote-menu')
+        .getByRole('button', { name: 'Отмена' })
+        .boundingBox();
+    expect(Math.abs(paletteBox!.height - cancelBox!.height)).toBeLessThanOrEqual(1);
+
+    // Отмена — иконочная кнопка с доступным именем «Отмена»: крестик есть,
+    // текстовой подписи внутри нет.
+    const cancel = page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' });
+    await expect(cancel.locator('svg')).toBeVisible();
+    await expect(cancel).toHaveText('');
+
+    await cancel.click();
 
     // Отмена убирает меню и не создаёт заметку.
     await expect(page.getByTestId('quote-menu')).toHaveCount(0);
     await expect(page.getByTestId('notes-item')).toHaveCount(0);
+});
+
+test('меню создания появляется у конца многострочного выделения', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    // Выделяем три абзаца: рамка диапазона накрывает всю ширину, и позиция по
+    // её левому краю увела бы меню к левому отступу страницы.
+    const geometry = await bookDocument(page)
+        .locator('body')
+        .evaluate((body) => {
+            const paragraphs = Array.from(body.querySelectorAll('p')) as HTMLElement[];
+            const range = body.ownerDocument.createRange();
+            range.setStart(paragraphs[0], 0);
+            const last = paragraphs[2].firstChild;
+            range.setEnd(last ?? paragraphs[2], last ? (last.textContent?.length ?? 0) : 0);
+            const rects = Array.from(range.getClientRects());
+            const bounds = range.getBoundingClientRect();
+            const selection = body.ownerDocument.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            paragraphs[0].dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            const lastRect = rects[rects.length - 1];
+            return {
+                boundsLeft: bounds.left,
+                lastRight: lastRect.right,
+                pageLeftPadding: 90,
+            };
+        });
+
+    await expect(page.getByTestId('quote-menu')).toBeVisible();
+    const frameBox = await page
+        .locator('[data-testid="workplace-tab-page"][data-active="true"]')
+        .locator('iframe[title="Чтение книги"]')
+        .boundingBox();
+    const menuBox = await page.getByTestId('quote-menu').boundingBox();
+    // Меню стоит у конца выделения (правого края последней строки), а не у
+    // левого отступа страницы.
+    expect(menuBox!.x).toBeGreaterThan(frameBox!.x + geometry.pageLeftPadding + 100);
+    expect(menuBox!.x).toBeLessThanOrEqual(frameBox!.x + geometry.lastRight + 2);
 });
 
 test('активное выделение показывает метки только у краёв выделения', async ({ page }) => {

@@ -36,24 +36,44 @@
     class: className = '',
   }: Props = $props();
 
+  /** Базовая ширина невыбранного образца в пикселях.
+   *
+   * Образцы делят ширину блока по весам `flex-grow`: выбранный забирает долю
+   * `SELECTED_GROW`, прочие — по единице. Отсюда базовая ширина блока. */
+  const SWATCH_WIDTH = 16;
+  /** Зазор между образцами в пикселях. */
+  const SWATCH_GAP = 3;
+  /** Во сколько раз выбранный образец шире невыбранного. */
+  const SELECTED_GROW = 1.8;
+  /** Рамка и внутренние отступы блока по обеим сторонам в пикселях. */
+  const PICKER_CHROME = 12;
+
   /** Ширина блока палитры: при наведении плашки перераспределяются внутри неё,
    * а сам блок не меняет размер и не сдвигает соседний интерфейс. */
-  const pickerWidth = $derived(colors.length * 14 + Math.max(0, colors.length - 1) * 3 + 8);
+  const pickerWidth = $derived(
+    Math.round(
+      SWATCH_WIDTH * (colors.length - 1 + SELECTED_GROW) +
+        Math.max(0, colors.length - 1) * SWATCH_GAP +
+        PICKER_CHROME,
+    ),
+  );
 </script>
 
 <!--
-  Палитра — ряд примыкающих полосок в одной рамке. Выбранный цвет и цвет под
-  курсором шире и выше остальных: блок имеет фиксированную ширину, поэтому
-  расширение плашки забирает место у соседей и общий размер блока не меняется
-  (раньше блок рос при наведении и толкал соседний интерфейс). Невыбранный
-  образец ниже полной высоты на 2 px сверху и снизу (`h-4` против `h-5`):
+  Палитра — ряд примыкающих полосок в одной рамке. Высота блока совпадает с
+  высотой кнопок, полей и выпадающих списков дизайн-системы (`h-9` = 2.25rem):
+  палитра стоит в одном ряду с ними и не должна выглядеть мельче. Выбранный
+  цвет и цвет под курсором шире и выше остальных: блок имеет фиксированную
+  ширину, поэтому расширение плашки забирает место у соседей и общий размер
+  блока не меняется (раньше блок рос при наведении и толкал соседний интерфейс).
+  Невыбранный образец ниже полной высоты на 1 шаг шкалы (`h-5` против `h-6`):
   разница по высоте вместе с шириной делает состояние выразительнее, а выбор и
   наведение восстанавливают полную высоту. Рамка и скругление взяты из
   дизайн-токенов, как у полей и выпадающих списков.
 -->
 <div
   class={cn(
-    'inline-flex items-center gap-[3px] rounded-md border border-[var(--input)] bg-[var(--card)] p-1',
+    'inline-flex h-9 items-center gap-[3px] rounded-md border border-[var(--input)] bg-[var(--card)] p-1',
     className,
   )}
   style="width: {pickerWidth}px"
@@ -65,8 +85,8 @@
     <button
       type="button"
       class="min-w-0 flex-1 basis-0 cursor-pointer rounded-[4px] transition-all duration-100 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {color.selected
-        ? 'h-5 grow-[1.8]'
-        : 'h-4 grow hover:h-5 hover:grow-[1.8]'}"
+        ? 'h-6 grow-[1.8]'
+        : 'h-5 grow hover:h-6 hover:grow-[1.8]'}"
       style="background: {color.value}"
       title={color.label}
       aria-label={color.label}

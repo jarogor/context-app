@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button } from '@texture/ui';
+  import { Button, Icon } from '@texture/ui';
   import {
     applyReaderTheme,
     DEFAULT_PALETTE,
@@ -1032,6 +1032,11 @@
       return;
     }
     const rect = range.getBoundingClientRect();
+    // Меню ставится у конца выделения (где курсор после протяжки): у рамки
+    // всего диапазона левый край — это левый отступ страницы, и при выделении
+    // в несколько строк меню уезжало к краю области, а не к курсору.
+    const endRects = range.getClientRects();
+    const endRect = endRects.length > 0 ? endRects[endRects.length - 1] : rect;
     const win = value.defaultView;
     const root = value.scrollingElement ?? value.documentElement;
     const height = root?.scrollHeight ?? 0;
@@ -1050,8 +1055,8 @@
     });
     const width = win?.innerWidth ?? 0;
     menuPosition = {
-      x: Math.max(8, Math.min(rect.left, Math.max(8, width - 180))),
-      y: Math.max(8, rect.bottom + 6),
+      x: Math.max(8, Math.min(endRect.right, Math.max(8, width - 180))),
+      y: Math.max(8, endRect.bottom + 6),
     };  }
 
   /** Создание заметки-цитаты по текущему выделению заданным цветом. */
@@ -1449,7 +1454,15 @@
       style={menuStyle()}
     >
       <NoteColorMenu labelPrefix="Создать заметку" onpick={confirmQuote} />
-      <Button variant="ghost" size="sm" onclick={dismissMenu}>Отмена</Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Отмена"
+        ariaLabel="Отмена"
+        onclick={dismissMenu}
+      >
+        <Icon name="close" />
+      </Button>
     </div>
   {/if}
 

@@ -84,7 +84,7 @@
     {#each typeOptions as type (type)}
       <Button
         variant={tool.type === type ? 'primary' : 'ghost'}
-        size="sm"
+        size="md"
         title={NOTE_TYPE_LABELS[type]}
         ariaLabel={NOTE_TYPE_LABELS[type]}
         ariaPressed={tool.type === type}
@@ -100,7 +100,7 @@
       <Select
         value={tool.shape}
         items={shapeOptions}
-        size="sm"
+        size="md"
         class="w-[150px]"
         ariaLabel="Вид фигуры"
         onchange={selectShape}
