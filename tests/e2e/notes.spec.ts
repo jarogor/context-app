@@ -152,11 +152,90 @@ test('выделение показывает меню создания и от�
     });
 
     await expect(page.getByTestId('quote-menu')).toBeVisible();
+    // Палитра меню создания — пять цветов, без чёрного.
+    await expect(
+        page.getByTestId('quote-menu').locator('button[data-testid^="note-color-"]'),
+    ).toHaveCount(5);
+    await expect(page.getByTestId('quote-menu').getByTestId('note-color-black')).toHaveCount(0);
+    await expect(page.getByTestId('quote-menu').getByTestId('note-color-purple')).toBeVisible();
+
     await page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' }).click();
 
     // Отмена убирает меню и не создаёт заметку.
     await expect(page.getByTestId('quote-menu')).toHaveCount(0);
     await expect(page.getByTestId('notes-item')).toHaveCount(0);
+});
+
+test('активное выделение показывает метки только у краёв выделения', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    // Выделяем три абзаца, не подтверждая заметку: это живое выделение на
+    // несколько строк.
+    await bookDocument(page)
+        .locator('body')
+        .evaluate((body) => {
+            const paragraphs = Array.from(body.querySelectorAll('p')) as HTMLElement[];
+            const range = body.ownerDocument.createRange();
+            range.setStart(paragraphs[0], 0);
+            const last = paragraphs[2].firstChild;
+            range.setEnd(last ?? paragraphs[2], last ? (last.textContent?.length ?? 0) : 0);
+            const selection = body.ownerDocument.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            paragraphs[0].dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        });
+
+    const layer = bookDocument(page).locator('.texture-selection-layer');
+    await expect(layer).toHaveCount(1);
+    // Полосок несколько (по строке), но метки — только у первой и последней.
+    const bands = bookDocument(page).locator('.texture-selection-band');
+    expect(await bands.count()).toBeGreaterThanOrEqual(3);
+    const edges = await bookDocument(page)
+        .locator('.texture-selection-band')
+        .evaluateAll((elements) =>
+            elements.map((element) => (element as HTMLElement).dataset.edge),
+        );
+    expect(edges[0]).toBe('start');
+    expect(edges[edges.length - 1]).toBe('end');
+    expect(edges.slice(1, -1).every((edge) => edge === 'none')).toBe(true);
+
+    // Метка — на левом краю первой полосы, и у подсветки заметки её нет.
+    const leftWidth = await bookDocument(page)
+        .locator('.texture-selection-band')
+        .first()
+        .evaluate((element) => getComputedStyle(element, '::before').width);
+    expect(leftWidth).not.toBe('0px');
+
+    // Заливка и метки — один элемент слоя, поэтому их высоты совпадают
+    // (нативное `::selection` прозрачно: движки красят его по-разному).
+    const fill = await bookDocument(page)
+        .locator('.texture-selection-band')
+        .first()
+        .evaluate((element) => {
+            const band = getComputedStyle(element);
+            const edge = getComputedStyle(element, '::before');
+            const rect = (element as HTMLElement).getBoundingClientRect();
+            return {
+                background: band.backgroundColor,
+                edgeWidth: edge.width,
+                height: rect.height,
+            };
+        });
+    expect(fill.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(Number.parseFloat(fill.edgeWidth)).toBeGreaterThan(0);
+    // Полоса расширена до высоты строки — иначе между строками выделения
+    // остаются пустоты, которых нет в PDF.
+    const lineHeight = await bookDocument(page)
+        .locator('p')
+        .first()
+        .evaluate((element) => Number.parseFloat(getComputedStyle(element).lineHeight));
+    expect(Math.abs(fill.height - lineHeight)).toBeLessThan(1);
+
+    // Снятие выделения убирает слой и метки.
+    await page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' }).click();
+    await expect(bookDocument(page).locator('.texture-selection-layer')).toHaveCount(0);
 });
 
 test('панель заметок показывает пустое состояние без книги', async ({ page }) => {
@@ -178,7 +257,40 @@ test('подсветка заметки-абзаца видна в тексте'
         .locator('mark.texture-note')
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
-    expect(background).toBe('rgb(253, 230, 138)');
+    expect(background).toBe('rgb(242, 205, 82)');
+
+    // Фон подсветки расширен до высоты строки: иначе между строками заметки
+    // остаются щели, которых нет в PDF (там полосы строк уже включают интервал).
+    const sizes = await bookDocument(page)
+        .locator('mark.texture-note')
+        .first()
+        .evaluate((element) => ({
+            markHeight: element.getClientRects()[0]?.height ?? 0,
+            lineHeight: Number.parseFloat(
+                getComputedStyle(element.parentElement as Element).lineHeight,
+            ),
+        }));
+    expect(Math.abs(sizes.markHeight - sizes.lineHeight)).toBeLessThan(1);
+});
+
+test('в тёмной теме фон подсветки непрозрачный, чтобы стык строк не темнел', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+    await highlightParagraph(page, 'Первый абзац книги.');
+
+    // Тёмная сторона темы области чтения.
+    await page.getByTestId('reader-theme-toggle').getByRole('button', { name: 'Тёмная тема области чтения' }).click();
+    await expect(bookDocument(page).locator('html[data-reader-theme="dark"]')).toHaveCount(1);
+
+    const background = await bookDocument(page)
+        .locator('mark.texture-note')
+        .first()
+        .evaluate((element) => getComputedStyle(element).backgroundColor);
+    // Непрозрачный цвет: перенесённые куски подсветки перекрываются на доли
+    // пикселя, и полупрозрачные слои складывали бы альфу в тёмную полосу.
+    expect(background).toMatch(/^rgb\(/);
+    expect(background).not.toMatch(/rgba\(/);
 });
 
 test('выделение текста создаёт заметку-цитату с подсветкой', async ({ page }) => {
@@ -217,7 +329,7 @@ test('создание заметки с выбранным цветом и см
         .locator('mark.texture-note')
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
-    expect(blueBackground).toBe('rgb(191, 219, 254)');
+    expect(blueBackground).toBe('rgb(132, 173, 240)');
 
     // Смена цвета из меню заметки: полоса и подсветка становятся зелёными.
     await page.getByLabel('Действия с заметкой').first().click();
@@ -228,7 +340,7 @@ test('создание заметки с выбранным цветом и см
         .locator('mark.texture-note')
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
-    expect(greenBackground).toBe('rgb(187, 247, 208)');
+    expect(greenBackground).toBe('rgb(130, 217, 145)');
 });
 
 test('подсветка заметок разных цветов видна одновременно', async ({ page }) => {

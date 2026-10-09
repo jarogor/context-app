@@ -276,6 +276,26 @@
         background: var(--reader-selection, rgba(37, 99, 235, 0.35));
         border-radius: 2px;
       }
+      /* Признак активного выделения: вертикальные метки по краям полос — «курсоры»
+         выделения. Отличают живое выделение от подсветки заметки (та меток не
+         получает). Метки плотнее заливки, но того же оттенка, и лежат внутри слоя
+         с наложением, поэтому остаются чёткими на растре. */
+      .selection-layer .selection-band::before,
+      .selection-layer .selection-band::after {
+        content: '';
+        position: absolute;
+        top: -1px;
+        bottom: -1px;
+        width: var(--reader-selection-edge-width, 2px);
+        background: var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
+        border-radius: 1px;
+      }
+      .selection-layer .selection-band::before {
+        left: 0;
+      }
+      .selection-layer .selection-band::after {
+        right: 0;
+      }
       /* Инструменты текста и фигуры не работают с выделением: прицел вместо
          текстового курсора и запрет выделения текста под протяжкой. */
       body[data-tool='text'],
@@ -874,13 +894,11 @@
        * Приложение присылает актуальные тона сообщением `reader-theme`; до него и
        * при неполных данных используются эти значения. */
       const NOTE_COLOR_FALLBACKS = {
-        yellow: '#fde68a',
-        green: '#bbf7d0',
-        blue: '#bfdbfe',
-        red: '#fecaca',
-        purple: '#ddd6fe',
-        /* Чёрная подсветка не затемняет текст: она серая, а фигуры — чёрные. */
-        black: '#d1d5db',
+        yellow: '#f2cd52',
+        green: '#82d991',
+        blue: '#84adf0',
+        red: '#ef817b',
+        purple: '#bba0e8',
       };
 
       /** Действующие мягкие тона заметок по идентификаторам цвета. */
@@ -917,6 +935,14 @@
         rootStyle.setProperty(
           '--reader-selection',
           tokens.selection || 'rgba(37, 99, 235, 0.35)',
+        );
+        rootStyle.setProperty(
+          '--reader-selection-edge',
+          tokens.selectionEdge || 'rgba(37, 99, 235, 0.9)',
+        );
+        rootStyle.setProperty(
+          '--reader-selection-edge-width',
+          String(tokens.selectionEdgeWidth || 2) + 'px',
         );
         // Фон неотрисованной страницы совпадает с перекрашенной бумагой, иначе
         // при перерисовке мелькал бы светлый прямоугольник.

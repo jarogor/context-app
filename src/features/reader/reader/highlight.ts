@@ -68,6 +68,50 @@ export function highlightTextRange(
         mark.dataset.noteId = noteId;
         mark.dataset.color = color;
         range.surroundContents(mark);
+        fitMarkToLineHeight(mark);
     }
     return parts.length > 0;
+}
+
+/** Выравнивание фона подсветки по высоте строки.
+ *
+ * Фон строчного `<mark>` покрывает только кегельную площадку, а она ниже
+ * `line-height`: между строками подсветки заметки остаются щели, которых нет в
+ * PDF (там полосы строк уже включают межстрочный интервал; см. `lineRects`
+ * плагина). Вертикальные отступы в `em` расширяют фон до высоты строки и
+ * переживают масштабирование, а `box-decoration-break: clone` (задан в CSS
+ * заметки) даёт каждому перенесённому куску свои отступы — полосы стыкуются
+ * встык. Вертикальные отступы строчного элемента не меняют вёрстку строки.
+ *
+ * К высоте строки добавляется половина пикселя перекрытия: при дробном
+ * масштабе соседние куски ложатся не идеально, и без запаса на границе видна
+ * тонкая щель. Полупрозрачный тон на таком перекрытии давал бы тёмную полосу,
+ * поэтому фон подсветки непрозрачен (`--note-solid-*` в `reader-document.ts`),
+ * и перекрытие кусков незаметно.
+ */
+function fitMarkToLineHeight(mark: HTMLElement): void {
+    const view = mark.ownerDocument.defaultView;
+    const parent = mark.parentElement;
+    const style = view && parent ? view.getComputedStyle(parent) : null;
+    const lineHeight = style ? Number.parseFloat(style.lineHeight) : Number.NaN;
+    const fontSize = style ? Number.parseFloat(style.fontSize) : Number.NaN;
+    const rect = mark.getClientRects()[0];
+    if (
+        !style ||
+        !Number.isFinite(lineHeight) ||
+        !Number.isFinite(fontSize) ||
+        fontSize <= 0 ||
+        !rect ||
+        rect.height <= 0
+    ) {
+        return;
+    }
+    /** Запас перекрытия соседних кусков на каждую сторону, в пикселях. */
+    const overlap = 0.25;
+    const base = (lineHeight - rect.height) / 2 / fontSize;
+    if (base > 0) {
+        const padding = base + overlap / fontSize;
+        mark.style.paddingTop = `${padding}em`;
+        mark.style.paddingBottom = `${padding}em`;
+    }
 }

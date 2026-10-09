@@ -1,5 +1,45 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { clearNoteMarks, highlightTextRange } from './highlight';
+
+/** Восстановители моков, снятые после каждого теста. */
+const mocks: Array<() => void> = [];
+
+/** Мок `Element.getClientRects`: рамка глифов заданной высоты.
+ *
+ * В jsdom метода нет (точнее, он всегда пуст), поэтому свойство задаётся напрямую.
+ */
+function mockGlyphRect(height: number): void {
+    const original = Object.getOwnPropertyDescriptor(Element.prototype, 'getClientRects');
+    Object.defineProperty(Element.prototype, 'getClientRects', {
+        configurable: true,
+        writable: true,
+        value: () =>
+            [
+                {
+                    top: 0,
+                    bottom: height,
+                    height,
+                    left: 0,
+                    right: 100,
+                    width: 100,
+                    x: 0,
+                    y: 0,
+                    toJSON: () => ({}),
+                },
+            ] as unknown as DOMRectList,
+    });
+    mocks.push(() => {
+        if (original) {
+            Object.defineProperty(Element.prototype, 'getClientRects', original);
+        } else {
+            delete (Element.prototype as unknown as { getClientRects?: unknown }).getClientRects;
+        }
+    });
+}
+
+afterEach(() => {
+    mocks.splice(0).forEach((restore) => restore());
+});
 
 /** Корневой элемент главы. */
 function root(html: string): HTMLElement {
@@ -67,5 +107,27 @@ describe('подсветка диапазона текста', () => {
         const chapter = root('<p>Текст.</p>');
         highlightTextRange(chapter, 0, 5, 'texture-note', 'n6');
         expect((chapter.querySelector('mark') as HTMLElement).dataset.color).toBe('yellow');
+    });
+
+    it('расширяет фон подсветки до высоты строки', () => {
+        mockGlyphRect(10);
+        const chapter = root('<p style="line-height:20px;font-size:10px">Текст.</p>');
+        highlightTextRange(chapter, 0, 5, 'texture-note', 'n7');
+
+        // Полулидинг = (20 − 10) / 2 = 5px плюс перекрытие соседних кусков
+        // 0.25px — итого 5.25px = 0.525em при кегле 10px.
+        const mark = chapter.querySelector('mark') as HTMLElement;
+        expect(mark.style.paddingTop).toBe('0.525em');
+        expect(mark.style.paddingBottom).toBe('0.525em');
+    });
+
+    it('не трогает подсветку, если строка не выше глифов', () => {
+        mockGlyphRect(20);
+        const chapter = root('<p style="line-height:20px;font-size:10px">Текст.</p>');
+        highlightTextRange(chapter, 0, 5, 'texture-note', 'n8');
+
+        const mark = chapter.querySelector('mark') as HTMLElement;
+        expect(mark.style.paddingTop).toBe('');
+        expect(mark.style.paddingBottom).toBe('');
     });
 });

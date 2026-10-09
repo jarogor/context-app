@@ -59,7 +59,11 @@ fn note_accepts_missing_optional_fields() {
 fn normalize_color_keeps_palette_and_defaults_unknown() {
     assert_eq!(normalize_color("blue"), "blue");
     assert_eq!(normalize_color("  purple  "), "purple", "пробелы снимаются");
-    assert_eq!(normalize_color("black"), "black", "чёрный — часть палитры");
+    assert_eq!(
+        normalize_color("black"),
+        DEFAULT_NOTE_COLOR,
+        "чёрный больше не в палитре — по умолчанию"
+    );
     assert_eq!(
         normalize_color(""),
         DEFAULT_NOTE_COLOR,
@@ -70,7 +74,7 @@ fn normalize_color_keeps_palette_and_defaults_unknown() {
         DEFAULT_NOTE_COLOR,
         "неизвестный цвет — по умолчанию"
     );
-    assert_eq!(NOTE_COLORS.len(), 6);
+    assert_eq!(NOTE_COLORS.len(), 5);
 }
 
 #[test]
@@ -162,7 +166,7 @@ fn note_roundtrip_preserves_type_shape_and_geometry() {
         chapter: String::new(),
         title: String::new(),
         comment: String::new(),
-        color: "black".to_string(),
+        color: "purple".to_string(),
         percent: Some(1.0),
         page: None,
         text: String::new(),

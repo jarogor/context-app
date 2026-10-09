@@ -481,7 +481,7 @@ fn add_note_accepts_type_shape_and_geometry() {
                     "type": "shape",
                     "shape": "ellipse",
                     "geometry": "{\"x\":0.1,\"y\":0.2}",
-                    "color": "black"
+                    "color": "purple"
                 }
             }),
         ),
@@ -491,7 +491,7 @@ fn add_note_accepts_type_shape_and_geometry() {
     assert_eq!(note["type"], "shape");
     assert_eq!(note["shape"], "ellipse");
     assert_eq!(note["geometry"], "{\"x\":0.1,\"y\":0.2}");
-    assert_eq!(note["color"], "black");
+    assert_eq!(note["color"], "purple");
 
     let defaulted = handle(
         &host,

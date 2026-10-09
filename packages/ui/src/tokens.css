@@ -130,7 +130,7 @@
   --reader-muted-foreground: #7c6f64;
   --reader-link: #076678;
   --reader-selection: rgba(96, 140, 180, 0.35);
-  --reader-note-mark: #fde68a;
+  --reader-note-mark: #f2cd52;
 }
 
 /* Тёмная сторона области чтения (Gruvbox). */
@@ -140,7 +140,7 @@
   --reader-muted-foreground: #a89984;
   --reader-link: #83a598;
   --reader-selection: rgba(120, 160, 195, 0.33);
-  --reader-note-mark: rgba(250, 189, 47, 0.75);
+  --reader-note-mark: rgba(214, 158, 46, 0.75);
 }
 
 /* Палитра Mist: светлая сторона области чтения. */
@@ -150,7 +150,7 @@
   --reader-muted-foreground: #6b7280;
   --reader-link: #2563eb;
   --reader-selection: rgba(59, 130, 246, 0.32);
-  --reader-note-mark: #fde68a;
+  --reader-note-mark: #f2cd52;
 }
 
 /* Палитра Mist: тёмная сторона области чтения. */
@@ -160,7 +160,7 @@
   --reader-muted-foreground: #8b949b;
   --reader-link: #7aa2d6;
   --reader-selection: rgba(96, 165, 250, 0.33);
-  --reader-note-mark: rgba(234, 179, 8, 0.75);
+  --reader-note-mark: rgba(202, 150, 40, 0.75);
 }
 
 /* Палитра Mist — прежний стандартный набор shadcn-svelte; светлый набор.

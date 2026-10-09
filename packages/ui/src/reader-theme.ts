@@ -33,6 +33,10 @@ export interface ReaderThemeTokens {
   link: string;
   /** Базовый цвет выделения текста: синеватый, в тон палитре. */
   selection: string;
+  /** Цвет вертикальных меток по краям активного выделения. */
+  selectionEdge: string;
+  /** Толщина вертикальных меток выделения, в пикселях. */
+  selectionEdgeWidth: number;
 }
 
 /** Идентификаторы цветов заметок, общие для всех поверхностей. */
@@ -42,7 +46,6 @@ export const READER_NOTE_COLOR_IDS = [
   'blue',
   'red',
   'purple',
-  'black',
 ] as const;
 
 /** Идентификатор цвета заметки. */
@@ -85,41 +88,46 @@ export function readerThemeTokens(
   return id === 'dark' ? DARK_READER_TOKENS[palette] : LIGHT_READER_TOKENS[palette];
 }
 
-/** Светлые тона заметок: прежний набор, рассчитанный на светлую поверхность. */
+/** Светлые тона заметок: насыщенные, но среднесветлые оттенки.
+ *
+ * Пастельные 200-е тона были слишком выбелены и читались «не собой»: зелёный
+ * уходил в бирюзу, красный в розовый, фиолетовый в лаванду. Здесь каждый цвет
+ * задан в своём оттенке с достаточной насыщенностью, но остаётся достаточно
+ * светлым, чтобы тёмный текст книги читался поверх подсветки.
+ */
 const LIGHT_NOTE_TONES: ReaderNoteTones = {
-  yellow: '#fde68a',
-  green: '#bbf7d0',
-  blue: '#bfdbfe',
-  red: '#fecaca',
-  purple: '#ddd6fe',
-  black: '#d1d5db',
+  yellow: '#f2cd52',
+  green: '#82d991',
+  blue: '#84adf0',
+  red: '#ef817b',
+  purple: '#bba0e8',
 };
 
 /** Тёмные тона заметок палитры Gruvbox.
  *
- * Полупрозрачные акценты Gruvbox: на тёмном фоне книги дают приглушённую
- * цветную подложку, поверх которой светлый текст остаётся читаемым; при
- * умножении на белой странице PDF дают светлый цветной оттенок, не скрывающий
- * текст. Заметно отличаются от светлого набора и различимы между собой.
+ * Приглушённые цвета с верными оттенками, полупрозрачные: на тёмном фоне книги
+ * дают спокойную цветную подложку, поверх которой светлый текст остаётся
+ * читаемым; при осветлении на тёмной странице PDF не «вспыхивают». Оттенки не
+ * берутся из акцентов Gruvbox (там зелёный жёлто-зелёный, синий бирюзовый, а
+ * фиолетовый розовый): заметка должна выглядеть цветом, который выбрал
+ * пользователь.
  */
 const GRUVBOX_DARK_NOTE_TONES: ReaderNoteTones = {
-  yellow: 'rgba(250, 189, 47, 0.35)',
-  green: 'rgba(184, 187, 38, 0.4)',
-  blue: 'rgba(131, 165, 152, 0.45)',
-  red: 'rgba(251, 73, 52, 0.35)',
-  purple: 'rgba(211, 134, 155, 0.45)',
-  black: 'rgba(168, 153, 132, 0.45)',
+  yellow: 'rgba(214, 158, 46, 0.4)',
+  green: 'rgba(104, 168, 74, 0.45)',
+  blue: 'rgba(69, 118, 176, 0.5)',
+  red: 'rgba(198, 64, 58, 0.4)',
+  purple: 'rgba(150, 96, 196, 0.45)',
 };
 
-/** Тёмные тона заметок палитры Mist: насыщенные базовые цвета при низкой
- * прозрачности — тот же приём, что и у Gruvbox. */
+/** Тёмные тона заметок палитры Mist: те же верные оттенки, приглушённые
+ * полупрозрачностью — тот же приём, что и у Gruvbox. */
 const MIST_DARK_NOTE_TONES: ReaderNoteTones = {
-  yellow: 'rgba(234, 179, 8, 0.35)',
-  green: 'rgba(34, 197, 94, 0.35)',
-  blue: 'rgba(59, 130, 246, 0.4)',
-  red: 'rgba(239, 68, 68, 0.35)',
-  purple: 'rgba(168, 85, 247, 0.4)',
-  black: 'rgba(148, 163, 184, 0.45)',
+  yellow: 'rgba(202, 150, 40, 0.4)',
+  green: 'rgba(74, 158, 96, 0.45)',
+  blue: 'rgba(70, 120, 190, 0.5)',
+  red: 'rgba(206, 70, 70, 0.4)',
+  purple: 'rgba(146, 96, 190, 0.45)',
 };
 
 /** Мягкие тона заметок для палитры и стороны темы области чтения. */
@@ -131,6 +139,72 @@ export function readerThemeNoteTones(
     return LIGHT_NOTE_TONES;
   }
   return palette === 'mist' ? MIST_DARK_NOTE_TONES : GRUVBOX_DARK_NOTE_TONES;
+}
+
+/** Каналы цвета: компоненты 0..255 и прозрачность 0..1. */
+interface ColorChannels {
+  /** Красный канал. */
+  red: number;
+  /** Зелёный канал. */
+  green: number;
+  /** Синий канал. */
+  blue: number;
+  /** Прозрачность. */
+  alpha: number;
+}
+
+/** Разбор цвета `#rrggbb` или `rgb()/rgba()` в каналы; `null` — неизвестный формат. */
+function parseColorChannels(value: string): ColorChannels | null {
+  const trimmed = value.trim();
+  const hex = trimmed.match(/^#([0-9a-f]{6})$/i);
+  if (hex) {
+    const number = Number.parseInt(hex[1], 16);
+    return { red: (number >> 16) & 255, green: (number >> 8) & 255, blue: number & 255, alpha: 1 };
+  }
+  const rgb = trimmed.match(
+    /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i,
+  );
+  if (!rgb) {
+    return null;
+  }
+  return {
+    red: Number(rgb[1]),
+    green: Number(rgb[2]),
+    blue: Number(rgb[3]),
+    alpha: rgb[4] ? Number(rgb[4]) : 1,
+  };
+}
+
+/** Непрозрачный эквивалент тона поверх фона.
+ *
+ * Полупрозрачный тон, положенный на сплошной фон области чтения, даёт тот же
+ * видимый цвет, что и смешение вручную. Для подсветки заметки в EPUB это
+ * важно: её фон рисуется перенесёнными кусками, которые при дробном масштабе
+ * перекрываются, а наложение полупрозрачных слоёв складывало бы альфу и давало
+ * тёмную полосу на стыке. Непрозрачный цвет такой шов не показывает.
+ */
+export function blendNoteToneOverBackground(tone: string, background: string): string {
+  const foreground = parseColorChannels(tone);
+  const backdrop = parseColorChannels(background);
+  if (!foreground || !backdrop) {
+    return tone;
+  }
+  const mix = (back: number, front: number): number =>
+    Math.round(foreground.alpha * front + (1 - foreground.alpha) * back);
+  return `rgb(${mix(backdrop.red, foreground.red)}, ${mix(backdrop.green, foreground.green)}, ${mix(backdrop.blue, foreground.blue)})`;
+}
+
+/** Непрозрачные тона заметок для сплошного фона области чтения.
+ *
+ * Используются только подсветкой цитаты в EPUB (см. `blendNoteToneOverBackground`);
+ * карточки, фигуры и PDF сохраняют исходные полупрозрачные тона.
+ */
+export function solidNoteTones(tones: ReaderNoteTones, background: string): ReaderNoteTones {
+  const solid = {} as ReaderNoteTones;
+  for (const color of READER_NOTE_COLOR_IDS) {
+    solid[color] = blendNoteToneOverBackground(tones[color], background);
+  }
+  return solid;
 }
 
 /** Цвета перекраски страницы книги в тёмной теме.
@@ -174,6 +248,10 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     // Выделение в тон тёплой Gruvbox: приглушённый стально-синий, а не
     // стерильный системный синий. В PDF ложится умножением на светлую страницу.
     selection: 'rgba(96, 140, 180, 0.35)',
+    // Метки по краям живого выделения: тот же синий, но плотнее фоновой заливки,
+    // чтобы признак читался без опоры только на цвет.
+    selectionEdge: 'rgba(60, 100, 145, 0.9)',
+    selectionEdgeWidth: 2,
   },
   mist: {
     background: '#ffffff',
@@ -182,6 +260,8 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     link: '#2563eb',
     // Выделение Mist — привычный синеватый цвет.
     selection: 'rgba(59, 130, 246, 0.32)',
+    selectionEdge: 'rgba(37, 99, 235, 0.9)',
+    selectionEdgeWidth: 2,
   },
 };
 
@@ -195,6 +275,8 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     // На тёмной странице заливка ложится осветлением: цвет светлее и чуть
     // плотнее, чтобы выделение читалось на тёмной бумаге и не уходило в фиолет.
     selection: 'rgba(120, 160, 195, 0.33)',
+    selectionEdge: 'rgba(150, 190, 220, 0.9)',
+    selectionEdgeWidth: 2,
   },
   mist: {
     background: '#16191c',
@@ -202,5 +284,7 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     muted: '#8b949b',
     link: '#7aa2d6',
     selection: 'rgba(96, 165, 250, 0.33)',
+    selectionEdge: 'rgba(147, 197, 253, 0.9)',
+    selectionEdgeWidth: 2,
   },
 };

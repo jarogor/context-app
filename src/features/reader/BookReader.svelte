@@ -48,6 +48,7 @@
     rangeHandleRect,
   } from './reader/geometry';
   import { applyZoom, captureAnchor, restoreAnchor } from './reader/zoom-anchor';
+  import { clearSelectionLayer, renderSelectionLayer } from './reader/selection';
 
   interface Props {
     /** Содержимое книги главами. */
@@ -1105,12 +1106,23 @@
     }
   }
 
-  /** Отмена меню при снятии выделения (клик мимо, клавиатура, другая книга). */
+  /** Отмена меню при снятии выделения и перерисовка признака выделения.
+   *
+   * Слой активного выделения рисуется при каждом изменении выделения: он
+   * показывает, что это живое выделение, а не подсветка заметки. Снятие выделения
+   * снимает и слой.
+   */
   function handleSelectionChange(): void {
+    const value = document();
+    const selection = value?.getSelection();
+    const range =
+      value && selection && !selection.isCollapsed && selection.rangeCount > 0
+        ? selection.getRangeAt(0)
+        : null;
+    renderSelectionLayer(value, range);
     if (!pendingAnchor) {
       return;
     }
-    const selection = document()?.getSelection();
     if (!selection || selection.isCollapsed) {
       pendingAnchor = null;
       menuPosition = null;
@@ -1197,6 +1209,7 @@
     if (startPosition > 0) {
       gotoPercent(startPosition);
     }
+    clearSelectionLayer(value);
     drawNotes();
     handleScroll();
     captureAnchorNow();
@@ -1239,6 +1252,8 @@
     const value = zoom;
     if (doc) {
       applyZoom(doc, value);
+      // Перестройка текста сдвигает прямоугольники: слой выделения устаревает.
+      clearSelectionLayer(doc);
       captureAnchorNow();
     }
   });

@@ -17,12 +17,12 @@ async function builtDocument(props: Record<string, unknown> = {}): Promise<strin
 }
 
 describe('BookReader: документ книги', () => {
-    it('содержит правило цвета для всех цветов палитры, включая чёрный', async () => {
+    it('содержит правило цвета для всех цветов палитры', async () => {
         const html = await builtDocument();
         for (const color of NOTE_COLORS) {
             expect(html).toContain(`data-color="${color}"`);
         }
-        expect(NOTE_COLORS).toContain('black');
+        expect(NOTE_COLORS).not.toContain('black');
     });
 
     it('содержит стили карточек и фигур', async () => {
@@ -41,5 +41,16 @@ describe('BookReader: документ книги', () => {
     it('передаёт выбранную тему области чтения в документ', async () => {
         const html = await builtDocument({ readerTheme: 'dark' });
         expect(html).toContain('data-reader-theme="dark"');
+    });
+
+    it('содержит слой активного выделения с метками по краям', async () => {
+        const html = await builtDocument();
+        expect(html).toContain('.texture-selection-layer');
+        expect(html).toContain('.texture-selection-band');
+        // Метки привязаны именно к полосе выделения, а не к подсветке заметки,
+        // и стоят только у краёв всего выделения.
+        expect(html).toContain('.texture-selection-band[data-edge="start"]::before');
+        expect(html).toContain('.texture-selection-band[data-edge="end"]::after');
+        expect(html).not.toContain('.texture-note::before');
     });
 });

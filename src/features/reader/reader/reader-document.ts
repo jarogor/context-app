@@ -18,6 +18,7 @@ import {
   READER_NOTE_COLOR_IDS,
   readerThemeNoteTones,
   readerThemeTokens,
+  solidNoteTones,
   type PaletteId,
   type ReaderThemeId,
 } from '@texture/ui';
@@ -30,6 +31,10 @@ export const NOTE_CLASS = 'texture-note';
 export const FLASH_CLASS = 'texture-note-flash';
 /** Класс превью подсветки при правке границ цитаты. */
 export const NOTE_PREVIEW_CLASS = 'texture-resize-preview';
+/** Класс слоя активного выделения текста. */
+export const SELECTION_LAYER_CLASS = 'texture-selection-layer';
+/** Класс полосы активного выделения. */
+export const SELECTION_BAND_CLASS = 'texture-selection-band';
 /** Класс раздела главы книги. */
 export const CHAPTER_CLASS = 'texture-chapter';
 /** Отступ сверху до опорной строки при масштабировании, в пикселях. */
@@ -47,13 +52,20 @@ export interface ReaderDocumentOptions {
 function themeVariables(palette: PaletteId, id: ReaderThemeId): string {
   const tokens = readerThemeTokens(palette, id);
   const tones = readerThemeNoteTones(palette, id);
+  const solid = solidNoteTones(tones, tokens.background);
   return [
     `--rt-background:${tokens.background};`,
     `--rt-foreground:${tokens.text};`,
     `--rt-muted:${tokens.muted};`,
     `--rt-link:${tokens.link};`,
     `--rt-selection:${tokens.selection};`,
+    `--rt-selection-edge:${tokens.selectionEdge};`,
+    `--rt-selection-edge-width:${tokens.selectionEdgeWidth}px;`,
     ...READER_NOTE_COLOR_IDS.map((color) => `--note-${color}:${tones[color]};`),
+    // Непрозрачный эквивалент тона для подсветки цитаты: её фон рисуется
+    // перенесёнными кусками, которые при дробном масштабе перекрываются, и
+    // полупрозрачный тон давал бы тёмную полосу на стыке (см. highlight.ts).
+    ...READER_NOTE_COLOR_IDS.map((color) => `--note-solid-${color}:${solid[color]};`),
   ].join('');
 }
 
@@ -62,7 +74,7 @@ function buildStyle(palette: PaletteId): string {
   const light = themeVariables(palette, 'light');
   const dark = themeVariables(palette, 'dark');
   return [
-    'html{font-size:100%;}',
+    'html{font-size:100%;position:relative;}',
     // Светлая сторона — база; сторона выбирается атрибутом на корне и меняется
     // без пересборки документа.
     `html{${light}}`,
@@ -78,16 +90,44 @@ function buildStyle(palette: PaletteId): string {
     // меняется на прицел, а протяжка не выделяет текст под собой.
     'body[data-tool="text"],body[data-tool="shape"]{cursor:crosshair;user-select:none;}',
     'body[data-tool="text"] *,body[data-tool="shape"] *{cursor:crosshair;}',
-    // Выделение текста — синеватое, из темы области чтения: на тёмной стороне
-    // оно светлее и плотнее, чтобы читаться так же ясно, как на светлой.
-    '::selection{background:var(--rt-selection);}',
-    `.${NOTE_CLASS}{border-radius:2px;cursor:pointer;}`,
-    `.${NOTE_CLASS}[data-color="yellow"]{background:var(--note-yellow);}`,
-    `.${NOTE_CLASS}[data-color="green"]{background:var(--note-green);}`,
-    `.${NOTE_CLASS}[data-color="blue"]{background:var(--note-blue);}`,
-    `.${NOTE_CLASS}[data-color="red"]{background:var(--note-red);}`,
-    `.${NOTE_CLASS}[data-color="purple"]{background:var(--note-purple);}`,
-    `.${NOTE_CLASS}[data-color="black"]{background:var(--note-black);}`,
+    // Заливку выделения рисует собственный слой (как в PDF), а не браузер:
+    // разные движки красят `::selection` по-разному (по высоте строки или по
+    // рамке глифов), поэтому своя полоса не совпала бы с нативной. Нативное
+    // выделение делается прозрачным и остаётся средством копирования.
+    '::selection{background:transparent;}',
+    // Признак активного выделения: собственный слой поверх глав с полосами по
+    // строкам диапазона и вертикальными метками по их краям. Заливка и метки —
+    // один элемент, поэтому совпадают на любом движке. Слой показывает, что это
+    // живое выделение, а не подсветка заметки (у подсветки меток нет).
+    `.${SELECTION_LAYER_CLASS}{position:absolute;left:0;top:0;pointer-events:none;z-index:1;`,
+    `mix-blend-mode:multiply;}`,
+    `html[data-reader-theme='dark'] .${SELECTION_LAYER_CLASS}{mix-blend-mode:screen;}`,
+    `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:2px;background:var(--rt-selection);}`,
+    `.${SELECTION_BAND_CLASS}::before,.${SELECTION_BAND_CLASS}::after{content:none;position:absolute;`,
+    `top:-1px;bottom:-1px;width:var(--rt-selection-edge-width,2px);`,
+    `background:var(--rt-selection-edge);border-radius:1px;}`,
+    // Метки стоят у краёв всего выделения: левая — в начале, правая — в конце.
+    // У промежуточных строк меток нет, иначе они читаются как отдельные выделения
+    // (особенно при строках разной длины).
+    `.${SELECTION_BAND_CLASS}[data-edge="start"]::before,.${SELECTION_BAND_CLASS}[data-edge="both"]::before{content:"";left:0;}`,
+    `.${SELECTION_BAND_CLASS}[data-edge="end"]::after,.${SELECTION_BAND_CLASS}[data-edge="both"]::after{content:"";right:0;}`,
+    // Цвет текста подсветки не меняется: браузерный стиль `<mark>` иначе
+    // закрашивает выделенный текст чёрным (`MarkText`) и на тёмной стороне он
+    // выпадает из темы. В PDF текст — часть растра и остаётся цветом темы, так
+    // что наследование делает обе поверхности одинаковыми. `box-decoration-break`
+    // в `clone` даёт каждому перенесённому куску подсветки свои вертикальные
+    // отступы (см. `fitMarkToLineHeight`): фон расширяется до высоты строки и
+    // полосы стыкуются встык, как в PDF.
+    `.${NOTE_CLASS}{border-radius:2px;cursor:pointer;color:inherit;`,
+    `box-decoration-break:clone;-webkit-box-decoration-break:clone;}`,
+    // Подсветка берёт непрозрачный эквивалент тона (`--note-solid-*`): куски
+    // подсветки перекрываются на доли пикселя (см. `fitMarkToLineHeight`), а
+    // полупрозрачные слои на стыке складывали бы альфу и давали тёмную полосу.
+    `.${NOTE_CLASS}[data-color="yellow"]{background:var(--note-solid-yellow);}`,
+    `.${NOTE_CLASS}[data-color="green"]{background:var(--note-solid-green);}`,
+    `.${NOTE_CLASS}[data-color="blue"]{background:var(--note-solid-blue);}`,
+    `.${NOTE_CLASS}[data-color="red"]{background:var(--note-solid-red);}`,
+    `.${NOTE_CLASS}[data-color="purple"]{background:var(--note-solid-purple);}`,
     `.${CHAPTER_CLASS}{position:relative;}`,
     // Карточка окрашена тем же мягким тоном, что цитата и фигура: цвет заметки
     // одинаков на всех поверхностях, без тени и тёмной полосы.
@@ -98,7 +138,6 @@ function buildStyle(palette: PaletteId): string {
     '.texture-note-card[data-color="blue"]{background:var(--note-blue);}',
     '.texture-note-card[data-color="red"]{background:var(--note-red);}',
     '.texture-note-card[data-color="purple"]{background:var(--note-purple);}',
-    '.texture-note-card[data-color="black"]{background:var(--note-black);}',
     // Слой фигуры позиционируется по рамке самой фигуры (инлайн-стили из
     // `renderShape`), а не растягивается на всю главу: у высоких глав WebKit
     // не рисует слишком большой композитный слой. Умножение задано здесь:
@@ -133,8 +172,6 @@ function buildStyle(palette: PaletteId): string {
     '.texture-note-shape[data-color="red"] line{stroke:var(--note-red);}',
     '.texture-note-shape[data-color="purple"] rect,.texture-note-shape[data-color="purple"] ellipse{fill:var(--note-purple);}',
     '.texture-note-shape[data-color="purple"] line{stroke:var(--note-purple);}',
-    '.texture-note-shape[data-color="black"] rect,.texture-note-shape[data-color="black"] ellipse{fill:var(--note-black);}',
-    '.texture-note-shape[data-color="black"] line{stroke:var(--note-black);}',
     // Вспышка при переходе к заметке: оранжевая, различима на обеих сторонах.
     `.${NOTE_CLASS}.${FLASH_CLASS}{background:#f59e0b;}`,
     `.texture-overlay.${FLASH_CLASS}{opacity:0.4;}`,

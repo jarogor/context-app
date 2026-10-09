@@ -30,12 +30,12 @@ describe('панель инструментов заметок', () => {
         expect(screen.getByTestId('note-tool-shape')).toBeTruthy();
     });
 
-    it('сообщает о выборе цвета, включая чёрный', async () => {
+    it('сообщает о выборе цвета', async () => {
         const onChange = vi.fn();
         render(NoteToolbar, { props: { tool: DEFAULT_NOTE_TOOL, onChange } });
 
-        await fireEvent.click(screen.getByRole('button', { name: 'чёрный' }));
-        expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_NOTE_TOOL, color: 'black' });
+        await fireEvent.click(screen.getByRole('button', { name: 'фиолетовый' }));
+        expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_NOTE_TOOL, color: 'purple' });
     });
 
     it('выстраивает элементы слева одной цепочкой: цвет, типы, вид фигуры', async () => {

@@ -28,7 +28,6 @@ export const NOTE_COLORS = [
     'blue',
     'red',
     'purple',
-    'black',
 ] as const;
 
 /** Идентификатор цвета подсветки заметки. */
@@ -41,14 +40,13 @@ export const NOTE_COLOR_LABELS: Record<NoteColor, string> = {
     blue: 'синий',
     red: 'красный',
     purple: 'фиолетовый',
-    black: 'чёрный',
 };
 
 /** Насыщенные акценты палитры: образцы выбора цвета (панель, меню, список).
  *
  * Один набор на все поверхности выбора: насыщенные базовые цвета, чтобы образец
- * был узнаваем. Для чёрного берётся почти чёрный. Сам вид заметки на странице и
- * её метка в списке берут мягкий тон (`NOTE_COLOR_HIGHLIGHTS`), а не этот акцент.
+ * был узнаваем. Сам вид заметки на странице и её метка в списке берут мягкий тон
+ * (`NOTE_COLOR_HIGHLIGHTS`), а не этот акцент.
  */
 export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
     yellow: '#eab308',
@@ -56,7 +54,6 @@ export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
     blue: '#2563eb',
     red: '#dc2626',
     purple: '#9333ea',
-    black: '#111827',
 };
 
 /** Мягкие тона заметок: фон цитаты, заливка фигуры и карточки, метка списка.

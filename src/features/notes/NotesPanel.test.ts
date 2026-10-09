@@ -251,8 +251,8 @@ describe('панель заметок-цитат', () => {
         });
 
         await fireEvent.pointerDown(screen.getByLabelText('Действия с заметкой'), { button: 0 });
-        await fireEvent.click(screen.getByTestId('menu-color-black'));
-        expect(onChangeColor).toHaveBeenCalledWith('note-1', 'black');
+        await fireEvent.click(screen.getByTestId('menu-color-purple'));
+        expect(onChangeColor).toHaveBeenCalledWith('note-1', 'purple');
     });
 
     it('переключает активный набор', async () => {

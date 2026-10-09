@@ -304,7 +304,7 @@ fn update_note_sets_and_clears_title_and_comment() {
 }
 
 #[test]
-fn add_note_applies_default_type_shape_and_black_color() {
+fn add_note_applies_default_type_shape_and_color() {
     let mut state = NotesState::new();
     state
         .create_set("lib/a", "", "A", "ns-a", 1)
@@ -318,17 +318,17 @@ fn add_note_applies_default_type_shape_and_black_color() {
     assert_eq!(note.shape, crate::models::DEFAULT_SHAPE);
     assert!(note.geometry.is_empty());
 
-    // Чёрный цвет принимается как часть палитры.
+    // Цвет из палитры принимается как есть.
     let input = NoteInput {
         note_type: Some("shape".to_string()),
-        color: Some("black".to_string()),
+        color: Some("purple".to_string()),
         shape: Some("ellipse".to_string()),
         geometry: "g".to_string(),
         ..NoteInput::default()
     };
     let note = state.add_note("ns-a", input, "note-2", 11).expect("фигура");
     assert_eq!(note.note_type, "shape");
-    assert_eq!(note.color, "black");
+    assert_eq!(note.color, "purple");
     assert_eq!(note.shape, "ellipse");
     assert_eq!(note.geometry, "g");
 }
@@ -440,7 +440,7 @@ fn normalized_shape_note_without_geometry_is_safe() {
 }
 
 #[test]
-fn normalized_accepts_black_color() {
+fn normalized_maps_removed_black_color_to_default() {
     let raw = r#"{
       "version": 1,
       "sets": [
@@ -454,7 +454,10 @@ fn normalized_accepts_black_color() {
     }"#;
     let state: NotesState = serde_json::from_str(raw).expect("разбор");
     let state = state.normalized();
-    assert_eq!(state.find("ns-1").expect("набор").notes[0].color, "black");
+    assert_eq!(
+        state.find("ns-1").expect("набор").notes[0].color,
+        crate::models::DEFAULT_NOTE_COLOR
+    );
 }
 
 #[test]

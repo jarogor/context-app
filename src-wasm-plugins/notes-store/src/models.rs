@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_NOTE_COLOR: &str = "yellow";
 
 /// Доступные цвета подсветки заметки.
-pub const NOTE_COLORS: [&str; 6] = ["yellow", "green", "blue", "red", "purple", "black"];
+pub const NOTE_COLORS: [&str; 5] = ["yellow", "green", "blue", "red", "purple"];
 
 /// Приведение цвета к палитре; неизвестное или пустое значение даёт цвет по умолчанию.
 pub fn normalize_color(value: &str) -> String {

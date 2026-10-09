@@ -41,7 +41,7 @@ function shapeNote(shape: 'line' | 'rectangle' | 'ellipse', overrides: Partial<N
             id: 'shape-1',
             type: 'shape',
             shape,
-            color: 'black',
+            color: 'purple',
             anchor: serializeAnchor(createAnchor({ kind: 'point', chapter: 0, x: 0.1, y: 0.1 })),
             geometry: serializeGeometry({ x1: 0.1, y1: 0.2, x2: 0.6, y2: 0.8 }),
         }),
@@ -125,7 +125,7 @@ describe('фигура', () => {
         const svg = root.querySelector(`.${NOTE_SHAPE_CLASS}`) as SVGElement;
         expect(svg.dataset.noteId).toBe('shape-1');
         expect(svg.dataset.shape).toBe('rectangle');
-        expect(svg.dataset.color).toBe('black');
+        expect(svg.dataset.color).toBe('purple');
     });
 
     it('слой занимает рамку фигуры, а не всю главу', () => {

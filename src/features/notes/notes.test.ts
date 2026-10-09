@@ -152,11 +152,11 @@ describe('нормализация', () => {
     });
 
     it('normalizeColor знает палитру и отбрасывает чужие значения', () => {
-        expect(NOTE_COLORS).toHaveLength(6);
-        expect(NOTE_COLORS).toContain('black');
+        expect(NOTE_COLORS).toHaveLength(5);
+        expect(NOTE_COLORS).not.toContain('black');
         expect(NOTE_COLORS).toContain('red');
         expect(normalizeColor('blue')).toBe('blue');
-        expect(normalizeColor('black')).toBe('black');
+        expect(normalizeColor('black')).toBe(DEFAULT_NOTE_COLOR);
         expect(normalizeColor('  purple  ')).toBe('purple');
         expect(normalizeColor('')).toBe(DEFAULT_NOTE_COLOR);
         expect(normalizeColor(undefined)).toBe(DEFAULT_NOTE_COLOR);
@@ -178,7 +178,7 @@ describe('нормализация', () => {
         // светло-жёлтая и для цитаты, и для текста, и для фигуры, поэтому тип
         // на цвет метки не влияет.
         expect(noteMarkerColor({ color: 'yellow' })).toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
-        expect(noteMarkerColor({ color: 'black' })).toBe(NOTE_COLOR_HIGHLIGHTS.black);
+        expect(noteMarkerColor({ color: 'purple' })).toBe(NOTE_COLOR_HIGHLIGHTS.purple);
         // Насыщенный акцент остаётся только у образцов выбора цвета.
         expect(NOTE_COLOR_SWATCHES.yellow).not.toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
     });
@@ -320,7 +320,7 @@ describe('операции плагина заметок', () => {
     it('добавляет текстовую карточку с якорем точки', async () => {
         invoke.mockResolvedValue(setResponse());
         const anchor = createAnchor({ kind: 'point', chapter: 1, x: 0.2, y: 0.3, percent: 4 });
-        await addTextNote('lib::book-1', 'ns-1', anchor, 'мысль', 'black');
+        await addTextNote('lib::book-1', 'ns-1', anchor, 'мысль', 'purple');
 
         expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
             capability: 'notes.store@1',
@@ -330,7 +330,7 @@ describe('операции плагина заметок', () => {
                 note: expect.objectContaining({
                     type: 'text',
                     text: 'мысль',
-                    color: 'black',
+                    color: 'purple',
                     anchor: serializeAnchor(anchor),
                 }),
             }),

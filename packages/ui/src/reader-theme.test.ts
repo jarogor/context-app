@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PALETTE, PALETTES } from './palettes';
 import {
   applyReaderTheme,
+  blendNoteToneOverBackground,
   DEFAULT_READER_THEME,
   isReaderThemeId,
   normalizeReaderThemeId,
@@ -10,6 +11,7 @@ import {
   readerPageColors,
   readerThemeNoteTones,
   readerThemeTokens,
+  solidNoteTones,
 } from './reader-theme';
 
 describe('нормализация темы области чтения', () => {
@@ -80,6 +82,19 @@ describe('readerThemeTokens', () => {
       expect(dark).not.toBe(light);
     }
   });
+
+  it('метки выделения заданы на обеих сторонах и плотнее заливки', () => {
+    for (const palette of PALETTES) {
+      const light = readerThemeTokens(palette.id, 'light');
+      const dark = readerThemeTokens(palette.id, 'dark');
+      for (const tokens of [light, dark]) {
+        expect(tokens.selectionEdge).toBeTruthy();
+        expect(tokens.selectionEdgeWidth).toBeGreaterThan(0);
+      }
+      // Тёмная сторона задана отдельным цветом для читаемости.
+      expect(dark.selectionEdge).not.toBe(light.selectionEdge);
+    }
+  });
 });
 
 describe('readerPageColors', () => {
@@ -110,10 +125,13 @@ describe('readerPageColors', () => {
 });
 
 describe('readerThemeNoteTones', () => {
-  it('светлая сторона совпадает с прежним набором', () => {
+  it('светлая сторона общая для палитр и задана для всех цветов', () => {
     const tones = readerThemeNoteTones('gruvbox', 'light');
-    expect(tones.yellow).toBe('#fde68a');
-    expect(tones.black).toBe('#d1d5db');
+    expect(tones.yellow).toBe('#f2cd52');
+    expect(tones.green).toBe('#82d991');
+    expect(tones.blue).toBe('#84adf0');
+    expect(tones.red).toBe('#ef817b');
+    expect(tones.purple).toBe('#bba0e8');
     expect(readerThemeNoteTones('mist', 'light')).toEqual(tones);
   });
 
@@ -131,6 +149,42 @@ describe('readerThemeNoteTones', () => {
   it('тёмные тона заметок различимы между собой', () => {
     const dark = readerThemeNoteTones('gruvbox', 'dark');
     const values = READER_NOTE_COLOR_IDS.map((color) => dark[color]);
+    expect(new Set(values).size).toBe(values.length);
+  });
+});
+
+describe('blendNoteToneOverBackground', () => {
+  it('смешивает полупрозрачный тон с фоном в непрозрачный цвет', () => {
+    // 0.5 прозрачности между белым фоном и чёрным тоном даёт серый.
+    expect(blendNoteToneOverBackground('rgba(0, 0, 0, 0.5)', '#ffffff')).toBe('rgb(128, 128, 128)');
+  });
+
+  it('непрозрачный тон оставляет как есть', () => {
+    expect(blendNoteToneOverBackground('#f2cd52', '#ffffff')).toBe('rgb(242, 205, 82)');
+  });
+
+  it('неизвестный формат возвращает исходное значение', () => {
+    expect(blendNoteToneOverBackground('var(--x)', '#ffffff')).toBe('var(--x)');
+  });
+});
+
+describe('solidNoteTones', () => {
+  it('для каждого цвета даёт непрозрачный цвет, отличный от фона', () => {
+    for (const palette of PALETTES) {
+      const tones = readerThemeNoteTones(palette.id, 'dark');
+      const background = readerThemeTokens(palette.id, 'dark').background;
+      const solid = solidNoteTones(tones, background);
+      for (const color of READER_NOTE_COLOR_IDS) {
+        expect(solid[color]).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
+        expect(solid[color]).not.toBe(background);
+      }
+    }
+  });
+
+  it('сохраняет различие цветов тёмной стороны', () => {
+    const tones = readerThemeNoteTones('gruvbox', 'dark');
+    const solid = solidNoteTones(tones, readerThemeTokens('gruvbox', 'dark').background);
+    const values = READER_NOTE_COLOR_IDS.map((color) => solid[color]);
     expect(new Set(values).size).toBe(values.length);
   });
 });

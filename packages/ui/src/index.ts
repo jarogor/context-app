@@ -51,6 +51,7 @@ export {
 } from './palettes';
 export {
   applyReaderTheme,
+  blendNoteToneOverBackground,
   DEFAULT_READER_THEME,
   isReaderThemeId,
   normalizeReaderThemeId,
@@ -59,6 +60,7 @@ export {
   readerPageColors,
   readerThemeNoteTones,
   readerThemeTokens,
+  solidNoteTones,
   type ReaderNoteColorId,
   type ReaderNoteTones,
   type ReaderPageColors,

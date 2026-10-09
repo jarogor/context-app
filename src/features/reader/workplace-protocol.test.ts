@@ -151,7 +151,7 @@ describe('протокол рабочего места: тема области 
     const light = buildReaderThemeMessage('mist', 'light');
     expect(light.value.id).toBe('light');
     expect(light.value.tokens.background).toBe('#ffffff');
-    expect(light.value.notes.yellow).toBe('#fde68a');
+    expect(light.value.notes.yellow).toBe('#f2cd52');
   });
 
   it('стороны различаются фоном и тонами заметок', () => {

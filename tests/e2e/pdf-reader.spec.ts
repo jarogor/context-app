@@ -805,6 +805,23 @@ test('выделение текста ложится ровными полоса
         .locator('.selection-layer')
         .evaluate((element) => getComputedStyle(element).mixBlendMode);
     expect(blend).toBe('multiply');
+    // Признак живого выделения: у каждой полосы по краям вертикальные метки,
+    // отличающие выделение от подсветки заметки.
+    const edges = await content(page)
+        .locator('.selection-band')
+        .first()
+        .evaluate((band) => {
+            const before = getComputedStyle(band, '::before');
+            const after = getComputedStyle(band, '::after');
+            return {
+                beforeWidth: before.width,
+                afterWidth: after.width,
+                beforeColor: before.backgroundColor,
+            };
+        });
+    expect(edges.beforeWidth).not.toBe('0px');
+    expect(edges.afterWidth).not.toBe('0px');
+    expect(edges.beforeColor).not.toBe('rgba(0, 0, 0, 0)');
 });
 
 test('меню заметки закрывается при снятии выделения', async ({ page }) => {

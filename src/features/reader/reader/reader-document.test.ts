@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NOTE_COLORS } from '../../notes/notes';
-import { buildDocument, CHAPTER_CLASS, FLASH_CLASS, NOTE_CLASS } from './reader-document';
+import { buildDocument, CHAPTER_CLASS, FLASH_CLASS, NOTE_CLASS, SELECTION_BAND_CLASS, SELECTION_LAYER_CLASS } from './reader-document';
 
 /** Документ с одной главой для проверки оформления. */
 function documentFor(html = '<p>Текст</p>'): string {
@@ -12,13 +12,21 @@ function documentFor(html = '<p>Текст</p>'): string {
 }
 
 describe('документ книги', () => {
-  it('содержит правило цвета для всех цветов палитры, включая чёрный', () => {
+  it('содержит правило цвета для всех цветов палитры', () => {
     const html = documentFor();
     for (const color of NOTE_COLORS) {
       expect(html).toContain(`data-color="${color}"`);
       expect(html).toContain(`--note-${color}:`);
     }
-    expect(NOTE_COLORS).toContain('black');
+    expect(NOTE_COLORS).not.toContain('black');
+  });
+
+  it('подсветка заметки берёт непрозрачный эквивалент тона', () => {
+    const html = documentFor();
+    // Полупрозрачные тона на перекрытии кусков давали бы тёмную полосу на стыке,
+    // поэтому фон подсветки задаётся отдельной непрозрачной переменной.
+    expect(html).toContain('--note-solid-yellow:');
+    expect(html).toContain('background:var(--note-solid-yellow)');
   });
 
   it('содержит стили карточек, фигур и подсветки', () => {
@@ -36,9 +44,25 @@ describe('документ книги', () => {
     // Базовая вёрстка берёт фон и текст из переменных темы области чтения.
     expect(html).toContain('background:var(--rt-background)');
     expect(html).toContain('color:var(--rt-foreground)');
-    // Выделение текста берёт цвет из темы области чтения.
-    expect(html).toContain('::selection{background:var(--rt-selection);}');
+    // Заливку рисует собственный слой (как в PDF), а нативное выделение
+    // прозрачно: движки красят `::selection` по-разному.
+    expect(html).toContain('::selection{background:transparent;}');
+    expect(html).toContain('.texture-selection-band{position:absolute;border-radius:2px;background:var(--rt-selection);}');
     expect(html).toContain('--rt-selection:');
+  });
+
+  it('содержит слой активного выделения и токены его меток', () => {
+    const html = documentFor();
+    expect(html).toContain(`.${SELECTION_LAYER_CLASS}`);
+    expect(html).toContain(`.${SELECTION_BAND_CLASS}`);
+    // Вертикальные метки — только у краёв всего выделения: левая в начале,
+    // правая в конце; у промежуточных строк меток нет.
+    expect(html).toContain(`[data-edge="start"]::before`);
+    expect(html).toContain(`[data-edge="end"]::after`);
+    expect(html).toContain(`[data-edge="both"]::before`);
+    expect(html).toContain(`[data-edge="both"]::after`);
+    expect(html).toContain('--rt-selection-edge');
+    expect(html).toContain('--rt-selection-edge-width');
   });
 
   it('проставляет стартовую тему области чтения на корень', () => {
