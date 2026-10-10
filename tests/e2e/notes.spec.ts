@@ -258,11 +258,17 @@ test('активное выделение показывает метки тол
     expect(edges.slice(1, -1).every((edge) => edge === 'none')).toBe(true);
 
     // Метка — на левом краю первой полосы, и у подсветки заметки её нет.
-    const leftWidth = await bookDocument(page)
+    // Метка сдвинута наружу от полосы на свою ширину: тогда она попадает в
+    // промежуток между буквами, а не ложится на глиф — как в плагине PDF.
+    const left = await bookDocument(page)
         .locator('.texture-selection-band')
         .first()
-        .evaluate((element) => getComputedStyle(element, '::before').width);
-    expect(leftWidth).not.toBe('0px');
+        .evaluate((element) => {
+            const edge = getComputedStyle(element, '::before');
+            return { width: edge.width, left: edge.left };
+        });
+    expect(left.width).not.toBe('0px');
+    expect(Number.parseFloat(left.left)).toBeLessThan(0);
 
     // Заливка и метки — один элемент слоя, поэтому их высоты совпадают
     // (нативное `::selection` прозрачно: движки красят его по-разному).

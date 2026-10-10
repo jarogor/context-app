@@ -74,6 +74,8 @@ test('масштаб меняет размер текста книги', async (
     await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
 
     await expect(page.getByTestId('reader-zoom')).toHaveText('110%');
+    // Управление масштабом принадлежит верхней панели чтения.
+    await expect(page.getByTestId('note-toolbar').getByTestId('reader-zoom')).toBeVisible();
     await expect
         .poll(async () => html.evaluate((element) => getComputedStyle(element).fontSize))
         .not.toBe(before);
@@ -170,14 +172,19 @@ test('переключатель меняет тему области чтени
     await expect(root).toHaveAttribute('data-reader-theme', 'light');
     await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
 
-    await page.getByLabel('Тёмная тема области чтения').click();
+    // Переключатель темы принадлежит верхней панели чтения.
+    const toggle = page.getByTestId('note-toolbar').getByTestId('reader-theme-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(page.getByTestId('reader-footer').getByTestId('reader-theme-toggle')).toHaveCount(0);
+
+    await toggle.getByRole('button', { name: 'Тёмная тема области чтения' }).click();
 
     await expect(root).toHaveAttribute('data-reader-theme', 'dark');
     await expect(readerHtml).toHaveAttribute('data-reader-theme', 'dark');
     // Интерфейсная тема независима и не меняется вместе с областью чтения.
     await expect(root).toHaveAttribute('data-theme', 'light');
 
-    await page.getByLabel('Светлая тема области чтения').click();
+    await toggle.getByRole('button', { name: 'Светлая тема области чтения' }).click();
     await expect(root).toHaveAttribute('data-reader-theme', 'light');
     await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
 });

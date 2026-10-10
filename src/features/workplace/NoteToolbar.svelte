@@ -1,5 +1,13 @@
 <script lang="ts">
-  import { Button, ColorPicker, Select, type ColorSwatch } from '@texture/ui';
+  import {
+    Button,
+    ColorPicker,
+    Icon,
+    Select,
+    DEFAULT_READER_THEME,
+    type ColorSwatch,
+    type ReaderThemeId,
+  } from '@texture/ui';
   import {
     NOTE_COLORS,
     NOTE_COLOR_LABELS,
@@ -21,9 +29,34 @@
     allowedTypes?: readonly NoteType[];
     /** Сообщение о выборе инструмента или цвета. */
     onChange: (tool: NoteTool) => void;
+    /** Текущий масштаб текста в процентах. */
+    zoom?: number;
+    /** Нижняя граница масштаба. */
+    minZoom?: number;
+    /** Верхняя граница масштаба. */
+    maxZoom?: number;
+    /** Поддерживает ли текущий формат изменение масштаба. */
+    showZoom?: boolean;
+    /** Текущая тема области чтения. */
+    readerTheme?: ReaderThemeId;
+    /** Изменение масштаба на заданную величину. */
+    onChangeZoom?: (delta: number) => void;
+    /** Переключение темы области чтения на противоположную. */
+    onChangeReaderTheme?: (theme: ReaderThemeId) => void;
   }
 
-  let { tool, allowedTypes = NOTE_TYPES, onChange }: Props = $props();
+  let {
+    tool,
+    allowedTypes = NOTE_TYPES,
+    onChange,
+    zoom = 100,
+    minZoom = 60,
+    maxZoom = 220,
+    showZoom = true,
+    readerTheme = DEFAULT_READER_THEME,
+    onChangeZoom,
+    onChangeReaderTheme,
+  }: Props = $props();
 
   /** Варианты видов фигур для выпадающего списка. */
   const shapeOptions = $derived(
@@ -41,6 +74,16 @@
       value: NOTE_COLOR_SWATCHES[color],
       selected: tool.color === color,
     })),
+  );
+
+  /** Подпись кнопки-переключателя: называет тему, на которую кнопка переключает. */
+  const themeLabel = $derived(
+    readerTheme === 'dark' ? 'Светлая тема области чтения' : 'Тёмная тема области чтения',
+  );
+
+  /** Подсказка кнопки-переключателя: описывает действие переключения. */
+  const themeTitle = $derived(
+    readerTheme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на тёмную тему',
   );
 
   /** Выбор типа заметки. */
@@ -61,13 +104,19 @@
       onChange({ ...tool, color });
     }
   }
+
+  /** Переключение темы области чтения на противоположную. */
+  function toggleReaderTheme() {
+    onChangeReaderTheme?.(readerTheme === 'dark' ? 'light' : 'dark');
+  }
 </script>
 
 <!--
-  Панель выровнена влево единым рядом: сначала палитра цветов, затем типы
-  заметок и сразу за ними вид фигуры. Всё идёт слева одной логической цепочкой
-  (цвет → тип → вид фигуры), поэтому на широких экранах элементы не расходятся
-  по краям и читаются как одна группа.
+  Верхняя панель чтения. Слева выстроена единая логическая цепочка инструментов
+  заметок: палитра цветов, затем типы заметок и сразу за ними вид фигуры. Справа
+  отдельной группой (`ml-auto`) прижато управление чтением: масштаб текста и
+  кнопка-переключатель темы области чтения. Так инструменты заметок читаются как
+  одна группа слева, а настройки вида — как отдельная группа справа.
 -->
 <div
   class="flex h-10 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-2"
@@ -107,4 +156,37 @@
       />
     </div>
   {/if}
+
+  <div class="ml-auto flex items-center gap-1" data-testid="note-toolbar-reading">
+    {#if showZoom}
+      <Button
+        size="icon"
+        variant="ghost"
+        title="Уменьшить масштаб"
+        ariaLabel="Уменьшить масштаб"
+        disabled={zoom <= minZoom}
+        onclick={() => onChangeZoom?.(-10)}>−</Button
+      >
+      <span class="min-w-[48px] text-center" data-testid="reader-zoom">{zoom}%</span>
+      <Button
+        size="icon"
+        variant="ghost"
+        title="Увеличить масштаб"
+        ariaLabel="Увеличить масштаб"
+        disabled={zoom >= maxZoom}
+        onclick={() => onChangeZoom?.(10)}>+</Button
+      >
+    {/if}
+    <div class="flex items-center gap-1" data-testid="reader-theme-toggle">
+      <Button
+        size="icon"
+        variant="ghost"
+        title={themeTitle}
+        ariaLabel={themeLabel}
+        onclick={toggleReaderTheme}
+      >
+        <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
+      </Button>
+    </div>
+  </div>
 </div>

@@ -37,6 +37,13 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        /* Контейнер растягивается под самую широкую страницу, поэтому страница
+           шире области чтения переполняет контейнер вправо (достижима прокруткой),
+           а не влево (левая часть такой страницы была бы обрезана и недостижима).
+           При страницах уже области чтения min-width удерживает ширину окна, и
+           страницы центрируются. */
+        width: max-content;
+        min-width: 100%;
         gap: 12px;
         padding: 16px 0;
       }
@@ -242,7 +249,17 @@
         position: absolute;
         inset: 0;
         overflow: hidden;
+        /* Свойства ниже выравнивают метрики слоя с официальным просмотрщиком
+           pdf.js: без них унаследованные от оболочки `letter-spacing`/
+           `word-spacing`/`text-align`/`text-size-adjust` сдвигали бы глифы
+           относительно прямоугольников выделения. */
+        text-align: initial;
         line-height: 1;
+        letter-spacing: normal;
+        word-spacing: normal;
+        text-size-adjust: none;
+        -webkit-text-size-adjust: none;
+        transform-origin: 0 0;
       }
       .textLayer span,
       .textLayer br {
@@ -259,22 +276,36 @@
       .textLayer ::selection {
         background: transparent;
       }
-      /* Слой выделения: слитые и обрезанные по стыкам полосы строк. Заливка
+      /* Слой выделения: заливка по строкам и вертикальные метки по краям всего
+         выделения. Заливка — один элемент во всю страницу, обрезанный по
+         прямоугольникам диапазона (как в официальном просмотрщике pdf.js): сырые
+         прямоугольники строк могут перекрываться по высоте, а единая маска не даёт
+         заливке темнеть на стыках и не сужает полосы до середины букв. Заливка
          ложится на страницу умножением (на тёмной стороне — осветлением), как
          подсветка цитаты, поэтому растр текста остаётся чётким. */
       .selection-layer {
         position: absolute;
         inset: 0;
         pointer-events: none;
+      }
+      .selection-layer .selection-fill {
+        position: absolute;
+        inset: 0;
+        background: var(--reader-selection, rgba(37, 99, 235, 0.35));
         mix-blend-mode: multiply;
       }
-      html[data-reader-theme='dark'] .selection-layer {
+      .selection-layer .selection-fill svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      html[data-reader-theme='dark'] .selection-layer .selection-fill {
         mix-blend-mode: screen;
       }
       .selection-layer .selection-band {
         position: absolute;
-        background: var(--reader-selection, rgba(37, 99, 235, 0.35));
-        border-radius: 2px;
+        pointer-events: none;
       }
       /* Признак активного выделения: вертикальные метки по краям полос — «курсоры»
          выделения. Отличают живое выделение от подсветки заметки (та меток не
@@ -282,7 +313,7 @@
          с наложением, поэтому остаются чёткими на растре. */
       .selection-layer .selection-band::before,
       .selection-layer .selection-band::after {
-        content: '';
+        content: none;
         position: absolute;
         top: -1px;
         bottom: -1px;
@@ -290,11 +321,20 @@
         background: var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
         border-radius: 1px;
       }
-      .selection-layer .selection-band::before {
-        left: 0;
+      /* Метки стоят у краёв всего выделения: левая — в начале, правая — в конце.
+         У промежуточных строк меток нет, иначе они читаются как отдельные
+         выделения (особенно при строках разной длины). Метка сдвинута НАРУЖУ от
+         полосы на свою ширину: тогда она попадает в промежуток между буквами
+         (перед первой и после последней буквой выделения), а не ложится на глиф. */
+      .selection-layer .selection-band[data-edge='start']::before,
+      .selection-layer .selection-band[data-edge='both']::before {
+        content: '';
+        left: calc(-1 * var(--reader-selection-edge-width, 2px));
       }
-      .selection-layer .selection-band::after {
-        right: 0;
+      .selection-layer .selection-band[data-edge='end']::after,
+      .selection-layer .selection-band[data-edge='both']::after {
+        content: '';
+        right: calc(-1 * var(--reader-selection-edge-width, 2px));
       }
       /* Инструменты текста и фигуры не работают с выделением: прицел вместо
          текстового курсора и запрет выделения текста под протяжкой. */
@@ -379,6 +419,14 @@
       let renderEpoch = 0;
       /** Сторона темы области чтения: `light` или `dark`. */
       let readerTheme = 'light';
+      /** Отпечаток раскраски страниц: сторона темы и цвета бумаги/текста.
+       *
+       * Нарисованный растр хранит отпечаток, под который он сделан
+       * (`entry.paint`). Пока отпечаток совпадает с текущим, страница верна и
+       * перерисовки не требует; по смене — перерисовывается при первой же
+       * возможности (когда окажется видимой), не полагаясь на конкретное
+       * событие. */
+      let paintKey = '';
       /** Запас вокруг видимой области страницы для канваса, CSS px. */
       const WINDOW_MARGIN = 512;
       /** Минимальная длина стороны канваса, CSS px. */
@@ -397,6 +445,8 @@
       let scheduled = false;
       /** Отложенный пересчёт окна канвасов после прокрутки. */
       let windowScheduled = false;
+      /** Счётчик идентификаторов масок заливки выделения (уникальны на документ). */
+      let selectionClipId = 0;
 
       function post(message) {
         message.channel = CHANNEL;
@@ -682,7 +732,7 @@
 
         const textLayerEl = document.createElement('div');
         textLayerEl.className = 'textLayer';
-        const entry = { canvas, textLayer: textLayerEl, info };
+        const entry = { canvas, textLayer: textLayerEl, info, paint: paintKey };
 
         // Дополнительное преобразование сдвигает страницу в начало координат
         // окна (её левый верх не совпадает с углом страницы) и задаёт плотность
@@ -781,10 +831,6 @@
         windowScheduled = false;
         const viewerRect = viewer.getBoundingClientRect();
         for (const pageEl of pagesEl.children) {
-          const entry = rendered.get(pageEl);
-          if (!entry) {
-            continue;
-          }
           const index = Number(pageEl.dataset.page) - 1;
           if (!naturalSizes[index]) {
             continue;
@@ -795,6 +841,17 @@
           const interLeft = Math.max(rect.left, viewerRect.left);
           const interRight = Math.min(rect.right, viewerRect.right);
           if (interBottom <= interTop || interRight <= interLeft) {
+            continue;
+          }
+          const entry = rendered.get(pageEl);
+          // Растр под прежний отпечаток раскраски (смена темы/палитры в скрытой
+          // области или на другой странице) устарел: перерисовываем при первой
+          // видимости — и при прокрутке, и при переходе на страницу. Старый
+          // канвас удерживается до готовности нового, чтобы не обнажать пустоту.
+          const stalePaint = entry ? entry.paint !== paintKey : false;
+          if (!entry || stalePaint) {
+            const stale = entry ? detachForRerender(pageEl) : null;
+            void renderPage(pageEl, stale);
             continue;
           }
           // Видимая область и окно канваса — в одной системе: CSS-пиксели
@@ -919,7 +976,6 @@
        */
       function applyReaderTheme(value) {
         const theme = value && value.id === 'dark' ? 'dark' : 'light';
-        const changed = theme !== readerTheme;
         readerTheme = theme;
         document.documentElement.dataset.readerTheme = theme;
         const tokens = (value && value.tokens) || {};
@@ -928,6 +984,13 @@
         // Цвета перекраски страницы: бумага и текст задаются темой (палитрой),
         // поэтому страница не уходит в нейтральный чёрный, а сохраняет оттенок.
         pageColors = createPageColors(value && value.page);
+        // Смена отпечатка раскраски означает, что уже нарисованные растры
+        // устарели: они перерисовываются при первой видимости. Событие смены
+        // темы может прийти в скрытой области, когда рисовать нечем, поэтому
+        // запоминается только сам отпечаток, а доводит отрисовку возврат
+        // видимости (сообщение `show` от хоста), наблюдатель размера или
+        // прокрутка — без ожидания конкретного события.
+        paintKey = theme + '|' + pageColors.paperCss + '|' + pageColors.inkCss;
         rootStyle.setProperty('--reader-background', tokens.background || '#ffffff');
         rootStyle.setProperty('--reader-foreground', tokens.text || '#1f2937');
         rootStyle.setProperty('--reader-muted-foreground', tokens.muted || '#6b7280');
@@ -955,21 +1018,40 @@
           noteTones[color] = tone;
           rootStyle.setProperty('--note-' + color, tone);
         }
-        if (changed && doc) {
-          // Растр перекрашивается при отрисовке: страницы выпускаются и
-          // рисуются заново, положение и масштаб сохраняются.
-          renderEpoch += 1;
-          for (const pageEl of pagesEl.children) {
-            releasePage(pageEl);
-          }
-          for (const pageEl of pagesEl.children) {
-            const rect = pageEl.getBoundingClientRect();
-            if (rect.bottom > -1200 && rect.top < window.innerHeight + 1200) {
-              void renderPage(pageEl);
-            }
-          }
-        }
+        repaintDirtyPages();
         redrawAllNotes();
+      }
+
+      /** Доведение отрисовки после смены раскраски или возврата видимости.
+       *
+       * Растр перекрашивается при отрисовке: устаревшие (под прежний отпечаток)
+       * страницы рисуются заново при первой видимости. Пока область содержимого
+       * скрыта (открыт раздел настроек), у неё нулевой размер — рисовать нечем,
+       * и пересчёт окон откладывается до появления размера (сообщение `show` от
+       * хоста или наблюдатель размера). */
+      function repaintDirtyPages() {
+        if (!doc) {
+          return;
+        }
+        // Пытаемся перерисовать сразу (размер области уже мог вернуться) и
+        // планируем пересчёт на кадр: если размер ещё не отдан раскладкой,
+        // повторим в следующем кадре, а наблюдатель размера подстрахует.
+        refreshWindows();
+        scheduleWindowRefresh();
+      }
+
+      /** Пробуждение прокрутки области после возврата видимости.
+       *
+       * В WebKitGTK область, чей предок побывал в `display: none`, после
+       * возврата может перестать считаться прокручиваемой, хотя содержимое выше
+       * окна: колесо прокручивает документ, а не страницу. Явная переустановка
+       * `overflow` заставляет движок пересчитать прокручиваемое переполнение;
+       * положение прокрутки при этом сохраняется. */
+      function wakeViewerScroll() {
+        const overflow = viewer.style.overflow;
+        viewer.style.overflow = 'hidden';
+        void viewer.offsetHeight;
+        viewer.style.overflow = overflow;
       }
 
       /** Разбор цвета вида `#rrggbb`; неподходящее значение даёт null. */
@@ -999,6 +1081,7 @@
           paper,
           ink,
           paperCss: `rgb(${paper.r}, ${paper.g}, ${paper.b})`,
+          inkCss: `rgb(${ink.r}, ${ink.g}, ${ink.b})`,
         };
       }
 
@@ -1733,15 +1816,102 @@
         };
       }
 
+      /** Группы-строки выделения по прямоугольникам диапазона.
+       *
+       * Куски одной строки объединяются по заметному вертикальному перекрытию, но
+       * верх/низ групп НЕ подрезаются друг под друга: заливку рисует единая маска
+       * по сырым прямоугольникам, поэтому перекрытие строк по высоте не темнеет,
+       * а полоса совпадает с тем, что подсветил бы браузер (как в официальном
+       * просмотрщике pdf.js) и не режет буквы посередине. Группы нужны только
+       * для вертикальных меток по краям всего выделения и для якоря заметки. */
+      function selectionBands(rects) {
+        const items = (rects || [])
+          .filter((rect) => rect.width > 0 && rect.height > 0)
+          .sort(
+            (a, b) => a.y + a.height / 2 - (b.y + b.height / 2) || a.x - b.x,
+          );
+        const lines = [];
+        for (const rect of items) {
+          const line = lines[lines.length - 1];
+          if (line) {
+            const overlap =
+              Math.min(line.bottom, rect.y + rect.height) - Math.max(line.top, rect.y);
+            const minHeight = Math.min(line.bottom - line.top, rect.height);
+            // Заметное вертикальное перекрытие — та же строка, сливаем её куски.
+            if (overlap > minHeight * 0.5) {
+              line.top = Math.min(line.top, rect.y);
+              line.bottom = Math.max(line.bottom, rect.y + rect.height);
+              line.x = Math.min(line.x, rect.x);
+              line.right = Math.max(line.right, rect.x + rect.width);
+              continue;
+            }
+          }
+          lines.push({
+            top: rect.y,
+            bottom: rect.y + rect.height,
+            x: rect.x,
+            right: rect.x + rect.width,
+          });
+        }
+        return lines
+          .filter((line) => line.right > line.x && line.bottom > line.top)
+          .map((line) => ({
+            x: line.x,
+            y: line.top,
+            width: line.right - line.x,
+            height: line.bottom - line.top,
+          }));
+      }
+
+      /** Прямоугольники диапазона в долях страницы, заданные `Range`. */
+      function selectionRects(range, pageBounds) {
+        const rects = [];
+        for (const bounds of range.getClientRects()) {
+          if (bounds.width <= 0 || bounds.height <= 0) {
+            continue;
+          }
+          rects.push(fractionRect(bounds, pageBounds));
+        }
+        return rects;
+      }
+
+      /** Маска заливки выделения: единый `clipPath` по прямоугольникам диапазона.
+       *
+       * Перекрывающиеся части строк объединяются одним контуром с правилом
+       * `nonzero`, поэтому заливка на стыках не темнеет, а полоса не сужается до
+       * середины букв. SVG лежит внутри заливаемого элемента, а `clipPath` задан в
+       * долях его рамки (`objectBoundingBox`) — то есть в долях страницы. */
+      function applyFillMask(fill, rects) {
+        const namespace = 'http://www.w3.org/2000/svg';
+        selectionClipId += 1;
+        const id = 'selection-clip-' + selectionClipId;
+        const svg = document.createElementNS(namespace, 'svg');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        const clip = document.createElementNS(namespace, 'clipPath');
+        clip.setAttribute('id', id);
+        clip.setAttribute('clipPathUnits', 'objectBoundingBox');
+        const path = document.createElementNS(namespace, 'path');
+        path.setAttribute('d', rects
+          .map((rect) => `M${rect.x} ${rect.y}h${rect.width}v${rect.height}h-${rect.width}Z`)
+          .join(' '));
+        clip.append(path);
+        svg.append(clip);
+        fill.style.clipPath = `url(#${id})`;
+        fill.append(svg);
+      }
+
       /** Перерисовка слоя выделения по текущему выделению текста.
        *
-       * Браузерная подсветка кладёт прямоугольник на каждую строку, и при
-       * плотном межстрочном интервале они перекрываются: на стыках заливка
-       * темнеет, а текст мутнеет. Поэтому полосы сливаются и обрезаются тем же
-       * приёмом, что и подсветки заметок (`lineRects`), а заливка ложится на
-       * страницу умножением (на тёмной стороне — осветлением): растр текста
-       * остаётся чётким. Само нативное выделение прозрачно и служит копированию.
-       */
+       * Заливка — единый элемент во всю страницу, обрезанный маской по сырым
+       * прямоугольникам диапазона (`Range.getClientRects`), как в официальном
+       * просмотрщике pdf.js: перекрытие строк по высоте не темнеет на стыках, а
+       * полоса совпадает с нативным выделением и не режет буквы. Вертикальные
+       * метки («курсоры») ставятся только у краёв всего выделения — по группам
+       * строк. Заливка ложится умножением (на тёмной стороне — осветлением), растр
+       * текста остаётся чётким. Само нативное выделение прозрачно и служит
+       * копированию. */
       function renderSelection() {
         // Слой выделения всегда один: снимаем прежний, не перебирая страницы.
         for (const stale of document.querySelectorAll('.selection-layer')) {
@@ -1763,28 +1933,32 @@
           return;
         }
         const pageBounds = pageEl.getBoundingClientRect();
-        const rects = [];
-        for (const bounds of range.getClientRects()) {
-          if (bounds.width <= 0 || bounds.height <= 0) {
-            continue;
-          }
-          rects.push(fractionRect(bounds, pageBounds));
-        }
-        const bands = lineRects(rects);
-        if (bands.length === 0) {
+        const rects = selectionRects(range, pageBounds);
+        if (rects.length === 0) {
           return;
         }
+        const bands = selectionBands(rects);
         const layer = document.createElement('div');
         layer.className = 'selection-layer';
-        for (const rect of bands) {
+        const fill = document.createElement('div');
+        fill.className = 'selection-fill';
+        applyFillMask(fill, rects);
+        layer.append(fill);
+        bands.forEach((rect, index) => {
           const band = document.createElement('div');
           band.className = 'selection-band';
           band.style.left = rect.x * 100 + '%';
           band.style.top = rect.y * 100 + '%';
           band.style.width = rect.width * 100 + '%';
           band.style.height = rect.height * 100 + '%';
+          // Метки — только у краёв всего выделения: левая в его начале, правая в
+          // конце. У промежуточных строк меток нет, иначе они читаются как
+          // отдельные выделения (особенно при строках разной длины).
+          const isStart = index === 0;
+          const isEnd = index === bands.length - 1;
+          band.dataset.edge = isStart && isEnd ? 'both' : isStart ? 'start' : isEnd ? 'end' : 'none';
           layer.append(band);
-        }
+        });
         // Слой лежит поверх канваса, но под оверлеем заметок.
         pageEl.insertBefore(layer, overlay);
       }
@@ -1809,13 +1983,7 @@
           return;
         }
         const pageBounds = pageEl.getBoundingClientRect();
-        const rects = [];
-        for (const bounds of range.getClientRects()) {
-          if (bounds.width <= 0 || bounds.height <= 0) {
-            continue;
-          }
-          rects.push(fractionRect(bounds, pageBounds));
-        }
+        const rects = selectionRects(range, pageBounds);
         if (rects.length === 0) {
           return;
         }
@@ -1833,7 +2001,7 @@
               quote,
               percent: scrollProgress(),
               page,
-              rects: lineRects(rects),
+              rects,
             },
             x: first.left,
             y: first.bottom,
@@ -2252,6 +2420,14 @@
           document.body.dataset.tool = tool.type;
         } else if (message.type === 'reader-theme') {
           applyReaderTheme(message.value);
+        } else if (message.type === 'show') {
+          // Область чтения снова видима: довести отрисовку под текущую
+          // раскраску. Смена темы могла прийти в скрытой области, когда
+          // рисовать было нечем, а наблюдатель размера в реальном webview
+          // срабатывает ненадёжно. Сообщение от хоста идёт сразу за
+          // возвратом видимости и перерисовывает «грязные» страницы.
+          wakeViewerScroll();
+          repaintDirtyPages();
         }
       });
 
@@ -2321,6 +2497,21 @@
         lastViewerHeight = viewer.clientHeight;
         scheduleWindowRefresh();
       });
+
+      /** Пересчёт окон при возврате размера области чтения.
+       *
+       * Пока рабочее место скрыто другим разделом (настройки, библиотека), у
+       * области нулевой размер: смена темы или плотности в это время выпускает
+       * страницы, но отрисовать их нечем. Наблюдатель размера срабатывает и при
+       * скрытии (размер уходит в ноль), и при возврате — по возврате окна
+       * пересчитываются, и выпущенные страницы рисуются заново. События `resize`
+       * окна для этого недостаточно: размер iframe мог не измениться.
+       */
+      new ResizeObserver(() => {
+        if (viewer.clientWidth > 0 && viewer.clientHeight > 0) {
+          scheduleWindowRefresh();
+        }
+      }).observe(viewer);
 
       post({ type: 'capabilities', value: { zoom: true, pages: true, selection: true } });
       post({ type: 'ready' });

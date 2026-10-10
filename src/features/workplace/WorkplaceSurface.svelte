@@ -283,7 +283,18 @@
       onBackToList={onBackToList}
     />
     {#if workspace.tabs.length > 0}
-      <NoteToolbar {tool} allowedTypes={allowedNoteTypes} onChange={onToolChange} />
+      <NoteToolbar
+        {tool}
+        allowedTypes={allowedNoteTypes}
+        onChange={onToolChange}
+        zoom={activeFooter?.zoom ?? 100}
+        minZoom={activeFooter?.minZoom ?? 60}
+        maxZoom={activeFooter?.maxZoom ?? 220}
+        showZoom={activeFooter?.workplaceZoom ?? true}
+        {readerTheme}
+        onChangeZoom={changeZoom}
+        onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
+      />
     {/if}
     <div class="relative flex min-h-0 flex-1">
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -369,20 +380,13 @@
     </div>
     {#if workspace.tabs.length > 0}
       <ReaderFooter
-        zoom={activeFooter?.zoom ?? 100}
-        minZoom={activeFooter?.minZoom ?? 60}
-        maxZoom={activeFooter?.maxZoom ?? 220}
         workplace={activeFooter?.workplace ?? false}
-        workplaceZoom={activeFooter?.workplaceZoom ?? true}
         workplacePages={activeFooter?.workplacePages ?? false}
         workplacePage={activeFooter?.page ?? null}
         workplacePageCount={activeFooter?.pageCount ?? null}
         progress={activeFooter?.progress ?? 0}
-        {readerTheme}
-        onChangeZoom={changeZoom}
         onStepPage={stepPage}
         onGoToPage={goToPage}
-        onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
       />
     {/if}
   {/if}

@@ -187,6 +187,9 @@ describe('поверхность рабочего места: список и в
             },
         });
 
+        expect(screen.getByTestId('note-toolbar').contains(screen.getByTestId('reader-zoom'))).toBe(
+            true,
+        );
         expect(screen.getByTestId('reader-zoom').textContent).toBe('100%');
         expect(screen.getByTestId('reader-progress').textContent).toBe('0%');
     });

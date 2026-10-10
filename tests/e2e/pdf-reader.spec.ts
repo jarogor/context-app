@@ -83,6 +83,21 @@ function pdfBase64TwoLines(pageCount: number): string {
     return Buffer.from(buildPdfWithLines(pageCount, true), 'binary').toString('base64');
 }
 
+/** PDF из одной страницы заданного размера (в пунктах) с текстом у левого края. */
+function pdfBase64Sized(width: number, height: number): string {
+    const objects: string[] = [];
+    const stream = `BT /F1 36 Tf 36 ${height - 92} Td (Wide page sample text) Tj ET`;
+    objects.push('1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj');
+    objects.push('2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj');
+    objects.push(
+        `3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${width} ${height}]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj`,
+    );
+    objects.push(`4 0 obj<</Length ${stream.length}>>stream\n${stream}\nendstream endobj`);
+    objects.push('5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj');
+    const raw = `%PDF-1.4\n${objects.join('\n')}\ntrailer<</Root 1 0 R>>\n%%EOF`;
+    return Buffer.from(raw, 'binary').toString('base64');
+}
+
 /** Каталог с книгой формата pdf, обслуживаемой плагином рабочего места. */
 const PDF_BOOKS = {
     catalog: {
@@ -100,7 +115,7 @@ const PDF_BOOKS = {
 };
 
 /** Установка мока: плагин PDF и книга формата pdf. */
-async function installPdfMock(page: Page, pageCount: number, twoLines = false) {
+async function installPdfMock(page: Page, pageCount: number, twoLines = false, data?: string) {
     const files = viewerFiles();
     const entry = viewerEntry();
     await page.addInitScript(
@@ -116,9 +131,9 @@ async function installPdfMock(page: Page, pageCount: number, twoLines = false) {
                     reader_viewer_files: () => payload.files,
                     reader_viewer_file: (input: unknown) => {
                         const path = (input as { path?: string }).path ?? '';
-                        const file = (
-                            payload.files as Array<{ path: string; data: string }>
-                        ).find((item) => item.path === path);
+                        const file = (payload.files as Array<{ path: string; data: string }>).find(
+                            (item) => item.path === path,
+                        );
                         return { path, data: file?.data ?? '' };
                     },
                     reader_book_chunk: (input: unknown) => {
@@ -162,13 +177,18 @@ async function installPdfMock(page: Page, pageCount: number, twoLines = false) {
                 },
             };
         },
-        { data: twoLines ? pdfBase64TwoLines(pageCount) : pdfBase64(pageCount), books: PDF_BOOKS, entry, files },
+        {
+            data: data ?? (twoLines ? pdfBase64TwoLines(pageCount) : pdfBase64(pageCount)),
+            books: PDF_BOOKS,
+            entry,
+            files,
+        },
     );
 }
 
 /** Открытие PDF вкладкой рабочего места. */
-async function openPdf(page: Page, pageCount: number, twoLines = false) {
-    await installPdfMock(page, pageCount, twoLines);
+async function openPdf(page: Page, pageCount: number, twoLines = false, data?: string) {
+    await installPdfMock(page, pageCount, twoLines, data);
     await page.goto('/');
     await page.getByLabel('Рабочее место', { exact: true }).click();
     const open = page.getByTestId('workspace-open').first();
@@ -224,8 +244,7 @@ async function canvasDeviceAlignment(page: Page) {
             }
             const rect = canvas.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
-            const residual = (value: number) =>
-                Math.abs(value * dpr - Math.round(value * dpr));
+            const residual = (value: number) => Math.abs(value * dpr - Math.round(value * dpr));
             return {
                 backingW: Math.abs(canvas.width - rect.width * dpr),
                 backingH: Math.abs(canvas.height - rect.height * dpr),
@@ -283,7 +302,9 @@ test('тема области чтения перекрашивает и фон 
     const body = content(page).locator('body');
     const canvas = content(page).locator('.page canvas').first();
     await expect(pluginRoot).toHaveAttribute('data-reader-theme', 'light');
-    const lightBackground = await body.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const lightBackground = await body.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+    );
     const lightPaper = await paperColor(canvas);
 
     await page.getByLabel('Тёмная тема области чтения').click();
@@ -342,6 +363,95 @@ async function paperColor(
     });
 }
 
+test('смена темы области чтения в настройках перекрашивает страницу без шевеления', async ({
+    page,
+}) => {
+    await openPdf(page, 4);
+
+    const canvas = content(page).locator('.page canvas').first();
+    await expect.poll(async () => (await paperColor(canvas)) !== null).toBe(true);
+
+    // Тема меняется в настройках, пока рабочее место скрыто: область чтения в
+    // этот момент имеет нулевой размер и не может отрисовать страницу.
+    await page.getByLabel('Настройки').click();
+    await page.locator('main').getByRole('button', { name: 'Тема области чтения' }).click();
+    await page.getByRole('option', { name: 'Тёмная' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-reader-theme', 'dark');
+
+    // Возврат к рабочему месту без прокрутки, смены масштаба и потери фокуса:
+    // страница должна перекраситься сама, по восстановлению размера области.
+    await page.getByLabel('Настройки').click();
+    await reopenWorkplace(page);
+    await expect
+        .poll(async () => {
+            const paper = await paperColor(canvas);
+            return paper !== null && paper.r < 140;
+        })
+        .toBe(true);
+
+    // Прокрутка к другой странице и назад не должна возвращать прежнюю
+    // раскраску: и вновь нарисованная страница, и прежняя остаются тёмными.
+    const scrollHeight = await content(page)
+        .locator('#viewer')
+        .evaluate((element) => element.scrollHeight);
+    // Прокрутка доступна сразу после перекраски (не пропала).
+    expect(scrollHeight).toBeGreaterThan(0);
+    await content(page)
+        .locator('#viewer')
+        .evaluate((element) => {
+            element.scrollTop = element.scrollHeight;
+        });
+    const laterCanvas = content(page).locator('.page canvas').last();
+    await expect
+        .poll(async () => {
+            const paper = await paperColor(laterCanvas);
+            return paper !== null && paper.r < 140;
+        })
+        .toBe(true);
+    await content(page)
+        .locator('#viewer')
+        .evaluate((element) => {
+            element.scrollTop = 0;
+        });
+    await expect
+        .poll(async () => {
+            const paper = await paperColor(canvas);
+            return paper !== null && paper.r < 140;
+        })
+        .toBe(true);
+});
+
+// Переход по страницам кнопкой не пересобирает документ: соседняя страница
+// остаётся смонтированной. Смена темы должна довести и её — иначе переход
+// показывал бы страницу в прежней раскраске, хотя текущая уже перекрашена.
+test('переход на следующую страницу показывает её в новой теме', async ({ page }) => {
+    await openPdf(page, 4);
+
+    await page
+        .getByTestId('note-toolbar')
+        .getByRole('button', { name: 'Тёмная тема области чтения' })
+        .click();
+    await expect(content(page).locator('html')).toHaveAttribute('data-reader-theme', 'dark');
+    // Первая страница перекрашивается сразу (она видима).
+    const first = content(page).locator('.page canvas').first();
+    await expect
+        .poll(async () => {
+            const paper = await paperColor(first);
+            return paper !== null && paper.r < 140;
+        })
+        .toBe(true);
+
+    await page.getByRole('button', { name: 'Следующая страница' }).click();
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('2');
+    const second = content(page).locator('.page canvas').nth(1);
+    await expect
+        .poll(async () => {
+            const paper = await paperColor(second);
+            return paper !== null && paper.r < 140;
+        })
+        .toBe(true);
+});
+
 test('листание по страницам обновляет номер и прогресс', async ({ page }) => {
     await openPdf(page, 4);
 
@@ -364,7 +474,9 @@ test('прокрутка переводит текущую страницу', as
         });
 
     await expect
-        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), { timeout: 15000 })
+        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), {
+            timeout: 15000,
+        })
         .toBe('6');
 });
 
@@ -375,7 +487,9 @@ test('переход к номеру страницы', async ({ page }) => {
     await page.getByLabel('Текущая страница').press('Enter');
 
     await expect
-        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), { timeout: 15000 })
+        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), {
+            timeout: 15000,
+        })
         .toBe('3');
     await expect
         .poll(
@@ -500,8 +614,8 @@ test('прокрутка не оставляет белых полос на ст
             }
             const measure = () => {
                 const viewerRect = viewer.getBoundingClientRect();
-                const canvases = Array.from(document.querySelectorAll('.page canvas')).map((canvas) =>
-                    canvas.getBoundingClientRect(),
+                const canvases = Array.from(document.querySelectorAll('.page canvas')).map(
+                    (canvas) => canvas.getBoundingClientRect(),
                 );
                 let total = 0;
                 let blank = 0;
@@ -509,7 +623,12 @@ test('прокрутка не оставляет белых полос на ст
                     for (let x = viewerRect.left + 40; x < viewerRect.right - 40; x += 160) {
                         const pageEl = Array.from(pagesHost.children).find((candidate) => {
                             const rect = candidate.getBoundingClientRect();
-                            return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+                            return (
+                                x >= rect.left &&
+                                x <= rect.right &&
+                                y >= rect.top &&
+                                y <= rect.bottom
+                            );
                         });
                         if (!pageEl) {
                             continue;
@@ -731,30 +850,28 @@ test('полосы подсветки соседних строк не накл�
         .locator('.page')
         .first()
         .evaluate(() => {
-            const spans = Array.from(
-                document.querySelectorAll('.page .textLayer span'),
-            ).filter((span) => span.firstChild);
+            const spans = Array.from(document.querySelectorAll('.page .textLayer span')).filter(
+                (span) => span.firstChild,
+            );
             const rects = spans.map((span) => span.getBoundingClientRect());
             let overlap = 0;
             for (let index = 1; index < rects.length; index += 1) {
-                overlap = Math.max(
-                    overlap,
-                    rects[index - 1].bottom - rects[index].top,
-                );
+                overlap = Math.max(overlap, rects[index - 1].bottom - rects[index].top);
             }
             return overlap;
         });
     expect(rawOverlap).toBeGreaterThan(0);
 });
 
-// Выделение текста рисует собственный слой, а не браузер: браузерные
-// прямоугольники строк перекрываются и мутят растр. Полосы слоя слиты и
-// обрезаны по стыкам, а заливка ложится на страницу умножением (осветлением в
-// тёмной теме), как подсветка цитаты.
+// Выделение текста рисует собственный слой, а не браузер: заливка — единый
+// элемент, обрезанный маской по прямоугольникам диапазона (как официальный
+// просмотрщик pdf.js). Перекрытие строк по высоте не темнеет на стыках, а полоса
+// совпадает с нативным выделением и не сужается до середины букв. Вертикальные
+// метки («курсоры») стоят только у краёв всего выделения.
 test('выделение текста ложится ровными полосами, не перекрываясь', async ({ page }) => {
     await openPdf(page, 3, true);
 
-    await content(page)
+    const selection = await content(page)
         .locator('.page')
         .first()
         .locator('.textLayer')
@@ -763,32 +880,39 @@ test('выделение текста ложится ровными полоса
                 (span) => span.firstChild,
             );
             if (spans.length < 2) {
-                return;
+                return null;
             }
             const document = layer.ownerDocument;
             const range = document.createRange();
             range.setStartBefore(spans[0]);
             range.setEndAfter(spans[spans.length - 1]);
-            const selection = document.getSelection();
-            selection?.removeAllRanges();
-            selection?.addRange(range);
+            const selected = document.getSelection();
+            selected?.removeAllRanges();
+            selected?.addRange(range);
             spans[0].dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            const page = layer.closest('.page') as HTMLElement;
+            const bounds = page.getBoundingClientRect();
+            const native = Array.from(range.getClientRects()).filter(
+                (rect) => rect.width > 0 && rect.height > 0,
+            );
+            return {
+                native: {
+                    top: Math.min(...native.map((rect) => rect.top - bounds.top)),
+                    bottom: Math.max(...native.map((rect) => rect.bottom - bounds.top)),
+                    left: Math.min(...native.map((rect) => rect.left - bounds.left)),
+                    right: Math.max(...native.map((rect) => rect.right - bounds.left)),
+                },
+            };
         });
+    expect(selection).not.toBeNull();
 
     await expect(content(page).locator('.selection-layer')).toHaveCount(1);
-    const bands = await content(page)
-        .locator('.selection-band')
-        .evaluateAll((elements) =>
-            elements
-                .map((element) => element.getBoundingClientRect())
-                .sort((a, b) => a.top - b.top)
-                .map((rect) => ({ top: rect.top, bottom: rect.bottom })),
-        );
-    expect(bands.length).toBeGreaterThanOrEqual(2);
-    for (let index = 1; index < bands.length; index += 1) {
-        // Полоса следующей строки начинается на уровне низа предыдущей, а не выше.
-        expect(bands[index].top).toBeGreaterThanOrEqual(bands[index - 1].bottom - 1);
-    }
+    // Заливка — один элемент во всю страницу, обрезанный маской: полосы не
+    // рисуются отдельными блоками, поэтому стыки не темнеют.
+    const fill = content(page).locator('.selection-fill');
+    await expect(fill).toHaveCount(1);
+    const clip = await fill.evaluate((element) => getComputedStyle(element).clipPath);
+    expect(clip).toContain('url(');
     // Нативное выделение прозрачно: подсветку рисует только слой.
     const native = await content(page)
         .locator('.textLayer')
@@ -801,27 +925,81 @@ test('выделение текста ложится ровными полоса
         });
     expect(native).toBe('rgba(0, 0, 0, 0)');
     // Заливка ложится на страницу умножением, а не поверх текста.
-    const blend = await content(page)
-        .locator('.selection-layer')
-        .evaluate((element) => getComputedStyle(element).mixBlendMode);
+    const blend = await fill.evaluate((element) => getComputedStyle(element).mixBlendMode);
     expect(blend).toBe('multiply');
-    // Признак живого выделения: у каждой полосы по краям вертикальные метки,
-    // отличающие выделение от подсветки заметки.
+    // Маска заливки охватывает ровно то, что подсветил бы браузер: слой не
+    // сужается по строкам и не режет буквы по вертикали.
+    const pageBox = await content(page).locator('.page').first().boundingBox();
+    expect(pageBox).not.toBeNull();
+    const mask = await fill.locator('path').evaluate((path) => path.getAttribute('d') ?? '');
+    const boxes = mask.match(/M[-\d.eE]+ [-\d.eE]+h[-\d.eE]+v[-\d.eE]+h-[-\d.eE]+Z/g) ?? [];
+    expect(boxes.length).toBeGreaterThanOrEqual(2);
+    const bounds = boxes.reduce(
+        (acc, box) => {
+            const [x, y, width, height] = box
+                .match(/[-\d.eE]+/g)!
+                .map((value) => Number.parseFloat(value));
+            return {
+                left: Math.min(acc.left, x),
+                top: Math.min(acc.top, y),
+                right: Math.max(acc.right, x + width),
+                bottom: Math.max(acc.bottom, y + height),
+            };
+        },
+        { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
+    );
+    expect(Math.abs(bounds.left * pageBox!.width - selection!.native.left)).toBeLessThanOrEqual(2);
+    expect(Math.abs(bounds.top * pageBox!.height - selection!.native.top)).toBeLessThanOrEqual(2);
+    expect(Math.abs(bounds.right * pageBox!.width - selection!.native.right)).toBeLessThanOrEqual(
+        2,
+    );
+    expect(
+        Math.abs(bounds.bottom * pageBox!.height - selection!.native.bottom),
+    ).toBeLessThanOrEqual(2);
+    // Признак живого выделения: вертикальные метки стоят только у краёв всего
+    // выделения — левая в начале, правая в конце. У промежуточных строк меток
+    // нет, иначе они читаются как отдельные выделения (особенно при строках
+    // разной длины). Так же ведёт себя встроенное чтение EPUB.
     const edges = await content(page)
+        .locator('.selection-band')
+        .evaluateAll((elements) =>
+            elements.map((element) => (element as HTMLElement).dataset.edge),
+        );
+    expect(edges.length).toBeGreaterThanOrEqual(2);
+    expect(edges[0]).toBe('start');
+    expect(edges[edges.length - 1]).toBe('end');
+    expect(edges.slice(1, -1).every((edge) => edge === 'none')).toBe(true);
+
+    const first = await content(page)
         .locator('.selection-band')
         .first()
         .evaluate((band) => {
             const before = getComputedStyle(band, '::before');
             const after = getComputedStyle(band, '::after');
             return {
+                beforeContent: before.content,
+                afterContent: after.content,
                 beforeWidth: before.width,
-                afterWidth: after.width,
-                beforeColor: before.backgroundColor,
+                beforeLeft: before.left,
             };
         });
-    expect(edges.beforeWidth).not.toBe('0px');
-    expect(edges.afterWidth).not.toBe('0px');
-    expect(edges.beforeColor).not.toBe('rgba(0, 0, 0, 0)');
+    // У начала выделения метка слева есть (генерённый псевдоэлемент), справа — нет.
+    expect(first.beforeContent).not.toBe('none');
+    expect(first.afterContent).toBe('none');
+    expect(first.beforeWidth).not.toBe('0px');
+    // Метка сдвинута наружу от полосы на свою ширину, поэтому встаёт в промежуток
+    // между буквами, а не ложится на глиф.
+    expect(Number.parseFloat(first.beforeLeft)).toBeLessThan(0);
+
+    const last = await content(page)
+        .locator('.selection-band')
+        .last()
+        .evaluate((band) => ({
+            afterContent: getComputedStyle(band, '::after').content,
+            afterRight: getComputedStyle(band, '::after').right,
+        }));
+    expect(last.afterContent).not.toBe('none');
+    expect(Number.parseFloat(last.afterRight)).toBeLessThan(0);
 });
 
 test('меню заметки закрывается при снятии выделения', async ({ page }) => {
@@ -882,7 +1060,9 @@ test('клик по заметке ведёт к странице заметки
     await page.getByLabel('Текущая страница').fill('3');
     await page.getByLabel('Текущая страница').press('Enter');
     await expect
-        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), { timeout: 15000 })
+        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), {
+            timeout: 15000,
+        })
         .toBe('3');
     await selectTextOnPage(page, 3);
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
@@ -933,7 +1113,10 @@ test('текстовая карточка создаётся кликом по �
     await expect(toolbar.getByRole('button', { name: 'Фигура' })).toBeVisible();
 
     await selectTool(page, 'Текст');
-    await content(page).locator('.page').first().click({ position: { x: 120, y: 120 } });
+    await content(page)
+        .locator('.page')
+        .first()
+        .click({ position: { x: 120, y: 120 } });
 
     const editor = page.getByTestId('text-card-editor');
     await expect(editor).toBeVisible();
@@ -1021,7 +1204,10 @@ test('текстовую карточку в PDF можно переместит
     await page.getByRole('button', { name: 'Заметки' }).click();
 
     await selectTool(page, 'Текст');
-    await content(page).locator('.page').first().click({ position: { x: 120, y: 120 } });
+    await content(page)
+        .locator('.page')
+        .first()
+        .click({ position: { x: 120, y: 120 } });
     const editor = page.getByTestId('text-card-editor');
     await editor.getByLabel('Текст заметки').fill('Сдвинь меня');
     await editor.getByRole('button', { name: 'Сохранить' }).click();
@@ -1052,9 +1238,7 @@ test('текстовую карточку в PDF можно переместит
     await page.mouse.move(box!.x + 80, box!.y + 60, { steps: 8 });
     await page.mouse.up();
 
-    await expect
-        .poll(async () => card.evaluate((element) => element.style.left))
-        .not.toBe(before);
+    await expect.poll(async () => card.evaluate((element) => element.style.left)).not.toBe(before);
 });
 
 test('перемещение в PDF работает и под инструментом фигуры', async ({ page }) => {
@@ -1062,7 +1246,10 @@ test('перемещение в PDF работает и под инструме�
     await page.getByRole('button', { name: 'Заметки' }).click();
 
     await selectTool(page, 'Текст');
-    await content(page).locator('.page').first().click({ position: { x: 120, y: 120 } });
+    await content(page)
+        .locator('.page')
+        .first()
+        .click({ position: { x: 120, y: 120 } });
     const editor = page.getByTestId('text-card-editor');
     await editor.getByLabel('Текст заметки').fill('Сдвинь');
     await editor.getByRole('button', { name: 'Сохранить' }).click();
@@ -1073,10 +1260,9 @@ test('перемещение в PDF работает и под инструме�
     await selectTool(page, 'Фигура');
     const card = content(page).locator('.note-card').first();
     await card.click();
-    await expect(page.getByTestId('note-toolbar').getByRole('button', { name: 'Текст' })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-    );
+    await expect(
+        page.getByTestId('note-toolbar').getByRole('button', { name: 'Текст' }),
+    ).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('note-menu')).toBeVisible();
     await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
 
@@ -1091,9 +1277,7 @@ test('перемещение в PDF работает и под инструме�
     await page.mouse.move(box!.x + 70, box!.y + 50, { steps: 8 });
     await page.mouse.up();
 
-    await expect
-        .poll(async () => card.evaluate((element) => element.style.left))
-        .not.toBe(before);
+    await expect.poll(async () => card.evaluate((element) => element.style.left)).not.toBe(before);
 });
 
 test('фигуру в PDF можно выбрать кликом по контуру', async ({ page }) => {
@@ -1132,10 +1316,130 @@ test('границы цитаты в PDF правятся маркерами п�
 
     await content(page).locator('.overlay .note').first().click();
     await expect(page.getByTestId('note-menu')).toBeVisible();
-    await page
-        .getByTestId('note-menu')
-        .getByRole('button', { name: 'Изменить выделение' })
-        .click();
+    await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить выделение' }).click();
     await expect(content(page).locator('.note-handle')).toHaveCount(2);
 });
 
+// Возврат из настроек возвращает область чтения из `display: none`. В WebKitGTK
+// такая область может перестать считаться прокручиваемой, хотя содержимое выше
+// окна: колесо прокручивает документ, а не страницу. Плагин на сообщение `show`
+// переустанавливает `overflow`, заставляя движок пересчитать прокрутку, и это не
+// сбрасывает положение.
+test('прокрутка после возврата из настроек со сменой темы работает', async ({ page }) => {
+    await openPdf(page, 6);
+
+    await page.getByLabel('Настройки').click();
+    await page.locator('main').getByRole('button', { name: 'Тема области чтения' }).click();
+    await page.getByRole('option', { name: 'Тёмная' }).click();
+    await page.getByLabel('Настройки').click();
+    await reopenWorkplace(page);
+
+    const viewer = content(page).locator('#viewer');
+    const box = await viewer.boundingBox();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await page.mouse.wheel(0, 400);
+    await expect
+        .poll(async () => await viewer.evaluate((element) => (element as HTMLElement).scrollTop))
+        .toBeGreaterThan(0);
+});
+
+// Слой выделения должен повторять то, что подсветил бы сам браузер (как в
+// официальном просмотрщике pdf.js): заливка берёт геометрию прямоугольников
+// диапазона и не сужается дополнительно. Иначе полоса становится ниже строки,
+// между строками появляются щели, а по вертикали срезается верх букв. Маска
+// заливки обязана покрывать нативное выделение целиком — без зазоров и без
+// сужения.
+test('полоса выделения повторяет нативное выделение без зазоров', async ({ page }) => {
+    await openPdf(page, 1, true);
+
+    const geometry = await content(page)
+        .locator('.page')
+        .first()
+        .evaluate((element) => {
+            const spans = Array.from(element.querySelectorAll('.textLayer span')).filter(
+                (span) => span.firstChild,
+            ) as HTMLElement[];
+            if (spans.length < 2) {
+                return null;
+            }
+            const doc = element.ownerDocument;
+            const range = doc.createRange();
+            range.setStartBefore(spans[0]);
+            range.setEndAfter(spans[spans.length - 1]);
+            const selection = doc.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            spans[0].dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            const pageBounds = element.getBoundingClientRect();
+            const nativeRects = Array.from(range.getClientRects()).filter(
+                (rect) => rect.width > 0 && rect.height > 0,
+            );
+            return {
+                nativeTop: Math.min(...nativeRects.map((rect) => rect.top - pageBounds.top)),
+                nativeBottom: Math.max(...nativeRects.map((rect) => rect.bottom - pageBounds.top)),
+                nativeLeft: Math.min(...nativeRects.map((rect) => rect.left - pageBounds.left)),
+                nativeRight: Math.max(...nativeRects.map((rect) => rect.right - pageBounds.left)),
+                pageWidth: pageBounds.width,
+                pageHeight: pageBounds.height,
+            };
+        });
+    expect(geometry).not.toBeNull();
+
+    // Заливка — один элемент, обрезанный маской по прямоугольникам диапазона.
+    const mask = await content(page)
+        .locator('.selection-fill path')
+        .evaluate((path) => path.getAttribute('d') ?? '');
+    const boxes = (mask.match(/M[-\d.eE]+ [-\d.eE]+h[-\d.eE]+v[-\d.eE]+h-[-\d.eE]+Z/g) ?? []).map(
+        (box) => {
+            const [x, y, width, height] = box
+                .match(/[-\d.eE]+/g)!
+                .map((value) => Number.parseFloat(value));
+            return { x, y, width, height, right: x + width, bottom: y + height };
+        },
+    );
+    expect(boxes.length).toBeGreaterThanOrEqual(2);
+    // Маска покрывает ровно нативное выделение: ни зазоров по вертикали, ни
+    // недобора по горизонтали (сужение полосы по рамке строки давало недобор в
+    // конце строк и зазоры между ними).
+    const maskTop = Math.min(...boxes.map((box) => box.y)) * geometry!.pageHeight;
+    const maskBottom = Math.max(...boxes.map((box) => box.bottom)) * geometry!.pageHeight;
+    const maskLeft = Math.min(...boxes.map((box) => box.x)) * geometry!.pageWidth;
+    const maskRight = Math.max(...boxes.map((box) => box.right)) * geometry!.pageWidth;
+    expect(Math.abs(maskTop - geometry!.nativeTop)).toBeLessThanOrEqual(2);
+    expect(Math.abs(maskBottom - geometry!.nativeBottom)).toBeLessThanOrEqual(2);
+    expect(Math.abs(maskLeft - geometry!.nativeLeft)).toBeLessThanOrEqual(2);
+    expect(Math.abs(maskRight - geometry!.nativeRight)).toBeLessThanOrEqual(2);
+    // Каждая нативная строка покрыта маской: ни одна полоса не потеряна и не
+    // сужена ниже строки (иначе между строками появились бы щели).
+    for (let index = 1; index < boxes.length; index += 1) {
+        const gap = boxes[index].y - boxes[index - 1].bottom;
+        expect(gap).toBeLessThanOrEqual(0.001);
+    }
+});
+
+// Страница шире области чтения на 100 % не должна быть обрезана слева. Раньше
+// `#pages` центрировала страницы (`align-items: center`), и широкая страница
+// уходила влево за недостижимый край прокрутки: текст начинался «с середины
+// слова». Теперь контейнер растягивается под страницу, и левый край виден.
+test('страница шире области чтения доступна от левого края', async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 900 });
+    await openPdf(page, 1, false, pdfBase64Sized(900, 1300));
+
+    const metrics = await content(page)
+        .locator('#viewer')
+        .evaluate(() => {
+            const viewer = document.querySelector('#viewer') as HTMLElement;
+            const pageEl = document.querySelector('.page') as HTMLElement;
+            const viewerRect = viewer.getBoundingClientRect();
+            const pageRect = pageEl.getBoundingClientRect();
+            return {
+                overflowX: viewer.scrollWidth > viewer.clientWidth + 1,
+                leftGap: Math.round(pageRect.left - viewerRect.left),
+            };
+        });
+
+    // Страница шире области чтения — есть горизонтальная прокрутка и левый край
+    // страницы не обрезан.
+    expect(metrics.overflowX).toBe(true);
+    expect(metrics.leftGap).toBe(0);
+});

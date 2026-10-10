@@ -1,18 +1,9 @@
 <script lang="ts">
-  import { Button, Icon, Input, Progress } from '@texture/ui';
-  import type { ReaderThemeId } from '@texture/ui';
+  import { Button, Input, Progress } from '@texture/ui';
 
   interface Props {
-    /** Текущий масштаб текста в процентах. */
-    zoom: number;
-    /** Нижняя граница масштаба. */
-    minZoom: number;
-    /** Верхняя граница масштаба. */
-    maxZoom: number;
     /** Читается ли книга плагином рабочего места. */
     workplace: boolean;
-    /** Поддерживает ли плагин изменение масштаба. */
-    workplaceZoom: boolean;
     /** Поддерживает ли плагин страницы. */
     workplacePages: boolean;
     /** Текущая страница плагина или `null`. */
@@ -21,33 +12,20 @@
     workplacePageCount: number | null;
     /** Прогресс чтения в процентах. */
     progress: number;
-    /** Текущая тема области чтения. */
-    readerTheme: ReaderThemeId;
-    /** Изменение масштаба на заданную величину. */
-    onChangeZoom: (delta: number) => void;
     /** Переход к соседней странице. */
     onStepPage: (delta: number) => void;
     /** Переход к введённому номеру страницы. */
     onGoToPage: (page: number) => void;
-    /** Смена темы области чтения. */
-    onChangeReaderTheme: (theme: ReaderThemeId) => void;
   }
 
   let {
-    zoom,
-    minZoom,
-    maxZoom,
     workplace,
-    workplaceZoom,
     workplacePages,
     workplacePage,
     workplacePageCount,
     progress,
-    readerTheme,
-    onChangeZoom,
     onStepPage,
     onGoToPage,
-    onChangeReaderTheme,
   }: Props = $props();
 
   /** Черновик правки поля текущей страницы; `null` — поле показывает снимок. */
@@ -78,53 +56,15 @@
   }
 </script>
 
+<!--
+  Нижняя панель рабочего места: навигация по страницам и прогресс чтения.
+  Управление масштабом и переключатель темы области чтения вынесены в верхнюю
+  панель чтения, поэтому здесь их нет.
+-->
 <footer
   class="flex flex-[0_0_40px] items-center gap-4 border-t border-[var(--border)] bg-[var(--card)] px-4 text-[12px] text-[var(--muted-foreground)]"
   data-testid="reader-footer"
 >
-  <div class="flex items-center gap-1">
-    {#if !workplace || workplaceZoom}
-      <Button
-        size="icon"
-        variant="ghost"
-        title="Уменьшить масштаб"
-        ariaLabel="Уменьшить масштаб"
-        disabled={zoom <= minZoom}
-        onclick={() => onChangeZoom(-10)}>−</Button
-      >
-      <span class="min-w-[48px] text-center" data-testid="reader-zoom">{zoom}%</span>
-      <Button
-        size="icon"
-        variant="ghost"
-        title="Увеличить масштаб"
-        ariaLabel="Увеличить масштаб"
-        disabled={zoom >= maxZoom}
-        onclick={() => onChangeZoom(10)}>+</Button
-      >
-    {/if}
-  </div>
-  <div class="flex items-center gap-1" data-testid="reader-theme-toggle">
-    <Button
-      size="icon"
-      variant={readerTheme === 'light' ? 'secondary' : 'ghost'}
-      title="Светлая тема области чтения"
-      ariaLabel="Светлая тема области чтения"
-      ariaPressed={readerTheme === 'light'}
-      onclick={() => onChangeReaderTheme('light')}
-    >
-      <Icon name="sun" />
-    </Button>
-    <Button
-      size="icon"
-      variant={readerTheme === 'dark' ? 'secondary' : 'ghost'}
-      title="Тёмная тема области чтения"
-      ariaLabel="Тёмная тема области чтения"
-      ariaPressed={readerTheme === 'dark'}
-      onclick={() => onChangeReaderTheme('dark')}
-    >
-      <Icon name="moon" />
-    </Button>
-  </div>
   <div class="ml-auto flex items-center gap-2">
     {#if workplace && workplacePages && workplacePage !== null}
       <div

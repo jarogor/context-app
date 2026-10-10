@@ -450,6 +450,7 @@
           {tool}
           {readerTheme}
           {palette}
+          {visible}
           onCapabilities={(value) => {
             workplaceZoom = value.zoom !== false;
             workplacePages = value.pages === true;

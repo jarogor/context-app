@@ -103,6 +103,8 @@ test('плагин рабочего места сообщает прогресс
     const before = await html.evaluate((element) => getComputedStyle(element).fontSize);
     await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
     await expect(page.getByTestId('reader-zoom')).toHaveText('110%');
+    // Управление масштабом перенесено в верхнюю панель чтения.
+    await expect(page.getByTestId('note-toolbar').getByTestId('reader-zoom')).toBeVisible();
     await expect
         .poll(async () => html.evaluate((element) => getComputedStyle(element).fontSize))
         .not.toBe(before);

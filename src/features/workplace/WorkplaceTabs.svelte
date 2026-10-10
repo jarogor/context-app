@@ -51,7 +51,7 @@
 >
   <Button
     size="icon"
-    variant="ghost"
+    variant="secondary"
     title="К списку рабочих мест"
     ariaLabel="К списку рабочих мест"
     onclick={onBackToList}

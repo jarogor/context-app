@@ -2,73 +2,30 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import ReaderFooter from './ReaderFooter.svelte';
 
-/** Нижняя панель читалки с заданной темой области чтения. */
-function drawFooter(readerTheme: 'light' | 'dark', onChangeReaderTheme = vi.fn()) {
-    render(ReaderFooter, {
-        props: {
-            zoom: 100,
-            minZoom: 60,
-            maxZoom: 220,
-            workplace: false,
-            workplaceZoom: true,
-            workplacePages: false,
-            workplacePage: null,
-            workplacePageCount: null,
-            progress: 10,
-            readerTheme,
-            onChangeZoom: vi.fn(),
-            onStepPage: vi.fn(),
-            onGoToPage: vi.fn(),
-            onChangeReaderTheme,
-        },
-    });
-    return onChangeReaderTheme;
-}
-
 /** Нижняя панель читалки страничного формата. */
 function drawPagedFooter(onGoToPage = vi.fn()) {
     render(ReaderFooter, {
         props: {
-            zoom: 100,
-            minZoom: 5,
-            maxZoom: 1000,
             workplace: true,
-            workplaceZoom: true,
             workplacePages: true,
             workplacePage: 11,
             workplacePageCount: 123,
             progress: 10,
-            readerTheme: 'light',
-            onChangeZoom: vi.fn(),
             onStepPage: vi.fn(),
             onGoToPage,
-            onChangeReaderTheme: vi.fn(),
         },
     });
     return onGoToPage;
 }
 
-describe('ReaderFooter: переключатель темы области чтения', () => {
-    it('показывает текущую тему как нажатую', () => {
-        drawFooter('dark');
+describe('ReaderFooter: состав панели', () => {
+    it('не содержит управления масштабом и переключателя темы', () => {
+        drawPagedFooter();
 
-        expect(screen.getByLabelText('Тёмная тема области чтения')).toBeTruthy();
-        expect(
-            screen.getByLabelText('Тёмная тема области чтения').getAttribute('aria-pressed'),
-        ).toBe('true');
-        expect(
-            screen.getByLabelText('Светлая тема области чтения').getAttribute('aria-pressed'),
-        ).toBe('false');
-    });
-
-    it('сообщает о выборе светлой и тёмной темы', async () => {
-        const onChange = drawFooter('light');
-
-        await fireEvent.click(screen.getByLabelText('Тёмная тема области чтения'));
-        expect(onChange).toHaveBeenCalledWith('dark');
-
-        await fireEvent.click(screen.getByLabelText('Светлая тема области чтения'));
-        expect(onChange).toHaveBeenCalledWith('light');
+        expect(screen.queryByTestId('reader-zoom')).toBeNull();
+        expect(screen.queryByTestId('reader-theme-toggle')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Уменьшить масштаб' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Увеличить масштаб' })).toBeNull();
     });
 });
 
@@ -121,24 +78,33 @@ describe('ReaderFooter: навигация по страницам', () => {
     it('показывает «/ ?» при неизвестном числе страниц', () => {
         render(ReaderFooter, {
             props: {
-                zoom: 100,
-                minZoom: 5,
-                maxZoom: 1000,
                 workplace: true,
-                workplaceZoom: true,
                 workplacePages: true,
                 workplacePage: 2,
                 workplacePageCount: null,
                 progress: 10,
-                readerTheme: 'light',
-                onChangeZoom: vi.fn(),
                 onStepPage: vi.fn(),
                 onGoToPage: vi.fn(),
-                onChangeReaderTheme: vi.fn(),
             },
         });
 
         expect(screen.getByTestId('reader-page-count').textContent).toBe('/ ?');
+    });
+
+    it('скрывает навигацию по страницам для формата без страниц', () => {
+        render(ReaderFooter, {
+            props: {
+                workplace: false,
+                workplacePages: false,
+                workplacePage: null,
+                workplacePageCount: null,
+                progress: 10,
+                onStepPage: vi.fn(),
+                onGoToPage: vi.fn(),
+            },
+        });
+
+        expect(screen.queryByTestId('reader-pages')).toBeNull();
     });
 });
 

@@ -108,9 +108,11 @@ function buildStyle(palette: PaletteId): string {
     `background:var(--rt-selection-edge);border-radius:1px;}`,
     // Метки стоят у краёв всего выделения: левая — в начале, правая — в конце.
     // У промежуточных строк меток нет, иначе они читаются как отдельные выделения
-    // (особенно при строках разной длины).
-    `.${SELECTION_BAND_CLASS}[data-edge="start"]::before,.${SELECTION_BAND_CLASS}[data-edge="both"]::before{content:"";left:0;}`,
-    `.${SELECTION_BAND_CLASS}[data-edge="end"]::after,.${SELECTION_BAND_CLASS}[data-edge="both"]::after{content:"";right:0;}`,
+    // (особенно при строках разной длины). Метка сдвинута наружу от полосы на свою
+    // ширину: тогда она попадает в промежуток между буквами (перед первой и после
+    // последней буквой выделения), а не ложится на глиф — как в плагине PDF.
+    `.${SELECTION_BAND_CLASS}[data-edge="start"]::before,.${SELECTION_BAND_CLASS}[data-edge="both"]::before{content:"";left:calc(-1 * var(--rt-selection-edge-width,2px));}`,
+    `.${SELECTION_BAND_CLASS}[data-edge="end"]::after,.${SELECTION_BAND_CLASS}[data-edge="both"]::after{content:"";right:calc(-1 * var(--rt-selection-edge-width,2px));}`,
     // Цвет текста подсветки не меняется: браузерный стиль `<mark>` иначе
     // закрашивает выделенный текст чёрным (`MarkText`) и на тёмной стороне он
     // выпадает из темы. В PDF текст — часть растра и остаётся цветом темы, так

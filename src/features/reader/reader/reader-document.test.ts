@@ -63,6 +63,10 @@ describe('документ книги', () => {
     expect(html).toContain(`[data-edge="both"]::after`);
     expect(html).toContain('--rt-selection-edge');
     expect(html).toContain('--rt-selection-edge-width');
+    // Метка сдвинута наружу от полосы на свою ширину: тогда она попадает в
+    // промежуток между буквами, а не ложится на глиф (как в плагине PDF).
+    expect(html).toContain('left:calc(-1 * var(--rt-selection-edge-width,2px))');
+    expect(html).toContain('right:calc(-1 * var(--rt-selection-edge-width,2px))');
   });
 
   it('проставляет стартовую тему области чтения на корень', () => {

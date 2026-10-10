@@ -39,6 +39,8 @@
     readerTheme?: ReaderThemeId;
     /** Палитра оформления: общий реестр дизайн-системы. */
     palette?: PaletteId;
+    /** Видима ли область чтения (для доведения отрисовки после возврата). */
+    visible?: boolean;
     /** Возможности плагина, сообщённые после загрузки. */
     onCapabilities?: (capabilities: WorkplaceCapabilities) => void;
     /** Состояние позиции: страница и их общее число. */
@@ -77,6 +79,7 @@
     tool = DEFAULT_NOTE_TOOL,
     readerTheme = DEFAULT_READER_THEME,
     palette = DEFAULT_PALETTE,
+    visible = true,
     onCapabilities,
     onState,
     onProgress,
@@ -270,6 +273,19 @@
     void readerTheme;
     void palette;
     sendReaderTheme();
+  });
+
+  /** Доведение отрисовки по возврату видимости области чтения.
+   *
+   * Смена темы или палитры может произойти, пока рабочее место скрыто другим
+   * разделом: плагин получает `reader-theme`, но при нулевом размере области
+   * рисовать нечем, и страница остаётся в прежней раскраске. По возврате
+   * видимости шлём `show`, чтобы плагин перерисовал «грязные» страницы, не
+   * полагаясь на срабатывание наблюдателя размера в webview. */
+  $effect(() => {
+    if (visible && ready) {
+      post({ type: 'show' });
+    }
   });
 
   /** Переход к странице. */
