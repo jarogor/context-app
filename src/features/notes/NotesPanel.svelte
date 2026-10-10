@@ -131,7 +131,7 @@
 </script>
 
 <aside
-  class="flex w-[340px] flex-none flex-col border-l border-[var(--border)] bg-[var(--card)]"
+  class="flex w-[var(--notes-panel-width)] min-w-0 flex-none flex-col border-l border-[var(--border)] bg-[var(--card)] max-[899px]:absolute max-[899px]:inset-0 max-[899px]:w-auto max-[899px]:border-l-0"
   data-testid="notes-panel"
 >
   <div

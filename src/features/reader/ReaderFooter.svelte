@@ -56,6 +56,7 @@
 
 <footer
   class="flex flex-[0_0_40px] items-center gap-4 border-t border-[var(--border)] bg-[var(--card)] px-4 text-[12px] text-[var(--muted-foreground)]"
+  data-testid="reader-footer"
 >
   <div class="flex items-center gap-1">
     {#if !workplace || workplaceZoom}

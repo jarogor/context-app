@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { render, screen } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import ReaderPage from './ReaderPage.svelte';
 
@@ -17,36 +18,43 @@ vi.mock('./reader', () => ({
 
 describe('ReaderPage как содержимое вкладки', () => {
     it('принимает начальные масштаб и позицию вкладки', async () => {
+        const onFooter = vi.fn();
         render(ReaderPage, {
             props: {
                 path: '/lib/book.epub',
                 title: 'Книга',
                 initialZoom: 130,
                 initialPosition: 40,
+                onFooter,
             },
         });
 
-        expect(await screen.findByTestId('reader-zoom')).toBeTruthy();
-        expect(screen.getByTestId('reader-zoom').textContent).toBe('130%');
-        expect(screen.getByTestId('reader-progress').textContent).toBe('40%');
+        await screen.findByTestId('reader-loading');
+        expect(onFooter).toHaveBeenLastCalledWith(
+            expect.objectContaining({ zoom: 130, progress: 40 }),
+        );
     });
 
     it('сообщает наружу изменение масштаба', async () => {
         const onStateChange = vi.fn();
-        render(ReaderPage, {
+        const onFooter = vi.fn();
+        const component = render(ReaderPage, {
             props: {
                 path: '/lib/book.epub',
                 title: 'Книга',
                 initialZoom: 130,
                 initialPosition: 40,
                 onStateChange,
+                onFooter,
             },
         });
 
-        await fireEvent.click(screen.getByLabelText('Увеличить масштаб'));
+        await screen.findByTestId('reader-loading');
+        component.component.changeFooterZoom(10);
+        await tick();
 
-        expect(screen.getByTestId('reader-zoom').textContent).toBe('140%');
         expect(onStateChange).toHaveBeenCalledWith({ zoom: 140, position: 40 });
+        expect(onFooter).toHaveBeenLastCalledWith(expect.objectContaining({ zoom: 140 }));
     });
 
     it('показывает заглушку недоступной книги и предлагает указать файл', async () => {
@@ -62,19 +70,22 @@ describe('ReaderPage как содержимое вкладки', () => {
         expect(screen.getByText('Указать файл')).toBeTruthy();
     });
 
-    it('передаёт наружу смену темы области чтения из нижней панели', async () => {
-        const onChangeReaderTheme = vi.fn();
+    it('публикует снимок нижней панели для рабочего места', async () => {
+        const onFooter = vi.fn();
         render(ReaderPage, {
             props: {
                 path: '/lib/book.epub',
                 title: 'Книга',
-                readerTheme: 'light',
-                onChangeReaderTheme,
+                initialZoom: 130,
+                initialPosition: 40,
+                onFooter,
             },
         });
 
-        await fireEvent.click(await screen.findByLabelText('Тёмная тема области чтения'));
-
-        expect(onChangeReaderTheme).toHaveBeenCalledWith('dark');
+        await screen.findByTestId('reader-loading');
+        expect(onFooter).toHaveBeenCalled();
+        expect(onFooter).toHaveBeenLastCalledWith(
+            expect.objectContaining({ workplace: false, zoom: 130, progress: 40 }),
+        );
     });
 });

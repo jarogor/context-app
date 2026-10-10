@@ -516,6 +516,55 @@ test('клик по заметке ведёт к выделению в книг�
     await expect(bookDocument(page).locator('mark').first()).toHaveText('Второй абзац книги.');
 });
 
+test('нижняя панель рабочего места — на всю ширину под панелью заметок', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    const surface = await page.getByTestId('workplace-surface').boundingBox();
+    const footer = await page.getByTestId('reader-footer').boundingBox();
+    const notes = await page.getByTestId('notes-panel').boundingBox();
+    const tabs = await page.getByTestId('workplace-tabs').boundingBox();
+    expect(surface).not.toBeNull();
+    expect(footer).not.toBeNull();
+    expect(notes).not.toBeNull();
+    expect(tabs).not.toBeNull();
+
+    // Нижняя панель совпадает по всей ширине с поверхностью рабочего места.
+    expect(Math.abs(footer!.width - surface!.width)).toBeLessThanOrEqual(1);
+    // Панель заметок стоит справа от текста и выше нижней панели.
+    expect(notes!.x).toBeGreaterThan(0);
+    expect(notes!.y + notes!.height).toBeLessThanOrEqual(footer!.y + 1);
+    // Верхняя панель вкладок — на всю ширину, над нижней панелью.
+    expect(Math.abs(tabs!.width - surface!.width)).toBeLessThanOrEqual(1);
+    expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(footer!.y);
+});
+
+test('на узком окне панель заметок — на всю ширину, а выбор заметки закрывает её', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 700, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+    await highlightParagraph(page, 'Первый абзац книги.');
+
+    const surface = await page.getByTestId('workplace-surface').boundingBox();
+    const notes = await page.getByTestId('notes-panel').boundingBox();
+    expect(surface).not.toBeNull();
+    expect(notes).not.toBeNull();
+    // Панель заметок занимает всю ширину области рабочего места.
+    expect(Math.abs(notes!.width - surface!.width)).toBeLessThanOrEqual(1);
+    // Нижняя панель остаётся видимой под панелью заметок.
+    await expect(page.getByTestId('reader-footer')).toBeVisible();
+
+    // Переход к заметке в этом режиме закрывает панель, и видно страницу текста.
+    await page.getByTestId('notes-item-link').click();
+    await expect(page.getByTestId('notes-panel')).toHaveCount(0);
+    await expect(page.getByTestId('reader-footer')).toBeVisible();
+});
+
 test('удаление заметки убирает подсветку из книги', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');

@@ -1,14 +1,22 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import ReaderPage from '../reader/ReaderPage.svelte';
+  import ReaderPage, { type FooterSnapshot } from '../reader/ReaderPage.svelte';
   import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { PaletteId, ReaderThemeId } from '@texture/ui';
 
-  /** Читалка вкладки для перехода к заметке. */
+  /** Читалка вкладки для перехода к заметке и управления нижней панелью. */
   export interface TabReader {
     /** Переход к месту заметки в книге. */
     goto: (note: Note) => void;
+    /** Снимок состояния нижней панели чтения. */
+    footerSnapshot: () => FooterSnapshot;
+    /** Изменение масштаба из нижней панели рабочего места. */
+    changeFooterZoom: (delta: number) => void;
+    /** Переход к соседней странице из нижней панели рабочего места. */
+    stepFooterPage: (delta: number) => void;
+    /** Переход к введённому номеру страницы из нижней панели рабочего места. */
+    gotoFooterPage: (value: string) => void;
   }
 
   interface Props {
@@ -30,8 +38,8 @@
     readerTheme?: ReaderThemeId;
     /** Палитра оформления: общий реестр дизайн-системы. */
     palette?: PaletteId;
-    /** Смена темы области чтения (нижняя панель читалки). */
-    onReaderThemeChange?: (theme: ReaderThemeId) => void;
+    /** Снимок состояния нижней панели чтения для рабочего места. */
+    onFooter?: (snapshot: FooterSnapshot) => void;
     /** Видима ли вкладка (активна и показана поверхность). */
     active: boolean;
     /** Видима ли поверхность рабочего места. */
@@ -66,7 +74,7 @@
     tool,
     readerTheme,
     palette,
-    onReaderThemeChange,
+    onFooter,
     active,
     visible,
     onReader,
@@ -101,7 +109,7 @@
   {palette}
   visible={visible && active}
   {onStateChange}
-  onChangeReaderTheme={onReaderThemeChange}
+  {onFooter}
   {onQuote}
   {onTextNote}
   {onShape}

@@ -3,7 +3,6 @@
   import { Button, Icon, Progress, Spinner } from '@texture/ui';
   import BookReader from './BookReader.svelte';
   import WorkplaceContent from './WorkplaceContent.svelte';
-  import ReaderFooter from './ReaderFooter.svelte';
   import {
     UnsupportedFormatError,
     formatFromPath,
@@ -42,10 +41,10 @@
     readerTheme?: ReaderThemeId;
     /** Палитра оформления: общий реестр дизайн-системы. */
     palette?: PaletteId;
-    /** Смена темы области чтения (нижняя панель). */
-    onChangeReaderTheme?: (theme: ReaderThemeId) => void;
     /** Сообщение об изменении состояния чтения вкладки. */
     onStateChange?: (state: { zoom: number; position: number }) => void;
+    /** Снимок состояния нижней панели чтения для рабочего места. */
+    onFooter?: (snapshot: FooterSnapshot) => void;
     /** Выделение пользователя, ставшее цитатой. */
     onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Подтверждение текстовой карточки в выбранном месте. */
@@ -62,6 +61,33 @@
     onRemove?: () => void;
   }
 
+  /**
+   * Снимок состояния нижней панели чтения.
+   *
+   * `WorkplaceSurface` рисует единую нижнюю панель рабочего места из снимка
+   * активной вкладки, а команды панели отправляет обратно в её читалку.
+   */
+  export interface FooterSnapshot {
+    /** Читается ли книга плагином рабочего места. */
+    workplace: boolean;
+    /** Поддерживает ли плагин изменение масштаба. */
+    workplaceZoom: boolean;
+    /** Поддерживает ли плагин страницы. */
+    workplacePages: boolean;
+    /** Текущая страница плагина или `null`. */
+    page: number | null;
+    /** Общее число страниц плагина или `null`. */
+    pageCount: number | null;
+    /** Текущий масштаб в процентах. */
+    zoom: number;
+    /** Нижняя граница масштаба. */
+    minZoom: number;
+    /** Верхняя граница масштаба. */
+    maxZoom: number;
+    /** Прогресс чтения в процентах. */
+    progress: number;
+  }
+
   let {
     path,
     title,
@@ -72,8 +98,8 @@
     tool = DEFAULT_NOTE_TOOL,
     readerTheme = DEFAULT_READER_THEME,
     palette = DEFAULT_PALETTE,
-    onChangeReaderTheme,
     onStateChange,
+    onFooter,
     onQuote,
     onTextNote,
     onShape,
@@ -303,6 +329,52 @@
     void load(path);
   });
 
+  /** Снимок состояния нижней панели для рабочего места. */
+  export function footerSnapshot(): FooterSnapshot {
+    return {
+      workplace: workplace !== null,
+      workplaceZoom,
+      workplacePages,
+      page: workplacePage,
+      pageCount: workplacePageCount,
+      zoom,
+      minZoom,
+      maxZoom,
+      progress,
+    };
+  }
+
+  /** Изменение масштаба из нижней панели рабочего места. */
+  export function changeFooterZoom(delta: number) {
+    changeZoom(delta);
+  }
+
+  /** Переход к соседней странице из нижней панели рабочего места. */
+  export function stepFooterPage(delta: number) {
+    stepPage(delta);
+  }
+
+  /** Переход к введённому номеру страницы из нижней панели рабочего места. */
+  export function gotoFooterPage(value: string) {
+    pageInput = value;
+    goToPageInput();
+  }
+
+  /**
+   * Публикация снимка нижней панели активной вкладки.
+   *
+   * Снимок отправляется при каждом изменении его полей: рабочее место рисует
+   * единую нижнюю панель из снимка активной вкладки. Скрытые вкладки тоже
+   * публикуют свои снимки, но рабочее место их игнорирует, пока вкладка не
+   * станет активной.
+   */
+  $effect(() => {
+    const snapshot = footerSnapshot();
+    // Колбэк читается вне отслеживания: иначе обновление родителя (новый
+    // инлайн-колбэк) снова запускало бы эффект и цикл обновлений.
+    untrack(() => onFooter?.(snapshot));
+  });
+
   /** Переход к месту заметки в тексте книги.
    *
    * Используется панелью заметок: чтение возвращается к выделению заметки.
@@ -476,22 +548,4 @@
       </div>
     {/if}
   </div>
-
-  <ReaderFooter
-    {zoom}
-    {minZoom}
-    {maxZoom}
-    workplace={workplace !== null}
-    {workplaceZoom}
-    {workplacePages}
-    {workplacePage}
-    {workplacePageCount}
-    bind:pageInput
-    {progress}
-    {readerTheme}
-    onChangeZoom={changeZoom}
-    onStepPage={stepPage}
-    onGoToPage={goToPageInput}
-    onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
-  />
 </div>

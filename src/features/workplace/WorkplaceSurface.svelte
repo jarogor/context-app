@@ -4,6 +4,8 @@
   import OpenBooksPanel from './OpenBooksPanel.svelte';
   import NotesPanel from '../notes/NotesPanel.svelte';
   import NoteToolbar from './NoteToolbar.svelte';
+  import ReaderFooter from '../reader/ReaderFooter.svelte';
+  import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
   import { activeTab } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
@@ -11,7 +13,7 @@
   import { NOTE_TYPES } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
-  import type { PaletteId, ReaderThemeId } from '@texture/ui';
+  import { DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
 
   interface Props {
     /** Текущее рабочее место или null, когда его нет. */
@@ -54,6 +56,8 @@
     onToggleBooks: () => void;
     /** Переключение панели заметок. */
     onToggleNotes: () => void;
+    /** Закрытие панели заметок (автозакрытие при переходе к заметке). */
+    onCloseNotes: () => void;
     /** Создание заметки-цитаты выделением в книге. */
     onQuote: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Подтверждение текстовой карточки. */
@@ -129,12 +133,13 @@
     onAddFile,
     onToggleBooks,
     onToggleNotes,
+    onCloseNotes,
     onQuote,
     onTextNote,
     onShape,
     tool,
     onToolChange,
-    readerTheme,
+    readerTheme = DEFAULT_READER_THEME,
     palette,
     onChangeReaderTheme,
     allowedNoteTypes = NOTE_TYPES,
@@ -180,6 +185,26 @@
   /** Читалки открытых вкладок: переход к заметке адресуется активной. */
   const readers = new Map<string, TabReader>();
 
+  /** Снимок нижней панели по идентификатору вкладки. */
+  let footerByTab: Record<string, FooterSnapshot> = $state({});
+
+  /** Введённый в нижней панели номер страницы для перехода. */
+  let pageInput = $state('');
+
+  /** Снимок нижней панели активной вкладки. */
+  const activeFooter = $derived(tab ? (footerByTab[tab.id] ?? null) : null);
+
+  /** Точка перелома «узкое окно»: та же, что у панели уведомлений. */
+  const NARROW_WINDOW_QUERY = '(max-width: 899px)';
+
+  /** Узкое ли сейчас окно (для автозакрытия панели заметок на её ширине). */
+  function isNarrowWindow(): boolean {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia(NARROW_WINDOW_QUERY).matches;
+  }
+
   /** Регистрация читалки вкладки и снятие её при размонтировании. */
   function registerReader(tabId: string, reader: TabReader | null) {
     if (reader) {
@@ -189,10 +214,48 @@
     }
   }
 
+  /** Сохранение снимка нижней панели вкладки. */
+  function handleFooter(tabId: string, snapshot: FooterSnapshot) {
+    footerByTab = { ...footerByTab, [tabId]: snapshot };
+  }
+
+  /** Изменение масштаба активной вкладки из нижней панели. */
+  function changeZoom(delta: number) {
+    if (tab) {
+      readers.get(tab.id)?.changeFooterZoom(delta);
+    }
+  }
+
+  /** Переход к соседней странице активной вкладки из нижней панели. */
+  function stepPage(delta: number) {
+    if (tab) {
+      readers.get(tab.id)?.stepFooterPage(delta);
+    }
+  }
+
+  /** Переход к введённому номеру страницы активной вкладки из нижней панели. */
+  function goToPage(value: string) {
+    if (tab) {
+      readers.get(tab.id)?.gotoFooterPage(value);
+    }
+  }
+
   /** Переход к заметке в читалке активной вкладки. */
   export function goto(note: Note) {
     if (tab) {
       readers.get(tab.id)?.goto(note);
+    }
+  }
+
+  /** Выбор заметки в панели: переход к ней, на узком окне — автозакрытие панели.
+   *
+   * Панель на всю ширину кроет страницу текста, и без закрытия пользователь не
+   * увидел бы результат перехода. На широком окне панель остаётся открытой.
+   */
+  function selectNoteInPanel(note: Note) {
+    onGoToNote(note);
+    if (isNarrowWindow()) {
+      onCloseNotes();
     }
   }
 </script>
@@ -225,7 +288,7 @@
     {#if workspace.tabs.length > 0}
       <NoteToolbar {tool} allowedTypes={allowedNoteTypes} onChange={onToolChange} />
     {/if}
-    <div class="flex min-h-0 flex-1">
+    <div class="relative flex min-h-0 flex-1">
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         {#if workspace.tabs.length === 0}
           <div
@@ -264,7 +327,7 @@
                   {visible}
                   onReader={registerReader}
                   onStateChange={(state) => onTabState(item.id, state)}
-                  onReaderThemeChange={onChangeReaderTheme}
+                  onFooter={(snapshot) => handleFooter(item.id, snapshot)}
                   onQuote={onQuote}
                   onTextNote={onTextNote}
                   onShape={onShape}
@@ -288,7 +351,7 @@
           loading={notesLoading}
           {hasBook}
           selectedId={selectedNoteId}
-          onGoToNote={onGoToNote}
+          onGoToNote={selectNoteInPanel}
           onDeleteNote={onDeleteNote}
           onChangeColor={onChangeNoteColor}
           onEditNote={onEditNote}
@@ -307,5 +370,24 @@
         />
       {/if}
     </div>
+    {#if workspace.tabs.length > 0}
+      <ReaderFooter
+        zoom={activeFooter?.zoom ?? 100}
+        minZoom={activeFooter?.minZoom ?? 60}
+        maxZoom={activeFooter?.maxZoom ?? 220}
+        workplace={activeFooter?.workplace ?? false}
+        workplaceZoom={activeFooter?.workplaceZoom ?? true}
+        workplacePages={activeFooter?.workplacePages ?? false}
+        workplacePage={activeFooter?.page ?? null}
+        workplacePageCount={activeFooter?.pageCount ?? null}
+        progress={activeFooter?.progress ?? 0}
+        bind:pageInput
+        {readerTheme}
+        onChangeZoom={changeZoom}
+        onStepPage={stepPage}
+        onGoToPage={() => goToPage(pageInput)}
+        onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
+      />
+    {/if}
   {/if}
 </div>

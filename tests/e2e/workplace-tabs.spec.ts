@@ -157,12 +157,12 @@ test('позиция чтения сохраняется при переключ
     await page.mouse.wheel(0, 1500);
     await expect
         .poll(async () => {
-            const text = await activePage(page).getByTestId('reader-progress').textContent();
+            const text = await page.getByTestId('reader-progress').textContent();
             return Number.parseInt(text ?? '0', 10);
         })
         .toBeGreaterThan(0);
     const savedProgress = Number.parseInt(
-        (await activePage(page).getByTestId('reader-progress').textContent()) ?? '0',
+        (await page.getByTestId('reader-progress').textContent()) ?? '0',
         10,
     );
 
@@ -174,7 +174,7 @@ test('позиция чтения сохраняется при переключ
     );
 
     // Книга не перезагружается: позиция сохраняется сразу, без повторного чтения.
-    await expect(activePage(page).getByTestId('reader-progress')).toHaveText(`${savedProgress}%`);
+    await expect(page.getByTestId('reader-progress')).toHaveText(`${savedProgress}%`);
 });
 
 test('вкладки остаются открытыми при переключении', async ({ page }) => {

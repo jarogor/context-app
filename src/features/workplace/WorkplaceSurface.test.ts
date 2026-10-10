@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import WorkplaceSurface from './WorkplaceSurface.svelte';
-import { DEFAULT_NOTE_TOOL } from '../notes/notes';
+import { DEFAULT_NOTE_TOOL, normalizeNote, noteList } from '../notes/notes';
 
 /** Обязательные обработчики поверхности с заглушками. */
 function handlers() {
@@ -15,6 +15,7 @@ function handlers() {
         onAddFile: vi.fn(),
         onToggleBooks: vi.fn(),
         onToggleNotes: vi.fn(),
+        onCloseNotes: vi.fn(),
         onQuote: vi.fn(),
         onTextNote: vi.fn(),
         onShape: vi.fn(),
@@ -154,5 +155,92 @@ describe('поверхность рабочего места: список и в
         await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
 
         expect(base.onBackToList).toHaveBeenCalled();
+    });
+
+    it('показывает общую нижнюю панель при открытой вкладке', () => {
+        render(WorkplaceSurface, {
+            props: {
+                workspace: {
+                    id: 'ws-1',
+                    name: 'Первое',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/book-1.epub',
+                            title: 'Книга',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+                workspaces: [],
+                currentWorkspaceId: 'ws-1',
+                listMode: false,
+                booksOpen: false,
+                visible: true,
+                ...panels(),
+                ...handlers(),
+            },
+        });
+
+        expect(screen.getByTestId('reader-zoom').textContent).toBe('100%');
+        expect(screen.getByTestId('reader-progress').textContent).toBe('0%');
+    });
+
+    it('на узком окне переход к заметке закрывает панель заметок', async () => {
+        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+            matches: true,
+            media: '(max-width: 899px)',
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            dispatchEvent: () => false,
+        } as unknown as MediaQueryList);
+        const base = handlers();
+        render(WorkplaceSurface, {
+            props: {
+                workspace: {
+                    id: 'ws-1',
+                    name: 'Первое',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/book-1.epub',
+                            title: 'Книга',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+                workspaces: [],
+                currentWorkspaceId: 'ws-1',
+                listMode: false,
+                booksOpen: false,
+                visible: true,
+                notesOpen: true,
+                notes: noteList([normalizeNote({ id: 'note-1', quote: 'Цитата' })]),
+                noteSets: [],
+                activeSetId: null,
+                notesLoading: false,
+                hasBook: true,
+                ...base,
+            },
+        });
+
+        await fireEvent.click(screen.getByTestId('notes-item-link'));
+
+        expect(base.onGoToNote).toHaveBeenCalled();
+        expect(base.onCloseNotes).toHaveBeenCalled();
+        matchMedia.mockRestore();
     });
 });

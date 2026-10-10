@@ -19,6 +19,14 @@ describe('панель заметок-цитат', () => {
         expect(screen.getByTestId('notes-panel-empty')).toBeTruthy();
     });
 
+    it('адаптируется к области: ширина токеном и на всю ширину на узком окне', () => {
+        render(NotesPanel, { props: { items: [], sets: [], activeSetId: null, hasBook: true } });
+        const panel = screen.getByTestId('notes-panel');
+        expect(panel.className).toContain('var(--notes-panel-width)');
+        expect(panel.className).toContain('max-[899px]:absolute');
+        expect(panel.className).toContain('max-[899px]:w-auto');
+    });
+
     it('показывает цитаты, место и дату', () => {
         const createdAt = new Date(1_700_000_000_000).getTime();
         render(NotesPanel, {

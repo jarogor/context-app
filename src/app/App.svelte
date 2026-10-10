@@ -463,6 +463,14 @@
     }
   }
 
+  /** Закрытие панели заметок без зависимости от текущего состояния.
+   *
+   * Используется автозакрытием при переходе к заметке из панели на узком окне.
+   */
+  function closeNotesPanel() {
+    notesPanelOpen = false;
+  }
+
   /** Переход чтения к заметке в тексте книги. */
   function goToNote(note: Note) {
     selectedNoteId = note.id;
@@ -1075,6 +1083,7 @@
           onAddFile={chooseBookFile}
           onToggleBooks={toggleBooksPanel}
           onToggleNotes={toggleNotesPanel}
+          onCloseNotes={closeNotesPanel}
           onQuote={notesController.addQuote}
           onTextNote={notesController.addTextNote}
           onShape={notesController.addShape}
