@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Icon, Progress } from '@texture/ui';
+  import { Button, Icon, Input, Progress } from '@texture/ui';
   import type { ReaderThemeId } from '@texture/ui';
 
   interface Props {
@@ -19,8 +19,6 @@
     workplacePage: number | null;
     /** Общее число страниц плагина или `null`. */
     workplacePageCount: number | null;
-    /** Введённый номер страницы для перехода (двусторонняя привязка). */
-    pageInput?: string;
     /** Прогресс чтения в процентах. */
     progress: number;
     /** Текущая тема области чтения. */
@@ -30,7 +28,7 @@
     /** Переход к соседней странице. */
     onStepPage: (delta: number) => void;
     /** Переход к введённому номеру страницы. */
-    onGoToPage: () => void;
+    onGoToPage: (page: number) => void;
     /** Смена темы области чтения. */
     onChangeReaderTheme: (theme: ReaderThemeId) => void;
   }
@@ -44,7 +42,6 @@
     workplacePages,
     workplacePage,
     workplacePageCount,
-    pageInput = $bindable(''),
     progress,
     readerTheme,
     onChangeZoom,
@@ -52,6 +49,33 @@
     onGoToPage,
     onChangeReaderTheme,
   }: Props = $props();
+
+  /** Черновик правки поля текущей страницы; `null` — поле показывает снимок. */
+  let pageDraft = $state<string | null>(null);
+
+  /**
+   * Видимое значение поля страницы.
+   *
+   * Пока пользователь не правит поле, значение берётся из снимка текущей
+   * страницы и следует за листанием; во время правки показывается черновик.
+   */
+  const pageValue = $derived(pageDraft ?? (workplacePage === null ? '' : String(workplacePage)));
+
+  /** Переход к введённому номеру страницы.
+   *
+   * Пустой и нечисловой ввод игнорируется, а поле возвращается к текущей
+   * странице из снимка.
+   */
+  function commitPage() {
+    const draft = pageDraft?.trim();
+    if (draft !== undefined && draft !== '') {
+      const page = Number(draft);
+      if (Number.isInteger(page) && page >= 1) {
+        onGoToPage(page);
+      }
+    }
+    pageDraft = null;
+  }
 </script>
 
 <footer
@@ -103,7 +127,10 @@
   </div>
   <div class="ml-auto flex items-center gap-2">
     {#if workplace && workplacePages && workplacePage !== null}
-      <div class="flex items-center gap-1" data-testid="reader-pages">
+      <div
+        class="flex shrink-0 items-center gap-1 whitespace-nowrap"
+        data-testid="reader-pages"
+      >
         <Button
           size="icon"
           variant="ghost"
@@ -112,20 +139,21 @@
           disabled={workplacePage <= 1}
           onclick={() => onStepPage(-1)}>‹</Button
         >
-        <span class="min-w-[16px] text-center" data-testid="reader-page">{workplacePage}</span>
-        <span data-testid="reader-page-count">из {workplacePageCount ?? '?'}</span>
-        <input
-          class="w-[52px] rounded-sm border border-[var(--border)] bg-[var(--card)] px-[6px] py-[2px] text-center text-[12px] text-[var(--foreground)]"
-          aria-label="Перейти к странице"
-          placeholder="№"
-          bind:value={pageInput}
+        <Input
+          class="h-6 w-[3.5rem] shrink-0 px-1 py-0 text-center"
+          ariaLabel="Текущая страница"
+          value={pageValue}
+          oninput={(event) => (pageDraft = event.currentTarget.value)}
           onkeydown={(event) => {
             if (event.key === 'Enter') {
-              onGoToPage();
+              commitPage();
             }
           }}
-          onblur={onGoToPage}
+          onblur={commitPage}
         />
+        <span class="whitespace-nowrap" data-testid="reader-page-count"
+          >/ {workplacePageCount ?? '?'}</span
+        >
         <Button
           size="icon"
           variant="ghost"
@@ -136,7 +164,7 @@
         >
       </div>
     {/if}
-    <span data-testid="reader-progress">{Math.round(progress)}%</span>
-    <Progress value={progress} class="w-[180px]" />
+    <span class="whitespace-nowrap" data-testid="reader-progress">{Math.round(progress)}%</span>
+    <Progress value={progress} class="w-[180px] max-[899px]:hidden" />
   </div>
 </footer>

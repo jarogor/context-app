@@ -149,8 +149,6 @@
   let workplacePage = $state<number | null>(null);
   /** Общее число страниц плагина рабочего места. */
   let workplacePageCount = $state<number | null>(null);
-  /** Введённый номер страницы для перехода. */
-  let pageInput = $state('');
   /** Читалка текстовой книги для перехода к заметке. */
   let reader: { goto: (note: Note) => void } | undefined = $state();
   /** Область содержимого плагина для перехода к странице и заметке. */
@@ -204,13 +202,9 @@
     onStateChange?.({ zoom, position: progress });
   }
 
-  /** Переход к введённому номеру страницы. */
-  function goToPageInput() {
-    const page = Number(pageInput);
-    if (Number.isFinite(page) && page >= 1) {
-      workplaceContent?.gotoPage(clampPage(page, workplacePageCount));
-    }
-    pageInput = '';
+  /** Переход к заданному номеру страницы с учётом границ. */
+  function goToPage(page: number) {
+    workplaceContent?.gotoPage(clampPage(page, workplacePageCount));
   }
 
   /** Переход к соседней странице с учётом границ. */
@@ -354,10 +348,9 @@
     stepPage(delta);
   }
 
-  /** Переход к введённому номеру страницы из нижней панели рабочего места. */
-  export function gotoFooterPage(value: string) {
-    pageInput = value;
-    goToPageInput();
+  /** Переход к заданному номеру страницы из нижней панели рабочего места. */
+  export function gotoFooterPage(page: number) {
+    goToPage(page);
   }
 
   /**

@@ -15,8 +15,8 @@
     changeFooterZoom: (delta: number) => void;
     /** Переход к соседней странице из нижней панели рабочего места. */
     stepFooterPage: (delta: number) => void;
-    /** Переход к введённому номеру страницы из нижней панели рабочего места. */
-    gotoFooterPage: (value: string) => void;
+    /** Переход к заданному номеру страницы из нижней панели рабочего места. */
+    gotoFooterPage: (page: number) => void;
   }
 
   interface Props {

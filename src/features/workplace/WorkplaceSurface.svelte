@@ -188,9 +188,6 @@
   /** Снимок нижней панели по идентификатору вкладки. */
   let footerByTab: Record<string, FooterSnapshot> = $state({});
 
-  /** Введённый в нижней панели номер страницы для перехода. */
-  let pageInput = $state('');
-
   /** Снимок нижней панели активной вкладки. */
   const activeFooter = $derived(tab ? (footerByTab[tab.id] ?? null) : null);
 
@@ -233,10 +230,10 @@
     }
   }
 
-  /** Переход к введённому номеру страницы активной вкладки из нижней панели. */
-  function goToPage(value: string) {
+  /** Переход к заданному номеру страницы активной вкладки из нижней панели. */
+  function goToPage(page: number) {
     if (tab) {
-      readers.get(tab.id)?.gotoFooterPage(value);
+      readers.get(tab.id)?.gotoFooterPage(page);
     }
   }
 
@@ -381,11 +378,10 @@
         workplacePage={activeFooter?.page ?? null}
         workplacePageCount={activeFooter?.pageCount ?? null}
         progress={activeFooter?.progress ?? 0}
-        bind:pageInput
         {readerTheme}
         onChangeZoom={changeZoom}
         onStepPage={stepPage}
-        onGoToPage={() => goToPage(pageInput)}
+        onGoToPage={goToPage}
         onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
       />
     {/if}

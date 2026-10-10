@@ -27,6 +27,8 @@
     oninput?: (event: Event & { currentTarget: HTMLInputElement }) => void;
     /** Обработчик нажатия клавиши. */
     onkeydown?: (event: KeyboardEvent) => void;
+    /** Обработчик потери фокуса. */
+    onblur?: () => void;
   }
 
   let {
@@ -40,6 +42,7 @@
     class: className = '',
     oninput,
     onkeydown,
+    onblur,
   }: Props = $props();
 
   /** Базовые стили поля, общие для варианта с иконкой и без. */
@@ -62,6 +65,7 @@
       bind:value
       {oninput}
       {onkeydown}
+      {onblur}
       class={cn(fieldClass, 'pl-8 pr-3 py-1')}
     />
   </div>
@@ -75,6 +79,7 @@
     bind:value
     {oninput}
     {onkeydown}
+    {onblur}
     class={cn(fieldClass, 'px-3 py-1', className)}
   />
 {/if}

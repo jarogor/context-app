@@ -272,8 +272,8 @@ test('PDF открывается плагином рабочего места с
     const frame = content(page);
     await expect(frame.locator('.page canvas').first()).toBeVisible();
     await expect(frame.locator('.page')).toHaveCount(3);
-    await expect(page.getByTestId('reader-page')).toHaveText('1');
-    await expect(page.getByTestId('reader-page-count')).toHaveText('из 3');
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('1');
+    await expect(page.getByTestId('reader-page-count')).toHaveText('/ 3');
 });
 
 test('тема области чтения перекрашивает и фон плагина, и страницу', async ({ page }) => {
@@ -345,13 +345,13 @@ async function paperColor(
 test('листание по страницам обновляет номер и прогресс', async ({ page }) => {
     await openPdf(page, 4);
 
-    await expect(page.getByTestId('reader-page')).toHaveText('1');
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('1');
     await page.getByRole('button', { name: 'Следующая страница' }).click();
-    await expect(page.getByTestId('reader-page')).toHaveText('2');
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('2');
     await expect(content(page).locator('.page canvas').nth(1)).toBeVisible();
 
     await page.getByRole('button', { name: 'Предыдущая страница' }).click();
-    await expect(page.getByTestId('reader-page')).toHaveText('1');
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('1');
 });
 
 test('прокрутка переводит текущую страницу', async ({ page }) => {
@@ -364,18 +364,18 @@ test('прокрутка переводит текущую страницу', as
         });
 
     await expect
-        .poll(async () => await page.getByTestId('reader-page').textContent(), { timeout: 15000 })
+        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), { timeout: 15000 })
         .toBe('6');
 });
 
 test('переход к номеру страницы', async ({ page }) => {
     await openPdf(page, 4);
 
-    await page.getByLabel('Перейти к странице').fill('3');
-    await page.getByLabel('Перейти к странице').press('Enter');
+    await page.getByLabel('Текущая страница').fill('3');
+    await page.getByLabel('Текущая страница').press('Enter');
 
     await expect
-        .poll(async () => await page.getByTestId('reader-page').textContent(), { timeout: 15000 })
+        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), { timeout: 15000 })
         .toBe('3');
     await expect
         .poll(
@@ -394,7 +394,7 @@ test('страница восстанавливается после перез�
 
     await page.getByRole('button', { name: 'Следующая страница' }).click();
     await page.getByRole('button', { name: 'Следующая страница' }).click();
-    await expect(page.getByTestId('reader-page')).toHaveText('3');
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('3');
 
     await expect
         .poll(async () => {
@@ -407,14 +407,14 @@ test('страница восстанавливается после перез�
 
     await page.reload();
     await reopenWorkplace(page);
-    await expect(page.getByTestId('reader-page')).toHaveText('3');
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('3');
 });
 
 test('масштаб меняет размер страницы, не меняя номер', async ({ page }) => {
     await openPdf(page, 3);
 
     await page.getByRole('button', { name: 'Следующая страница' }).click();
-    await expect(page.getByTestId('reader-page')).toHaveText('2');
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('2');
 
     const pageEl = content(page).locator('.page').nth(1);
     const before = await pageEl.evaluate((element) => element.getBoundingClientRect().width);
@@ -422,7 +422,7 @@ test('масштаб меняет размер страницы, не меняя
     await expect
         .poll(async () => pageEl.evaluate((element) => element.getBoundingClientRect().width))
         .toBeGreaterThan(before);
-    await expect(page.getByTestId('reader-page')).toHaveText('2');
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('2');
 });
 
 /** Выделение первого фрагмента текстового слоя указанной страницы. */
@@ -879,10 +879,10 @@ test('заметка на странице восстанавливается п
 test('клик по заметке ведёт к странице заметки', async ({ page }) => {
     await openPdf(page, 4);
     await page.getByRole('button', { name: 'Заметки' }).click();
-    await page.getByLabel('Перейти к странице').fill('3');
-    await page.getByLabel('Перейти к странице').press('Enter');
+    await page.getByLabel('Текущая страница').fill('3');
+    await page.getByLabel('Текущая страница').press('Enter');
     await expect
-        .poll(async () => await page.getByTestId('reader-page').textContent(), { timeout: 15000 })
+        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), { timeout: 15000 })
         .toBe('3');
     await selectTextOnPage(page, 3);
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
