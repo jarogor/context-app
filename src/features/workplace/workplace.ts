@@ -43,6 +43,39 @@ export interface WorkspaceState {
   activeTabId: string | null;
 }
 
+/** Доступность создания новых вкладок при текущем лимите. */
+export type OpenAvailability = 'available' | 'limit-reached' | 'over-limit';
+
+/** Значение лимита открытых вкладок по умолчанию. */
+export const DEFAULT_OPEN_TABS_LIMIT = 50;
+
+/** Нормализация лимита открытых вкладок.
+ *
+ * Отсутствующее или некорректное значение заменяется значением по умолчанию
+ * `50`; значение меньше единицы приводится к единице — открытие хотя бы одной
+ * вкладки должно оставаться возможным. Нормализация совпадает с ядром.
+ */
+export function normalizeOpenTabsLimit(limit: unknown): number {
+  const value = Math.trunc(Number(limit));
+  if (!Number.isFinite(value)) {
+    return DEFAULT_OPEN_TABS_LIMIT;
+  }
+  return Math.max(1, value);
+}
+
+/** Доступность создания новых вкладок по числу открытых и лимиту.
+ *
+ * `available` — число вкладок меньше лимита; `limit-reached` — равно лимиту;
+ * `over-limit` — больше лимита (лимит уменьшен ниже открытого числа вкладок).
+ */
+export function openAvailability(tabCount: number, limit: number): OpenAvailability {
+  const normalized = normalizeOpenTabsLimit(limit);
+  if (tabCount > normalized) {
+    return 'over-limit';
+  }
+  return tabCount === normalized ? 'limit-reached' : 'available';
+}
+
 /** Счётчик для уникальности идентификаторов в пределах сеанса. */
 let sequence = 0;
 
@@ -90,8 +123,15 @@ export function activeTab(state: WorkspaceState): WorkspaceTab | null {
   return state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
 }
 
-/** Открытие книги новой вкладкой и перевод на неё активности. */
-export function openBook(state: WorkspaceState, book: BookRef): WorkspaceState {
+/** Открытие книги новой вкладкой и перевод на неё активности.
+ *
+ * Если задан лимит открытых вкладок и он уже достигнут или превышен, состав
+ * вкладок не изменяется: открытие новой вкладки блокируется.
+ */
+export function openBook(state: WorkspaceState, book: BookRef, limit?: number): WorkspaceState {
+  if (limit !== undefined && openAvailability(state.tabs.length, limit) !== 'available') {
+    return state;
+  }
   const tab: WorkspaceTab = {
     id: newTabId(),
     path: book.path,
@@ -126,10 +166,21 @@ export function activateTab(state: WorkspaceState, tabId: string): WorkspaceStat
   return { ...state, activeTabId: tabId };
 }
 
-/** Дублирование вкладки: независимый экземпляр той же книги. */
-export function duplicateTab(state: WorkspaceState, tabId: string): WorkspaceState {
+/** Дублирование вкладки: независимый экземпляр той же книги.
+ *
+ * Если задан лимит открытых вкладок и он уже достигнут или превышен,
+ * дублирование не создаёт вкладку.
+ */
+export function duplicateTab(
+  state: WorkspaceState,
+  tabId: string,
+  limit?: number,
+): WorkspaceState {
   const index = state.tabs.findIndex((tab) => tab.id === tabId);
   if (index < 0) {
+    return state;
+  }
+  if (limit !== undefined && openAvailability(state.tabs.length, limit) !== 'available') {
     return state;
   }
   const copy: WorkspaceTab = { ...state.tabs[index], id: newTabId() };

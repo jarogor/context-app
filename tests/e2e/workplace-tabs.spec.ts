@@ -22,14 +22,37 @@ test.beforeEach(async ({ page }) => {
                         active_workspace_id: 'ws-1',
                     }),
                     save_workspaces: () => ({ ok: true }),
+                    // Лимит открытых вкладок читается на бутстрапе; значение берётся
+                    // из глобальной переменной, чтобы тест мог задать его до загрузки
+                    // страницы. Без явного задания действует значение по умолчанию 50.
+                    window_open_tabs_limit: () =>
+                        (
+                            window as unknown as {
+                                __TEXTURE_MOCK_OPEN_TABS_LIMIT__?: number;
+                            }
+                        ).__TEXTURE_MOCK_OPEN_TABS_LIMIT__ ?? 50,
                 },
             };
     }, ACTIVE_LIBRARY);
 });
 
+/** Задание лимита открытых вкладок в моке до загрузки страницы. */
+async function setOpenTabsLimit(page: import('@playwright/test').Page, limit: number) {
+    await page.addInitScript((value) => {
+        (
+            window as unknown as { __TEXTURE_MOCK_OPEN_TABS_LIMIT__?: number }
+        ).__TEXTURE_MOCK_OPEN_TABS_LIMIT__ = value;
+    }, limit);
+}
+
 /** Элемент вкладки по названию книги. */
 function tab(page: import('@playwright/test').Page, title: string) {
     return page.locator('[data-testid="workplace-tab-item"]', { hasText: title });
+}
+
+/** Обёртка кнопки, несущая подсказку `title`. */
+function tooltip(page: import('@playwright/test').Page, label: string) {
+    return page.locator(`[title]:has([aria-label="${label}"])`);
 }
 
 /** Добавление книги вкладкой в рабочее место. */
@@ -257,4 +280,99 @@ test('навигация по вкладкам сдвигает видимый �
 
     // Активная вкладка не меняется навигацией: содержимое остаётся тем же.
     await expect(activePage(page)).toHaveCount(1);
+});
+
+/** Открытие общего раздела настроек. */
+async function openSettings(page: import('@playwright/test').Page) {
+    await page.getByLabel('Настройки').click();
+    await expect(page.getByTestId('settings-page')).toBeVisible();
+}
+
+/** Закрытие раздела настроек тем же переключателем в шапке. */
+async function closeSettings(page: import('@playwright/test').Page) {
+    await page.getByLabel('Настройки').click();
+    await expect(page.getByTestId('settings-page')).toBeHidden();
+}
+
+/**
+ * Запись лимита открытых вкладок через раздел настроек.
+ *
+ * Выбран настоящий путь через интерфейс, а не прямая эмуляция события
+ * `settings:changed`: так проверяется, что значение из поля настроек
+ * действительно доходит до поверхности рабочего места. Числовое поле, в
+ * отличие от переключателей и списков, не сохраняется по вводу, поэтому
+ * значение подтверждается кнопкой «Сохранить» секции.
+ */
+async function saveOpenTabsLimit(page: import('@playwright/test').Page, limit: number) {
+    const settings = page.getByTestId('settings-page');
+    await settings.getByLabel('Лимит открытых вкладок').fill(String(limit));
+    await settings.getByRole('button', { name: 'Сохранить' }).click();
+}
+
+test('при лимите, равном числу вкладок, открытие и дублирование заблокированы', async ({
+    page,
+}) => {
+    // Лимит задан до загрузки приложения: первая же вкладка достигает предела.
+    await setOpenTabsLimit(page, 1);
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
+
+    const add = page.getByLabel('Добавить книгу');
+    await expect(add).toBeDisabled();
+    await expect(page.getByLabel('Открыть файл с диска')).toBeDisabled();
+    await expect(page.getByLabel('Дублировать вкладку').first()).toBeDisabled();
+
+    // Достижение предела — ещё не превышение: подсказка без красного выделения.
+    await expect(tooltip(page, 'Добавить книгу')).toHaveAttribute(
+        'title',
+        'Достигнут лимит открытых вкладок',
+    );
+    await expect(add).not.toHaveClass(/text-destructive/);
+});
+
+test('уменьшение лимита сохраняет вкладки, помечает превышение и уведомляет', async ({
+    page,
+}) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await addBook(page, 'Третья книга');
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+
+    // Лимит опускается ниже числа открытых вкладок: две вкладки — превышение.
+    await openSettings(page);
+    await saveOpenTabsLimit(page, 1);
+    await closeSettings(page);
+
+    // Вкладки сохранены, открытие заблокировано и выделено, подсказка о превышении.
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+    const add = page.getByLabel('Добавить книгу');
+    await expect(add).toBeDisabled();
+    await expect(page.getByLabel('Открыть файл с диска')).toBeDisabled();
+    await expect(tooltip(page, 'Добавить книгу')).toHaveAttribute(
+        'title',
+        'Превышен лимит открытых вкладок',
+    );
+    await expect(add).toHaveClass(/text-destructive/);
+    // Кнопка дублирования вкладки тоже выделена как превышение.
+    await expect(page.getByLabel('Дублировать вкладку').first()).toHaveClass(/text-destructive/);
+
+    // Превышение опубликовано в журнал уведомлений (запись пользователя видна).
+    await page.getByLabel('Уведомления').click();
+    await expect(
+        page.locator('aside').getByText(/Превышен лимит открытых вкладок/),
+    ).toBeVisible();
+    await page.getByLabel('Уведомления').click();
+
+    // Повышение лимита возвращает доступность и снимает выделение превышения.
+    await openSettings(page);
+    await saveOpenTabsLimit(page, 5);
+    await closeSettings(page);
+
+    await expect(add).toBeEnabled();
+    await expect(add).not.toHaveClass(/text-destructive/);
+    await expect(tooltip(page, 'Добавить книгу')).toHaveAttribute('title', 'Добавить книгу');
+    await expect(page.getByLabel('Дублировать вкладку').first()).not.toHaveClass(
+        /text-destructive/,
+    );
 });

@@ -12,6 +12,7 @@
     type StoreBootstrap,
   } from '../features/lifecycle/bootstrap';
   import { normalizeRegistry } from '../features/workplace/workspace-registry';
+  import { DEFAULT_OPEN_TABS_LIMIT } from '../features/workplace/workplace';
   import { DEFAULT_PALETTE, DEFAULT_READER_THEME } from '@texture/ui';
 
   /** Фаза начальной загрузки приложения. */
@@ -57,6 +58,9 @@
   /** Реестр наборов заметок, загруженный до первого рендера. */
   let initialNotesLibrary: NotesLibraryBootstrap = $state({ sets: [], error: '' });
 
+  /** Лимит открытых вкладок рабочего места, загруженный до первого рендера. */
+  let initialOpenTabsLimit = $state(DEFAULT_OPEN_TABS_LIMIT);
+
   /** Счётчик повторных попыток: перезапускает эффект загрузки. */
   let attempt = $state(0);
 
@@ -89,6 +93,7 @@
         initialNotifications = state.notifications;
         initialStore = state.store;
         initialNotesLibrary = state.notesLibrary;
+        initialOpenTabsLimit = state.openTabsLimit;
         phase = 'ready';
       } catch (error) {
         if (!active) {
@@ -116,6 +121,7 @@
     initialNotifications={initialNotifications}
     initialStore={initialStore}
     initialNotesLibrary={initialNotesLibrary}
+    initialOpenTabsLimit={initialOpenTabsLimit}
   />
 {:else if phase === 'error'}
   <BootstrapError error={bootstrapError} onRetry={retry} />

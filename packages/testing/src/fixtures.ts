@@ -19,6 +19,7 @@ const SETTINGS_FIELDS: Record<
         title: string;
         type: string;
         default: unknown;
+        description?: string;
         options?: Array<{ value: string; title: string }>;
     }>
 > = {
@@ -70,6 +71,14 @@ const SETTINGS_FIELDS: Record<
                 { value: 'dark', title: 'Тёмная' },
             ],
         },
+        {
+            key: 'window.open_tabs_limit',
+            title: 'Лимит открытых вкладок',
+            type: 'number',
+            default: 50,
+            description:
+                'Наибольшее число одновременно открытых вкладок рабочего места. Слишком большое значение может привести к непредсказуемым последствиям.',
+        },
     ],
 };
 
@@ -81,8 +90,51 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
         'appearance.theme': 'system',
         'appearance.palette': 'gruvbox',
         'reader.theme': 'light',
+        'window.open_tabs_limit': 50,
     },
 };
+
+/** Стартовые записи журнала уведомлений мока. */
+const BASE_JOURNAL_ENTRIES: Array<Record<string, unknown>> = [
+    {
+        id: 1,
+        timestamp: 1_700_000_000_000,
+        level: 'User',
+        severity: 'info',
+        message: 'Библиотека открыта',
+        source: 'app',
+        details: {},
+        read: true,
+    },
+    {
+        id: 2,
+        timestamp: 1_700_000_001_000,
+        level: 'Technical',
+        severity: 'warn',
+        message: 'Плагин пропущен',
+        source: 'core',
+        details: {},
+        read: false,
+    },
+    {
+        id: 3,
+        timestamp: 1_700_000_002_000,
+        level: 'Technical',
+        severity: 'error',
+        message: 'Ошибка вызова плагина',
+        source: 'core',
+        details: {},
+        read: true,
+    },
+];
+
+/** Изменяемый журнал уведомлений в моке: публикации переживают чтения. */
+const MOCK_JOURNAL: Array<Record<string, unknown>> = [];
+
+/** Записи журнала уведомлений: стартовые примеры и опубликованные записи. */
+function mockJournalEntries(): Array<Record<string, unknown>> {
+    return [...BASE_JOURNAL_ENTRIES, ...MOCK_JOURNAL];
+}
 
 /** Секции настроек с текущими значениями для opaque-операций. */
 function settingsSections(): unknown[] {
@@ -244,40 +296,30 @@ function baseOperation(payload: unknown): unknown {
         return { stores: [] };
     }
     if (message.capability === 'notifications.journal@1' && message.operation === 'list') {
-        return {
-            entries: [
-                {
-                    id: 1,
-                    timestamp: 1_700_000_000_000,
-                    level: 'User',
-                    severity: 'info',
-                    message: 'Библиотека открыта',
-                    source: 'app',
-                    details: {},
-                    read: true,
-                },
-                {
-                    id: 2,
-                    timestamp: 1_700_000_001_000,
-                    level: 'Technical',
-                    severity: 'warn',
-                    message: 'Плагин пропущен',
-                    source: 'core',
-                    details: {},
-                    read: false,
-                },
-                {
-                    id: 3,
-                    timestamp: 1_700_000_002_000,
-                    level: 'Technical',
-                    severity: 'error',
-                    message: 'Ошибка вызова плагина',
-                    source: 'core',
-                    details: {},
-                    read: true,
-                },
-            ],
+        return { entries: mockJournalEntries() };
+    }
+    if (message.capability === 'notifications.journal@1' && message.operation === 'publish') {
+        const record = (message.payload ?? {}) as {
+            level?: string;
+            severity?: string;
+            message?: string;
+            source?: string;
+            details?: Record<string, unknown>;
         };
+        MOCK_JOURNAL.push({
+            // Идентификаторы продолжают нумерацию стартовых записей, чтобы ключ
+            // записи в ленте уведомлений оставался уникальным.
+            id: BASE_JOURNAL_ENTRIES.length + MOCK_JOURNAL.length + 1,
+            timestamp: 1_700_000_003_000 + MOCK_JOURNAL.length,
+            level: record.level === 'technical' ? 'Technical' : 'User',
+            severity: record.severity ?? 'info',
+            message: record.message ?? '',
+            source: record.source ?? 'core',
+            details: record.details ?? {},
+            read: false,
+        });
+        emitMockEvent('notifications:added', MOCK_JOURNAL[MOCK_JOURNAL.length - 1]);
+        return { ok: true };
     }
     if (message.capability === 'notifications.journal@1' && message.operation === 'mark_all_read') {
         return { ok: true };
@@ -602,6 +644,7 @@ export function defaultMockConfig(): MockBridgeConfig {
             theme_preference: () => SETTINGS_VALUES['app.general']['appearance.theme'],
             theme_palette: () => SETTINGS_VALUES['app.general']['appearance.palette'],
             reader_theme: () => SETTINGS_VALUES['app.general']['reader.theme'],
+            window_open_tabs_limit: () => SETTINGS_VALUES['app.general']['window.open_tabs_limit'],
             show_window: () => null,
             app_info: () => ({
                 name: 'Текстура',

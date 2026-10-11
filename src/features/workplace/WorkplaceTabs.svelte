@@ -2,6 +2,8 @@
   import { untrack } from 'svelte';
   import { Button } from '@texture/ui';
   import type { WorkspaceTab } from './workplace';
+  import { openAvailability } from './workplace';
+  import { publishUserNotification } from '../notifications/notifications';
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
 
   interface Props {
@@ -13,6 +15,8 @@
     booksOpen: boolean;
     /** Открыта ли панель заметок. */
     notesOpen: boolean;
+    /** Лимит числа открытых вкладок рабочего места. */
+    openTabsLimit: number;
     /** Выбор вкладки. */
     onSelect: (id: string) => void;
     /** Закрытие вкладки. */
@@ -36,6 +40,7 @@
     activeTabId,
     booksOpen,
     notesOpen,
+    openTabsLimit,
     onSelect,
     onClose,
     onDuplicate,
@@ -45,6 +50,60 @@
     onToggleNotes,
     onBackToList,
   }: Props = $props();
+
+  /** Доступность создания новых вкладок при текущем лимите. */
+  const availability = $derived(openAvailability(tabs.length, openTabsLimit));
+
+  /** Открытие новых вкладок заблокировано: лимит достигнут или превышен. */
+  const openBlocked = $derived(availability !== 'available');
+
+  /** Лимит превышен: вкладок больше, чем разрешено. */
+  const overLimit = $derived(availability === 'over-limit');
+
+  /** Краткая подсказка заблокированным кнопкам открытия.
+   *
+   * Все три кнопки создания вкладки («Добавить книгу», «Открыть файл с диска»,
+   * «Дублировать вкладку») показывают один и тот же краткий текст: он говорит,
+   * что действие недоступно из-за лимита. Подробности — в уведомлении.
+   */
+  const openBlockedTitle = $derived(
+    overLimit ? 'Превышен лимит открытых вкладок' : 'Достигнут лимит открытых вкладок',
+  );
+
+  /** Подсказка кнопке открытия: краткая при блокировке, обычная иначе.
+   *
+   * Подсказка выставляется обёртке кнопки, а не самой кнопке: недоступная
+   * кнопка не получает событий указателя, и её собственная подсказка не
+   * показывается.
+   */
+  function openButtonTitle(base: string): string {
+    return openBlocked ? openBlockedTitle : base;
+  }
+
+  /** Признак того, что о превышении лимита уже сообщено (для дедупликации). */
+  let overLimitReported = false;
+
+  /** Публикация пояснения о превышении лимита с дедупликацией.
+   *
+   * Пока превышение сохраняется, запись публикуется один раз; при возврате в
+   * предел признак сбрасывается, и повторное превышение сообщается снова.
+   */
+  $effect(() => {
+    if (!overLimit) {
+      overLimitReported = false;
+      return;
+    }
+    if (overLimitReported) {
+      return;
+    }
+    overLimitReported = true;
+    void publishUserNotification({
+      message: `Превышен лимит открытых вкладок: открыто ${tabs.length}, лимит ${openTabsLimit}. Закройте лишние вкладки или увеличьте лимит в настройках.`,
+      severity: 'warn',
+      source: 'workplace',
+      details: { tabs: tabs.length, limit: openTabsLimit },
+    }).catch(() => undefined);
+  });
 
   /** Промежуток между вкладками в пикселях (класс `gap-[2px]`). */
   const TAB_GAP_PX = 2;
@@ -198,28 +257,38 @@
   <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
        выталкивает их за пределы панели. -->
   <div class="flex flex-none items-center gap-[2px]" data-testid="workplace-tabs-actions">
-    <Button size="icon" variant="ghost" title="Добавить книгу" ariaLabel="Добавить книгу" onclick={onAdd}>
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-      </svg>
-    </Button>
-    <Button
-      size="icon"
-      variant="ghost"
-      title="Открыть файл с диска"
-      ariaLabel="Открыть файл с диска"
-      onclick={onAddFile}
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-        <path
-          d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h7A1.5 1.5 0 0 1 19 9v8.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5Z"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </Button>
+    <span class="flex" title={openButtonTitle('Добавить книгу')}>
+      <Button
+        size="icon"
+        variant={overLimit ? 'ghost-danger' : 'ghost'}
+        ariaLabel="Добавить книгу"
+        disabled={openBlocked}
+        onclick={onAdd}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </Button>
+    </span>
+    <span class="flex" title={openButtonTitle('Открыть файл с диска')}>
+      <Button
+        size="icon"
+        variant={overLimit ? 'ghost-danger' : 'ghost'}
+        ariaLabel="Открыть файл с диска"
+        disabled={openBlocked}
+        onclick={onAddFile}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path
+            d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h7A1.5 1.5 0 0 1 19 9v8.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </Button>
+    </span>
   </div>
   <div class="flex min-w-0 flex-1 items-center gap-2">
     {#if overflowing}
@@ -266,18 +335,22 @@
           >
             {tab.title}
           </button>
-          <button
-            type="button"
-            title="Дублировать вкладку"
-            aria-label="Дублировать вкладку"
-            class="flex-none cursor-pointer px-[3px] opacity-70 hover:opacity-100"
-            onclick={() => onDuplicate(tab.id)}
-          >
-            <svg viewBox="0 0 24 24" width="0.85em" height="0.85em" aria-hidden="true">
-              <rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
-              <path d="M5 15V6a2 2 0 0 1 2-2h9" fill="none" stroke="currentColor" stroke-width="2" />
-            </svg>
-          </button>
+          <span class="flex" title={openButtonTitle('Дублировать вкладку')}>
+            <button
+              type="button"
+              aria-label="Дублировать вкладку"
+              disabled={openBlocked}
+              class="flex-none cursor-pointer px-[3px] opacity-70 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
+                ? 'text-destructive'
+                : ''}"
+              onclick={() => onDuplicate(tab.id)}
+            >
+              <svg viewBox="0 0 24 24" width="0.85em" height="0.85em" aria-hidden="true">
+                <rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M5 15V6a2 2 0 0 1 2-2h9" fill="none" stroke="currentColor" stroke-width="2" />
+              </svg>
+            </button>
+          </span>
           <button
             type="button"
             data-testid="workplace-tab-close"

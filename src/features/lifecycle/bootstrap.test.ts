@@ -62,6 +62,9 @@ describe('загрузка начального состояния', () => {
                     };
                 }
             }
+            if (command === 'window_open_tabs_limit') {
+                return 12;
+            }
             return null;
         });
 
@@ -81,6 +84,7 @@ describe('загрузка начального состояния', () => {
         expect(state.notesLibrary.sets).toHaveLength(1);
         expect(state.notesLibrary.sets[0].bookTitle).toBe('Книга A');
         expect(state.notesLibrary.error).toBe('');
+        expect(state.openTabsLimit).toBe(12);
     });
 
     it('не считает ошибку загрузки настроек сбоем бутстрапа', async () => {
@@ -183,5 +187,21 @@ describe('загрузка начального состояния', () => {
         expect(document.documentElement.dataset.theme).toBe('light');
         expect(document.documentElement.dataset.palette).toBe('gruvbox');
         expect(document.documentElement.dataset.readerTheme).toBe('light');
+    });
+
+    it('использует лимит вкладок по умолчанию, если чтение не удалось', async () => {
+        invoke.mockImplementation(async (command: string) => {
+            if (command === 'get_workspaces') {
+                return { workspaces: [] };
+            }
+            if (command === 'window_open_tabs_limit') {
+                throw new Error('лимит недоступен');
+            }
+            return null;
+        });
+
+        const state = await loadBootstrap();
+
+        expect(state.openTabsLimit).toBe(50);
     });
 });

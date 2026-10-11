@@ -19,6 +19,7 @@ pub mod select_source_library;
 pub mod show_window;
 pub mod theme_palette;
 pub mod theme_preference;
+pub mod window_open_tabs_limit;
 
 pub use active_library::__cmd__active_library;
 pub use active_library::__tauri_command_name_active_library;
@@ -103,6 +104,10 @@ pub use reader_theme::reader_theme;
 pub use show_window::__cmd__show_window;
 pub use show_window::__tauri_command_name_show_window;
 pub use show_window::show_window;
+
+pub use window_open_tabs_limit::__cmd__window_open_tabs_limit;
+pub use window_open_tabs_limit::__tauri_command_name_window_open_tabs_limit;
+pub use window_open_tabs_limit::window_open_tabs_limit;
 
 /// Захват общего состояния приложения с единым сообщением об ошибке.
 pub fn lock_state(state: &Mutex<AppState>) -> Result<MutexGuard<'_, AppState>, String> {

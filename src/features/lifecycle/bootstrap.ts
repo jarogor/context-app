@@ -44,6 +44,8 @@ import {
   type Store,
 } from '../store/plugin-store';
 import { listAllSets, type NoteSet } from '../notes/notes';
+import { DEFAULT_OPEN_TABS_LIMIT } from '../workplace/workplace';
+import { loadOpenTabsLimit } from '../workplace/open-tabs-limit';
 import { invokeCommand } from '../../shared/app-bridge';
 import { activeLibrary } from '../../shared/base-plugin';
 
@@ -71,6 +73,8 @@ export interface BootstrapState {
     store: StoreBootstrap;
     /** Реестр наборов заметок, загруженный до первого рендера. */
     notesLibrary: NotesLibraryBootstrap;
+    /** Лимит числа открытых вкладок рабочего места (значение по умолчанию при ошибке). */
+    openTabsLimit: number;
 }
 
 /** Оформление, прочитанное и применённое на бутстрапе. */
@@ -130,7 +134,7 @@ export interface NotesLibraryBootstrap {
  * не должна мешать входу в приложение.
  */
 export async function loadBootstrap(): Promise<BootstrapState> {
-    const [registry, library, appearance, settings, notifications, store, notesLibrary] =
+    const [registry, library, appearance, settings, notifications, store, notesLibrary, openTabsLimit] =
         await Promise.all([
             invokeCommand('get_workspaces', {}),
             loadActiveLibrary(),
@@ -139,6 +143,7 @@ export async function loadBootstrap(): Promise<BootstrapState> {
             loadNotificationsBootstrap(),
             loadStoreBootstrap(),
             loadNotesLibraryBootstrap(),
+            loadOpenTabsLimit().catch(() => DEFAULT_OPEN_TABS_LIMIT),
         ]);
     return {
         registry,
@@ -148,6 +153,7 @@ export async function loadBootstrap(): Promise<BootstrapState> {
         notifications,
         store,
         notesLibrary,
+        openTabsLimit,
     };
 }
 

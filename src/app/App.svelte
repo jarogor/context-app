@@ -46,6 +46,8 @@
   } from '../features/notes/notes';
   import { createNotesController } from '../features/notes/notes-controller.svelte';
   import { formatFromPath, isSupportedFormat } from '../features/reader/reader';
+  import { normalizeOpenTabsLimit } from '../features/workplace/workplace';
+  import { openTabsLimitFromSettingsEvent } from '../features/workplace/open-tabs-limit';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
   import { activeLibrary as fetchActiveLibrary } from '../shared/base-plugin';
   import { lastSegment } from '../shared/path';
@@ -87,6 +89,8 @@
     initialStore: StoreBootstrap;
     /** Реестр наборов заметок, загруженный до первого рендера. */
     initialNotesLibrary: NotesLibraryBootstrap;
+    /** Лимит открытых вкладок рабочего места, загруженный до первого рендера. */
+    initialOpenTabsLimit: number;
   }
 
   let {
@@ -97,6 +101,7 @@
     initialNotifications,
     initialStore,
     initialNotesLibrary,
+    initialOpenTabsLimit,
   }: Props = $props();
 
   /** Страница раздела настроек. */
@@ -182,6 +187,9 @@
   let readerTheme = $state<ReaderThemeId>(
     untrack(() => normalizeReaderThemeId(initialAppearance.readerTheme ?? DEFAULT_READER_THEME)),
   );
+
+  /** Лимит числа открытых вкладок рабочего места. */
+  let openTabsLimit = $state(untrack(() => normalizeOpenTabsLimit(initialOpenTabsLimit)));
 
   /** Активная палитра оформления: общий реестр дизайн-системы. */
   let palette = $state<PaletteId>(
@@ -442,7 +450,7 @@
 
   /** Дублирование вкладки. */
   function duplicateCurrentTab(id: string) {
-    registry = updateCurrentWorkspaceTabs(registry, (state) => duplicateTab(state, id));
+    registry = updateCurrentWorkspaceTabs(registry, (state) => duplicateTab(state, id, openTabsLimit));
   }
 
   /** Изменение состояния чтения вкладки. */
@@ -599,7 +607,7 @@
       return true;
     }
     if (registry.currentWorkspaceId !== null) {
-      registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, book));
+      registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, book, openTabsLimit));
       return true;
     }
     // Текущего места нет: книга ждёт выбора или создания рабочего места.
@@ -709,11 +717,13 @@
     registry = selectWorkspace(registry, id);
     pickerOpen = false;
     if (pendingBook) {
-      registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, pendingBook as {
-        path: string;
-        title: string;
-        format: string;
-      }));
+      registry = updateCurrentWorkspaceTabs(registry, (state) =>
+        openBook(
+          state,
+          pendingBook as { path: string; title: string; format: string },
+          openTabsLimit,
+        ),
+      );
       pendingBook = null;
     }
     showWorkspaceSurface();
@@ -726,7 +736,7 @@
     if (pendingBook) {
       const book = pendingBook;
       pendingBook = null;
-      registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, book));
+      registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, book, openTabsLimit));
     }
     showWorkspaceSurface();
   }
@@ -782,6 +792,11 @@
         if (nextReaderTheme !== null) {
           readerTheme = nextReaderTheme;
           applyAppReaderTheme(nextReaderTheme);
+        }
+        // Лимит открытых вкладок меняется в настройках; применяется сразу.
+        const nextOpenTabsLimit = openTabsLimitFromSettingsEvent(value);
+        if (nextOpenTabsLimit !== null) {
+          openTabsLimit = nextOpenTabsLimit;
         }
       });
     })();
@@ -1073,6 +1088,7 @@
           tool={notesController.tool}
           {readerTheme}
           {palette}
+          {openTabsLimit}
           onChangeReaderTheme={changeReaderTheme}
           allowedNoteTypes={currentNoteTypes}
           onToolChange={notesController.setTool}

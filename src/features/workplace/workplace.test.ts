@@ -5,7 +5,9 @@ import {
   closeTab,
   duplicateTab,
   emptyWorkspace,
+  normalizeOpenTabsLimit,
   normalizeWorkspace,
+  openAvailability,
   openBook,
   replaceTabBook,
   updateTab,
@@ -120,5 +122,71 @@ describe('рабочее место', () => {
     expect(second.tabs[0].zoom).toBe(100);
     expect(second.tabs[0].position).toBe(0);
     expect(second.tabs[0].path).toBe('/lib/b.epub');
+  });
+});
+
+describe('лимит открытых вкладок', () => {
+  /** Рабочее место с заданным числом открытых вкладок. */
+  function withTabs(count: number) {
+    let state = emptyWorkspace();
+    for (let index = 0; index < count; index += 1) {
+      state = openBook(state, { path: `/lib/${index}.epub`, title: `Книга ${index}` });
+    }
+    return state;
+  }
+
+  it('нормализует лимит: не меньше единицы, иначе значение по умолчанию', () => {
+    expect(normalizeOpenTabsLimit(10)).toBe(10);
+    expect(normalizeOpenTabsLimit(0)).toBe(1);
+    expect(normalizeOpenTabsLimit(-3)).toBe(1);
+    expect(normalizeOpenTabsLimit(Number.NaN)).toBe(50);
+    expect(normalizeOpenTabsLimit(undefined)).toBe(50);
+  });
+
+  it('определяет доступность открытия по числу вкладок и лимиту', () => {
+    expect(openAvailability(2, 5)).toBe('available');
+    expect(openAvailability(5, 5)).toBe('limit-reached');
+    expect(openAvailability(7, 5)).toBe('over-limit');
+  });
+
+  it('открывает книгу при числе вкладок меньше лимита', () => {
+    const state = openBook(withTabs(4), { path: '/lib/new.epub', title: 'Новая' }, 5);
+
+    expect(state.tabs).toHaveLength(5);
+    expect(state.activeTabId).toBe(state.tabs[4].id);
+  });
+
+  it('не открывает книгу при достижении лимита', () => {
+    const state = withTabs(5);
+
+    const next = openBook(state, { path: '/lib/new.epub', title: 'Новая' }, 5);
+
+    expect(next).toBe(state);
+    expect(next.tabs).toHaveLength(5);
+  });
+
+  it('не открывает книгу при превышении лимита', () => {
+    const state = withTabs(7);
+
+    const next = openBook(state, { path: '/lib/new.epub', title: 'Новая' }, 5);
+
+    expect(next).toBe(state);
+    expect(next.tabs).toHaveLength(7);
+  });
+
+  it('открывает книгу без лимита (лимит не задан)', () => {
+    const state = withTabs(5);
+
+    const next = openBook(state, { path: '/lib/new.epub', title: 'Новая' });
+
+    expect(next.tabs).toHaveLength(6);
+  });
+
+  it('дублирует вкладку ниже лимита и блокирует при достижении', () => {
+    const state = withTabs(5);
+    const id = state.tabs[0].id;
+
+    expect(duplicateTab(state, id, 6).tabs).toHaveLength(6);
+    expect(duplicateTab(state, id, 5)).toBe(state);
   });
 });

@@ -91,6 +91,7 @@
     <Input
       id={controlId}
       type={node.props?.type === 'number' ? 'number' : 'text'}
+      class={node.props?.type === 'number' ? 'max-w-[4rem]' : ''}
       value={text()}
       oninput={(event) => {
         onvalue(name, event.currentTarget.value);

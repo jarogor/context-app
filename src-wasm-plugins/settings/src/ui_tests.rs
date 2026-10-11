@@ -106,3 +106,12 @@ fn number_field_becomes_number_input() {
     assert_eq!(node["props"]["type"], "number");
     assert_eq!(node["props"]["value"], "5");
 }
+
+#[test]
+fn number_field_drops_trailing_fraction() {
+    let section = section_with(field("count", "Количество", "number"));
+    // Ранее сохранённое значение-дробь `50.0` показывается как целое `50`.
+    let declaration = section_declaration(&section, &json!({ "count": 50.0 }));
+    let node = find_node(&declaration, "Input");
+    assert_eq!(node["props"]["value"], "50");
+}

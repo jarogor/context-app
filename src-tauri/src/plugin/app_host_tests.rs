@@ -307,6 +307,85 @@ fn refresh_registry_includes_palette_field() {
     cleanup(&storage);
 }
 
+/// Проверка, что поле лимита открытых вкладок зарегистрировано в секции
+/// приложения с числовым типом и значением по умолчанию.
+#[test]
+fn refresh_registry_includes_open_tabs_limit_field() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-open-tabs-limit-field");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+
+    let output = host
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
+        .expect("список секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
+    let app_section = parsed["sections"]
+        .as_array()
+        .expect("массив секций")
+        .iter()
+        .find(|section| section["id"] == "app.general")
+        .expect("секция приложения");
+    let limit_field = app_section["fields"]
+        .as_array()
+        .expect("поля секции")
+        .iter()
+        .find(|field| field["key"] == "window.open_tabs_limit")
+        .expect("поле лимита открытых вкладок");
+    assert_eq!(
+        limit_field["type"], "number",
+        "тип поля лимита открытых вкладок"
+    );
+    assert_eq!(
+        app_section["values"]["window.open_tabs_limit"], 50,
+        "значение по умолчанию для лимита открытых вкладок"
+    );
+    cleanup(&storage);
+}
+
+/// Проверка чтения лимита открытых вкладок и его нормализации.
+#[test]
+fn open_tabs_limit_reads_and_normalizes_setting() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-open-tabs-limit");
+    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+    assert_eq!(host.open_tabs_limit(), 50, "значение по умолчанию");
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "window.open_tabs_limit": 12 }
+        }),
+    )
+    .expect("сохранение лимита");
+    assert_eq!(host.open_tabs_limit(), 12, "лимит прочитан из настроек");
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "window.open_tabs_limit": 0 }
+        }),
+    )
+    .expect("сохранение нуля");
+    assert_eq!(
+        host.open_tabs_limit(),
+        1,
+        "нулевой лимит приведён к единице"
+    );
+    cleanup(&storage);
+}
+
 /// Проверка сквозного сценария настроек: реестр приложения и уведомлений и
 /// сохранение значения между перезапусками runtime.
 #[test]

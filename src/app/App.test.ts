@@ -54,6 +54,7 @@ function appProps(notesLibrary: NotesLibraryBootstrap) {
         initialNotifications: { entries: [], technicalVisible: false, error: '' },
         initialStore: { plugins: [], stores: [], activationPending: false, error: '' },
         initialNotesLibrary: notesLibrary,
+        initialOpenTabsLimit: 50,
     };
 }
 
@@ -247,6 +248,64 @@ describe('тема области чтения в оболочке', () => {
             expect(document.documentElement.dataset.readerTheme).toBe('dark'),
         );
         expect(document.documentElement.dataset.theme).toBe(themeBefore);
+    });
+
+    it('применяет изменение лимита вкладок событием settings:changed', async () => {
+        const registry: WorkspaceRegistry = {
+            workspaces: [
+                {
+                    id: 'ws-1',
+                    name: 'Рабочее место',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/a.epub',
+                            title: 'Книга A',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                        {
+                            id: 't2',
+                            path: '/lib/b.epub',
+                            title: 'Книга B',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+            ],
+            currentWorkspaceId: 'ws-1',
+        };
+        render(App, { props: { ...appProps({ sets: [], error: '' }), initialRegistry: registry } });
+        await fireEvent.click(screen.getByLabelText('Рабочее место'));
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        await waitFor(() => expect(settingsChanged).toBeTypeOf('function'));
+
+        // Изначально открытие доступно: лимит по умолчанию 50 больше одной вкладки.
+        expect((screen.getByLabelText('Добавить книгу') as HTMLButtonElement).disabled).toBe(false);
+
+        // Лимит уменьшен ниже уже открытого числа вкладок: превышение.
+        settingsChanged?.({
+            section: 'app.general',
+            values: { 'window.open_tabs_limit': 0 },
+        });
+
+        await waitFor(() =>
+            expect(
+                (screen.getByLabelText('Добавить книгу') as HTMLButtonElement).disabled,
+            ).toBe(true),
+        );
+        expect(
+            (
+                screen.getByLabelText('Добавить книгу').closest('[title]') as HTMLElement
+            ).getAttribute('title'),
+        ).toBe('Превышен лимит открытых вкладок');
     });
 });
 

@@ -68,6 +68,8 @@
     tool: NoteTool;
     /** Смена активного инструмента заметок. */
     onToolChange: (tool: NoteTool) => void;
+    /** Лимит числа открытых вкладок рабочего места. */
+    openTabsLimit: number;
     /** Тема области чтения (светлая или тёмная). */
     readerTheme?: ReaderThemeId;
     /** Палитра оформления: общий реестр дизайн-системы. */
@@ -139,6 +141,7 @@
     onShape,
     tool,
     onToolChange,
+    openTabsLimit,
     readerTheme = DEFAULT_READER_THEME,
     palette,
     onChangeReaderTheme,
@@ -273,6 +276,7 @@
       activeTabId={workspace.activeTabId}
       {booksOpen}
       {notesOpen}
+      {openTabsLimit}
       onSelect={onSelectTab}
       onClose={onCloseTab}
       onDuplicate={onDuplicateTab}

@@ -6,6 +6,7 @@ import { DEFAULT_NOTE_TOOL, normalizeNote, noteList } from '../notes/notes';
 /** Обязательные обработчики поверхности с заглушками. */
 function handlers() {
     return {
+        openTabsLimit: 50,
         tool: DEFAULT_NOTE_TOOL,
         onToolChange: vi.fn(),
         onSelectTab: vi.fn(),

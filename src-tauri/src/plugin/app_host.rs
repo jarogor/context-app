@@ -75,6 +75,13 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
             { "value": "light", "title": "Светлая" },
             { "value": "dark", "title": "Тёмная" }
           ]
+        },
+        {
+          "key": "window.open_tabs_limit",
+          "title": "Лимит открытых вкладок",
+          "type": "number",
+          "description": "Наибольшее число одновременно открытых вкладок рабочего места. Превышение допускается только за счёт уже открытых вкладок и блокирует открытие новых. Слишком большое значение лимита может привести к непредсказуемым последствиям — от замедления до падения приложения.",
+          "default": 50
         }
       ]
     }
@@ -346,6 +353,20 @@ impl AppPluginHost {
             Some("dark") => "dark".to_string(),
             _ => "light".to_string(),
         }
+    }
+
+    /// Лимит числа открытых вкладок рабочего места из настроек приложения.
+    ///
+    /// Отсутствующее или некорректное значение заменяется значением по умолчанию
+    /// `50`; значение меньше единицы приводится к единице — открытие хотя бы
+    /// одной вкладки должно оставаться возможным.
+    pub fn open_tabs_limit(&mut self) -> u32 {
+        const DEFAULT_LIMIT: u32 = 50;
+        self.app_setting_value("window.open_tabs_limit")
+            .and_then(|value| value.as_f64())
+            .filter(|value| value.is_finite())
+            .map(|value| u32::try_from((value.trunc() as i64).max(1)).unwrap_or(DEFAULT_LIMIT))
+            .unwrap_or(DEFAULT_LIMIT)
     }
 
     /// Чтение логического значения из секции настроек приложения.

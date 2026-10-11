@@ -45,10 +45,7 @@ fn coerce_value(
         })),
         "number" => match value {
             serde_json::Value::Number(_) => Ok(value.clone()),
-            serde_json::Value::String(text) => text
-                .parse::<f64>()
-                .map(|number| json!(number))
-                .map_err(|_| invalid()),
+            serde_json::Value::String(text) => parse_number(text).ok_or_else(invalid),
             _ => Err(invalid()),
         },
         "json" => match value {
@@ -58,3 +55,18 @@ fn coerce_value(
         _ => Ok(value.clone()),
     }
 }
+
+/// Разбор числовой строки поля типа `number`.
+///
+/// Целое значение сохраняется целым числом, а не числом с плавающей точкой:
+/// иначе введённое `50` возвращалось бы в интерфейс как `50.0`.
+fn parse_number(text: &str) -> Option<serde_json::Value> {
+    if let Ok(integer) = text.trim().parse::<i64>() {
+        return Some(json!(integer));
+    }
+    text.trim().parse::<f64>().ok().map(|number| json!(number))
+}
+
+#[cfg(test)]
+#[path = "coerce_tests.rs"]
+mod tests;

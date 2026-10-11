@@ -69,6 +69,30 @@ export async function markAllNotificationsRead(): Promise<void> {
   await operation(JOURNAL_CAPABILITY, 'mark_all_read', {});
 }
 
+/** Публикация пользовательского уведомления в журнал.
+ *
+ * Текст и подробности попадают в ленту уведомлений; вызывающий отвечает за
+ * дедупликацию, чтобы не публиковать одно и то же повторно.
+ */
+export async function publishUserNotification(payload: {
+  /** Текст сообщения. */
+  message: string;
+  /** Степень серьёзности записи. */
+  severity?: NotificationSeverity;
+  /** Источник события. */
+  source?: string;
+  /** Дополнительные подробности события. */
+  details?: Record<string, unknown>;
+}): Promise<void> {
+  await operation(JOURNAL_CAPABILITY, 'publish', {
+    level: 'user',
+    severity: payload.severity ?? 'info',
+    message: payload.message,
+    source: payload.source ?? 'core',
+    details: payload.details ?? {},
+  });
+}
+
 /** Полная очистка журнала уведомлений. */
 export async function clearNotifications(): Promise<void> {
   await operation(JOURNAL_CAPABILITY, 'clear', {});
