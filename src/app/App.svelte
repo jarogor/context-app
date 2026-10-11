@@ -824,6 +824,24 @@
   <header
     class="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4 py-2"
   >
+    <Button
+      variant={settingsOpen ? 'primary' : 'secondary'}
+      size="icon"
+      title="Настройки"
+      ariaLabel="Настройки"
+      ariaPressed={settingsOpen}
+      onclick={toggleSettings}
+    >
+      <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
+        <path
+          d="M4 6h16M4 12h16M4 18h16"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          fill="none"
+        />
+      </svg>
+    </Button>
     <span class="text-base font-bold text-[var(--primary)]">Текстура</span>
     {#if showLibrary()}
       {#if activeLibrary?.provider_name}
@@ -951,30 +969,6 @@
       </Button>
       <span class="mx-1 h-6 w-px shrink-0 bg-[var(--border)]" aria-hidden="true"></span>
       <Button
-        variant={notificationsOpen ? 'primary' : 'secondary'}
-        size="icon"
-        title="Уведомления"
-        ariaLabel="Уведомления"
-        ariaPressed={notificationsOpen}
-        class="relative"
-        onclick={toggleNotifications}
-      >
-        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-          <path
-            d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5v-1l-1.7-1.7V10a5.3 5.3 0 0 0-4-5.2V4a1.3 1.3 0 0 0-2.6 0v.8A5.3 5.3 0 0 0 6.7 10v4.3L5 16v1Z"
-            fill="currentColor"
-          />
-        </svg>
-        <span
-          class="absolute -top-[0.35rem] -right-[0.35rem] flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-[0.3rem] text-[0.7rem] font-bold text-[var(--primary-foreground)]"
-          style:background={unreadCount === 0
-            ? 'var(--input)'
-            : 'var(--success)'}
-        >
-          {unreadCount}
-        </span>
-      </Button>
-      <Button
         variant="secondary"
         size="icon"
         title={`Тема: ${themeTitles[themePreference]} (нажмите, чтобы переключить)`}
@@ -1009,22 +1003,28 @@
         </svg>
       </Button>
       <Button
-        variant={settingsOpen ? 'primary' : 'secondary'}
+        variant={notificationsOpen ? 'primary' : 'secondary'}
         size="icon"
-        title="Настройки"
-        ariaLabel="Настройки"
-        ariaPressed={settingsOpen}
-        onclick={toggleSettings}
+        title="Уведомления"
+        ariaLabel="Уведомления"
+        ariaPressed={notificationsOpen}
+        class="relative"
+        onclick={toggleNotifications}
       >
         <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
           <path
-            d="M4 6h16M4 12h16M4 18h16"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            fill="none"
+            d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5v-1l-1.7-1.7V10a5.3 5.3 0 0 0-4-5.2V4a1.3 1.3 0 0 0-2.6 0v.8A5.3 5.3 0 0 0 6.7 10v4.3L5 16v1Z"
+            fill="currentColor"
           />
         </svg>
+        <span
+          class="absolute -top-[0.35rem] -right-[0.35rem] flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-[0.3rem] text-[0.7rem] font-bold text-[var(--primary-foreground)]"
+          style:background={unreadCount === 0
+            ? 'var(--input)'
+            : 'var(--success)'}
+        >
+          {unreadCount}
+        </span>
       </Button>
     </div>
   </header>

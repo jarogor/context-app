@@ -249,3 +249,46 @@ describe('тема области чтения в оболочке', () => {
         expect(document.documentElement.dataset.theme).toBe(themeBefore);
     });
 });
+
+describe('порядок кнопок верхней панели', () => {
+    /** Метки кнопок шапки в порядке слева направо. */
+    function headerLabels(): string[] {
+        const header = document.querySelector('header') as HTMLElement;
+        return Array.from(header.querySelectorAll('button')).map(
+            (node) => node.getAttribute('aria-label') ?? '',
+        );
+    }
+
+    it('настройки стоят у левого края перед логотипом', async () => {
+        render(App, { props: appProps({ sets: [], error: '' }) });
+
+        const header = document.querySelector('header') as HTMLElement;
+        const children = Array.from(header.children);
+        // Первый ребёнок шапки — кнопка настроек, второй — логотип.
+        expect((children[0] as HTMLElement).getAttribute('aria-label')).toBe('Настройки');
+        expect(children[1]?.textContent).toContain('Текстура');
+    });
+
+    it('правая группа идёт: настройки, рабочее место, библиотеки, заметки, тема, уведомления', async () => {
+        render(App, { props: appProps({ sets: [], error: '' }) });
+
+        const labels = headerLabels().filter((label) =>
+            [
+                'Настройки',
+                'Рабочее место',
+                'Библиотеки',
+                'Реестр заметок',
+                'Переключить тему',
+                'Уведомления',
+            ].includes(label),
+        );
+        expect(labels).toEqual([
+            'Настройки',
+            'Рабочее место',
+            'Библиотеки',
+            'Реестр заметок',
+            'Переключить тему',
+            'Уведомления',
+        ]);
+    });
+});

@@ -221,30 +221,41 @@ test('шапка масштабируется и группирует кнопк
     expect(settingsBox!.y).toBeGreaterThan(headerBox!.y + 1);
     expect(settingsBox!.y + settingsBox!.height).toBeLessThan(headerBox!.y + headerBox!.height - 1);
 
-    // Кнопка настроек — самая правая и прижата к правому краю.
+    // Кнопка настроек — у левого края, перед логотипом приложения.
+    expect(settingsBox!.x).toBeLessThan(headerBox!.x + 80);
+    const logo = header.getByText('Текстура');
+    const logoBox = await logo.boundingBox();
+    expect(logoBox).not.toBeNull();
+    expect(settingsBox!.x + settingsBox!.width).toBeLessThan(logoBox!.x);
+
+    // Уведомления — у самого правого края, правее переключателя темы.
     const headerRight = headerBox!.x + headerBox!.width;
     const theme = page.getByRole('button', { name: 'Переключить тему', exact: true });
     const themeBox = await theme.boundingBox();
+    const notifications = page.getByRole('button', { name: 'Уведомления', exact: true });
+    const notificationsBox = await notifications.boundingBox();
     expect(themeBox).not.toBeNull();
-    expect(themeBox!.x + themeBox!.width).toBeLessThan(settingsBox!.x);
+    expect(notificationsBox).not.toBeNull();
+    expect(themeBox!.x + themeBox!.width).toBeLessThan(notificationsBox!.x);
+    expect(notificationsBox!.x + notificationsBox!.width).toBeLessThanOrEqual(headerRight + 1);
 
-    // Порядок кнопок слева направо: рабочее место, библиотеки, заметки, уведомления, тема, настройки.
+    // Порядок кнопок слева направо: настройки, рабочее место, библиотеки, заметки, тема, уведомления.
     const order = await header
         .getByRole('button')
         .evaluateAll((nodes) =>
             nodes.map((node) => (node as HTMLElement).getAttribute('aria-label') ?? ''),
         );
     const labels = order.filter((label) =>
-        ['Рабочее место', 'Библиотеки', 'Реестр заметок', 'Уведомления', 'Переключить тему', 'Настройки'].includes(
+        ['Настройки', 'Рабочее место', 'Библиотеки', 'Реестр заметок', 'Переключить тему', 'Уведомления'].includes(
             label,
         ),
     );
     expect(labels).toEqual([
+        'Настройки',
         'Рабочее место',
         'Библиотеки',
         'Реестр заметок',
-        'Уведомления',
         'Переключить тему',
-        'Настройки',
+        'Уведомления',
     ]);
 });
