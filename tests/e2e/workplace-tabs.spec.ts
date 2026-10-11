@@ -194,3 +194,67 @@ test('вкладки остаются открытыми при переключ
         page.locator('[data-testid="workplace-tab-page"][data-active="false"]'),
     ).toHaveCount(1);
 });
+
+/** Дублирование активной вкладки заданное число раз. */
+async function duplicateActive(page: import('@playwright/test').Page, times: number) {
+    for (let index = 0; index < times; index += 1) {
+        await page
+            .locator('[data-testid="workplace-tab-item"]:has([aria-pressed="true"])')
+            .getByLabel('Дублировать вкладку')
+            .first()
+            .click();
+    }
+}
+
+test('при переполнении вкладки ограничены по ширине, доступны навигация и счётчик', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 700, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await duplicateActive(page, 4);
+
+    // Состав вкладок сохранён, но показаны не все: навигация и счётчик видны.
+    await expect(page.getByLabel('Следующие вкладки')).toBeVisible();
+    await expect(page.getByLabel('Предыдущие вкладки')).toBeVisible();
+    const counter = page.getByTestId('workplace-tabs-counter');
+    await expect(counter).toBeVisible();
+    await expect(counter).toContainText('из 5');
+
+    const shown = await page.getByTestId('workplace-tab-item').count();
+    expect(shown).toBeLessThan(5);
+    expect(shown).toBeGreaterThan(0);
+
+    // Кнопки открытия книги закреплены и видны.
+    await expect(page.getByLabel('Добавить книгу')).toBeVisible();
+    await expect(page.getByLabel('Открыть файл с диска')).toBeVisible();
+
+    // Горизонтальной прокрутки документа нет.
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+});
+
+test('навигация по вкладкам сдвигает видимый диапазон, не меняя активную вкладку', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 700, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await duplicateActive(page, 4);
+
+    const counter = page.getByTestId('workplace-tabs-counter');
+    const atEnd = (await counter.textContent())?.trim() ?? '';
+    expect(atEnd).toContain('из 5');
+
+    await page.getByLabel('Предыдущие вкладки').click();
+    const shifted = (await counter.textContent())?.trim() ?? '';
+    expect(shifted).not.toBe(atEnd);
+    expect(shifted).toContain('–4 из 5');
+
+    await page.getByLabel('Следующие вкладки').click();
+    await expect(counter).toHaveText(atEnd);
+
+    // Активная вкладка не меняется навигацией: содержимое остаётся тем же.
+    await expect(activePage(page)).toHaveCount(1);
+});
