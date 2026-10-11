@@ -1,7 +1,7 @@
 import { render } from '@testing-library/svelte';
 import { describe, expect, it } from 'vitest';
 
-import Icon from './Icon.svelte';
+import Icon, { TAB_ICON_NAMES } from './Icon.svelte';
 
 describe('Icon', () => {
   it('рисует svg и скрывает иконку от скринридеров', () => {
@@ -16,5 +16,15 @@ describe('Icon', () => {
     const { container } = render(Icon, { props: { name: 'search' } });
 
     expect(container.querySelector('circle')).toBeTruthy();
+  });
+
+  it('рисует каждую иконку набора вкладок непустой', () => {
+    for (const name of TAB_ICON_NAMES) {
+      const { container } = render(Icon, { props: { name } });
+
+      const svg = container.querySelector('svg');
+      expect(svg, name).toBeTruthy();
+      expect(svg?.childElementCount, name).toBeGreaterThan(0);
+    }
   });
 });

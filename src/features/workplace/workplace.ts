@@ -5,7 +5,30 @@
  * идентификатор и собственное состояние чтения. Вложением вкладки служит путь к
  * файлу книги: рабочее место не знает, откуда книга — из библиотеки или выбрана
  * с диска.
+ *
+ * Вкладка может иметь необязательное пользовательское оформление (имя, описание,
+ * иконка, цвет). Оформление дополняет существующее отображение, а не заменяет
+ * его: незаданные поля ничего не меняют. Допустимые иконки ограничены набором
+ * дизайн-системы, а цвет берётся из общей палитры заметок; неизвестные значения
+ * отбрасываются при загрузке.
  */
+
+import { TAB_ICON_NAMES } from '@texture/ui';
+import { NOTE_COLORS, type NoteColor } from '../notes/model';
+
+/** Допустимая вкладке иконка: подмножество набора иконок дизайн-системы. */
+export type TabIconName = (typeof TAB_ICON_NAMES)[number];
+
+/** Цвет оформления вкладки: общая палитра выбора цвета (`NOTE_COLORS`).
+ *
+ * Отдельного набора цветов у вкладки нет: выбор цвета — общий компонент
+ * дизайн-системы с общей палитрой, поэтому вкладка переиспользует те же
+ * идентификаторы и образцы, что и заметки.
+ */
+export type TabColor = NoteColor;
+
+/** Идентификаторы допустимых цветов оформления вкладки — общая палитра. */
+export const TAB_COLORS = NOTE_COLORS;
 
 /** Ссылка на книгу для открытия вкладки: путь к файлу-вложению. */
 export interface BookRef {
@@ -33,6 +56,26 @@ export interface WorkspaceTab {
   position: number;
   /** Режим чтения вкладки. */
   mode: string;
+  /** Пользовательское имя вкладки; отсутствует, если не задано. */
+  name?: string;
+  /** Пользовательское описание вкладки; отсутствует, если не задано. */
+  description?: string;
+  /** Иконка оформления вкладки; отсутствует, если не задана. */
+  icon?: TabIconName;
+  /** Цвет оформления вкладки; отсутствует, если не задан. */
+  color?: TabColor;
+}
+
+/** Правка пользовательского оформления вкладки. */
+export interface TabAppearancePatch {
+  /** Новое имя вкладки; `undefined` — снять имя. */
+  name?: string;
+  /** Новое описание вкладки; `undefined` — снять описание. */
+  description?: string;
+  /** Новая иконка вкладки; `undefined` — снять иконку. */
+  icon?: string;
+  /** Новый цвет вкладки; `undefined` — снять цвет. */
+  color?: TabColor;
 }
 
 /** Состояние рабочего места. */
@@ -79,6 +122,26 @@ export function openAvailability(tabCount: number, limit: number): OpenAvailabil
 /** Счётчик для уникальности идентификаторов в пределах сеанса. */
 let sequence = 0;
 
+/** Приведение значения к известному цвету вкладки; неизвестное даёт «не задано». */
+export function normalizeTabColor(value: unknown): TabColor | undefined {
+  const candidate = String(value ?? '').trim();
+  return (TAB_COLORS as readonly string[]).includes(candidate) ? (candidate as TabColor) : undefined;
+}
+
+/** Приведение значения к допустимой иконке вкладки; неизвестная даёт «не задано». */
+export function normalizeTabIcon(value: unknown): TabIconName | undefined {
+  const candidate = String(value ?? '').trim();
+  return (TAB_ICON_NAMES as readonly string[]).includes(candidate)
+    ? (candidate as TabIconName)
+    : undefined;
+}
+
+/** Необязательный текст оформления вкладки: пустая строка читается как «не задано». */
+function optionalText(value: unknown): string | undefined {
+  const text = String(value ?? '').trim();
+  return text ? text : undefined;
+}
+
 /** Новый идентификатор экземпляра вкладки. */
 export function newTabId(): string {
   sequence += 1;
@@ -90,6 +153,37 @@ export function emptyWorkspace(): WorkspaceState {
   return { tabs: [], activeTabId: null };
 }
 
+/** Нормализация вкладки из загруженного состояния с безопасным оформлением. */
+function normalizeTab(item: unknown): WorkspaceTab {
+  const tab = (item ?? {}) as Record<string, unknown>;
+  const base: WorkspaceTab = {
+    id: String(tab.id ?? newTabId()),
+    path: String(tab.path ?? tab.book_id ?? ''),
+    title: String(tab.title ?? ''),
+    format: String(tab.format ?? ''),
+    zoom: Number.isFinite(Number(tab.zoom)) && Number(tab.zoom) > 0 ? Number(tab.zoom) : 100,
+    position: Number.isFinite(Number(tab.position)) ? Number(tab.position) : 0,
+    mode: String(tab.mode ?? 'scroll'),
+  };
+  const name = optionalText(tab.name);
+  const description = optionalText(tab.description);
+  const icon = normalizeTabIcon(tab.icon);
+  const color = normalizeTabColor(tab.color);
+  if (name !== undefined) {
+    base.name = name;
+  }
+  if (description !== undefined) {
+    base.description = description;
+  }
+  if (icon !== undefined) {
+    base.icon = icon;
+  }
+  if (color !== undefined) {
+    base.color = color;
+  }
+  return base;
+}
+
 /** Приведение загруженного состояния к модели с безопасными значениями.
  *
  * Прежние снимки хранили `book_id` вместо пути; такие вкладки читаются как
@@ -98,18 +192,7 @@ export function emptyWorkspace(): WorkspaceState {
 export function normalizeWorkspace(value: unknown): WorkspaceState {
   const record = (value ?? {}) as { tabs?: unknown; activeTabId?: unknown; active_tab_id?: unknown };
   const rawTabs = Array.isArray(record.tabs) ? record.tabs : [];
-  const tabs: WorkspaceTab[] = rawTabs.map((item) => {
-    const tab = (item ?? {}) as Record<string, unknown>;
-    return {
-      id: String(tab.id ?? newTabId()),
-      path: String(tab.path ?? tab.book_id ?? ''),
-      title: String(tab.title ?? ''),
-      format: String(tab.format ?? ''),
-      zoom: Number.isFinite(Number(tab.zoom)) && Number(tab.zoom) > 0 ? Number(tab.zoom) : 100,
-      position: Number.isFinite(Number(tab.position)) ? Number(tab.position) : 0,
-      mode: String(tab.mode ?? 'scroll'),
-    };
-  });
+  const tabs: WorkspaceTab[] = rawTabs.map(normalizeTab);
   const requested = record.activeTabId ?? record.active_tab_id;
   const activeTabId =
     typeof requested === 'string' && tabs.some((tab) => tab.id === requested)
@@ -214,9 +297,66 @@ export function replaceTabBook(
   });
 }
 
-/** Сериализация вкладки к контракту ядра (`snake_case`). */
+/** Правка пользовательского оформления вкладки.
+ *
+ * `undefined` в поле означает «снять оформление»: так кнопка сброса очищает все
+ * поля сразу. Заданные строки очищаются от внешних пробелов, пустая строка
+ * трактуется как «не задано». Неизвестные иконка и цвет отбрасываются.
+ */
+export function applyTabAppearance(
+  state: WorkspaceState,
+  tabId: string,
+  patch: TabAppearancePatch,
+): WorkspaceState {
+  const apply = (tab: WorkspaceTab): WorkspaceTab => {
+    if (tab.id !== tabId) {
+      return tab;
+    }
+    const next = { ...tab };
+    if ('name' in patch) {
+      const name = optionalText(patch.name);
+      if (name === undefined) {
+        delete next.name;
+      } else {
+        next.name = name;
+      }
+    }
+    if ('description' in patch) {
+      const description = optionalText(patch.description);
+      if (description === undefined) {
+        delete next.description;
+      } else {
+        next.description = description;
+      }
+    }
+    if ('icon' in patch) {
+      const icon = normalizeTabIcon(patch.icon);
+      if (icon === undefined) {
+        delete next.icon;
+      } else {
+        next.icon = icon;
+      }
+    }
+    if ('color' in patch) {
+      const color = normalizeTabColor(patch.color);
+      if (color === undefined) {
+        delete next.color;
+      } else {
+        next.color = color;
+      }
+    }
+    return next;
+  };
+  return { ...state, tabs: state.tabs.map(apply) };
+}
+
+/** Сериализация вкладки к контракту ядра (`snake_case`).
+ *
+ * Незаданные поля оформления опускаются: отсутствие ключа и есть «не задано»,
+ * а прежние читатели без этих ключей получают вкладку без оформления.
+ */
 export function serializeTab(tab: WorkspaceTab): Record<string, unknown> {
-  return {
+  const record: Record<string, unknown> = {
     id: tab.id,
     path: tab.path,
     title: tab.title,
@@ -225,6 +365,19 @@ export function serializeTab(tab: WorkspaceTab): Record<string, unknown> {
     position: tab.position,
     mode: tab.mode,
   };
+  if (tab.name !== undefined) {
+    record.name = tab.name;
+  }
+  if (tab.description !== undefined) {
+    record.description = tab.description;
+  }
+  if (tab.icon !== undefined) {
+    record.icon = tab.icon;
+  }
+  if (tab.color !== undefined) {
+    record.color = tab.color;
+  }
+  return record;
 }
 
 /** Сериализация состояния вкладок к контракту ядра (`snake_case`). */

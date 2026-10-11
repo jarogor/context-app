@@ -170,6 +170,60 @@ describe('панель вкладок: окно и навигация', () => {
     });
 });
 
+describe('панель вкладок: оформление вкладки', () => {
+    /** Вкладка с заданным пользовательским оформлением. */
+    function decorated(): WorkspaceTab {
+        return {
+            ...tab('t1', 'Книга 1'),
+            name: 'Черновик',
+            description: 'сравнение глав',
+            icon: 'star',
+            color: 'blue',
+        };
+    }
+
+    it('показывает имя, иконку, цвет и описание в подсказке', () => {
+        mockWidth(250);
+        render(WorkplaceTabs, {
+            props: {
+                tabs: [decorated()],
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...handlers(),
+            },
+        });
+
+        const item = screen.getAllByTestId('workplace-tab')[0];
+        expect(item.textContent).toContain('Черновик');
+        expect(item.querySelector('svg')).toBeTruthy();
+        expect(item.getAttribute('title')).toBe('Черновик\nсравнение глав');
+        const box = screen.getAllByTestId('workplace-tab-item')[0];
+        expect(box.getAttribute('style')).toContain('#2563eb');
+    });
+
+    it('оставляет прежний вид вкладки без оформления', () => {
+        mockWidth(250);
+        render(WorkplaceTabs, {
+            props: {
+                tabs: [tab('t1', 'Книга 1')],
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...handlers(),
+            },
+        });
+
+        const item = screen.getAllByTestId('workplace-tab')[0];
+        expect(item.textContent).toContain('Книга 1');
+        expect(item.querySelector('svg')).toBeNull();
+        expect(item.getAttribute('title')).toBe('Книга 1');
+        expect(screen.getAllByTestId('workplace-tab-item')[0].getAttribute('style')).not.toContain(
+            'color-mix',
+        );
+    });
+});
+
 describe('панель вкладок: лимит открытых вкладок', () => {
     it('оставляет открытие и дублирование доступными ниже лимита', () => {
         mockWidth(250);

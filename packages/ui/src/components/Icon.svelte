@@ -14,7 +14,36 @@
     | 'check'
     | 'close'
     | 'sun'
-    | 'moon';
+    | 'moon'
+    | 'tag'
+    | 'star'
+    | 'bookmark'
+    | 'flag'
+    | 'heart'
+    | 'lightbulb'
+    | 'compass'
+    | 'note'
+    | 'layers'
+    | 'circle';
+
+  /** Иконки, предлагаемые для оформления вкладки рабочего места.
+   *
+   * Набор-заглушка: тематические иконки «чувства вкладки». Полный подбор —
+   * отдельная задача; нормализация опирается на этот список, поэтому смена
+   * набора не ломает сохранённые данные (неизвестная иконка отбрасывается).
+   */
+  export const TAB_ICON_NAMES = [
+    'tag',
+    'star',
+    'bookmark',
+    'flag',
+    'heart',
+    'lightbulb',
+    'compass',
+    'note',
+    'layers',
+    'circle',
+  ] as const satisfies readonly IconName[];
 </script>
 
 <script lang="ts">
@@ -63,5 +92,29 @@
     <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
   {:else if name === 'moon'}
     <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+  {:else if name === 'tag'}
+    <path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z" />
+    <circle cx="8" cy="8" r="1.4" />
+  {:else if name === 'star'}
+    <path d="M12 3.6l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
+  {:else if name === 'bookmark'}
+    <path d="M6 3h12v18l-6-4-6 4z" />
+  {:else if name === 'flag'}
+    <path d="M5 3v18M5 4h12l-2.5 3.5L17 11H5" />
+  {:else if name === 'heart'}
+    <path d="M12 20s-7-4.6-7-9.5A4.5 4.5 0 0 1 12 8a4.5 4.5 0 0 1 7 2.5C19 15.4 12 20 12 20z" />
+  {:else if name === 'lightbulb'}
+    <path d="M9 18h6M10 21h4M12 3a6 6 0 0 1 3.5 10.9c-.4.3-.5.7-.5 1.1H9c0-.4-.1-.8-.5-1.1A6 6 0 0 1 12 3z" />
+  {:else if name === 'compass'}
+    <circle cx="12" cy="12" r="9" />
+    <path d="M15.5 8.5l-2 5-5 2 2-5z" />
+  {:else if name === 'note'}
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M8 8h8M8 12h8M8 16h5" />
+  {:else if name === 'layers'}
+    <path d="M12 3l9 5-9 5-9-5z" />
+    <path d="M3 13l9 5 9-5M3 16.5l9 5 9-5" />
+  {:else if name === 'circle'}
+    <circle cx="12" cy="12" r="8" />
   {/if}
 </svg>

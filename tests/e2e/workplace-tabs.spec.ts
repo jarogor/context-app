@@ -142,8 +142,7 @@ test('закрытие последней вкладки показывает п
     await expect(page.getByTestId('workplace-tab')).toHaveCount(0);
 });
 
-test('панель открытых книг выбирает и закрывает вкладки', async ({ page }) => {
-    await page.goto('/');
+test('панель открытых книг выбирает и закрывает вкладки', async ({ page }) => {    await page.goto('/');
     await addBook(page, 'Демо-книга');
     await addBook(page, 'Третья книга');
 
@@ -157,7 +156,8 @@ test('панель открытых книг выбирает и закрыва�
         'true',
     );
 
-    await panel.locator('li', { hasText: 'Третья книга' }).getByLabel('Закрыть вкладку').click();
+    await panel.locator('li', { hasText: 'Третья книга' }).getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Закрыть вкладку' }).click();
     await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
     await expect(panel).toBeVisible();
 });
@@ -375,4 +375,123 @@ test('уменьшение лимита сохраняет вкладки, по�
     await expect(page.getByLabel('Дублировать вкладку').first()).not.toHaveClass(
         /text-destructive/,
     );
+});
+
+/** Открытие панели открытых книг. */
+async function openBooks(page: import('@playwright/test').Page) {
+    await page.getByRole('button', { name: 'Открытые книги' }).click();
+    await expect(page.getByTestId('open-books-panel')).toBeVisible();
+}
+
+test('правка оформления вкладки видна и в панели, и на панели вкладок', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openBooks(page);
+
+    const panel = page.getByTestId('open-books-panel');
+    // Каждое свойство правится отдельным пунктом меню.
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Название' }).click();
+    await page.getByLabel('Название вкладки').fill('Черновик');
+    await page.getByLabel('Сохранить').click();
+
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Описание' }).click();
+    await page.getByLabel('Описание вкладки').fill('сравнение глав');
+    await page.getByLabel('Сохранить').click();
+
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByTestId('menu-icon-star').click();
+
+    // Панель открытых книг: имя, иконка и описание отдельной строкой.
+    await expect(panel.getByRole('button', { name: /Черновик/ })).toBeVisible();
+    await expect(panel.getByTestId('open-books-item-description')).toHaveText('сравнение глав');
+
+    // Панель вкладок: та же подпись и иконка, описание — в подсказке.
+    const item = tab(page, 'Черновик');
+    await expect(item.getByTestId('workplace-tab')).toHaveAttribute('title', 'Черновик\nсравнение глав');
+    await expect(item.getByTestId('workplace-tab').locator('svg')).toHaveCount(1);
+});
+
+test('цвет вкладки заливает её и в панели, и на панели вкладок', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openBooks(page);
+
+    const panel = page.getByTestId('open-books-panel');
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByTestId('menu-color-blue').click();
+
+    // Заливка приглушённым тоном цвета: смешивание с фоном поверхности.
+    await expect(panel.getByTestId('open-books-item')).toHaveAttribute('style', /color-mix/);
+    await expect(tab(page, 'Демо-книга')).toHaveAttribute('style', /color-mix/);
+
+    // Сброс оформления снимает заливку.
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Сбросить оформление' }).click();
+
+    await expect(panel.getByTestId('open-books-item')).not.toHaveAttribute('style', /color-mix/);
+    await expect(tab(page, 'Демо-книга')).not.toHaveAttribute('style', /color-mix/);
+});
+
+test('поиск по вкладкам фильтрует список и не меняет состав', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await addBook(page, 'Третья книга');
+    await openBooks(page);
+
+    const panel = page.getByTestId('open-books-panel');
+    await expect(panel.locator('li')).toHaveCount(2);
+
+    await panel.getByLabel('Поиск по вкладкам').fill('Третья');
+    await expect(panel.locator('li')).toHaveCount(1);
+    await expect(panel.getByRole('button', { name: /Третья книга/ })).toBeVisible();
+
+    // Пустой результат поиска не закрывает вкладки.
+    await panel.getByLabel('Поиск по вкладкам').fill('нет такой книги');
+    await expect(panel.getByTestId('open-books-search-empty')).toBeVisible();
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+});
+
+test('правка имени открывается снова после отмены', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openBooks(page);
+
+    const panel = page.getByTestId('open-books-panel');
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Название' }).click();
+    await expect(page.getByLabel('Название вкладки')).toBeVisible();
+    await page.getByLabel('Отмена').click();
+    await expect(page.getByLabel('Название вкладки')).toBeHidden();
+
+    // Повторное открытие после отмены снова показывает форму.
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Название' }).click();
+    await expect(page.getByLabel('Название вкладки')).toBeVisible();
+});
+
+test('панели заметок и открытых книг взаимоисключающие', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    // Открытие панели открытых книг закрывает панель заметок и наоборот.
+    await page.getByRole('button', { name: 'Открытые книги' }).click();
+    await expect(page.getByTestId('open-books-panel')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await expect(page.getByTestId('notes-panel')).toBeVisible();
+    await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Открытые книги' }).click();
+    await expect(page.getByTestId('open-books-panel')).toBeVisible();
+    await expect(page.getByTestId('notes-panel')).toHaveCount(0);
+
+    // Панели одной ширины: тот же токен, что у панели заметок.
+    const books = await page.getByTestId('open-books-panel').boundingBox();
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    const notes = await page.getByTestId('notes-panel').boundingBox();
+    expect(books).not.toBeNull();
+    expect(notes).not.toBeNull();
+    expect(Math.abs(books!.width - notes!.width)).toBeLessThanOrEqual(1);
 });

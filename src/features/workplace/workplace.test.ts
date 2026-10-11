@@ -10,6 +10,7 @@ import {
   openAvailability,
   openBook,
   replaceTabBook,
+  serializeTab,
   updateTab,
 } from './workplace';
 
@@ -122,6 +123,92 @@ describe('рабочее место', () => {
     expect(second.tabs[0].zoom).toBe(100);
     expect(second.tabs[0].position).toBe(0);
     expect(second.tabs[0].path).toBe('/lib/b.epub');
+  });
+});
+
+describe('оформление вкладки', () => {
+  /** Вкладка с заданным оформлением. */
+  function decorated() {
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    state = updateTab(state, state.activeTabId ?? '', {
+      name: 'Черновик',
+      description: 'сравнение глав',
+      icon: 'star',
+      color: 'blue',
+    });
+    return state;
+  }
+
+  it('дублирует вкладку вместе с оформлением', () => {
+    const base = decorated();
+    const state = duplicateTab(base, base.tabs[0].id);
+
+    expect(state.tabs[1].name).toBe('Черновик');
+    expect(state.tabs[1].description).toBe('сравнение глав');
+    expect(state.tabs[1].icon).toBe('star');
+    expect(state.tabs[1].color).toBe('blue');
+  });
+
+  it('читает оформление из загруженного состояния', () => {
+    const state = normalizeWorkspace({
+      tabs: [
+        {
+          id: 't1',
+          path: '/lib/a.epub',
+          title: 'A',
+          name: 'Имя',
+          description: 'Описание',
+          icon: 'note',
+          color: 'green',
+        },
+      ],
+    });
+
+    expect(state.tabs[0].name).toBe('Имя');
+    expect(state.tabs[0].description).toBe('Описание');
+    expect(state.tabs[0].icon).toBe('note');
+    expect(state.tabs[0].color).toBe('green');
+  });
+
+  it('отбрасывает неизвестные и пустые значения оформления', () => {
+    const state = normalizeWorkspace({
+      tabs: [
+        {
+          id: 't1',
+          path: '/lib/a.epub',
+          title: 'A',
+          name: '   ',
+          description: '',
+          icon: 'unknown',
+          color: 'magenta',
+        },
+      ],
+    });
+
+    expect(state.tabs[0].name).toBeUndefined();
+    expect(state.tabs[0].description).toBeUndefined();
+    expect(state.tabs[0].icon).toBeUndefined();
+    expect(state.tabs[0].color).toBeUndefined();
+  });
+
+  it('сохраняет оформление при круговом преобразовании', () => {
+    const state = decorated();
+    const restored = normalizeWorkspace({
+      tabs: [serializeTab(state.tabs[0])],
+      active_tab_id: state.tabs[0].id,
+    });
+
+    expect(restored.tabs[0]).toEqual(state.tabs[0]);
+  });
+
+  it('опускает незаданное оформление при сериализации', () => {
+    const state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    const record = serializeTab(state.tabs[0]);
+
+    expect(record).not.toHaveProperty('name');
+    expect(record).not.toHaveProperty('description');
+    expect(record).not.toHaveProperty('icon');
+    expect(record).not.toHaveProperty('color');
   });
 });
 

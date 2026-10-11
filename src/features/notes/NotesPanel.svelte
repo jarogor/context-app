@@ -134,15 +134,6 @@
   class="flex w-[var(--notes-panel-width)] min-w-0 flex-none flex-col border-l border-[var(--border)] bg-[var(--card)] max-[899px]:absolute max-[899px]:inset-0 max-[899px]:w-auto max-[899px]:border-l-0"
   data-testid="notes-panel"
 >
-  <div
-    class="flex flex-[0_0_42px] items-center gap-2 border-b border-[var(--border)] px-3 text-[13px] font-semibold"
-  >
-    Заметки
-    {#if items.length > 0}
-      <span class="font-normal text-[var(--muted-foreground)]">· {items.length}</span>
-    {/if}
-  </div>
-
   {#if !hasBook}
     <div
       class="p-4 text-[13px] text-[var(--muted-foreground)]"

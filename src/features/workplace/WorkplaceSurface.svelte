@@ -8,6 +8,7 @@
   import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
   import { activeTab } from './workplace';
+  import type { TabAppearancePatch } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
   import type { Note, NoteListItem, NoteSetSummary, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { NOTE_TYPES } from '../notes/notes';
@@ -48,6 +49,8 @@
     onCloseTab: (id: string) => void;
     /** Дублирование вкладки. */
     onDuplicateTab: (id: string) => void;
+    /** Правка оформления вкладки. */
+    onEditTabAppearance: (id: string, patch: TabAppearancePatch) => void;
     /** Добавление книги. */
     onAddBook: () => void;
     /** Добавление книги из файла. */
@@ -131,6 +134,7 @@
     onSelectTab,
     onCloseTab,
     onDuplicateTab,
+    onEditTabAppearance,
     onAddBook,
     onAddFile,
     onToggleBooks,
@@ -379,6 +383,7 @@
           activeTabId={workspace.activeTabId}
           onSelect={onSelectTab}
           onClose={onCloseTab}
+          onEditAppearance={onEditTabAppearance}
         />
       {/if}
     </div>

@@ -1,10 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { Button } from '@texture/ui';
+  import { Button, Icon } from '@texture/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { publishUserNotification } from '../notifications/notifications';
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
+  import { tabColorFill, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -229,6 +230,37 @@
     windowStart = windowStartForActive(index, safeStart, capacity, tabs.length);
     onSelect(id);
   }
+
+  /** Фрагмент стиля с заливкой вкладки пользовательским цветом; пусто, если цвета нет.
+   *
+   * Цвет задаётся переменными, а не напрямую фоном: классы активного состояния и
+   * наведения должны оставаться сильнее базовой заливки, иначе у цветной вкладки
+   * пропало бы наведение. Панель вкладок стоит на приглушённом фоне, поэтому
+   * мягкий тон цвета смешивается именно с ним.
+   */
+  function tabFill(tab: WorkspaceTab): string {
+    const base = tabColorFill(tab.color, 'var(--muted)', false);
+    const active = tabColorFill(tab.color, 'var(--muted)', true);
+    return base && active ? ` --tab-fill: ${base}; --tab-fill-active: ${active};` : '';
+  }
+
+  /** Классы фона вкладки с учётом пользовательского цвета и активности.
+   *
+   * Цветная вкладка залита мягким тоном (активная — плотнее); без цвета вид
+   * прежний. Наведение у цветной вкладки совпадает с обычным, поэтому состояние
+   * под курсором читается и у неё.
+   */
+  function tabFillClass(tab: WorkspaceTab): string {
+    const active = tab.id === activeTabId;
+    if (tab.color) {
+      return active
+        ? 'bg-[var(--tab-fill-active)] text-[var(--foreground)]'
+        : 'bg-[var(--tab-fill)] text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
+    }
+    return active
+      ? 'bg-[var(--background)] text-[var(--foreground)]'
+      : 'text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
+  }
 </script>
 
 <div
@@ -319,21 +351,24 @@
     >
       {#each windowTabs as tab (tab.id)}
         <div
-          class="flex flex-none items-center rounded-md {tab.id === activeTabId
-            ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-            : 'text-[var(--muted-foreground)] hover:bg-[var(--background)]'}"
-          style="width: {TAB_WIDTH_REM}rem; height: {TAB_ROW_REM}rem"
+          class="relative flex flex-none items-center overflow-hidden rounded-md {tabFillClass(
+            tab,
+          )}"
+          style="width: {TAB_WIDTH_REM}rem; height: {TAB_ROW_REM}rem;{tabFill(tab)}"
           data-testid="workplace-tab-item"
         >
           <button
             type="button"
             data-testid="workplace-tab"
-            class="min-w-0 flex-1 cursor-pointer truncate py-[2px] pl-2 text-left text-[0.7rem] [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate py-[2px] pl-2 text-left text-[0.7rem] [font:inherit]"
             aria-pressed={tab.id === activeTabId}
-            title={tab.title}
+            title={tabTooltip(tab)}
             onclick={() => selectTab(tab.id)}
           >
-            {tab.title}
+            {#if tab.icon}
+              <Icon name={tab.icon} class="h-3 w-3 shrink-0" />
+            {/if}
+            <span class="min-w-0 flex-1 truncate">{tabLabel(tab)}</span>
           </button>
           <span class="flex" title={openButtonTitle('Дублировать вкладку')}>
             <button

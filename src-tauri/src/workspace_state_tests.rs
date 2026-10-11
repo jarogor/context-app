@@ -11,6 +11,10 @@ fn tab(id: &str, path: &str, zoom: u32, position: f64) -> WorkspaceTab {
         zoom,
         position,
         mode: "scroll".to_string(),
+        name: None,
+        description: None,
+        icon: None,
+        color: None,
     }
 }
 
@@ -92,8 +96,44 @@ fn defaults_missing_tab_fields() {
 
     assert_eq!(file.workspaces[0].tabs[0].zoom, 100);
     assert_eq!(file.workspaces[0].tabs[0].position, 0.0);
+    assert_eq!(file.workspaces[0].tabs[0].name, None);
+    assert_eq!(file.workspaces[0].tabs[0].color, None);
     assert_eq!(file.workspaces[0].active_tab_id, None);
     assert_eq!(file.active_workspace_id, None);
+    test_util::cleanup(&root);
+}
+
+#[test]
+fn saves_and_loads_tab_appearance() {
+    let root = test_util::test_root("workspaces-appearance");
+    let mut decorated = tab("t1", "book-1", 100, 10.0);
+    decorated.name = Some("Черновик".to_string());
+    decorated.description = Some("сравнение глав".to_string());
+    decorated.icon = Some("star".to_string());
+    decorated.color = Some("blue".to_string());
+    let file = WorkspacesFile {
+        workspaces: vec![WorkspaceRecord {
+            tabs: vec![decorated.clone()],
+            ..workspace("ws-1", "Первое")
+        }],
+        active_workspace_id: Some("ws-1".to_string()),
+    };
+
+    save(&root, &file).expect("сохранение");
+    let loaded = load(&root).expect("загрузка");
+
+    assert_eq!(loaded.workspaces[0].tabs[0], decorated);
+    // Незаданные поля оформления не пишутся в файл: контракт остаётся прежним.
+    save(
+        &root,
+        &WorkspacesFile {
+            workspaces: vec![workspace("ws-2", "Второе")],
+            active_workspace_id: None,
+        },
+    )
+    .expect("сохранение без оформления");
+    let raw = std::fs::read_to_string(root.join("workspaces.json")).expect("файл");
+    assert!(!raw.contains("description"));
     test_util::cleanup(&root);
 }
 

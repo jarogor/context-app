@@ -13,7 +13,7 @@ import {
   updateCurrentWorkspaceTabs,
   updateWorkspaceTabs,
 } from './workspace-registry';
-import { openBook } from './workplace';
+import { openBook, updateTab } from './workplace';
 
 describe('реестр рабочих мест', () => {
   it('создаёт рабочее место, делает его текущим и открывает', () => {
@@ -162,5 +162,26 @@ describe('реестр рабочих мест', () => {
     expect(roundtrip.workspaces[0].tabs[0].path).toBe('/lib/book-1.epub');
     // Текущее место при запуске не восстанавливается даже из своего же снимка.
     expect(roundtrip.currentWorkspaceId).toBeNull();
+  });
+
+  it('сохраняет оформление вкладки в реестре и при круговом чтении', () => {
+    let registry = addWorkspace(emptyRegistry(), 'Исследование', 'ws-1', 42);
+    registry = updateWorkspaceTabs(registry, 'ws-1', (state) => {
+      const opened = openBook(state, { path: '/lib/book-1.epub', title: 'Книга' });
+      return updateTab(opened, opened.activeTabId ?? '', {
+        name: 'Черновик',
+        description: 'сравнение глав',
+        icon: 'star',
+        color: 'blue',
+      });
+    });
+
+    const roundtrip = normalizeRegistry(serializeRegistry(registry));
+    const tab = roundtrip.workspaces[0].tabs[0];
+
+    expect(tab.name).toBe('Черновик');
+    expect(tab.description).toBe('сравнение глав');
+    expect(tab.icon).toBe('star');
+    expect(tab.color).toBe('blue');
   });
 });

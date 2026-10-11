@@ -22,6 +22,16 @@
     /** Выбран ли цвет в данный момент. */
     selected?: boolean;
   }
+
+  /** Образец выбора иконки в меню. */
+  export interface MenuIcon {
+    /** Идентификатор иконки, передаваемый в обработчик выбора. */
+    id: string;
+    /** Подпись иконки для доступности и подсказки. */
+    label: string;
+    /** Выбрана ли иконка в данный момент. */
+    selected?: boolean;
+  }
 </script>
 
 <script lang="ts">
@@ -29,6 +39,7 @@
   import { cn } from '../utils';
   import { buttonVariants } from './Button.svelte';
   import ColorPicker from './ColorPicker.svelte';
+  import IconPicker from './IconPicker.svelte';
 
   interface Props {
     /** Пункты меню. */
@@ -41,6 +52,12 @@
     oncolorselect?: (id: string) => void;
     /** Метка доступности строки цветов. */
     colorsLabel?: string;
+    /** Сетка выбора иконки над пунктами меню. */
+    icons?: MenuIcon[];
+    /** Обработчик выбора иконки. */
+    oniconselect?: (id: string) => void;
+    /** Метка доступности сетки иконок. */
+    iconsLabel?: string;
     /** Метка доступности кнопки-триггера. */
     ariaLabel: string;
     /** Подпись-подсказка триггера. */
@@ -57,6 +74,9 @@
     colors = [],
     oncolorselect,
     colorsLabel = 'Выбор цвета',
+    icons = [],
+    oniconselect,
+    iconsLabel = 'Выбор иконки',
     ariaLabel,
     title,
     disabled = false,
@@ -76,9 +96,24 @@
     })),
   );
 
+  /** Образцы иконок в форме общего компонента выбора иконки. */
+  const iconSwatches = $derived(
+    icons.map((icon) => ({
+      id: icon.id,
+      label: icon.label,
+      selected: icon.selected,
+    })),
+  );
+
   /** Выбор цвета и закрытие меню. */
   function pickColor(id: string): void {
     oncolorselect?.(id);
+    open = false;
+  }
+
+  /** Выбор иконки и закрытие меню. */
+  function pickIcon(id: string): void {
+    oniconselect?.(id);
     open = false;
   }
 
@@ -115,9 +150,19 @@
             testIdPrefix="menu-color"
           />
         </div>
-        {#if items.length > 0}
-          <div class="bg-[var(--border)] -mx-1 my-1 h-px"></div>
-        {/if}
+      {/if}
+      {#if icons.length > 0}
+        <div class="px-1.5 py-[6px]">
+          <IconPicker
+            icons={iconSwatches}
+            onpick={pickIcon}
+            ariaLabel={iconsLabel}
+            testIdPrefix="menu-icon"
+          />
+        </div>
+      {/if}
+      {#if (colors.length > 0 || icons.length > 0) && items.length > 0}
+        <div class="bg-[var(--border)] -mx-1 my-1 h-px"></div>
       {/if}
       {#each items as item (item.id)}
         <DropdownMenu.Item

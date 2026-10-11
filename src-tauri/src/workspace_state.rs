@@ -47,6 +47,18 @@ pub struct WorkspaceTab {
     /// Режим чтения вкладки.
     #[serde(default)]
     pub mode: String,
+    /// Пользовательское имя вкладки; отсутствует, если не задано.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Пользовательское описание вкладки; отсутствует, если не задано.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Иконка оформления вкладки; отсутствует, если не задана.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    /// Цвет оформления вкладки; отсутствует, если не задан.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
 }
 
 /// Рабочее место: именованная композиция вкладок.

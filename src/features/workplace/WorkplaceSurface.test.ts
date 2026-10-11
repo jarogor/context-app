@@ -12,6 +12,7 @@ function handlers() {
         onSelectTab: vi.fn(),
         onCloseTab: vi.fn(),
         onDuplicateTab: vi.fn(),
+        onEditTabAppearance: vi.fn(),
         onAddBook: vi.fn(),
         onAddFile: vi.fn(),
         onToggleBooks: vi.fn(),
@@ -195,8 +196,7 @@ describe('поверхность рабочего места: список и в
         expect(screen.getByTestId('reader-progress').textContent).toBe('0%');
     });
 
-    it('на узком окне переход к заметке закрывает панель заметок', async () => {
-        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+    it('на узком окне переход к заметке закрывает панель заметок', async () => {        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
             matches: true,
             media: '(max-width: 899px)',
             onchange: null,
@@ -246,5 +246,50 @@ describe('поверхность рабочего места: список и в
         expect(base.onGoToNote).toHaveBeenCalled();
         expect(base.onCloseNotes).toHaveBeenCalled();
         matchMedia.mockRestore();
+    });
+
+    it('передаёт правку оформления вкладки из панели открытых книг', async () => {
+        const base = handlers();
+        render(WorkplaceSurface, {
+            props: {
+                workspace: {
+                    id: 'ws-1',
+                    name: 'Первое',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/book-1.epub',
+                            title: 'Книга',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+                workspaces: [],
+                currentWorkspaceId: 'ws-1',
+                listMode: false,
+                booksOpen: true,
+                visible: true,
+                ...panels(),
+                ...base,
+            },
+        });
+
+        await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
+        await fireEvent.click(await screen.findByText('Сбросить оформление'));
+
+        expect(base.onEditTabAppearance).toHaveBeenCalledWith('t1', {
+            name: undefined,
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+        });
+        // Состав вкладок и активная вкладка при правке оформления не меняются.
+        expect(base.onSelectTab).not.toHaveBeenCalled();
+        expect(base.onCloseTab).not.toHaveBeenCalled();
     });
 });

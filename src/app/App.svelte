@@ -12,6 +12,7 @@
   import WorkplaceSurface from '../features/workplace/WorkplaceSurface.svelte';
   import WorkspacePickerDialog from '../features/workplace/WorkspacePickerDialog.svelte';
   import {
+    applyTabAppearance,
     closeTab,
     duplicateTab,
     openBook,
@@ -19,6 +20,7 @@
     updateTab,
     activateTab,
     activeTab,
+    type TabAppearancePatch,
   } from '../features/workplace/workplace';
   import {
     currentWorkspace,
@@ -458,15 +460,35 @@
     registry = updateCurrentWorkspaceTabs(registry, (current) => updateTab(current, id, state));
   }
 
-  /** Переключение панели списка открытых книг. */
-  function toggleBooksPanel() {
-    booksPanelOpen = !booksPanelOpen;
+  /** Правка оформления вкладки.
+   *
+   * Меняет только поля оформления (имя, описание, иконку, цвет): состав вкладок,
+   * активная вкладка и состояние чтения не затрагиваются.
+   */
+  function editTabAppearance(id: string, patch: TabAppearancePatch) {
+    registry = updateCurrentWorkspaceTabs(registry, (current) =>
+      applyTabAppearance(current, id, patch),
+    );
   }
 
-  /** Переключение панели заметок. */
+  /** Переключение панели списка открытых книг.
+   *
+   * Панели заметок и открытых книг взаимоисключающие: они занимают одно и то же
+   * место справа и вместе загромождают экран, поэтому открытие одной закрывает
+   * другую.
+   */
+  function toggleBooksPanel() {
+    booksPanelOpen = !booksPanelOpen;
+    if (booksPanelOpen) {
+      notesPanelOpen = false;
+    }
+  }
+
+  /** Переключение панели заметок (взаимоисключающе с панелью открытых книг). */
   function toggleNotesPanel() {
     notesPanelOpen = !notesPanelOpen;
     if (notesPanelOpen) {
+      booksPanelOpen = false;
       void notesController.load();
     }
   }
@@ -489,6 +511,7 @@
   function selectNote(noteId: string) {
     selectedNoteId = noteId;
     notesPanelOpen = true;
+    booksPanelOpen = false;
     // Инструмент следует за выбранной заметкой: дальнейшее перемещение и
     // создание новых заметок идут её типом и цветом (см. activateNoteTool).
     notesController.activateTool(noteId);
@@ -533,6 +556,7 @@
     if (!target.noteId) {
       pendingNoteTarget = null;
       notesPanelOpen = true;
+      booksPanelOpen = false;
       return;
     }
     const note = notesController.findNote(target.noteId);
@@ -541,6 +565,7 @@
     }
     pendingNoteTarget = null;
     notesPanelOpen = true;
+    booksPanelOpen = false;
     goToNote(note);
   });
 
@@ -1095,6 +1120,7 @@
           onSelectTab={selectTab}
           onCloseTab={removeTab}
           onDuplicateTab={duplicateCurrentTab}
+          onEditTabAppearance={editTabAppearance}
           onAddBook={requestAddBook}
           onAddFile={chooseBookFile}
           onToggleBooks={toggleBooksPanel}
