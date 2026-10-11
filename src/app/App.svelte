@@ -1032,7 +1032,7 @@
   <div class="relative flex min-h-0 flex-1 overflow-hidden">
     <main class="flex min-w-0 flex-1">
       <div
-        class="min-h-0 min-w-0 flex-1"
+        class="flex min-h-0 min-w-0 flex-1 flex-col"
         class:hidden={settingsOpen || librariesOpen || notesLibraryOpen || workspaceOpen}
       >
         <LibraryPage
@@ -1131,13 +1131,13 @@
           </MenuItem>
         </Menu>
         <div class="flex min-h-0 min-w-0 flex-1">
-          <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'general'}>
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'general'}>
             <SettingsPage
               initialDeclarations={initialSettings.declarations}
               initialError={initialSettings.error}
             />
           </div>
-          <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'plugins'}>
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'plugins'}>
             <StorePage
               initialPlugins={initialStore.plugins}
               initialStores={initialStore.stores}
@@ -1146,7 +1146,7 @@
               onPendingChange={(pending) => (activationPending = pending)}
             />
           </div>
-          <div class="min-h-0 min-w-0 flex-1" class:hidden={settingsSection !== 'about'}>
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'about'}>
             {#if settingsSection === 'about'}
               <AppInfoPage />
             {/if}

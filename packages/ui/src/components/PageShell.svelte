@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { cn } from '../utils';
+  import SurfaceScroll from './SurfaceScroll.svelte';
 
   interface Props {
     /** Содержимое страницы, когда нет состояний загрузки, ошибки или пустоты. */
@@ -84,9 +84,9 @@
   {/if}
 {/snippet}
 
-<div
-  class={cn('@container flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto', className)}
-  data-testid={testId}
+<SurfaceScroll
+  testId={testId}
+  class={className}
 >
   <div
     class="flex w-full max-w-[var(--content-max-width)] flex-col gap-4 px-4 py-5 md:px-6 md:py-6"
@@ -110,4 +110,4 @@
       {@render content()}
     {/if}
   </div>
-</div>
+</SurfaceScroll>

@@ -33,7 +33,7 @@
   }: Props = $props();
 </script>
 
-<div class="@container mx-auto max-w-[760px] p-6" data-testid="book-page">
+<div class="@container mx-auto w-full max-w-[760px] p-6" data-testid="book-page">
   <Button variant="ghost" size="sm" class="mb-4" onclick={onClose}>← К списку</Button>
 
   <div class="flex flex-col gap-6 @min-[30rem]:flex-row">

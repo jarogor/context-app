@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { ErrorToast, UiRenderer, createAsyncState } from '@texture/ui';
+  import { ErrorToast, SurfaceScroll, UiRenderer, createAsyncState } from '@texture/ui';
   import type { UiIntent } from '@texture/ui-schema';
   import { listenEvent } from '../../shared/app-bridge';
   import { loadSettingsUi, sendSettingsIntent, type NormalizedDeclaration } from './settings';
@@ -58,7 +58,7 @@
   });
 </script>
 
-<div class="flex flex-col gap-4 p-4">
+<SurfaceScroll testId="settings-page" class="gap-4 p-4">
   {#if declarations.length === 0}
     <div class="p-6 text-center text-[var(--muted-foreground)]">
       Нет зарегистрированных настроек
@@ -76,6 +76,6 @@
       {/if}
     {/each}
   {/if}
-</div>
+</SurfaceScroll>
 
 <ErrorToast message={asyncState.error} />

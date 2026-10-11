@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { bottomReachable } from './scroll';
+
 /** Ответ активной библиотеки для сценариев библиотечного UI. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
 
@@ -10,6 +12,22 @@ test.beforeEach(async ({ page }) => {
                 handlers: { active_library: () => active },
             };
     }, ACTIVE_LIBRARY);
+});
+
+test('в узком окне список книг прокручивается до нижнего края', async ({ page }) => {
+    // Малая высота окна: карточки книг выше области. Нижний край списка должен
+    // быть достижим прокруткой, а не обрезан.
+    await page.setViewportSize({ width: 700, height: 260 });
+    await page.goto('/');
+    await page.getByLabel('Рабочее место', { exact: true }).click();
+    const library = page.locator('main');
+    await library.getByText('Демо-книга').waitFor();
+
+    const result = await bottomReachable(page, '[data-testid="library-page"]');
+    expect(result.reason ?? '').toBe('');
+    expect(result.ok).toBe(true);
+    expect(result.scrollTop!).toBeGreaterThan(0);
+    expect(result.lastBottom!).toBeLessThanOrEqual(result.scrollerBottom! + 1);
 });
 
 test('библиотека показывает книги, поиск и обложки', async ({ page }) => {

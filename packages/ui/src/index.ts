@@ -2,6 +2,7 @@ export { cn } from './utils';
 export { createAsyncState } from './async-state.svelte';
 export { default as Button } from './components/Button.svelte';
 export { default as PageShell } from './components/PageShell.svelte';
+export { default as SurfaceScroll } from './components/SurfaceScroll.svelte';
 export { default as SearchCreate } from './components/SearchCreate.svelte';
 export { default as ListRow } from './components/ListRow.svelte';
 export { default as EntityList } from './components/EntityList.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { BookCoverPlaceholder, SearchCreate } from '@texture/ui';
+  import { BookCoverPlaceholder, SearchCreate, SurfaceScroll } from '@texture/ui';
   import BookPage from './BookPage.svelte';
   import { listenEvent } from '../../shared/app-bridge';
   import {
@@ -221,18 +221,20 @@
 </script>
 
 {#if openedBook}
-  <BookPage
-    book={openedBook}
-    {targetWorkspaceName}
-    canRead={canRead(openedBook)}
-    {opening}
-    {externalError}
-    onClose={closeBook}
-    onAdd={() => startReading(openedBook as BookWithCover)}
-    onOpenExternal={() => openInSystem(openedBook as BookWithCover)}
-  />
+  <SurfaceScroll testId="book-page-scroll">
+    <BookPage
+      book={openedBook}
+      {targetWorkspaceName}
+      canRead={canRead(openedBook)}
+      {opening}
+      {externalError}
+      onClose={closeBook}
+      onAdd={() => startReading(openedBook as BookWithCover)}
+      onOpenExternal={() => openInSystem(openedBook as BookWithCover)}
+    />
+  </SurfaceScroll>
 {:else}
-  <div class="p-6">
+  <SurfaceScroll testId="library-page" class="p-6">
     {#if librarySelected}
       <SearchCreate
         bind:query={searchQuery}
@@ -284,5 +286,5 @@
         {/each}
       </ul>
     {/if}
-  </div>
+  </SurfaceScroll>
 {/if}
