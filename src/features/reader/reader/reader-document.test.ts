@@ -63,10 +63,11 @@ describe('документ книги', () => {
     expect(html).toContain(`[data-edge="both"]::after`);
     expect(html).toContain('--rt-selection-edge');
     expect(html).toContain('--rt-selection-edge-width');
-    // Метка сдвинута наружу от полосы на свою ширину: тогда она попадает в
-    // промежуток между буквами, а не ложится на глиф (как в плагине PDF).
-    expect(html).toContain('left:calc(-1 * var(--rt-selection-edge-width,2px))');
-    expect(html).toContain('right:calc(-1 * var(--rt-selection-edge-width,2px))');
+    // Метка центрируется на границе полосы (на полширины внутрь и наружу): её
+    // середина совпадает с краем выделения, а полоса не кажется шире на толщину
+    // метки (как в плагине PDF).
+    expect(html).toContain('left:calc(-0.5 * var(--rt-selection-edge-width,1px))');
+    expect(html).toContain('right:calc(-0.5 * var(--rt-selection-edge-width,1px))');
   });
 
   it('проставляет стартовую тему области чтения на корень', () => {

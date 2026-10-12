@@ -51,10 +51,10 @@ describe('BookReader: документ книги', () => {
         // и стоят только у краёв всего выделения.
         expect(html).toContain('.texture-selection-band[data-edge="start"]::before');
         expect(html).toContain('.texture-selection-band[data-edge="end"]::after');
-        // Метка сдвинута наружу от полосы на свою ширину — в промежуток между
-        // буквами, а не на глиф.
-        expect(html).toContain('left:calc(-1 * var(--rt-selection-edge-width,2px))');
-        expect(html).toContain('right:calc(-1 * var(--rt-selection-edge-width,2px))');
+        // Метка центрируется на границе полосы (на полширины внутрь и наружу):
+        // середина метки совпадает с краем выделения.
+        expect(html).toContain('left:calc(-0.5 * var(--rt-selection-edge-width,1px))');
+        expect(html).toContain('right:calc(-0.5 * var(--rt-selection-edge-width,1px))');
         expect(html).not.toContain('.texture-note::before');
     });
 });

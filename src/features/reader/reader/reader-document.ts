@@ -104,15 +104,16 @@ function buildStyle(palette: PaletteId): string {
     `html[data-reader-theme='dark'] .${SELECTION_LAYER_CLASS}{mix-blend-mode:screen;}`,
     `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:2px;background:var(--rt-selection);}`,
     `.${SELECTION_BAND_CLASS}::before,.${SELECTION_BAND_CLASS}::after{content:none;position:absolute;`,
-    `top:-1px;bottom:-1px;width:var(--rt-selection-edge-width,2px);`,
-    `background:var(--rt-selection-edge);border-radius:1px;}`,
+    // Метка чуть выходит за строку сверху и снизу (по полпикселя), но не «торчит».
+    `top:-0.5px;bottom:-0.5px;width:var(--rt-selection-edge-width,1px);`,
+    `background:var(--rt-selection-edge);border-radius:calc(0.5 * var(--rt-selection-edge-width,1px));}`,
     // Метки стоят у краёв всего выделения: левая — в начале, правая — в конце.
     // У промежуточных строк меток нет, иначе они читаются как отдельные выделения
-    // (особенно при строках разной длины). Метка сдвинута наружу от полосы на свою
-    // ширину: тогда она попадает в промежуток между буквами (перед первой и после
-    // последней буквой выделения), а не ложится на глиф — как в плагине PDF.
-    `.${SELECTION_BAND_CLASS}[data-edge="start"]::before,.${SELECTION_BAND_CLASS}[data-edge="both"]::before{content:"";left:calc(-1 * var(--rt-selection-edge-width,2px));}`,
-    `.${SELECTION_BAND_CLASS}[data-edge="end"]::after,.${SELECTION_BAND_CLASS}[data-edge="both"]::after{content:"";right:calc(-1 * var(--rt-selection-edge-width,2px));}`,
+    // (особенно при строках разной длины). Метка центрируется на самой границе
+    // полосы (на полширины внутрь и наружу), чтобы её середина совпадала с краем
+    // выделения, а полоса не казалась шире на толщину метки — как в плагине PDF.
+    `.${SELECTION_BAND_CLASS}[data-edge="start"]::before,.${SELECTION_BAND_CLASS}[data-edge="both"]::before{content:"";left:calc(-0.5 * var(--rt-selection-edge-width,1px));}`,
+    `.${SELECTION_BAND_CLASS}[data-edge="end"]::after,.${SELECTION_BAND_CLASS}[data-edge="both"]::after{content:"";right:calc(-0.5 * var(--rt-selection-edge-width,1px));}`,
     // Цвет текста подсветки не меняется: браузерный стиль `<mark>` иначе
     // закрашивает выделенный текст чёрным (`MarkText`) и на тёмной стороне он
     // выпадает из темы. В PDF текст — часть растра и остаётся цветом темы, так

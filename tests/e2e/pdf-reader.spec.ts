@@ -98,6 +98,116 @@ function pdfBase64Sized(width: number, height: number): string {
     return Buffer.from(raw, 'binary').toString('base64');
 }
 
+/** PDF-«скан»: изображение с полосами-«буквами» и невидимый (`rendering mode
+ *  3`) текстовый слой, спозиционированный короче растра.
+ *
+ * Воспроизводит файлы из обращения: видимый текст — растр, а невидимый слой не
+ * доходит до правого края строки. «Буквы» растра — полосы без промежутков в
+ * размер пробела, поэтому правый край строки однозначен, а невидимый текст
+ * явно короче него (сжимается `Tz`).
+ */
+function pdfScanBase64(): string {
+    const width = 128;
+    const height = 32;
+    const image = Buffer.alloc(width * height * 3);
+    for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+            const value = x % 8 < 4 ? 0 : 255;
+            const offset = (y * width + x) * 3;
+            image[offset] = value;
+            image[offset + 1] = value;
+            image[offset + 2] = value;
+        }
+    }
+    const content =
+        'q 128 0 0 32 30 80 cm /Im1 Do Q BT 3 Tr /F1 34 Tf 90 Tz 44 92 Td (Sample) Tj ET';
+    const objects = [
+        '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj',
+        '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj',
+        '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>/XObject<</Im1 6 0 R>>>>>>endobj',
+        `4 0 obj<</Length ${content.length}>>stream\n${content}\nendstream endobj`,
+        '5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj',
+        `6 0 obj<</Type/XObject/Subtype/Image/Width ${width}/Height ${height}/ColorSpace/DeviceRGB/BitsPerComponent 8/Length ${image.length}>>stream\n`,
+    ];
+    const head = Buffer.from(`%PDF-1.4\n${objects.join('\n')}`, 'binary');
+    const tail = Buffer.from('\nendstream endobj\ntrailer<</Root 1 0 R>>\n%%EOF', 'binary');
+    return Buffer.concat([head, image, tail]).toString('base64');
+}
+
+/** Встроенный в фикстуру TrueType-шрифт (subset Liberation Sans).
+ *
+ * Метрики глифов намеренно неравномерны: встроенный шрифт заведомо расходится с
+ * запасным, которым pdf.js раскладывает невидимый слой. Так в любом движке
+ * (включая Chromium браузерных тестов) видно, что слой строится встроенным
+ * шрифтом страницы, а не подстановкой. Данные получены `fontTools` из
+ * `node_modules/pdfjs-dist/standard_fonts/LiberationSans-Regular.ttf`; контуры
+ * сохранены, чтобы браузер загрузил шрифт.
+ */
+const PDF_EMBEDDED_FONT_BASE64 = [
+    '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',
+].join('');
+
+/** PDF-«цифровая страница» со встроенным шрифтом.
+ *
+ * Две строки `misunderstandingly` набраны встроенным (не подстановочным)
+ * TrueType-шрифтом с неравномерными метриками, метрики его вертикали занижены
+ * (`hhea` в шрифте: ascender 0.5 кегля, descender 0.08 кегля). Слово
+ * `understandingly` начинается с индекса 3; границы слова в пунктах вычисляются
+ * из массива ширин `/Widths` (в единицах 1/1000 кегля, кегль 24 pt, начало
+ * строки `x = 60`). Межстрочный шаг — 24 pt: он **меньше** высоты строки
+ * запасного семейства (`serif`/`sans-serif`), поэтому полосы выделения и
+ * цитаты соседних строк перекрываются, только если встроенному шрифту возвращены
+ * вертикальные метрики запасного (см. `applyFallbackMetrics` во вьюере).
+ */
+function pdfEmbeddedFontBase64(): string {
+    const font = Buffer.from(PDF_EMBEDDED_FONT_BASE64, 'base64');
+    // Ширины глифов символов 97…121 (a…z) в единицах 1/1000 кегля.
+    const widths = [
+        301, 0, 0, 368, 435, 0, 502, 0, 266, 0, 0, 333, 400, 467, 0, 0, 0, 534, 298, 365, 432, 0, 0,
+        0, 499,
+    ];
+    const content =
+        'BT /F1 24 Tf 60 700 Td (misunderstandingly) Tj 0 -24 Td (misunderstandingly) Tj ET';
+    const objects = [
+        '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj',
+        '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj',
+        '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj',
+        `4 0 obj<</Length ${content.length}>>stream\n${content}\nendstream endobj`,
+        `5 0 obj<</Type/Font/Subtype/TrueType/BaseFont/AAAAAA+Mini/FirstChar 97/LastChar 121/Widths[${widths.join(' ')}]/FontDescriptor 6 0 R/Encoding/WinAnsiEncoding>>endobj`,
+        `6 0 obj<</Type/FontDescriptor/FontName/AAAAAA+Mini/Flags 32/FontBBox[0 0 1000 1000]/ItalicAngle 0/Ascent 500/Descent -80/CapHeight 500/StemV 80/FontFile2 7 0 R>>endobj`,
+        `7 0 obj<</Length ${font.length}/Length1 ${font.length}>>stream\n`,
+    ];
+    const head = Buffer.from(`%PDF-1.4\n${objects.join('\n')}`, 'binary');
+    const tail = Buffer.from('\nendstream endobj\ntrailer<</Root 1 0 R>>\n%%EOF', 'binary');
+    return Buffer.concat([head, font, tail]).toString('base64');
+}
+
 /** Каталог с книгой формата pdf, обслуживаемой плагином рабочего места. */
 const PDF_BOOKS = {
     catalog: {
@@ -927,8 +1037,8 @@ test('выделение текста ложится ровными полоса
     // Заливка ложится на страницу умножением, а не поверх текста.
     const blend = await fill.evaluate((element) => getComputedStyle(element).mixBlendMode);
     expect(blend).toBe('multiply');
-    // Маска заливки охватывает ровно то, что подсветил бы браузер: слой не
-    // сужается по строкам и не режет буквы по вертикали.
+    // Маска заливки совпадает с нативным выделением по горизонтали; по
+    // вертикали полосы приводятся к межстрочному шагу (см. `tileByLine`).
     const pageBox = await content(page).locator('.page').first().boundingBox();
     expect(pageBox).not.toBeNull();
     const mask = await fill.locator('path').evaluate((path) => path.getAttribute('d') ?? '');
@@ -949,13 +1059,24 @@ test('выделение текста ложится ровными полоса
         { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
     );
     expect(Math.abs(bounds.left * pageBox!.width - selection!.native.left)).toBeLessThanOrEqual(2);
-    expect(Math.abs(bounds.top * pageBox!.height - selection!.native.top)).toBeLessThanOrEqual(2);
     expect(Math.abs(bounds.right * pageBox!.width - selection!.native.right)).toBeLessThanOrEqual(
         2,
     );
-    expect(
-        Math.abs(bounds.bottom * pageBox!.height - selection!.native.bottom),
-    ).toBeLessThanOrEqual(2);
+    // По вертикали полосы приводятся к межстрочному шагу: полосы-метки (по одной
+    // на строку) соседних строк стыкуются встык — без щелей и без нахлёста.
+    const bands = await content(page)
+        .locator('.selection-band')
+        .evaluateAll((elements) =>
+            elements
+                .map((element) => element.getBoundingClientRect())
+                .sort((a, b) => a.top - b.top)
+                .map((rect) => ({ top: rect.top, bottom: rect.bottom })),
+        );
+    for (let index = 1; index < bands.length; index += 1) {
+        const gap = bands[index].top - bands[index - 1].bottom;
+        expect(gap).toBeLessThanOrEqual(1);
+        expect(gap).toBeGreaterThanOrEqual(-1);
+    }
     // Признак живого выделения: вертикальные метки стоят только у краёв всего
     // выделения — левая в начале, правая в конце. У промежуточных строк меток
     // нет, иначе они читаются как отдельные выделения (особенно при строках
@@ -987,9 +1108,13 @@ test('выделение текста ложится ровными полоса
     expect(first.beforeContent).not.toBe('none');
     expect(first.afterContent).toBe('none');
     expect(first.beforeWidth).not.toBe('0px');
-    // Метка сдвинута наружу от полосы на свою ширину, поэтому встаёт в промежуток
-    // между буквами, а не ложится на глиф.
-    expect(Number.parseFloat(first.beforeLeft)).toBeLessThan(0);
+    // Метка центрируется на границе полосы: её середина совпадает с краем
+    // выделения, поэтому сдвиг — ровно на полширины (внутрь и наружу поровну),
+    // и полоса не кажется шире на толщину метки.
+    const beforeWidth = Number.parseFloat(first.beforeWidth);
+    const beforeLeft = Number.parseFloat(first.beforeLeft);
+    expect(beforeLeft).toBeLessThan(0);
+    expect(Math.abs(beforeLeft + beforeWidth / 2)).toBeLessThanOrEqual(0.5);
 
     const last = await content(page)
         .locator('.selection-band')
@@ -997,9 +1122,13 @@ test('выделение текста ложится ровными полоса
         .evaluate((band) => ({
             afterContent: getComputedStyle(band, '::after').content,
             afterRight: getComputedStyle(band, '::after').right,
+            afterWidth: getComputedStyle(band, '::after').width,
         }));
     expect(last.afterContent).not.toBe('none');
-    expect(Number.parseFloat(last.afterRight)).toBeLessThan(0);
+    const afterWidth = Number.parseFloat(last.afterWidth);
+    const afterRight = Number.parseFloat(last.afterRight);
+    expect(afterRight).toBeLessThan(0);
+    expect(Math.abs(afterRight + afterWidth / 2)).toBeLessThanOrEqual(0.5);
 });
 
 test('меню заметки закрывается при снятии выделения', async ({ page }) => {
@@ -1343,13 +1472,12 @@ test('прокрутка после возврата из настроек со 
         .toBeGreaterThan(0);
 });
 
-// Слой выделения должен повторять то, что подсветил бы сам браузер (как в
-// официальном просмотрщике pdf.js): заливка берёт геометрию прямоугольников
-// диапазона и не сужается дополнительно. Иначе полоса становится ниже строки,
-// между строками появляются щели, а по вертикали срезается верх букв. Маска
-// заливки обязана покрывать нативное выделение целиком — без зазоров и без
-// сужения.
-test('полоса выделения повторяет нативное выделение без зазоров', async ({ page }) => {
+// Слой выделения должен повторять геометрию нативного выделения по горизонтали
+// и стыковаться по вертикали с межстрочным шагом (как в официальном просмотрщике
+// pdf.js). Раньше заливка брала прямоугольники диапазона как есть: у встроенного
+// шрифта бокс ниже шага (щели), у запасного — выше (нахлёст на соседние строки).
+// Теперь полосы приводятся к шагу: стыкуются встык без щелей и нахлёста.
+test('полоса выделения стыкуется по межстрочному шагу', async ({ page }) => {
     await openPdf(page, 1, true);
 
     const geometry = await content(page)
@@ -1398,23 +1526,187 @@ test('полоса выделения повторяет нативное выд
         },
     );
     expect(boxes.length).toBeGreaterThanOrEqual(2);
-    // Маска покрывает ровно нативное выделение: ни зазоров по вертикали, ни
-    // недобора по горизонтали (сужение полосы по рамке строки давало недобор в
-    // конце строк и зазоры между ними).
-    const maskTop = Math.min(...boxes.map((box) => box.y)) * geometry!.pageHeight;
-    const maskBottom = Math.max(...boxes.map((box) => box.bottom)) * geometry!.pageHeight;
+    // Полосы соседних строк стыкуются по шагу: ни щелей, ни нахлёста. Прежний
+    // контракт «заливка = нативные прямоугольники» давал щели (низкий бокс
+    // встроенного шрифта) или нахлёст (высокий бокс запасного `monospace`).
+    // Полосы-метки — по одной на строку (в маске заливки куски строки могут
+    // повторяться, поэтому вертикальные стыки проверяются по ним).
+    const bands = await content(page)
+        .locator('.selection-band')
+        .evaluateAll((elements) =>
+            elements
+                .map((element) => element.getBoundingClientRect())
+                .sort((a, b) => a.top - b.top)
+                .map((rect) => ({ top: rect.top, bottom: rect.bottom })),
+        );
+    for (let index = 1; index < bands.length; index += 1) {
+        const gap = bands[index].top - bands[index - 1].bottom;
+        expect(gap).toBeLessThanOrEqual(1);
+        expect(gap).toBeGreaterThanOrEqual(-1);
+    }
+    // Горизонталь совпадает с нативным выделением: полосы не сужаются.
     const maskLeft = Math.min(...boxes.map((box) => box.x)) * geometry!.pageWidth;
     const maskRight = Math.max(...boxes.map((box) => box.right)) * geometry!.pageWidth;
-    expect(Math.abs(maskTop - geometry!.nativeTop)).toBeLessThanOrEqual(2);
-    expect(Math.abs(maskBottom - geometry!.nativeBottom)).toBeLessThanOrEqual(2);
     expect(Math.abs(maskLeft - geometry!.nativeLeft)).toBeLessThanOrEqual(2);
     expect(Math.abs(maskRight - geometry!.nativeRight)).toBeLessThanOrEqual(2);
-    // Каждая нативная строка покрыта маской: ни одна полоса не потеряна и не
-    // сужена ниже строки (иначе между строками появились бы щели).
-    for (let index = 1; index < boxes.length; index += 1) {
-        const gap = boxes[index].y - boxes[index - 1].bottom;
-        expect(gap).toBeLessThanOrEqual(0.001);
-    }
+});
+
+// Скан с невидимым OCR-слоем: невидимый текст спозиционирован короче растра.
+// Правый край невидимой строки подгоняется под пятно чернил растра, иначе
+// выделение (и цитата) справа короче видимой строки на одну-две буквы.
+test('текстовый слой скана дотягивается до правого края растра', async ({ page }) => {
+    await openPdf(page, 1, false, pdfScanBase64());
+
+    const metrics = await content(page)
+        .locator('.page')
+        .first()
+        .evaluate((element) => {
+            const canvas = element.querySelector('canvas');
+            const textLayer = element.querySelector('.textLayer');
+            const span = textLayer?.querySelector('span');
+            if (!(canvas instanceof HTMLCanvasElement) || !span) {
+                return null;
+            }
+            const canvasRect = canvas.getBoundingClientRect();
+            const spanRect = span.getBoundingClientRect();
+            const ratio = canvasRect.width > 0 ? canvas.width / canvasRect.width : 1;
+            const context = canvas.getContext('2d');
+            if (!context) {
+                return null;
+            }
+            const image = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let inkRight = -1;
+            for (let y = 0; y < canvas.height; y += 1) {
+                for (let x = 0; x < canvas.width; x += 1) {
+                    const offset = (y * canvas.width + x) * 4;
+                    const luminance = (image[offset] + image[offset + 1] + image[offset + 2]) / 3;
+                    if (image[offset + 3] > 0 && luminance < 150 && x > inkRight) {
+                        inkRight = x;
+                    }
+                }
+            }
+            if (inkRight < 0) {
+                return null;
+            }
+            return {
+                inkRight: (inkRight + 1) / ratio,
+                spanRight: spanRect.right - canvasRect.left,
+            };
+        });
+
+    expect(metrics).not.toBeNull();
+    // Раньше невидимый слой не доходил до растра на ~9 px; теперь совпадает.
+    expect(Math.abs(metrics!.spanRight - metrics!.inkRight)).toBeLessThanOrEqual(2);
+});
+
+// Цифровая страница со встроенным шрифтом: pdf.js раскладывал невидимый слой
+// запасным шрифтом (`serif`/`sans-serif`), а ширину строки подгонял сжатием
+// (`scaleX`). Пока метрики запасного шрифта близки к встроенному, буквы стоят
+// верно; но в WebKitGTK запасной шрифт заметно шире, и буквы внутри длинной
+// строки уезжали на целую букву — выделение и цитата смещались (выделение
+// «века» давало «ека »). Слой должен стоять на встроенном шрифте страницы:
+// тогда ширина любой подстроки в слое совпадает с ширинами PDF, и буква под
+// точкой — та самая.
+test('текстовый слой цифровой страницы ставит буквы по встроенному шрифту', async ({ page }) => {
+    await openPdf(page, 1, false, pdfEmbeddedFontBase64());
+
+    const measured = await content(page)
+        .locator('.page')
+        .first()
+        .evaluate((element) => {
+            const textLayer = element.querySelector('.textLayer');
+            const span = textLayer?.querySelector('span');
+            if (!span || !span.firstChild) {
+                return null;
+            }
+            const pageWidth = element.getBoundingClientRect().width;
+            const fontSize = 24;
+            // Ширины глифов строки (1/1000 кегля) — те же, что в `/Widths` фикстуры.
+            const widths = [
+                301, 0, 0, 368, 435, 0, 502, 0, 266, 0, 0, 333, 400, 467, 0, 0, 0, 534, 298, 365,
+                432, 0, 0, 0, 499,
+            ];
+            const text = 'misunderstandingly';
+            const word = 'understandingly';
+            const start = text.indexOf(word);
+            const range = document.createRange();
+            range.setStart(span.firstChild, start);
+            range.setEnd(span.firstChild, start + word.length);
+            let expected = 0;
+            for (const character of word) {
+                expected += widths[character.charCodeAt(0) - 97];
+            }
+            // Ширина слова в точках (1/1000 кегля) → в пикселях страницы.
+            expected = (expected * fontSize * pageWidth) / (1000 * 612);
+            return {
+                fontFamily: getComputedStyle(span).fontFamily.split(',')[0].trim(),
+                width: range.getBoundingClientRect().width,
+                expected,
+            };
+        });
+
+    expect(measured).not.toBeNull();
+    // Слой стоит на встроенном шрифте страницы, а не на подстановочном.
+    expect(measured!.fontFamily).not.toBe('sans-serif');
+    // Ширина слова в слое совпадает с шириной по метрикам PDF: буквы не уехали.
+    expect(Math.abs(measured!.width - measured!.expected)).toBeLessThanOrEqual(3);
+});
+
+// Высота полосы выделения берётся из инлайн-бокса шрифта слоя, а он может быть
+// и ниже межстрочного шага (встроенный шрифт цифровой страницы — щели), и выше
+// него (запасной `monospace` на сканах — нахлёст на соседние строки). Полосы
+// приводятся к межстрочному шагу (см. `tileByLine` во вьюере): соседние полосы
+// стыкуются встык при любой высоте бокса. Проверяется на шрифте с заниженными
+// вертикальными метриками, где прежде между полосами была щель.
+test('полосы выделения стыкуются по межстрочному шагу', async ({ page }) => {
+    await openPdf(page, 1, false, pdfEmbeddedFontBase64());
+
+    const gap = await content(page)
+        .locator('.page')
+        .first()
+        .evaluate((element) => {
+            const spans = Array.from(element.querySelectorAll('.textLayer span')).filter(
+                (span) => span.firstChild && (span.textContent ?? '').trim().length > 1,
+            ) as HTMLElement[];
+            if (spans.length < 2) {
+                return null;
+            }
+            const doc = element.ownerDocument;
+            const range = doc.createRange();
+            range.setStart(spans[0].firstChild!, 0);
+            range.setEnd(spans[spans.length - 1].firstChild!, spans[spans.length - 1].firstChild!.length);
+            const selection = doc.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            spans[0].dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            return new Promise<{ gap: number }>((resolve) => {
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => {
+                        const pageBox = element.getBoundingClientRect();
+                        const bands = Array.from(element.querySelectorAll('.selection-band'))
+                            .map((band) => {
+                                const rect = band.getBoundingClientRect();
+                                return {
+                                    top: rect.top - pageBox.top,
+                                    bottom: rect.bottom - pageBox.top,
+                                };
+                            })
+                            .sort((a, b) => a.top - b.top);
+                        // Зазор между полосами соседних строк: >0 — щель, <0 — нахлёст.
+                        const gaps = [];
+                        for (let index = 1; index < bands.length; index += 1) {
+                            gaps.push(bands[index].top - bands[index - 1].bottom);
+                        }
+                        resolve({ gap: Math.max(...gaps) });
+                    }),
+                );
+            });
+        });
+
+    expect(gap).not.toBeNull();
+    // Соседние полосы стыкуются: ни щели, ни нахлёста на соседнюю строку.
+    expect(gap!.gap).toBeLessThanOrEqual(0.5);
+    expect(gap!.gap).toBeGreaterThanOrEqual(-0.5);
 });
 
 // Страница шире области чтения на 100 % не должна быть обрезана слева. Раньше

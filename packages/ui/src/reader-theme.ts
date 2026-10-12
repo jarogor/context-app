@@ -251,7 +251,7 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     // Метки по краям живого выделения: тот же синий, но плотнее фоновой заливки,
     // чтобы признак читался без опоры только на цвет.
     selectionEdge: 'rgba(60, 100, 145, 0.9)',
-    selectionEdgeWidth: 2,
+    selectionEdgeWidth: 1,
   },
   mist: {
     background: '#ffffff',
@@ -261,7 +261,7 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     // Выделение Mist — привычный синеватый цвет.
     selection: 'rgba(59, 130, 246, 0.32)',
     selectionEdge: 'rgba(37, 99, 235, 0.9)',
-    selectionEdgeWidth: 2,
+    selectionEdgeWidth: 1,
   },
 };
 
@@ -276,7 +276,7 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     // плотнее, чтобы выделение читалось на тёмной бумаге и не уходило в фиолет.
     selection: 'rgba(120, 160, 195, 0.33)',
     selectionEdge: 'rgba(150, 190, 220, 0.9)',
-    selectionEdgeWidth: 2,
+    selectionEdgeWidth: 1,
   },
   mist: {
     background: '#16191c',
@@ -285,6 +285,6 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     link: '#7aa2d6',
     selection: 'rgba(96, 165, 250, 0.33)',
     selectionEdge: 'rgba(147, 197, 253, 0.9)',
-    selectionEdgeWidth: 2,
+    selectionEdgeWidth: 1,
   },
 };

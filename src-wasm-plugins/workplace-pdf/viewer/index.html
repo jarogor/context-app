@@ -315,26 +315,29 @@
       .selection-layer .selection-band::after {
         content: none;
         position: absolute;
-        top: -1px;
-        bottom: -1px;
-        width: var(--reader-selection-edge-width, 2px);
+        /* Метка чуть выходит за строку сверху и снизу, но не «торчит» заметно:
+           по полпикселя с каждой стороны. */
+        top: -0.5px;
+        bottom: -0.5px;
+        width: var(--reader-selection-edge-width, 1px);
         background: var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
-        border-radius: 1px;
+        /* Радиус — половина толщины: метка читается капсулой при любой ширине. */
+        border-radius: calc(0.5 * var(--reader-selection-edge-width, 1px));
       }
       /* Метки стоят у краёв всего выделения: левая — в начале, правая — в конце.
          У промежуточных строк меток нет, иначе они читаются как отдельные
-         выделения (особенно при строках разной длины). Метка сдвинута НАРУЖУ от
-         полосы на свою ширину: тогда она попадает в промежуток между буквами
-         (перед первой и после последней буквой выделения), а не ложится на глиф. */
+         выделения (особенно при строках разной длины). Метка центрируется на
+         самой границе полосы (внутрь/наружу поровну, на полширины): её середина
+         совпадает с краем выделения, и полоса не кажется шире на толщину метки. */
       .selection-layer .selection-band[data-edge='start']::before,
       .selection-layer .selection-band[data-edge='both']::before {
         content: '';
-        left: calc(-1 * var(--reader-selection-edge-width, 2px));
+        left: calc(-0.5 * var(--reader-selection-edge-width, 1px));
       }
       .selection-layer .selection-band[data-edge='end']::after,
       .selection-layer .selection-band[data-edge='both']::after {
         content: '';
-        right: calc(-1 * var(--reader-selection-edge-width, 2px));
+        right: calc(-0.5 * var(--reader-selection-edge-width, 1px));
       }
       /* Инструменты текста и фигуры не работают с выделением: прицел вместо
          текстового курсора и запрет выделения текста под протяжкой. */
@@ -447,6 +450,11 @@
       let windowScheduled = false;
       /** Счётчик идентификаторов масок заливки выделения (уникальны на документ). */
       let selectionClipId = 0;
+      /** Кэш признака «скан с невидимым текстом» по номеру страницы.
+       *
+       * Разбор списка операторов страницы недёшев, а признак на документ
+       * постоянен: страница либо всегда скан с невидимым слоем, либо нет. */
+      const invisibleScan = new Map();
 
       function post(message) {
         message.channel = CHANNEL;
@@ -758,8 +766,18 @@
           // Перекраска растра в тёмной теме: светлый фон страницы становится
           // тёмным, тёмный текст — светлым, оттенок сохраняется.
           recolorCanvas(canvas);
+          // Скан (растр + невидимый слой): встроенный шрифт страницы — пустой
+          // «без контуров», его подстановка сдвинула бы вертикаль слоя, поэтому
+          // у сканов слой строится как раньше, а подгоняется по растру ниже.
+          const scan = await isInvisibleScan(page);
+          let textContentSource = page.streamTextContent();
+          if (!scan) {
+            // Встроенные шрифты страницы ставятся вперёд запасных: так буквы
+            // невидимого слоя идут по метрикам PDF, а не подстановки.
+            textContentSource = await textContentWithPageFonts(page);
+          }
           const textLayer = new pdfjsLib.TextLayer({
-            textContentSource: page.streamTextContent(),
+            textContentSource,
             container: textLayerEl,
             viewport,
           });
@@ -777,6 +795,11 @@
           }
           rendered.set(pageEl, entry);
           pageEl.dataset.rendered = '1';
+          // Выравнивание слоя возможно только после вставки в документ: у
+          // откреплённых узлов нет геометрии.
+          if (scan) {
+            alignTextLayer(textLayerEl, canvas, pageEl.getBoundingClientRect());
+          }
           drawNotes(pageEl);
           // Слой выделения строится по положению текста: после отрисовки он
           // восстанавливается, если выделение ещё живо.
@@ -884,23 +907,36 @@
         requestAnimationFrame(refreshWindows);
       }
 
-      /** Приведение прямоугольников цитаты к полосам строк без наложений.
+      /** Полосы строк по прямоугольникам диапазона: слияние кусков строки и
+       *  приведение полос к межстрочному шагу.
        *
-       * Текстовый слой PDF-движка отдаёт прямоугольник на каждую строку, и его
-       * высота включает межстрочный интервал: строки «заползают» друг на друга.
-       * Полупрозрачная подсветка в местах наложения становится насыщеннее, поэтому
-       * прямоугольники сперва сливаются построчно (по заметному вертикальному
-       * перекрытию), а затем у каждой следующей строки срезается верх до низа
-       * предыдущей. Так полосы стыкуются встык: подсветка ровная и адаптивна к
-       * любой высоте строки, без зашитых констант.
+       * `Range.getClientRects()` отдаёт прямоугольник с высотой инлайн-бокса
+       * шрифта слоя, а не межстрочного шага. У встроенного шрифта цифровой
+       * страницы бокс чуть ниже шага — между полосами появляются щели; у
+       * запасного `monospace` на сканах бокс заметно выше шага — полосы залезают
+       * на соседние строки. У строк одного блока (абзаца) базовые линии отстоят
+       * ровно на шаг, поэтому соседние полосы внутри блока **тайлятся по
+       * серединам**: их общая граница проходит посередине между серединами
+       * строк. Тогда полосы стыкуются встык при любой высоте бокса, а их высота
+       * равна шагу — одинаково и на цифровой странице, и на скане. Разрыв больше
+       * шага (отступ между абзацами) границей не перекрывается: там полосы
+       * остаются как есть, и промежуток сохраняется. Крайние строки сохраняют
+       * исходные верх/низ — видимая область выделения не растёт.
+       *
+       * Куски одной строки (несколько span'ов) сперва сливаются по заметному
+       * вертикальному перекрытию. Возвращаются обе формы: `merged` — по одному
+       * прямоугольнику на строку (для полос-меток и цитат), `raw` — исходные
+       * куски с той же вертикалью (для заливки, чтобы не закрашивать промежутки
+       * между кусками одной строки).
        */
-      function lineRects(rects) {
+      function tileByLine(rects) {
         const items = (rects || [])
           .filter((rect) => rect.width > 0 && rect.height > 0)
           .sort(
             (a, b) => a.y + a.height / 2 - (b.y + b.height / 2) || a.x - b.x,
           );
         const lines = [];
+        const lineOf = [];
         for (const rect of items) {
           const line = lines[lines.length - 1];
           if (line) {
@@ -913,37 +949,83 @@
               line.bottom = Math.max(line.bottom, rect.y + rect.height);
               line.x = Math.min(line.x, rect.x);
               line.right = Math.max(line.right, rect.x + rect.width);
+              lineOf.push(line);
               continue;
             }
           }
-          lines.push({
+          const created = {
             top: rect.y,
             bottom: rect.y + rect.height,
             x: rect.x,
             right: rect.x + rect.width,
-          });
+          };
+          lines.push(created);
+          lineOf.push(created);
         }
-        const result = [];
-        for (const line of lines) {
-          let top = line.top;
-          if (result.length > 0) {
-            const previous = result[result.length - 1];
-            const previousBottom = previous.y + previous.height;
-            // Строка не должна заходить под предыдущую: иначе заливка темнеет.
-            if (top < previousBottom) {
-              top = previousBottom;
-            }
+        const centers = lines.map((line) => (line.top + line.bottom) / 2);
+        // Пары соседних полос стыкуются, только когда строки стоят «вплотную»:
+        // инлайн-боксы перекрываются или разрыв между ними не больше высоты
+        // бокса. Так строки одного абзаца (даже с заниженными метриками шрифта)
+        // смыкаются без щелей, а далеко отстоящие заголовки не заливаются
+        // сплошняком — их промежуток сохраняется.
+        const joined = new Array(Math.max(lines.length - 1, 0)).fill(false);
+        for (let index = 1; index < lines.length; index += 1) {
+          const previousBox = lines[index - 1].bottom - lines[index - 1].top;
+          const box = lines[index].bottom - lines[index].top;
+          const gap = lines[index].top - lines[index - 1].bottom;
+          joined[index - 1] = gap <= Math.min(previousBox, box);
+        }
+        const tops = lines.map((line) => line.top);
+        const bottoms = lines.map((line) => line.bottom);
+        for (let index = 0; index < lines.length; index += 1) {
+          const center = centers[index];
+          if (index > 0 && joined[index - 1]) {
+            // Общая граница со строкой сверху — посередине между серединами.
+            tops[index] = (centers[index - 1] + center) / 2;
+          } else if (index < lines.length - 1 && joined[index]) {
+            // Верхний край крайней строки обрезается на полшага от соседа
+            // снизу: у скана инлайн-бокс заметно выше шага, и без обрезки
+            // полоса «торчит» вверх. За рамку строки не выходит.
+            tops[index] = Math.max(center - (centers[index + 1] - center) / 2, lines[index].top);
           }
-          if (line.bottom > top) {
-            result.push({
+          if (index < lines.length - 1 && joined[index]) {
+            bottoms[index] = (center + centers[index + 1]) / 2;
+          } else if (index > 0 && joined[index - 1]) {
+            bottoms[index] = Math.min(center + (center - centers[index - 1]) / 2, lines[index].bottom);
+          }
+        }
+        const merged = [];
+        for (let index = 0; index < lines.length; index += 1) {
+          const line = lines[index];
+          const width = line.right - line.x;
+          if (width > 0 && bottoms[index] > tops[index]) {
+            merged.push({
               x: line.x,
-              y: top,
-              width: line.right - line.x,
-              height: line.bottom - top,
+              y: tops[index],
+              width,
+              height: bottoms[index] - tops[index],
             });
           }
         }
-        return result;
+        const raw = [];
+        for (let index = 0; index < items.length; index += 1) {
+          const rect = items[index];
+          const lineIndex = lines.indexOf(lineOf[index]);
+          if (rect.width > 0 && bottoms[lineIndex] > tops[lineIndex]) {
+            raw.push({
+              x: rect.x,
+              y: tops[lineIndex],
+              width: rect.width,
+              height: bottoms[lineIndex] - tops[lineIndex],
+            });
+          }
+        }
+        return { merged, raw };
+      }
+
+      /** Приведение прямоугольников цитаты к полосам строк без наложений. */
+      function tileLineRects(rects) {
+        return tileByLine(rects).merged;
       }
 
       /** Запасные мягкие тона заметок: светлая сторона темы области чтения.
@@ -1269,7 +1351,7 @@
           } else if (type === 'shape' && anchor.kind === 'point') {
             drawShape(overlay, note, anchor, geometry);
           } else if (anchor.kind === 'page') {
-            for (const rect of lineRects(rects)) {
+            for (const rect of tileLineRects(rects)) {
               const element = document.createElement('div');
               element.className = 'note';
               element.dataset.noteId = note.id;
@@ -1816,53 +1898,6 @@
         };
       }
 
-      /** Группы-строки выделения по прямоугольникам диапазона.
-       *
-       * Куски одной строки объединяются по заметному вертикальному перекрытию, но
-       * верх/низ групп НЕ подрезаются друг под друга: заливку рисует единая маска
-       * по сырым прямоугольникам, поэтому перекрытие строк по высоте не темнеет,
-       * а полоса совпадает с тем, что подсветил бы браузер (как в официальном
-       * просмотрщике pdf.js) и не режет буквы посередине. Группы нужны только
-       * для вертикальных меток по краям всего выделения и для якоря заметки. */
-      function selectionBands(rects) {
-        const items = (rects || [])
-          .filter((rect) => rect.width > 0 && rect.height > 0)
-          .sort(
-            (a, b) => a.y + a.height / 2 - (b.y + b.height / 2) || a.x - b.x,
-          );
-        const lines = [];
-        for (const rect of items) {
-          const line = lines[lines.length - 1];
-          if (line) {
-            const overlap =
-              Math.min(line.bottom, rect.y + rect.height) - Math.max(line.top, rect.y);
-            const minHeight = Math.min(line.bottom - line.top, rect.height);
-            // Заметное вертикальное перекрытие — та же строка, сливаем её куски.
-            if (overlap > minHeight * 0.5) {
-              line.top = Math.min(line.top, rect.y);
-              line.bottom = Math.max(line.bottom, rect.y + rect.height);
-              line.x = Math.min(line.x, rect.x);
-              line.right = Math.max(line.right, rect.x + rect.width);
-              continue;
-            }
-          }
-          lines.push({
-            top: rect.y,
-            bottom: rect.y + rect.height,
-            x: rect.x,
-            right: rect.x + rect.width,
-          });
-        }
-        return lines
-          .filter((line) => line.right > line.x && line.bottom > line.top)
-          .map((line) => ({
-            x: line.x,
-            y: line.top,
-            width: line.right - line.x,
-            height: line.bottom - line.top,
-          }));
-      }
-
       /** Прямоугольники диапазона в долях страницы, заданные `Range`. */
       function selectionRects(range, pageBounds) {
         const rects = [];
@@ -1902,6 +1937,257 @@
         fill.append(svg);
       }
 
+      /** Содержимое страницы со встроенными в PDF шрифтами в стилях.
+       *
+       * pdf.js раскладывает невидимый слой **запасным** шрифтом
+       * (`styles[fontName].fontFamily` отдаёт `font.fallbackName`), а ширину
+       * строки подгоняет сжатием (`scaleX`). Пока метрики запасного шрифта
+       * близки к встроенному (Chromium), буквы стоят верно; но в WebKitGTK
+       * запасной `serif` заметно шире, и буквы внутри длинной строки уезжают на
+       * целую букву — выделение и цитата смещаются. pdf.js уже регистрирует
+       * встроенный шрифт страницы как `@font-face` под именем `fontName`
+       * (`loadedName`), поэтому достаточно поставить его в начало
+       * `font-family`, оставив прежний шрифт запасным на случай, если глифы
+       * шрифта недоступны (например, у скана со шрифтом без контуров).
+       *
+       * Вертикаль полос выделения и цитат от метрик шрифта не зависит: она
+       * приводится к межстрочному шагу в `tileByLine`, поэтому низкие метрики
+       * встроенного шрифта щелей между строками не дают. */
+      async function textContentWithPageFonts(page) {
+        const content = await page.getTextContent();
+        for (const name of Object.keys(content.styles)) {
+          const style = content.styles[name];
+          if (style.fontFamily && !style.fontFamily.includes(`"${name}"`)) {
+            style.fontFamily = `"${name}", ${style.fontFamily}`;
+          }
+        }
+        return content;
+      }
+
+      /** Признак «скан с невидимым текстовым слоем» по номеру страницы.
+       *
+       * Проверяются операции страницы: есть изображение, есть текст, и **весь**
+       * текст рисуется невидимо (`rendering mode 3`). Только у таких страниц
+       * видимый текст — это растр, и невидимый слой стоит подгонять под него.
+       * Признак постоянен для страницы и держится в кэше `invisibleScan`. */
+      async function isInvisibleScan(page) {
+        const number = page.pageNumber;
+        if (invisibleScan.has(number)) {
+          return invisibleScan.get(number);
+        }
+        let result = false;
+        try {
+          const operations = await page.getOperatorList();
+          const ops = pdfjsLib.OPS;
+          let mode = 0;
+          let images = 0;
+          let texts = 0;
+          let invisible = true;
+          for (let index = 0; index < operations.fnArray.length; index += 1) {
+            const fn = operations.fnArray[index];
+            if (fn === ops.setTextRenderingMode) {
+              mode = operations.argsArray[index][0];
+            } else if (fn === ops.showText) {
+              texts += 1;
+              if (mode !== 3) {
+                invisible = false;
+              }
+            } else if (fn === ops.paintImageXObject || fn === ops.paintInlineImageXObject) {
+              images += 1;
+            }
+          }
+          result = images > 0 && texts > 0 && invisible;
+        } catch (error) {
+          // Не удалось разобрать операции — выравнивание не применяется.
+          result = false;
+        }
+        invisibleScan.set(number, result);
+        return result;
+      }
+
+      /** Подгонка невидимого текстового слоя под растр скана.
+       *
+       * У строки выравнивается её последний span: невидимый слой не доходит до
+       * растра именно на правом краю строки, а середина и так совпадает.
+       * Растягивается собственный масштаб span'а (`scaleX`) — буквы остаются
+       * невидимы, меняется лишь ширина прямоугольника выделения, поэтому переносы
+       * строк не затрагиваются. Правый край строки — конец последнего «пятна»
+       * чернил (цепочки столбцов, где пробелы короче 0.7 кегля перешагиваются).
+       * Строки с горизонтальной линейкой и промахи за пределами разумного
+       * растяжения пропускаются. Возвращает число выровненных span'ов. */
+      function alignTextLayer(textLayerEl, canvas, pageBounds) {
+        const canvasRect = canvas.getBoundingClientRect();
+        const ratio = canvasRect.width > 0 ? canvas.width / canvasRect.width : 1;
+        const cw = canvas.width;
+        const ch = canvas.height;
+        if (cw <= 0 || ch <= 0 || ratio <= 0) {
+          return 0;
+        }
+        let context;
+        try {
+          context = canvas.getContext('2d', { willReadFrequently: true });
+          if (!context) {
+            context = canvas.getContext('2d');
+          }
+        } catch (error) {
+          return 0;
+        }
+        if (!context) {
+          return 0;
+        }
+        let pixels;
+        try {
+          pixels = context.getImageData(0, 0, cw, ch).data;
+        } catch (error) {
+          // Песочница запретила чтение пикселей — выравнивание невозможно.
+          return 0;
+        }
+        const isInk = (x, y) => {
+          const index = (y * cw + x) * 4;
+          return (
+            pixels[index + 3] > 0 &&
+            (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3 < 150
+          );
+        };
+        // Строки слоя: спаны с заметным вертикальным перекрытием — одна строка
+        // (как в `tileByLine`). У каждой строки запоминается её самый правый
+        // span — именно он не доходит до растра на правом краю.
+        const items = [];
+        for (const span of textLayerEl.querySelectorAll('span')) {
+          if (!span || (span.textContent || '').trim().length <= 1) {
+            continue;
+          }
+          const rect = span.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) {
+            continue;
+          }
+          items.push({ span, rect });
+        }
+        items.sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
+        const lines = [];
+        for (const item of items) {
+          const line = lines[lines.length - 1];
+          if (line) {
+            const overlap =
+              Math.min(line.bottom, item.rect.bottom) - Math.max(line.top, item.rect.top);
+            const minHeight = Math.min(line.bottom - line.top, item.rect.height);
+            if (overlap > minHeight * 0.5) {
+              line.top = Math.min(line.top, item.rect.top);
+              line.bottom = Math.max(line.bottom, item.rect.bottom);
+              if (item.rect.right > line.tail.rect.right) {
+                line.tail = item;
+              }
+              continue;
+            }
+          }
+          lines.push({
+            top: item.rect.top,
+            bottom: item.rect.bottom,
+            tail: item,
+          });
+        }
+        let aligned = 0;
+        for (const { tail } of lines) {
+          const { span, rect } = tail;
+          const fontSize = parseFloat(getComputedStyle(span).fontSize) || 0;
+          if (fontSize <= 0) {
+            continue;
+          }
+          const y0 = Math.max(0, Math.floor((rect.top - canvasRect.top) * ratio));
+          const y1 = Math.min(ch - 1, Math.ceil((rect.bottom - canvasRect.top) * ratio));
+          const x0 = Math.max(0, Math.floor((rect.left - canvasRect.left) * ratio));
+          const x1 = cw - 1;
+          if (x0 > x1 || y0 > y1) {
+            continue;
+          }
+          // Столбцы чернил в полосе строки и заполненность её строк (для отсева
+          // горизонтальных линеек: у них почти вся полоса закрашена).
+          const columns = new Uint8Array(x1 - x0 + 1);
+          const rowInk = new Int32Array(y1 - y0 + 1);
+          for (let x = x0; x <= x1; x += 1) {
+            for (let y = y0; y <= y1; y += 1) {
+              if (isInk(x, y)) {
+                columns[x - x0] = 1;
+                rowInk[y - y0] += 1;
+              }
+            }
+          }
+          const bandWidth = x1 - x0 + 1;
+          let ruled = false;
+          for (const count of rowInk) {
+            if (count > bandWidth * 0.7) {
+              ruled = true;
+              break;
+            }
+          }
+          if (ruled) {
+            continue;
+          }
+          // От правого края букв самого span'а идём вправо, перешагивая пробелы
+          // (промежутки короче 0.7 кегля), и обрываемся на длинном разрыве: так
+          // правый край строки — конец последнего пятна, а сноска, стоящая далеко
+          // справа, к строке не приклеивается.
+          const maxGap = Math.max(2, Math.round(0.7 * fontSize * ratio));
+          const spanBoxRight = Math.min(
+            columns.length - 1,
+            Math.ceil((rect.right - canvasRect.left) * ratio) - x0,
+          );
+          let anchor = -1;
+          for (let x = spanBoxRight; x >= 0; x -= 1) {
+            if (columns[x] === 1) {
+              anchor = x;
+              break;
+            }
+          }
+          // В буквах последнего span'а нет чернил — выравнивать не по чему.
+          if (anchor < 0) {
+            continue;
+          }
+          let runEnd = anchor;
+          let gap = 0;
+          for (let x = anchor + 1; x < columns.length; x += 1) {
+            if (columns[x] === 1) {
+              runEnd = x;
+              gap = 0;
+            } else if (++gap > maxGap) {
+              break;
+            }
+          }
+          // Обрыв у границы канваса означает, что пятно не окончено: правый край
+          // строки неизвестен, выравнивать не по чему.
+          if (runEnd >= columns.length - 1) {
+            continue;
+          }
+          const pageWidth = pageBounds.width;
+          const inkRight =
+            ((x0 + runEnd + 1) / ratio + canvasRect.left - pageBounds.left) / pageWidth;
+          const spanLeft = (rect.left - pageBounds.left) / pageWidth;
+          const spanRight = (rect.right - pageBounds.left) / pageWidth;
+          const spanWidth = spanRight - spanLeft;
+          const inkWidth = inkRight - spanLeft;
+          // Правый край растягивается от левого (он совпадает): короткий слой
+          // подтягивается к расту, а выступы и промахи не трогаются.
+          if (spanWidth <= 0.001 || inkWidth <= spanWidth) {
+            continue;
+          }
+          const ratioToInk = inkWidth / spanWidth;
+          if (ratioToInk > 1.3) {
+            continue;
+          }
+          const matrix = getComputedStyle(span).transform;
+          const base = matrix === 'none'
+            ? [1, 0, 0, 1, 0, 0]
+            : matrix.slice(matrix.indexOf('(') + 1, -1).split(',').map(Number);
+          if (!base[0]) {
+            continue;
+          }
+          span.style.transformOrigin = '0% 0%';
+          span.style.transform = `matrix(${base[0] * ratioToInk}, ${base[1]}, ${base[2]}, ${base[3]}, ${base[4]}, ${base[5]})`;
+          aligned += 1;
+        }
+        return aligned;
+      }
+
       /** Перерисовка слоя выделения по текущему выделению текста.
        *
        * Заливка — единый элемент во всю страницу, обрезанный маской по сырым
@@ -1937,12 +2223,18 @@
         if (rects.length === 0) {
           return;
         }
-        const bands = selectionBands(rects);
+        // Полосы и заливка приводятся к межстрочному шагу (см. `tileByLine`):
+        // выделение одинаково и на цифровой странице, и на скане, независимо от
+        // высоты инлайн-бокса шрифта слоя.
+        const { merged: bands, raw: fillRects } = tileByLine(rects);
+        if (bands.length === 0) {
+          return;
+        }
         const layer = document.createElement('div');
         layer.className = 'selection-layer';
         const fill = document.createElement('div');
         fill.className = 'selection-fill';
-        applyFillMask(fill, rects);
+        applyFillMask(fill, fillRects);
         layer.append(fill);
         bands.forEach((rect, index) => {
           const band = document.createElement('div');
@@ -2148,7 +2440,7 @@
         if (rects.length === 0) {
           return;
         }
-        resizeDrag.draft = lineRects(rects);
+        resizeDrag.draft = tileLineRects(rects);
         resizeDrag.draftQuote = range.toString().replace(/\s+/g, ' ').trim();
         redrawAllNotes();
         renderResizeHandles();
