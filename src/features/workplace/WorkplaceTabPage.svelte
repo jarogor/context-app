@@ -52,6 +52,8 @@
     onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Подтверждение текстовой карточки. */
     onTextNote?: (anchor: QuoteAnchor, text: string, color: NoteColor) => void;
+    /** Правка текста и цвета существующей текстовой карточки. */
+    onEditNoteText?: (noteId: string, text: string, color: NoteColor) => void;
     /** Готовая заметка-фигура. */
     onShape?: (anchor: QuoteAnchor, shape: ShapeKind, geometry: string, color: NoteColor) => void;
     /** Клик по подсветке заметки. */
@@ -81,6 +83,7 @@
     onStateChange,
     onQuote,
     onTextNote,
+    onEditNoteText,
     onShape,
     onNoteClick,
     onPlaceNote,
@@ -112,6 +115,7 @@
   {onFooter}
   {onQuote}
   {onTextNote}
+  {onEditNoteText}
   {onShape}
   {onNoteClick}
   {onPlaceNote}

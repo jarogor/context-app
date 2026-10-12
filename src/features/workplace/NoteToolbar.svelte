@@ -113,48 +113,61 @@
 
 <!--
   Верхняя панель чтения. Слева выстроена единая логическая цепочка инструментов
-  заметок: палитра цветов, затем типы заметок и сразу за ними вид фигуры. Справа
-  отдельной группой (`ml-auto`) прижато управление чтением: масштаб текста и
-  кнопка-переключатель темы области чтения. Так инструменты заметок читаются как
-  одна группа слева, а настройки вида — как отдельная группа справа.
+  заметок: типы заметок, затем вид фигуры и сразу за ним палитра цветов (только
+  для фигуры). Справа отдельной группой (`ml-auto`) прижато управление чтением:
+  масштаб текста и кнопка-переключатель темы области чтения. Так инструменты
+  заметок читаются как одна группа слева, а настройки вида — как отдельная группа
+  справа.
+
+  Блок типов и палитра цветов показываются, только когда формат предлагает больше
+  одного типа заметок: в текучем формате доступна единственная «цитата», и её
+  нажатая кнопка с палитрой были бы бесполезны. Палитра нужна только инструменту
+  фигуры и идёт после выбора её вида: цвет текста выбирается в модальном окне
+  заметки, цвет цитаты — в меню создания при выделении. Кнопки типов, вид фигуры и
+  палитра одного компактного размера, чтобы ряд читался единым.
 -->
 <div
   class="flex h-10 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-2"
   data-testid="note-toolbar"
 >
-  <ColorPicker
-    colors={colorSwatches}
-    onpick={(id) => selectColor(id as NoteColor)}
-    ariaLabel="Цвет заметки"
-    testIdPrefix="note-tool-color"
-  />
-
-  <div class="flex items-center gap-1" role="group" aria-label="Тип заметки">
-    {#each typeOptions as type (type)}
-      <Button
-        variant={tool.type === type ? 'primary' : 'ghost'}
-        size="md"
-        title={NOTE_TYPE_LABELS[type]}
-        ariaLabel={NOTE_TYPE_LABELS[type]}
-        ariaPressed={tool.type === type}
-        onclick={() => selectType(type)}
-      >
-        {NOTE_TYPE_LABELS[type]}
-      </Button>
-    {/each}
-  </div>
+  {#if typeOptions.length > 1}
+    <div class="flex items-center gap-1" role="group" aria-label="Тип заметки">
+      {#each typeOptions as type (type)}
+        <Button
+          variant={tool.type === type ? 'primary' : 'ghost'}
+          size="sm"
+          title={NOTE_TYPE_LABELS[type]}
+          ariaLabel={NOTE_TYPE_LABELS[type]}
+          ariaPressed={tool.type === type}
+          onclick={() => selectType(type)}
+        >
+          {NOTE_TYPE_LABELS[type]}
+        </Button>
+      {/each}
+    </div>
+  {/if}
 
   {#if tool.type === 'shape' && typeOptions.includes('shape')}
     <div class="flex items-center" data-testid="note-tool-shape">
       <Select
         value={tool.shape}
         items={shapeOptions}
-        size="md"
+        size="sm"
         class="w-[150px]"
         ariaLabel="Вид фигуры"
         onchange={selectShape}
       />
     </div>
+  {/if}
+
+  {#if tool.type === 'shape' && typeOptions.includes('shape')}
+    <ColorPicker
+      colors={colorSwatches}
+      onpick={(id) => selectColor(id as NoteColor)}
+      ariaLabel="Цвет заметки"
+      testIdPrefix="note-tool-color"
+      class="h-8"
+    />
   {/if}
 
   <div class="ml-auto flex items-center gap-1" data-testid="note-toolbar-reading">

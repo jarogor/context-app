@@ -9,11 +9,17 @@
    * строит: он сообщает прямоугольник заметки, а оболочка показывает это меню и
    * присылает обратно команды перемещения или правки границ. Так вид и поведение
    * совпадают по построению.
+   *
+   * Порядок кнопок слева направо — от основной правки к завершению: у цитаты
+   * «копировать → изменить выделение → закрыть», у карточки «изменить текст →
+   * переместить → закрыть», у фигуры «переместить → закрыть».
    */
 
   interface Props {
     /** Тип заметки: у цитаты правится выделение, у прочих — перемещение. */
     type: NoteType;
+    /** Текст цитаты: копируется в буфер обмена по кнопке копирования. */
+    quote?: string;
     /** Положение заметки в координатах области чтения (пиксели). */
     at: { left: number; top: number; bottom: number };
     /** Размеры области чтения для удержания меню внутри неё. */
@@ -22,14 +28,16 @@
     onMove: () => void;
     /** Начало правки границ цитаты. */
     onResize: () => void;
+    /** Правка текста текстовой карточки. */
+    onEditText?: () => void;
     /** Закрытие меню. */
     onClose: () => void;
   }
 
-  let { type, at, area, onMove, onResize, onClose }: Props = $props();
+  let { type, quote = '', at, area, onMove, onResize, onEditText, onClose }: Props = $props();
 
   /** Оценочные размеры меню для удержания внутри области чтения. */
-  const MENU_WIDTH = 96;
+  const MENU_WIDTH = 132;
   const MENU_HEIGHT = 40;
 
   /** Стиль позиции: под заметкой, при нехватке места — над ней. */
@@ -42,6 +50,23 @@
         : below;
     return `left: ${x}px; top: ${y}px;`;
   });
+
+  /** Копирование текста цитаты в буфер обмена; меню при этом закрывается.
+   *
+   * Буфер обмена может быть недоступен (нет разрешения, небезопасный контекст) —
+   * это не ошибка поверхности: меню просто закрывается.
+   */
+  async function copyQuote() {
+    const value = quote.trim();
+    if (value && typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch {
+        /* Буфер обмена недоступен — копирование пропускается. */
+      }
+    }
+    onClose();
+  }
 </script>
 
 <div
@@ -50,6 +75,24 @@
   {style}
 >
   {#if type === 'quote'}
+    <Button
+      variant="secondary"
+      size="icon"
+      title="Копировать текст"
+      ariaLabel="Копировать текст"
+      onclick={copyQuote}
+    >
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path
+          d="M9 9h9v9H9zM6 15V6h9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </Button>
     <Button
       variant="secondary"
       size="icon"
@@ -69,6 +112,26 @@
       </svg>
     </Button>
   {:else}
+    {#if type === 'text'}
+      <Button
+        variant="secondary"
+        size="icon"
+        title="Изменить текст"
+        ariaLabel="Изменить текст"
+        onclick={onEditText}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path
+            d="M4 20h4l10-10-4-4L4 16v4zM14 6l4 4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </Button>
+    {/if}
     <Button
       variant="secondary"
       size="icon"

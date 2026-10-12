@@ -350,6 +350,18 @@
         cursor: crosshair !important;
         user-select: none;
       }
+      /* Под инструментами «текст» и «фигура» поверх существующей заметки новую
+         не поставить: клик открывает меню уже имеющейся заметки. Заметка при
+         этом кликабельна, и курсор это показывает — указатель вместо прицела,
+         чтобы место не читалось как свободное. */
+      body[data-tool='text'] .overlay .note,
+      body[data-tool='text'] .overlay .note-card,
+      body[data-tool='text'] .overlay .note-shape .note-shape-hit,
+      body[data-tool='shape'] .overlay .note,
+      body[data-tool='shape'] .overlay .note-card,
+      body[data-tool='shape'] .overlay .note-shape .note-shape-hit {
+        cursor: pointer !important;
+      }
       #status {
         position: absolute;
         inset: 0;
@@ -2702,12 +2714,11 @@
             shape: value.shape || 'line',
             color: value.color || 'yellow',
           };
-          // Авто-переключение инструмента по клику на заметку не должно закрывать
-          // её же меню: тип совпадает с типом заметки — это то же взаимодействие.
-          if (!(noteMenu && noteMenu.noteType === next.type)) {
-            closeNoteMenu();
-            stopEditing();
-          }
+          // Смена инструмента закрывает меню и правку заметки. Авто-переключения
+          // инструмента по клику на заметку больше нет, поэтому отдельной
+          // оговорки на совпадение типа не требуется.
+          closeNoteMenu();
+          stopEditing();
           tool = next;
           document.body.dataset.tool = tool.type;
         } else if (message.type === 'reader-theme') {

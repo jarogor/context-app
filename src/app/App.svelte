@@ -512,9 +512,8 @@
     selectedNoteId = noteId;
     notesPanelOpen = true;
     booksPanelOpen = false;
-    // Инструмент следует за выбранной заметкой: дальнейшее перемещение и
-    // создание новых заметок идут её типом и цветом (см. activateNoteTool).
-    notesController.activateTool(noteId);
+    // Клик по заметке лишь выбирает её и открывает панель: активный инструмент
+    // не переключается, чтобы создание заметок не зависело от прежнего выбора.
     void notesController.load();
   }
 
@@ -1128,6 +1127,7 @@
           onCloseNotes={closeNotesPanel}
           onQuote={notesController.addQuote}
           onTextNote={notesController.addTextNote}
+          onEditNoteText={notesController.editText}
           onShape={notesController.addShape}
           onPlaceNote={notesController.place}
           onDeleteNote={notesController.remove}

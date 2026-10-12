@@ -733,11 +733,17 @@ test('в EPUB доступен только инструмент «цитата�
     await openNotes(page);
 
     const toolbar = page.getByTestId('note-toolbar');
-    await expect(toolbar.getByRole('button', { name: 'Цитата' })).toBeVisible();
     // Текучее чтение не предлагает текст и фигуру: их точки неустойчивы к потоку.
+    await expect(toolbar.getByRole('button', { name: 'Цитата' })).toHaveCount(0);
     await expect(toolbar.getByRole('button', { name: 'Текст' })).toHaveCount(0);
     await expect(toolbar.getByRole('button', { name: 'Фигура' })).toHaveCount(0);
+    // Единственному типу не нужны ни кнопка выбора, ни палитра цветов: цвет
+    // цитаты выбирается в меню создания при выделении. Панель остаётся ради
+    // масштаба и переключателя темы области чтения.
+    await expect(toolbar.getByTestId('note-tool-color-picker')).toHaveCount(0);
     await expect(page.getByTestId('note-tool-shape')).toHaveCount(0);
+    await expect(page.getByTestId('reader-zoom')).toBeVisible();
+    await expect(page.getByTestId('reader-theme-toggle')).toBeVisible();
 });
 
 test('название и комментарий заметки правятся в панели и переживают перезагрузку', async ({

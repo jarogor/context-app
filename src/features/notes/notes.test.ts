@@ -36,9 +36,11 @@ import {
     NOTE_TYPES,
     renameSet,
     resolveActiveSetId,
+    resetToolTypeAfterCreate,
     setActiveSet,
     SHAPE_KINDS,
     updateNoteDetails,
+    updateNoteText,
 } from './notes';
 import { createAnchor, createPageAnchor, serializeAnchor } from '../reader/reader/anchor';
 import { invokeCommand } from '../../shared/app-bridge';
@@ -391,6 +393,25 @@ describe('операции плагина заметок', () => {
         });
     });
 
+    it('меняет текст и цвет текстовой карточки одним патчем', async () => {
+        invoke.mockResolvedValue(setResponse());
+        await updateNoteText('lib::book-1', 'ns-1', 'note-1', {
+            text: 'новая мысль',
+            color: 'blue',
+        });
+
+        expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+            capability: 'notes.store@1',
+            operation: 'update_note',
+            payload: {
+                book_key: 'lib::book-1',
+                set_id: 'ns-1',
+                note_id: 'note-1',
+                patch: { text: 'новая мысль', color: 'blue' },
+            },
+        });
+    });
+
     it('удаляет заметку из набора', async () => {
         invoke.mockResolvedValue(setResponse());
         await deleteNote('lib::book-1', 'ns-1', 'note-1');
@@ -627,5 +648,20 @@ describe('доступные типы заметок по режиму чтен�
         });
         // Доступный инструмент не меняется.
         expect(normalizeNoteTool(tool, NOTE_TYPES)).toEqual(tool);
+    });
+
+    it('после создания заметки сбрасывает тип на цитату, сохраняя цвет и вид фигуры', () => {
+        const tool = {
+            ...DEFAULT_NOTE_TOOL,
+            type: 'shape' as const,
+            shape: 'rectangle' as const,
+            color: 'green' as const,
+        };
+        expect(resetToolTypeAfterCreate(tool)).toEqual({
+            ...tool,
+            type: 'quote',
+        });
+        // Цитата как активный инструмент не меняется.
+        expect(resetToolTypeAfterCreate(DEFAULT_NOTE_TOOL)).toEqual(DEFAULT_NOTE_TOOL);
     });
 });

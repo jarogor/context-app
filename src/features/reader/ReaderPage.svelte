@@ -49,6 +49,8 @@
     onQuote?: (anchor: QuoteAnchor, color: NoteColor) => void;
     /** Подтверждение текстовой карточки в выбранном месте. */
     onTextNote?: (anchor: QuoteAnchor, text: string, color: NoteColor) => void;
+    /** Правка текста и цвета существующей текстовой карточки. */
+    onEditNoteText?: (noteId: string, text: string, color: NoteColor) => void;
     /** Готовая заметка-фигура. */
     onShape?: (anchor: QuoteAnchor, shape: ShapeKind, geometry: string, color: NoteColor) => void;
     /** Просьба указать файл недоступной книги. */
@@ -102,6 +104,7 @@
     onFooter,
     onQuote,
     onTextNote,
+    onEditNoteText,
     onShape,
     onRepoint,
     onNoteClick,
@@ -173,6 +176,8 @@
   } | null = $state(null);
   /** Незавершённая точка создания текстовой карточки. */
   let pendingTextAnchor: QuoteAnchor | null = $state(null);
+  /** Правка текста существующей карточки: заметка и её текущие значения. */
+  let editingTextNote: { noteId: string; text: string; color: NoteColor } | null = $state(null);
   /** Ширина области содержимого: по ней ограничивается позиция меню. */
   let readerAreaWidth = $state(0);
   /** Высота области содержимого: по ней меню переносится выше выделения. */
@@ -243,17 +248,54 @@
     }
   }
 
+  /** Открытие правки текста карточки по её контекстному меню (плагин рабочего места). */
+  function startEditNoteText() {
+    const menu = noteMenu;
+    noteMenu = null;
+    if (menu) {
+      openNoteTextEditor(menu.noteId);
+    }
+  }
+
+  /** Открытие окна правки текста заметки типа `text` из встроенного чтения. */
+  function startEditNoteTextInReader(noteId: string) {
+    openNoteTextEditor(noteId);
+  }
+
+  /** Открытие окна правки текста: заметка ищется в активном наборе по типу. */
+  function openNoteTextEditor(noteId: string) {
+    const note = notes.find((candidate) => candidate.id === noteId);
+    if (!note || note.type !== 'text') {
+      return;
+    }
+    editingTextNote = { noteId: note.id, text: note.text, color: note.color };
+  }
+
+  /** Подтверждение правки текста карточки: сохранение текста и цвета заметки. */
+  function commitEditNoteText(text: string, color: NoteColor) {
+    const editing = editingTextNote;
+    editingTextNote = null;
+    if (editing) {
+      onEditNoteText?.(editing.noteId, text, color);
+    }
+  }
+
+  /** Отмена правки текста карточки. */
+  function cancelEditNoteText() {
+    editingTextNote = null;
+  }
+
   /** Начало ввода текстовой карточки в выбранной точке. */
   function startTextCard(anchor: QuoteAnchor) {
     pendingTextAnchor = anchor;
   }
 
   /** Подтверждение текстовой карточки: пустой текст не сохраняется. */
-  function commitTextCard(text: string) {
+  function commitTextCard(text: string, color: NoteColor) {
     const anchor = pendingTextAnchor;
     pendingTextAnchor = null;
     if (anchor) {
-      onTextNote?.(anchor, text, tool.color);
+      onTextNote?.(anchor, text, color);
     }
   }
 
@@ -485,10 +527,12 @@
         {#if noteMenu}
           <NoteMenu
             type={noteMenu.noteType}
+            quote={notes.find((note) => note.id === noteMenu?.noteId)?.quote ?? ''}
             at={{ left: noteMenu.left, top: noteMenu.top, bottom: noteMenu.bottom }}
             area={{ width: readerAreaWidth, height: readerAreaHeight }}
             onMove={() => runNoteMenuAction('move')}
             onResize={() => runNoteMenuAction('resize')}
+            onEditText={startEditNoteText}
             onClose={closeNoteMenu}
           />
         {/if}
@@ -511,7 +555,19 @@
           </div>
         {/if}
         {#if pendingTextAnchor}
-          <NoteTextEditor onConfirm={commitTextCard} onCancel={cancelTextCard} />
+          <NoteTextEditor
+            initialColor={tool.color}
+            onConfirm={commitTextCard}
+            onCancel={cancelTextCard}
+          />
+        {/if}
+        {#if editingTextNote}
+          <NoteTextEditor
+            initialText={editingTextNote.text}
+            initialColor={editingTextNote.color}
+            onConfirm={commitEditNoteText}
+            onCancel={cancelEditNoteText}
+          />
         {/if}
       </div>
     {:else if content}
@@ -531,13 +587,26 @@
           onShape={(anchor, shape, geometry, color) => onShape?.(anchor, shape, geometry, color)}
           onSelectNote={(noteId) => onNoteClick?.(noteId)}
           onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
+          onEditText={startEditNoteTextInReader}
           onProgress={(value) => {
             progress = value;
             reportState();
           }}
         />
         {#if pendingTextAnchor}
-          <NoteTextEditor onConfirm={commitTextCard} onCancel={cancelTextCard} />
+          <NoteTextEditor
+            initialColor={tool.color}
+            onConfirm={commitTextCard}
+            onCancel={cancelTextCard}
+          />
+        {/if}
+        {#if editingTextNote}
+          <NoteTextEditor
+            initialText={editingTextNote.text}
+            initialColor={editingTextNote.color}
+            onConfirm={commitEditNoteText}
+            onCancel={cancelEditNoteText}
+          />
         {/if}
       </div>
     {/if}

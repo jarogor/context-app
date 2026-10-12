@@ -79,6 +79,8 @@
     onSelectNote?: (noteId: string) => void;
     /** Перемещение карточки/фигуры или сдвиг границ цитаты. */
     onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
+    /** Запрос правки текста заметки типа `text` (окно открывает оболочка). */
+    onEditText?: (noteId: string) => void;
   }
 
   let {
@@ -96,6 +98,7 @@
     onProgress,
     onSelectNote,
     onPlaceNote,
+    onEditText,
   }: Props = $props();
 
   /** Доступные типы заметок текучего чтения: только цитата. */
@@ -500,6 +503,17 @@
   function closeNoteMenu(): void {
     noteMenu = null;
     moveGuide = null;
+  }
+
+  /** Правка текста карточки: меню закрывается, окно правки открывает оболочка.
+   *
+   * Модальное окно с формой заметки живёт в оболочке (`ReaderPage`), потому что
+   * оно общее для встроенного чтения и плагина рабочего места. Здесь лишь
+   * передаётся идентификатор правимой заметки.
+   */
+  function startEditNoteText(noteId: string): void {
+    noteMenu = null;
+    onEditText?.(noteId);
   }
 
   /** Начало перемещения карточки или фигуры. */
@@ -1469,10 +1483,12 @@
   {#if noteMenu}
     <NoteMenu
       type={noteMenu.type}
+      quote={notes.find((note) => note.id === noteMenu?.noteId)?.quote ?? ''}
       at={{ left: noteMenu.x, top: noteMenu.y, bottom: noteMenu.y }}
       area={{ width: readerAreaWidth, height: readerAreaHeight }}
       onMove={startMove}
       onResize={startResize}
+      onEditText={() => startEditNoteText(noteMenu!.noteId)}
       onClose={closeNoteMenu}
     />
   {/if}

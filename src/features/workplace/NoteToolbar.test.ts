@@ -43,15 +43,50 @@ describe('панель инструментов заметок', () => {
         expect(screen.getByTestId('note-tool-shape')).toBeTruthy();
     });
 
-    it('сообщает о выборе цвета', async () => {
+    it('сообщает о выборе цвета фигуры', async () => {
         const onChange = vi.fn();
-        render(NoteToolbar, { props: props({ onChange }) });
+        render(NoteToolbar, {
+            props: props({ onChange, tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' } }),
+        });
 
         await fireEvent.click(screen.getByRole('button', { name: 'фиолетовый' }));
-        expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_NOTE_TOOL, color: 'purple' });
+        expect(onChange).toHaveBeenCalledWith({
+            ...DEFAULT_NOTE_TOOL,
+            type: 'shape',
+            color: 'purple',
+        });
     });
 
-    it('выстраивает элементы слева одной цепочкой: цвет, типы, вид фигуры', async () => {
+    it('показывает палитру только для фигуры', async () => {
+        const { rerender } = render(NoteToolbar, {
+            props: props({ tool: { ...DEFAULT_NOTE_TOOL, type: 'quote' } }),
+        });
+        expect(screen.queryByTestId('note-tool-color-picker')).toBeNull();
+
+        await rerender(props({ tool: { ...DEFAULT_NOTE_TOOL, type: 'text' } }));
+        expect(screen.queryByTestId('note-tool-color-picker')).toBeNull();
+
+        await rerender(props({ tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' } }));
+        expect(screen.getByTestId('note-tool-color-picker')).toBeTruthy();
+    });
+
+    it('держит кнопки типов, вид фигуры и палитру одного компактного размера', () => {
+        render(NoteToolbar, {
+            props: props({ tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' } }),
+        });
+
+        // Компактный размер дизайн-системы (`h-8`) у кнопок и выпадающего списка,
+        // чтобы ряд не выглядел разного масштаба.
+        const quote = screen.getByRole('button', { name: 'Цитата' });
+        expect(quote.className).toContain('h-8');
+
+        expect(screen.getByRole('button', { name: 'Вид фигуры' }).className).toContain('h-8');
+
+        const picker = screen.getByTestId('note-tool-color-picker');
+        expect(picker.className).toContain('h-8');
+    });
+
+    it('выстраивает элементы слева одной цепочкой: типы, вид фигуры, цвет', async () => {
         render(NoteToolbar, { props: props({ tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' } }) });
 
         const toolbar = screen.getByTestId('note-toolbar');
@@ -59,16 +94,16 @@ describe('панель инструментов заметок', () => {
         const quote = screen.getByRole('button', { name: 'Цитата' });
         const shape = screen.getByTestId('note-tool-shape');
 
-        // Порядок в DOM: палитра → типы → выпадающий выбор фигуры.
+        // Порядок в DOM: типы → выпадающий выбор фигуры → палитра цветов.
         const order = Array.from(toolbar.querySelectorAll('*'));
-        expect(order.indexOf(color)).toBeLessThan(order.indexOf(quote));
         expect(order.indexOf(quote)).toBeLessThan(order.indexOf(shape));
-        // Выбор фигуры идёт сразу за группами типов, не уезжая к правому краю.
+        expect(order.indexOf(shape)).toBeLessThan(order.indexOf(color));
+        // Выбор фигуры и палитра идут сразу за группами типов, не уезжая к правому краю.
         const classes = shape.className;
         expect(classes.includes('ml-auto')).toBe(false);
     });
 
-    it('в текучем формате показывает только цитату и не показывает вид фигуры', () => {
+    it('в текучем формате не показывает типы и палитру, но оставляет управление чтением', () => {
         render(NoteToolbar, {
             props: props({
                 tool: { ...DEFAULT_NOTE_TOOL, type: 'quote' },
@@ -76,10 +111,15 @@ describe('панель инструментов заметок', () => {
             }),
         });
 
-        expect(screen.getByRole('button', { name: 'Цитата' })).toBeTruthy();
+        // Единственный доступный тип не показывается кнопкой, а палитра ему не нужна.
+        expect(screen.queryByRole('button', { name: 'Цитата' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Текст' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Фигура' })).toBeNull();
+        expect(screen.queryByTestId('note-tool-color-picker')).toBeNull();
         expect(screen.queryByTestId('note-tool-shape')).toBeNull();
+        // Панель остаётся ради масштаба и переключателя темы.
+        expect(screen.getByTestId('reader-zoom')).toBeTruthy();
+        expect(screen.getByTestId('reader-theme-toggle')).toBeTruthy();
     });
 
     it('выносит управление чтением в правую группу после инструментов заметок', () => {

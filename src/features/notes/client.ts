@@ -254,6 +254,27 @@ export async function updateNoteDetails(
     return normalizeSet(response.set);
 }
 
+/** Изменение текста и цвета заметки.
+ *
+ * Используется правкой текстовой карточки из её контекстного меню: оба поля
+ * идут одним патчем `update_note`, чтобы текст карточки и её цвет сохранялись
+ * и отражались на всех поверхностях.
+ */
+export async function updateNoteText(
+    key: string,
+    setId: string,
+    noteId: string,
+    details: { text: string; color: NoteColor },
+): Promise<NoteSet> {
+    const response = await operation<{ set?: unknown }>('update_note', {
+        book_key: key,
+        set_id: setId,
+        note_id: noteId,
+        patch: { text: details.text, color: details.color },
+    });
+    return normalizeSet(response.set);
+}
+
 /** Изменение размещения заметки на странице.
  *
  * Перемещение карточки или фигуры меняет непрозрачный якорь места (и геометрию

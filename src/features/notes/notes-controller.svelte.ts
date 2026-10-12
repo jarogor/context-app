@@ -24,10 +24,12 @@ import {
   noteList,
   normalizeNoteTool,
   renameSet,
+  resetToolTypeAfterCreate,
   resolveActiveSetId,
   setActiveSet,
   updateNoteDetails,
   updateNotePlacement,
+  updateNoteText,
   type Note,
   type NoteColor,
   type NoteListItem,
@@ -108,25 +110,14 @@ export function createNotesController(
     tool = normalizeNoteTool(value, allowedTypesOf());
   }
 
-  /** Переключение инструмента на тип заметки и палитра её цвета.
+  /** Сброс инструмента на «цитату» после создания текста или фигуры.
    *
-   * При выборе существующей заметки логично продолжить работу её инструментом:
-   * иначе под инструментом «фигура» карточка лишь выделяется, а перемещение и
-   * создание новых заметок конфликтуют (в PDF протяжка вообще перехватывала
-   * клик по меню). Клик по заметке делает активным её тип, а её цвет становится
-   * цветом инструмента — так создание следующей заметки идёт тем же цветом.
+   * Пользователь сам выбирает кнопку «текст» или «фигура», ставит заметку — и
+   * возвращается к цитате, чтобы следующая заметка по умолчанию снова была
+   * цитатой. Выбранный цвет и вид фигуры сохраняются.
    */
-  function activateTool(noteId: string) {
-    const note = notes.find((candidate) => candidate.id === noteId);
-    if (!note) {
-      return;
-    }
-    const next: NoteTool = { ...tool, type: note.type };
-    if (note.type === 'shape') {
-      next.shape = note.shape;
-    }
-    next.color = note.color;
-    tool = normalizeNoteTool(next, allowedTypesOf());
+  function resetToolAfterCreate() {
+    tool = resetToolTypeAfterCreate(tool);
   }
 
   /** Показ заметок набора, запоминание выбора для книги и кеш загруженных наборов. */
@@ -412,6 +403,7 @@ export function createNotesController(
       const updated = await addTextNote(key, activeId, anchor, text, color);
       showSetNotes(key, activeId, updated.notes);
       error = null;
+      resetToolAfterCreate();
     } catch (cause) {
       error = String(cause);
     }
@@ -433,6 +425,7 @@ export function createNotesController(
       const updated = await addShapeNote(key, activeId, anchor, shape, geometry, color);
       showSetNotes(key, activeId, updated.notes);
       error = null;
+      resetToolAfterCreate();
     } catch (cause) {
       error = String(cause);
     }
@@ -471,6 +464,25 @@ export function createNotesController(
     }
     try {
       const updated = await updateNoteDetails(active.key, active.setId, noteId, details);
+      showSetNotes(active.key, active.setId, updated.notes);
+      error = null;
+    } catch (cause) {
+      error = String(cause);
+    }
+  }
+
+  /** Изменение текста и цвета текстовой карточки из её контекстного меню.
+   *
+   * Правка доступна прямо на странице: текст и цвет идут одним патчем, а
+   * обновлённые заметки немедленно отражаются на карточке в книге и в списке.
+   */
+  async function editText(noteId: string, text: string, color: NoteColor) {
+    const active = activeSetForNote();
+    if (!active) {
+      return;
+    }
+    try {
+      const updated = await updateNoteText(active.key, active.setId, noteId, { text, color });
       showSetNotes(active.key, active.setId, updated.notes);
       error = null;
     } catch (cause) {
@@ -605,7 +617,6 @@ export function createNotesController(
       return tool;
     },
     setTool,
-    activateTool,
     load,
     selectSet,
     createSet: createSetForActiveBook,
@@ -616,6 +627,7 @@ export function createNotesController(
     addShape: addShapeFromDrawing,
     recolor,
     editDetails,
+    editText,
     place,
     remove,
     findNote,

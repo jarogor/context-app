@@ -1231,6 +1231,25 @@ async function selectTool(page: Page, name: string) {
     await page.getByTestId('note-toolbar').getByRole('button', { name }).click();
 }
 
+test('меню цитаты копирует текст в буфер обмена', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+    await selectTextOnPage(page, 1);
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    // Клик по цитате открывает меню, кнопка копирования кладёт её текст в буфер
+    // обмена и закрывает меню.
+    await content(page).locator('.overlay .note').first().click();
+    const menu = page.getByTestId('note-menu');
+    await expect(menu).toBeVisible();
+    await menu.getByRole('button', { name: 'Копировать текст' }).click();
+    await expect(menu).toHaveCount(0);
+
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toContain('Page 1');
+});
+
 test('текстовая карточка создаётся кликом по странице', async ({ page }) => {
     await openPdf(page, 3);
     await page.getByRole('button', { name: 'Заметки' }).click();
@@ -1256,6 +1275,17 @@ test('текстовая карточка создаётся кликом по �
     await expect(page.getByTestId('notes-item-type')).toHaveText('Текст');
     await expect(content(page).locator('.note-card').first()).toHaveText('Мысль о странице');
 
+    // После создания карточки инструмент возвращается к «цитате»: следующая
+    // заметка по умолчанию снова цитата.
+    await expect(toolbar.getByRole('button', { name: 'Цитата' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+    );
+    await expect(toolbar.getByRole('button', { name: 'Текст' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+    );
+
     // Название и комментарий доступны заметке любого типа и правятся в панели.
     await page.getByLabel('Действия с заметкой').first().click();
     await page.getByRole('menuitem', { name: 'Изменить' }).click();
@@ -1265,6 +1295,64 @@ test('текстовая карточка создаётся кликом по �
 
     await expect(page.getByTestId('notes-item-link')).toContainText('Мысль');
     await expect(page.getByTestId('notes-item-comment')).toHaveText('Вернуться к ней');
+});
+
+test('текст карточки правится из её контекстного меню', async ({ page }) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTool(page, 'Текст');
+    await content(page)
+        .locator('.page')
+        .first()
+        .click({ position: { x: 120, y: 120 } });
+    const editor = page.getByTestId('text-card-editor');
+    await editor.getByLabel('Текст заметки').fill('Первая мысль');
+    await editor.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    // Правка текста доступна из меню карточки на странице: открывается то же
+    // модальное окно, что при создании, с текущим текстом и цветом.
+    const card = content(page).locator('.note-card').first();
+    await card.click();
+    await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить текст' }).click();
+    const edit = page.getByTestId('text-card-editor');
+    await expect(edit).toBeVisible();
+    await expect(edit.getByLabel('Текст заметки')).toHaveValue('Первая мысль');
+    await edit.getByLabel('Текст заметки').fill('Уточнённая мысль');
+    await edit.getByRole('button', { name: 'синий' }).click();
+    await edit.getByRole('button', { name: 'Сохранить' }).click();
+
+    // Текст обновился и на странице, и в списке заметок; цвет тоже применён.
+    await expect(content(page).locator('.note-card').first()).toHaveText('Уточнённая мысль');
+    await expect(page.getByTestId('notes-item-link')).toContainText('Уточнённая мысль');
+    await expect(page.getByTestId('notes-item')).toHaveAttribute('data-color', 'blue');
+});
+
+test('над существующей заметкой под инструментом «текст» курсор кликабельности', async ({
+    page,
+}) => {
+    await openPdf(page, 3);
+    await page.getByRole('button', { name: 'Заметки' }).click();
+
+    await selectTool(page, 'Текст');
+    await content(page)
+        .locator('.page')
+        .first()
+        .click({ position: { x: 120, y: 120 } });
+    const editor = page.getByTestId('text-card-editor');
+    await editor.getByLabel('Текст заметки').fill('Мысль');
+    await editor.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+    // Новая карточка поверх существующей не ставится: клик открывает её меню,
+    // но сама заметка кликабельна — курсор это показывает.
+    await selectTool(page, 'Текст');
+    const cursor = await content(page)
+        .locator('.note-card')
+        .first()
+        .evaluate((element) => getComputedStyle(element).cursor);
+    expect(cursor).toBe('pointer');
 });
 
 test('фигура рисуется протяжкой по странице', async ({ page }) => {
@@ -1344,7 +1432,8 @@ test('текстовую карточку в PDF можно переместит
 
     const card = content(page).locator('.note-card').first();
     await card.click();
-    // Клик по карточке (инструмент «текст» активен) не открывает редактор.
+    // Клик по карточке не открывает редактор, а лишь показывает меню заметки.
+    // Инструмент при этом не меняется: после создания он сброшен на «цитату».
     await expect(page.getByTestId('note-menu')).toBeVisible();
     await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
     await page.getByTestId('note-menu').getByRole('button', { name: 'Переместить' }).click();
@@ -1370,7 +1459,7 @@ test('текстовую карточку в PDF можно переместит
     await expect.poll(async () => card.evaluate((element) => element.style.left)).not.toBe(before);
 });
 
-test('перемещение в PDF работает и под инструментом фигуры', async ({ page }) => {
+test('клик по заметке не переключает инструмент', async ({ page }) => {
     await openPdf(page, 3);
     await page.getByRole('button', { name: 'Заметки' }).click();
 
@@ -1384,14 +1473,17 @@ test('перемещение в PDF работает и под инструме�
     await editor.getByRole('button', { name: 'Сохранить' }).click();
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
 
-    // Инструмент фигуры активен: клик по карточке переключает его на «текст»,
-    // поэтому реальное нажатие «Переместить» не перехватывается протяжкой.
+    // Инструмент фигуры активен: клик по карточке не меняет инструмент, а лишь
+    // открывает меню заметки (и панель с выбранной заметкой).
     await selectTool(page, 'Фигура');
     const card = content(page).locator('.note-card').first();
     await card.click();
     await expect(
-        page.getByTestId('note-toolbar').getByRole('button', { name: 'Текст' }),
+        page.getByTestId('note-toolbar').getByRole('button', { name: 'Фигура' }),
     ).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+        page.getByTestId('note-toolbar').getByRole('button', { name: 'Текст' }),
+    ).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('note-menu')).toBeVisible();
     await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
 

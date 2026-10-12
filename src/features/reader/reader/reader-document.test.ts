@@ -37,6 +37,17 @@ describe('документ книги', () => {
     expect(html).toContain(`.${NOTE_CLASS}.${FLASH_CLASS}`);
   });
 
+  it('над заметкой под инструментом «текст» показывает кликабельность', () => {
+    const html = documentFor();
+    // Новая карточка поверх существующей заметки не создаётся: клик открывает
+    // её меню, но сама заметка кликабельна — курсор это показывает (как в
+    // плагине PDF).
+    expect(html).toContain(
+      'body[data-tool="text"] .texture-note-card,body[data-tool="shape"] .texture-note-card,',
+    );
+    expect(html).toContain('cursor:pointer !important;');
+  });
+
   it('задаёт оформление для обеих сторон темы области чтения', () => {
     const html = documentFor();
     expect(html).toContain("html[data-reader-theme='light']");

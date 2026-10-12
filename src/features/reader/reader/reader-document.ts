@@ -90,6 +90,14 @@ function buildStyle(palette: PaletteId): string {
     // меняется на прицел, а протяжка не выделяет текст под собой.
     'body[data-tool="text"],body[data-tool="shape"]{cursor:crosshair;user-select:none;}',
     'body[data-tool="text"] *,body[data-tool="shape"] *{cursor:crosshair;}',
+    // Под инструментами «текст» и «фигура» поверх существующей заметки новую не
+    // поставить: клик открывает меню уже имеющейся заметки. Заметка при этом
+    // кликабельна, и курсор это показывает — указатель вместо прицела (как в
+    // плагине PDF); правило сильнее общего `crosshair`.
+    'body[data-tool="text"] .texture-note-card,body[data-tool="shape"] .texture-note-card,',
+    'body[data-tool="text"] mark.texture-note,body[data-tool="shape"] mark.texture-note,',
+    'body[data-tool="text"] .texture-note-shape path,body[data-tool="shape"] .texture-note-shape path',
+    '{cursor:pointer !important;}',
     // Заливку выделения рисует собственный слой (как в PDF), а не браузер:
     // разные движки красят `::selection` по-разному (по высоте строки или по
     // рамке глифов), поэтому своя полоса не совпала бы с нативной. Нативное
