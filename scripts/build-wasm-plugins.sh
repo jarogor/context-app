@@ -15,4 +15,9 @@ cd "$ROOT/src-wasm-plugins"
 cargo build --release --target wasm32-unknown-unknown
 
 cd "$ROOT"
+# Модуль рисования плагина рабочего места — самостоятельный фронтенд-проект
+# внутри каталога плагина: собирается в статические файлы `viewer/` до раскладки
+# артефактов (они в git не хранятся).
+npm run build -w workplace-pdf-viewer
+
 node scripts/plugin-artifacts.mjs build

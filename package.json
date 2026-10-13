@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "src-wasm-plugins/workplace-pdf/frontend"
   ],
   "scripts": {
     "dev": "npm run build:plugins && vite",
@@ -15,9 +16,9 @@
     "check:artifacts": "node scripts/plugin-artifacts.mjs check",
     "preview": "vite preview",
     "test": "npm run test:unit",
-    "test:unit": "vitest run && npm test -w @texture/ui && npm test -w @texture/ui-schema",
+    "test:unit": "vitest run && npm test -w @texture/ui && npm test -w @texture/ui-schema && npm test -w workplace-pdf-viewer",
     "test:e2e": "npm run check:artifacts && playwright test",
-    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json && npm run check -w workplace-pdf-viewer",
     "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",
     "check:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --check"
   },

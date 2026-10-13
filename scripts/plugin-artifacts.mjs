@@ -94,6 +94,34 @@ function assetsOf(plugin) {
     return Array.isArray(parsed.assets) ? parsed.assets : [];
 }
 
+/** Пути, исключаемые из развёртывания плагина.
+ *
+ * Исходники самостоятельных подпроектов плагина (например фронтенд-проекта
+ * модуля рисования) в артефакты не попадают: декларация `bundle-assets.json`
+ * перечисляет их в поле `exclude`.
+ */
+function excludesOf(plugin) {
+    const path = join(plugin.dir, ASSETS_FILE);
+    if (!existsSync(path)) {
+        return [];
+    }
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    if (!Array.isArray(parsed.exclude)) {
+        return [];
+    }
+    return parsed.exclude.map((value) => String(value).replaceAll('\\', '/').replace(/\/+$/, ''));
+}
+
+/** Признак, что путь исключён из развёртывания (сам путь или его подкаталог). */
+function isExcluded(relative, excludes) {
+    for (const exclude of excludes) {
+        if (relative === exclude || relative.startsWith(`${exclude}/`)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /** Рекурсивный сбор файлов каталога относительно его корня. */
 function collectFiles(dir, base = dir, acc = []) {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -122,11 +150,13 @@ function expectedFiles(plugin) {
         }
         files.set(plugin.manifest.module, readFileSync(wasmPath));
     } else {
+        const excludes = excludesOf(plugin);
         for (const relative of collectFiles(plugin.dir)) {
-            if (relative === ASSETS_FILE) {
+            const normalized = relative.replaceAll('\\', '/');
+            if (normalized === ASSETS_FILE || isExcluded(normalized, excludes)) {
                 continue;
             }
-            files.set(relative.replaceAll('\\', '/'), readFileSync(join(plugin.dir, relative)));
+            files.set(normalized, readFileSync(join(plugin.dir, relative)));
         }
     }
     const assets = assetsOf(plugin);

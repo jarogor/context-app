@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,21 +20,36 @@ function viewerEntry(): string {
     );
 }
 
-/** Файлы модуля рисования плагина PDF (движок и worker из pdfjs-dist). */
+/** MIME-тип файла модуля рисования по расширению (как в ядре приложения). */
+function viewerMime(path: string): string {
+    const extension = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
+    if (extension === 'html' || extension === 'htm') {
+        return 'text/html';
+    }
+    if (extension === 'mjs' || extension === 'js') {
+        return 'text/javascript';
+    }
+    if (extension === 'css') {
+        return 'text/css';
+    }
+    return 'application/octet-stream';
+}
+
+/** Файлы модуля рисования плагина PDF из развёрнутого каталога.
+ *
+ * Состав берётся из ресурса, который реально грузит приложение: ядро перечисляет
+ * каталог модуля целиком, поэтому фикстура тоже читает каталог, а добавление
+ * файла (например, собранного `viewer.js`) не требует правок теста.
+ */
 function viewerFiles(): Array<{ path: string; mime: string; data: string }> {
-    const build = resolve(ROOT, 'node_modules', 'pdfjs-dist', 'build');
-    return [
-        {
-            path: 'pdf.mjs',
-            mime: 'text/javascript',
-            data: readFileSync(resolve(build, 'pdf.min.mjs')).toString('base64'),
-        },
-        {
-            path: 'pdf.worker.mjs',
-            mime: 'text/javascript',
-            data: readFileSync(resolve(build, 'pdf.worker.min.mjs')).toString('base64'),
-        },
-    ];
+    const dir = resolve(ROOT, 'src-tauri', 'resources', 'plugins', 'workplace-pdf', 'viewer');
+    return readdirSync(dir)
+        .sort()
+        .map((name) => ({
+            path: name,
+            mime: viewerMime(name),
+            data: readFileSync(resolve(dir, name)).toString('base64'),
+        }));
 }
 
 /** Минимальный многостраничный PDF без текстового слоя. */
