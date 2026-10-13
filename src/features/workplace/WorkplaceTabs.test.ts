@@ -224,6 +224,104 @@ describe('панель вкладок: оформление вкладки', () 
     });
 });
 
+describe('панель вкладок: подтверждение закрытия', () => {
+    it('открывает подтверждение по кнопке закрытия и не закрывает вкладку сразу', async () => {
+        mockWidth(250);
+        const base = handlers();
+        render(WorkplaceTabs, {
+            props: {
+                tabs: tabs(2),
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...base,
+            },
+        });
+
+        await fireEvent.click(screen.getAllByTestId('workplace-tab-close')[1]);
+
+        expect(screen.getByTestId('workplace-tab-close-question')).toBeTruthy();
+        // Крестика в диалоге нет: закрыть окно можно кнопкой «Нет».
+        expect(screen.queryByLabelText('Закрыть')).toBeNull();
+        expect(screen.getByText('Да')).toBeTruthy();
+        expect(screen.getByText('Нет')).toBeTruthy();
+        expect(base.onClose).not.toHaveBeenCalled();
+    });
+
+    it('подтверждение закрывает запомненную вкладку', async () => {
+        mockWidth(250);
+        const base = handlers();
+        render(WorkplaceTabs, {
+            props: {
+                tabs: tabs(2),
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...base,
+            },
+        });
+
+        await fireEvent.click(screen.getAllByTestId('workplace-tab-close')[1]);
+        await fireEvent.click(screen.getByText('Да'));
+
+        expect(base.onClose).toHaveBeenCalledWith('t2');
+        expect(base.onSelect).not.toHaveBeenCalled();
+        expect(base.onDuplicate).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('workplace-tab-close-question')).toBeNull();
+    });
+
+    it('отмена подтверждения не меняет состав вкладок', async () => {
+        mockWidth(250);
+        const base = handlers();
+        render(WorkplaceTabs, {
+            props: {
+                tabs: tabs(2),
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...base,
+            },
+        });
+
+        await fireEvent.click(screen.getAllByTestId('workplace-tab-close')[1]);
+        await fireEvent.click(screen.getByText('Нет'));
+
+        expect(base.onClose).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('workplace-tab-close-question')).toBeNull();
+    });
+
+    it('иконки дублирования и закрытия остаются у вкладки', () => {
+        mockWidth(250);
+        render(WorkplaceTabs, {
+            props: {
+                tabs: tabs(1),
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...handlers(),
+            },
+        });
+
+        expect(screen.getByLabelText('Дублировать вкладку')).toBeTruthy();
+        expect(screen.getByTestId('workplace-tab-close')).toBeTruthy();
+    });
+
+    it('подпись кнопки панели списка — «Открытые вкладки книг»', () => {
+        mockWidth(250);
+        render(WorkplaceTabs, {
+            props: {
+                tabs: tabs(1),
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...handlers(),
+            },
+        });
+
+        expect(screen.getByLabelText('Открытые вкладки книг')).toBeTruthy();
+    });
+});
+
 describe('панель вкладок: лимит открытых вкладок', () => {
     it('оставляет открытие и дублирование доступными ниже лимита', () => {
         mockWidth(250);

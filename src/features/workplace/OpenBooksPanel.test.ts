@@ -20,8 +20,10 @@ function tab(id: string, overrides: Partial<WorkspaceTab> = {}): WorkspaceTab {
 /** Обработчики панели с заглушками по умолчанию. */
 function handlers() {
     return {
+        openTabsLimit: 50,
         onSelect: vi.fn<(id: string) => void>(),
         onClose: vi.fn<(id: string) => void>(),
+        onDuplicate: vi.fn<(id: string) => void>(),
         onEditAppearance: vi.fn(),
     };
 }
@@ -228,5 +230,75 @@ describe('панель открытых книг: правка оформлен�
 
         expect(base.onClose).toHaveBeenCalledWith('t1');
         expect(base.onEditAppearance).not.toHaveBeenCalled();
+    });
+
+    it('дублирование вкладки доступно пунктом контекстного меню', async () => {
+        const base = handlers();
+        render(OpenBooksPanel, {
+            props: { tabs: [tab('t1')], activeTabId: 't1', ...base },
+        });
+
+        await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
+        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Дублировать вкладку' }));
+
+        expect(base.onDuplicate).toHaveBeenCalledWith('t1');
+        expect(base.onClose).not.toHaveBeenCalled();
+        expect(base.onEditAppearance).not.toHaveBeenCalled();
+    });
+});
+
+describe('панель открытых книг: лимит открытых вкладок', () => {
+    it('оставляет пункт дублирования доступным ниже лимита', async () => {
+        render(OpenBooksPanel, {
+            props: { ...handlers(), tabs: [tab('t1')], activeTabId: 't1', openTabsLimit: 5 },
+        });
+
+        await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
+        const duplicate = await screen.findByRole('menuitem', { name: 'Дублировать вкладку' });
+        expect(duplicate.getAttribute('aria-disabled')).not.toBe('true');
+        expect(duplicate.getAttribute('data-disabled')).toBeNull();
+    });
+
+    it('делает пункт дублирования недоступным при достижении лимита', async () => {
+        render(OpenBooksPanel, {
+            props: { ...handlers(), tabs: [tab('t1'), tab('t2')], activeTabId: 't1', openTabsLimit: 2 },
+        });
+
+        await fireEvent.click(screen.getAllByLabelText('Оформление вкладки')[0]);
+        const duplicate = await screen.findByRole('menuitem', { name: 'Дублировать вкладку' });
+        expect(duplicate.getAttribute('aria-disabled')).toBe('true');
+        expect(duplicate.getAttribute('data-disabled')).not.toBeNull();
+    });
+
+    it('подсвечивает триггер меню при превышении лимита и снимает подсветку в пределе', async () => {
+        const { rerender } = render(OpenBooksPanel, {
+            props: { ...handlers(), tabs: [tab('t1'), tab('t2'), tab('t3')], activeTabId: 't1', openTabsLimit: 3 },
+        });
+
+        expect(screen.getAllByLabelText('Оформление вкладки')[0].className).not.toContain(
+            'text-destructive',
+        );
+
+        await rerender({
+            ...handlers(),
+            tabs: [tab('t1'), tab('t2'), tab('t3')],
+            activeTabId: 't1',
+            openTabsLimit: 2,
+        });
+
+        const overTriggers = screen.getAllByLabelText('Оформление вкладки');
+        expect(overTriggers[0].className).toContain('text-destructive');
+        expect(overTriggers[0].getAttribute('title')).toBe('Превышен лимит открытых вкладок');
+
+        await rerender({
+            ...handlers(),
+            tabs: [tab('t1'), tab('t2')],
+            activeTabId: 't1',
+            openTabsLimit: 2,
+        });
+
+        expect(screen.getAllByLabelText('Оформление вкладки')[0].className).not.toContain(
+            'text-destructive',
+        );
     });
 });

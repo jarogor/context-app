@@ -10,6 +10,8 @@
     title: string;
     /** Дополнительные классы окна. */
     class?: string;
+    /** Показывать ли встроенную кнопку закрытия (крестик). */
+    showClose?: boolean;
     /** Содержимое окна под заголовком. */
     children: Snippet;
     /** Обработчик изменения открытости (закрытие по Esc или клику вне). */
@@ -20,6 +22,7 @@
     open = $bindable(false),
     title,
     class: className = '',
+    showClose = true,
     children,
     onOpenChange,
   }: Props = $props();
@@ -36,14 +39,16 @@
     >
       <DialogPrimitive.Title class="text-base font-semibold">{title}</DialogPrimitive.Title>
       {@render children()}
-      <DialogPrimitive.Close
-        aria-label="Закрыть"
-        class="absolute top-4 right-4 inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]"
-      >
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        </svg>
-      </DialogPrimitive.Close>
+      {#if showClose}
+        <DialogPrimitive.Close
+          aria-label="Закрыть"
+          class="absolute top-4 right-4 inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </DialogPrimitive.Close>
+      {/if}
     </DialogPrimitive.Content>
   </DialogPrimitive.Portal>
 </DialogPrimitive.Root>

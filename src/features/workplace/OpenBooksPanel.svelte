@@ -13,6 +13,7 @@
     type MenuIcon,
   } from '@texture/ui';
   import {
+    openAvailability,
     TAB_COLORS,
     type TabColor,
     type TabAppearancePatch,
@@ -26,15 +27,29 @@
     tabs: WorkspaceTab[];
     /** Активная вкладка. */
     activeTabId: string | null;
+    /** Лимит числа открытых вкладок рабочего места. */
+    openTabsLimit: number;
     /** Выбор книги. */
     onSelect: (id: string) => void;
     /** Закрытие вкладки. */
     onClose: (id: string) => void;
+    /** Дублирование вкладки. */
+    onDuplicate: (id: string) => void;
     /** Правка оформления вкладки. */
     onEditAppearance: (id: string, patch: TabAppearancePatch) => void;
   }
 
-  let { tabs, activeTabId, onSelect, onClose, onEditAppearance }: Props = $props();
+  let { tabs, activeTabId, openTabsLimit, onSelect, onClose, onDuplicate, onEditAppearance }: Props =
+    $props();
+
+  /** Доступность создания новых вкладок при текущем лимите. */
+  const availability = $derived(openAvailability(tabs.length, openTabsLimit));
+
+  /** Создание новых вкладок заблокировано: лимит достигнут или превышен. */
+  const openBlocked = $derived(availability !== 'available');
+
+  /** Лимит превышен: вкладок больше, чем разрешено. */
+  const overLimit = $derived(availability === 'over-limit');
 
   /** Строка поиска по вкладкам. */
   let query = $state('');
@@ -65,16 +80,18 @@
   /** Пункты меню оформления вкладки: каждое свойство меняется отдельно.
    *
    * Пунктов «изменить всё сразу» нет: пользователь трогает только то, что хочет,
-   * а незаданные свойства не показываются и не меняются. Закрытие вкладки живёт
-   * здесь же: отдельная кнопка у пункта опасна случайным нажатием и занимает
-   * место, поэтому закрытие выполняется осознанным пунктом меню.
+   * а незаданные свойства не показываются и не меняются. Дублирование и закрытие
+   * вкладки живут здесь же: отдельные кнопки у пункта опасны случайным нажатием и
+   * занимают место, поэтому выполняются осознанными пунктами меню. Пункт
+   * дублирования недоступен, когда создание вкладок заблокировано лимитом.
    */
-  const appearanceActions: MenuAction[] = [
+  const appearanceActions = $derived<MenuAction[]>([
     { id: 'rename', label: 'Название' },
     { id: 'describe', label: 'Описание' },
+    { id: 'duplicate', label: 'Дублировать вкладку', disabled: openBlocked },
     { id: 'reset', label: 'Сбросить оформление', destructive: true },
     { id: 'close', label: 'Закрыть вкладку', destructive: true },
-  ];
+  ]);
 
   /** Образцы выбора цвета вкладки: общая палитра заметок, текущий цвет отмечен. */
   function colorOptions(current?: TabColor): MenuColor[] {
@@ -146,6 +163,10 @@
     if (action === 'describe') {
       startEditing(tab, 'description');
     }
+    if (action === 'duplicate') {
+      cancelEditing();
+      onDuplicate(tab.id);
+    }
     if (action === 'reset') {
       cancelEditing();
       onEditAppearance(tab.id, {
@@ -206,8 +227,8 @@
           </button>
           <ActionMenu
             ariaLabel="Оформление вкладки"
-            title="Оформление"
-            class="my-[2px] h-7 w-7"
+            title={overLimit ? 'Превышен лимит открытых вкладок' : 'Оформление'}
+            class="my-[2px] h-7 w-7 {overLimit ? 'text-destructive' : ''}"
             items={appearanceActions}
             icons={iconOptions(tab.icon)}
             iconsLabel="Иконка вкладки"

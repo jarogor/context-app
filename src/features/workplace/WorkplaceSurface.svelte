@@ -385,8 +385,10 @@
         <OpenBooksPanel
           tabs={workspace.tabs}
           activeTabId={workspace.activeTabId}
+          {openTabsLimit}
           onSelect={onSelectTab}
           onClose={onCloseTab}
+          onDuplicate={onDuplicateTab}
           onEditAppearance={onEditTabAppearance}
         />
       {/if}

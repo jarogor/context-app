@@ -108,18 +108,37 @@ test('переключение вкладок меняет активную кн
     );
 });
 
-test('закрытие активной вкладки активирует соседнюю', async ({ page }) => {
+test('закрытие активной вкладки требует подтверждения и активирует соседнюю', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');
     await addBook(page, 'Третья книга');
 
     await tab(page, 'Третья книга').getByTestId('workplace-tab-close').click();
 
+    // Иконка закрытия не закрывает вкладку сразу — открывается подтверждение.
+    await expect(page.getByTestId('workplace-tab-close-question')).toBeVisible();
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+
+    await page.getByRole('button', { name: 'Да' }).click();
+
     await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
     await expect(tab(page, 'Демо-книга').getByTestId('workplace-tab')).toHaveAttribute(
         'aria-pressed',
         'true',
     );
+});
+
+test('отмена подтверждения не закрывает вкладку', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    await tab(page, 'Демо-книга').getByTestId('workplace-tab-close').click();
+    await expect(page.getByTestId('workplace-tab-close-question')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Нет' }).click();
+
+    await expect(page.getByTestId('workplace-tab-close-question')).toHaveCount(0);
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
 });
 
 test('дублирование вкладки создаёт независимую вкладку', async ({ page }) => {
@@ -132,21 +151,36 @@ test('дублирование вкладки создаёт независим�
     await expect(page.getByTestId('workplace-tab').nth(1)).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('дублирование вкладки доступно пунктом меню панели открытых вкладок', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    const panel = page.getByTestId('open-books-panel');
+
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
+
+    await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+    await expect(page.getByTestId('workplace-tab').nth(1)).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('закрытие последней вкладки показывает пустое состояние', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');
 
     await tab(page, 'Демо-книга').getByTestId('workplace-tab-close').click();
+    await page.getByRole('button', { name: 'Да' }).click();
 
     await expect(page.getByTestId('workplace-empty')).toBeVisible();
     await expect(page.getByTestId('workplace-tab')).toHaveCount(0);
 });
 
-test('панель открытых книг выбирает и закрывает вкладки', async ({ page }) => {    await page.goto('/');
+test('панель открытых вкладок выбирает и закрывает вкладки', async ({ page }) => {    await page.goto('/');
     await addBook(page, 'Демо-книга');
     await addBook(page, 'Третья книга');
 
-    await page.getByRole('button', { name: 'Открытые книги' }).click();
+    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
     const panel = page.getByTestId('open-books-panel');
     await expect(panel).toBeVisible();
 
@@ -156,8 +190,10 @@ test('панель открытых книг выбирает и закрыва�
         'true',
     );
 
+    // Закрытие из панели — без подтверждения: осознанный пункт меню.
     await panel.locator('li', { hasText: 'Третья книга' }).getByLabel('Оформление вкладки').click();
     await page.getByRole('menuitem', { name: 'Закрыть вкладку' }).click();
+    await expect(page.getByTestId('workplace-tab-close-question')).toHaveCount(0);
     await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
     await expect(panel).toBeVisible();
 });
@@ -378,7 +414,7 @@ test('уменьшение лимита сохраняет вкладки, по�
 
 /** Открытие панели открытых книг. */
 async function openBooks(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: 'Открытые книги' }).click();
+    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
 }
 
@@ -475,14 +511,14 @@ test('панели заметок и открытых книг взаимоис�
     await addBook(page, 'Демо-книга');
 
     // Открытие панели открытых книг закрывает панель заметок и наоборот.
-    await page.getByRole('button', { name: 'Открытые книги' }).click();
+    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
 
     await page.getByRole('button', { name: 'Заметки' }).click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Открытые книги' }).click();
+    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
     await expect(page.getByTestId('notes-panel')).toHaveCount(0);
 

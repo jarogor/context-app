@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { Button, Icon } from '@texture/ui';
+  import { Button, Dialog, Icon } from '@texture/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { publishUserNotification } from '../notifications/notifications';
@@ -231,6 +231,40 @@
     onSelect(id);
   }
 
+  /** Вкладка, закрытие которой ждёт подтверждения; `null` — диалог закрыт. */
+  let closingTabId: string | null = $state(null);
+
+  /** Кнопка закрытия открывает подтверждение, а не закрывает вкладку сразу.
+   *
+   * Иконки дублирования и закрытия стоят рядом, и промах вместо дублирования не
+   * должен закрывать вкладку: закрытие выполняется только осознанным
+   * подтверждением в модальном окне. Запоминается именно эта вкладка, поэтому
+   * смена активной за время диалога закрывает нужную.
+   */
+  function askCloseTab(id: string) {
+    closingTabId = id;
+  }
+
+  /** Подтверждение закрытия запомненной вкладки. */
+  function confirmCloseTab() {
+    const id = closingTabId;
+    closingTabId = null;
+    if (id !== null) {
+      onClose(id);
+    }
+  }
+
+  /** Отмена подтверждения: состав вкладок и активная вкладка не меняются. */
+  function cancelCloseTab() {
+    closingTabId = null;
+  }
+
+  /** Подпись вкладки в подтверждении: её имя или название книги. */
+  const closingTabLabel = $derived.by(() => {
+    const tab = tabs.find((item) => item.id === closingTabId);
+    return tab ? tabLabel(tab) : '';
+  });
+
   /** Фрагмент стиля с заливкой вкладки пользовательским цветом; пусто, если цвета нет.
    *
    * Цвет задаётся переменными, а не напрямую фоном: классы активного состояния и
@@ -392,7 +426,7 @@
             title="Закрыть вкладку"
             aria-label="Закрыть вкладку"
             class="flex-none cursor-pointer px-[3px] pr-2 opacity-70 hover:opacity-100"
-            onclick={() => onClose(tab.id)}
+            onclick={() => askCloseTab(tab.id)}
           >
             <svg viewBox="0 0 24 24" width="0.85em" height="0.85em" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -453,8 +487,8 @@
   <Button
     variant={booksOpen ? 'primary' : 'secondary'}
     size="icon"
-    title="Открытые книги"
-    ariaLabel="Открытые книги"
+    title="Открытые вкладки книг"
+    ariaLabel="Открытые вкладки книг"
     ariaPressed={booksOpen}
     onclick={onToggleBooks}
   >
@@ -463,3 +497,22 @@
     </svg>
   </Button>
 </div>
+
+<Dialog
+  open={closingTabId !== null}
+  title="Закрыть вкладку?"
+  showClose={false}
+  onOpenChange={(value) => {
+    if (!value) {
+      cancelCloseTab();
+    }
+  }}
+>
+  <p class="text-sm text-[var(--muted-foreground)]" data-testid="workplace-tab-close-question">
+    {closingTabLabel}
+  </p>
+  <div class="flex justify-end gap-2">
+    <Button variant="secondary" onclick={cancelCloseTab}>Нет</Button>
+    <Button variant="primary" onclick={confirmCloseTab}>Да</Button>
+  </div>
+</Dialog>
