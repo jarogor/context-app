@@ -353,6 +353,76 @@ describe('порядок кнопок верхней панели', () => {
     });
 });
 
+describe('активность кнопки рабочего места', () => {
+    /** Реестр с одним рабочим местом и одной вкладкой книги. */
+    function registryWithWorkspace(): WorkspaceRegistry {
+        return {
+            workspaces: [
+                {
+                    id: 'ws-1',
+                    name: 'Рабочее место',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/a.epub',
+                            title: 'Книга A',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+            ],
+            currentWorkspaceId: 'ws-1',
+        };
+    }
+
+    /** Признак нажатого состояния кнопки рабочего места в шапке. */
+    function workspacePressed(): string | null {
+        return screen.getByLabelText('Рабочее место').getAttribute('aria-pressed');
+    }
+
+    it('активна в списке, не активна в открытом месте и вновь активна при возврате', async () => {
+        render(App, {
+            props: { ...appProps({ sets: [], error: '' }), initialRegistry: registryWithWorkspace() },
+        });
+
+        // Старт: показан список рабочих мест — кнопка нажата.
+        expect(workspacePressed()).toBe('true');
+
+        // Открытие конкретного места: кнопка перестаёт выглядеть нажатой.
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        expect(workspacePressed()).toBe('false');
+
+        // Возврат к списку кнопкой в панели вкладок: кнопка снова нажата.
+        await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
+        expect(workspacePressed()).toBe('true');
+    });
+
+    it('нажатие из открытого места возвращает к списку, а повторное нажатие закрывает раздел', async () => {
+        render(App, {
+            props: { ...appProps({ sets: [], error: '' }), initialRegistry: registryWithWorkspace() },
+        });
+
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        expect(screen.getByTestId('workplace-tabs')).toBeTruthy();
+        expect(workspacePressed()).toBe('false');
+
+        // Нажатие кнопки из открытого места возвращает к списку, не закрывая раздел.
+        await fireEvent.click(screen.getByLabelText('Рабочее место'));
+        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+        expect(workspacePressed()).toBe('true');
+
+        // Повторное нажатие в списке закрывает раздел рабочего места.
+        await fireEvent.click(screen.getByLabelText('Рабочее место'));
+        expect(workspacePressed()).toBe('false');
+        expect(screen.getByTestId('workplace-surface').closest('.hidden')).toBeTruthy();
+    });
+});
+
 describe('полноэкранный раздел настроек', () => {
     /** Текущая видимость шапки каркаса в jsdom (по классу `hidden`). */
     function headerHidden(): boolean {

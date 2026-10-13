@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { leaveWorkspaceSurface, workspaceButton } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
@@ -14,10 +15,7 @@ test.beforeEach(async ({ page }) => {
 
 /** Переход к основному разделу библиотеки, если открыто рабочее место. */
 async function showLibrary(page: import('@playwright/test').Page) {
-    const workspace = page.getByLabel('Рабочее место', { exact: true });
-    if ((await workspace.getAttribute('aria-pressed')) === 'true') {
-        await workspace.click();
-    }
+    await leaveWorkspaceSurface(page);
 }
 
 /** Выбор рабочего места в диалоге, если он появился при открытии книги. */
@@ -43,10 +41,8 @@ test('открытие книги добавляет вкладку в рабо�
     await openWorkplace(page);
 
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
-    await expect(page.getByLabel('Рабочее место', { exact: true })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-    );
+    // Открыто конкретное место: кнопка рабочего места в шапке не нажата.
+    await expect(workspaceButton(page)).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('рабочее место показывает содержимое книги', async ({ page }) => {
@@ -192,7 +188,7 @@ test('переключатель меняет тему области чтени
 test('возврат к библиотеке сохраняет состояние', async ({ page }) => {
     await openWorkplace(page);
 
-    await page.getByLabel('Рабочее место', { exact: true }).click();
+    await leaveWorkspaceSurface(page);
 
     const library = page.locator('main');
     await expect(library.getByTestId('book-title')).toHaveText('Демо-книга');

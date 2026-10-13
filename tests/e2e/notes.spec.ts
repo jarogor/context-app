@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openWorkspaceSurface } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев заметок. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
@@ -38,10 +39,7 @@ test.beforeEach(async ({ page }) => {
 
 /** Открытие рабочего места из списка. */
 async function openWorkspace(page: import('@playwright/test').Page) {
-    const workspace = page.getByLabel('Рабочее место', { exact: true });
-    if ((await workspace.getAttribute('aria-pressed')) !== 'true') {
-        await workspace.click();
-    }
+    await openWorkspaceSurface(page);
     const list = page.getByTestId('workspaces-page');
     if (await list.isVisible().catch(() => false)) {
         const open = page.getByTestId('workspace-open').first();

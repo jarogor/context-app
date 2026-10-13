@@ -1,11 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { leaveWorkspaceSurface } from './workspace-surface';
 
 /** Закрытие поверхности рабочего места, чтобы показать основной раздел библиотеки. */
 async function showLibrary(page: import('@playwright/test').Page) {
-    const workspace = page.getByLabel('Рабочее место', { exact: true });
-    if ((await workspace.getAttribute('aria-pressed')) === 'true') {
-        await workspace.click();
-    }
+    await leaveWorkspaceSurface(page);
 }
 
 test('оболочка показывает панель и переключает настройки', async ({ page }) => {
@@ -98,6 +96,26 @@ test('кнопка рабочего места открывает список �
 
     await page.getByLabel('Рабочее место', { exact: true }).click();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
+});
+
+test('кнопка рабочего места активна только в списке и возвращает к нему', async ({ page }) => {
+    await page.goto('/');
+
+    const workspace = page.getByLabel('Рабочее место', { exact: true });
+
+    // Старт: показан список рабочих мест — кнопка нажата.
+    await expect(workspace).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+
+    // Открытие конкретного места: показаны вкладки, кнопка больше не нажата.
+    await page.getByTestId('workspace-open').first().click();
+    await expect(page.getByTestId('workplace-tabs')).toBeVisible();
+    await expect(workspace).toHaveAttribute('aria-pressed', 'false');
+
+    // Нажатие из открытого места возвращает к списку и снова делает кнопку нажатой.
+    await workspace.click();
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+    await expect(workspace).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('страница библиотек показывает историю с временем', async ({ page }) => {

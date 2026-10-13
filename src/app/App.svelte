@@ -271,6 +271,14 @@
   /** Видна ли поверхность рабочего места (с учётом модальных разделов). */
   const workspaceVisible = $derived(workspaceOpen && !settingsOpen && !librariesOpen && !notesLibraryOpen);
 
+  /** Показан ли список рабочих мест — точка входа раздела (с учётом модальных разделов).
+   *
+   * Кнопка-иконка рабочего места в шапке активна именно в этом состоянии: когда
+   * показано конкретное место (его вкладки), кнопка обозначает не содержимое
+   * раздела, а возврат к списку, и нажатой не выглядит.
+   */
+  const workspaceListVisible = $derived(workspaceVisible && workspaceListMode);
+
   /** Видна ли страница «Библиотеки» (с учётом модального раздела настроек). */
   const librariesVisible = $derived(librariesOpen && !settingsOpen && !notesLibraryOpen);
 
@@ -393,14 +401,16 @@
   /** Переключение поверхности рабочего места.
    *
    * При открытии из другого раздела показывается **список** рабочих мест —
-   * точка входа раздела, а не конкретное рабочее место.
+   * точка входа раздела, а не конкретное рабочее место. Когда уже показано
+   * конкретное место (его вкладки), нажатие возвращает к списку рабочих мест,
+   * сохраняя состав и состояние вкладок открытого места.
    */
   function toggleWorkspace() {
-    const wasActive = workspaceVisible;
+    const wasList = workspaceListVisible;
     settingsOpen = false;
     librariesOpen = false;
     notesLibraryOpen = false;
-    if (wasActive) {
+    if (wasList) {
       workspaceOpen = false;
     } else {
       workspaceOpen = true;
@@ -944,11 +954,11 @@
         </span>
       {/if}
       <Button
-        variant={workspaceVisible ? 'primary' : 'secondary'}
+        variant={workspaceListVisible ? 'primary' : 'secondary'}
         size="icon"
         title="Рабочее место"
         ariaLabel="Рабочее место"
-        ariaPressed={workspaceVisible}
+        ariaPressed={workspaceListVisible}
         onclick={toggleWorkspace}
       >
         <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">

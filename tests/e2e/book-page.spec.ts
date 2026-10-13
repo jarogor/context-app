@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { leaveWorkspaceSurface } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев страницы книги. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
@@ -14,10 +15,7 @@ test.beforeEach(async ({ page }) => {
 
 /** Переход к основному разделу библиотеки, если открыто рабочее место. */
 async function showLibrary(page: import('@playwright/test').Page) {
-    const workspace = page.getByLabel('Рабочее место', { exact: true });
-    if ((await workspace.getAttribute('aria-pressed')) === 'true') {
-        await workspace.click();
-    }
+    await leaveWorkspaceSurface(page);
 }
 
 test('клик по книге открывает страницу книги с информацией', async ({ page }) => {
