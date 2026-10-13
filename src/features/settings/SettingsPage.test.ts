@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import SettingsPage from './SettingsPage.svelte';
@@ -15,7 +15,15 @@ const invoke = vi.mocked(invokeCommand);
 function uiResponse(nodes: unknown[]) {
   return {
     version: 1,
-    spaces: [{ space: 'settings.section', id: 'app.general', title: 'Общие', nodes }],
+    spaces: [
+      {
+        space: 'settings.section',
+        id: 'app.general',
+        title: 'Общие',
+        description: 'Общие параметры',
+        nodes,
+      },
+    ],
   };
 }
 
@@ -27,11 +35,9 @@ describe('страница настроек из декларации', () => {
   it('рисует секцию из дерева ui-schema плагина', async () => {
     invoke.mockResolvedValue(
       uiResponse([
-        { type: 'Heading', props: { text: 'Общие', level: 2 } },
         {
           type: 'Checkbox',
           props: { name: 'flag', label: 'Приветственное уведомление', checked: true },
-          on: { change: 'save' },
         },
       ]),
     );
@@ -39,7 +45,7 @@ describe('страница настроек из декларации', () => {
     render(SettingsPage, {});
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Общие' })).toBeTruthy();
+      expect(screen.getByText('Общие')).toBeTruthy();
     });
     expect(screen.getByRole('checkbox')).toBeTruthy();
     expect(screen.getByText('Приветственное уведомление')).toBeTruthy();
@@ -73,7 +79,7 @@ describe('страница настроек из декларации', () => {
             space: 'settings.section',
             id: 'app.general',
             title: 'Общие',
-            nodes: [{ type: 'Heading', props: { text: 'Общие', level: 2 } }],
+            nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } }],
           },
           diagnostics: [],
         },
@@ -81,7 +87,138 @@ describe('страница настроек из декларации', () => {
       initialError: '',
     });
 
-    expect(screen.getByRole('heading', { name: 'Общие' })).toBeTruthy();
+    expect(screen.getByText('Общие')).toBeTruthy();
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('вызывает колбэк закрытия по кнопке в углу', async () => {
+    const onclose = vi.fn();
+    render(SettingsPage, {
+      props: {
+        initialDeclarations: [
+          {
+            declaration: { space: 'settings.section', id: 'app.general', nodes: [] },
+            diagnostics: [],
+          },
+        ],
+        initialError: '',
+        onclose,
+      },
+    });
+
+    await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
+    expect(onclose).toHaveBeenCalled();
+  });
+
+  it('держит кнопку сохранения недоступной без правок', () => {
+    render(SettingsPage, {
+      initialDeclarations: [
+        {
+          declaration: {
+            space: 'settings.section',
+            id: 'app.general',
+            title: 'Общие',
+            nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: false } }],
+          },
+          diagnostics: [],
+        },
+      ],
+      initialError: '',
+    });
+
+    const save = screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+  });
+
+  it('включает кнопку сохранения после правки и гасит при возврате к исходному', async () => {
+    render(SettingsPage, {
+      initialDeclarations: [
+        {
+          declaration: {
+            space: 'settings.section',
+            id: 'app.general',
+            title: 'Общие',
+            nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: false } }],
+          },
+          diagnostics: [],
+        },
+      ],
+      initialError: '',
+    });
+
+    const save = screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement;
+    const checkbox = screen.getByRole('checkbox');
+
+    await fireEvent.click(checkbox);
+    expect(save.disabled).toBe(false);
+
+    await fireEvent.click(checkbox);
+    expect(save.disabled).toBe(true);
+  });
+
+  it('подсвечивает изменённое поле и снимает подсветку при возврате к исходному', async () => {
+    render(SettingsPage, {
+      initialDeclarations: [
+        {
+          declaration: {
+            space: 'settings.section',
+            id: 'app.general',
+            title: 'Общие',
+            nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: false } }],
+          },
+          diagnostics: [],
+        },
+      ],
+      initialError: '',
+    });
+
+    const label = () => screen.getByText('Флаг').closest('label');
+    expect(label()?.getAttribute('data-changed')).toBe('false');
+
+    const checkbox = screen.getByRole('checkbox');
+    await fireEvent.click(checkbox);
+    expect(label()?.getAttribute('data-changed')).toBe('true');
+    expect(label()?.className).toContain('text-[var(--primary)]');
+
+    await fireEvent.click(checkbox);
+    expect(label()?.getAttribute('data-changed')).toBe('false');
+    expect(label()?.className).not.toContain('text-[var(--primary)]');
+  });
+
+  it('сохраняет все секции одной операцией и гасит кнопку', async () => {
+    const declaration = {
+      space: 'settings.section',
+      id: 'app.general',
+      title: 'Общие',
+      nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: false } }],
+    };
+    invoke.mockResolvedValue({
+      version: 1,
+      spaces: [{ ...declaration, nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } }] }],
+    });
+
+    render(SettingsPage, {
+      initialDeclarations: [{ declaration, diagnostics: [] }],
+      initialError: '',
+    });
+
+    await fireEvent.click(screen.getByRole('checkbox'));
+    const save = screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(false);
+
+    await fireEvent.click(save);
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
+        capability: 'settings.store@1',
+        operation: 'save',
+        payload: { sections: [{ section: 'app.general', values: { flag: true } }] },
+      });
+    });
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
   });
 });

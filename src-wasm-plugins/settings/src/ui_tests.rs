@@ -28,6 +28,13 @@ fn field(key: &str, title: &str, field_type: &str) -> FieldSchema {
     }
 }
 
+/// Поле секции с пояснением.
+fn described_field(key: &str, title: &str, field_type: &str, description: &str) -> FieldSchema {
+    let mut field = field(key, title, field_type);
+    field.description = Some(description.to_string());
+    field
+}
+
 /// Поиск узла декларации по имени компонента среди верхнего уровня.
 fn find_node<'a>(declaration: &'a Declaration, kind: &str) -> &'a Value {
     declaration
@@ -38,14 +45,15 @@ fn find_node<'a>(declaration: &'a Declaration, kind: &str) -> &'a Value {
 }
 
 #[test]
-fn boolean_field_becomes_checkbox_with_autosave() {
+fn boolean_field_becomes_checkbox_without_action() {
     let section = section_with(field("flag", "Флаг", "boolean"));
     let declaration = section_declaration(&section, &json!({ "flag": true }));
     let node = find_node(&declaration, "Checkbox");
     assert_eq!(node["props"]["name"], "flag");
     assert_eq!(node["props"]["label"], "Флаг");
     assert_eq!(node["props"]["checked"], true);
-    assert_eq!(node["on"]["change"], ACTION_SAVE);
+    // Дискретное поле не сохраняется само: действий у узла нет.
+    assert!(node.get("on").is_none());
 }
 
 #[test]
@@ -67,7 +75,7 @@ fn select_field_carries_options() {
     assert_eq!(node["props"]["value"], "info");
     assert_eq!(node["props"]["options"][0]["value"], "info");
     assert_eq!(node["props"]["options"][1]["title"], "Всё");
-    assert_eq!(node["on"]["change"], ACTION_SAVE);
+    assert!(node.get("on").is_none());
 }
 
 #[test]
@@ -80,22 +88,31 @@ fn json_field_becomes_textarea_with_pretty_json() {
 }
 
 #[test]
-fn section_has_heading_text_and_save_button() {
+fn section_declaration_carries_title_and_description_without_group_nodes() {
     let section = section_with(field("name", "Имя", "string"));
     let declaration = section_declaration(&section, &json!({ "name": "значение" }));
+    // Заголовок и описание несут свойства декларации, а не узлы.
     assert_eq!(declaration.title.as_deref(), Some("Общие"));
     assert_eq!(declaration.description.as_deref(), Some("Общие параметры"));
-    assert_eq!(find_node(&declaration, "Heading")["props"]["text"], "Общие");
-    assert_eq!(
-        find_node(&declaration, "Text")["props"]["text"],
-        "Общие параметры"
-    );
-    let button = declaration
+    let kinds: Vec<&str> = declaration
         .nodes
         .iter()
-        .find(|node| node["type"] == "Button")
-        .expect("кнопка сохранения");
-    assert_eq!(button["on"]["click"], ACTION_SAVE);
+        .filter_map(|node| node["type"].as_str())
+        .collect();
+    // Ни заголовка, ни описания, ни кнопки сохранения в узлах нет.
+    assert!(!kinds.contains(&"Heading"));
+    assert!(!kinds.contains(&"Text"));
+    assert!(!kinds.contains(&"Button"));
+}
+
+#[test]
+fn section_declaration_has_no_save_button() {
+    let section = section_with(field("name", "Имя", "string"));
+    let declaration = section_declaration(&section, &json!({ "name": "значение" }));
+    assert!(declaration
+        .nodes
+        .iter()
+        .all(|node| node["type"] != "Button"));
 }
 
 #[test]
@@ -114,4 +131,23 @@ fn number_field_drops_trailing_fraction() {
     let declaration = section_declaration(&section, &json!({ "count": 50.0 }));
     let node = find_node(&declaration, "Input");
     assert_eq!(node["props"]["value"], "50");
+}
+
+#[test]
+fn field_description_lives_on_control() {
+    let section = section_with(described_field("flag", "Флаг", "boolean", "Пояснение поля"));
+    let declaration = section_declaration(&section, &json!({ "flag": true }));
+    // Пояснение приложено к контролу, а не отдельным узлом `Text`.
+    let node = find_node(&declaration, "Checkbox");
+    assert_eq!(node["props"]["description"], "Пояснение поля");
+    // Отдельных текстовых узлов в декларации нет: описание секции — в свойствах.
+    assert!(declaration.nodes.iter().all(|node| node["type"] != "Text"));
+}
+
+#[test]
+fn field_without_description_has_no_property() {
+    let section = section_with(field("flag", "Флаг", "boolean"));
+    let declaration = section_declaration(&section, &json!({ "flag": true }));
+    let node = find_node(&declaration, "Checkbox");
+    assert!(node["props"].get("description").is_none());
 }

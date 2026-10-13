@@ -174,6 +174,98 @@ fn state_is_json_serializable() {
 }
 
 #[test]
+fn save_sections_writes_all_and_emits_events() {
+    let host = FakeHost::default();
+    let _ = handle(
+        &host,
+        &request("register", serde_json::json!({ "sources": [app_source()] })),
+    )
+    .expect("регистрация");
+    let output = handle(
+        &host,
+        &request(
+            "save",
+            serde_json::json!({
+                "sections": [
+                    {
+                        "section": "app.general",
+                        "values": { "startup.welcome_notification": false }
+                    }
+                ]
+            }),
+        ),
+    )
+    .expect("сохранение набора секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON");
+    assert_eq!(parsed["spaces"][0]["id"], "app.general");
+
+    let events = host.events.borrow();
+    assert_eq!(events.len(), 1, "событие по сохранённой секции");
+    assert_eq!(events[0].0, "settings:changed");
+    let event: serde_json::Value = serde_json::from_str(&events[0].1).expect("JSON события");
+    assert_eq!(event["section"], "app.general");
+    assert_eq!(event["values"]["startup.welcome_notification"], false);
+}
+
+#[test]
+fn save_sections_with_invalid_value_writes_nothing() {
+    let host = FakeHost::default();
+    let source = serde_json::json!({
+        "owner": "app",
+        "kind": "app",
+        "schema": {
+            "sections": [
+                {
+                    "id": "general",
+                    "title": "Общие",
+                    "fields": [
+                        { "key": "flag", "title": "Флаг", "type": "boolean", "default": true }
+                    ]
+                },
+                {
+                    "id": "data",
+                    "title": "Данные",
+                    "fields": [
+                        { "key": "extra", "title": "Данные", "type": "json" }
+                    ]
+                }
+            ]
+        }
+    });
+    let _ = handle(
+        &host,
+        &request("register", serde_json::json!({ "sources": [source] })),
+    )
+    .expect("регистрация");
+
+    // Вторая секция содержит некорректный JSON: не сохраняется ничто.
+    let result = handle(
+        &host,
+        &request(
+            "save",
+            serde_json::json!({
+                "sections": [
+                    { "section": "app.general", "values": { "flag": false } },
+                    { "section": "app.data", "values": { "extra": "не json" } }
+                ]
+            }),
+        ),
+    );
+    assert!(result.is_err(), "ошибка неделимого сохранения");
+    assert!(host.events.borrow().is_empty(), "событий нет");
+    // Валидная секция тоже не изменилась.
+    let listed = handle(&host, &request("list", serde_json::json!({}))).expect("список");
+    let parsed: serde_json::Value = serde_json::from_str(&listed).expect("JSON");
+    let general = parsed["sections"]
+        .as_array()
+        .expect("секции")
+        .iter()
+        .find(|section| section["id"] == "app.general")
+        .expect("секция general");
+    assert_eq!(general["values"]["flag"], true, "значение не изменено");
+}
+
+#[test]
 fn unknown_action_is_rejected() {
     let host = FakeHost::default();
     let result = handle(&host, &request("unknown", serde_json::json!({})));

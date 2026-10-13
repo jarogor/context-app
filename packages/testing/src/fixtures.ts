@@ -29,6 +29,7 @@ const SETTINGS_FIELDS: Record<
             title: 'Приветственное уведомление',
             type: 'boolean',
             default: true,
+            description: 'Показывать приветствие при запуске приложения',
         },
         {
             key: 'diagnostics.log_level',
@@ -156,41 +157,41 @@ function settingsSpaces(): unknown[] {
         id,
         title: 'Общие',
         description: 'Общие параметры приложения',
-        nodes: [
-            { type: 'Heading', props: { text: 'Общие', level: 2 } },
-            { type: 'Text', props: { text: 'Общие параметры приложения' } },
-            ...fields.map((field) => {
-                const value = SETTINGS_VALUES[id][field.key];
-                if (field.type === 'boolean') {
-                    return {
-                        type: 'Checkbox',
-                        props: { name: field.key, label: field.title, checked: value === true },
-                        on: { change: 'save' },
-                    };
-                }
-                if (field.type === 'select') {
-                    return {
-                        type: 'Select',
-                        props: {
-                            name: field.key,
-                            label: field.title,
-                            value: String(value ?? ''),
-                            options: field.options ?? [],
-                        },
-                        on: { change: 'save' },
-                    };
-                }
+        nodes: fields.map((field) => {
+            const value = SETTINGS_VALUES[id][field.key];
+            if (field.type === 'boolean') {
                 return {
-                    type: 'Input',
-                    props: { name: field.key, label: field.title, value: String(value ?? '') },
+                    type: 'Checkbox',
+                    props: {
+                        name: field.key,
+                        label: field.title,
+                        checked: value === true,
+                        ...(field.description ? { description: field.description } : {}),
+                    },
                 };
-            }),
-            {
-                type: 'Button',
-                props: { label: 'Сохранить', variant: 'secondary' },
-                on: { click: 'save' },
-            },
-        ],
+            }
+            if (field.type === 'select') {
+                return {
+                    type: 'Select',
+                    props: {
+                        name: field.key,
+                        label: field.title,
+                        value: String(value ?? ''),
+                        options: field.options ?? [],
+                        ...(field.description ? { description: field.description } : {}),
+                    },
+                };
+            }
+            return {
+                type: 'Input',
+                props: {
+                    name: field.key,
+                    label: field.title,
+                    value: String(value ?? ''),
+                    ...(field.description ? { description: field.description } : {}),
+                },
+            };
+        }),
     }));
 }
 
@@ -229,6 +230,22 @@ function baseOperation(payload: unknown): unknown {
         return { values: {} };
     }
     if (message.capability === 'settings.store@1' && message.operation === 'ui') {
+        return { version: 1, spaces: settingsSpaces() };
+    }
+    if (message.capability === 'settings.store@1' && message.operation === 'save') {
+        const request = (message.payload ?? {}) as {
+            sections?: Array<{ section?: string; values?: Record<string, unknown> }>;
+        };
+        for (const record of request.sections ?? []) {
+            const section = record.section ?? '';
+            if (section in SETTINGS_VALUES) {
+                Object.assign(SETTINGS_VALUES[section], record.values ?? {});
+                emitMockEvent('settings:changed', {
+                    section,
+                    values: { ...SETTINGS_VALUES[section] },
+                });
+            }
+        }
         return { version: 1, spaces: settingsSpaces() };
     }
     if (message.capability === 'settings.store@1' && message.operation === 'intent') {

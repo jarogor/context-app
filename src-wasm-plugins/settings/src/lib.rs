@@ -33,6 +33,7 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
         "list" => list(host),
         "get" => get(host, &request.payload),
         "set" => set(host, &request.payload),
+        "save" => save_sections(host, &request.payload),
         "ui" => ui(host),
         "intent" => intent(host, &request.payload),
         other => Err(format!("неизвестное действие плагина настроек: {other}")),
@@ -82,6 +83,48 @@ fn set(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> 
     let event = json!({ "section": id, "values": merged }).to_string();
     host.emit_event("settings:changed", &event)?;
     Ok(json!({ "values": merged }).to_string())
+}
+
+/// Сохранение значений нескольких секций одним неделимым действием.
+///
+/// Значения всех переданных секций проверяются приведением к типам полей, и
+/// только при успехе записываются все секции разом; при ошибке в любой секции не
+/// изменяется ни одна. По каждой записанной секции публикуется `settings:changed`.
+fn save_sections(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let records = payload
+        .get("sections")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if records.is_empty() {
+        return Err("список секций для сохранения пуст".to_string());
+    }
+
+    let mut state = load(host)?;
+    // Проверка всех секций до записи: сохранение неделимо.
+    let mut prepared: Vec<(String, serde_json::Value)> = Vec::new();
+    for record in &records {
+        let id = section_id(record);
+        let values = record.get("values").cloned().unwrap_or_else(|| json!({}));
+        let Some(section) = state.find(&id).cloned() else {
+            return Err(format!("неизвестная секция настроек: {id}"));
+        };
+        let coerced = crate::coerce::coerce_values(&section.fields, &values)?;
+        prepared.push((id, coerced));
+    }
+
+    for (id, values) in &prepared {
+        state.set_values(id, values)?;
+    }
+    save(host, &state)?;
+
+    for (id, _) in &prepared {
+        let merged = state.values_for(id).unwrap_or_else(|| json!({}));
+        let event = json!({ "section": id, "values": merged }).to_string();
+        host.emit_event("settings:changed", &event)?;
+    }
+
+    Ok(declarations_response(&state, None))
 }
 
 /// Декларации пространства `settings.section` для всех секций реестра.

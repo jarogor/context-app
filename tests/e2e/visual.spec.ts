@@ -8,12 +8,13 @@ test('снимок оболочки совпадает с эталоном', asy
 
 test('снимок тёмной темы совпадает с эталоном', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Настройки').click();
+  await page.getByLabel('Настройки', { exact: true }).click();
 
   const settings = page.locator('main');
-  await expect(settings.getByRole('heading', { name: 'Общие' })).toBeVisible();
+  await expect(settings.getByTestId('settings-group-heading').first()).toBeVisible();
   await settings.getByRole('button', { name: 'Тема оформления' }).click();
   await page.getByRole('option', { name: 'Тёмная' }).click();
+  await page.getByTestId('settings-page').getByRole('button', { name: 'Сохранить' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
   await expect(page).toHaveScreenshot('shell-dark.png');

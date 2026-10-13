@@ -318,17 +318,18 @@ describe('порядок кнопок верхней панели', () => {
         );
     }
 
-    it('настройки стоят у левого края перед логотипом', async () => {
+    it('логотип стоит у левого края, а настройки уехали вправо', async () => {
         render(App, { props: appProps({ sets: [], error: '' }) });
 
         const header = document.querySelector('header') as HTMLElement;
         const children = Array.from(header.children);
-        // Первый ребёнок шапки — кнопка настроек, второй — логотип.
-        expect((children[0] as HTMLElement).getAttribute('aria-label')).toBe('Настройки');
-        expect(children[1]?.textContent).toContain('Текстура');
+        // Первый ребёнок шапки — логотип: слева кнопок больше нет.
+        expect(children[0]?.textContent).toContain('Текстура');
+        // Кнопка настроек — последняя в правой группе.
+        expect(headerLabels().at(-1)).toBe('Настройки');
     });
 
-    it('правая группа идёт: настройки, рабочее место, библиотеки, заметки, тема, уведомления', async () => {
+    it('правая группа идёт: рабочее место, библиотеки, заметки, тема, уведомления, настройки', async () => {
         render(App, { props: appProps({ sets: [], error: '' }) });
 
         const labels = headerLabels().filter((label) =>
@@ -342,12 +343,67 @@ describe('порядок кнопок верхней панели', () => {
             ].includes(label),
         );
         expect(labels).toEqual([
-            'Настройки',
             'Рабочее место',
             'Библиотеки',
             'Реестр заметок',
             'Переключить тему',
             'Уведомления',
+            'Настройки',
         ]);
+    });
+});
+
+describe('полноэкранный раздел настроек', () => {
+    /** Текущая видимость шапки каркаса в jsdom (по классу `hidden`). */
+    function headerHidden(): boolean {
+        return (document.querySelector('header') as HTMLElement).classList.contains('hidden');
+    }
+
+    it('открывается на всё окно без верхней панели', async () => {
+        render(App, { props: appProps({ sets: [], error: '' }) });
+
+        expect(headerHidden()).toBe(false);
+
+        await fireEvent.click(screen.getByLabelText('Настройки'));
+
+        // Полноэкранные настройки: шапка с кнопками разделов скрыта.
+        expect(headerHidden()).toBe(true);
+        expect(screen.getByTestId('settings-page')).toBeTruthy();
+    });
+
+    it('закрывается кнопкой в углу и возвращает прежнюю поверхность', async () => {
+        render(App, { props: appProps({ sets: [], error: '' }) });
+        await fireEvent.click(screen.getByLabelText('Настройки'));
+        expect(headerHidden()).toBe(true);
+
+        await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
+
+        // Раздел настроек скрыт, шапка вернулась.
+        expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
+        expect(headerHidden()).toBe(false);
+    });
+
+    it('закрывается клавишей Escape', async () => {
+        render(App, { props: appProps({ sets: [], error: '' }) });
+        await fireEvent.click(screen.getByLabelText('Настройки'));
+        expect(headerHidden()).toBe(true);
+
+        await fireEvent.keyDown(window, { key: 'Escape' });
+
+        expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
+        expect(headerHidden()).toBe(false);
+    });
+
+    it('возвращает поверхность, из которой настройки открывали', async () => {
+        render(App, { props: appProps({ sets: [], error: '' }) });
+
+        // Открываем раздел «Заметки», затем из него — настройки.
+        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        expect(screen.getByTestId('notes-library')).toBeTruthy();
+        await fireEvent.click(screen.getByLabelText('Настройки'));
+        await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
+
+        // Возврат не пустой основной раздел: прежняя поверхность сохранена.
+        expect(screen.getByTestId('notes-library')).toBeTruthy();
     });
 });

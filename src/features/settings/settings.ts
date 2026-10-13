@@ -92,3 +92,28 @@ export async function sendSettingsIntent(
   const declarations = (response.spaces ?? []).map(normalizeDeclaration);
   return { declarations, error: response.error ?? '' };
 }
+
+/** Одна секция с значениями для единого сохранения страницы настроек. */
+export interface SettingsSectionValues {
+  /** Полный идентификатор секции. */
+  section: string;
+  /** Значения полей секции из черновика. */
+  values: Record<string, unknown>;
+}
+
+/** Сохранение значений нескольких секций одним неделимым действием.
+ *
+ * Плагин проверяет значения всех секций и записывает их все или не записывает
+ * ничего; при ошибке возвращает её с названием поля. Возвращает свежие декларации.
+ */
+export async function saveSettingsSections(
+  sections: SettingsSectionValues[],
+): Promise<{ declarations: NormalizedDeclaration[]; error: string }> {
+  const response = await operation<SettingsUiResponse>('save', { sections });
+  const versionError = versionDiagnostic(response.version);
+  if (versionError) {
+    return { declarations: [], error: versionError };
+  }
+  const declarations = (response.spaces ?? []).map(normalizeDeclaration);
+  return { declarations, error: response.error ?? '' };
+}

@@ -483,14 +483,15 @@ test('смена темы области чтения в настройках п
 
     // Тема меняется в настройках, пока рабочее место скрыто: область чтения в
     // этот момент имеет нулевой размер и не может отрисовать страницу.
-    await page.getByLabel('Настройки').click();
+    await page.getByLabel('Настройки', { exact: true }).click();
     await page.locator('main').getByRole('button', { name: 'Тема области чтения' }).click();
     await page.getByRole('option', { name: 'Тёмная' }).click();
+    await page.getByTestId('settings-page').getByRole('button', { name: 'Сохранить' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-reader-theme', 'dark');
 
     // Возврат к рабочему месту без прокрутки, смены масштаба и потери фокуса:
     // страница должна перекраситься сама, по восстановлению размера области.
-    await page.getByLabel('Настройки').click();
+    await page.getByLabel('Закрыть настройки').click();
     await reopenWorkplace(page);
     await expect
         .poll(async () => {
@@ -1549,10 +1550,11 @@ test('границы цитаты в PDF правятся маркерами п�
 test('прокрутка после возврата из настроек со сменой темы работает', async ({ page }) => {
     await openPdf(page, 6);
 
-    await page.getByLabel('Настройки').click();
+    await page.getByLabel('Настройки', { exact: true }).click();
     await page.locator('main').getByRole('button', { name: 'Тема области чтения' }).click();
     await page.getByRole('option', { name: 'Тёмная' }).click();
-    await page.getByLabel('Настройки').click();
+    await page.getByTestId('settings-page').getByRole('button', { name: 'Сохранить' }).click();
+    await page.getByLabel('Закрыть настройки').click();
     await reopenWorkplace(page);
 
     const viewer = content(page).locator('#viewer');

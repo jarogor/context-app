@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 /** Открытие страницы настроек. */
 async function openSettings(page: import('@playwright/test').Page) {
   await page.goto('/');
-  await page.getByLabel('Настройки').click();
-  await expect(page.locator('main').getByRole('heading', { name: 'Общие' })).toBeVisible();
+  await page.getByLabel('Настройки', { exact: true }).click();
+  await expect(page.locator('main').getByTestId('settings-group-heading').first()).toBeVisible();
   return page.locator('main');
 }
 
@@ -12,6 +12,12 @@ async function openSettings(page: import('@playwright/test').Page) {
 async function chooseSelect(page: import('@playwright/test').Page, label: string, option: string) {
   await page.locator('main').getByRole('button', { name: label }).click();
   await page.getByRole('option', { name: option }).click();
+}
+
+/** Выбор значения поля и сохранение единой кнопкой страницы настроек. */
+async function chooseAndSave(page: import('@playwright/test').Page, label: string, option: string) {
+  await chooseSelect(page, label, option);
+  await page.getByTestId('settings-page').getByRole('button', { name: 'Сохранить' }).click();
 }
 
 test('кнопка в шапке циклически переключает тему', async ({ page }) => {
@@ -40,7 +46,7 @@ test('выбор тёмной темы в настройках переключ�
     .locator('header')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
-  await chooseSelect(page, 'Тема оформления', 'Тёмная');
+  await chooseAndSave(page, 'Тема оформления', 'Тёмная');
 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect
@@ -59,7 +65,7 @@ test('выбор палитры в настройках меняет цвета 
     .locator('header')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
-  await chooseSelect(page, 'Палитра оформления', 'Mist');
+  await chooseAndSave(page, 'Палитра оформления', 'Mist');
 
   await expect(page.locator('html')).toHaveAttribute('data-palette', 'mist');
   await expect

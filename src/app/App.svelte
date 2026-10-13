@@ -327,6 +327,23 @@
     settingsOpen = !settingsOpen;
   }
 
+  /** Закрытие полноэкранного раздела настроек.
+   *
+   * Базовая поверхность не сбрасывается: закрытие возвращает пользователя к
+   * той поверхности, из которой настройки были открыты.
+   */
+  function closeSettings() {
+    settingsOpen = false;
+  }
+
+  /** Обработка Escape: полноэкранный раздел настроек закрывается клавишей. */
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && settingsOpen) {
+      event.preventDefault();
+      closeSettings();
+    }
+  }
+
   /** Переключение страницы «Библиотеки». */
   function toggleLibraries() {
     librariesOpen = !librariesOpen;
@@ -859,28 +876,13 @@
   }
 </script>
 
+<svelte:window onkeydown={handleWindowKeydown} />
+
 <div class="flex h-full flex-col">
   <header
     class="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4 py-2"
+    class:hidden={settingsOpen}
   >
-    <Button
-      variant={settingsOpen ? 'primary' : 'secondary'}
-      size="icon"
-      title="Настройки"
-      ariaLabel="Настройки"
-      ariaPressed={settingsOpen}
-      onclick={toggleSettings}
-    >
-      <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-        <path
-          d="M4 6h16M4 12h16M4 18h16"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          fill="none"
-        />
-      </svg>
-    </Button>
     <span class="text-base font-bold text-[var(--primary)]">Текстура</span>
     {#if showLibrary()}
       {#if activeLibrary?.provider_name}
@@ -1065,6 +1067,24 @@
           {unreadCount}
         </span>
       </Button>
+      <Button
+        variant={settingsOpen ? 'primary' : 'secondary'}
+        size="icon"
+        title="Настройки"
+        ariaLabel="Настройки"
+        ariaPressed={settingsOpen}
+        onclick={toggleSettings}
+      >
+        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
+          <path
+            d="M4 6h16M4 12h16M4 18h16"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            fill="none"
+          />
+        </svg>
+      </Button>
     </div>
   </header>
 
@@ -1177,6 +1197,7 @@
             <SettingsPage
               initialDeclarations={initialSettings.declarations}
               initialError={initialSettings.error}
+              onclose={closeSettings}
             />
           </div>
           <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'plugins'}>
@@ -1198,7 +1219,7 @@
     </main>
     <aside
       class="flex w-[var(--notifications-panel-width)] min-w-0 flex-none border-l border-[var(--border)] max-[899px]:absolute max-[899px]:inset-0 max-[899px]:w-auto max-[899px]:border-l-0"
-      class:hidden={!notificationsOpen}
+      class:hidden={!notificationsOpen || settingsOpen}
     >
       <NotificationsPanel
         initialEntries={initialNotifications.entries}

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('стор показывает перечень плагинов и активность', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Настройки').click();
+  await page.getByLabel('Настройки', { exact: true }).click();
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
   await menu.getByRole('button', { name: 'Плагины' }).click();

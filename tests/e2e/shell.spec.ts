@@ -14,7 +14,9 @@ test('оболочка показывает панель и переключае
     await expect(page.getByText('Текстура')).toBeVisible();
     await expect(page.getByTestId('workplace-surface')).toBeVisible();
 
-    await page.getByLabel('Настройки').click();
+    // Полноэкранные настройки: шапка с кнопками разделов скрыта.
+    await page.getByLabel('Настройки', { exact: true }).click();
+    await expect(page.locator('header')).toBeHidden();
 
     const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
     await expect(menu.getByRole('button', { name: 'Настройки' })).toBeVisible();
@@ -64,15 +66,27 @@ test('закрытие настроек возвращает к списку р�
 
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 
-    await page.getByLabel('Настройки').click();
+    await page.getByLabel('Настройки', { exact: true }).click();
     await expect(page.getByRole('navigation', { name: 'Разделы настроек' })).toBeVisible();
 
-    await page.getByLabel('Настройки').click();
+    await page.getByLabel('Закрыть настройки').click();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
     await expect(page.getByLabel('Рабочее место', { exact: true })).toHaveAttribute(
         'aria-pressed',
         'true',
     );
+});
+
+test('настройки закрываются клавишей Escape', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByLabel('Настройки', { exact: true }).click();
+    await expect(page.getByTestId('settings-page')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+
+    await expect(page.getByTestId('settings-page')).toBeHidden();
+    await expect(page.locator('header')).toBeVisible();
 });
 
 test('кнопка рабочего места открывает список из раздела библиотеки', async ({ page }) => {
@@ -221,15 +235,17 @@ test('шапка масштабируется и группирует кнопк
     expect(settingsBox!.y).toBeGreaterThan(headerBox!.y + 1);
     expect(settingsBox!.y + settingsBox!.height).toBeLessThan(headerBox!.y + headerBox!.height - 1);
 
-    // Кнопка настроек — у левого края, перед логотипом приложения.
-    expect(settingsBox!.x).toBeLessThan(headerBox!.x + 80);
+    // Логотип — у левого края: слева от него кнопок нет.
     const logo = header.getByText('Текстура');
     const logoBox = await logo.boundingBox();
     expect(logoBox).not.toBeNull();
-    expect(settingsBox!.x + settingsBox!.width).toBeLessThan(logoBox!.x);
+    expect(logoBox!.x).toBeLessThan(headerBox!.x + 80);
 
-    // Уведомления — у самого правого края, правее переключателя темы.
+    // Кнопка настроек — у самого правого края (там же, где потом закрытие).
     const headerRight = headerBox!.x + headerBox!.width;
+    expect(settingsBox!.x + settingsBox!.width).toBeLessThanOrEqual(headerRight + 1);
+
+    // Уведомления — левее настроек, правее переключателя темы.
     const theme = page.getByRole('button', { name: 'Переключить тему', exact: true });
     const themeBox = await theme.boundingBox();
     const notifications = page.getByRole('button', { name: 'Уведомления', exact: true });
@@ -237,9 +253,9 @@ test('шапка масштабируется и группирует кнопк
     expect(themeBox).not.toBeNull();
     expect(notificationsBox).not.toBeNull();
     expect(themeBox!.x + themeBox!.width).toBeLessThan(notificationsBox!.x);
-    expect(notificationsBox!.x + notificationsBox!.width).toBeLessThanOrEqual(headerRight + 1);
+    expect(notificationsBox!.x + notificationsBox!.width).toBeLessThan(settingsBox!.x + 1);
 
-    // Порядок кнопок слева направо: настройки, рабочее место, библиотеки, заметки, тема, уведомления.
+    // Порядок кнопок слева направо: рабочее место, библиотеки, заметки, тема, уведомления, настройки.
     const order = await header
         .getByRole('button')
         .evaluateAll((nodes) =>
@@ -251,11 +267,11 @@ test('шапка масштабируется и группирует кнопк
         ),
     );
     expect(labels).toEqual([
-        'Настройки',
         'Рабочее место',
         'Библиотеки',
         'Реестр заметок',
         'Переключить тему',
         'Уведомления',
+        'Настройки',
     ]);
 });

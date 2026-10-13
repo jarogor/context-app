@@ -27,6 +27,41 @@ describe('каталог декларативного интерфейса', () 
     expect(result.declaration?.nodes.length).toBe(1);
   });
 
+  it('разрешает пояснение поля у контролов', () => {
+    // Свойство `description` — пояснение поля: допустимо у всех контролов
+    // секции настроек и не даёт диагностик.
+    const result = sanitizeDeclaration(
+      declaration([
+        {
+          type: 'Checkbox',
+          props: { name: 'flag', label: 'Флаг', checked: true, description: 'Пояснение' },
+          on: { change: 'save' },
+        },
+        { type: 'Input', props: { name: 'count', label: 'Число', description: 'Пояснение' } },
+        { type: 'Textarea', props: { name: 'raw', label: 'JSON', description: 'Пояснение' } },
+        {
+          type: 'Select',
+          props: { name: 'mode', label: 'Режим', value: 'a', options: [], description: 'Пояснение' },
+          on: { change: 'save' },
+        },
+      ]),
+    );
+    expect(result.diagnostics).toEqual([]);
+    expect(result.declaration?.nodes.length).toBe(4);
+  });
+
+  it('сохраняет декларацию без пояснений без диагностик', () => {
+    // Декларации без `description` остаются допустимыми: расширение каталога
+    // не ломает уже существующие секции.
+    const result = sanitizeDeclaration(
+      declaration([
+        { type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } },
+        { type: 'Input', props: { name: 'count', label: 'Число', value: '1' } },
+      ]),
+    );
+    expect(result.diagnostics).toEqual([]);
+  });
+
   it('отклоняет неизвестный компонент с диагностикой', () => {
     const result = sanitizeDeclaration(declaration([{ type: 'MegaComponent', props: {} }]));
     expect(result.declaration?.nodes).toEqual([]);

@@ -284,13 +284,13 @@ test('навигация по вкладкам сдвигает видимый �
 
 /** Открытие общего раздела настроек. */
 async function openSettings(page: import('@playwright/test').Page) {
-    await page.getByLabel('Настройки').click();
+    await page.getByLabel('Настройки', { exact: true }).click();
     await expect(page.getByTestId('settings-page')).toBeVisible();
 }
 
-/** Закрытие раздела настроек тем же переключателем в шапке. */
+/** Закрытие раздела настроек кнопкой в углу страницы настроек. */
 async function closeSettings(page: import('@playwright/test').Page) {
-    await page.getByLabel('Настройки').click();
+    await page.getByLabel('Закрыть настройки').click();
     await expect(page.getByTestId('settings-page')).toBeHidden();
 }
 
@@ -299,9 +299,8 @@ async function closeSettings(page: import('@playwright/test').Page) {
  *
  * Выбран настоящий путь через интерфейс, а не прямая эмуляция события
  * `settings:changed`: так проверяется, что значение из поля настроек
- * действительно доходит до поверхности рабочего места. Числовое поле, в
- * отличие от переключателей и списков, не сохраняется по вводу, поэтому
- * значение подтверждается кнопкой «Сохранить» секции.
+ * действительно доходит до поверхности рабочего места. Правка подтверждается
+ * единой кнопкой сохранения страницы настроек.
  */
 async function saveOpenTabsLimit(page: import('@playwright/test').Page, limit: number) {
     const settings = page.getByTestId('settings-page');

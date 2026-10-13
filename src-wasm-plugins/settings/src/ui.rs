@@ -14,71 +14,62 @@ use crate::models::{FieldSchema, RegisteredSection};
 pub const ACTION_SAVE: &str = "save";
 
 /// Построение декларации пространства `settings.section` для одной секции.
+///
+/// Заголовок и описание секции передаются свойствами декларации
+/// (`title`/`description`), а не узлами `Heading`/`Text`: группу секции — её
+/// заголовок с линией и подпись — рисует хост единообразно. Кнопки сохранения в
+/// декларации нет: сохранение выполняет страница настроек одной кнопкой в нижней
+/// панели. Контролы полей не несут действий: правки копятся в черновике хоста и
+/// сохраняются явно.
 pub fn section_declaration(section: &RegisteredSection, values: &Value) -> Declaration {
     let mut declaration =
         Declaration::new(SPACE_SETTINGS_SECTION, &section.id).title(&section.title);
     if let Some(description) = section.description.as_deref() {
         declaration = declaration.description(description);
     }
-    declaration = declaration.node(
-        Element::new("Heading")
-            .prop("text", section.title.clone())
-            .prop("level", 2)
-            .build(),
-    );
-    if let Some(description) = section.description.as_deref() {
-        declaration = declaration.node(Element::new("Text").prop("text", description).build());
-    }
     for field in &section.fields {
         declaration = declaration.node(field_node(field, values.get(&field.key)));
-        if let Some(description) = field.description.as_deref() {
-            declaration = declaration.node(Element::new("Text").prop("text", description).build());
-        }
     }
-    declaration.node(
-        Element::new("Button")
-            .prop("label", "Сохранить")
-            .prop("variant", "secondary")
-            .action("click", ACTION_SAVE)
-            .build(),
-    )
+    declaration
 }
 
 /// Построение узла управления для одного поля.
+///
+/// Пояснение поля прикладывается свойством `description` к самому контролу: так
+/// оно принадлежит полю и рисуется хостом компактно при нём, а не отдельным
+/// текстовым узлом вперемешку с контролами. Действий у контролов нет: хоть
+/// дискретное, хоть текстовое поле сохраняются только единой кнопкой страницы.
 fn field_node(field: &FieldSchema, value: Option<&Value>) -> Value {
-    match field.field_type.as_str() {
+    let element = match field.field_type.as_str() {
         "boolean" => Element::new("Checkbox")
             .prop("name", field.key.clone())
             .prop("label", field.title.clone())
-            .prop("checked", value.and_then(Value::as_bool).unwrap_or(false))
-            .action("change", ACTION_SAVE)
-            .build(),
+            .prop("checked", value.and_then(Value::as_bool).unwrap_or(false)),
         "select" => Element::new("Select")
             .prop("name", field.key.clone())
             .prop("label", field.title.clone())
             .prop("value", value.map(display_value).unwrap_or_default())
-            .prop("options", options_value(field))
-            .action("change", ACTION_SAVE)
-            .build(),
+            .prop("options", options_value(field)),
         "number" => Element::new("Input")
             .prop("name", field.key.clone())
             .prop("label", field.title.clone())
             .prop("type", "number")
-            .prop("value", value.map(number_display).unwrap_or_default())
-            .build(),
+            .prop("value", value.map(number_display).unwrap_or_default()),
         "json" => Element::new("Textarea")
             .prop("name", field.key.clone())
             .prop("label", field.title.clone())
             .prop(
                 "value",
                 value.map(pretty_json).unwrap_or_else(|| "null".to_string()),
-            )
-            .build(),
+            ),
         _ => Element::new("Input")
             .prop("name", field.key.clone())
             .prop("label", field.title.clone())
-            .prop("value", value.map(display_value).unwrap_or_default())
-            .build(),
+            .prop("value", value.map(display_value).unwrap_or_default()),
+    };
+    match field.description.as_deref() {
+        Some(description) => element.prop("description", description).build(),
+        None => element.build(),
     }
 }
 
