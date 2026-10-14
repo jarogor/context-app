@@ -19,6 +19,12 @@ pub const USER_PLUGINS_DIR_NAME: &str = "app-plugins";
 /// Имя каталога служебного состояния приложения.
 pub const APP_STATE_DIR_NAME: &str = "app-state";
 
+/// Имя подкаталога данных движка webview внутри каталога состояния.
+///
+/// Здесь живёт раскладка движка (кеш, локальное хранилище, cookies, HSTS,
+/// ключи медиа), имена которой задаёт не приложение.
+pub const WEBVIEW_DIR_NAME: &str = "webview";
+
 /// Разрешение корня служебного состояния приложения.
 ///
 /// В debug-сборке каталог живёт в `dev_data/app-state`; в release — в каталоге
@@ -52,6 +58,16 @@ pub fn resolve_user_plugins_root(app_data_dir: Option<&Path>) -> PathBuf {
     app_data_dir
         .map(|dir| dir.join(USER_PLUGINS_DIR_NAME))
         .unwrap_or_else(|| PathBuf::from(USER_PLUGINS_DIR_NAME))
+}
+
+/// Разрешение корня данных движка webview.
+///
+/// Каталог лежит внутри каталога служебного состояния (`app-state/webview`),
+/// поэтому следует развилке сборки dev/release вместе с прочим служебным
+/// состоянием: в разработке — `dev_data/app-state/webview`, в выпуске — каталог
+/// состояния в каталоге данных приложения.
+pub fn resolve_webview_root(app_state_root: &Path) -> PathBuf {
+    app_state_root.join(WEBVIEW_DIR_NAME)
 }
 
 #[cfg(test)]

@@ -9,6 +9,8 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use crate::constants::WEBVIEW_DIR_NAME;
+
 /// Описание одного служебного расположения для отображения.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AppPath {
@@ -61,6 +63,12 @@ impl AppInfo {
                 path: path_of(state_root),
                 note: "Реестры приложения: рабочие места, история библиотек, активность плагинов"
                     .to_string(),
+            },
+            AppPath {
+                key: "webview".to_string(),
+                title: "Данные webview".to_string(),
+                path: path_of(&state_root.join(WEBVIEW_DIR_NAME)),
+                note: "Данные движка webview: кеш, локальное хранилище, cookies".to_string(),
             },
             AppPath {
                 key: "base_plugins_state".to_string(),

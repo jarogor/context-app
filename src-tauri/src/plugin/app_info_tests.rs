@@ -26,12 +26,24 @@ fn builds_all_paths_from_roots() {
         keys,
         vec![
             "app_state",
+            "webview",
             "base_plugins_state",
             "user_plugins",
             "bundled_plugins",
             "bundled_base_plugins",
             "wasm_cache",
         ]
+    );
+    let webview = info
+        .paths
+        .iter()
+        .find(|path| path.key == "webview")
+        .unwrap();
+    assert_eq!(webview.path, "/data/app-state/webview");
+    assert!(
+        webview.note.contains("webview"),
+        "пояснение называет назначение каталога: {}",
+        webview.note
     );
     let base_state = info
         .paths

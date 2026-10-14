@@ -16,8 +16,8 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 use crate::constants::{
-    resolve_app_state_root, resolve_user_plugins_root, APP_DISPLAY_NAME, BASE_PLUGINS_DIR_NAME,
-    PLUGINS_DIR_NAME,
+    resolve_app_state_root, resolve_user_plugins_root, resolve_webview_root, APP_DISPLAY_NAME,
+    BASE_PLUGINS_DIR_NAME, PLUGINS_DIR_NAME,
 };
 use crate::plugin::{AppHostConfig, AppInfo, AppState, PluginSession, ReaderConfig};
 
@@ -39,6 +39,14 @@ pub fn run() {
             let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let bundled_base = resource_dir.join(BASE_PLUGINS_DIR_NAME);
             let wasm_cache = crate::plugin::wasm_cache::prepare(&app_state_root);
+
+            // Данные движка webview (кеш, локальное хранилище, cookies) живут
+            // в подкаталоге каталога состояния: движок задаёт свои имена сам,
+            // и без явного каталога он разбросал бы их в корне каталога данных
+            // рядом с нашими служебными именами. Каталог создаётся заранее, до
+            // создания окна.
+            let webview_root = resolve_webview_root(&app_state_root);
+            std::fs::create_dir_all(&webview_root).ok();
 
             // Тяжёлая загрузка и компиляция WASM базовых плагинов намеренно НЕ
             // выполняется синхронно здесь: иначе окно остаётся белым, пока
@@ -102,11 +110,22 @@ pub fn run() {
             }
             crate::startup::mark("setup:готово (фоновые сборки запущены)");
 
-            // Окно создано скрытым: его показывает интерфейс после первой
-            // отрисовки. Страховка на случай, если интерфейс не загрузился.
-            if let Some(window) = app.get_webview_window("main") {
-                crate::commands::show_window::schedule_fallback_show(window);
-            }
+            // Главное окно создаётся кодом, а не конфигом: только так можно
+            // задать абсолютный каталог данных webview, не привязываясь к
+            // относительному пути в конфиге. Окно создаётся скрытым: его
+            // показывает интерфейс после первой отрисовки. Страховка на случай,
+            // если интерфейс не загрузился.
+            let window = tauri::WebviewWindowBuilder::new(
+                app,
+                "main",
+                tauri::WebviewUrl::App("index.html".into()),
+            )
+            .title(APP_DISPLAY_NAME)
+            .inner_size(1100.0, 750.0)
+            .visible(false)
+            .data_directory(webview_root)
+            .build()?;
+            crate::commands::show_window::schedule_fallback_show(window);
 
             Ok(())
         })
