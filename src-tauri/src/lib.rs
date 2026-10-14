@@ -7,6 +7,7 @@ pub mod constants;
 pub mod library_history;
 pub mod paths;
 pub mod plugin;
+pub mod startup;
 pub mod workspace_state;
 
 use std::path::{Path, PathBuf};
@@ -23,10 +24,12 @@ use crate::plugin::{AppHostConfig, AppInfo, AppState, PluginSession, ReaderConfi
 /// Точка входа Tauri-приложения и generic plugin host.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    crate::startup::mark_start();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             plugin::relay::set_app_handle(app.handle().clone());
+            crate::startup::mark("setup:начало");
 
             let resource_dir = app.path().resource_dir()?;
             let app_data_dir = app.path().app_data_dir().ok();
@@ -38,23 +41,20 @@ pub fn run() {
             let wasm_cache = crate::plugin::wasm_cache::prepare(&app_state_root);
 
             // Тяжёлая загрузка и компиляция WASM базовых плагинов намеренно НЕ
-            // выполняется здесь: иначе окно остаётся белым, пока компилятор
-            // плагинов работает. Runtime базовых плагинов собирается лениво, при
-            // первом обращении, уже под экраном загрузки.
+            // выполняется синхронно здесь: иначе окно остаётся белым, пока
+            // компилятор плагинов работает. Сборка runtime запускается в фоне
+            // сразу после конструирования состояния, параллельно загрузке окна.
             let app_host_config = AppHostConfig {
                 directories: base_plugin_directories(&bundled_base),
-                storage_root: base_storage_root(),
+                storage_root: base_storage_root(&app_state_root),
                 user_plugins_dir: user_plugins_dir.clone(),
                 activation_root: app_state_root.clone(),
                 catalog_dirs: session_plugin_directories(&bundled_plugins_dir, &user_plugins_dir),
                 cache: wasm_cache.clone(),
             };
 
-            // Прогрев source-плагинов идёт в фоне: первое открытие библиотеки
+            // Прогрев плагинов чтения идёт в фоне: первое открытие библиотеки
             // не должно ждать компиляции WASM.
-            let warmup_directories =
-                session_plugin_directories(&bundled_plugins_dir, &user_plugins_dir);
-
             let root = PathBuf::from(".");
             let mut host = PluginSession::idle(root, bundled_plugins_dir.clone());
             host.set_user_plugins_dir(user_plugins_dir.clone());
@@ -86,17 +86,27 @@ pub fn run() {
                 host,
                 app_state_root,
                 app_info,
-                reader_config,
+                reader_config.clone(),
                 app_host_config,
             )));
+
+            // Runtime чтения и базовые плагины компилируются в фоне, параллельно
+            // с загрузкой окна: первый кадр не ждёт компилятор плагинов. Один
+            // прогрев на набор — команды чтения разделяют тот же runtime.
+            let state = app.state::<Mutex<AppState>>();
+            {
+                let mut state = crate::commands::lock_state(state.inner())?;
+                let reader = crate::plugin::warmup::spawn_reader_warmup(reader_config);
+                state.set_reader_runtime(reader);
+                let _ = state.spawn_app_host();
+            }
+            crate::startup::mark("setup:готово (фоновые сборки запущены)");
 
             // Окно создано скрытым: его показывает интерфейс после первой
             // отрисовки. Страховка на случай, если интерфейс не загрузился.
             if let Some(window) = app.get_webview_window("main") {
                 crate::commands::show_window::schedule_fallback_show(window);
             }
-
-            crate::plugin::warmup::spawn_source_warmup(warmup_directories, wasm_cache);
 
             Ok(())
         })
@@ -144,9 +154,14 @@ fn base_plugin_directories(bundled: &Path) -> Vec<PathBuf> {
     directories
 }
 
-/// Корень служебного хранилища базовых плагинов в рабочей директории проекта.
-fn base_storage_root() -> PathBuf {
-    crate::paths::dev_data_dir().join(BASE_PLUGINS_DIR_NAME)
+/// Корень служебного хранилища базовых плагинов внутри каталога состояния.
+///
+/// Состояние базовых плагинов (настройки, заметки, журнал) принадлежит
+/// приложению и живёт в каталоге состояния (`app-state/base-plugins`), а не в
+/// каталоге разработки: так оно следует развилке сборки dev/release вместе с
+/// прочим служебным состоянием и не читается release-сборкой из рабочей копии.
+fn base_storage_root(app_state_root: &Path) -> PathBuf {
+    app_state_root.join(BASE_PLUGINS_DIR_NAME)
 }
 
 /// Директории session-плагинов для перечня стора: пользовательская и ресурсные
@@ -164,3 +179,7 @@ fn session_plugin_directories(bundled: &Path, user: &Path) -> Vec<PathBuf> {
     directories.push(bundled.to_path_buf());
     directories
 }
+
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod tests;

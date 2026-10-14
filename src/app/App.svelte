@@ -36,7 +36,6 @@
   import type { AppearanceBootstrap } from '../features/lifecycle/bootstrap';
   import type { SettingsBootstrap } from '../features/lifecycle/bootstrap';
   import type { NotificationsBootstrap } from '../features/lifecycle/bootstrap';
-  import type { NotesLibraryBootstrap } from '../features/lifecycle/bootstrap';
   import type { StoreBootstrap } from '../features/lifecycle/bootstrap';
   import {
     allowedNoteTypes,
@@ -89,8 +88,6 @@
     initialNotifications: NotificationsBootstrap;
     /** Каталог плагинов и сторов, загруженный до первого рендера. */
     initialStore: StoreBootstrap;
-    /** Реестр наборов заметок, загруженный до первого рендера. */
-    initialNotesLibrary: NotesLibraryBootstrap;
     /** Лимит открытых вкладок рабочего места, загруженный до первого рендера. */
     initialOpenTabsLimit: number;
   }
@@ -102,7 +99,6 @@
     initialSettings,
     initialNotifications,
     initialStore,
-    initialNotesLibrary,
     initialOpenTabsLimit,
   }: Props = $props();
 
@@ -121,14 +117,22 @@
   /** Открыт ли раздел «Заметки»; состояние принадлежит оболочке. */
   let notesLibraryOpen = $state(false);
 
-  /** Реестр наборов заметок всех книг (агрегат `list_all_sets`). */
-  let notesLibrarySets: NoteSet[] = $state(untrack(() => initialNotesLibrary.sets));
+  /** Реестр наборов заметок всех книг (агрегат `list_all_sets`).
+   *
+   * Читается при открытии раздела, а не на стадии начальной загрузки: реестр
+   * зависит от объёма пользовательских заметок и не должен задерживать первый
+   * кадр.
+   */
+  let notesLibrarySets: NoteSet[] = $state([]);
 
   /** Ошибка загрузки реестра заметок для сообщения в разделе. */
-  let notesLibraryError: string = $state(untrack(() => initialNotesLibrary.error));
+  let notesLibraryError: string = $state('');
 
-  /** Идёт ли загрузка реестра заметок. */
+  /** Идёт ли загрузка реестра заметок; раздел показывает индикатор, а не пустоту. */
   let notesLibraryLoading = $state(false);
+
+  /** Загружался ли реестр хотя бы раз: повторное открытие не читает его заново. */
+  let notesLibraryLoaded = $state(false);
 
   /** Номер последнего запроса реестра: ответы устаревших запросов отбрасываются. */
   let notesLibraryLoadToken = 0;
@@ -363,16 +367,29 @@
 
   /** Переключение раздела «Заметки».
    *
-   * Данные реестра загружены на бутстрапе и обновляются по событию
-   * `notes:changed`, поэтому открытие раздела не делает запрос и не показывает
-   * промежуточный пустой кадр.
+   * Реестр читается при открытии раздела с показом индикатора: он зависит от
+   * объёма пользовательских заметок, и на стадии начальной загрузки его не
+   * читают. После первой загрузки реестр обновляется по событию `notes:changed`.
    */
   function toggleNotesLibrary() {
     notesLibraryOpen = !notesLibraryOpen;
     if (notesLibraryOpen) {
       settingsOpen = false;
       librariesOpen = false;
+      void ensureNotesLibrary();
     }
+  }
+
+  /** Загрузка реестра наборов заметок, если он ещё не читался.
+   *
+   * При ошибке реестр остаётся незагруженным, поэтому повторное открытие раздела
+   * повторит попытку.
+   */
+  function ensureNotesLibrary() {
+    if (notesLibraryLoaded || notesLibraryLoading) {
+      return;
+    }
+    void loadNotesLibrary();
   }
 
   /** Загрузка реестра наборов заметок всех книг. */
@@ -386,6 +403,7 @@
       }
       notesLibrarySets = sets;
       notesLibraryError = '';
+      notesLibraryLoaded = true;
     } catch (error) {
       if (token !== notesLibraryLoadToken) {
         return;
@@ -547,11 +565,12 @@
 
   /** Перечитывание реестра заметок при внешнем изменении хранилища.
    *
-   * Реестр заметок перечитывается всегда (а не только когда открыт раздел),
-   * чтобы «Заметки» показывали актуальное состояние без перезапуска и без
-   * запроса при открытии. Вызов не отслеживается: иначе запись реестра
-   * перезапустила бы этот же эффект. Заметки активной книги перечитывает
-   * контроллер по своему событию (`markChanged`).
+   * Реестр перечитывается по событию `notes:changed`, чтобы раздел показывал
+   * актуальное состояние без перезапуска. Если раздел ни разу не открывали,
+   * запрос не выполняется: реестр читается при открытии раздела, а не заранее.
+   * Вызов не отслеживается: иначе запись реестра перезапустила бы этот же
+   * эффект. Заметки активной книги перечитывает контроллер по своему событию
+   * (`markChanged`).
    */
   $effect(() => {
     const marker = notesRevision;
@@ -559,7 +578,9 @@
       return;
     }
     untrack(() => {
-      void loadNotesLibrary();
+      if (notesLibraryLoaded) {
+        void loadNotesLibrary();
+      }
     });
   });
 
@@ -1106,6 +1127,7 @@
       >
         <LibraryPage
           initialActiveLibrary={activeLibrary}
+          visible={isMainSection()}
           targetWorkspaceName={workspace?.name ?? null}
           onOpenInWorkplace={openBookInWorkspace}
         />

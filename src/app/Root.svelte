@@ -6,7 +6,6 @@
     loadBootstrap,
     type ActiveLibrary,
     type AppearanceBootstrap,
-    type NotesLibraryBootstrap,
     type NotificationsBootstrap,
     type SettingsBootstrap,
     type StoreBootstrap,
@@ -55,9 +54,6 @@
     error: '',
   });
 
-  /** Реестр наборов заметок, загруженный до первого рендера. */
-  let initialNotesLibrary: NotesLibraryBootstrap = $state({ sets: [], error: '' });
-
   /** Лимит открытых вкладок рабочего места, загруженный до первого рендера. */
   let initialOpenTabsLimit = $state(DEFAULT_OPEN_TABS_LIMIT);
 
@@ -92,7 +88,6 @@
         initialSettings = state.settings;
         initialNotifications = state.notifications;
         initialStore = state.store;
-        initialNotesLibrary = state.notesLibrary;
         initialOpenTabsLimit = state.openTabsLimit;
         phase = 'ready';
       } catch (error) {
@@ -120,7 +115,6 @@
     initialSettings={initialSettings}
     initialNotifications={initialNotifications}
     initialStore={initialStore}
-    initialNotesLibrary={initialNotesLibrary}
     initialOpenTabsLimit={initialOpenTabsLimit}
   />
 {:else if phase === 'error'}

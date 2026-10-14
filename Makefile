@@ -8,7 +8,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help plugins artifacts check-artifacts dev dev-test build \
+.PHONY: help plugins artifacts check-artifacts dev dev-test build release run-release \
         check test test-rust e2e rust-check validate verify clean
 
 help: ## Показать список команд
@@ -32,6 +32,13 @@ dev-test: ## Поднять Vite с мок-мостом Tauri (для UI без 
 
 build: ## Полная сборка приложения
 	npm run build
+
+release: ## Release-сборка desktop-приложения (с плагинами)
+	npm run tauri build
+
+run-release: ## Собрать release без упаковки и запустить бинарь
+	npm run tauri build -- --no-bundle
+	./src-tauri/target/release/jarogor-texture
 
 check: ## Проверки фронтенда: типы и форматирование
 	npm run check

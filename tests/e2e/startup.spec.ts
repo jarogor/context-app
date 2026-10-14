@@ -35,3 +35,31 @@ test('приложение показывает окно после первой
     );
     expect(shown).toBe(true);
 });
+
+test('старт не запрашивает форматы чтения', async ({ page }) => {
+    await page.addInitScript(() => {
+        const globals = window as unknown as {
+            __TEXTURE_MOCK_OVERRIDES__: { handlers: Record<string, unknown> };
+            __TEXTURE_INVOKED__?: string[];
+        };
+        globals.__TEXTURE_INVOKED__ = [];
+        globals.__TEXTURE_MOCK_OVERRIDES__ = {
+            handlers: {
+                reader_formats: () => {
+                    globals.__TEXTURE_INVOKED__?.push('reader_formats');
+                    return ['demo'];
+                },
+            },
+        };
+    });
+
+    await page.goto('/');
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+
+    // Форматы плагинов чтения не нужны первому кадру: до показа библиотеки или
+    // открытия книги запрос не выполняется.
+    const invoked = await page.evaluate(
+        () => (window as unknown as { __TEXTURE_INVOKED__?: string[] }).__TEXTURE_INVOKED__ ?? [],
+    );
+    expect(invoked).not.toContain('reader_formats');
+});

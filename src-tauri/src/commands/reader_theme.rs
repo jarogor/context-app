@@ -8,12 +8,10 @@ use crate::plugin::AppState;
 
 /// Тема области чтения книги: `light` или `dark`.
 ///
-/// Тема области чтения независима от темы интерфейса. Команда асинхронная:
-/// чтение настройки идёт через runtime базовых плагинов и ждёт общий
-/// `Mutex<AppState>`, который может быть занят тяжёлой операцией, — на главном
-/// потоке это морозило бы интерфейс.
+/// Тема области чтения независима от темы интерфейса. Чтение идёт через runtime
+/// базовых плагинов; готовность фоновой сборки ожидается вне общего замка
+/// состояния, поэтому тяжёлая компиляция не держит лёгкие команды.
 #[tauri::command]
 pub async fn reader_theme(state: State<'_, Mutex<AppState>>) -> Result<String, String> {
-    let mut state = crate::commands::lock_state(state.inner())?;
-    Ok(state.app_host()?.reader_theme())
+    crate::commands::with_app_host(state.inner(), |host| host.reader_theme()).await
 }

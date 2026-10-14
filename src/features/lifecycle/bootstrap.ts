@@ -43,7 +43,6 @@ import {
   type PluginEntry,
   type Store,
 } from '../store/plugin-store';
-import { listAllSets, type NoteSet } from '../notes/notes';
 import { DEFAULT_OPEN_TABS_LIMIT } from '../workplace/workplace';
 import { loadOpenTabsLimit } from '../workplace/open-tabs-limit';
 import { invokeCommand } from '../../shared/app-bridge';
@@ -71,8 +70,6 @@ export interface BootstrapState {
     notifications: NotificationsBootstrap;
     /** Каталог плагинов и сторов, загруженный до первого рендера. */
     store: StoreBootstrap;
-    /** Реестр наборов заметок, загруженный до первого рендера. */
-    notesLibrary: NotesLibraryBootstrap;
     /** Лимит числа открытых вкладок рабочего места (значение по умолчанию при ошибке). */
     openTabsLimit: number;
 }
@@ -117,14 +114,6 @@ export interface StoreBootstrap {
     error: string;
 }
 
-/** Реестр наборов заметок на бутстрапе. */
-export interface NotesLibraryBootstrap {
-    /** Наборы заметок всех книг (агрегат `list_all_sets`). */
-    sets: NoteSet[];
-    /** Ошибка загрузки реестра, иначе пустая строка. */
-    error: string;
-}
-
 /** Загрузка начального состояния приложения: реестр, библиотека, поверхности.
  *
  * Сведения о библиотеке необязательны — при ошибке она считается не открытой;
@@ -132,9 +121,13 @@ export interface NotesLibraryBootstrap {
  * отображение точки входа. Данные встроенных поверхностей (декларации настроек,
  * журнал уведомлений, каталог плагинов и сторов) тоже необязательны: их ошибка
  * не должна мешать входу в приложение.
+ *
+ * Реестр заметок и форматы читалки на этой стадии НЕ читаются: они зависят от
+ * объёма пользовательских данных и от плагинов чтения, которые не нужны первому
+ * кадру. Их загружают поверхности при соответствующем действии пользователя.
  */
 export async function loadBootstrap(): Promise<BootstrapState> {
-    const [registry, library, appearance, settings, notifications, store, notesLibrary, openTabsLimit] =
+    const [registry, library, appearance, settings, notifications, store, openTabsLimit] =
         await Promise.all([
             invokeCommand('get_workspaces', {}),
             loadActiveLibrary(),
@@ -142,7 +135,6 @@ export async function loadBootstrap(): Promise<BootstrapState> {
             loadSettingsBootstrap(),
             loadNotificationsBootstrap(),
             loadStoreBootstrap(),
-            loadNotesLibraryBootstrap(),
             loadOpenTabsLimit().catch(() => DEFAULT_OPEN_TABS_LIMIT),
         ]);
     return {
@@ -152,7 +144,6 @@ export async function loadBootstrap(): Promise<BootstrapState> {
         settings,
         notifications,
         store,
-        notesLibrary,
         openTabsLimit,
     };
 }
@@ -233,14 +224,5 @@ async function loadActiveLibrary(): Promise<ActiveLibrary | null> {
         return result as ActiveLibrary | null;
     } catch {
         return null;
-    }
-}
-
-/** Загрузка реестра наборов заметок; ошибка даёт пустой реестр с диагностикой. */
-async function loadNotesLibraryBootstrap(): Promise<NotesLibraryBootstrap> {
-    try {
-        return { sets: await listAllSets(), error: '' };
-    } catch (cause) {
-        return { sets: [], error: String(cause) };
     }
 }

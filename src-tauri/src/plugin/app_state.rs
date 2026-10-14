@@ -3,7 +3,9 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use super::shared_runtime::SharedRuntime;
 use crate::plugin::{AppInfo, AppPluginHost, PluginKind, PluginRuntime, PluginSession, Severity};
 
 /// Настройки ленивого runtime чтения книг рабочим местом.
@@ -11,6 +13,7 @@ use crate::plugin::{AppInfo, AppPluginHost, PluginKind, PluginRuntime, PluginSes
 /// Runtime собирает source- и рабочие плагины без привязки к открытой
 /// библиотеке: рабочее место открывает книгу по вложению (пути) и не зависит от
 /// того, откуда эта книга взялась.
+#[derive(Clone)]
 pub struct ReaderConfig {
     /// Директории плагинов в порядке приоритета.
     pub directories: Vec<PathBuf>,
@@ -22,11 +25,12 @@ pub struct ReaderConfig {
     pub cache: Option<PathBuf>,
 }
 
-/// Настройки ленивой сборки app-level runtime базовых плагинов.
+/// Настройки сборки app-level runtime базовых плагинов.
 ///
-/// Тяжёлая загрузка и компиляция WASM не выполняется на старте окна: они
-/// откладываются до первого обращения к runtime, чтобы появление окна не ждало
-/// компилятор плагинов.
+/// Тяжёлая загрузка и компиляция WASM не выполняется на главном потоке: сборка
+/// идёт в фоне параллельно с загрузкой окна, а команды ждут готовый результат,
+/// не удерживая общий замок состояния приложения.
+#[derive(Clone)]
 pub struct AppHostConfig {
     /// Директории базовых плагинов в порядке приоритета.
     pub directories: Vec<PathBuf>,
@@ -40,6 +44,39 @@ pub struct AppHostConfig {
     pub catalog_dirs: Vec<PathBuf>,
     /// Путь к постоянному кэшу компиляции WASM.
     pub cache: Option<PathBuf>,
+}
+
+impl AppHostConfig {
+    /// Сборка полностью инициализированного runtime базовых плагинов.
+    ///
+    /// Выполняется в фоновом потоке: загрузка и компиляция WASM базовых
+    /// плагинов, регистрация настроек, сброс журнала, порог логирования и
+    /// приветственное уведомление готовятся до первого обращения команды, но не
+    /// задерживают показ окна.
+    pub fn build_host(&self) -> Result<AppPluginHost, String> {
+        let mut host = AppPluginHost::load_with_cache(
+            &self.directories,
+            self.storage_root.clone(),
+            self.cache.as_deref(),
+        )
+        .map_err(|error| error.to_string())?;
+        host.set_plugin_store_root(self.user_plugins_dir.clone());
+        host.set_activation_root(self.activation_root.clone());
+        host.set_catalog_dirs(self.catalog_dirs.clone());
+        let _ = host.reset_notifications();
+        let _ = host.refresh_settings_registry(&[]);
+        host.refresh_log_level();
+        if host.welcome_notification_enabled() {
+            host.notify_user(
+                Severity::Info,
+                "Добро пожаловать в «Текстуру»",
+                "app",
+                serde_json::json!({}),
+            );
+        }
+        crate::startup::mark("фон: базовые плагины собраны");
+        Ok(host)
+    }
 }
 
 /// Путь и имя файла вложения для подмены песочницы на директорию файла.
@@ -74,15 +111,15 @@ pub struct AppState {
     app_info: AppInfo,
     /// Настройки runtime чтения книг.
     reader_config: ReaderConfig,
-    /// Runtime чтения книг по вложению, собираемый при первом обращении.
-    reader: Option<PluginRuntime>,
+    /// Runtime чтения книг по вложению, собираемый в фоне при первом обращении.
+    ///
+    /// Разделяется по `Arc`: команда получает дескриптор под коротким общим
+    /// замком и ждёт готовности уже на замке самого runtime.
+    reader: Option<Arc<SharedRuntime<PluginRuntime>>>,
     /// Настройки сборки runtime базовых плагинов.
     app_host_config: AppHostConfig,
-    /// App-level runtime базовых плагинов, собираемый при первом обращении.
-    ///
-    /// Намеренно ленивый: компиляция WASM базовых плагинов не должна задерживать
-    /// появление окна приложения.
-    app_host: Option<AppPluginHost>,
+    /// App-level runtime базовых плагинов, собираемый в фоне.
+    app_host: Option<Arc<SharedRuntime<AppPluginHost>>>,
     /// Содержимое файлов вложений по пути: ядро не интерпретирует байты.
     workplace_files: HashMap<String, Vec<u8>>,
 }
@@ -90,8 +127,9 @@ pub struct AppState {
 impl AppState {
     /// Создание состояния из готовых составляющих.
     ///
-    /// Runtime базовых плагинов не собирается: для него сохраняются настройки, а
-    /// сама сборка откладывается до первого обращения к `app_host`.
+    /// Runtime базовых плагинов не собирается синхронно: для него сохраняются
+    /// настройки, а фоновая сборка запускается отдельно (`spawn_app_host`), чтобы
+    /// не задерживать появление окна.
     pub fn new(
         session: PluginSession,
         app_state_root: PathBuf,
@@ -111,39 +149,70 @@ impl AppState {
         }
     }
 
-    /// Runtime базовых плагинов каркаса.
+    /// Запуск фоновой сборки runtime базовых плагинов.
     ///
-    /// Собирается лениво при первом обращении: загрузка и компиляция WASM
-    /// базовых плагинов, регистрация настроек, сброс журнала, порог логирования
-    /// и приветственное уведомление выполняются уже после появления окна.
-    pub fn app_host(&mut self) -> Result<&mut AppPluginHost, String> {
-        if self.app_host.is_none() {
-            let config = &self.app_host_config;
-            let mut host = AppPluginHost::load_with_cache(
+    /// Вызывается при старте приложения: компиляция базовых плагинов идёт
+    /// параллельно с загрузкой webview. Повторный вызов переиспользует уже
+    /// начатую сборку.
+    pub fn spawn_app_host(&mut self) -> Arc<SharedRuntime<AppPluginHost>> {
+        if let Some(existing) = &self.app_host {
+            return Arc::clone(existing);
+        }
+        let config = self.app_host_config.clone();
+        let shared = SharedRuntime::spawn(move || config.build_host());
+        self.app_host = Some(Arc::clone(&shared));
+        shared
+    }
+
+    /// Дескриптор runtime базовых плагинов для ожидания готовности.
+    ///
+    /// Если фоновая сборка ещё не запускалась, она запускается здесь. Команда
+    /// получает дескриптор под коротким общим замком и отпускает его, а ждёт
+    /// готовности уже на замке самого runtime.
+    pub fn app_host_handle(&mut self) -> Arc<SharedRuntime<AppPluginHost>> {
+        self.spawn_app_host()
+    }
+
+    /// Ожидание готовности runtime базовых плагинов и выполнение действия.
+    ///
+    /// Внутренний доступ к runtime под уже удержанным общим замком. Готовый
+    /// результат фоновой сборки ожидается на замке самого runtime.
+    pub fn with_app_host<R>(
+        &mut self,
+        action: impl FnOnce(&mut AppPluginHost) -> R,
+    ) -> Result<R, String> {
+        self.spawn_app_host();
+        let shared = self
+            .app_host
+            .as_ref()
+            .expect("фоновая сборка app-level runtime запущена");
+        shared.with_ready(action)
+    }
+
+    /// Дескриптор runtime чтения для ожидания готовности.
+    ///
+    /// Сборка запускается в фоне при первом обращении, а ожидание переносится на
+    /// замок самого runtime.
+    pub fn reader_handle(&mut self) -> Arc<SharedRuntime<PluginRuntime>> {
+        if let Some(existing) = &self.reader {
+            return Arc::clone(existing);
+        }
+        let config = self.reader_config.clone();
+        let shared = SharedRuntime::spawn(move || {
+            let kinds = [PluginKind::Source, PluginKind::Workplace];
+            let mut runtime = PluginRuntime::load_filtered(
                 &config.directories,
                 config.storage_root.clone(),
+                Some(&kinds),
+                &config.disabled,
                 config.cache.as_deref(),
             )
             .map_err(|error| error.to_string())?;
-            host.set_plugin_store_root(config.user_plugins_dir.clone());
-            host.set_activation_root(config.activation_root.clone());
-            host.set_catalog_dirs(config.catalog_dirs.clone());
-            let _ = host.reset_notifications();
-            let _ = host.refresh_settings_registry(&[]);
-            host.refresh_log_level();
-            if host.welcome_notification_enabled() {
-                host.notify_user(
-                    Severity::Info,
-                    "Добро пожаловать в «Текстуру»",
-                    "app",
-                    serde_json::json!({}),
-                );
-            }
-            self.app_host = Some(host);
-        }
-        self.app_host
-            .as_mut()
-            .ok_or_else(|| "runtime базовых плагинов недоступен".to_string())
+            runtime.set_storage_root(config.storage_root.clone());
+            Ok(runtime)
+        });
+        self.reader = Some(Arc::clone(&shared));
+        shared
     }
 
     /// Сведения о приложении для страницы «Информация».
@@ -168,36 +237,20 @@ impl AppState {
     /// получает событие об изменении применённого состояния.
     pub fn after_session_reload(&mut self) {
         let sources = self.session.settings_sources();
-        if let Ok(host) = self.app_host() {
-            let _ = host.refresh_settings_registry(&sources);
-        }
+        let _ = self.with_app_host(|host| host.refresh_settings_registry(&sources));
         crate::plugin::relay::emit(
             "plugin-store:changed",
             serde_json::json!({ "reason": "session" }),
         );
     }
 
-    /// Runtime чтения книг по вложению.
+    /// Замена слота runtime чтения уже запущенной фоновой сборкой.
     ///
-    /// Собирается лениво при первом обращении: до открытия книги рабочего места
-    /// компилятор WASM не загружается синхронно на старте приложения.
-    pub fn reader(&mut self) -> Result<&mut PluginRuntime, String> {
-        if self.reader.is_none() {
-            let kinds = [PluginKind::Source, PluginKind::Workplace];
-            let mut runtime = PluginRuntime::load_filtered(
-                &self.reader_config.directories,
-                self.reader_config.storage_root.clone(),
-                Some(&kinds),
-                &self.reader_config.disabled,
-                self.reader_config.cache.as_deref(),
-            )
-            .map_err(|error| error.to_string())?;
-            runtime.set_storage_root(self.reader_config.storage_root.clone());
-            self.reader = Some(runtime);
-        }
-        self.reader
-            .as_mut()
-            .ok_or_else(|| "runtime чтения недоступен".to_string())
+    /// Используется на старте: прогрев компилирует source- и рабочие плагины в
+    /// фоне, а состояние лишь разделяет тот же дескриптор — одна компиляция на
+    /// набор вместо конкурирующих загрузок.
+    pub fn set_reader_runtime(&mut self, shared: Arc<SharedRuntime<PluginRuntime>>) {
+        self.reader = Some(shared);
     }
 
     /// Включение песочницы на директорию файла вложения.
@@ -211,15 +264,21 @@ impl AppState {
     ///
     /// Ядро не интерпретирует содержимое: каталог нужен лишь для безопасного
     /// перечисления и чтения файлов модуля по идентификатору плагина.
-    pub fn viewer_dir(&mut self, plugin_id: &str) -> Result<PathBuf, String> {
-        self.reader()?
+    pub(crate) fn viewer_dir_of(
+        runtime: &PluginRuntime,
+        plugin_id: &str,
+    ) -> Result<PathBuf, String> {
+        runtime
             .viewer_dir(plugin_id)
             .ok_or_else(|| format!("модуль рисования плагина не найден: {plugin_id}"))
     }
 
     /// Список файлов модуля рисования плагина (относительные пути и MIME).
-    pub fn viewer_files(&mut self, plugin_id: &str) -> Result<serde_json::Value, String> {
-        let dir = self.viewer_dir(plugin_id)?;
+    pub(crate) fn viewer_files_of(
+        runtime: &PluginRuntime,
+        plugin_id: &str,
+    ) -> Result<serde_json::Value, String> {
+        let dir = Self::viewer_dir_of(runtime, plugin_id)?;
         let files = crate::plugin::viewer::list_files(&dir).map_err(|error| error.to_string())?;
         serde_json::to_value(files).map_err(|error| error.to_string())
     }
@@ -228,12 +287,12 @@ impl AppState {
     ///
     /// Путь читается только внутри каталога модуля; содержимое не
     /// интерпретируется и передаётся интерфейсу непрозрачно.
-    pub fn viewer_file(
-        &mut self,
+    pub(crate) fn viewer_file_of(
+        runtime: &PluginRuntime,
         plugin_id: &str,
         path: &str,
     ) -> Result<serde_json::Value, String> {
-        let dir = self.viewer_dir(plugin_id)?;
+        let dir = Self::viewer_dir_of(runtime, plugin_id)?;
         let bytes =
             crate::plugin::viewer::read_file(&dir, path).map_err(|error| error.to_string())?;
         let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
@@ -248,8 +307,10 @@ impl AppState {
     /// Перебирает source-плагины runtime чтения и возвращает первый успешный
     /// ответ операции `content`. Ядро не интерпретирует результат: разбор
     /// формата выполняет плагин, а приложение получает opaque-модель.
-    pub fn reader_content(&mut self, path: &str) -> Result<serde_json::Value, String> {
-        let runtime = self.reader()?;
+    pub(crate) fn reader_content_of(
+        runtime: &mut PluginRuntime,
+        path: &str,
+    ) -> Result<serde_json::Value, String> {
         let name = Self::apply_sandbox(runtime, path)?;
         let ids = runtime.source_plugin_ids();
         let mut last = "нет source-плагина для чтения книги".to_string();
@@ -265,8 +326,10 @@ impl AppState {
     }
 
     /// Открытие файла книги системным приложением по пути.
-    pub fn reader_open_external(&mut self, path: &str) -> Result<(), String> {
-        let runtime = self.reader()?;
+    pub(crate) fn reader_open_external_of(
+        runtime: &mut PluginRuntime,
+        path: &str,
+    ) -> Result<(), String> {
         let name = Self::apply_sandbox(runtime, path)?;
         let ids = runtime.source_plugin_ids();
         let mut last = "нет source-плагина для открытия книги".to_string();

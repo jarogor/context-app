@@ -21,6 +21,7 @@ fn background_for(theme: Theme) -> Color {
 /// Команда асинхронная: обращение к окну не должно блокировать главный поток.
 #[tauri::command]
 pub async fn show_window(window: WebviewWindow) -> Result<(), String> {
+    crate::startup::mark("показано окно (первый кадр)");
     let theme = window.theme().unwrap_or(Theme::Light);
     let _ = window.set_background_color(Some(background_for(theme)));
     window.show().map_err(|error| error.to_string())

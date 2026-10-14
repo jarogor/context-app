@@ -113,3 +113,19 @@ pub use window_open_tabs_limit::window_open_tabs_limit;
 pub fn lock_state(state: &Mutex<AppState>) -> Result<MutexGuard<'_, AppState>, String> {
     Mutex::lock(state).map_err(|error| error.to_string())
 }
+
+/// Ожидание готовности app-level runtime и выполнение операции над ним.
+///
+/// Дескриптор runtime берётся под коротким общим замком состояния, который
+/// сразу освобождается; готовность фоновой сборки ожидается уже на замке самого
+/// runtime. Так тяжёлая компиляция не удерживает общий замок `AppState`.
+pub async fn with_app_host<T>(
+    state: &Mutex<AppState>,
+    action: impl FnOnce(&mut crate::plugin::AppPluginHost) -> T,
+) -> Result<T, String> {
+    let handle = {
+        let mut state = lock_state(state)?;
+        state.app_host_handle()
+    };
+    handle.with_ready(action)
+}

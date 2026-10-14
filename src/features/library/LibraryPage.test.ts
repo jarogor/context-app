@@ -57,6 +57,26 @@ beforeEach(() => {
 });
 
 describe('страница библиотеки', () => {
+  it('не запрашивает форматы чтения, пока поверхность скрыта без библиотеки', async () => {
+    render(LibraryPage, {
+      props: { initialActiveLibrary: null, visible: false, onOpenInWorkplace: vi.fn() },
+    });
+
+    await waitFor(() => expect(catalogChanged).toBeTruthy());
+    // Форматы требуют плагинов чтения: без показа библиотеки запрос не идёт.
+    expect(invoke.mock.calls.some(([command]) => command === 'reader_formats')).toBe(false);
+  });
+
+  it('запрашивает форматы чтения при показе поверхности библиотеки', async () => {
+    render(LibraryPage, {
+      props: { initialActiveLibrary: null, visible: true, onOpenInWorkplace: vi.fn() },
+    });
+
+    await waitFor(() =>
+      expect(invoke.mock.calls.some(([command]) => command === 'reader_formats')).toBe(true),
+    );
+  });
+
   it('собирает абсолютный путь книги, когда библиотека открыта после первого кадра', async () => {
     const onOpenInWorkplace = vi.fn();
 

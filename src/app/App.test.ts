@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App.svelte';
 import { DEFAULT_PALETTE } from '@texture/ui';
-import type { NotesLibraryBootstrap } from '../features/lifecycle/bootstrap';
 import {
     emptyRegistry,
     createWorkspace,
@@ -27,6 +26,9 @@ let notesChanged: ((value: unknown) => void) | undefined;
 /** Событие изменения настроек, перехваченное оболочкой. */
 let settingsChanged: ((value: unknown) => void) | undefined;
 
+/** Наборы, которые вернёт хранилище на запрос реестра при открытии раздела. */
+let notesSets: Array<Record<string, unknown>> = [];
+
 /** Набор реестра в ответе хранилища. */
 function aggregateSet(overrides: Record<string, unknown> = {}) {
     return {
@@ -40,8 +42,9 @@ function aggregateSet(overrides: Record<string, unknown> = {}) {
     };
 }
 
-/** Свойства оболочки с заданным реестром заметок. */
-function appProps(notesLibrary: NotesLibraryBootstrap) {
+/** Свойства оболочки; реестр заметок читается при открытии раздела. */
+function appProps(sets: Array<Record<string, unknown>> = []) {
+    notesSets = sets;
     return {
         initialRegistry: emptyRegistry() as WorkspaceRegistry,
         initialLibrary: null,
@@ -53,7 +56,6 @@ function appProps(notesLibrary: NotesLibraryBootstrap) {
         initialSettings: { declarations: [], error: '' },
         initialNotifications: { entries: [], technicalVisible: false, error: '' },
         initialStore: { plugins: [], stores: [], activationPending: false, error: '' },
-        initialNotesLibrary: notesLibrary,
         initialOpenTabsLimit: 50,
     };
 }
@@ -61,9 +63,20 @@ function appProps(notesLibrary: NotesLibraryBootstrap) {
 beforeEach(() => {
     notesChanged = undefined;
     settingsChanged = undefined;
+    notesSets = [];
     invoke.mockReset();
     listen.mockReset();
-    invoke.mockImplementation(async () => null);
+    invoke.mockImplementation(async (command: string, args?: unknown) => {
+        const payload = (args ?? {}) as { capability?: string; operation?: string };
+        if (
+            command === 'invoke_base_plugin_operation' &&
+            payload.capability === 'notes.store@1' &&
+            payload.operation === 'list_all_sets'
+        ) {
+            return { sets: notesSets };
+        }
+        return null;
+    });
     listen.mockImplementation(async (event, handler) => {
         if (event === 'notes:changed') {
             notesChanged = handler;
@@ -76,10 +89,33 @@ beforeEach(() => {
 });
 
 describe('раздел «Заметки» в оболочке', () => {
+    it('не читает реестр, пока раздел не открыт', async () => {
+        render(App, { props: appProps([aggregateSet()]) });
+
+        // До открытия раздела запроса реестра нет.
+        expect(
+            invoke.mock.calls.some(
+                ([command, args]) =>
+                    command === 'invoke_base_plugin_operation' &&
+                    (args as { operation?: string })?.operation === 'list_all_sets',
+            ),
+        ).toBe(false);
+
+        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+
+        await waitFor(() =>
+            expect(
+                invoke.mock.calls.some(
+                    ([command, args]) =>
+                        command === 'invoke_base_plugin_operation' &&
+                        (args as { operation?: string })?.operation === 'list_all_sets',
+                ),
+            ).toBe(true),
+        );
+    });
+
     it('открывается кнопкой-иконкой, показывает заголовок и реестр', async () => {
-        render(App, {
-            props: appProps({ sets: [], error: '' }),
-        });
+        render(App, { props: appProps() });
 
         await fireEvent.click(screen.getByLabelText('Реестр заметок'));
 
@@ -87,70 +123,32 @@ describe('раздел «Заметки» в оболочке', () => {
         expect(screen.getByTestId('notes-library')).toBeTruthy();
     });
 
-    it('показывает данные, загруженные на бутстрапе, без запроса при открытии', async () => {
-        render(App, {
-            props: appProps({
-                sets: [
-                    {
-                        id: 'ns-1',
-                        bookKey: '/lib/a.epub',
-                        bookTitle: 'Книга A',
-                        name: 'Основные',
-                        createdAtMillis: 1,
-                        notes: [],
-                    },
-                ],
-                error: '',
-            }),
-        });
+    it('показывает реестр, прочитанный при открытии раздела', async () => {
+        render(App, { props: appProps([aggregateSet()]) });
 
         await fireEvent.click(screen.getByLabelText('Реестр заметок'));
 
-        expect(screen.getByTestId('notes-library-book')).toBeTruthy();
+        await waitFor(() => expect(screen.getByTestId('notes-library-book')).toBeTruthy());
         expect(screen.getByText('Книга A')).toBeTruthy();
     });
 
     it('перечитывает реестр по событию notes:changed', async () => {
-        invoke.mockImplementation(async (command: string, args?: unknown) => {
-            const payload = (args ?? {}) as { capability?: string; operation?: string };
-            if (
-                command === 'invoke_base_plugin_operation' &&
-                payload.capability === 'notes.store@1' &&
-                payload.operation === 'list_all_sets'
-            ) {
-                return { sets: [aggregateSet({ book_title: 'Обновлённая книга' })] };
-            }
-            return null;
-        });
-
-        render(App, { props: appProps({ sets: [], error: '' }) });
+        render(App, { props: appProps([]) });
         await fireEvent.click(screen.getByLabelText('Реестр заметок'));
         await waitFor(() => expect(screen.getByTestId('notes-library')).toBeTruthy());
         expect(screen.getByTestId('notes-library-empty')).toBeTruthy();
 
+        notesSets = [aggregateSet({ book_title: 'Обновлённая книга' })];
         notesChanged?.({ book_key: '/lib/a.epub', set_id: 'ns-1' });
 
         await waitFor(() => expect(screen.getByText('Обновлённая книга')).toBeTruthy());
     });
 
     it('передаёт интенты перехода в реестр', async () => {
-        render(App, {
-            props: appProps({
-                sets: [
-                    {
-                        id: 'ns-1',
-                        bookKey: '/lib/a.epub',
-                        bookTitle: 'Книга A',
-                        name: 'Основные',
-                        createdAtMillis: 1,
-                        notes: [],
-                    },
-                ],
-                error: '',
-            }),
-        });
+        render(App, { props: appProps([aggregateSet()]) });
 
         await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
         const registry = screen.getByTestId('notes-library');
         const section = within(registry).getByTestId('notes-library-set');
         await fireEvent.click(within(section).getByTestId('notes-library-set-toggle'));
@@ -162,31 +160,30 @@ describe('раздел «Заметки» в оболочке', () => {
         const calls: Array<Record<string, unknown>> = [];
         invoke.mockImplementation(async (command: string, args?: unknown) => {
             if (command === 'invoke_base_plugin_operation') {
-                calls.push(args as Record<string, unknown>);
+                const payload = (args ?? {}) as {
+                    capability?: string;
+                    operation?: string;
+                };
+                calls.push(payload as Record<string, unknown>);
+                if (
+                    payload.capability === 'notes.store@1' &&
+                    payload.operation === 'list_all_sets'
+                ) {
+                    return { sets: [aggregateSet()] };
+                }
             }
             return null;
         });
 
         render(App, {
             props: {
-                ...appProps({
-                    sets: [
-                        {
-                            id: 'ns-1',
-                            bookKey: '/lib/a.epub',
-                            bookTitle: 'Книга A',
-                            name: 'Основные',
-                            createdAtMillis: 1,
-                            notes: [],
-                        },
-                    ],
-                    error: '',
-                }),
+                ...appProps(),
                 initialRegistry: registry,
             },
         });
 
         await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
         await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
         await fireEvent.click(await screen.findByText('Открыть книгу'));
 
@@ -210,22 +207,11 @@ describe('раздел «Заметки» в оболочке', () => {
 
     it('сообщает о книге набора без файла', async () => {
         render(App, {
-            props: appProps({
-                sets: [
-                    {
-                        id: 'ns-1',
-                        bookKey: 'no-library',
-                        bookTitle: 'Без книги',
-                        name: 'Основные',
-                        createdAtMillis: 1,
-                        notes: [],
-                    },
-                ],
-                error: '',
-            }),
+            props: appProps([aggregateSet({ book_key: 'no-library', book_title: 'Без книги' })]),
         });
 
         await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
         await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
         await fireEvent.click(await screen.findByText('Открыть книгу'));
 
@@ -238,7 +224,7 @@ describe('тема области чтения в оболочке', () => {
     it('применяется событием settings:changed, не меняя тему интерфейса', async () => {
         document.documentElement.removeAttribute('data-reader-theme');
         document.documentElement.removeAttribute('data-theme');
-        render(App, { props: appProps({ sets: [], error: '' }) });
+        render(App, { props: appProps() });
 
         await waitFor(() => expect(settingsChanged).toBeTypeOf('function'));
         const themeBefore = document.documentElement.dataset.theme;
@@ -282,7 +268,7 @@ describe('тема области чтения в оболочке', () => {
             ],
             currentWorkspaceId: 'ws-1',
         };
-        render(App, { props: { ...appProps({ sets: [], error: '' }), initialRegistry: registry } });
+        render(App, { props: { ...appProps(), initialRegistry: registry } });
         await fireEvent.click(screen.getByLabelText('Рабочее место'));
         await fireEvent.click(screen.getByTestId('workspace-open'));
         await waitFor(() => expect(settingsChanged).toBeTypeOf('function'));
@@ -319,7 +305,7 @@ describe('порядок кнопок верхней панели', () => {
     }
 
     it('логотип стоит у левого края, а настройки уехали вправо', async () => {
-        render(App, { props: appProps({ sets: [], error: '' }) });
+        render(App, { props: appProps() });
 
         const header = document.querySelector('header') as HTMLElement;
         const children = Array.from(header.children);
@@ -330,7 +316,7 @@ describe('порядок кнопок верхней панели', () => {
     });
 
     it('правая группа идёт: рабочее место, библиотеки, заметки, тема, уведомления, настройки', async () => {
-        render(App, { props: appProps({ sets: [], error: '' }) });
+        render(App, { props: appProps() });
 
         const labels = headerLabels().filter((label) =>
             [
@@ -387,7 +373,7 @@ describe('активность кнопки рабочего места', () => 
 
     it('активна в списке, не активна в открытом месте и вновь активна при возврате', async () => {
         render(App, {
-            props: { ...appProps({ sets: [], error: '' }), initialRegistry: registryWithWorkspace() },
+            props: { ...appProps(), initialRegistry: registryWithWorkspace() },
         });
 
         // Старт: показан список рабочих мест — кнопка нажата.
@@ -404,7 +390,7 @@ describe('активность кнопки рабочего места', () => 
 
     it('нажатие из открытого места возвращает к списку, а повторное нажатие закрывает раздел', async () => {
         render(App, {
-            props: { ...appProps({ sets: [], error: '' }), initialRegistry: registryWithWorkspace() },
+            props: { ...appProps(), initialRegistry: registryWithWorkspace() },
         });
 
         await fireEvent.click(screen.getByTestId('workspace-open'));
@@ -430,7 +416,7 @@ describe('полноэкранный раздел настроек', () => {
     }
 
     it('открывается на всё окно без верхней панели', async () => {
-        render(App, { props: appProps({ sets: [], error: '' }) });
+        render(App, { props: appProps() });
 
         expect(headerHidden()).toBe(false);
 
@@ -442,7 +428,7 @@ describe('полноэкранный раздел настроек', () => {
     });
 
     it('закрывается кнопкой в углу и возвращает прежнюю поверхность', async () => {
-        render(App, { props: appProps({ sets: [], error: '' }) });
+        render(App, { props: appProps() });
         await fireEvent.click(screen.getByLabelText('Настройки'));
         expect(headerHidden()).toBe(true);
 
@@ -454,7 +440,7 @@ describe('полноэкранный раздел настроек', () => {
     });
 
     it('закрывается клавишей Escape', async () => {
-        render(App, { props: appProps({ sets: [], error: '' }) });
+        render(App, { props: appProps() });
         await fireEvent.click(screen.getByLabelText('Настройки'));
         expect(headerHidden()).toBe(true);
 
@@ -465,7 +451,7 @@ describe('полноэкранный раздел настроек', () => {
     });
 
     it('возвращает поверхность, из которой настройки открывали', async () => {
-        render(App, { props: appProps({ sets: [], error: '' }) });
+        render(App, { props: appProps() });
 
         // Открываем раздел «Заметки», затем из него — настройки.
         await fireEvent.click(screen.getByLabelText('Реестр заметок'));

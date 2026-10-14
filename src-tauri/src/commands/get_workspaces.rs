@@ -14,6 +14,7 @@ use crate::workspace_state::{self, WorkspacesFile};
 /// подвисает интерфейс.
 #[tauri::command]
 pub async fn get_workspaces(state: State<'_, Mutex<AppState>>) -> Result<WorkspacesFile, String> {
+    crate::startup::mark("команда: get_workspaces");
     let state = crate::commands::lock_state(state.inner())?;
     workspace_state::load(state.app_state_root()).map_err(|error| error.to_string())
 }

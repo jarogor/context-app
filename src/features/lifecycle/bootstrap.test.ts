@@ -48,19 +48,6 @@ describe('загрузка начального состояния', () => {
                 if (capability === 'plugin-store@1' && operation === 'stores_list') {
                     return { stores: [{ id: 's1', title: 'store' }] };
                 }
-                if (capability === 'notes.store@1' && operation === 'list_all_sets') {
-                    return {
-                        sets: [
-                            {
-                                id: 'ns-1',
-                                book_key: '/lib/a.epub',
-                                book_title: 'Книга A',
-                                name: 'Основные',
-                                notes: [],
-                            },
-                        ],
-                    };
-                }
             }
             if (command === 'window_open_tabs_limit') {
                 return 12;
@@ -81,10 +68,17 @@ describe('загрузка начального состояния', () => {
         expect(state.store.stores).toHaveLength(1);
         expect(state.store.activationPending).toBe(true);
         expect(state.store.error).toBe('');
-        expect(state.notesLibrary.sets).toHaveLength(1);
-        expect(state.notesLibrary.sets[0].bookTitle).toBe('Книга A');
-        expect(state.notesLibrary.error).toBe('');
         expect(state.openTabsLimit).toBe(12);
+        // Реестр заметок на стадии начальной загрузки не читается.
+        expect(
+            invoke.mock.calls.some(
+                ([command, args]) =>
+                    command === 'invoke_base_plugin_operation' &&
+                    (args as { capability?: string; operation?: string })?.capability ===
+                        'notes.store@1' &&
+                    (args as { operation?: string })?.operation === 'list_all_sets',
+            ),
+        ).toBe(false);
     });
 
     it('не считает ошибку загрузки настроек сбоем бутстрапа', async () => {
@@ -106,8 +100,6 @@ describe('загрузка начального состояния', () => {
         expect(state.notifications.error).toContain('настройки недоступны');
         expect(state.store.plugins).toEqual([]);
         expect(state.store.error).toContain('настройки недоступны');
-        expect(state.notesLibrary.sets).toEqual([]);
-        expect(state.notesLibrary.error).toContain('настройки недоступны');
     });
 
     it('считает библиотеку не открытой, если сведения недоступны', async () => {

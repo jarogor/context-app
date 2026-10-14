@@ -41,7 +41,7 @@ pub async fn select_source_library(
     // Сессия перезагружена — перечитываем настройки и сообщаем стору.
     state.after_session_reload();
 
-    let _ = state.app_host().map(|host| host.drain_and_deliver());
+    let _ = state.with_app_host(|host| host.drain_and_deliver());
 
     // Библиотека открыта — сообщаем интерфейсу, что активная библиотека сменилась.
     crate::plugin::relay::emit(

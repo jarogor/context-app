@@ -39,7 +39,7 @@ pub async fn invoke_plugin_operation(
         .invoke(&operation, payload)
         .map_err(|error| error.to_string())?;
 
-    let _ = state.app_host().map(|host| host.drain_and_deliver());
+    let _ = state.with_app_host(|host| host.drain_and_deliver());
 
     serde_json::from_str(&response).map_err(|error| error.to_string())
 }

@@ -17,13 +17,20 @@
   interface Props {
     /** Активная библиотека, загруженная до первого рендера. */
     initialActiveLibrary: ActiveLibrary | null;
+    /** Показывается ли поверхность библиотеки (форматы читалки нужны только тогда). */
+    visible?: boolean;
     /** Имя рабочего места, в которое попадёт книга; null — место ещё не выбрано. */
     targetWorkspaceName?: string | null;
     /** Открытие книги вкладкой рабочего места. */
     onOpenInWorkplace: (book: { path: string; title: string; format: string }) => void;
   }
 
-  let { initialActiveLibrary, targetWorkspaceName = null, onOpenInWorkplace }: Props = $props();
+  let {
+    initialActiveLibrary,
+    visible = true,
+    targetWorkspaceName = null,
+    onOpenInWorkplace,
+  }: Props = $props();
 
   /** Открыта ли библиотека (есть активный корень). */
   let librarySelected = $state(untrack(() => initialActiveLibrary?.path != null));
@@ -45,6 +52,9 @@
 
   /** Форматы, поддерживаемые встроенным чтением. */
   let supportedFormats: string[] = $state(['epub']);
+
+  /** Запрошены ли форматы чтения; повторный запрос не выполняется. */
+  let formatsLoaded = $state(false);
 
   /** Корень активной библиотеки для сборки абсолютного пути книги. */
   let libraryRoot = $state('');
@@ -109,6 +119,26 @@
     });
   }
 
+  /** Загрузка форматов, поддерживаемых чтением.
+   *
+   * Форматы требуют плагинов чтения, которые не нужны первому кадру, поэтому
+   * запрос выполняется при показе поверхности библиотеки или открытии книги, а
+   * не при запуске приложения. Повторный вызов использует уже полученный
+   * результат и не загружает плагины чтения дважды.
+   */
+  async function ensureFormats() {
+    if (formatsLoaded) {
+      return;
+    }
+    formatsLoaded = true;
+    try {
+      const formats = await readerFormats();
+      supportedFormats = [...new Set(['epub', ...formats.map((value) => value.toLowerCase())])];
+    } catch {
+      supportedFormats = ['epub'];
+    }
+  }
+
   /** Открытие библиотеки снаружи: обновление корня и перезагрузка каталога.
    *
    * Корень берётся из события, а не только из разового чтения при монтировании:
@@ -130,11 +160,13 @@
     searchQuery = '';
     clearTimeout(searchTimer);
     openedBook = null;
+    void ensureFormats();
     await load();
   }
 
   /** Открытие страницы книги по клику на карточку. */
   function openBook(book: BookWithCover) {
+    void ensureFormats();
     openedBook = book;
   }
 
@@ -199,17 +231,12 @@
         void onCatalogChanged(value);
       });
       try {
-        const formats = await readerFormats();
-        supportedFormats = [...new Set(['epub', ...formats.map((value) => value.toLowerCase())])];
-      } catch {
-        supportedFormats = ['epub'];
-      }
-      try {
         libraryRoot = await activeLibraryPath();
       } catch {
         libraryRoot = '';
       }
       if (librarySelected) {
+        void ensureFormats();
         await load();
       }
     })();
@@ -217,6 +244,14 @@
       clearTimeout(searchTimer);
       unlisten?.();
     };
+  });
+
+  // Форматы запрашиваются, когда поверхность библиотеки становится видимой:
+  // при старте страница скрыта за рабочим местом и плагины чтения не нужны.
+  $effect(() => {
+    if (visible) {
+      void ensureFormats();
+    }
   });
 </script>
 

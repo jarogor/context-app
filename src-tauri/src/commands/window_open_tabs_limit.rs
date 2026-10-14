@@ -10,11 +10,10 @@ use crate::plugin::AppState;
 ///
 /// Значение нормализуется ядром: отсутствующее или некорректное значение
 /// заменяется значением по умолчанию, а значение меньше единицы приводится к
-/// единице. Команда асинхронная: чтение настройки идёт через runtime базовых
-/// плагинов и ждёт общий `Mutex<AppState>`, который может быть занят тяжёлой
-/// операцией, — на главном потоке это морозило бы интерфейс.
+/// единице. Чтение идёт через runtime базовых плагинов; готовность фоновой
+/// сборки ожидается вне общего замка состояния, поэтому тяжёлая компиляция не
+/// держит лёгкие команды.
 #[tauri::command]
 pub async fn window_open_tabs_limit(state: State<'_, Mutex<AppState>>) -> Result<u32, String> {
-    let mut state = crate::commands::lock_state(state.inner())?;
-    Ok(state.app_host()?.open_tabs_limit())
+    crate::commands::with_app_host(state.inner(), |host| host.open_tabs_limit()).await
 }
