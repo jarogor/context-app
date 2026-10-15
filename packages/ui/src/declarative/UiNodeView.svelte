@@ -104,7 +104,7 @@
     {node.props?.text ?? ''}
   </svelte:element>
 {:else if node.type === 'Text'}
-  <p class="text-muted-foreground mb-2 text-[13px]">
+  <p class="text-muted-foreground mb-2 text-[0.8125rem]">
     {node.props?.text ?? ''}
   </p>
 {:else if node.type === 'Checkbox'}
@@ -159,7 +159,7 @@
     <div class="flex flex-col gap-1.5">
       <Textarea
         id={controlId}
-        class="min-h-[100px] font-mono text-[13px]"
+        class="min-h-[6.25rem] font-mono text-[0.8125rem]"
         value={text()}
         oninput={(event) => {
           onvalue(name, event.currentTarget.value);
@@ -182,7 +182,7 @@
     <div class="flex flex-col gap-1.5">
       <Select
         id={controlId}
-        class="max-w-[420px]"
+        class="max-w-[26.25rem]"
         value={text()}
         items={selectOptions}
         ariaLabel={label || undefined}
@@ -215,7 +215,7 @@
     {node.props?.label ?? ''}
   </Button>
 {:else}
-  <span class={cn('text-muted-foreground text-[13px]')}>
+  <span class={cn('text-muted-foreground text-[0.8125rem]')}>
     Неизвестный компонент: {node.type}
   </span>
 {/if}

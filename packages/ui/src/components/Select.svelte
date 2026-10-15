@@ -65,7 +65,7 @@
     aria-label={ariaLabel}
     class={cn(
       'border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 data-[placeholder]:text-muted-foreground box-border flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border px-3 shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
-      size === 'sm' ? 'h-8 text-[12px]' : 'h-9 text-sm',
+      size === 'sm' ? 'h-8 text-[0.75rem]' : 'h-9 text-sm',
       className,
     )}
   >
@@ -98,7 +98,7 @@
             value={item.value}
             label={item.label}
             disabled={item.disabled}
-            class="data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-[6px] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+            class="data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
           >
             {#snippet children({ selected })}
               <span class="flex-1 truncate text-left">{item.label}</span>

@@ -136,7 +136,7 @@
 >
   {#if !hasBook}
     <div
-      class="p-4 text-[13px] text-[var(--muted-foreground)]"
+      class="p-4 text-[0.8125rem] text-[var(--muted-foreground)]"
       data-testid="notes-panel-empty"
     >
       Откройте книгу, чтобы вести заметки.
@@ -156,7 +156,7 @@
     </div>
 
     {#if loading && items.length === 0}
-      <p class="p-3 text-[13px] text-[var(--muted-foreground)]">Загрузка…</p>
+      <p class="p-3 text-[0.8125rem] text-[var(--muted-foreground)]">Загрузка…</p>
     {:else}
       <ul
         class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2"
@@ -196,7 +196,7 @@
           </NoteEntry>
         {:else}
           <li
-            class="px-2 py-3 text-center text-[13px] text-[var(--muted-foreground)]"
+            class="px-2 py-3 text-center text-[0.8125rem] text-[var(--muted-foreground)]"
             data-testid="notes-list-empty"
           >
             {query

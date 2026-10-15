@@ -17,7 +17,7 @@ test('оболочка показывает панель и переключае
     await expect(page.locator('header')).toBeHidden();
 
     const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
-    await expect(menu.getByRole('button', { name: 'Настройки' })).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Общие' })).toBeVisible();
     await expect(menu.getByRole('button', { name: 'Плагины' })).toBeVisible();
 
     await menu.getByRole('button', { name: 'Плагины' }).click();

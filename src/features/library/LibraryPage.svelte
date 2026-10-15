@@ -274,7 +274,7 @@
       <SearchCreate
         bind:query={searchQuery}
         searchPlaceholder="Название или автор"
-        class="mb-4 max-w-[420px]"
+        class="mb-4 max-w-[26.25rem]"
         onSearch={onSearchInput}
       />
     {/if}
@@ -311,8 +311,8 @@
                 <BookCoverPlaceholder />
               {/if}
               <div>
-                <h2 class="text-[15px] font-semibold">{book.title}</h2>
-                <p class="mt-1 text-[13px] text-[var(--muted-foreground)]">
+                <h2 class="text-[0.9375rem] font-semibold">{book.title}</h2>
+                <p class="mt-1 text-[0.8125rem] text-[var(--muted-foreground)]">
                   {book.authors.map((author) => author.name).join(', ')}
                 </p>
               </div>

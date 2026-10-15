@@ -33,11 +33,11 @@
   }: Props = $props();
 </script>
 
-<div class="@container mx-auto w-full max-w-[760px] p-6" data-testid="book-page">
+<div class="@container mx-auto w-full max-w-[47.5rem] p-6" data-testid="book-page">
   <Button variant="ghost" size="sm" class="mb-4" onclick={onClose}>← К списку</Button>
 
   <div class="flex flex-col gap-6 @min-[30rem]:flex-row">
-    <div class="w-[180px] flex-none">
+    <div class="w-[11.25rem] flex-none">
       {#if book.coverUri}
         <img class="aspect-[2/3] w-full rounded-md object-cover" src={book.coverUri} alt="" />
       {:else}
@@ -54,13 +54,13 @@
       {/if}
 
       {#if book.series.length > 0}
-        <p class="mt-2 text-[13px] text-[var(--muted-foreground)]">
+        <p class="mt-2 text-[0.8125rem] text-[var(--muted-foreground)]">
           Серия: {book.series.map((entry) => entry.series.name).join(', ')}
         </p>
       {/if}
 
       {#if book.tags.length > 0}
-        <p class="mt-1 text-[13px] text-[var(--muted-foreground)]">
+        <p class="mt-1 text-[0.8125rem] text-[var(--muted-foreground)]">
           Теги: {book.tags.map((tag) => tag.name).join(', ')}
         </p>
       {/if}

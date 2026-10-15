@@ -306,7 +306,7 @@
 
 <div class="h-full w-full" data-testid="workplace-content">
   {#if error}
-    <div class="mx-auto max-w-[560px] p-6 text-center">
+    <div class="mx-auto max-w-[35rem] p-6 text-center">
       <p class="text-[var(--destructive)]" data-testid="workplace-error">{error}</p>
     </div>
   {:else}

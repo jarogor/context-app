@@ -20,7 +20,7 @@
     Данные не потеряны — попробуйте загрузить ещё раз.
   </p>
   {#if error}
-    <p class="max-w-[420px] text-[12px] text-[var(--muted-foreground)]" title={error}>{error}</p>
+    <p class="max-w-[26.25rem] text-[0.75rem] text-[var(--muted-foreground)]" title={error}>{error}</p>
   {/if}
   <Button variant="primary" onclick={onRetry}>Повторить</Button>
 </div>

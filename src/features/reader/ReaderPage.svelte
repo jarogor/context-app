@@ -435,7 +435,7 @@
       </div>
     {:else if unavailable}
       <div
-        class="mx-auto max-w-[560px] p-6 text-center"
+        class="mx-auto max-w-[35rem] p-6 text-center"
         data-testid="reader-unavailable"
       >
         <p class="mb-2 font-semibold">{title}</p>
@@ -452,14 +452,14 @@
         </div>
       </div>
     {:else if unsupported}
-      <div class="mx-auto max-w-[560px] p-6 text-center">
+      <div class="mx-auto max-w-[35rem] p-6 text-center">
         <p class="mb-4">
           Формат этой книги пока не поддерживается встроенным чтением.
         </p>
         <Button variant="secondary" onclick={openInSystem}>Открыть в системе</Button>
       </div>
     {:else if error}
-      <div class="mx-auto max-w-[560px] p-6 text-center">
+      <div class="mx-auto max-w-[35rem] p-6 text-center">
         <p class="mb-3 text-[var(--destructive)]" data-testid="reader-error">
           Не удалось открыть книгу: {error}
         </p>
@@ -538,7 +538,7 @@
         {/if}
         {#if menuPosition && pendingAnchor}
           <div
-            class="absolute z-10 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[4px] shadow-lg"
+            class="absolute z-10 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-lg"
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >

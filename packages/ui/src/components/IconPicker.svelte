@@ -44,7 +44,7 @@
 -->
 <div
   class={cn(
-    'flex max-w-[180px] flex-wrap items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-1',
+    'flex max-w-[11.25rem] flex-wrap items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-1',
     className,
   )}
   role="group"
@@ -54,7 +54,7 @@
   {#each icons as item (item.id)}
     <button
       type="button"
-      class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] text-[var(--muted-foreground)] transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {item.selected
+      class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[0.25rem] text-[var(--muted-foreground)] transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {item.selected
         ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
         : 'hover:bg-[var(--muted)]'}"
       title={item.label}

@@ -139,10 +139,10 @@
     <DropdownMenu.Content
       sideOffset={4}
       align="end"
-      class="border-border bg-popover text-popover-foreground z-50 min-w-[180px] overflow-hidden rounded-md border p-1 shadow-md"
+      class="border-border bg-popover text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md border p-1 shadow-md"
     >
       {#if colors.length > 0}
-        <div class="px-1.5 py-[6px]">
+        <div class="px-1.5 py-[0.375rem]">
           <ColorPicker
             colors={swatches}
             onpick={pickColor}
@@ -152,7 +152,7 @@
         </div>
       {/if}
       {#if icons.length > 0}
-        <div class="px-1.5 py-[6px]">
+        <div class="px-1.5 py-[0.375rem]">
           <IconPicker
             icons={iconSwatches}
             onpick={pickIcon}
@@ -169,7 +169,7 @@
           disabled={item.disabled}
           onSelect={() => onselect?.(item.id)}
           class={cn(
-            'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center rounded-sm px-2 py-[6px] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+            'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
             item.destructive &&
               'text-destructive data-[highlighted]:bg-destructive-soft data-[highlighted]:text-destructive',
           )}

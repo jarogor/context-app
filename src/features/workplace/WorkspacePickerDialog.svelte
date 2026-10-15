@@ -62,7 +62,7 @@
     </p>
   {:else}
     <ul
-      class="flex max-h-[320px] list-none flex-col gap-1 overflow-y-auto p-0"
+      class="flex max-h-[20rem] list-none flex-col gap-1 overflow-y-auto p-0"
       data-testid="workspace-picker-list"
     >
       {#each filtered as item (item.id)}

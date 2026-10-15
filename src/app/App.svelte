@@ -325,6 +325,32 @@
     workspaceOpen && !workspaceListMode && workspace ? workspace.name : null,
   );
 
+  /** Замечания, показываемые в шапке одним индикатором.
+   *
+   * Раньше каждое замечание рисовалось отдельной плашкой и при нескольких
+   * ошибках разом выдавливало кнопки разделов. Теперь шапка держит один
+   * индикатор, а полные тексты видны в его подсказке.
+   */
+  const headerAlerts = $derived.by(() => {
+    const alerts: { text: string; warning: boolean }[] = [];
+    if (registryError) {
+      alerts.push({ text: `Рабочее место: ${registryError}`, warning: false });
+    }
+    if (notesController.error) {
+      alerts.push({ text: `Заметки: ${notesController.error}`, warning: false });
+    }
+    if (appearanceError) {
+      alerts.push({ text: `Оформление: ${appearanceError}`, warning: false });
+    }
+    if (activationPending) {
+      alerts.push({
+        text: 'Плагины: изменения применятся после перезапуска приложения или переоткрытия библиотеки',
+        warning: true,
+      });
+    }
+    return alerts;
+  });
+
   /** Показывать ли в шапке название раздела помимо имени библиотеки. */
   function showSectionLabel(): boolean {
     return !(isMainSection() && activeLibrary !== null);
@@ -933,7 +959,7 @@
         <Badge>{activeLibrary.provider_name}</Badge>
       {/if}
       <span
-        class="max-w-[280px] truncate text-sm text-[var(--muted-foreground)]"
+        class="max-w-[17.5rem] truncate text-sm text-[var(--muted-foreground)]"
         title={activeLibrary?.path ?? ''}
       >
         {libraryName()}
@@ -942,7 +968,7 @@
     {#if showSectionLabel()}
       {#if activeWorkspaceName}
         <span
-          class="max-w-[280px] truncate text-sm font-semibold text-[var(--foreground)]"
+          class="max-w-[17.5rem] truncate text-sm font-semibold text-[var(--foreground)]"
           data-testid="header-workspace-name"
           title={activeWorkspaceName}
         >
@@ -955,36 +981,21 @@
       {/if}
     {/if}
     <div class="ml-auto flex items-center gap-2">
-      {#if registryError}
+      {#if headerAlerts.length > 0}
         <span
-          class="whitespace-nowrap rounded-md border border-[var(--destructive)] px-2 py-[2px] text-[12px] text-[var(--destructive)]"
-          title={registryError}
+          class="flex h-[1.6em] min-w-[1.6em] shrink-0 items-center justify-center rounded-full px-[0.5em] text-[0.7em] font-bold"
+          role="status"
+          data-testid="header-alerts"
+          title={headerAlerts.map((alert) => alert.text).join('\n')}
+          style:background={headerAlerts.some((alert) => !alert.warning)
+            ? 'var(--destructive)'
+            : 'var(--warning)'}
+          style:color={headerAlerts.some((alert) => !alert.warning)
+            ? 'var(--destructive-foreground)'
+            : 'var(--primary-foreground)'}
+          aria-label={`Замечания: ${headerAlerts.length}`}
         >
-          Не удалось сохранить рабочее место
-        </span>
-      {/if}
-      {#if notesController.error}
-        <span
-          class="whitespace-nowrap rounded-md border border-[var(--destructive)] px-2 py-[2px] text-[12px] text-[var(--destructive)]"
-          title={notesController.error}
-        >
-          Ошибка заметок
-        </span>
-      {/if}
-      {#if appearanceError}
-        <span
-          class="whitespace-nowrap rounded-md border border-[var(--destructive)] px-2 py-[2px] text-[12px] text-[var(--destructive)]"
-          title={appearanceError}
-        >
-          Ошибка оформления
-        </span>
-      {/if}
-      {#if activationPending}
-        <span
-          class="whitespace-nowrap rounded-md border border-[var(--warning)] px-2 py-[2px] text-[12px] text-[var(--warning)]"
-          title="Изменения плагинов применятся после перезапуска приложения или переоткрытия библиотеки"
-        >
-          Нужен перезапуск
+          {headerAlerts.length}
         </span>
       {/if}
       <Button
@@ -1228,7 +1239,7 @@
           class="flex-[0_0_200px] border-r border-[var(--border)] bg-[var(--background)] p-3"
         >
           <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
-            Настройки
+            Общие
           </MenuItem>
           <MenuItem active={settingsSection === 'plugins'} onclick={() => selectSettingsSection('plugins')}>
             Плагины

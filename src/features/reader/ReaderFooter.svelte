@@ -62,7 +62,7 @@
   панель чтения, поэтому здесь их нет.
 -->
 <footer
-  class="flex flex-[0_0_40px] items-center gap-4 border-t border-[var(--border)] bg-[var(--card)] px-4 text-[12px] text-[var(--muted-foreground)]"
+  class="flex flex-[0_0_40px] items-center gap-4 border-t border-[var(--border)] bg-[var(--card)] px-4 text-[0.75rem] text-[var(--muted-foreground)]"
   data-testid="reader-footer"
 >
   <div class="ml-auto flex items-center gap-2">
@@ -105,6 +105,6 @@
       </div>
     {/if}
     <span class="whitespace-nowrap" data-testid="reader-progress">{Math.round(progress)}%</span>
-    <Progress value={progress} class="w-[180px] max-[899px]:hidden" />
+    <Progress value={progress} class="w-[11.25rem] max-[899px]:hidden" />
   </div>
 </footer>

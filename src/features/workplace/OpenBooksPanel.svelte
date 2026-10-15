@@ -215,7 +215,7 @@
         <div class="flex items-stretch gap-1">
           <button
             type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate px-2 py-[6px] text-left text-[13px] [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate px-2 py-[0.375rem] text-left text-[0.8125rem] [font:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => onSelect(tab.id)}
@@ -241,7 +241,7 @@
         </div>
         {#if tab.description}
           <p
-            class="truncate px-2 pb-[6px] text-[11px] text-[var(--muted-foreground)]"
+            class="truncate px-2 pb-[6px] text-[0.6875rem] text-[var(--muted-foreground)]"
             data-testid="open-books-item-description"
           >
             {tab.description}
@@ -317,7 +317,7 @@
       </li>
     {:else}
       <li
-        class="px-2 py-[6px] text-[13px] text-[var(--muted-foreground)]"
+        class="px-2 py-[0.375rem] text-[0.8125rem] text-[var(--muted-foreground)]"
         data-testid={tabs.length > 0 ? 'open-books-search-empty' : 'open-books-empty'}
       >
         {tabs.length > 0 ? 'Вкладок по запросу не найдено.' : 'Нет открытых книг'}

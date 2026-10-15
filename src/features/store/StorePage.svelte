@@ -252,7 +252,7 @@
                       checked={plugin.enabled}
                       onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
                     />
-                    <span class="flex min-w-0 flex-col gap-[2px]">
+                    <span class="flex min-w-0 flex-col gap-[0.125rem]">
                       <span class="flex flex-wrap items-baseline gap-2">
                         <span class="text-sm font-bold">{plugin.name}</span>
                         <span class="font-mono text-xs text-[var(--muted-foreground)]"
@@ -294,7 +294,7 @@
                     checked={plugin.enabled}
                     onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
                   />
-                  <span class="flex min-w-0 flex-col gap-[2px]">
+                  <span class="flex min-w-0 flex-col gap-[0.125rem]">
                     <span class="flex flex-wrap items-baseline gap-2">
                       <span class="text-sm font-bold">{plugin.name}</span>
                       <Badge>образец</Badge>
@@ -332,7 +332,7 @@
           <li
             class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2"
           >
-            <div class="flex min-w-0 flex-col gap-[2px]">
+            <div class="flex min-w-0 flex-col gap-[0.125rem]">
               <span class="text-sm font-bold">{store.title}</span>
               <span class="text-xs text-[var(--muted-foreground)]">
                 {store.kind} · {store.location || '—'}
@@ -355,7 +355,7 @@
     {/if}
 
     {#if unsupported}
-      <p class="mt-3 text-[13px] text-[var(--muted-foreground)]">{unsupported}</p>
+      <p class="mt-3 text-[0.8125rem] text-[var(--muted-foreground)]">{unsupported}</p>
     {/if}
     {#if packages.length > 0}
       <ul class="mt-3 flex list-none flex-col gap-2 p-0">
@@ -372,15 +372,15 @@
     {/if}
 
     <div class="mt-3 flex flex-wrap gap-2">
-      <Input placeholder="Идентификатор" bind:value={storeId} class="max-w-[180px]" />
+      <Input placeholder="Идентификатор" bind:value={storeId} class="max-w-[11.25rem]" />
       <Select
         bind:value={storeKind}
         items={STORE_KIND_OPTIONS}
         ariaLabel="Вид стора"
-        class="max-w-[120px]"
+        class="max-w-[7.5rem]"
       />
-      <Input placeholder="Название" bind:value={storeTitle} class="max-w-[180px]" />
-      <Input placeholder="Каталог или адрес" bind:value={storeLocation} class="max-w-[240px]" />
+      <Input placeholder="Название" bind:value={storeTitle} class="max-w-[11.25rem]" />
+      <Input placeholder="Каталог или адрес" bind:value={storeLocation} class="max-w-[15rem]" />
       <Button variant="primary" onclick={addStore}>Добавить стор</Button>
     </div>
   </Card>

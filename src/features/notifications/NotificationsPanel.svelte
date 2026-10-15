@@ -136,15 +136,15 @@
   <div
     class="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--muted)] px-4 py-3"
   >
-    <span class="text-[15px] font-bold text-[var(--primary)]">Уведомления</span>
+    <span class="text-[0.9375rem] font-bold text-[var(--primary)]">Уведомления</span>
     <span
-      class="flex h-[22px] min-w-[22px] items-center justify-center rounded-[11px] px-[6px] text-xs font-bold text-[var(--primary-foreground)]"
+      class="flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-[0.6875rem] px-[0.375rem] text-xs font-bold text-[var(--primary-foreground)]"
       style:background={unreadUser === 0 ? 'var(--input)' : 'var(--success)'}
     >
       {unreadUser}
     </span>
     <div class="ml-auto flex items-center gap-2">
-      <label class="flex cursor-pointer items-center gap-1 text-[13px]">
+      <label class="flex cursor-pointer items-center gap-1 text-[0.8125rem]">
         <Checkbox bind:checked={technicalVisible} />
         Технические
       </label>
@@ -180,7 +180,7 @@
             {severityLabels[entry.severity] ?? entry.severity}
           </Badge>
           <span class="break-words">{entry.message}</span>
-          <span class="mt-1 block text-[11px] text-[var(--muted-foreground)]">
+          <span class="mt-1 block text-[0.6875rem] text-[var(--muted-foreground)]">
             {formatTime(entry.timestamp)}
           </span>
         </div>

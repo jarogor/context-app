@@ -66,25 +66,25 @@
           <Badge>{NOTE_TYPE_LABELS[item.note.type]}</Badge>
         </span>
         {#if item.place}
-          <span class="text-[11px] text-[var(--muted-foreground)]" data-testid="notes-item-place"
+          <span class="text-[0.6875rem] text-[var(--muted-foreground)]" data-testid="notes-item-place"
             >{item.place}</span
           >
         {/if}
         <span
-          class="ml-auto text-[11px] text-[var(--muted-foreground)]"
+          class="ml-auto text-[0.6875rem] text-[var(--muted-foreground)]"
           data-testid="notes-item-date">{formatDateTime(item.createdAtMillis)}</span
         >
       </span>
-      <span class="block text-[13px] leading-snug">{item.name}</span>
+      <span class="block text-[0.8125rem] leading-snug">{item.name}</span>
       {#if item.note.title.trim() && item.preview}
         <span
-          class="mt-0.5 block whitespace-pre-wrap text-[12px] leading-snug italic text-[var(--muted-foreground)]"
+          class="mt-0.5 block whitespace-pre-wrap text-[0.75rem] leading-snug italic text-[var(--muted-foreground)]"
           data-testid="notes-item-preview">«{item.preview}»</span
         >
       {/if}
       {#if item.note.comment}
         <span
-          class="mt-0.5 block whitespace-pre-wrap text-[12px] leading-snug text-[var(--muted-foreground)]"
+          class="mt-0.5 block whitespace-pre-wrap text-[0.75rem] leading-snug text-[var(--muted-foreground)]"
           data-testid="notes-item-comment">{item.note.comment}</span
         >
       {/if}

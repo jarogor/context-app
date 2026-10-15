@@ -106,7 +106,7 @@
     }).catch(() => undefined);
   });
 
-  /** Промежуток между вкладками в пикселях (класс `gap-[2px]`). */
+  /** Промежуток между вкладками в пикселях (класс `gap-[0.125rem]`). */
   const TAB_GAP_PX = 2;
 
   /** Высота и ширина вкладки в rem: весь элемент вместе с кнопками действий. */
@@ -322,7 +322,7 @@
   <span class="text-[var(--input)]" aria-hidden="true">|</span>
   <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
        выталкивает их за пределы панели. -->
-  <div class="flex flex-none items-center gap-[2px]" data-testid="workplace-tabs-actions">
+  <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-actions">
     <span class="flex" title={openButtonTitle('Добавить книгу')}>
       <Button
         size="icon"
@@ -379,7 +379,7 @@
       </Button>
     {/if}
     <div
-      class="flex min-w-0 flex-1 items-center gap-[2px] overflow-hidden"
+      class="flex min-w-0 flex-1 items-center gap-[0.125rem] overflow-hidden"
       bind:this={listEl}
       data-testid="workplace-tabs-window"
     >
@@ -394,7 +394,7 @@
           <button
             type="button"
             data-testid="workplace-tab"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate py-[2px] pl-2 text-left text-[0.7rem] [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate py-[0.125rem] pl-2 text-left text-[0.7rem] [font:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => selectTab(tab.id)}
@@ -409,7 +409,7 @@
               type="button"
               aria-label="Дублировать вкладку"
               disabled={openBlocked}
-              class="flex-none cursor-pointer px-[3px] opacity-70 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
+              class="flex-none cursor-pointer px-[0.1875rem] opacity-70 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
                 ? 'text-destructive'
                 : ''}"
               onclick={() => onDuplicate(tab.id)}
@@ -425,7 +425,7 @@
             data-testid="workplace-tab-close"
             title="Закрыть вкладку"
             aria-label="Закрыть вкладку"
-            class="flex-none cursor-pointer px-[3px] pr-2 opacity-70 hover:opacity-100"
+            class="flex-none cursor-pointer px-[0.1875rem] pr-2 opacity-70 hover:opacity-100"
             onclick={() => askCloseTab(tab.id)}
           >
             <svg viewBox="0 0 24 24" width="0.85em" height="0.85em" aria-hidden="true">

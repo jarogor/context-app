@@ -153,7 +153,7 @@
         value={tool.shape}
         items={shapeOptions}
         size="sm"
-        class="w-[150px]"
+        class="w-[9.375rem]"
         ariaLabel="Вид фигуры"
         onchange={selectShape}
       />
@@ -180,7 +180,7 @@
         disabled={zoom <= minZoom}
         onclick={() => onChangeZoom?.(-10)}>−</Button
       >
-      <span class="min-w-[48px] text-center" data-testid="reader-zoom">{zoom}%</span>
+      <span class="min-w-[3rem] text-center" data-testid="reader-zoom">{zoom}%</span>
       <Button
         size="icon"
         variant="ghost"

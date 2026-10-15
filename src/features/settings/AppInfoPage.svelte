@@ -61,7 +61,7 @@
 
 <ScrollArea testId="app-info-page" class="gap-4 p-4">
   {#if error}
-    <div class="text-[13px] text-[var(--destructive)]">{error}</div>
+    <div class="text-[0.8125rem] text-[var(--destructive)]">{error}</div>
   {:else if !info}
     <div class="p-6 text-center text-[var(--muted-foreground)]">Загрузка…</div>
   {:else}
@@ -76,7 +76,7 @@
       <h2 class="mb-3 text-base font-semibold">Каркас</h2>
       <ul class="flex list-none flex-col gap-2 p-0">
         {#each frameworkPaths as path (path.key)}
-          <li class="flex flex-col gap-[2px] rounded-md border border-[var(--border)] p-2">
+          <li class="flex flex-col gap-[0.125rem] rounded-md border border-[var(--border)] p-2">
             <span class="text-sm font-bold">{path.title}</span>
             <code class="break-all font-mono text-xs text-[var(--foreground)]">{path.path}</code>
             <span class="text-xs text-[var(--muted-foreground)]">{path.note}</span>
@@ -89,7 +89,7 @@
       <h2 class="mb-3 text-base font-semibold">Приложение</h2>
       <ul class="flex list-none flex-col gap-2 p-0">
         {#each applicationPaths as path (path.key)}
-          <li class="flex flex-col gap-[2px] rounded-md border border-[var(--border)] p-2">
+          <li class="flex flex-col gap-[0.125rem] rounded-md border border-[var(--border)] p-2">
             <span class="text-sm font-bold">{path.title}</span>
             <code class="break-all font-mono text-xs text-[var(--foreground)]">{path.path}</code>
             <span class="text-xs text-[var(--muted-foreground)]">{path.note}</span>

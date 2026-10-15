@@ -73,7 +73,7 @@
 -->
 <div
   class={cn(
-    'inline-flex h-9 items-center gap-[3px] rounded-md border border-[var(--input)] bg-[var(--card)] p-1',
+    'inline-flex h-9 items-center gap-[0.1875rem] rounded-md border border-[var(--input)] bg-[var(--card)] p-1',
     className,
   )}
   style="width: {pickerWidth}px"
@@ -84,7 +84,7 @@
   {#each colors as color (color.id)}
     <button
       type="button"
-      class="min-w-0 flex-1 basis-0 cursor-pointer rounded-[4px] transition-all duration-100 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {color.selected
+      class="min-w-0 flex-1 basis-0 cursor-pointer rounded-[0.25rem] transition-all duration-100 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {color.selected
         ? 'h-6 grow-[1.8]'
         : 'h-5 grow hover:h-6 hover:grow-[1.8]'}"
       style="background: {color.value}"
