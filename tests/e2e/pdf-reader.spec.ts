@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openWorkspaceSurface } from './workspace-surface';
+import { addBookToWorkspace, openWorkspaceSurface } from './workspace-surface';
 
 /** Корень репозитория. */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -316,15 +316,7 @@ async function installPdfMock(page: Page, pageCount: number, twoLines = false, d
 async function openPdf(page: Page, pageCount: number, twoLines = false, data?: string) {
     await installPdfMock(page, pageCount, twoLines, data);
     await page.goto('/');
-    await page.getByLabel('Рабочее место', { exact: true }).click();
-    const open = page.getByTestId('workspace-open').first();
-    if (await open.isVisible().catch(() => false)) {
-        await open.click();
-    }
-    const library = page.locator('main');
-    await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
-    await pickWorkspaceIfAsked(page);
+    await addBookToWorkspace(page, /Демо-книга/);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
     // Готовность области содержимого: страницы построены, первая отрисована.
     await content(page).locator('.page canvas').first().waitFor({ timeout: 20000 });
@@ -333,14 +325,6 @@ async function openPdf(page: Page, pageCount: number, twoLines = false, data?: s
 /** Область содержимого плагина. */
 function content(page: Page) {
     return page.frameLocator('iframe[title="Содержимое книги"]');
-}
-
-/** Выбор рабочего места в диалоге, если он появился при открытии книги. */
-async function pickWorkspaceIfAsked(page: Page) {
-    const list = page.getByTestId('workspace-picker-list');
-    if (await list.isVisible().catch(() => false)) {
-        await page.getByTestId('workspace-picker-item').first().click();
-    }
 }
 
 /** Приведение области чтения к заданному масштабу (шаг кнопок — 10 %). */

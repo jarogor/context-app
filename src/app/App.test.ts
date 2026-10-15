@@ -388,7 +388,7 @@ describe('активность кнопки рабочего места', () => 
         expect(workspacePressed()).toBe('true');
     });
 
-    it('нажатие из открытого места возвращает к списку, а повторное нажатие закрывает раздел', async () => {
+    it('нажатие из открытого места возвращает к списку, а повторное нажатие оставляет список', async () => {
         render(App, {
             props: { ...appProps(), initialRegistry: registryWithWorkspace() },
         });
@@ -402,10 +402,32 @@ describe('активность кнопки рабочего места', () => 
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
         expect(workspacePressed()).toBe('true');
 
-        // Повторное нажатие в списке закрывает раздел рабочего места.
+        // Повторное нажатие в списке ничего не меняет: список остаётся главной
+        // страницей, а кнопка не «отжимается».
         await fireEvent.click(screen.getByLabelText('Рабочее место'));
-        expect(workspacePressed()).toBe('false');
-        expect(screen.getByTestId('workplace-surface').closest('.hidden')).toBeTruthy();
+        expect(workspacePressed()).toBe('true');
+        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+        expect(screen.getByTestId('workplace-surface').closest('.hidden')).toBeNull();
+    });
+
+    it('повторное нажатие по активной кнопке раздела возвращает к списку рабочих мест', async () => {
+        render(App, {
+            props: { ...appProps(), initialRegistry: registryWithWorkspace() },
+        });
+
+        // Раздел «Библиотеки»: повторное нажатие закрывает его и показывает список.
+        await fireEvent.click(screen.getByLabelText('Библиотеки'));
+        expect(screen.getByTestId('libraries-page')).toBeTruthy();
+        await fireEvent.click(screen.getByLabelText('Библиотеки'));
+        expect(screen.getByTestId('libraries-page').closest('.hidden')).toBeTruthy();
+        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+
+        // Раздел «Заметки»: то же поведение.
+        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        expect(screen.getByTestId('notes-library')).toBeTruthy();
+        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        expect(screen.queryByTestId('notes-library')).toBeNull();
+        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
     });
 });
 

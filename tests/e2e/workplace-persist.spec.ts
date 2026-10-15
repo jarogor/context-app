@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { addBookToWorkspace } from './workspace-surface';
+
 /** Ответ активной библиотеки для сценариев сохранения рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
 
@@ -44,15 +46,7 @@ test('состав и активная вкладка восстанавлива
     }, ACTIVE_LIBRARY);
 
     await page.goto('/');
-    await page.getByLabel('Рабочее место', { exact: true }).click();
-    const open = page.getByTestId('workspace-open').first();
-    if (await open.isVisible().catch(() => false)) {
-        await open.click();
-    }
-    const library = page.locator('main');
-    await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
-    await pickWorkspaceIfAsked(page);
+    await addBookToWorkspace(page, /Демо-книга/);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 
     await expect

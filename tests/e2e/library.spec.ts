@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { bottomReachable } from './scroll';
+import { showLibraryBookList } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев библиотечного UI. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
@@ -19,7 +20,7 @@ test('в узком окне список книг прокручивается 
     // быть достижим прокруткой, а не обрезан.
     await page.setViewportSize({ width: 700, height: 260 });
     await page.goto('/');
-    await page.getByLabel('Рабочее место', { exact: true }).click();
+    await showLibraryBookList(page);
     const library = page.locator('main');
     await library.getByText('Демо-книга').waitFor();
 
@@ -32,7 +33,7 @@ test('в узком окне список книг прокручивается 
 
 test('библиотека показывает книги, поиск и обложки', async ({ page }) => {
     await page.goto('/');
-    await page.getByLabel('Рабочее место', { exact: true }).click();
+    await showLibraryBookList(page);
     const library = page.locator('main');
 
     await expect(library.getByText('Демо-книга')).toBeVisible();
@@ -46,7 +47,7 @@ test('библиотека показывает книги, поиск и обл
 
 test('поиск фильтрует список и показывает пустое состояние', async ({ page }) => {
     await page.goto('/');
-    await page.getByLabel('Рабочее место', { exact: true }).click();
+    await showLibraryBookList(page);
     const library = page.locator('main');
     const search = library.getByPlaceholder('Название или автор');
 

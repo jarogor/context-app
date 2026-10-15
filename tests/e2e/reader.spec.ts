@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { leaveWorkspaceSurface, workspaceButton } from './workspace-surface';
+import { showLibraryBookList, workspaceButton } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
@@ -13,9 +13,9 @@ test.beforeEach(async ({ page }) => {
     }, ACTIVE_LIBRARY);
 });
 
-/** Переход к основному разделу библиотеки, если открыто рабочее место. */
+/** Показ списка книг библиотеки через раздел «Библиотеки». */
 async function showLibrary(page: import('@playwright/test').Page) {
-    await leaveWorkspaceSurface(page);
+    await showLibraryBookList(page);
 }
 
 /** Выбор рабочего места в диалоге, если он появился при открытии книги. */
@@ -188,7 +188,9 @@ test('переключатель меняет тему области чтени
 test('возврат к библиотеке сохраняет состояние', async ({ page }) => {
     await openWorkplace(page);
 
-    await leaveWorkspaceSurface(page);
+    // Возврат к списку книг: кнопка «Добавить книгу» в панели вкладок — штатный
+    // вход в список книг.
+    await page.getByRole('button', { name: /Добавить книгу/ }).click();
 
     const library = page.locator('main');
     await expect(library.getByTestId('book-title')).toHaveText('Демо-книга');

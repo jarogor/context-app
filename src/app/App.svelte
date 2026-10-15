@@ -356,12 +356,19 @@
     }
   }
 
-  /** Переключение страницы «Библиотеки». */
+  /** Переключение страницы «Библиотеки».
+   *
+   * Закрытие раздела возвращает пользователя к главной странице — списку
+   * рабочих мест, а не к списку книг библиотеки.
+   */
   function toggleLibraries() {
-    librariesOpen = !librariesOpen;
-    if (librariesOpen) {
-      settingsOpen = false;
-      notesLibraryOpen = false;
+    const willOpen = !librariesOpen;
+    settingsOpen = false;
+    notesLibraryOpen = false;
+    librariesOpen = willOpen;
+    if (!willOpen) {
+      workspaceOpen = true;
+      workspaceListMode = true;
     }
   }
 
@@ -370,13 +377,18 @@
    * Реестр читается при открытии раздела с показом индикатора: он зависит от
    * объёма пользовательских заметок, и на стадии начальной загрузки его не
    * читают. После первой загрузки реестр обновляется по событию `notes:changed`.
+   * Закрытие раздела возвращает к главной странице — списку рабочих мест.
    */
   function toggleNotesLibrary() {
-    notesLibraryOpen = !notesLibraryOpen;
-    if (notesLibraryOpen) {
-      settingsOpen = false;
-      librariesOpen = false;
+    const willOpen = !notesLibraryOpen;
+    settingsOpen = false;
+    librariesOpen = false;
+    notesLibraryOpen = willOpen;
+    if (willOpen) {
       void ensureNotesLibrary();
+    } else {
+      workspaceOpen = true;
+      workspaceListMode = true;
     }
   }
 
@@ -421,19 +433,20 @@
    * При открытии из другого раздела показывается **список** рабочих мест —
    * точка входа раздела, а не конкретное рабочее место. Когда уже показано
    * конкретное место (его вкладки), нажатие возвращает к списку рабочих мест,
-   * сохраняя состав и состояние вкладок открытого места.
+   * сохраняя состав и состояние вкладок открытого места. Когда список уже
+   * показан, нажатие ничего не меняет: кнопка не «отжимается», а список рабочих
+   * мест остаётся главной страницей приложения.
    */
   function toggleWorkspace() {
-    const wasList = workspaceListVisible;
     settingsOpen = false;
     librariesOpen = false;
     notesLibraryOpen = false;
-    if (wasList) {
-      workspaceOpen = false;
-    } else {
-      workspaceOpen = true;
-      workspaceListMode = true;
+    if (workspaceListVisible) {
+      // Список уже показан: кнопка обозначает главную страницу и не «отжимается».
+      return;
     }
+    workspaceOpen = true;
+    workspaceListMode = true;
   }
 
   /** Выбор страницы раздела настроек. */

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { leaveWorkspaceSurface } from './workspace-surface';
+import { showLibraryBookList } from './workspace-surface';
 
 test('снимок оболочки совпадает с эталоном', async ({ page }) => {
   await page.goto('/');
@@ -37,8 +37,8 @@ async function openWorkplaceBook(page: import('@playwright/test').Page) {
     };
   });
   await page.goto('/');
-  // Показ основного раздела библиотеки: рабочее место должно быть закрыто.
-  await leaveWorkspaceSurface(page);
+  // Показ списка книг библиотеки: раздел «Библиотеки» → открытие библиотеки.
+  await showLibraryBookList(page);
   const library = page.locator('main');
   await library.getByRole('button', { name: /Демо-книга/ }).click();
   await library.getByRole('button', { name: /Добавить в/ }).click();

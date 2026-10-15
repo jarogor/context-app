@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { leaveWorkspaceSurface } from './workspace-surface';
+import { showLibraryBookList } from './workspace-surface';
 
-/** Закрытие поверхности рабочего места, чтобы показать основной раздел библиотеки. */
+/** Показ списка книг библиотеки через раздел «Библиотеки». */
 async function showLibrary(page: import('@playwright/test').Page) {
-    await leaveWorkspaceSurface(page);
+    await showLibraryBookList(page);
 }
 
 test('оболочка показывает панель и переключает настройки', async ({ page }) => {
@@ -140,11 +140,51 @@ test('после открытия библиотеки страница выбо
     await expect(page.locator('main')).toBeVisible();
 });
 
-test('основной раздел библиотеки возвращается после закрытия рабочего места', async ({ page }) => {
+test('список книг открывается через раздел «Библиотеки»', async ({ page }) => {
     await page.goto('/');
     await showLibrary(page);
 
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.getByTestId('library-page')).toBeVisible();
+});
+
+test('кнопка рабочего места не «отжимается» и не уводит с главной страницы', async ({ page }) => {
+    await page.goto('/');
+
+    const workspace = page.getByLabel('Рабочее место', { exact: true });
+
+    // Старт: показан список рабочих мест — кнопка нажата.
+    await expect(workspace).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+
+    // Повторное нажатие в списке ничего не меняет: список остаётся, кнопка нажата,
+    // страница «Библиотека не открыта» не показывается.
+    await workspace.click();
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+    await expect(workspace).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText('Библиотека не открыта')).toBeHidden();
+});
+
+test('повторное нажатие по активной кнопке раздела возвращает к списку рабочих мест', async ({
+    page,
+}) => {
+    await page.goto('/');
+
+    const libraries = page.getByRole('button', { name: 'Библиотеки', exact: true });
+    const notes = page.getByRole('button', { name: 'Реестр заметок', exact: true });
+
+    // Раздел «Библиотеки»: повторное нажатие закрывает его и показывает список.
+    await libraries.click();
+    await expect(page.getByTestId('libraries-page')).toBeVisible();
+    await libraries.click();
+    await expect(page.getByTestId('libraries-page')).toBeHidden();
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+
+    // Раздел «Заметки»: то же поведение.
+    await notes.click();
+    await expect(page.getByTestId('notes-library')).toBeVisible();
+    await notes.click();
+    await expect(page.getByTestId('notes-library')).toBeHidden();
+    await expect(page.getByTestId('workspaces-page')).toBeVisible();
 });
 
 test('список библиотек адаптивен к ширине окна', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { leaveWorkspaceSurface } from './workspace-surface';
+import { showLibraryBookList } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев страницы книги. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
@@ -13,9 +13,9 @@ test.beforeEach(async ({ page }) => {
     }, ACTIVE_LIBRARY);
 });
 
-/** Переход к основному разделу библиотеки, если открыто рабочее место. */
+/** Показ списка книг библиотеки через раздел «Библиотеки». */
 async function showLibrary(page: import('@playwright/test').Page) {
-    await leaveWorkspaceSurface(page);
+    await showLibraryBookList(page);
 }
 
 test('клик по книге открывает страницу книги с информацией', async ({ page }) => {
