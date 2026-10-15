@@ -52,8 +52,17 @@ pub fn run() {
             // выполняется синхронно здесь: иначе окно остаётся белым, пока
             // компилятор плагинов работает. Сборка runtime запускается в фоне
             // сразу после конструирования состояния, параллельно загрузке окна.
+            //
+            // В app-level runtime грузятся плагины области приложения: каркасные
+            // (настройки, уведомления, стор) и прикладные, нужные до открытия
+            // библиотеки (заметки). Поэтому директории включают и каталог
+            // плагинов приложения.
             let app_host_config = AppHostConfig {
-                directories: base_plugin_directories(&bundled_base),
+                directories: application_scope_directories(
+                    &bundled_base,
+                    &bundled_plugins_dir,
+                    &user_plugins_dir,
+                ),
                 storage_root: base_storage_root(&app_state_root),
                 user_plugins_dir: user_plugins_dir.clone(),
                 activation_root: app_state_root.clone(),
@@ -170,6 +179,23 @@ fn base_plugin_directories(bundled: &Path) -> Vec<PathBuf> {
         directories.push(development);
     }
     directories.push(bundled.to_path_buf());
+    directories
+}
+
+/// Директории плагинов области приложения в порядке приоритета.
+///
+/// Область приложения включает плагины каркаса (настройки, уведомления, стор) и
+/// прикладные плагины, нужные до открытия библиотеки (заметки). Директории
+/// собираются так же, как для прочих плагинов: ресурсы рабочей копии раньше
+/// копии в каталоге сборки, пользовательский каталог — впереди поставляемых.
+/// Фильтрация по области выполняется при загрузке runtime.
+fn application_scope_directories(
+    bundled_base: &Path,
+    bundled_plugins: &Path,
+    user_plugins: &Path,
+) -> Vec<PathBuf> {
+    let mut directories = base_plugin_directories(bundled_base);
+    directories.extend(session_plugin_directories(bundled_plugins, user_plugins));
     directories
 }
 

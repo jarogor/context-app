@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use super::app_state::ReaderConfig;
-use super::{get_bus, PluginKind, PluginRuntime, Severity, SharedRuntime};
+use super::{get_bus, PluginRuntime, PluginScope, Severity, SharedRuntime};
 
 /// Запуск фоновой сборки runtime чтения и возврат её дескриптора.
 ///
@@ -17,11 +17,11 @@ use super::{get_bus, PluginKind, PluginRuntime, Severity, SharedRuntime};
 /// диагностика и не прерывают старт приложения.
 pub(crate) fn spawn_reader_warmup(config: ReaderConfig) -> Arc<SharedRuntime<PluginRuntime>> {
     SharedRuntime::spawn(move || {
-        let kinds = [PluginKind::Source, PluginKind::Workplace];
+        let scopes = [PluginScope::Session, PluginScope::Book];
         let mut runtime = PluginRuntime::load_filtered(
             &config.directories,
             config.storage_root.clone(),
-            Some(&kinds),
+            Some(&scopes),
             &config.disabled,
             config.cache.as_deref(),
         )

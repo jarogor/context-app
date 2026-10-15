@@ -91,7 +91,7 @@ describe('страница библиотеки', () => {
     );
 
     // Библиотека открывается позже: событие несёт путь корня.
-    await catalogChanged?.({ path: '/demo-library', provider_name: 'library' });
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'books-source' });
     await screen.findByText('Демо-книга');
 
     await fireEvent.click(screen.getByRole('button', { name: /Демо-книга/ }));
@@ -109,7 +109,7 @@ describe('страница библиотеки', () => {
     });
 
     await waitFor(() => expect(catalogChanged).toBeTruthy());
-    await catalogChanged?.({ path: '/demo-library', provider_name: 'library' });
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'books-source' });
     await screen.findByText('Демо-книга');
     await fireEvent.click(screen.getByRole('button', { name: /Демо-книга/ }));
 
@@ -122,7 +122,7 @@ describe('страница библиотеки', () => {
     });
 
     await waitFor(() => expect(catalogChanged).toBeTruthy());
-    await catalogChanged?.({ path: '/demo-library', provider_name: 'library' });
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'books-source' });
     await screen.findByText('Демо-книга');
 
     const search = screen.getByPlaceholderText('Название или автор');

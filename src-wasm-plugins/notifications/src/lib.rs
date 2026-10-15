@@ -12,8 +12,8 @@ mod wasm;
 
 use serde_json::json;
 
-use plugin_host::state;
-use plugin_host::{Host, Request};
+use host_sdk::state;
+use host_sdk::{Host, Request};
 
 use crate::journal::Journal;
 use crate::models::{Level, Severity};

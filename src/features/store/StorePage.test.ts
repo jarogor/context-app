@@ -24,9 +24,9 @@ describe('страница плагинов и сторов', () => {
       initialPlugins: [
         {
           id: 'p1',
-          name: 'calibre',
-          kind: 'source',
-          description: 'Плагин библиотеки',
+          name: 'books-source-calibre',
+          kind: 'books',
+          description: 'Плагин источника книг',
           enabled: true,
           removable: false,
         },
@@ -46,11 +46,54 @@ describe('страница плагинов и сторов', () => {
       onPendingChange,
     });
 
-    expect(screen.getByText('calibre')).toBeTruthy();
+    expect(screen.getByText('books-source-calibre')).toBeTruthy();
     expect(screen.getByText('installed-plugin')).toBeTruthy();
     expect(screen.getByText('Локальный стор')).toBeTruthy();
     expect(onPendingChange).toHaveBeenCalledWith(true);
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('группирует плагины по назначению', () => {
+    render(StorePage, {
+      initialPlugins: [
+        {
+          id: 'p1',
+          name: 'books-source',
+          kind: 'books',
+          description: 'Источник книг',
+          enabled: true,
+          removable: false,
+        },
+        {
+          id: 'p2',
+          name: 'format-pdf',
+          kind: 'format',
+          description: 'Формат чтения',
+          enabled: true,
+          removable: false,
+        },
+        {
+          id: 'p3',
+          name: 'installed-plugin',
+          kind: 'extension',
+          description: 'Расширение',
+          enabled: true,
+          removable: true,
+        },
+      ],
+      initialStores: [],
+      initialPending: false,
+    });
+
+    const groups = screen.getAllByTestId('store-group');
+    expect(groups.map((group) => group.getAttribute('data-kind'))).toEqual([
+      'books',
+      'format',
+      'extension',
+    ]);
+    expect(screen.getByText('Источники книг')).toBeTruthy();
+    expect(screen.getByText('Форматы чтения')).toBeTruthy();
+    expect(screen.getByText('Расширения')).toBeTruthy();
   });
 
   it('показывает пустое состояние без плагинов и сторов', () => {

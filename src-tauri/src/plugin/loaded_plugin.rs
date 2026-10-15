@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use extism::Plugin;
 
-use crate::plugin::{PluginError, PluginKind};
+use crate::plugin::{PluginError, PluginKind, PluginLevel, PluginScope};
 
 /// Загруженный плагин, готовый к вызову.
 pub struct LoadedPlugin {
@@ -12,8 +12,12 @@ pub struct LoadedPlugin {
     pub id: String,
     /// Человекочитаемое имя плагина из манифеста.
     pub name: String,
-    /// Категория плагина из манифеста.
+    /// Уровень плагина из манифеста: каркас или приложение.
+    pub level: PluginLevel,
+    /// Назначение плагина из манифеста.
     pub kind: PluginKind,
+    /// Область загрузки плагина.
+    pub scope: PluginScope,
     /// Возможности, предоставляемые плагином.
     pub provides: Vec<String>,
     /// Возможности, требуемые плагином.
@@ -22,9 +26,9 @@ pub struct LoadedPlugin {
     pub settings: Option<serde_json::Value>,
     /// Имя экспортируемой функции.
     pub function: String,
-    /// Форматы книг, обслуживаемые плагином рабочего места.
+    /// Форматы книг, обслуживаемые плагином формата.
     pub formats: Vec<String>,
-    /// Относительный путь к модулю рисования плагина рабочего места.
+    /// Относительный путь к модулю рисования плагина формата.
     pub viewer: Option<String>,
     /// Директория, из которой загружен плагин.
     pub dir: PathBuf,
@@ -38,7 +42,7 @@ impl LoadedPlugin {
         let Some(plugin) = self.plugin.as_mut() else {
             return Err(PluginError::Call {
                 plugin: self.name.clone(),
-                message: "плагин рабочего места не предоставляет WASM-модуль".to_string(),
+                message: "плагин формата не предоставляет WASM-модуль".to_string(),
             });
         };
         let output: String = plugin

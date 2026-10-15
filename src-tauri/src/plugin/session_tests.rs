@@ -36,7 +36,7 @@ fn plugin_directories_without_user_catalog() {
 
 #[test]
 fn pick_best_prefers_higher_priority() {
-    let candidates = vec![("library".to_string(), 1), ("calibre".to_string(), 10)];
+    let candidates = vec![("books-source".to_string(), 1), ("calibre".to_string(), 10)];
 
     assert_eq!(super::pick_best(candidates), Some("calibre".to_string()));
 }

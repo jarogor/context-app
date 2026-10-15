@@ -67,7 +67,7 @@ impl FakeHost {
     }
 }
 
-impl plugin_host::Host for FakeHost {
+impl host_sdk::Host for FakeHost {
     fn state_read(&self, key: &str) -> Result<Option<String>, String> {
         Ok(self.state.borrow().get(key).cloned())
     }

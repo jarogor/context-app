@@ -36,6 +36,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 
 [[package]]
+name = "books-source"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "extism-pdk",
+ "format-parsers",
+ "quick-xml",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "source-index",
+ "source-protocol",
+ "sqlite-migrations",
+ "sqlite-test-harness",
+ "zip",
+]
+
+[[package]]
+name = "books-source-calibre"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "extism-pdk",
+ "format-parsers",
+ "quick-xml",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "source-index",
+ "source-protocol",
+ "sqlite-migrations",
+ "sqlite-test-harness",
+ "zip",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -210,6 +246,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
+name = "format-parsers"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "quick-xml",
+ "serde",
+ "serde_json",
+ "source-protocol",
+ "zip",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -237,10 +285,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "index-migrations"
+name = "host-sdk"
 version = "0.1.0"
 dependencies = [
- "rusqlite",
+ "extism-pdk",
+ "serde",
  "serde_json",
 ]
 
@@ -277,36 +326,6 @@ checksum = "7883d941dae510fb2d978fc3fe018c71c9e2892fd38854de3e8b92c2e5ad9cc5"
 dependencies = [
  "cfg-if",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "library"
-version = "0.1.0"
-dependencies = [
- "base64",
- "extism-pdk",
- "index-migrations",
- "quick-xml",
- "rusqlite",
- "serde",
- "serde_json",
- "source-common",
- "zip",
-]
-
-[[package]]
-name = "library-calibre"
-version = "0.1.0"
-dependencies = [
- "base64",
- "extism-pdk",
- "index-migrations",
- "quick-xml",
- "rusqlite",
- "serde",
- "serde_json",
- "source-common",
- "zip",
 ]
 
 [[package]]
@@ -360,7 +379,7 @@ name = "notes-store"
 version = "0.1.0"
 dependencies = [
  "extism-pdk",
- "plugin-host",
+ "host-sdk",
  "serde",
  "serde_json",
 ]
@@ -370,7 +389,7 @@ name = "notifications"
 version = "0.1.0"
 dependencies = [
  "extism-pdk",
- "plugin-host",
+ "host-sdk",
  "serde",
  "serde_json",
 ]
@@ -397,21 +416,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
-name = "plugin-host"
-version = "0.1.0"
-dependencies = [
- "extism-pdk",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "plugin-store"
 version = "0.1.0"
 dependencies = [
  "base64",
  "extism-pdk",
- "plugin-host",
+ "host-sdk",
  "serde",
  "serde_json",
 ]
@@ -584,7 +594,7 @@ name = "settings"
 version = "0.1.0"
 dependencies = [
  "extism-pdk",
- "plugin-host",
+ "host-sdk",
  "serde",
  "serde_json",
  "ui-sdk",
@@ -609,17 +619,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
-name = "source-common"
+name = "source-index"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "serde",
+ "serde_json",
+ "source-protocol",
+ "sqlite-migrations",
+]
+
+[[package]]
+name = "source-protocol"
 version = "0.1.0"
 dependencies = [
  "base64",
  "extism-pdk",
- "index-migrations",
- "quick-xml",
- "rusqlite",
  "serde",
  "serde_json",
- "zip",
+]
+
+[[package]]
+name = "sqlite-migrations"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "sqlite-test-harness"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "rusqlite",
+ "serde_json",
 ]
 
 [[package]]

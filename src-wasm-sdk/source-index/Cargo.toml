@@ -1,0 +1,16 @@
+[package]
+name = "source-index"
+version = "0.1.0"
+description = "Каркас версионированного SQL-индекса source-плагинов «Текстуры»"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+sqlite-migrations = { path = "../sqlite-migrations" }
+source-protocol = { path = "../source-protocol" }

@@ -1,12 +1,20 @@
 {
   "contract_version": 1,
-  "kind": "base",
+  "level": "application",
+  "kind": "notes",
   "id": "b1f2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
   "name": "notes-store",
   "description": "Базовый плагин наборов заметок",
   "module": "notes_store.wasm",
   "export": "invoke",
-  "host_functions": ["state_read", "state_write", "emit_event", "now_millis"],
-  "provides": ["notes.store@1"],
+  "host_functions": [
+    "state_read",
+    "state_write",
+    "emit_event",
+    "now_millis"
+  ],
+  "provides": [
+    "notes.store@1"
+  ],
   "requires": []
 }

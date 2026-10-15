@@ -47,9 +47,9 @@ test.beforeEach(async ({ page }) => {
                 window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }
             ).__TEXTURE_MOCK_OVERRIDES__ = {
                 handlers: {
-                    active_library: () => ({ path: '/demo-library', provider_name: 'library' }),
+                    active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
                     reader_formats: () => ['demo'],
-                    reader_plugin_for_format: () => 'workplace-demo',
+                    reader_plugin_for_format: () => 'format-demo',
                     reader_viewer: () => payload.viewer,
                     reader_book_chunk: () => ({ chunk: 'AA==', next: 1, total: 1, done: true }),
                     invoke_plugin_operation: () => payload.books,

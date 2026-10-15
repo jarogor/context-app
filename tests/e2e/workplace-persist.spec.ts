@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { addBookToWorkspace } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев сохранения рабочего места. */
-const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
+const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
 
 /** Выбор рабочего места в диалоге, если он появился при открытии книги. */
 async function pickWorkspaceIfAsked(page: import('@playwright/test').Page) {

@@ -20,7 +20,7 @@ fn setup_reader_root(name: &str) -> PathBuf {
         format!(
             r#"{{
               "contract_version": 1,
-              "kind": "workplace",
+              "level": "application", "kind": "format",
               "id": "{WORKPLACE_ID}",
               "name": "pdf-viewer",
               "description": "Читалка PDF",
@@ -53,7 +53,7 @@ fn spawn_reader_warmup_builds_runtime() {
     let shared = spawn_reader_warmup(config);
 
     let formats = shared
-        .with_ready(|runtime| runtime.workplace_formats())
+        .with_ready(|runtime| runtime.supported_formats())
         .expect("прогрев завершился");
     assert_eq!(formats, vec!["pdf".to_string()]);
 
@@ -73,10 +73,10 @@ fn reader_warmup_result_is_reused() {
     let shared = spawn_reader_warmup(config);
 
     let first = shared
-        .with_ready(|runtime| runtime.workplace_plugin_ids())
+        .with_ready(|runtime| runtime.format_plugin_ids())
         .expect("первое обращение");
     let second = shared
-        .with_ready(|runtime| runtime.workplace_plugin_ids())
+        .with_ready(|runtime| runtime.format_plugin_ids())
         .expect("повторное обращение");
 
     assert_eq!(first, second, "runtime чтения переиспользован");

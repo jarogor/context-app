@@ -22,7 +22,7 @@ fn setup_base_plugins(name: &str) -> PathBuf {
         plugin_dir.join("plugin-manifest.json"),
         r#"{
         "contract_version": 1,
-        "kind": "base",
+        "level": "framework", "kind": "framework",
         "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
         "name": "sample",
         "description": "Образец базового плагина",

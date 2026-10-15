@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::plugin::contract::MANIFEST_FILE_NAME;
-use crate::plugin::{PluginKind, PluginManifest};
+use crate::plugin::PluginKind;
+use crate::plugin::PluginManifest;
 
 /// Доступный source-плагин, обнаруженный по манифесту.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -39,7 +40,7 @@ pub fn discover_source_plugins(directories: &[PathBuf]) -> Vec<SourceProvider> {
             let Ok(manifest) = PluginManifest::load(&manifest_path) else {
                 continue;
             };
-            if manifest.kind != PluginKind::Source || !seen.insert(manifest.id.clone()) {
+            if manifest.kind != PluginKind::Books || !seen.insert(manifest.id.clone()) {
                 continue;
             }
             providers.push(SourceProvider {
@@ -59,7 +60,9 @@ pub struct PluginEntry {
     pub id: String,
     /// Человекочитаемое имя плагина.
     pub name: String,
-    /// Категория плагина.
+    /// Уровень плагина: каркас или приложение.
+    pub level: String,
+    /// Назначение плагина: его предметная роль.
     pub kind: String,
     /// Описание плагина.
     pub description: String,
@@ -73,7 +76,7 @@ pub struct PluginEntry {
 
 /// Перечень отключаемых плагинов из указанных директорий.
 ///
-/// Базовые плагины каркаса исключаются. `enabled` вычисляется по списку
+/// Каркасные плагины исключаются. `enabled` вычисляется по списку
 /// отключённых идентификаторов, `removable` — по расположению плагина в
 /// пользовательском каталоге. При нескольких копиях одного идентификатора
 /// (директории идут в порядке приоритета) запись берётся из первой, но признак
@@ -98,7 +101,7 @@ pub fn list_disableable(
             let Ok(manifest) = PluginManifest::load(&plugin_dir.join(MANIFEST_FILE_NAME)) else {
                 continue;
             };
-            if manifest.kind == PluginKind::Base {
+            if manifest.level.is_framework() {
                 continue;
             }
             // Признак образца — свойство плагина, а не конкретной его копии:
@@ -117,6 +120,7 @@ pub fn list_disableable(
             entries.push(PluginEntry {
                 id: manifest.id.clone(),
                 name: manifest.name.clone(),
+                level: manifest.level.to_string(),
                 kind: manifest.kind.to_string(),
                 description: manifest.description.clone(),
                 enabled: !disabled.contains(manifest.id.as_str()),
@@ -145,7 +149,7 @@ pub fn is_disableable(directories: &[PathBuf], id: &str) -> bool {
             let Ok(manifest) = PluginManifest::load(&entry.path().join(MANIFEST_FILE_NAME)) else {
                 continue;
             };
-            if manifest.kind != PluginKind::Base && manifest.id == id {
+            if !manifest.level.is_framework() && manifest.id == id {
                 return true;
             }
         }

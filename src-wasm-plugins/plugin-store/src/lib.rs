@@ -12,8 +12,8 @@ mod wasm;
 
 use serde_json::json;
 
-use plugin_host::state;
-use plugin_host::Request;
+use host_sdk::state;
+use host_sdk::Request;
 
 use crate::host::Host;
 use crate::models::{Installed, Store, StoreIndex, StoreState};

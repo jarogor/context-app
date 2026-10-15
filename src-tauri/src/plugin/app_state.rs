@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use super::shared_runtime::SharedRuntime;
-use crate::plugin::{AppInfo, AppPluginHost, PluginKind, PluginRuntime, PluginSession, Severity};
+use crate::plugin::{AppInfo, AppPluginHost, PluginRuntime, PluginScope, PluginSession, Severity};
 
 /// Настройки ленивого runtime чтения книг рабочим местом.
 ///
@@ -199,11 +199,11 @@ impl AppState {
         }
         let config = self.reader_config.clone();
         let shared = SharedRuntime::spawn(move || {
-            let kinds = [PluginKind::Source, PluginKind::Workplace];
+            let scopes = [PluginScope::Session, PluginScope::Book];
             let mut runtime = PluginRuntime::load_filtered(
                 &config.directories,
                 config.storage_root.clone(),
-                Some(&kinds),
+                Some(&scopes),
                 &config.disabled,
                 config.cache.as_deref(),
             )

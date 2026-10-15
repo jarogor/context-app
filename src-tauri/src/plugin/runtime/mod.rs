@@ -110,30 +110,30 @@ impl PluginRuntime {
     pub fn source_plugin_ids(&self) -> Vec<String> {
         self.plugins
             .iter()
-            .filter(|plugin| plugin.kind == PluginKind::Source)
+            .filter(|plugin| plugin.kind == PluginKind::Books)
             .map(|plugin| plugin.id.clone())
             .collect()
     }
 
-    /// Идентификаторы загруженных плагинов рабочего места.
-    pub fn workplace_plugin_ids(&self) -> Vec<String> {
+    /// Идентификаторы загруженных плагинов формата чтения.
+    pub fn format_plugin_ids(&self) -> Vec<String> {
         self.plugins
             .iter()
-            .filter(|plugin| plugin.kind == PluginKind::Workplace)
+            .filter(|plugin| plugin.kind == PluginKind::Format)
             .map(|plugin| plugin.id.clone())
             .collect()
     }
 
-    /// Форматы книг, поддерживаемые загруженными плагинами рабочего места.
+    /// Форматы книг, поддерживаемые загруженными плагинами формата.
     ///
     /// Значения нормализуются к нижнему регистру и дедуплицируются; порядок
     /// сохраняется по первому появлению.
-    pub fn workplace_formats(&self) -> Vec<String> {
+    pub fn supported_formats(&self) -> Vec<String> {
         let mut formats: Vec<String> = Vec::new();
         for plugin in self
             .plugins
             .iter()
-            .filter(|plugin| plugin.kind == PluginKind::Workplace)
+            .filter(|plugin| plugin.kind == PluginKind::Format)
         {
             for format in &plugin.formats {
                 let normalized = format.trim().to_ascii_lowercase();
@@ -147,10 +147,10 @@ impl PluginRuntime {
     }
 
     /// Идентификатор плагина рабочего места, обслуживающего формат.
-    pub fn workplace_plugin_for_format(&self, format: &str) -> Option<String> {
+    pub fn format_plugin_for_format(&self, format: &str) -> Option<String> {
         self.plugins
             .iter()
-            .find(|plugin| plugin.kind == PluginKind::Workplace && plugin.supports_format(format))
+            .find(|plugin| plugin.kind == PluginKind::Format && plugin.supports_format(format))
             .map(|plugin| plugin.id.clone())
     }
 
@@ -159,7 +159,7 @@ impl PluginRuntime {
         let plugin = self
             .plugins
             .iter()
-            .find(|plugin| plugin.id == id && plugin.kind == PluginKind::Workplace)?;
+            .find(|plugin| plugin.id == id && plugin.kind == PluginKind::Format)?;
         let viewer = plugin.viewer.as_deref()?;
         Some(plugin.dir.join(viewer))
     }

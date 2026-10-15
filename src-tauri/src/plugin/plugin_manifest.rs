@@ -5,6 +5,8 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::plugin::plugin_kind::PluginKind;
+use crate::plugin::plugin_level::PluginLevel;
+use crate::plugin::plugin_scope::PluginScope;
 use crate::plugin::PluginError;
 
 use super::contract::CONTRACT_VERSION;
@@ -17,9 +19,18 @@ use super::contract::CONTRACT_VERSION;
 pub struct PluginManifest {
     /// Версия контракта, которой соответствует плагин.
     pub contract_version: u32,
-    /// Категория плагина: базовый, source или extension.
+    /// Уровень плагина: каркас или приложение.
+    #[serde(default)]
+    pub level: PluginLevel,
+    /// Назначение плагина: его предметная роль в приложении.
     #[serde(default)]
     pub kind: PluginKind,
+    /// Область загрузки плагина: приложение, сессия библиотеки или книга.
+    ///
+    /// Если поле не указано, область выводится из уровня и назначения
+    /// ([`PluginManifest::scope`]).
+    #[serde(default)]
+    pub scope: Option<PluginScope>,
     /// Стабильный идентификатор плагина в формате UUID.
     pub id: String,
     /// Человекочитаемое название плагина для отображения.
@@ -28,24 +39,24 @@ pub struct PluginManifest {
     pub description: String,
     /// Имя файла WASM-модуля плагина внутри папки плагина.
     ///
-    /// Для плагина рабочего места поле необязательно: такой плагин может
+    /// Для плагина формата чтения поле необязательно: такой плагин может
     /// состоять только из модуля рисования.
     #[serde(default)]
     pub module: String,
     /// Имя экспортируемой функции, вызываемой в точке расширения.
     ///
-    /// Для плагина рабочего места без WASM-модуля поле не используется.
+    /// Для плагина формата без WASM-модуля поле не используется.
     #[serde(default)]
     pub export: String,
-    /// Форматы книг, которые обслуживает плагин рабочего места.
+    /// Форматы книг, которые обслуживает плагин формата чтения.
     ///
-    /// Заполняется только плагинами рабочего места; ядро не интерпретирует
+    /// Заполняется только плагинами формата; ядро не интерпретирует
     /// сами значения, а лишь сопоставляет их с форматом файла книги.
     #[serde(default)]
     pub formats: Vec<String>,
     /// Относительный путь к модулю рисования содержимого.
     ///
-    /// Заполняется только плагинами рабочего места. Ядро отдаёт файл
+    /// Заполняется только плагинами формата. Ядро отдаёт файл
     /// приложению, не интерпретируя его содержимое.
     #[serde(default)]
     pub viewer: Option<String>,
@@ -86,6 +97,25 @@ impl PluginManifest {
         Ok(manifest)
     }
 
+    /// Область загрузки плагина с учётом уровня и назначения.
+    ///
+    /// Объявленное значение имеет приоритет; при его отсутствии область
+    /// выводится по признакам: каркасный плагин и плагин заметок грузятся на
+    /// уровне приложения, плагин формата — при открытии книги, остальные — в
+    /// сессии библиотеки.
+    pub fn scope(&self) -> PluginScope {
+        if let Some(scope) = self.scope {
+            return scope;
+        }
+        if self.level.is_framework() || self.kind == PluginKind::Notes {
+            return PluginScope::Application;
+        }
+        if self.kind == PluginKind::Format {
+            return PluginScope::Book;
+        }
+        PluginScope::Session
+    }
+
     /// Проверка соответствия манифеста контракту приложения.
     ///
     /// `dir` — директория плагина, включается в текст ошибки.
@@ -108,8 +138,8 @@ impl PluginManifest {
                 reason: format!("идентификатор плагина не является UUID: {}", self.id),
             });
         }
-        if self.kind == PluginKind::Workplace {
-            self.validate_workplace(dir)?;
+        if self.kind == PluginKind::Format {
+            self.validate_format(dir)?;
         } else {
             if self.module.trim().is_empty() {
                 return Err(PluginError::InvalidManifest {
@@ -132,25 +162,33 @@ impl PluginManifest {
                 });
             }
         }
+        for function in &self.host_functions {
+            if !crate::plugin::contract::is_known_host_function(function) {
+                return Err(PluginError::InvalidManifest {
+                    dir: dir.to_path_buf(),
+                    reason: format!("неизвестное право (host-функция): {function}"),
+                });
+            }
+        }
         Ok(())
     }
 
-    /// Проверка манифеста плагина рабочего места.
+    /// Проверка манифеста плагина формата чтения.
     ///
     /// Такой плагин обязан объявить хотя бы один формат и безопасный
     /// относительный путь к модулю рисования; WASM-модуль необязателен, но
     /// если он указан, то у него должно быть имя экспортируемой функции.
-    fn validate_workplace(&self, dir: &Path) -> Result<(), PluginError> {
+    fn validate_format(&self, dir: &Path) -> Result<(), PluginError> {
         if self.formats.iter().all(|format| format.trim().is_empty()) {
             return Err(PluginError::InvalidManifest {
                 dir: dir.to_path_buf(),
-                reason: "плагин рабочего места не объявил ни одного формата".to_string(),
+                reason: "плагин формата не объявил ни одного формата".to_string(),
             });
         }
         if self.formats.iter().any(|format| format.trim().is_empty()) {
             return Err(PluginError::InvalidManifest {
                 dir: dir.to_path_buf(),
-                reason: "формат плагина рабочего места не может быть пустым".to_string(),
+                reason: "формат плагина не может быть пустым".to_string(),
             });
         }
         let viewer = self
@@ -160,7 +198,7 @@ impl PluginManifest {
             .filter(|value| !value.is_empty())
             .ok_or_else(|| PluginError::InvalidManifest {
                 dir: dir.to_path_buf(),
-                reason: "плагин рабочего места не указал модуль рисования".to_string(),
+                reason: "плагин формата не указал модуль рисования".to_string(),
             })?;
         if !is_safe_relative_path(viewer) {
             return Err(PluginError::InvalidManifest {
@@ -171,7 +209,7 @@ impl PluginManifest {
         if !self.module.trim().is_empty() && self.export.trim().is_empty() {
             return Err(PluginError::InvalidManifest {
                 dir: dir.to_path_buf(),
-                reason: "у WASM-модуля плагина рабочего места не указана экспортируемая функция"
+                reason: "у WASM-модуля плагина формата не указана экспортируемая функция"
                     .to_string(),
             });
         }

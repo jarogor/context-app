@@ -164,7 +164,7 @@ fn rejects_base_plugin_package() {
     let root = dir.join("app-plugins");
     let body = r#"{
       "contract_version": 1,
-      "kind": "base",
+      "level": "framework", "kind": "framework",
       "id": "b0000000-0000-4000-8000-000000000002",
       "name": "settings",
       "description": "Тест",
@@ -334,7 +334,7 @@ fn workplace_manifest(id: &str, name: &str, viewer: &str) -> String {
     format!(
         r#"{{
           "contract_version": 1,
-          "kind": "workplace",
+          "level": "application", "kind": "format",
           "id": "{id}",
           "name": "{name}",
           "description": "Читалка",
@@ -367,7 +367,7 @@ fn installs_workplace_package_without_wasm() {
     valid_workplace_package(&archive, WORKPLACE_ID, "pdf-viewer");
 
     let installed = install_package(&archive, &root).expect("установка пакета рабочего места");
-    assert_eq!(installed.kind, "workplace");
+    assert_eq!(installed.kind, "format");
     assert!(
         root.join(WORKPLACE_ID).join("viewer/index.html").is_file(),
         "модуль рисования распакован под идентификатором"

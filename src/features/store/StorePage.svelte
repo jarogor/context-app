@@ -79,6 +79,35 @@
   /** Образцы для разработчика, показываются отдельной группой в конце. */
   const samplePlugins = $derived(plugins.filter((plugin) => plugin.sample));
 
+  /** Русские названия назначений плагинов для заголовков групп. */
+  const KIND_TITLES: Record<string, string> = {
+    framework: 'Каркас',
+    books: 'Источники книг',
+    notes: 'Заметки',
+    format: 'Форматы чтения',
+    extension: 'Расширения',
+  };
+
+  /** Порядок групп назначений на странице. */
+  const KIND_ORDER = ['framework', 'books', 'notes', 'format', 'extension'];
+
+  /** Рабочие плагины, сгруппированные по назначению. */
+  const pluginGroups = $derived.by(() => {
+    const groups = new Map<string, PluginEntry[]>();
+    for (const plugin of regularPlugins) {
+      const bucket = groups.get(plugin.kind) ?? [];
+      bucket.push(plugin);
+      groups.set(plugin.kind, bucket);
+    }
+    const known = KIND_ORDER.filter((kind) => groups.has(kind));
+    const rest = [...groups.keys()].filter((kind) => !KIND_ORDER.includes(kind));
+    return [...known, ...rest].map((kind) => ({
+      kind,
+      title: KIND_TITLES[kind] ?? kind,
+      plugins: groups.get(kind) ?? [],
+    }));
+  });
+
   /** Сообщение оболочке о наличии неприменённых изменений активности. */
   function publishPending(pending: boolean) {
     onPendingChange?.(pending);
@@ -207,38 +236,48 @@
         Нет плагинов
       </div>
     {:else}
-      <ul class="flex list-none flex-col gap-2 p-0">
-        {#each regularPlugins as plugin (plugin.id)}
-          <li
-            class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2"
-          >
-            <label class="flex min-w-0 items-center gap-2">
-              <Checkbox
-                checked={plugin.enabled}
-                onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
-              />
-              <span class="flex min-w-0 flex-col gap-[2px]">
-                <span class="flex flex-wrap items-baseline gap-2">
-                  <span class="text-sm font-bold">{plugin.name}</span>
-                  <span class="font-mono text-xs text-[var(--muted-foreground)]">{plugin.id}</span>
-                </span>
-                <span class="text-xs text-[var(--muted-foreground)]">{plugin.kind}</span>
-                {#if plugin.description}
-                  <span class="text-xs text-[var(--muted-foreground)]">{plugin.description}</span>
-                {/if}
-              </span>
-            </label>
-            {#if plugin.removable}
-              <IconButton
-                action="delete"
-                title="Удалить плагин"
-                ariaLabel="Удалить плагин"
-                onclick={() => uninstall(plugin.id)}
-              />
-            {/if}
-          </li>
+      <div class="flex flex-col gap-4">
+        {#each pluginGroups as group (group.kind)}
+          <div class="flex flex-col gap-2" data-testid="store-group" data-kind={group.kind}>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+              {group.title}
+            </h3>
+            <ul class="flex list-none flex-col gap-2 p-0">
+              {#each group.plugins as plugin (plugin.id)}
+                <li
+                  class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2"
+                >
+                  <label class="flex min-w-0 items-center gap-2">
+                    <Checkbox
+                      checked={plugin.enabled}
+                      onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
+                    />
+                    <span class="flex min-w-0 flex-col gap-[2px]">
+                      <span class="flex flex-wrap items-baseline gap-2">
+                        <span class="text-sm font-bold">{plugin.name}</span>
+                        <span class="font-mono text-xs text-[var(--muted-foreground)]"
+                          >{plugin.id}</span
+                        >
+                      </span>
+                      {#if plugin.description}
+                        <span class="text-xs text-[var(--muted-foreground)]">{plugin.description}</span>
+                      {/if}
+                    </span>
+                  </label>
+                  {#if plugin.removable}
+                    <IconButton
+                      action="delete"
+                      title="Удалить плагин"
+                      ariaLabel="Удалить плагин"
+                      onclick={() => uninstall(plugin.id)}
+                    />
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          </div>
         {/each}
-      </ul>
+      </div>
 
       {#if samplePlugins.length > 0}
         <details class="mt-3 border-t border-[var(--border)] pt-3">

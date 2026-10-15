@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::plugin::contract::{CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS};
-use crate::plugin::{get_bus, set_log_level, PluginError, PluginKind, PluginRuntime, Severity};
+use crate::plugin::{get_bus, set_log_level, PluginError, PluginRuntime, PluginScope, Severity};
 
 /// Декларация собственной секции настроек приложения.
 ///
@@ -118,10 +118,10 @@ impl AppPluginHost {
         cache_config: Option<&Path>,
     ) -> Result<Self, PluginError> {
         let storage_root = storage_root.into();
-        let mut runtime = PluginRuntime::load_kinds(
+        let mut runtime = PluginRuntime::load_scopes(
             directories,
             PathBuf::from("."),
-            Some(&[PluginKind::Base]),
+            Some(&[PluginScope::Application]),
             cache_config,
         )?;
         runtime.set_storage_root(storage_root.clone());

@@ -10,7 +10,9 @@ use std::path::{Path, PathBuf};
 use extism::{Manifest, PluginBuilder, Wasm};
 
 use crate::plugin::contract::{EXPORT_FUNCTION, MANIFEST_FILE_NAME};
-use crate::plugin::{get_bus, LoadedPlugin, PluginError, PluginKind, PluginManifest, Severity};
+use crate::plugin::{
+    get_bus, LoadedPlugin, PluginError, PluginKind, PluginManifest, PluginScope, Severity,
+};
 
 use super::host;
 use super::host_state::RuntimeRoots;
@@ -34,28 +36,28 @@ impl PluginRuntime {
         Self::load_filtered(directories, sandbox_root, None, &[], None)
     }
 
-    /// Загрузка плагинов выбранных категорий из указанных директорий.
+    /// Загрузка плагинов выбранных областей из указанных директорий.
     ///
-    /// `kinds` ограничивает набор загружаемых категорий; `None` загружает все.
+    /// `scopes` ограничивает набор загружаемых областей; `None` загружает все.
     /// `cache_config` — путь к конфигурации постоянного кэша компиляции; `None`
     /// использует системный кэш wasmtime по умолчанию. Остальное поведение
     /// совпадает с [`PluginRuntime::load`].
-    pub fn load_kinds(
+    pub fn load_scopes(
         directories: &[PathBuf],
         sandbox_root: impl Into<PathBuf>,
-        kinds: Option<&[PluginKind]>,
+        scopes: Option<&[PluginScope]>,
         cache_config: Option<&Path>,
     ) -> Result<Self, PluginError> {
-        Self::load_filtered(directories, sandbox_root, kinds, &[], cache_config)
+        Self::load_filtered(directories, sandbox_root, scopes, &[], cache_config)
     }
 
     /// Загрузка плагинов с учётом отключённых.
     ///
-    /// Отключённые плагины (кроме базовых каркаса) не загружаются.
+    /// Отключённые плагины (кроме каркасных) не загружаются.
     pub(crate) fn load_filtered(
         directories: &[PathBuf],
         sandbox_root: impl Into<PathBuf>,
-        kinds: Option<&[PluginKind]>,
+        scopes: Option<&[PluginScope]>,
         disabled: &[String],
         cache_config: Option<&Path>,
     ) -> Result<Self, PluginError> {
@@ -74,13 +76,13 @@ impl PluginRuntime {
                 let dir = entry.path();
                 match Self::load_plugin_dir(&dir, &roots, cache_config) {
                     Ok(plugin) => {
-                        if plugin.kind != PluginKind::Base
+                        if !plugin.level.is_framework()
                             && disabled.iter().any(|id| id == &plugin.id)
                         {
                             continue;
                         }
-                        if let Some(kinds) = kinds {
-                            if !kinds.contains(&plugin.kind) {
+                        if let Some(scopes) = scopes {
+                            if !scopes.contains(&plugin.scope) {
                                 continue;
                             }
                         }
@@ -94,6 +96,7 @@ impl PluginRuntime {
                                 serde_json::json!({
                                     "id": plugin.id,
                                     "name": plugin.name,
+                                    "level": plugin.level,
                                     "kind": plugin.kind,
                                 }),
                             );
@@ -173,7 +176,7 @@ impl PluginRuntime {
             Some(plugin)
         };
 
-        if manifest.kind == PluginKind::Workplace {
+        if manifest.kind == PluginKind::Format {
             if let Some(viewer) = manifest.viewer.as_deref() {
                 if !dir.join(viewer).is_file() {
                     return Err(PluginError::InvalidManifest {
@@ -184,10 +187,13 @@ impl PluginRuntime {
             }
         }
 
+        let scope = manifest.scope();
         Ok(LoadedPlugin {
             id: manifest.id,
             name: manifest.name,
+            level: manifest.level,
             kind: manifest.kind,
+            scope,
             provides: manifest.provides,
             requires: manifest.requires,
             settings: manifest.settings,

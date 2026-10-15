@@ -4,7 +4,7 @@ import { bottomReachable } from './scroll';
 import { showLibraryBookList } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев библиотечного UI. */
-const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
+const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
 
 test.beforeEach(async ({ page }) => {
     await page.addInitScript((active) => {

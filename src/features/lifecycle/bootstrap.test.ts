@@ -20,7 +20,7 @@ describe('загрузка начального состояния', () => {
                 return registry;
             }
             if (command === 'active_library') {
-                return { path: '/lib', provider_name: 'library' };
+                return { path: '/lib', provider_name: 'books-source' };
             }
             if (command === 'plugin_activation_pending') {
                 return { pending: true };
@@ -58,7 +58,7 @@ describe('загрузка начального состояния', () => {
         const state = await loadBootstrap();
 
         expect(state.registry).toBe(registry);
-        expect(state.activeLibrary).toEqual({ path: '/lib', provider_name: 'library' });
+        expect(state.activeLibrary).toEqual({ path: '/lib', provider_name: 'books-source' });
         expect(state.settings.declarations).toHaveLength(1);
         expect(state.settings.error).toBe('');
         expect(state.notifications.entries).toHaveLength(1);

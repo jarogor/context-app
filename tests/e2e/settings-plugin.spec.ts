@@ -127,7 +127,9 @@ test('раздел «Информация» показывает версию и
   await menu.getByRole('button', { name: 'Информация' }).click();
 
   await expect(page.getByText('версия 0.1.0')).toBeVisible();
-  await expect(page.getByText('Расположение конфигов и кешей')).toBeVisible();
+  // Уровни разведены: каркас и приложение показаны отдельными группами.
+  await expect(page.getByRole('heading', { name: 'Каркас' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Приложение' })).toBeVisible();
   await expect(page.getByText('/home/user/.texture/app-state', { exact: true })).toBeVisible();
   await expect(page.getByText('Кэш компиляции WASM')).toBeVisible();
 });

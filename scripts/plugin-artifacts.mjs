@@ -39,16 +39,20 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WORKSPACE = join(ROOT, 'src-wasm-plugins');
 /** Ресурсы поставляемых source/extension-плагинов. */
 const PLUGINS_DIR = join(ROOT, 'src-tauri', 'resources', 'plugins');
-/** Ресурсы базовых плагинов каркаса. */
+/** Ресурсы плагинов каркаса. */
 const BASE_PLUGINS_DIR = join(ROOT, 'src-tauri', 'resources', 'base-plugins');
 /** Имя файла с хэшем развёрнутого каталога. */
 const HASH_FILE = '.bundle.sha256';
 /** Имя файла декларации внешних ассетов плагина. */
 const ASSETS_FILE = 'bundle-assets.json';
 
-/** Каталог развёртывания плагина по категории из манифеста. */
+/** Каталог развёртывания плагина по уровню из манифеста.
+ *
+ * Каркасные плагины (уровень `framework`) раскладываются в `base-plugins/`,
+ * прикладные — в `plugins/`. Отсутствие поля трактуется как прикладной плагин.
+ */
 function targetDir(manifest, name) {
-    return join(manifest.kind === 'base' ? BASE_PLUGINS_DIR : PLUGINS_DIR, name);
+    return join(manifest.level === 'framework' ? BASE_PLUGINS_DIR : PLUGINS_DIR, name);
 }
 
 /** Список плагинов workspace: каталоги с манифестом. */

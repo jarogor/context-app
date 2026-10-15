@@ -8,7 +8,7 @@ test('стор показывает перечень плагинов и акт�
   await menu.getByRole('button', { name: 'Плагины' }).click();
 
   const store = page.locator('main');
-  await expect(store.getByText('calibre', { exact: true })).toBeVisible();
+  await expect(store.getByText('books-source-calibre', { exact: true })).toBeVisible();
   await expect(store.getByText('installed-plugin', { exact: true })).toBeVisible();
   // Рабочие плагины и образцы для разработчика разделены.
   await expect(store.getByText('Образцы для разработчика (2)')).toBeVisible();

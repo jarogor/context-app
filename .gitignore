@@ -35,8 +35,8 @@ src-wasm-plugins/target/
 src-tauri/resources/plugins/
 src-tauri/resources/base-plugins/
 
-# Собранный модуль рисования плагина рабочего места (см. frontend/)
-src-wasm-plugins/workplace-pdf/viewer/
+# Собранный модуль рисования плагина формата чтения (см. frontend/)
+src-wasm-plugins/format-pdf/viewer/
 
 # Playwright
 test-results/

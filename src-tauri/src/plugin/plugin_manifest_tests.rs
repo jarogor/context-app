@@ -106,11 +106,11 @@ fn parses_plugin_capabilities() {
 }
 
 #[test]
-fn parses_base_plugin_kind() {
+fn parses_framework_plugin_kind() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
-        "kind": "base",
+        "level": "framework", "kind": "framework",
         "id": "44444444-4444-4444-8444-444444444444",
         "name": "notifications",
         "description": "Уведомления",
@@ -121,7 +121,7 @@ fn parses_base_plugin_kind() {
     );
 
     let manifest = PluginManifest::load(&path).expect("парсинг базового плагина");
-    assert_eq!(manifest.kind, crate::plugin::PluginKind::Base);
+    assert_eq!(manifest.kind, crate::plugin::PluginKind::Framework);
     fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
 }
 
@@ -284,11 +284,11 @@ fn invalid_id_is_rejected() {
 }
 
 #[test]
-fn parses_workplace_manifest_without_wasm() {
+fn parses_format_manifest_without_wasm() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
-        "kind": "workplace",
+        "level": "application", "kind": "format",
         "id": "88888888-8888-4888-8888-888888888888",
         "name": "pdf-viewer",
         "description": "Читалка PDF",
@@ -298,23 +298,23 @@ fn parses_workplace_manifest_without_wasm() {
       }"#,
     );
 
-    let manifest = PluginManifest::load(&path).expect("парсинг манифеста рабочего места");
-    assert_eq!(manifest.kind, crate::plugin::PluginKind::Workplace);
+    let manifest = PluginManifest::load(&path).expect("парсинг манифеста формата");
+    assert_eq!(manifest.kind, crate::plugin::PluginKind::Format);
     assert_eq!(manifest.formats, ["pdf"]);
     assert_eq!(manifest.viewer.as_deref(), Some("viewer/index.html"));
     assert!(manifest.module.is_empty(), "WASM-модуль необязателен");
     manifest
         .validate(path.parent().expect("директория"))
-        .expect("валидный манифест рабочего места");
+        .expect("валидный манифест формата");
     fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
 }
 
 #[test]
-fn workplace_without_viewer_is_rejected() {
+fn format_without_viewer_is_rejected() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
-        "kind": "workplace",
+        "level": "application", "kind": "format",
         "id": "99999999-9999-4999-8999-999999999999",
         "name": "pdf-viewer",
         "description": "Читалка PDF",
@@ -327,17 +327,17 @@ fn workplace_without_viewer_is_rejected() {
     let result = manifest.validate(path.parent().expect("директория"));
     assert!(
         matches!(result, Err(PluginError::InvalidManifest { .. })),
-        "плагин рабочего места без модуля рисования отклоняется"
+        "плагин формата без модуля рисования отклоняется"
     );
     fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
 }
 
 #[test]
-fn workplace_without_formats_is_rejected() {
+fn format_without_formats_is_rejected() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
-        "kind": "workplace",
+        "level": "application", "kind": "format",
         "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         "name": "viewer",
         "description": "x",
@@ -351,17 +351,17 @@ fn workplace_without_formats_is_rejected() {
     let result = manifest.validate(path.parent().expect("директория"));
     assert!(
         matches!(result, Err(PluginError::InvalidManifest { .. })),
-        "плагин рабочего места без форматов отклоняется"
+        "плагин формата без форматов отклоняется"
     );
     fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");
 }
 
 #[test]
-fn workplace_unsafe_viewer_path_is_rejected() {
+fn format_unsafe_viewer_path_is_rejected() {
     let path = write_manifest(
         r#"{
         "contract_version": 1,
-        "kind": "workplace",
+        "level": "application", "kind": "format",
         "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
         "name": "viewer",
         "description": "x",

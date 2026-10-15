@@ -25,12 +25,12 @@ fn builds_all_paths_from_roots() {
     assert_eq!(
         keys,
         vec![
+            "framework_plugins",
             "app_state",
-            "webview",
-            "base_plugins_state",
+            "app_plugins_state",
+            "application_plugins",
             "user_plugins",
-            "bundled_plugins",
-            "bundled_base_plugins",
+            "webview",
             "wasm_cache",
         ]
     );
@@ -45,12 +45,12 @@ fn builds_all_paths_from_roots() {
         "пояснение называет назначение каталога: {}",
         webview.note
     );
-    let base_state = info
+    let app_state = info
         .paths
         .iter()
-        .find(|path| path.key == "base_plugins_state")
+        .find(|path| path.key == "app_plugins_state")
         .unwrap();
-    assert_eq!(base_state.path, "/data/app-state/base-plugins");
+    assert_eq!(app_state.path, "/data/app-state/base-plugins");
     let wasm = info
         .paths
         .iter()
@@ -58,6 +58,41 @@ fn builds_all_paths_from_roots() {
         .unwrap();
     assert_eq!(wasm.path, "/data/app-state/wasm-cache");
     assert!(wasm.note.contains("wasm-cache.toml"));
+}
+
+#[test]
+fn framework_and_application_are_not_mixed() {
+    let info = AppInfo::build(
+        "Текстура",
+        "0.1.0",
+        Path::new("/data/app-state"),
+        Path::new("/data/app-plugins"),
+        Path::new("/res/plugins"),
+        Path::new("/res/base-plugins"),
+    );
+
+    let framework: Vec<&str> = info
+        .paths
+        .iter()
+        .filter(|path| path.level == AppPathLevel::Framework)
+        .map(|path| path.key.as_str())
+        .collect();
+    assert_eq!(
+        framework,
+        vec!["framework_plugins", "wasm_cache"],
+        "уровень каркаса: только его плагины и кэш"
+    );
+    for path in &info.paths {
+        if path.key == "framework_plugins" || path.key == "wasm_cache" {
+            continue;
+        }
+        assert_eq!(
+            path.level,
+            AppPathLevel::Application,
+            "{} относится к приложению",
+            path.key
+        );
+    }
 }
 
 #[test]

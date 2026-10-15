@@ -268,9 +268,9 @@ function baseOperation(payload: unknown): unknown {
             plugins: [
                 {
                     id: CALIBRE_ID,
-                    name: 'calibre',
-                    kind: 'source',
-                    description: 'Плагин библиотеки Calibre',
+                    name: 'books-source-calibre',
+                    kind: 'books',
+                    description: 'Плагин источника книг Calibre',
                     enabled: true,
                     removable: false,
                 },
@@ -293,9 +293,9 @@ function baseOperation(payload: unknown): unknown {
                 },
                 {
                     id: 'c1a7e0d4-2b3f-4c5a-9d6e-7f8a9b0c1d2e',
-                    name: 'workplace-demo',
-                    kind: 'workplace',
-                    description: 'Образец плагина рабочего места',
+                    name: 'format-demo',
+                    kind: 'format',
+                    description: 'Образец плагина формата чтения',
                     enabled: true,
                     removable: false,
                     sample: true,
@@ -656,7 +656,7 @@ export function defaultMockConfig(): MockBridgeConfig {
                 const value = (payload ?? {}) as { path?: string };
                 return { path: value.path ?? '', data: btoa(`asset:${value.path ?? ''}`) };
             },
-            select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'library' }),
+            select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'books-source' }),
             active_library: () => null,
             theme_preference: () => SETTINGS_VALUES['app.general']['appearance.theme'],
             theme_palette: () => SETTINGS_VALUES['app.general']['appearance.palette'],
@@ -668,13 +668,22 @@ export function defaultMockConfig(): MockBridgeConfig {
                 version: '0.1.0',
                 paths: [
                     {
+                        key: 'framework_plugins',
+                        level: 'framework',
+                        title: 'Плагины каркаса в поставке',
+                        path: '/home/user/.texture/resources/base-plugins',
+                        note: 'Служебные плагины каркаса',
+                    },
+                    {
                         key: 'app_state',
+                        level: 'application',
                         title: 'Служебное состояние приложения',
                         path: '/home/user/.texture/app-state',
                         note: 'Реестры приложения',
                     },
                     {
                         key: 'wasm_cache',
+                        level: 'framework',
                         title: 'Кэш компиляции WASM',
                         path: '/home/user/.texture/app-state/wasm-cache',
                         note: 'Скомпилированные модули плагинов',
@@ -700,7 +709,7 @@ export function defaultMockConfig(): MockBridgeConfig {
                     {
                         path: '/demo-library',
                         provider: LIBRARY_ID,
-                        provider_name: 'library',
+                        provider_name: 'books-source',
                         added_at_millis: 1_700_000_000_000,
                         available: true,
                     },

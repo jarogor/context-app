@@ -46,6 +46,7 @@ check: ## Проверки фронтенда: типы и форматиров�
 test: ## Модульные и компонентные тесты (Rust + фронтенд)
 	cargo test --manifest-path src-tauri/Cargo.toml
 	cargo test --manifest-path src-wasm-plugins/Cargo.toml
+	cargo test --manifest-path src-wasm-sdk/Cargo.toml
 	npm test
 
 e2e: ## Браузерные тесты Playwright
@@ -56,6 +57,9 @@ rust-check: ## Clippy без предупреждений и проверка ф
 	cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 	cargo clippy --manifest-path src-wasm-plugins/Cargo.toml --target wasm32-unknown-unknown --all-targets -- -D warnings
 	cargo fmt --manifest-path src-wasm-plugins/Cargo.toml --all -- --check
+	cargo clippy --manifest-path src-wasm-sdk/Cargo.toml --all-targets -- -D warnings
+	cargo clippy --manifest-path src-wasm-sdk/Cargo.toml --target wasm32-unknown-unknown --all-targets -- -D warnings
+	cargo fmt --manifest-path src-wasm-sdk/Cargo.toml --all -- --check
 
 validate: ## Проверить спецификации OpenSpec
 	openspec validate --all

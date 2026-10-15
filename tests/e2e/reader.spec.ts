@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { showLibraryBookList, workspaceButton } from './workspace-surface';
 
 /** Ответ активной библиотеки для сценариев рабочего места. */
-const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
+const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
 
 test.beforeEach(async ({ page }) => {
     await page.addInitScript((active) => {

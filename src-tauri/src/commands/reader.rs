@@ -28,7 +28,7 @@ fn reader_handle(state: &Mutex<AppState>) -> Result<Arc<SharedRuntime<PluginRunt
 #[tauri::command]
 pub async fn reader_formats(state: State<'_, Mutex<AppState>>) -> Result<Vec<String>, String> {
     let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| runtime.workplace_formats())
+    handle.with_ready(|runtime| runtime.supported_formats())
 }
 
 /// Идентификатор плагина рабочего места, обслуживающего формат, либо `null`.
@@ -38,12 +38,10 @@ pub async fn reader_plugin_for_format(
     format: String,
 ) -> Result<Value, String> {
     let handle = reader_handle(state.inner())?;
-    handle.with_ready(
-        |runtime| match runtime.workplace_plugin_for_format(&format) {
-            Some(id) => Value::String(id),
-            None => Value::Null,
-        },
-    )
+    handle.with_ready(|runtime| match runtime.format_plugin_for_format(&format) {
+        Some(id) => Value::String(id),
+        None => Value::Null,
+    })
 }
 
 /// Модуль рисования плагина рабочего места как HTML.

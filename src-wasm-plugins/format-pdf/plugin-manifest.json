@@ -1,0 +1,13 @@
+{
+  "contract_version": 1,
+  "level": "application",
+  "kind": "format",
+  "id": "d3b8f2a1-6c4e-4f7a-9b2d-1e5c8a7f0b3d",
+  "name": "format-pdf",
+  "description": "Плагин формата чтения: чтение PDF со страницами, масштабом и заметками",
+  "formats": [
+    "pdf"
+  ],
+  "viewer": "viewer/index.html",
+  "host_functions": []
+}

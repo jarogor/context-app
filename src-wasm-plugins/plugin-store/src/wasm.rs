@@ -2,11 +2,11 @@
 //!
 //! Модуль собирается только под целевую архитектуру `wasm32`: объявляет
 //! привилегированные host-функции стора, берёт общую host-обвязку из
-//! `plugin-host` и экспортирует функцию `invoke` по контракту.
+//! `host-sdk` и экспортирует функцию `invoke` по контракту.
 
 use base64::Engine;
 use extism_pdk::{host_fn, plugin_fn, FnResult};
-use plugin_host::wasm::HostEnv as BaseHostEnv;
+use host_sdk::wasm::HostEnv as BaseHostEnv;
 
 use crate::host::Host;
 use crate::models::{Installed, PluginEntry};
@@ -36,7 +36,7 @@ extern "ExtismHost" {
 /// [`BaseHostEnv`], привилегированные объявлены локально.
 struct StoreHostEnv;
 
-impl plugin_host::Host for StoreHostEnv {
+impl host_sdk::Host for StoreHostEnv {
     fn state_read(&self, key: &str) -> Result<Option<String>, String> {
         BaseHostEnv.state_read(key)
     }

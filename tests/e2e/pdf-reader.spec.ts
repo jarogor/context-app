@@ -16,7 +16,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
  */
 function viewerEntry(): string {
     return readFileSync(
-        resolve(ROOT, 'src-tauri', 'resources', 'plugins', 'workplace-pdf', 'viewer', 'index.html'),
+        resolve(ROOT, 'src-tauri', 'resources', 'plugins', 'format-pdf', 'viewer', 'index.html'),
         'utf8',
     );
 }
@@ -43,7 +43,7 @@ function viewerMime(path: string): string {
  * файла (например, собранного `viewer.js`) не требует правок теста.
  */
 function viewerFiles(): Array<{ path: string; mime: string; data: string }> {
-    const dir = resolve(ROOT, 'src-tauri', 'resources', 'plugins', 'workplace-pdf', 'viewer');
+    const dir = resolve(ROOT, 'src-tauri', 'resources', 'plugins', 'format-pdf', 'viewer');
     return readdirSync(dir)
         .sort()
         .map((name) => ({
@@ -250,9 +250,9 @@ async function installPdfMock(page: Page, pageCount: number, twoLines = false, d
                 window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }
             ).__TEXTURE_MOCK_OVERRIDES__ = {
                 handlers: {
-                    active_library: () => ({ path: '/demo-library', provider_name: 'library' }),
+                    active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
                     reader_formats: () => ['pdf'],
-                    reader_plugin_for_format: () => 'workplace-pdf',
+                    reader_plugin_for_format: () => 'format-pdf',
                     reader_viewer: () => payload.entry,
                     reader_viewer_files: () => payload.files,
                     reader_viewer_file: (input: unknown) => {

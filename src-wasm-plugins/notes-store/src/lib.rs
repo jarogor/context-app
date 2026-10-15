@@ -14,8 +14,8 @@ mod wasm;
 use serde_json::json;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use plugin_host::state;
-use plugin_host::{Host, Request};
+use host_sdk::state;
+use host_sdk::{Host, Request};
 
 use crate::models::{NoteInput, NotePatch, NoteSet};
 use crate::store::NotesState;

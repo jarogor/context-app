@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "format-parsers",
+    "host-sdk",
+    "source-index",
+    "source-protocol",
+    "sqlite-migrations",
+    "sqlite-test-harness",
+    "ui-sdk",
+]
+resolver = "2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

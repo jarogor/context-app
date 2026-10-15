@@ -222,7 +222,7 @@ fn routes_capability_to_provider() {
 /// Манифест плагина с декларацией настроек.
 const MANIFEST_WITH_SETTINGS: &str = r#"{
     "contract_version": 1,
-    "kind": "base",
+    "level": "framework", "kind": "framework",
     "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
     "name": "notifications",
     "description": "Уведомления",
@@ -248,7 +248,7 @@ fn reports_settings_sources_only_for_declared_plugins() {
     let sources = runtime.settings_sources();
     assert_eq!(sources.len(), 1, "декларация настроек собрана");
     assert_eq!(sources[0]["owner"], NOTIFICATIONS_ID);
-    assert_eq!(sources[0]["kind"], "base");
+    assert_eq!(sources[0]["kind"], "framework");
     assert_eq!(sources[0]["schema"]["sections"][0]["id"], "notifications");
     cleanup(&root);
 }
@@ -409,7 +409,7 @@ fn earlier_directory_wins_on_id_conflict() {
 /// Манифест базового плагина для проверки фильтра активности.
 const MANIFEST_BASE: &str = r#"{
     "contract_version": 1,
-    "kind": "base",
+    "level": "framework", "kind": "framework",
     "id": "aaaaaaaa-0000-4000-8000-000000000007",
     "name": "test-plugin",
     "description": "Тестовый базовый плагин",
@@ -819,7 +819,7 @@ fn setup_workplace_root(name: &str, viewer_file: bool) -> PathBuf {
     let manifest = format!(
         r#"{{
           "contract_version": 1,
-          "kind": "workplace",
+          "level": "application", "kind": "format",
           "id": "{WORKPLACE_ID}",
           "name": "pdf-viewer",
           "description": "Читалка PDF",
@@ -844,13 +844,10 @@ fn loads_workplace_plugin_without_wasm() {
     let dir = setup_workplace_root("loads", true);
     let root = dir.clone();
     let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    assert_eq!(runtime.format_plugin_ids(), vec![WORKPLACE_ID.to_string()]);
+    assert_eq!(runtime.supported_formats(), vec!["pdf".to_string()]);
     assert_eq!(
-        runtime.workplace_plugin_ids(),
-        vec![WORKPLACE_ID.to_string()]
-    );
-    assert_eq!(runtime.workplace_formats(), vec!["pdf".to_string()]);
-    assert_eq!(
-        runtime.workplace_plugin_for_format("PDF").as_deref(),
+        runtime.format_plugin_for_format("PDF").as_deref(),
         Some(WORKPLACE_ID)
     );
     assert!(
@@ -899,6 +896,6 @@ fn workplace_plugin_is_not_selected_for_unknown_format() {
     let dir = setup_workplace_root("unknown-format", true);
     let root = dir.clone();
     let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
-    assert_eq!(runtime.workplace_plugin_for_format("epub"), None);
+    assert_eq!(runtime.format_plugin_for_format("epub"), None);
     cleanup(&root);
 }

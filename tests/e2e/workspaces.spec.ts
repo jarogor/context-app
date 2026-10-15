@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 /** Ответ активной библиотеки для сценариев реестра рабочих мест. */
-const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'library' };
+const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
 
 test.beforeEach(async ({ page }) => {
     await page.addInitScript((active) => {

@@ -101,3 +101,38 @@ pub const STORE_HOST_FUNCTIONS: &[&str] = &[
     HOST_STORE_PLUGINS,
     HOST_STORE_SET_ENABLED,
 ];
+
+/// Набор прав — host-функций, известных каркасу.
+///
+/// Манифест SHALL объявлять только права из этого набора: неизвестное право
+/// отклоняется с диагностикой, потому что расширение набора требует изменения
+/// каркаса, а не только манифеста. Принцип — как у разрешений мобильных
+/// приложений: набор известен заранее, плагин запрашивает объявленное.
+pub const KNOWN_HOST_FUNCTIONS: &[&str] = &[
+    HOST_LOG_FUNCTION,
+    HOST_NOTIFY_FUNCTION,
+    HOST_FS_LIST_DIR,
+    HOST_FS_READ_TEXT,
+    HOST_FS_READ_BYTES,
+    HOST_IMPORT_READ_BYTES,
+    HOST_FS_WRITE_BYTES,
+    HOST_OPEN_FILE,
+    HOST_EMIT_EVENT,
+    HOST_STATE_READ,
+    HOST_STATE_WRITE,
+    HOST_STATE_DELETE,
+    HOST_NOW_FUNCTION,
+    HOST_SQL_EXECUTE,
+    HOST_SQL_QUERY,
+    HOST_STORE_INSPECT,
+    HOST_STORE_INSTALL,
+    HOST_STORE_UNINSTALL,
+    HOST_STORE_INSTALLED,
+    HOST_STORE_PLUGINS,
+    HOST_STORE_SET_ENABLED,
+];
+
+/// Признак, что host-функция известна каркасу как право плагина.
+pub fn is_known_host_function(function: &str) -> bool {
+    KNOWN_HOST_FUNCTIONS.contains(&function)
+}

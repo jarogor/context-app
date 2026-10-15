@@ -8,15 +8,16 @@ const LIBRARY_ID: &str = "a692624f-1fa0-49a2-9015-9cb7361f9d47";
 const CALIBRE_ID: &str = "f7c8b139-887f-4a2f-84e8-fdcc89635a79";
 const SETTINGS_ID: &str = "69b39e5d-0c25-4cdb-8c3e-d3ba89147c24";
 const DEMO_ID: &str = "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c";
+const NOTES_ID: &str = "b1f2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
 
-/// Создание директории плагина с манифестом заданной категории.
-fn write_manifest(directory: &Path, id: &str, name: &str, kind: &str) {
+/// Создание директории плагина с манифестом заданного уровня и назначения.
+fn write_manifest(directory: &Path, id: &str, name: &str, level: &str, kind: &str) {
     let plugin_dir = directory.join(name);
     std::fs::create_dir_all(&plugin_dir).expect("директория плагина");
     std::fs::write(
         plugin_dir.join(MANIFEST_FILE_NAME),
         format!(
-            r#"{{"contract_version":1,"kind":"{kind}","id":"{id}","name":"{name}","description":"d","module":"p.wasm","export":"invoke","host_functions":[]}}"#
+            r#"{{"contract_version":1,"level":"{level}","kind":"{kind}","id":"{id}","name":"{name}","description":"d","module":"p.wasm","export":"invoke","host_functions":[]}}"#
         ),
     )
     .expect("манифест");
@@ -25,9 +26,9 @@ fn write_manifest(directory: &Path, id: &str, name: &str, kind: &str) {
 #[test]
 fn discovers_only_source_plugins() {
     let dir = test_util::test_root("plugin-discovery");
-    write_manifest(&dir, LIBRARY_ID, "library", "source");
-    write_manifest(&dir, CALIBRE_ID, "calibre", "source");
-    write_manifest(&dir, SETTINGS_ID, "settings", "base");
+    write_manifest(&dir, LIBRARY_ID, "books-source", "application", "books");
+    write_manifest(&dir, CALIBRE_ID, "calibre", "application", "books");
+    write_manifest(&dir, SETTINGS_ID, "settings", "framework", "framework");
 
     let providers = discover_source_plugins(std::slice::from_ref(&dir));
 
@@ -36,7 +37,7 @@ fn discovers_only_source_plugins() {
         vec![
             SourceProvider {
                 id: LIBRARY_ID.to_string(),
-                name: "library".to_string()
+                name: "books-source".to_string()
             },
             SourceProvider {
                 id: CALIBRE_ID.to_string(),
@@ -64,9 +65,9 @@ fn lists_disableable_with_flags() {
     let user = dir.join("user");
     std::fs::create_dir_all(&bundled).expect("bundled");
     std::fs::create_dir_all(&user).expect("user");
-    write_manifest(&bundled, CALIBRE_ID, "calibre", "source");
-    write_manifest(&bundled, SETTINGS_ID, "settings", "base");
-    write_manifest(&user, DEMO_ID, "demo", "extension");
+    write_manifest(&bundled, CALIBRE_ID, "calibre", "application", "books");
+    write_manifest(&bundled, SETTINGS_ID, "settings", "framework", "framework");
+    write_manifest(&user, DEMO_ID, "demo", "application", "extension");
 
     let entries = list_disableable(
         &[bundled.clone(), user.clone()],
@@ -78,14 +79,49 @@ fn lists_disableable_with_flags() {
         .iter()
         .map(|entry| entry.name.clone())
         .collect::<Vec<_>>();
-    assert_eq!(names, vec!["demo", "calibre"], "базовые исключены");
+    assert_eq!(names, vec!["demo", "calibre"], "каркасные исключены");
     let calibre = entries.iter().find(|entry| entry.id == CALIBRE_ID).unwrap();
-    assert_eq!(calibre.kind, "source");
+    assert_eq!(calibre.kind, "books", "назначение источника книг");
+    assert_eq!(calibre.level, "application");
     assert!(!calibre.enabled, "отключён по реестру");
     assert!(!calibre.removable, "поставляемый не удаляется");
     let demo = entries.iter().find(|entry| entry.id == DEMO_ID).unwrap();
+    assert_eq!(demo.kind, "extension", "назначение расширения");
     assert!(demo.enabled);
     assert!(demo.removable, "пользовательский удаляется");
+    test_util::cleanup(&dir);
+}
+
+#[test]
+fn every_entry_reports_purpose() {
+    let dir = test_util::test_root("plugin-discovery-purpose");
+    let bundled = dir.join("bundled");
+    std::fs::create_dir_all(&bundled).expect("bundled");
+    write_manifest(&bundled, LIBRARY_ID, "books-source", "application", "books");
+    write_manifest(&bundled, CALIBRE_ID, "calibre", "application", "books");
+    write_manifest(&bundled, NOTES_ID, "notes-store", "application", "notes");
+    write_manifest(&bundled, DEMO_ID, "format-demo", "application", "format");
+
+    let entries = list_disableable(std::slice::from_ref(&bundled), None, &[]);
+
+    for entry in &entries {
+        assert!(
+            !entry.kind.trim().is_empty(),
+            "{}: назначение не указано",
+            entry.id
+        );
+    }
+    let purpose = |id: &str| {
+        entries
+            .iter()
+            .find(|entry| entry.id == id)
+            .map(|entry| entry.kind.clone())
+            .unwrap()
+    };
+    assert_eq!(purpose(LIBRARY_ID), "books");
+    assert_eq!(purpose(CALIBRE_ID), "books");
+    assert_eq!(purpose(NOTES_ID), "notes");
+    assert_eq!(purpose(DEMO_ID), "format");
     test_util::cleanup(&dir);
 }
 
@@ -97,8 +133,8 @@ fn sample_flag_survives_user_copy() {
     std::fs::create_dir_all(&bundled).expect("bundled");
     std::fs::create_dir_all(&user).expect("user");
     // Поставляемый образец и его пользовательская копия без признака образца.
-    write_sample_manifest(&bundled, DEMO_ID, "demo", "extension");
-    write_manifest(&user, DEMO_ID, "demo", "extension");
+    write_sample_manifest(&bundled, DEMO_ID, "demo", "application", "extension");
+    write_manifest(&user, DEMO_ID, "demo", "application", "extension");
 
     let entries = list_disableable(&[user.clone(), bundled.clone()], Some(user.as_path()), &[]);
 
@@ -111,13 +147,13 @@ fn sample_flag_survives_user_copy() {
 }
 
 /// Создание директории плагина с манифестом-образцом.
-fn write_sample_manifest(directory: &Path, id: &str, name: &str, kind: &str) {
+fn write_sample_manifest(directory: &Path, id: &str, name: &str, level: &str, kind: &str) {
     let plugin_dir = directory.join(name);
     std::fs::create_dir_all(&plugin_dir).expect("директория плагина");
     std::fs::write(
         plugin_dir.join(MANIFEST_FILE_NAME),
         format!(
-            r#"{{"contract_version":1,"kind":"{kind}","id":"{id}","name":"{name}","description":"d","module":"p.wasm","export":"invoke","host_functions":[],"sample":true}}"#
+            r#"{{"contract_version":1,"level":"{level}","kind":"{kind}","id":"{id}","name":"{name}","description":"d","module":"p.wasm","export":"invoke","host_functions":[],"sample":true}}"#
         ),
     )
     .expect("манифест");

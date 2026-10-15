@@ -28,7 +28,9 @@ pub struct InstalledPlugin {
     pub id: String,
     /// Человекочитаемое имя плагина.
     pub name: String,
-    /// Категория плагина.
+    /// Уровень плагина: каркас или приложение.
+    pub level: String,
+    /// Назначение плагина.
     pub kind: String,
     /// Версия контракта плагина.
     pub contract_version: u32,
@@ -42,6 +44,7 @@ impl From<&PluginManifest> for InstalledPlugin {
         Self {
             id: manifest.id.clone(),
             name: manifest.name.clone(),
+            level: manifest.level.to_string(),
             kind: manifest.kind.to_string(),
             contract_version: manifest.contract_version,
             description: manifest.description.clone(),
@@ -75,9 +78,9 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
         .map_err(package_error)?;
 
     let manifest = extract_package(archive, staging.path())?;
-    if manifest.kind == PluginKind::Base {
+    if manifest.level.is_framework() {
         return Err(PluginError::Package {
-            reason: "базовые плагины не устанавливаются через стор".to_string(),
+            reason: "плагины каркаса не устанавливаются через стор".to_string(),
         });
     }
     if !manifest.module.trim().is_empty() {
@@ -92,7 +95,7 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
             });
         }
     }
-    if manifest.kind == PluginKind::Workplace {
+    if manifest.kind == PluginKind::Format {
         let viewer = manifest.viewer.as_deref().unwrap_or_default();
         if !is_safe_relative_path(viewer) {
             return Err(PluginError::Package {

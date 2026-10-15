@@ -126,7 +126,7 @@ test('страница библиотек показывает историю с
     await expect(page.getByTestId('section-title')).toHaveText('Библиотеки');
     const entry = page.getByRole('button', { name: /demo-library/ });
     await expect(entry).toBeVisible();
-    await expect(page.getByText('library', { exact: true })).toBeVisible();
+    await expect(page.getByText('books-source', { exact: true })).toBeVisible();
     await expect(entry).toContainText('2023');
 });
 

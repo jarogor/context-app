@@ -5,7 +5,7 @@ use crate::test_util;
 /// Идентификатор провайдера, не участвующий в переименованиях.
 const PROVIDER: &str = "a692624f-1fa0-49a2-9015-9cb7361f9d47";
 /// Человекочитаемое имя провайдера.
-const PROVIDER_NAME: &str = "library";
+const PROVIDER_NAME: &str = "books-source";
 
 /// Доступный провайдер тестового source-плагина.
 fn provider() -> SourceProvider {

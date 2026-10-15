@@ -37,7 +37,7 @@ fn loads_only_base_plugins() {
         base_dir.join("plugin-manifest.json"),
         r#"{
         "contract_version": 1,
-        "kind": "base",
+        "level": "framework", "kind": "framework",
         "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
         "name": "notifications",
         "description": "Уведомления",
@@ -87,7 +87,7 @@ fn delivers_events_to_provider() {
         "notifications",
         r#"{
         "contract_version": 1,
-        "kind": "base",
+        "level": "framework", "kind": "framework",
         "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
         "name": "notifications",
         "description": "Уведомления",
@@ -114,7 +114,7 @@ fn refresh_registry_without_provider_is_safe() {
         "demo",
         r#"{
         "contract_version": 1,
-        "kind": "base",
+        "level": "framework", "kind": "framework",
         "id": "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c",
         "name": "demo",
         "description": "Без настроек",
@@ -139,7 +139,7 @@ fn refresh_registry_with_provider_succeeds() {
         "settings",
         r#"{
         "contract_version": 1,
-        "kind": "base",
+        "level": "framework", "kind": "framework",
         "id": "69b39e5d-0c25-4cdb-8c3e-d3ba89147c24",
         "name": "settings",
         "description": "Настройки",
@@ -152,8 +152,8 @@ fn refresh_registry_with_provider_succeeds() {
     let mut host =
         AppPluginHost::load(std::slice::from_ref(&dir), dir.join("storage")).expect("загрузка");
     host.refresh_settings_registry(&[serde_json::json!({
-        "owner": "library",
-        "kind": "source",
+        "owner": "books-source",
+        "kind": "books",
         "schema": { "sections": [] }
     })])
     .expect("регистрация реестра");
@@ -169,8 +169,8 @@ fn refresh_registry_includes_session_sources() {
     let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
         .expect("загрузка базовых плагинов");
     host.refresh_settings_registry(&[serde_json::json!({
-        "owner": "library",
-        "kind": "source",
+        "owner": "books-source",
+        "kind": "books",
         "schema": {
             "title": "Библиотека",
             "sections": [ { "id": "catalog", "title": "Каталог" } ]
@@ -189,8 +189,8 @@ fn refresh_registry_includes_session_sources() {
         .filter_map(|section| section["id"].as_str().map(str::to_string))
         .collect();
     assert!(
-        ids.contains(&"library.catalog".to_string()),
-        "секция source-плагина попала в реестр"
+        ids.contains(&"books-source.catalog".to_string()),
+        "секция плагина источника книг попала в реестр"
     );
     assert!(
         ids.contains(&"app.general".to_string()),
@@ -521,7 +521,7 @@ fn drops_events_without_provider() {
         "demo",
         r#"{
         "contract_version": 1,
-        "kind": "base",
+        "level": "framework", "kind": "framework",
         "id": "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c",
         "name": "demo",
         "description": "Без уведомлений",
@@ -699,13 +699,14 @@ fn reader_theme_reads_setting() {
 /// их между перезапусками runtime, а также безвредный отказ без плагина.
 #[test]
 fn notes_registry_survives_restart() {
-    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join("base-plugins");
+    let resources = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
+    let bundled_base = resources.join("base-plugins");
+    let bundled_plugins = resources.join("plugins");
+    let directories = vec![bundled_base.clone(), bundled_plugins.clone()];
     let storage = test_util::test_root("app-host-notes-restart");
 
-    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
-        .expect("первый запуск");
+    let mut host =
+        AppPluginHost::load(&directories, storage.join("storage")).expect("первый запуск");
     let created = host
         .invoke_capability(
             crate::plugin::contract::CAPABILITY_NOTES,
@@ -730,7 +731,7 @@ fn notes_registry_survives_restart() {
     .expect("добавление заметки");
 
     let mut restarted =
-        AppPluginHost::load(&[bundled], storage.join("storage")).expect("второй запуск");
+        AppPluginHost::load(&directories, storage.join("storage")).expect("второй запуск");
     let output = restarted
         .invoke_capability(
             crate::plugin::contract::CAPABILITY_NOTES,
@@ -751,7 +752,7 @@ fn notes_capability_missing_provider_is_safe() {
         "demo",
         r#"{
         "contract_version": 1,
-        "kind": "base",
+        "level": "framework", "kind": "framework",
         "id": "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c",
         "name": "demo",
         "description": "Без заметок",
