@@ -1,7 +1,7 @@
 ## 1. Проброс дублирования в панель списка открытых вкладок
 
-- [x] 1.1 Добавить в `WorkplaceSurface.svelte` проп панели `onDuplicate={onDuplicateTab}` и в `OpenBooksPanel.svelte` новый проп `onDuplicate: (id: string) => void`; проверить, что `npm run check` не находит ошибок типов.
-- [x] 1.2 Добавить в `OpenBooksPanel.svelte` новый проп `openTabsLimit: number`; пробросить его из `WorkplaceSurface.svelte`; проверить компиляцию и обновить вызовы панели в тестах.
+- [x] 1.1 Добавить в `WorkplaceArea.svelte` проп панели `onDuplicate={onDuplicateTab}` и в `OpenBooksPanel.svelte` новый проп `onDuplicate: (id: string) => void`; проверить, что `npm run check` не находит ошибок типов.
+- [x] 1.2 Добавить в `OpenBooksPanel.svelte` новый проп `openTabsLimit: number`; пробросить его из `WorkplaceArea.svelte`; проверить компиляцию и обновить вызовы панели в тестах.
 
 ## 2. Пункт «Дублировать вкладку» в существующем меню
 
@@ -28,7 +28,7 @@
 ## 6. Компонентные тесты
 
 - [x] 6.1 Дополнить `src/features/workplace/OpenBooksPanel.test.ts` под новые пропсы и пункт меню (дублирование, недоступность, подсветка превышения); убедиться, что `npm test` проходит без пропусков.
-- [x] 6.2 Дополнить `src/features/workplace/WorkplaceSurface.test.ts` под изменённые пропсы панели списка; убедиться, что `npm test` проходит.
+- [x] 6.2 Дополнить `src/features/workplace/WorkplaceArea.test.ts` под изменённые пропсы панели списка; убедиться, что `npm test` проходит.
 
 ## 7. Браузерные тесты и визуальная регрессия
 

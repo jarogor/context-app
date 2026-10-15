@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, ErrorToast, SurfaceScroll, UiRenderer, collectValues, createAsyncState } from '@texture/ui';
+  import { Button, ErrorToast, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@texture/ui';
   import type { UiIntent, UiNode, UiSpaceDeclaration } from '@texture/ui-schema';
   import { listenEvent } from '../../shared/app-bridge';
   import {
@@ -151,7 +151,7 @@
       </svg>
     </Button>
   </div>
-  <SurfaceScroll testId="settings-sections" class="gap-6 p-4">
+  <ScrollArea testId="settings-sections" class="gap-6 p-4">
     {#if declarations.length === 0}
       <div class="p-6 text-center text-[var(--muted-foreground)]">
         Нет зарегистрированных настроек
@@ -173,7 +173,7 @@
         {/if}
       {/each}
     {/if}
-  </SurfaceScroll>
+  </ScrollArea>
   <div
     class="flex shrink-0 items-center justify-end border-t border-[var(--border)] px-4 py-2"
     data-testid="settings-footer"

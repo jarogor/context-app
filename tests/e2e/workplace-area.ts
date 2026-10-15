@@ -5,20 +5,20 @@ export function workspaceButton(page: Page) {
     return page.getByLabel('Рабочее место', { exact: true });
 }
 
-/** Поверхность рабочего места: список рабочих мест или вкладки открытого места. */
-export function workspaceSurface(page: Page) {
-    return page.getByTestId('workplace-surface');
+/** Область рабочего места: список рабочих мест или вкладки открытого места. */
+export function workspaceArea(page: Page) {
+    return page.getByTestId('workplace-area');
 }
 
 /**
- * Видна ли поверхность рабочего места.
+ * Видна ли область рабочего места.
  *
- * Проверяется именно видимость поверхности, а не нажатость кнопки в шапке:
+ * Проверяется именно видимость области, а не нажатость кнопки в шапке:
  * кнопка активна только в списке рабочих мест, поэтому по ней нельзя судить,
  * открыт ли раздел вообще.
  */
-export async function workspaceSurfaceVisible(page: Page): Promise<boolean> {
-    return workspaceSurface(page).isVisible().catch(() => false);
+export async function workspaceAreaVisible(page: Page): Promise<boolean> {
+    return workspaceArea(page).isVisible().catch(() => false);
 }
 
 /** Открытие раздела рабочего места, если он скрыт.
@@ -27,14 +27,14 @@ export async function workspaceSurfaceVisible(page: Page): Promise<boolean> {
  * скрыт (открыт другой), нажатие показывает список, а когда раздел уже открыт —
  * ничего не меняет.
  */
-export async function openWorkspaceSurface(page: Page) {
-    // Готовность оболочки: до её монтирования кнопки и поверхности ещё нет,
+export async function openWorkspaceArea(page: Page) {
+    // Готовность оболочки: до её монтирования кнопки и области ещё нет,
     // поэтому проверка видимости до готовности дала бы ложное «скрыто».
     await workspaceButton(page).waitFor({ state: 'visible' });
-    if (!(await workspaceSurfaceVisible(page))) {
+    if (!(await workspaceAreaVisible(page))) {
         await workspaceButton(page).click();
     }
-    await expect(workspaceSurface(page)).toBeVisible();
+    await expect(workspaceArea(page)).toBeVisible();
 }
 
 /** Показ списка книг библиотеки.
@@ -57,7 +57,7 @@ export async function showLibraryBookList(page: Page) {
  * добавляет её вкладкой.
  */
 export async function addBookToWorkspace(page: Page, title: string | RegExp) {
-    await openWorkspaceSurface(page);
+    await openWorkspaceArea(page);
     const open = page.getByTestId('workspace-open').first();
     if (await open.isVisible().catch(() => false)) {
         await open.click();
@@ -70,5 +70,5 @@ export async function addBookToWorkspace(page: Page, title: string | RegExp) {
     }
     await library.getByRole('button', { name: title }).click();
     await library.getByRole('button', { name: /Добавить в/ }).click();
-    await expect(page.getByTestId('workplace-surface')).toBeVisible();
+    await expect(page.getByTestId('workplace-area')).toBeVisible();
 }

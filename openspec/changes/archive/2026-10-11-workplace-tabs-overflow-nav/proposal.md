@@ -45,10 +45,10 @@
 
 - Фронтенд рабочего места: `src/features/workplace/WorkplaceTabs.svelte` (разметка
   панели, лимит видимых вкладок, навигация и счётчик, закрепление кнопок
-  действий), при необходимости `src/features/workplace/WorkplaceSurface.svelte`
+  действий), при необходимости `src/features/workplace/WorkplaceArea.svelte`
   (передача данных о числе вкладок).
 - Существующие проверки вкладок: `tests/e2e/workplace-tabs.spec.ts`,
-  `src/features/workplace/WorkplaceSurface.test.ts`, визуальная регрессия
+  `src/features/workplace/WorkplaceArea.test.ts`, визуальная регрессия
   `tests/e2e/visual.spec.ts`.
 - Поведение вкладок (переключение, закрытие, дублирование, сохранение состояния),
   контракты Tauri, WASM host-функции, форматы хранения и данные не затрагиваются.

@@ -15,7 +15,7 @@
 оформление`, `Закрыть вкладку` (`appearanceActions`). Панель не получает лимит
 вкладок и не знает о блокировке.
 
-Проброс действий — `WorkplaceSurface.svelte` (`onCloseTab`, `onDuplicateTab`,
+Проброс действий — `WorkplaceArea.svelte` (`onCloseTab`, `onDuplicateTab`,
 `onEditTabAppearance`) и `App.svelte`, где обработчик дублирования уже вызывает
 `updateCurrentWorkspaceTabs(registry, (state) => duplicateTab(state, id, openTabsLimit))`.
 Модальное окно — общий компонент `Dialog` из `@texture/ui` (Bits UI), уже
@@ -52,7 +52,7 @@
 `OpenBooksPanel.svelte` в `appearanceActions` добавляется пункт
 `{ id: 'duplicate', label: 'Дублировать вкладку' }`, обрабатываемый в
 `runAppearanceAction` вызовом нового пропа `onDuplicate(tab.id)`. Проп
-пробрасывается из `WorkplaceSurface.svelte` от существующего `onDuplicateTab` и
+пробрасывается из `WorkplaceArea.svelte` от существующего `onDuplicateTab` и
 далее в `App.svelte` на тот же `duplicateTab(state, id, openTabsLimit)`.
 
 - Альтернатива: отдельное контекстное меню на вкладке верхней панели по правому
@@ -82,7 +82,7 @@
 
 **3. Доступность дублирования и индикация превышения — через общий
 `openAvailability`.** Панель списка получает новый проп `openTabsLimit`
-(проброс из `WorkplaceSurface`). Компонент вычисляет
+(проброс из `WorkplaceArea`). Компонент вычисляет
 `availability = openAvailability(tabs.length, openTabsLimit)` и на этом основании:
 
 - пункт меню `duplicate` получает `disabled: availability !== 'available'`;
@@ -93,7 +93,7 @@
 `WorkplaceTabs.svelte` (панель вкладок видна всегда), чтобы не дублировать записи
 в журнале.
 
-- Альтернатива: считать доступность в `WorkplaceSurface` и передавать готовый
+- Альтернатива: считать доступность в `WorkplaceArea` и передавать готовый
   флаг в обе панели. Возможна, но раздувает пропсы; локальный расчёт через
   существующую чистую функцию дешевле.
 

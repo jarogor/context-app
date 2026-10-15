@@ -1,6 +1,6 @@
 ## 1. Дизайн-система: тема области чтения
 
-- [x] 1.1 Создать `packages/ui/src/reader-theme.ts`: тип `ReaderThemeId = 'light' | 'dark'` (расширяемый), `DEFAULT_READER_THEME = 'light'`, `isReaderThemeId`/`normalizeReaderThemeId`, тип токенов поверхности чтения (фон, цвет текста, вторичный текст, ссылки), мягкие тона заметок и функцию `readerThemeTokens(palette, id)` с наборами для Gruvbox и Mist; проверить `npm test -w @texture/ui`
+- [x] 1.1 Создать `packages/ui/src/reader-theme.ts`: тип `ReaderThemeId = 'light' | 'dark'` (расширяемый), `DEFAULT_READER_THEME = 'light'`, `isReaderThemeId`/`normalizeReaderThemeId`, тип токенов области чтения (фон, цвет текста, вторичный текст, ссылки), мягкие тона заметок и функцию `readerThemeTokens(palette, id)` с наборами для Gruvbox и Mist; проверить `npm test -w @texture/ui`
 - [x] 1.2 Покрыть `reader-theme.ts` юнит-тестами: нормализация неизвестного значения к `light`; для каждой палитры и стороны различаются фон и текст; тона заметок светлой стороны совпадают с прежними, тёмная сторона отличается и задана для всех цветов
 - [x] 1.3 Экспортировать модуль из `packages/ui/src/index.ts`; проверить, что экспорт доступен и `npm test -w @texture/ui` проходит
 - [x] 1.4 Добавить в `packages/ui/src/tokens.css` токены области чтения для `:root[data-reader-theme='light'|'dark']` (для каждой палитры), если они нужны хосту/списку; проверить сборку пакета и отсутствие литералов оформления в компонентах
@@ -19,7 +19,7 @@
 
 ## 4. Читалка: переключатель и общая настройка
 
-- [x] 4.1 Передавать значение `reader.theme` из приложения в читалку (проп от `App.svelte`/`Root.svelte` через `WorkplaceSurface` → `WorkplaceTabPage` → `ReaderPage`); смена применяется ко всем вкладкам сразу
+- [x] 4.1 Передавать значение `reader.theme` из приложения в читалку (проп от `App.svelte`/`Root.svelte` через `WorkplaceArea` → `WorkplaceTabPage` → `ReaderPage`); смена применяется ко всем вкладкам сразу
 - [x] 4.2 Добавить в `ReaderFooter.svelte` переключатель темы области чтения рядом с масштабом (иконка/кнопки `light`/`dark` с подсказками) с колбэком изменения; покрыть компонентным тестом
 - [x] 4.3 В `ReaderPage.svelte` связать переключатель с сохранением значения через `saveSettingsValues(APP_SETTINGS_SECTION, { 'reader.theme': ... })`; проверить, что интерфейсная тема не меняется
 - [x] 4.4 В `src/features/appearance/theme.ts` добавить константы/чтение `reader.theme` (`loadReaderTheme`), извлечение из события `settings:changed` (`readerThemeFromSettingsEvent`); покрыть юнит-тестами с мок-мостом

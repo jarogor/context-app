@@ -57,7 +57,7 @@ beforeEach(() => {
 });
 
 describe('страница библиотеки', () => {
-  it('не запрашивает форматы чтения, пока поверхность скрыта без библиотеки', async () => {
+  it('не запрашивает форматы чтения, пока область скрыта без библиотеки', async () => {
     render(LibraryPage, {
       props: { initialActiveLibrary: null, visible: false, onOpenInWorkplace: vi.fn() },
     });
@@ -67,7 +67,7 @@ describe('страница библиотеки', () => {
     expect(invoke.mock.calls.some(([command]) => command === 'reader_formats')).toBe(false);
   });
 
-  it('запрашивает форматы чтения при показе поверхности библиотеки', async () => {
+  it('запрашивает форматы чтения при показе области библиотеки', async () => {
     render(LibraryPage, {
       props: { initialActiveLibrary: null, visible: true, onOpenInWorkplace: vi.fn() },
     });

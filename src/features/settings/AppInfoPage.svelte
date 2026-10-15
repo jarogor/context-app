@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Card, SurfaceScroll } from '@texture/ui';
+  import { Card, ScrollArea } from '@texture/ui';
   import { invokeCommand } from '../../shared/app-bridge';
 
   /** Служебное расположение в сведениях о приложении. */
@@ -59,7 +59,7 @@
   });
 </script>
 
-<SurfaceScroll testId="app-info-page" class="gap-4 p-4">
+<ScrollArea testId="app-info-page" class="gap-4 p-4">
   {#if error}
     <div class="text-[13px] text-[var(--destructive)]">{error}</div>
   {:else if !info}
@@ -98,4 +98,4 @@
       </ul>
     </Card>
   {/if}
-</SurfaceScroll>
+</ScrollArea>

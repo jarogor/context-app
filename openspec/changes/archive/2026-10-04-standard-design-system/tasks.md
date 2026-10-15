@@ -6,7 +6,7 @@
 ## 2. Токены по стандарту shadcn-svelte
 
 - [x] 2.1 Переписать `packages/ui/src/tokens.css` на стандартную схему (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--radius` и `-foreground`-пары) в `oklch`; светлый набор в `:root`, тёмный — в `:root[data-theme='dark']`; базовый цвет — `mist`
-- [x] 2.2 Добавить только отсутствующие в стандарте токены, реально нужные поверхностям: `--success`, `--warning`, `--primary-soft`, `--destructive-soft`, `--destructive-border` (для светлого и тёмного наборов)
+- [x] 2.2 Добавить только отсутствующие в стандарте токены, реально нужные областям: `--success`, `--warning`, `--primary-soft`, `--destructive-soft`, `--destructive-border` (для светлого и тёмного наборов)
 - [x] 2.3 Добавить блок `@theme inline` (маппинг токенов в утилиты Tailwind v4: `--color-background`, `--color-foreground`, `--color-primary`, `--radius-*` и т.д.); проверить, что утилиты вида `bg-primary`/`text-muted-foreground` работают
 
 ## 3. Компоненты на Bits UI и tailwind-variants

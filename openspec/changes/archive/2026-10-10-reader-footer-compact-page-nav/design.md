@@ -1,7 +1,7 @@
 ## Context
 
 См. `proposal.md` — Why. Текущее устройство нижней панели чтения
-(`src/features/reader/ReaderFooter.svelte`, рисуется `WorkplaceSurface.svelte` из
+(`src/features/reader/ReaderFooter.svelte`, рисуется `WorkplaceArea.svelte` из
 снимка активной вкладки):
 
 ```
@@ -12,14 +12,14 @@
   «из N», а затем отдельное `<input aria-label="Перейти к странице">` с локальным
   `pageInput`.
 - `pageInput` живёт сквозной привязкой: `ReaderFooter` `bind:pageInput` ↔
-  `WorkplaceSurface.pageInput` ↔ команда `ReaderPage.gotoFooterPage(value)`.
+  `WorkplaceArea.pageInput` ↔ команда `ReaderPage.gotoFooterPage(value)`.
   Значение поля не сбрасывается на текущую страницу, поэтому расходится с
   отображаемым номером.
 - Ряд навигации — обычный `flex` без признаков `shrink-0`/`whitespace-nowrap`,
   поэтому при узком окне надписи переносятся и блок «съезжает» по вертикали.
 - `Progress` и процентная цифра показываются всегда, полоса не адаптируется.
 - Единая точка «узкое окно» в проекте — `max-[899px]` (панели заметок и
-  уведомлений, `matchMedia('(max-width: 899px)')` в `WorkplaceSurface`).
+  уведомлений, `matchMedia('(max-width: 899px)')` в `WorkplaceArea`).
 
 Навигация по страницам доступна только для страничных форматов
 (`workplace && workplacePages && workplacePage !== null`); текстовые форматы
@@ -69,12 +69,12 @@
 
 - `ReaderPage`: `gotoFooterPage(value: string)` заменяется командой перехода по
   **числу** (разбор и границы — на стороне нижней панели/`clampPage`).
-- `WorkplaceSurface`: состояние `pageInput` и `goToPage(value: string)` убираются;
+- `WorkplaceArea`: состояние `pageInput` и `goToPage(value: string)` убираются;
   `ReaderFooter` получает колбэк `onGoToPage(page: number)` и вызывает его сам.
 - `ReaderFooter`: черновик ввода — локальное состояние компонента; наружу уходит
   уже разобранное число.
 
-**Альтернатива:** держать `pageInput` в `WorkplaceSurface` и синхронизировать его
+**Альтернатива:** держать `pageInput` в `WorkplaceArea` и синхронизировать его
 со снимком. Отклонено — панель уже владеет снимком и отрисовкой, лишнее состояние
 на уровне рабочего места усложняет синхронизацию.
 
@@ -105,7 +105,7 @@ JS-состояния и рассинхрона.
 - [Изменение семантики поля ломает существующие e2e-запросы] → Обновить
   `tests/e2e/pdf-reader.spec.ts` (лейбл `Перейти к странице` → `Текущая страница`,
   текст `из N` → `/ N`, идентификатор номера страницы) и компонентные тесты
-  `ReaderFooter.test.ts`, `WorkplaceSurface.test.ts`; идентификатор `reader-pages`
+  `ReaderFooter.test.ts`, `WorkplaceArea.test.ts`; идентификатор `reader-pages`
   сохранить.
 - [Скрытая полоса остаётся в DOM] → Скрытие через `display: none` убирает её из
   раскладки; тест проверяет видимость (`toBeHidden`), а не отсутствие в DOM.

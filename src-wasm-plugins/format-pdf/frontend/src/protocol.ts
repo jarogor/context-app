@@ -91,7 +91,7 @@ export interface ReaderThemeMessage {
 export interface ReaderThemeValue {
   /** Сторона темы. */
   id?: string;
-  /** Токены поверхности чтения. */
+  /** Токены области чтения. */
   tokens?: Record<string, unknown>;
   /** Мягкие тона заметок. */
   notes?: Record<string, string>;

@@ -1,4 +1,4 @@
-/** Тема области чтения: оформление поверхности книги, отдельное от интерфейса.
+/** Тема области чтения: оформление чтения книги, отдельное от интерфейса.
  *
  * Область чтения — изолированный документ (встроенное чтение EPUB и песочница
  * плагина рабочего места) и не наследует CSS оболочки. Поэтому значения темы
@@ -21,7 +21,7 @@ export const DEFAULT_READER_THEME: ReaderThemeId = 'light';
 /** Все допустимые значения темы области чтения. */
 export const READER_THEMES = ['light', 'dark'] as const;
 
-/** Токены оформления поверхности чтения. */
+/** Токены оформления области чтения. */
 export interface ReaderThemeTokens {
   /** Фон области чтения. */
   background: string;
@@ -39,7 +39,7 @@ export interface ReaderThemeTokens {
   selectionEdgeWidth: number;
 }
 
-/** Идентификаторы цветов заметок, общие для всех поверхностей. */
+/** Идентификаторы цветов заметок, общие для всех областей. */
 export const READER_NOTE_COLOR_IDS = [
   'yellow',
   'green',
@@ -80,7 +80,7 @@ export function applyReaderTheme(
   root.dataset.readerTheme = normalizeReaderThemeId(id);
 }
 
-/** Токены поверхности чтения для палитры и стороны. */
+/** Токены области чтения для палитры и стороны. */
 export function readerThemeTokens(
   palette: PaletteId,
   id: ReaderThemeId,
@@ -238,7 +238,7 @@ export function readerPageColors(palette: PaletteId): ReaderPageColors {
   return palette === 'mist' ? MIST_DARK_PAGE : GRUVBOX_DARK_PAGE;
 }
 
-/** Светлые токены поверхности чтения по палитрам. */
+/** Светлые токены области чтения по палитрам. */
 const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
   gruvbox: {
     background: '#fbf1c7',
@@ -265,7 +265,7 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
   },
 };
 
-/** Тёмные токены поверхности чтения по палитрам. */
+/** Тёмные токены области чтения по палитрам. */
 const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
   gruvbox: {
     background: '#282828',

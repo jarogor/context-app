@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { showLibraryBookList } from './workspace-surface';
+import { showLibraryBookList } from './workplace-area';
 
 /** Показ списка книг библиотеки через раздел «Библиотеки». */
 async function showLibrary(page: import('@playwright/test').Page) {
@@ -10,7 +10,7 @@ test('оболочка показывает панель и переключае
     await page.goto('/');
 
     await expect(page.getByText('Текстура')).toBeVisible();
-    await expect(page.getByTestId('workplace-surface')).toBeVisible();
+    await expect(page.getByTestId('workplace-area')).toBeVisible();
 
     // Полноэкранные настройки: шапка с кнопками разделов скрыта.
     await page.getByLabel('Настройки', { exact: true }).click();
@@ -55,7 +55,7 @@ test('при запуске открыт список рабочих мест', 
         'aria-pressed',
         'true',
     );
-    await expect(page.getByTestId('workplace-surface')).toBeVisible();
+    await expect(page.getByTestId('workplace-area')).toBeVisible();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 });
 
@@ -212,7 +212,7 @@ test('список библиотек адаптивен к ширине окн�
 
 test('открытие панели уведомлений не ломает список библиотек', async ({ page }) => {
     // Окно 1200px: открытие панели сужает область настолько, что список не
-    // должен переполняться — поверхность переходит на одноколоночную раскладку.
+    // должен переполняться — область переходит на одноколоночную раскладку.
     await page.setViewportSize({ width: 1200, height: 800 });
     await page.goto('/');
     await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();

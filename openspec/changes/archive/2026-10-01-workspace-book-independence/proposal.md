@@ -56,7 +56,7 @@
   `plugin/mod.rs`; `src-tauri/src/workspace_state.rs` хранит `path` (с алиасом
   `book_id` для миграции).
 - Фронтенд-оболочка: `src/lib/workplace.ts` (вложение-путь), `src/lib/reader/`
-  (API по пути), `src/lib/ReaderPage.svelte`, `src/lib/WorkplaceSurface.svelte`,
+  (API по пути), `src/lib/ReaderPage.svelte`, `src/lib/WorkplaceArea.svelte`,
   `src/lib/WorkplaceTabs.svelte`, `src/lib/WorkplaceContent.svelte`,
   `src/lib/notes.ts` (ключ книги — путь), `src/App.svelte` (открытие и
   переуказание через системный диалог).

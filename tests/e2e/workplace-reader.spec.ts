@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openWorkspaceSurface } from './workspace-surface';
+import { openWorkspaceArea } from './workplace-area';
 
 /** Простейший модуль рисования плагина рабочего места для браузерного теста. */
 const VIEWER_HTML = `<!doctype html><html lang="ru"><body>
@@ -63,7 +63,7 @@ test.beforeEach(async ({ page }) => {
 /** Открытие книги формата demo на рабочем месте. */
 async function openWorkplace(page: import('@playwright/test').Page) {
     await page.goto('/');
-    await openWorkspaceSurface(page);
+    await openWorkspaceArea(page);
     const list = page.getByTestId('workspaces-page');
     if (await list.isVisible().catch(() => false)) {
         const open = page.getByTestId('workspace-open').first();

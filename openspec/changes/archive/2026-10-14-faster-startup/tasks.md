@@ -5,7 +5,7 @@
 
 ## 2. Снятие лишнего со старта
 
-- [x] 2.1 Убрать безусловный вызов `reader_formats()` из `onMount` в `src/features/library/LibraryPage.svelte` и запрашивать форматы при показе поверхности библиотеки/открытии книги; проверить `src/features/library/LibraryPage.test.ts` и добавить сценарий «форматы не запрашиваются без библиотеки»
+- [x] 2.1 Убрать безусловный вызов `reader_formats()` из `onMount` в `src/features/library/LibraryPage.svelte` и запрашивать форматы при показе области библиотеки/открытии книги; проверить `src/features/library/LibraryPage.test.ts` и добавить сценарий «форматы не запрашиваются без библиотеки»
 - [x] 2.2 Убрать `listAllSets()` из `src/features/lifecycle/bootstrap.ts` (поле `notesLibrary` в `BootstrapState`); обновить `src/app/Root.svelte` и `src/app/App.svelte`
 - [x] 2.3 Загружать реестр заметок в `src/app/App.svelte` при открытии раздела «Заметки» с показом индикатора; проверить `src/app/App.test.ts` и `src/features/notes-library/NotesLibraryPage.test.ts`
 - [x] 2.4 Обновить `src/features/lifecycle/bootstrap.test.ts`: реестр заметок больше не читается на стадии начальной загрузки; тесты проходят

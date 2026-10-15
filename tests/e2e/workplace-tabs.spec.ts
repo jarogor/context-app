@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openWorkspaceSurface } from './workspace-surface';
+import { openWorkspaceArea } from './workplace-area';
 
 /** Ответ активной библиотеки для сценариев вкладок. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
@@ -58,7 +58,7 @@ function tooltip(page: import('@playwright/test').Page, label: string) {
 
 /** Добавление книги вкладкой в рабочее место. */
 async function addBook(page: import('@playwright/test').Page, title: string) {
-    await openWorkspaceSurface(page);
+    await openWorkspaceArea(page);
     const list = page.getByTestId('workspaces-page');
     if (await list.isVisible().catch(() => false)) {
         const open = page.getByTestId('workspace-open').first();
@@ -75,7 +75,7 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
     }
     await library.getByRole('button', { name: new RegExp(title) }).click();
     await library.getByRole('button', { name: /Добавить в/ }).click();
-    await expect(page.getByTestId('workplace-surface')).toBeVisible();
+    await expect(page.getByTestId('workplace-area')).toBeVisible();
 }
 
 test('переключение вкладок меняет активную книгу', async ({ page }) => {
@@ -333,7 +333,7 @@ async function closeSettings(page: import('@playwright/test').Page) {
  *
  * Выбран настоящий путь через интерфейс, а не прямая эмуляция события
  * `settings:changed`: так проверяется, что значение из поля настроек
- * действительно доходит до поверхности рабочего места. Правка подтверждается
+ * действительно доходит до области рабочего места. Правка подтверждается
  * единой кнопкой сохранения страницы настроек.
  */
 async function saveOpenTabsLimit(page: import('@playwright/test').Page, limit: number) {
@@ -455,7 +455,7 @@ test('цвет вкладки заливает её и в панели, и на 
     await panel.getByLabel('Оформление вкладки').click();
     await page.getByTestId('menu-color-blue').click();
 
-    // Заливка приглушённым тоном цвета: смешивание с фоном поверхности.
+    // Заливка приглушённым тоном цвета: смешивание с фоном области.
     await expect(panel.getByTestId('open-books-item')).toHaveAttribute('style', /color-mix/);
     await expect(tab(page, 'Демо-книга')).toHaveAttribute('style', /color-mix/);
 

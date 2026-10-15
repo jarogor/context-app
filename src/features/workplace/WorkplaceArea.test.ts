@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
-import WorkplaceSurface from './WorkplaceSurface.svelte';
+import WorkplaceArea from './WorkplaceArea.svelte';
 import { DEFAULT_NOTE_TOOL, normalizeNote, noteList } from '../notes/notes';
 
-/** Обязательные обработчики поверхности с заглушками. */
+/** Обязательные обработчики области с заглушками. */
 function handlers() {
     return {
         openTabsLimit: 50,
@@ -53,7 +53,7 @@ function panels() {
     };
 }
 
-/** Свойства поверхности с текущим местом и одной открытой вкладкой. */
+/** Свойства области с текущим местом и одной открытой вкладкой. */
 function workplaceProps(overrides: { listMode: boolean }) {
     return {
         workspace: {
@@ -83,9 +83,9 @@ function workplaceProps(overrides: { listMode: boolean }) {
     };
 }
 
-describe('поверхность рабочего места: список и вкладки', () => {
+describe('область рабочего места: список и вкладки', () => {
     it('показывает список при отсутствии активного рабочего места', () => {
-        render(WorkplaceSurface, {
+        render(WorkplaceArea, {
             props: {
                 workspace: null,
                 workspaces: [
@@ -105,7 +105,7 @@ describe('поверхность рабочего места: список и в
     });
 
     it('показывает вкладки при активном рабочем месте', () => {
-        render(WorkplaceSurface, {
+        render(WorkplaceArea, {
             props: {
                 workspace: {
                     id: 'ws-1',
@@ -139,7 +139,7 @@ describe('поверхность рабочего места: список и в
     });
 
     it('показывает список в режиме списка даже при активном рабочем месте', () => {
-        render(WorkplaceSurface, {
+        render(WorkplaceArea, {
             props: {
                 workspace: {
                     id: 'ws-1',
@@ -165,7 +165,7 @@ describe('поверхность рабочего места: список и в
     });
 
     it('оставляет вкладки смонтированными, когда показан список', () => {
-        render(WorkplaceSurface, {
+        render(WorkplaceArea, {
             props: workplaceProps({ listMode: true }),
         });
 
@@ -178,7 +178,7 @@ describe('поверхность рабочего места: список и в
     });
 
     it('показывает слой вкладок после выхода из списка', async () => {
-        const { rerender } = render(WorkplaceSurface, {
+        const { rerender } = render(WorkplaceArea, {
             props: workplaceProps({ listMode: true }),
         });
         expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('false');
@@ -192,7 +192,7 @@ describe('поверхность рабочего места: список и в
 
     it('передаёт возврат к списку из панели вкладок', async () => {
         const base = handlers();
-        render(WorkplaceSurface, {
+        render(WorkplaceArea, {
             props: {
                 workspace: {
                     id: 'ws-1',
@@ -217,7 +217,7 @@ describe('поверхность рабочего места: список и в
     });
 
     it('показывает общую нижнюю панель при открытой вкладке', () => {
-        render(WorkplaceSurface, {
+        render(WorkplaceArea, {
             props: {
                 workspace: {
                     id: 'ws-1',
@@ -264,7 +264,7 @@ describe('поверхность рабочего места: список и в
             dispatchEvent: () => false,
         } as unknown as MediaQueryList);
         const base = handlers();
-        render(WorkplaceSurface, {
+        render(WorkplaceArea, {
             props: {
                 workspace: {
                     id: 'ws-1',
@@ -307,7 +307,7 @@ describe('поверхность рабочего места: список и в
 
     it('передаёт правку оформления вкладки из панели открытых книг', async () => {
         const base = handlers();
-        render(WorkplaceSurface, {
+        render(WorkplaceArea, {
             props: {
                 workspace: {
                     id: 'ws-1',

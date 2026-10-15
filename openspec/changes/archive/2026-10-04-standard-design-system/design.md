@@ -37,7 +37,7 @@
 - Пользовательские темы, редактор палитры, темы из плагинов.
 - Переход на CLI-managed workflow (мы храним исходники компонентов у себя — как
   и предполагает shadcn-svelte).
-- Новые компоненты сверх нужных текущим поверхностям.
+- Новые компоненты сверх нужных текущим областям.
 
 ## Decisions
 
@@ -65,7 +65,7 @@ Tailwind v4-интеграция shadcn, чтобы утилиты (`bg-primary`
 (`--radius`, `--background`, `--foreground`, `--card`, `--popover`, `--primary`,
 `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`,
 `--ring` и их `-foreground`). Дополнительно объявляем только те, что реально
-нужны поверхностям и отсутствуют в стандарте: `--success`, `--warning` (по
+нужны областям и отсутствуют в стандарте: `--success`, `--warning` (по
 конвенции shadcn «Adding new colors») и мягкие фоны `--primary-soft`,
 `--destructive-soft`, `--destructive-border`. Всё лишнее (`--color-bg`,
 `--color-surface`, … `--space-*`) удаляем; `--font-sans`/`--font-mono`

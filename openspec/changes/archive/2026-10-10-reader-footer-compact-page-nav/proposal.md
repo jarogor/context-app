@@ -41,7 +41,7 @@
 
 - Читалка: `src/features/reader/ReaderFooter.svelte` (разметка и логика блока
   страниц, поле ввода, прогресс).
-- Рабочее место: `src/features/workplace/WorkplaceSurface.svelte` и
+- Рабочее место: `src/features/workplace/WorkplaceArea.svelte` и
   `src/features/reader/ReaderPage.svelte` — убирается сквозная привязка
   `pageInput`/`gotoFooterPage`; переход выполняется по значению поля текущей
   страницы.

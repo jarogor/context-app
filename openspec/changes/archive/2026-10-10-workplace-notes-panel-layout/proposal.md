@@ -43,12 +43,12 @@
 
 ## Impact
 
-- Фронтенд: `src/features/workplace/WorkplaceSurface.svelte` (структура области:
+- Фронтенд: `src/features/workplace/WorkplaceArea.svelte` (структура области:
   ряд «текст + панель заметок», общая нижняя панель ниже), оболочка
   `src/app/App.svelte` (передача автозакрытия панели), `src/features/reader/ReaderPage.svelte`
   (нижняя панель выносится на уровень рабочего места), `src/features/notes/NotesPanel.svelte`
   (адаптивная ширина), `packages/ui` (новый токен ширины панели заметок).
 - Контракты Tauri, WASM host-функции, форматы хранения, публичные операции
   плагинов — без изменений.
-- Тесты: компонентные `WorkplaceSurface.test.ts`, `NotesPanel.test.ts`,
+- Тесты: компонентные `WorkplaceArea.test.ts`, `NotesPanel.test.ts`,
   `ReaderPage.test.ts`, браузерные — раскладка и адаптивность рабочего места.

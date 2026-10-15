@@ -125,7 +125,7 @@ html[data-reader-theme='dark'] .overlay .note-shape {
   pointer-events: none;
 }
 /* Мягкость заливки задаётся прозрачностью на слое фигуры: цвет берётся из
-   темы области чтения, а прозрачность — общая для всех поверхностей. */
+   темы области чтения, а прозрачность — общая для всех областей. */
 .overlay .note-shape rect,
 .overlay .note-shape ellipse {
   fill-opacity: 0.5;

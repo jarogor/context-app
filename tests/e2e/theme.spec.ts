@@ -42,7 +42,7 @@ test('выбор тёмной темы в настройках переключ�
   await openSettings(page);
 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  const surface = await page
+  const background = await page
     .locator('header')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
@@ -53,7 +53,7 @@ test('выбор тёмной темы в настройках переключ�
     .poll(async () =>
       page.locator('header').evaluate((element) => getComputedStyle(element).backgroundColor),
     )
-    .not.toBe(surface);
+    .not.toBe(background);
   await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
 });
 
@@ -61,7 +61,7 @@ test('выбор палитры в настройках меняет цвета 
   await openSettings(page);
 
   await expect(page.locator('html')).toHaveAttribute('data-palette', 'gruvbox');
-  const surface = await page
+  const background = await page
     .locator('header')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
@@ -72,5 +72,5 @@ test('выбор палитры в настройках меняет цвета 
     .poll(async () =>
       page.locator('header').evaluate((element) => getComputedStyle(element).backgroundColor),
     )
-    .not.toBe(surface);
+    .not.toBe(background);
 });

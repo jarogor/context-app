@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Card, Checkbox, ErrorToast, IconButton, Input, Select, SurfaceScroll, createAsyncState } from '@texture/ui';
+  import { Badge, Button, Card, Checkbox, ErrorToast, IconButton, Input, Select, ScrollArea, createAsyncState } from '@texture/ui';
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import {
     addStore as addStoreEntry,
@@ -225,7 +225,7 @@
   });
 </script>
 
-<SurfaceScroll testId="store-page" class="gap-4 p-4">
+<ScrollArea testId="store-page" class="gap-4 p-4">
   <Card>
     <div class="mb-3 flex items-start justify-between gap-3">
       <h2 class="text-base font-semibold">Плагины</h2>
@@ -384,6 +384,6 @@
       <Button variant="primary" onclick={addStore}>Добавить стор</Button>
     </div>
   </Card>
-</SurfaceScroll>
+</ScrollArea>
 
 <ErrorToast message={asyncState.error} />

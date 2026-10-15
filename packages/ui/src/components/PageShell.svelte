@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import SurfaceScroll from './SurfaceScroll.svelte';
+  import ScrollArea from './ScrollArea.svelte';
 
   interface Props {
     /** Содержимое страницы, когда нет состояний загрузки, ошибки или пустоты. */
@@ -84,7 +84,7 @@
   {/if}
 {/snippet}
 
-<SurfaceScroll
+<ScrollArea
   testId={testId}
   class={className}
 >
@@ -110,4 +110,4 @@
       {@render content()}
     {/if}
   </div>
-</SurfaceScroll>
+</ScrollArea>

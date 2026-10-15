@@ -18,7 +18,7 @@
 
 - [x] 4.1 Переработать `src/lib/reader/index.ts`: `formatFromPath`, чтение по пути через `reader_*`, форматы и плагин рабочего места по пути; обновить тесты
 - [x] 4.2 Переработать `ReaderPage.svelte`: чтение по пути, отсутствие состояния «библиотека не открыта», заглушка недоступной книги с «Указать файл» и «Убрать вкладку»
-- [x] 4.3 Обновить `WorkplaceSurface.svelte`, `WorkplaceTabs.svelte`, `WorkplaceContent.svelte` на путь и кнопку «Открыть файл с диска»
+- [x] 4.3 Обновить `WorkplaceArea.svelte`, `WorkplaceTabs.svelte`, `WorkplaceContent.svelte` на путь и кнопку «Открыть файл с диска»
 
 ## 5. Поток открытия и переуказания
 

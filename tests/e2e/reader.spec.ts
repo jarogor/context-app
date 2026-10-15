@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { showLibraryBookList, workspaceButton } from './workspace-surface';
+import { showLibraryBookList, workspaceButton } from './workplace-area';
 
 /** Ответ активной библиотеки для сценариев рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
@@ -194,7 +194,7 @@ test('возврат к библиотеке сохраняет состояни
 
     const library = page.locator('main');
     await expect(library.getByTestId('book-title')).toHaveText('Демо-книга');
-    await expect(page.getByTestId('workplace-surface')).toBeHidden();
+    await expect(page.getByTestId('workplace-area')).toBeHidden();
 });
 
 test('со страницы книги можно вернуться к списку', async ({ page }) => {

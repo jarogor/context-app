@@ -71,7 +71,7 @@
 - **Оболочка:** `src/features/notes/notes.ts`, `NotesPanel.svelte`,
   `NoteColorMenu.svelte`; `src/features/reader/BookReader.svelte`,
   `reader/anchor.ts`, `reader/highlight.ts`, `reader/overlay.ts`, `ReaderPage.svelte`,
-  `WorkplaceContent.svelte`; `src/features/workplace/WorkplaceSurface.svelte`,
+  `WorkplaceContent.svelte`; `src/features/workplace/WorkplaceArea.svelte`,
   `WorkplaceTabPage.svelte`, `NoteToolbar.svelte`; `src/app/App.svelte`.
 - **Дизайн-система:** панель инструментов, карточка текста и общий выбор цвета
   (`ColorPicker`) собираются из `@texture/ui`; собственных `<style>`-блоков не

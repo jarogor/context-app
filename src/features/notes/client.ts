@@ -258,7 +258,7 @@ export async function updateNoteDetails(
  *
  * Используется правкой текстовой карточки из её контекстного меню: оба поля
  * идут одним патчем `update_note`, чтобы текст карточки и её цвет сохранялись
- * и отражались на всех поверхностях.
+ * и отражались на всех областях.
  */
 export async function updateNoteText(
     key: string,

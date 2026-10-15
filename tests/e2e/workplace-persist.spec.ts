@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { addBookToWorkspace } from './workspace-surface';
+import { addBookToWorkspace } from './workplace-area';
 
 /** Ответ активной библиотеки для сценариев сохранения рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };

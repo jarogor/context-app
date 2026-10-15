@@ -156,7 +156,7 @@ test('настройки открываются на всё окно без ша
   ).toBeVisible();
 });
 
-test('кнопка закрытия и Escape возвращают прежнюю поверхность', async ({ page }) => {
+test('кнопка закрытия и Escape возвращают прежнюю область', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
 

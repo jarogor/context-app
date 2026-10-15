@@ -41,7 +41,7 @@
     notesLoading: boolean;
     /** Есть ли активная книга. */
     hasBook: boolean;
-    /** Видима ли поверхность рабочего места. */
+    /** Видима ли область рабочего места. */
     visible: boolean;
     /** Выбор вкладки. */
     onSelectTab: (id: string) => void;
@@ -267,7 +267,7 @@
   }
 </script>
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-surface">
+<div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-area">
   {#if listMode || workspace === null}
     <WorkspacesPage
       {workspaces}

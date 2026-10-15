@@ -12,7 +12,7 @@
 ## 3. Оболочка принимает начальное состояние
 
 - [x] 3.1 `App.svelte`: принять `initialRegistry` и `initialLibrary`, инициализировать состояние через `untrack`; убрать «догоняющую» загрузку реестра и флаг `registryLoaded`
-- [x] 3.2 Убрать промежуточный индикатор загрузки из `WorkplaceSurface.svelte` и `WorkspacesPage.svelte` (проп `registryLoading`/`loading`)
+- [x] 3.2 Убрать промежуточный индикатор загрузки из `WorkplaceArea.svelte` и `WorkspacesPage.svelte` (проп `registryLoading`/`loading`)
 
 ## 4. Тесты
 

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addBookToWorkspace, openWorkspaceSurface } from './workspace-surface';
+import { addBookToWorkspace, openWorkspaceArea } from './workplace-area';
 
 /** Корень репозитория. */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -382,9 +382,9 @@ async function alignmentError(page: Page) {
     );
 }
 
-/** Возврат на поверхность рабочего места после перезагрузки. */
+/** Возврат на область рабочего места после перезагрузки. */
 async function reopenWorkplace(page: Page) {
-    await openWorkspaceSurface(page);
+    await openWorkspaceArea(page);
     const open = page.getByTestId('workspace-open').first();
     if (await open.isVisible().catch(() => false)) {
         await open.click();

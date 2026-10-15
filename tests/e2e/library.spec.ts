@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { bottomReachable } from './scroll';
-import { showLibraryBookList } from './workspace-surface';
+import { showLibraryBookList } from './workplace-area';
 
 /** Ответ активной библиотеки для сценариев библиотечного UI. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };

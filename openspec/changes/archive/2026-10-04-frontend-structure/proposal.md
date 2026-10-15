@@ -2,7 +2,7 @@
 
 Фронтенд вырос, а его код лежит в одной плоской папке `src/lib/`: 45 файлов
 вперемешку — инфраструктура (мост, бутстрап, тема, окно), клиенты базовых
-плагинов, встроенные поверхности и рядом тесты. По имени файла нельзя понять
+плагинов, встроенные области и рядом тесты. По имени файла нельзя понять
 слой и домен, а единственный упорядоченный участок — `src/lib/reader/`. Это
 затрудняет навигацию и ведение кода, противоречит принятой в проекте
 vertical-slice организации.
@@ -21,7 +21,7 @@ vertical-slice организации.
 - `src/features/notifications/` — `NotificationsPanel.svelte`, `notifications.ts`
   (+ тест).
 - `src/features/store/` — `StorePage.svelte`, `plugin-store.ts` (+ тест).
-- `src/features/workplace/` — `WorkplaceSurface.svelte`, `WorkplaceTabs.svelte`,
+- `src/features/workplace/` — `WorkplaceArea.svelte`, `WorkplaceTabs.svelte`,
   `WorkplaceTabPage.svelte`, `OpenBooksPanel.svelte`, `WorkspacesPage.svelte`,
   `workplace.ts`, `workspace-registry.ts` (+ тесты).
 - `src/features/reader/` — `reader/` целиком, плюс `ReaderPage.svelte`,

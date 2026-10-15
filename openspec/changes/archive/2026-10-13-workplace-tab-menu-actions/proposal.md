@@ -52,7 +52,7 @@
     панели списка в «Открытые вкладки книг»;
   - `src/features/workplace/OpenBooksPanel.svelte` — пункт «Дублировать вкладку»
     в меню оформления, проп `onDuplicate` и учёт лимита;
-  - `src/features/workplace/WorkplaceSurface.svelte` — проброс дублирования в
+  - `src/features/workplace/WorkplaceArea.svelte` — проброс дублирования в
     панель списка (`onDuplicateTab`);
   - `src/app/App.svelte` — без изменений модели действий (обработчик
     дублирования уже существует).

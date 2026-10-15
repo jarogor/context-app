@@ -6,9 +6,9 @@ frontend-плагины и перенесла их UI в приложение; *
 
 ## Фаза A. Отказ от автономных frontend-плагинов (сейчас)
 
-### 1. Перенос UI поверхностей в приложение
+### 1. Перенос UI областей в приложение
 
-- [x] 1.1 Перенести UI уведомлений (`plugins/notifications-ui`) в приложение как встроенную поверхность `src/lib/NotificationsPanel.svelte`; обновить `openspec/specs/notifications` и тесты
+- [x] 1.1 Перенести UI уведомлений (`plugins/notifications-ui`) в приложение как встроенную область `src/lib/NotificationsPanel.svelte`; обновить `openspec/specs/notifications` и тесты
 - [x] 1.2 Перенести UI настроек (`plugins/settings-ui`) в приложение (`src/lib/SettingsPage.svelte`); обновить `openspec/specs/settings` и тесты
 - [x] 1.3 Перенести UI стора плагинов (`plugins/plugin-store-ui`) в приложение (`src/lib/StorePage.svelte`); обновить `openspec/specs/plugin-store` и тесты
 - [x] 1.4 Перенести UI библиотеки (`plugins/library-ui`) в приложение (`src/lib/LibraryPage.svelte`, список книг и страница книги), открытие книги — напрямую через оболочку, а не postMessage; обновить `openspec/specs/library-ui` и тесты
@@ -20,7 +20,7 @@ frontend-плагины и перенесла их UI в приложение; *
 
 ### 3. Проверки и документация фазы A
 
-- [x] 3.1 Переписать браузерные сценарии e2e с iframe/`frameLocator` на встроенные поверхности; обновить `packages/testing` при необходимости
+- [x] 3.1 Переписать браузерные сценарии e2e с iframe/`frameLocator` на встроенные области; обновить `packages/testing` при необходимости
 - [x] 3.2 Полный набор: `make verify` (сборка плагинов, `check-artifacts`, `cargo test`, clippy/fmt, `npm run check`, `npm test`, `npm run test:e2e`, `npm run build`, `openspec validate --all`)
 - [x] 3.3 Обновить `_docs/*` (plugin-architecture, structure, notifications, settings) и протокол в `_docs/history/`
 
@@ -41,10 +41,10 @@ frontend-плагины и перенесла их UI в приложение; *
 ## Фаза B.1. Загрузка на бутстрапе (сделано)
 
 > Устранение подвисания: тяжёлые вызовы базовых плагинов не должны идти с
-> главного потока, а данные встроенных поверхностей — грузиться лениво.
+> главного потока, а данные встроенных областей — грузиться лениво.
 
 - [x] B4.1 Перевести `invoke_base_plugin_operation` в `async`, чтобы вызов WASM-плагина не блокировал главный поток
 - [x] B4.2 Читать декларации настроек в `loadBootstrap` и передавать их в `SettingsPage` пропом; при ошибке — пустое состояние без сбоя входа; тесты
 - [x] B4.3 Читать журнал уведомлений и каталог плагинов/сторов в `loadBootstrap` и передавать их пропами в `NotificationsPanel`/`StorePage`; клиент стора выделен в `src/lib/plugin-store.ts`; тесты
-- [x] B4.4 Зафиксировать принцип бутстрапа в `AGENTS.md`, `ROADMAP.md` и спеке `app-shell` (сценарии готовности поверхностей)
+- [x] B4.4 Зафиксировать принцип бутстрапа в `AGENTS.md`, `ROADMAP.md` и спеке `app-shell` (сценарии готовности областей)
 

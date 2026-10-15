@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 
 describe('загрузка начального состояния', () => {
-    it('читает реестр рабочих мест, библиотеку и данные поверхностей', async () => {
+    it('читает реестр рабочих мест, библиотеку и данные областей', async () => {
         const registry = { workspaces: [{ id: 'ws-1' }], active_workspace_id: 'ws-1' };
         invoke.mockImplementation(async (command: string, args?: unknown) => {
             if (command === 'get_workspaces') {

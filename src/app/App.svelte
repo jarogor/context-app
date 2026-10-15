@@ -9,7 +9,7 @@
   import AppInfoPage from '../features/settings/AppInfoPage.svelte';
   import NotesLibraryPage from '../features/notes-library/NotesLibraryPage.svelte';
   import { bookTitleOf } from '../features/notes-library/notes-library';
-  import WorkplaceSurface from '../features/workplace/WorkplaceSurface.svelte';
+  import WorkplaceArea from '../features/workplace/WorkplaceArea.svelte';
   import WorkspacePickerDialog from '../features/workplace/WorkspacePickerDialog.svelte';
   import {
     applyTabAppearance,
@@ -144,7 +144,7 @@
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
 
-  /** Число непрочитанных уведомлений, полученное от поверхности уведомлений. */
+  /** Число непрочитанных уведомлений, полученное от области уведомлений. */
   let unreadCount = $state(
     untrack(
       () => initialNotifications.entries.filter((entry) => entry.level === 'User' && !entry.read).length,
@@ -157,7 +157,7 @@
   /** Активная библиотека для шапки. */
   let activeLibrary: ActiveLibrary | null = $state(untrack(() => initialLibrary));
 
-  /** Открыта ли поверхность рабочего места; принадлежит оболочке. */
+  /** Открыта ли область рабочего места; принадлежит оболочке. */
   let workspaceOpen = $state(true);
 
   /** Показывается ли список рабочих мест вместо вкладок; точка входа приложения. */
@@ -272,7 +272,7 @@
     return !settingsOpen && !librariesOpen && !notesLibraryOpen && !workspaceOpen;
   }
 
-  /** Видна ли поверхность рабочего места (с учётом модальных разделов). */
+  /** Видна ли область рабочего места (с учётом модальных разделов). */
   const workspaceVisible = $derived(workspaceOpen && !settingsOpen && !librariesOpen && !notesLibraryOpen);
 
   /** Показан ли список рабочих мест — точка входа раздела (с учётом модальных разделов).
@@ -332,7 +332,7 @@
 
   /** Переключение раздела настроек как модального окна.
    *
-   * Настройки не меняют базовую поверхность: при закрытии пользователь
+   * Настройки не меняют базовую область: при закрытии пользователь
    * возвращается туда, откуда открыл их.
    */
   function toggleSettings() {
@@ -341,8 +341,8 @@
 
   /** Закрытие полноэкранного раздела настроек.
    *
-   * Базовая поверхность не сбрасывается: закрытие возвращает пользователя к
-   * той поверхности, из которой настройки были открыты.
+   * Базовая область не сбрасывается: закрытие возвращает пользователя к
+   * той области, из которой настройки были открыты.
    */
   function closeSettings() {
     settingsOpen = false;
@@ -428,7 +428,7 @@
     }
   }
 
-  /** Переключение поверхности рабочего места.
+  /** Переключение области рабочего места.
    *
    * При открытии из другого раздела показывается **список** рабочих мест —
    * точка входа раздела, а не конкретное рабочее место. Когда уже показано
@@ -701,8 +701,8 @@
     return false;
   }
 
-  /** Показ поверхности рабочего места после открытия книги. */
-  function showWorkspaceSurface() {
+  /** Показ области рабочего места после открытия книги. */
+  function showWorkspaceArea() {
     workspaceOpen = true;
     workspaceListMode = false;
     settingsOpen = false;
@@ -731,7 +731,7 @@
       format: formatFromPath(chosen),
     };
     if (placeBook(book)) {
-      showWorkspaceSurface();
+      showWorkspaceArea();
     }
   }
 
@@ -755,7 +755,7 @@
       format: value.format || formatFromPath(value.path),
     };
     if (placeBook(book)) {
-      showWorkspaceSurface();
+      showWorkspaceArea();
     }
   }
 
@@ -793,7 +793,7 @@
       format: formatFromPath(key),
     };
     if (placeBook(book)) {
-      showWorkspaceSurface();
+      showWorkspaceArea();
     }
   }
 
@@ -811,7 +811,7 @@
       );
       pendingBook = null;
     }
-    showWorkspaceSurface();
+    showWorkspaceArea();
   }
 
   /** Создание рабочего места из диалога выбора: становится текущим, книга — в нём. */
@@ -823,7 +823,7 @@
       pendingBook = null;
       registry = updateCurrentWorkspaceTabs(registry, (state) => openBook(state, book, openTabsLimit));
     }
-    showWorkspaceSurface();
+    showWorkspaceArea();
   }
 
   /** Закрытие диалога выбора без открытия книги. */
@@ -1159,7 +1159,7 @@
         </div>
       {/if}
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!workspaceVisible}>
-        <WorkplaceSurface
+        <WorkplaceArea
           bind:this={reader}
           workspace={workspace}
           workspaces={registry.workspaces}

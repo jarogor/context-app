@@ -54,7 +54,7 @@
   совместимы; версия состояния не поднимается.
 - **Оболочка:** `src/features/notes/notes.ts`, `NotesPanel.svelte`;
   `src/features/reader/ReaderPage.svelte`, `BookReader.svelte`;
-  `src/features/workplace/WorkplaceSurface.svelte`, `NoteToolbar.svelte`;
+  `src/features/workplace/WorkplaceArea.svelte`, `NoteToolbar.svelte`;
   `src/app/App.svelte` (доступные типы по формату активной вкладки, правка
   названия и комментария).
 - **Плагин PDF:** правок не требует — все типы сохраняются, название и

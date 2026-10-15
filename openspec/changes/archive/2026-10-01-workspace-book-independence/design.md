@@ -96,7 +96,7 @@ workplace-плагинов (`PluginRuntime::load_filtered`), без привяз
    `commands/workplace.rs`.
 2. Перевести `workspace_state.rs` на `path` с алиасом `book_id`.
 3. Перевести фронтенд (`workplace.ts`, `reader/index.ts`, `ReaderPage`,
-   `WorkplaceSurface`, `WorkplaceTabs`, `App.svelte`) на путь.
+   `WorkplaceArea`, `WorkplaceTabs`, `App.svelte`) на путь.
 4. Передать абсолютный путь из `library-ui`.
 5. Обновить мок, тесты и документацию. Откат — вернуть прежнюю модель `bookId`
    и чтение через сессию библиотеки; хранилище заметок не меняется.

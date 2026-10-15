@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openWorkspaceSurface } from './workspace-surface';
+import { openWorkspaceArea } from './workplace-area';
 
 /** Ответ активной библиотеки для сценариев заметок. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 
 /** Открытие рабочего места из списка. */
 async function openWorkspace(page: import('@playwright/test').Page) {
-    await openWorkspaceSurface(page);
+    await openWorkspaceArea(page);
     const list = page.getByTestId('workspaces-page');
     if (await list.isVisible().catch(() => false)) {
         const open = page.getByTestId('workspace-open').first();
@@ -61,7 +61,7 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
     }
     await library.getByRole('button', { name: new RegExp(title) }).click();
     await library.getByRole('button', { name: /Добавить в/ }).click();
-    await expect(page.getByTestId('workplace-surface')).toBeVisible();
+    await expect(page.getByTestId('workplace-area')).toBeVisible();
 }
 
 /** Открытие панели заметок. */
@@ -526,22 +526,22 @@ test('нижняя панель рабочего места — на всю ши
     await addBook(page, 'Демо-книга');
     await openNotes(page);
 
-    const surface = await page.getByTestId('workplace-surface').boundingBox();
+    const area = await page.getByTestId('workplace-area').boundingBox();
     const footer = await page.getByTestId('reader-footer').boundingBox();
     const notes = await page.getByTestId('notes-panel').boundingBox();
     const tabs = await page.getByTestId('workplace-tabs').boundingBox();
-    expect(surface).not.toBeNull();
+    expect(area).not.toBeNull();
     expect(footer).not.toBeNull();
     expect(notes).not.toBeNull();
     expect(tabs).not.toBeNull();
 
-    // Нижняя панель совпадает по всей ширине с поверхностью рабочего места.
-    expect(Math.abs(footer!.width - surface!.width)).toBeLessThanOrEqual(1);
+    // Нижняя панель совпадает по всей ширине с областью рабочего места.
+    expect(Math.abs(footer!.width - area!.width)).toBeLessThanOrEqual(1);
     // Панель заметок стоит справа от текста и выше нижней панели.
     expect(notes!.x).toBeGreaterThan(0);
     expect(notes!.y + notes!.height).toBeLessThanOrEqual(footer!.y + 1);
     // Верхняя панель вкладок — на всю ширину, над нижней панелью.
-    expect(Math.abs(tabs!.width - surface!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(tabs!.width - area!.width)).toBeLessThanOrEqual(1);
     expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(footer!.y);
 });
 
@@ -554,12 +554,12 @@ test('на узком окне панель заметок — на всю ши�
     await openNotes(page);
     await highlightParagraph(page, 'Первый абзац книги.');
 
-    const surface = await page.getByTestId('workplace-surface').boundingBox();
+    const area = await page.getByTestId('workplace-area').boundingBox();
     const notes = await page.getByTestId('notes-panel').boundingBox();
-    expect(surface).not.toBeNull();
+    expect(area).not.toBeNull();
     expect(notes).not.toBeNull();
     // Панель заметок занимает всю ширину области рабочего места.
-    expect(Math.abs(notes!.width - surface!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(notes!.width - area!.width)).toBeLessThanOrEqual(1);
     // Нижняя панель остаётся видимой под панелью заметок.
     await expect(page.getByTestId('reader-footer')).toBeVisible();
 
@@ -940,7 +940,7 @@ test('реестр заметок ведёт к книге и заметке', a
     await registry.getByTestId('notes-item-link').click();
 
     // Открылась книга, панель заметок показывает выбранную заметку.
-    await expect(page.getByTestId('workplace-surface')).toBeVisible();
+    await expect(page.getByTestId('workplace-area')).toBeVisible();
     await expect(page.getByTestId('workplace-tab').last()).toHaveText('Демо-книга');
     await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
 

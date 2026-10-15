@@ -56,8 +56,8 @@
 - `src/app/App.svelte` — состояние раздела («Рабочие места» / «Библиотеки» /
   «Заметки»). Возврат к списку рабочих мест при закрытии разделов сохраняется:
   он больше не вынуждает удалять вкладки, потому что их хранит
-  `WorkplaceSurface`.
-- `src/features/workplace/WorkplaceSurface.svelte` — показ списка (`listMode`)
+  `WorkplaceArea`.
+- `src/features/workplace/WorkplaceArea.svelte` — показ списка (`listMode`)
   перестаёт удалять вкладки текущего места: список и слой вкладок сосуществуют в
   разметке, а показ списка скрывает слой вкладок классом, а не размонтированием.
 - `src/features/reader/*` (`ReaderPage`, `BookReader`, `WorkplaceContent`) —

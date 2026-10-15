@@ -43,7 +43,7 @@
 
 - Фронтенд-оболочка: новый модуль чтения (`src/lib/BookReader.svelte`),
   `src/lib/notes.ts` (цитата вместо процента), `src/lib/NotesPanel.svelte`
-  (список цитат), интеграция в `ReaderPage.svelte` / `WorkplaceSurface.svelte` /
+  (список цитат), интеграция в `ReaderPage.svelte` / `WorkplaceArea.svelte` /
   `App.svelte`, ключ книги.
 - Мок-мост `packages/testing/src/fixtures.ts`: операции заметок для тестов.
 - Тесты: модульные и компонентные, браузерный сценарий выделения и

@@ -40,13 +40,13 @@
 
 - `src/features/workplace/NoteToolbar.svelte` — добавление блока масштаба и
   кнопки-переключателя темы области чтения, выравнивание вправо.
-- `src/features/workplace/WorkplaceSurface.svelte` — сквозная передача масштаба,
+- `src/features/workplace/WorkplaceArea.svelte` — сквозная передача масштаба,
   границ масштаба и темы в панель инструментов; удаление их из нижней панели.
 - `src/features/reader/ReaderFooter.svelte` — удаление блока масштаба и
   переключателя темы, сохранение навигации по страницам и прогресса.
 - `src/features/reader/ReaderPage.svelte` / `WorkplaceTabPage.svelte` — без
   изменения контракта снимка нижней панели (масштаб и тема остаются в снимке и
   используются верхней панелью).
-- Тесты: `NoteToolbar`- и `ReaderFooter`-тесты, `WorkplaceSurface.test.ts`,
+- Тесты: `NoteToolbar`- и `ReaderFooter`-тесты, `WorkplaceArea.test.ts`,
   браузерные тесты чтения (вид верхней и нижней панелей).
 - Контракты Tauri, WASM host-функции, форматы хранения и данные не затрагиваются.

@@ -189,9 +189,9 @@ describe('раздел «Заметки» в оболочке', () => {
 
         // Раздел реестра закрылся, рабочее место показывает вкладку книги.
         await waitFor(() => expect(screen.queryByTestId('notes-library')).toBeNull());
-        expect(screen.getByTestId('workplace-surface')).toBeTruthy();
+        expect(screen.getByTestId('workplace-area')).toBeTruthy();
         expect(
-            within(screen.getByTestId('workplace-surface')).getAllByText('Книга A').length,
+            within(screen.getByTestId('workplace-area')).getAllByText('Книга A').length,
         ).toBeGreaterThan(0);
         // Активный набор книги сохранён до загрузки заметок.
         await waitFor(() =>
@@ -407,7 +407,7 @@ describe('активность кнопки рабочего места', () => 
         await fireEvent.click(screen.getByLabelText('Рабочее место'));
         expect(workspacePressed()).toBe('true');
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
-        expect(screen.getByTestId('workplace-surface').closest('.hidden')).toBeNull();
+        expect(screen.getByTestId('workplace-area').closest('.hidden')).toBeNull();
     });
 
     it('повторное нажатие по активной кнопке раздела возвращает к списку рабочих мест', async () => {
@@ -449,7 +449,7 @@ describe('полноэкранный раздел настроек', () => {
         expect(screen.getByTestId('settings-page')).toBeTruthy();
     });
 
-    it('закрывается кнопкой в углу и возвращает прежнюю поверхность', async () => {
+    it('закрывается кнопкой в углу и возвращает прежнюю область', async () => {
         render(App, { props: appProps() });
         await fireEvent.click(screen.getByLabelText('Настройки'));
         expect(headerHidden()).toBe(true);
@@ -472,7 +472,7 @@ describe('полноэкранный раздел настроек', () => {
         expect(headerHidden()).toBe(false);
     });
 
-    it('возвращает поверхность, из которой настройки открывали', async () => {
+    it('возвращает область, из которой настройки открывали', async () => {
         render(App, { props: appProps() });
 
         // Открываем раздел «Заметки», затем из него — настройки.
@@ -481,7 +481,7 @@ describe('полноэкранный раздел настроек', () => {
         await fireEvent.click(screen.getByLabelText('Настройки'));
         await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
 
-        // Возврат не пустой основной раздел: прежняя поверхность сохранена.
+        // Возврат не пустой основной раздел: прежняя область сохранена.
         expect(screen.getByTestId('notes-library')).toBeTruthy();
     });
 });

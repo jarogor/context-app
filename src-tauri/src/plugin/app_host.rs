@@ -69,7 +69,7 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "key": "reader.theme",
           "title": "Тема области чтения",
           "type": "select",
-          "description": "Светлое или тёмное оформление поверхности книги; не связано с темой интерфейса",
+          "description": "Светлое или тёмное оформление чтения книги; не связано с темой интерфейса",
           "default": "light",
           "options": [
             { "value": "light", "title": "Светлая" },

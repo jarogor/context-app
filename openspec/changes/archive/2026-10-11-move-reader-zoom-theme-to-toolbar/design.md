@@ -3,19 +3,19 @@
 См. `proposal.md` — зачем переносим. Техническое состояние, определяющее подход:
 
 - Верхняя панель рабочего места — это `NoteToolbar.svelte`. Она рендерится в
-  `WorkplaceSurface.svelte` над областью чтения, знает только об инструменте
+  `WorkplaceArea.svelte` над областью чтения, знает только об инструменте
   заметок (`tool`, `allowedTypes`, `onChange`) и выстраивает элементы слева
   (`flex ... px-2`, без `ml-auto`).
 - Нижняя панель — `ReaderFooter.svelte`. Она рисует масштаб (`reader-zoom`),
   переключатель темы (`reader-theme-toggle`, две кнопки светлая/тёмная),
   навигацию по страницам (`reader-pages`) и прогресс (`reader-progress`).
-- `WorkplaceSurface` уже владеет нужными данными: снимок активной вкладки
+- `WorkplaceArea` уже владеет нужными данными: снимок активной вкладки
   `activeFooter` (поля `zoom`, `minZoom`, `maxZoom`) и `readerTheme` /
   `onChangeReaderTheme`. Изменение масштаба маршрутизируется через `readers`
   (`changeFooterZoom`) по идентификатору активной вкладки.
 - `FooterSnapshot` (`ReaderPage.svelte`) остаётся контрактом между читалкой и
   рабочего места и уже содержит масштаб и его границы — менять его не нужно.
-- `readerTheme` — общая настройка приложения, в `WorkplaceSurface` приходит
+- `readerTheme` — общая настройка приложения, в `WorkplaceArea` приходит
   готовой (`DEFAULT_READER_THEME` по умолчанию).
 
 ## Goals / Non-Goals
@@ -76,7 +76,7 @@
 
 ### 4. Передача данных и команд в панель
 
-`WorkplaceSurface` передаёт в `NoteToolbar` новые пропы: `zoom`, `minZoom`,
+`WorkplaceArea` передаёт в `NoteToolbar` новые пропы: `zoom`, `minZoom`,
 `maxZoom`, `readerTheme`, `onChangeZoom`, `onChangeReaderTheme` (берутся из
 `activeFooter`/`readerTheme` и существующих обработчиков `changeZoom` и
 `onChangeReaderTheme`). Рендер панели остаётся условием `workspace.tabs.length > 0`,

@@ -48,7 +48,7 @@
   }: Props = $props();
 
   /** Обводка строки и выделение текущего пункта — общие для всех списков. */
-  const surface = $derived(
+  const box = $derived(
     cn(
       'rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] transition-colors',
       selected ? 'bg-[var(--primary-soft)]' : '',
@@ -57,7 +57,7 @@
 </script>
 
 <div
-  class={cn(surface, 'flex items-stretch', className)}
+  class={cn(box, 'flex items-stretch', className)}
   data-testid={testId}
   data-selected={selected ? 'true' : undefined}
 >

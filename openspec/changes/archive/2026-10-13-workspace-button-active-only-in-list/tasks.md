@@ -9,7 +9,7 @@
 
 - [x] 2.1 Добавить/обновить компонентный тест `src/app/App.test.ts`: при старте кнопка «Рабочее место» имеет `aria-pressed="true"`; после открытия рабочего места (`workspace-open`) — `aria-pressed="false"`; после возврата к списку — снова `true`.
 - [x] 2.2 Добавить компонентный тест на поведение клика: из открытого места нажатие кнопки показывает список рабочих мест (`workspaces-page`), а не закрывает раздел; повторное нажатие в списке закрывает раздел.
-- [x] 2.3 Обновить e2e-сценарии, опирающиеся на `aria-pressed` кнопки рабочего места как на «поверхность рабочего места видна»: `tests/e2e/shell.spec.ts`, `tests/e2e/reader.spec.ts`, `tests/e2e/book-page.spec.ts`, `tests/e2e/notes.spec.ts`, `tests/e2e/pdf-reader.spec.ts`, `tests/e2e/visual.spec.ts`, `tests/e2e/workplace-reader.spec.ts`, `tests/e2e/workplace-tabs.spec.ts`. Хелперы, которые по `aria-pressed` решают, открыт ли раздел, SHALL использовать видимость поверхности рабочего места, а не нажатость кнопки.
+- [x] 2.3 Обновить e2e-сценарии, опирающиеся на `aria-pressed` кнопки рабочего места как на «область рабочего места видна»: `tests/e2e/shell.spec.ts`, `tests/e2e/reader.spec.ts`, `tests/e2e/book-page.spec.ts`, `tests/e2e/notes.spec.ts`, `tests/e2e/pdf-reader.spec.ts`, `tests/e2e/visual.spec.ts`, `tests/e2e/workplace-reader.spec.ts`, `tests/e2e/workplace-tabs.spec.ts`. Хелперы, которые по `aria-pressed` решают, открыт ли раздел, SHALL использовать видимость области рабочего места, а не нажатость кнопки.
 - [x] 2.4 Добавить e2e-сценарий: открыть рабочее место из списка, убедиться, что кнопка рабочего места не нажата и вкладки видны, затем нажать кнопку — показывается список рабочих мест. Проверить `npm run test:e2e`.
 
 ## 3. Проверка

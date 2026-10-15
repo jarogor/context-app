@@ -8,7 +8,7 @@
 
 ## 2. Рабочие места (включая диалог выбора)
 
-- [x] 2.1 Перевести `src/features/workplace/WorkspacesPage.svelte` на `PageShell` (форма слева), `SearchCreate` и `ListRow` с метаинформацией (дата создания, признак «текущее»); сохранить создание, открытие, переименование, удаление и пустое состояние; проверить `WorkspacesPage.test.ts` и `WorkplaceSurface.test.ts`.
+- [x] 2.1 Перевести `src/features/workplace/WorkspacesPage.svelte` на `PageShell` (форма слева), `SearchCreate` и `ListRow` с метаинформацией (дата создания, признак «текущее»); сохранить создание, открытие, переименование, удаление и пустое состояние; проверить `WorkspacesPage.test.ts` и `WorkplaceArea.test.ts`.
 - [x] 2.2 Перевести `src/features/workplace/WorkspacePickerDialog.svelte` на общий `SearchCreate`, убрав собственную копию поиска/создания; проверить e2e `tests/e2e/workspaces.spec.ts`.
 - [x] 2.3 Проверить адаптивность: на широком окне форма слева, список колонкой справа; на узком — форма сверху; список всегда остаётся списком и без горизонтальной прокрутки; проверить e2e `tests/e2e/workspaces.spec.ts`.
 

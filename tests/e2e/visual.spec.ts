@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { showLibraryBookList } from './workspace-surface';
+import { showLibraryBookList } from './workplace-area';
 
 test('снимок оболочки совпадает с эталоном', async ({ page }) => {
   await page.goto('/');

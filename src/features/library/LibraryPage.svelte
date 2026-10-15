@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { BookCoverPlaceholder, SearchCreate, SurfaceScroll } from '@texture/ui';
+  import { BookCoverPlaceholder, SearchCreate, ScrollArea } from '@texture/ui';
   import BookPage from './BookPage.svelte';
   import { listenEvent } from '../../shared/app-bridge';
   import {
@@ -17,7 +17,7 @@
   interface Props {
     /** Активная библиотека, загруженная до первого рендера. */
     initialActiveLibrary: ActiveLibrary | null;
-    /** Показывается ли поверхность библиотеки (форматы читалки нужны только тогда). */
+    /** Показывается ли область библиотеки (форматы читалки нужны только тогда). */
     visible?: boolean;
     /** Имя рабочего места, в которое попадёт книга; null — место ещё не выбрано. */
     targetWorkspaceName?: string | null;
@@ -122,7 +122,7 @@
   /** Загрузка форматов, поддерживаемых чтением.
    *
    * Форматы требуют плагинов чтения, которые не нужны первому кадру, поэтому
-   * запрос выполняется при показе поверхности библиотеки или открытии книги, а
+   * запрос выполняется при показе области библиотеки или открытии книги, а
    * не при запуске приложения. Повторный вызов использует уже полученный
    * результат и не загружает плагины чтения дважды.
    */
@@ -246,7 +246,7 @@
     };
   });
 
-  // Форматы запрашиваются, когда поверхность библиотеки становится видимой:
+  // Форматы запрашиваются, когда область библиотеки становится видимой:
   // при старте страница скрыта за рабочим местом и плагины чтения не нужны.
   $effect(() => {
     if (visible) {
@@ -256,7 +256,7 @@
 </script>
 
 {#if openedBook}
-  <SurfaceScroll testId="book-page-scroll">
+  <ScrollArea testId="book-page-scroll">
     <BookPage
       book={openedBook}
       {targetWorkspaceName}
@@ -267,9 +267,9 @@
       onAdd={() => startReading(openedBook as BookWithCover)}
       onOpenExternal={() => openInSystem(openedBook as BookWithCover)}
     />
-  </SurfaceScroll>
+  </ScrollArea>
 {:else}
-  <SurfaceScroll testId="library-page" class="p-6">
+  <ScrollArea testId="library-page" class="p-6">
     {#if librarySelected}
       <SearchCreate
         bind:query={searchQuery}
@@ -321,5 +321,5 @@
         {/each}
       </ul>
     {/if}
-  </SurfaceScroll>
+  </ScrollArea>
 {/if}

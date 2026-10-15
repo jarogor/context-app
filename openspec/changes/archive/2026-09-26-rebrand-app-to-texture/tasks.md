@@ -1,4 +1,4 @@
-## 1. Конфигурация и пользовательские поверхности
+## 1. Конфигурация и пользовательские области
 
 - [x] 1.1 В `src-tauri/tauri.conf.json` сменить `productName` на `Texture`, `identifier` на `ru.jarogor.texture`, `app.windows[0].title` на «Текстура»; проверить, что JSON валиден и поля заданы.
 - [x] 1.2 В `index.html` заменить `<title>Jarogor BookLib</title>` на «Текстура»; проверить через `grep`/`npm run build`, что в сборке остаётся новое название.
