@@ -277,7 +277,20 @@
       onRename={onRenameWorkspace}
       onRemove={onRemoveWorkspace}
     />
-  {:else}
+  {/if}
+  <!--
+    Вкладки текущего места остаются смонтированными, пока место текущее, в том
+    числе когда показан список рабочих мест или другой раздел приложения: показ
+    списка скрывает слой вкладок, а не уничтожает его. Иначе возврат к месту
+    пересоздавал бы читалки и книга читалась бы заново.
+  -->
+  {#if workspace !== null}
+    <div
+      class="flex min-h-0 min-w-0 flex-1 flex-col"
+      class:hidden={listMode}
+      data-testid="workplace-tabs-layer"
+      data-shown={listMode ? 'false' : 'true'}
+    >
     <WorkplaceTabs
       tabs={workspace.tabs}
       activeTabId={workspace.activeTabId}
@@ -343,7 +356,7 @@
                   {readerTheme}
                   {palette}
                   active={item.id === workspace.activeTabId}
-                  {visible}
+                  visible={visible && item.id === workspace.activeTabId && !listMode}
                   onReader={registerReader}
                   onStateChange={(state) => onTabState(item.id, state)}
                   onFooter={(snapshot) => handleFooter(item.id, snapshot)}
@@ -404,5 +417,6 @@
         onGoToPage={goToPage}
       />
     {/if}
+    </div>
   {/if}
 </div>

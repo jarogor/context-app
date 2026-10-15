@@ -53,6 +53,36 @@ function panels() {
     };
 }
 
+/** Свойства поверхности с текущим местом и одной открытой вкладкой. */
+function workplaceProps(overrides: { listMode: boolean }) {
+    return {
+        workspace: {
+            id: 'ws-1',
+            name: 'Первое',
+            createdAtMillis: 0,
+            tabs: [
+                {
+                    id: 't1',
+                    path: '/lib/book-1.epub',
+                    title: 'Книга',
+                    format: 'epub',
+                    zoom: 100,
+                    position: 0,
+                    mode: 'scroll',
+                },
+            ],
+            activeTabId: 't1',
+        },
+        workspaces: [],
+        currentWorkspaceId: 'ws-1',
+        booksOpen: false,
+        visible: true,
+        ...panels(),
+        ...handlers(),
+        ...overrides,
+    };
+}
+
 describe('поверхность рабочего места: список и вкладки', () => {
     it('показывает список при отсутствии активного рабочего места', () => {
         render(WorkplaceSurface, {
@@ -132,6 +162,32 @@ describe('поверхность рабочего места: список и в
 
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
         expect(screen.getByTestId('workspace-meta').textContent).toContain('текущее');
+    });
+
+    it('оставляет вкладки смонтированными, когда показан список', () => {
+        render(WorkplaceSurface, {
+            props: workplaceProps({ listMode: true }),
+        });
+
+        // Список показан, но слой вкладок не уничтожен: он скрыт, а не удалён,
+        // поэтому возврат к месту не пересоздаёт читалки и не читает книгу заново.
+        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+        expect(screen.getByTestId('workplace-tabs')).toBeTruthy();
+        expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('false');
+        expect(screen.getByTestId('workplace-tab-page')).toBeTruthy();
+    });
+
+    it('показывает слой вкладок после выхода из списка', async () => {
+        const { rerender } = render(WorkplaceSurface, {
+            props: workplaceProps({ listMode: true }),
+        });
+        expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('false');
+
+        await rerender(workplaceProps({ listMode: false }));
+
+        expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('true');
+        // Вкладка осталась той же самой: состав и активная вкладка не изменились.
+        expect(screen.getByTestId('workplace-tab-page').getAttribute('data-active')).toBe('true');
     });
 
     it('передаёт возврат к списку из панели вкладок', async () => {

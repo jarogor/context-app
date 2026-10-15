@@ -485,3 +485,152 @@ describe('полноэкранный раздел настроек', () => {
         expect(screen.getByTestId('notes-library')).toBeTruthy();
     });
 });
+
+describe('текущее рабочее место остаётся загруженным при смене раздела', () => {
+    /** Реестр с одним текущим местом и одной вкладкой книги. */
+    function registryWithTab(): WorkspaceRegistry {
+        return {
+            workspaces: [
+                {
+                    id: 'ws-1',
+                    name: 'Моё место',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/a.epub',
+                            title: 'Книга A',
+                            format: 'epub',
+                            zoom: 120,
+                            position: 30,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+            ],
+            currentWorkspaceId: 'ws-1',
+        };
+    }
+
+    /** Число прочтений книги из хранилища (`reader_content`). */
+    function contentReads(): number {
+        return invoke.mock.calls.filter(([command]) => command === 'reader_content').length;
+    }
+
+    it('не перечитывает книгу после ухода в раздел и возврата', async () => {
+        render(App, { props: { ...appProps(), initialRegistry: registryWithTab() } });
+
+        // Открываем текущее место: книга читается один раз.
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        await waitFor(() => expect(contentReads()).toBe(1));
+
+        // Уходим в «Библиотеки» и возвращаемся: список рабочих мест, вкладки живы.
+        await fireEvent.click(screen.getByLabelText('Библиотеки'));
+        expect(screen.getByTestId('libraries-page')).toBeTruthy();
+        await fireEvent.click(screen.getByLabelText('Библиотеки'));
+        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+
+        // Вкладки не размонтированы: слой вкладок существует, книга не прочитана заново.
+        expect(screen.getByTestId('workplace-tabs-layer')).toBeTruthy();
+        expect(screen.getByTestId('workplace-tab-page')).toBeTruthy();
+        expect(contentReads()).toBe(1);
+
+        // Открытие текущего места из списка показывает уже загруженную книгу.
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        expect(screen.queryByTestId('reader-loading')).toBeNull();
+        expect(contentReads()).toBe(1);
+    });
+
+    it('не перечитывает книгу после ухода в раздел «Заметки»', async () => {
+        render(App, { props: { ...appProps(), initialRegistry: registryWithTab() } });
+
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        await waitFor(() => expect(contentReads()).toBe(1));
+
+        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        expect(screen.getByTestId('notes-library')).toBeTruthy();
+        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+
+        expect(screen.getByTestId('workplace-tab-page')).toBeTruthy();
+        expect(contentReads()).toBe(1);
+    });
+
+    it('не перечитывает книгу после открытия и закрытия настроек', async () => {
+        render(App, { props: { ...appProps(), initialRegistry: registryWithTab() } });
+
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        await waitFor(() => expect(contentReads()).toBe(1));
+
+        await fireEvent.click(screen.getByLabelText('Настройки'));
+        expect(screen.getByTestId('settings-page')).toBeTruthy();
+        await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
+
+        expect(screen.getByTestId('workplace-tab-page')).toBeTruthy();
+        expect(contentReads()).toBe(1);
+    });
+
+    it('открытие текущего места не читает книгу, а другого — читает', async () => {
+        const registry: WorkspaceRegistry = {
+            workspaces: [
+                {
+                    id: 'ws-1',
+                    name: 'Текущее',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/a.epub',
+                            title: 'Книга A',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+                {
+                    id: 'ws-2',
+                    name: 'Другое',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't2',
+                            path: '/lib/b.epub',
+                            title: 'Книга B',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't2',
+                },
+            ],
+            currentWorkspaceId: 'ws-1',
+        };
+        render(App, { props: { ...appProps(), initialRegistry: registry } });
+
+        /** Пункт списка рабочего места по имени. */
+        const item = (name: string) =>
+            screen
+                .getAllByTestId('workspace-item')
+                .find((node) => node.textContent?.includes(name)) as HTMLElement;
+
+        // Открываем текущее место: книга читается один раз.
+        await fireEvent.click(within(item('Текущее')).getByTestId('workspace-open'));
+        await waitFor(() => expect(contentReads()).toBe(1));
+
+        // Возврат к списку, повторное открытие текущего места — без нового чтения.
+        await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
+        await fireEvent.click(within(item('Текущее')).getByTestId('workspace-open'));
+        expect(contentReads()).toBe(1);
+
+        // Открытие другого места читает его книгу: другие места не держатся загруженными.
+        await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
+        await fireEvent.click(within(item('Другое')).getByTestId('workspace-open'));
+        await waitFor(() => expect(contentReads()).toBe(2));
+    });
+});
