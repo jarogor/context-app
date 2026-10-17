@@ -344,48 +344,50 @@
     />
   </ScrollArea>
 {:else}
-  <ScrollArea testId="library-page" class="p-6">
+  <ScrollArea testId="library-page" class="p-4 md:p-6">
     {#if librarySelected}
-      <div class="mb-4 flex flex-wrap items-center gap-2">
+      <div class="mb-4 flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
         <SearchCreate
           bind:query={searchQuery}
           searchPlaceholder="Название или автор"
-          class="min-w-[16rem] flex-1"
+          class="min-w-0 flex-1"
           onSearch={onSearchInput}
         />
-        <Select
-          bind:value={sortMode}
-          items={sortOptions}
-          ariaLabel="Порядок книг"
-          class="w-[11rem]"
-        />
-        <Select
-          bind:value={coverFilter}
-          items={coverOptions}
-          ariaLabel="Фильтр книг"
-          class="w-[11rem]"
-        />
-        <div class="flex items-center gap-1" role="group" aria-label="Режим показа">
-          <Button
-            variant={viewMode === 'grid' ? 'primary' : 'secondary'}
-            size="icon"
-            title="Плитка"
-            ariaLabel="Плитка"
-            ariaPressed={viewMode === 'grid'}
-            onclick={() => chooseViewMode('grid')}
-          >
-            <Icon name="grid" />
-          </Button>
-          <Button
-            variant={viewMode === 'list' ? 'primary' : 'secondary'}
-            size="icon"
-            title="Список"
-            ariaLabel="Список"
-            ariaPressed={viewMode === 'list'}
-            onclick={() => chooseViewMode('list')}
-          >
-            <Icon name="list" />
-          </Button>
+        <div class="flex flex-wrap items-center gap-2">
+          <Select
+            bind:value={sortMode}
+            items={sortOptions}
+            ariaLabel="Порядок книг"
+            class="min-w-0 flex-1 md:w-[11rem] md:flex-none"
+          />
+          <Select
+            bind:value={coverFilter}
+            items={coverOptions}
+            ariaLabel="Фильтр книг"
+            class="min-w-0 flex-1 md:w-[11rem] md:flex-none"
+          />
+          <div class="flex flex-none items-center gap-1" role="group" aria-label="Режим показа">
+            <Button
+              variant={viewMode === 'grid' ? 'primary' : 'secondary'}
+              size="icon"
+              title="Плитка"
+              ariaLabel="Плитка"
+              ariaPressed={viewMode === 'grid'}
+              onclick={() => chooseViewMode('grid')}
+            >
+              <Icon name="grid" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'primary' : 'secondary'}
+              size="icon"
+              title="Список"
+              ariaLabel="Список"
+              ariaPressed={viewMode === 'list'}
+              onclick={() => chooseViewMode('list')}
+            >
+              <Icon name="list" />
+            </Button>
+          </div>
         </div>
       </div>
     {/if}
@@ -417,7 +419,7 @@
       />
     {:else if viewMode === 'grid'}
       <ul
-        class="grid list-none gap-6 p-0 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]"
+        class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]"
         data-testid="library-grid"
       >
         {#each viewBooks as book (book.id)}
@@ -461,7 +463,7 @@
                 {#if book.coverUri}
                   <img class="h-full w-full object-cover" src={book.coverUri} alt="" />
                 {:else}
-                  <BookCoverPlaceholder />
+                  <BookCoverPlaceholder class="h-full" />
                 {/if}
               </span>
               <span class="min-w-0 flex-1">

@@ -20,9 +20,12 @@
     initialTechnicalVisible?: boolean;
     /** Ошибка загрузки журнала на бутстрапе. */
     initialError?: string;
+    /** Закрытие панели (на узком окне панель перекрывает содержимое). */
+    onClose?: () => void;
   }
 
-  let { onUnreadChange, initialEntries, initialTechnicalVisible, initialError }: Props = $props();
+  let { onUnreadChange, initialEntries, initialTechnicalVisible, initialError, onClose }: Props =
+    $props();
 
   /** Записи журнала уведомлений. */
   let entries: NotificationEntry[] = $state(untrack(() => initialEntries ?? []));
@@ -136,14 +139,18 @@
   title="Уведомления"
   testId="notifications-panel"
   class="w-full"
+  {onClose}
 >
   {#snippet badge()}
-    <span
-      class="flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-[0.6875rem] px-[0.375rem] role-caption text-[var(--primary-foreground)]"
-      style:background={unreadUser === 0 ? 'var(--input)' : 'var(--success)'}
-    >
-      {unreadUser}
-    </span>
+    {#if unreadUser > 0}
+      <span
+        class="flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-[0.6875rem] px-[0.375rem] role-caption text-[var(--primary-foreground)]"
+        style:background="var(--success)"
+        aria-label={`Непрочитанных: ${unreadUser}`}
+      >
+        {unreadUser}
+      </span>
+    {/if}
   {/snippet}
 
   {#snippet headerActions()}

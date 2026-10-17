@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import SidePanel from './SidePanel.svelte';
 
@@ -38,5 +38,20 @@ describe('SidePanel', () => {
     render(SidePanel, { props: { title: 'Панель', search: text('поиск') } });
 
     expect(screen.getByText('поиск')).toBeTruthy();
+  });
+
+  it('показывает кнопку закрытия на узком окне, когда задан обработчик', () => {
+    const onClose = vi.fn();
+    render(SidePanel, { props: { title: 'Панель', onClose, testId: 'panel' } });
+
+    const close = screen.getByTestId('side-panel-close');
+    close.click();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('не показывает кнопку закрытия без обработчика', () => {
+    render(SidePanel, { props: { title: 'Панель', testId: 'panel' } });
+
+    expect(screen.queryByTestId('side-panel-close')).toBeNull();
   });
 });

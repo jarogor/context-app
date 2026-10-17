@@ -52,6 +52,7 @@
   import { normalizeOpenTabsLimit } from '../features/workplace/workplace';
   import { openTabsLimitFromSettingsEvent } from '../features/workplace/open-tabs-limit';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
+  import { MOBILE_MAX_WIDTH, NARROW_MAX_WIDTH } from '../shared/breakpoints';
   import { activeLibrary as fetchActiveLibrary } from '../shared/base-plugin';
   import { lastSegment } from '../shared/path';
   import {
@@ -169,6 +170,10 @@
    * показываются иконками с доступными именами.
    */
   let narrowWindow = $state(false);
+
+  /** Телефонная ширина: навигация переезжает в нижнюю полосу, колонка слева
+   * не показывается вовсе. Точка совпадает с токеном `--breakpoint-mobile`. */
+  let mobileWindow = $state(false);
 
   /** Раскрыто ли меню с учётом ширины окна. */
   const navIsExpanded = $derived(navExpanded && !narrowWindow);
@@ -931,13 +936,20 @@
     let unlistenNotes: (() => void) | undefined;
     let unlistenSettings: (() => void) | undefined;
     // Отслеживание ширины окна: на узком окне раскрытое меню разделов отбирает
-    // место у содержимого, поэтому там оно свёрнуто до иконок.
-    const narrowQuery = window.matchMedia('(max-width: 899px)');
+    // место у содержимого, поэтому там оно свёрнуто до иконок, а на телефонной
+    // ширине навигация уходит в нижнюю полосу и колонка слева не рисуется.
+    const narrowQuery = window.matchMedia(NARROW_MAX_WIDTH);
     narrowWindow = narrowQuery.matches;
     const onNarrowChange = (event: MediaQueryListEvent) => {
       narrowWindow = event.matches;
     };
     narrowQuery.addEventListener('change', onNarrowChange);
+    const mobileQuery = window.matchMedia(MOBILE_MAX_WIDTH);
+    mobileWindow = mobileQuery.matches;
+    const onMobileChange = (event: MediaQueryListEvent) => {
+      mobileWindow = event.matches;
+    };
+    mobileQuery.addEventListener('change', onMobileChange);
     void (async () => {
       unlisten = await listenEvent('source-catalog-changed', (value) => {
         const payload = value as ActiveLibrary | null;
@@ -987,6 +999,7 @@
     })();
     return () => {
       narrowQuery.removeEventListener('change', onNarrowChange);
+      mobileQuery.removeEventListener('change', onMobileChange);
       unlisten?.();
       unlistenNotes?.();
       unlistenSettings?.();
@@ -1023,30 +1036,32 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<div class="flex h-full">
-  {#if !settingsOpen && !focusMode}
-    <SectionNav
-      appName="Текстура"
-      workspaceActive={workspaceListVisible}
-      libraryActive={librariesVisible}
-      notesActive={notesLibraryVisible}
-      {notificationsOpen}
-      {settingsOpen}
-      {unreadCount}
-      alertCount={headerAlerts.length}
-      alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
-      alertError={headerAlerts.some((alert) => !alert.warning)}
-      themeTitle={themeTitles[themePreference]}
-      expanded={navIsExpanded}
-      onWorkspace={toggleWorkspace}
-      onLibrary={toggleLibraries}
-      onNotes={toggleNotesLibrary}
-      onNotifications={toggleNotifications}
-      onSettings={toggleSettings}
-      onTheme={cycleTheme}
-      onToggleExpanded={() => (navExpanded = !navExpanded)}
-    />
-  {/if}
+<div class="flex h-full flex-col" data-mobile={mobileWindow ? 'true' : 'false'}>
+  <div class="relative flex min-h-0 flex-1">
+    {#if !settingsOpen && !focusMode && !mobileWindow}
+      <SectionNav
+        appName="Текстура"
+        workspaceActive={workspaceListVisible}
+        libraryActive={librariesVisible}
+        notesActive={notesLibraryVisible}
+        {notificationsOpen}
+        {settingsOpen}
+        {unreadCount}
+        alertCount={headerAlerts.length}
+        alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
+        alertError={headerAlerts.some((alert) => !alert.warning)}
+        themeTitle={themeTitles[themePreference]}
+        expanded={navIsExpanded}
+        mobile={false}
+        onWorkspace={toggleWorkspace}
+        onLibrary={toggleLibraries}
+        onNotes={toggleNotesLibrary}
+        onNotifications={toggleNotifications}
+        onSettings={toggleSettings}
+        onTheme={cycleTheme}
+        onToggleExpanded={() => (navExpanded = !navExpanded)}
+      />
+    {/if}
 
   <!--
     Панель уведомлений открывается слева, рядом со своим пунктом меню: элемент
@@ -1056,7 +1071,7 @@
     и показала бы устаревший список.
   -->
   <div
-    class="flex w-[var(--notifications-panel-width)] min-w-0 flex-none max-[899px]:absolute max-[899px]:inset-0 max-[899px]:z-20 max-[899px]:w-auto [&>aside]:border-r [&>aside]:border-l-0"
+    class="flex w-[var(--notifications-panel-width)] min-w-0 flex-none max-lg:absolute max-lg:inset-0 max-lg:z-[var(--layer-panel)] max-lg:w-auto [&>aside]:border-r [&>aside]:border-l-0"
     class:hidden={!notificationsOpen || settingsOpen || focusMode}
     data-testid="notifications-slot"
   >
@@ -1065,6 +1080,7 @@
       initialTechnicalVisible={initialNotifications.technicalVisible}
       initialError={initialNotifications.error}
       onUnreadChange={(count) => (unreadCount = count)}
+      onClose={toggleNotifications}
     />
   </div>
 
@@ -1182,10 +1198,15 @@
           />
         </div>
       </div>
-      <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!settingsOpen}>
+      <!--
+        Полноэкранный раздел настроек: на широком окне меню разделов слева
+        колонкой, на узком — горизонтальной полосой сверху, чтобы не отбирать
+        ширину у содержимого на телефоне.
+      -->
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row" class:hidden={!settingsOpen}>
         <Menu
           ariaLabel="Разделы настроек"
-          class="flex-[0_0_200px] border-r border-[var(--border)] bg-[var(--background)] p-3"
+          class="shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--background)] p-2 max-md:flex-row md:w-[12.5rem] md:flex-none md:flex-col md:border-r md:border-b-0 md:p-3"
         >
           <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
             Общие
@@ -1236,4 +1257,35 @@
       }
     }}
   />
+  </div>
+
+  <!--
+    Нижняя навигация телефона: те же разделы и служебные пункты, что и в колонке
+    слева, но прижатые к нижнему краю и удобные пальцу. Показывается только на
+    телефонной ширине и не дублирует колонку: активна ровно одна компоновка.
+  -->
+  {#if !settingsOpen && !focusMode && mobileWindow}
+    <SectionNav
+      appName="Текстура"
+      workspaceActive={workspaceListVisible}
+      libraryActive={librariesVisible}
+      notesActive={notesLibraryVisible}
+      {notificationsOpen}
+      {settingsOpen}
+      {unreadCount}
+      alertCount={headerAlerts.length}
+      alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
+      alertError={headerAlerts.some((alert) => !alert.warning)}
+      themeTitle={themeTitles[themePreference]}
+      expanded={false}
+      mobile
+      onWorkspace={toggleWorkspace}
+      onLibrary={toggleLibraries}
+      onNotes={toggleNotesLibrary}
+      onNotifications={toggleNotifications}
+      onSettings={toggleSettings}
+      onTheme={cycleTheme}
+      onToggleExpanded={() => (navExpanded = !navExpanded)}
+    />
+  {/if}
 </div>

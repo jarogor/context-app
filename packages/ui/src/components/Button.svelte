@@ -1,7 +1,12 @@
 <script lang="ts" module>
   import { type VariantProps, tv } from 'tailwind-variants';
 
-  /** Варианты оформления кнопки по стандарту shadcn-svelte. */
+  /** Варианты оформления кнопки по стандарту shadcn-svelte.
+   *
+   * На указателе-пальце (`pointer: coarse`) размеры поднимаются до сенсорной
+   * цели (`pointer-coarse:min-h-11` = 44px): кнопка остаётся удобной для
+   * нажатия, а на мыши и клавиатуре сохраняется прежняя плотность.
+   */
   export const buttonVariants = tv({
     base: 'focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
     variants: {
@@ -15,9 +20,9 @@
           'border border-[var(--border)] text-destructive hover:bg-destructive-soft hover:border-destructive-border',
       },
       size: {
-        md: 'h-9 px-4 py-2',
-        sm: 'h-8 gap-1.5 px-3',
-        icon: 'size-9 [&_svg]:size-[1.125em]',
+        md: 'h-9 px-4 py-2 pointer-coarse:min-h-11',
+        sm: 'h-8 gap-1.5 px-3 pointer-coarse:min-h-11',
+        icon: 'size-9 [&_svg]:size-[1.125em] pointer-coarse:size-11',
       },
     },
     defaultVariants: {

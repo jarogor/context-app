@@ -45,9 +45,13 @@
     onblur,
   }: Props = $props();
 
-  /** Базовые стили поля, общие для варианта с иконкой и без. */
+  /** Базовые стили поля, общие для варианта с иконкой и без.
+   *
+   * На указателе-пальце поле поднимается до сенсорной цели и получает базовый
+   * кегль 16px: так палец попадает в поле, а мобильный webview не приближает
+   * страницу при фокусе (автозум срабатывает на кегле меньше 16px). */
   const fieldClass =
-    'border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive box-border h-9 w-full min-w-0 rounded-md border text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50';
+    'border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive box-border h-9 w-full min-w-0 rounded-md border text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:text-base';
 </script>
 
 {#if icon}

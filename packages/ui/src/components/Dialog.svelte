@@ -34,7 +34,7 @@
     <DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/40" />
     <DialogPrimitive.Content
       class={cn(
-        'fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--popover)] p-5 role-body text-[var(--popover-foreground)] shadow-overlay outline-none',
+        'fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[min(32.5rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--popover)] p-4 role-body text-[var(--popover-foreground)] shadow-overlay outline-none md:p-5',
         className,
       )}
     >

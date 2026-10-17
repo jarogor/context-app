@@ -29,7 +29,7 @@
   {disabled}
   {onclick}
   class={cn(
-    'cursor-pointer rounded-md border px-3 py-2 text-left text-sm [font:inherit] disabled:cursor-not-allowed disabled:opacity-50',
+    'cursor-pointer rounded-md border px-3 py-2 text-left text-sm [font:inherit] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
     active
       ? 'border-border bg-accent text-accent-foreground font-semibold'
       : 'hover:bg-primary-soft border-transparent bg-transparent text-primary',

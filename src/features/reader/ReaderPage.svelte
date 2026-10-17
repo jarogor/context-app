@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, Icon, Progress, Spinner } from '@texture/ui';
+  import { Button, EmptyState, ErrorState, Icon, Progress, Spinner } from '@texture/ui';
   import BookReader from './BookReader.svelte';
   import WorkplaceContent from './WorkplaceContent.svelte';
   import {
@@ -434,37 +434,37 @@
         <span>Открытие книги…</span>
       </div>
     {:else if unavailable}
-      <div
-        class="mx-auto max-w-[35rem] p-6 text-center"
-        data-testid="reader-unavailable"
-      >
-        <p class="mb-2 font-semibold">{title}</p>
-        <p class="mb-4 text-[var(--muted-foreground)]">
-          Книга недоступна: возможно, файл перемещён или переименован.
-        </p>
-        <div class="flex flex-wrap justify-center gap-2">
-          {#if onRepoint}
-            <Button variant="primary" onclick={onRepoint}>Указать файл</Button>
-          {/if}
-          {#if onRemove}
-            <Button variant="ghost" onclick={onRemove}>Убрать вкладку</Button>
-          {/if}
-        </div>
+      <div class="mx-auto max-w-[35rem] p-6" data-testid="reader-unavailable">
+        <EmptyState icon="book" title={title} description="Книга недоступна: возможно, файл перемещён или переименован.">
+          {#snippet action()}
+            <div class="flex flex-wrap justify-center gap-2">
+              {#if onRepoint}
+                <Button variant="primary" onclick={onRepoint}>Указать файл</Button>
+              {/if}
+              {#if onRemove}
+                <Button variant="ghost" onclick={onRemove}>Убрать вкладку</Button>
+              {/if}
+            </div>
+          {/snippet}
+        </EmptyState>
       </div>
     {:else if unsupported}
-      <div class="mx-auto max-w-[35rem] p-6 text-center">
-        <p class="mb-4">
-          Формат этой книги пока не поддерживается встроенным чтением.
-        </p>
-        <Button variant="secondary" onclick={openInSystem}>Открыть в системе</Button>
+      <div class="mx-auto max-w-[35rem] p-6">
+        <EmptyState
+          icon="book"
+          title="Формат не поддерживается"
+          description="Формат этой книги пока не поддерживается встроенным чтением."
+        >
+          {#snippet action()}
+            <Button variant="secondary" onclick={openInSystem}>Открыть в системе</Button>
+          {/snippet}
+        </EmptyState>
       </div>
     {:else if error}
-      <div class="mx-auto max-w-[35rem] p-6 text-center">
-        <p class="mb-3 text-[var(--destructive)]" data-testid="reader-error">
-          Не удалось открыть книгу: {error}
-        </p>
+      <div class="mx-auto max-w-[35rem] p-6 text-center" data-testid="reader-error">
+        <ErrorState message={`Не удалось открыть книгу: ${error}`} />
         {#if onRemove}
-          <Button variant="ghost" onclick={onRemove}>Убрать вкладку</Button>
+          <Button variant="ghost" class="mt-3" onclick={onRemove}>Убрать вкладку</Button>
         {/if}
       </div>
     {:else if workplace}
@@ -538,7 +538,7 @@
         {/if}
         {#if menuPosition && pendingAnchor}
           <div
-            class="absolute z-10 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-overlay"
+            class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-overlay"
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >

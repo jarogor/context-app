@@ -18,6 +18,7 @@ function props(overrides: Record<string, unknown> = {}) {
     alertError: false,
     themeTitle: 'Как в системе',
     expanded: true,
+    mobile: false,
     onWorkspace: vi.fn(),
     onLibrary: vi.fn(),
     onNotes: vi.fn(),
@@ -94,5 +95,29 @@ describe('SectionNav', () => {
 
     const alert = screen.getByTestId('header-alerts');
     expect(alert.textContent?.trim()).toBe('2');
+  });
+
+  it('на телефоне показывает нижнюю навигацию с теми же разделами', () => {
+    render(SectionNav, { props: props({ mobile: true, libraryActive: true }) });
+
+    const nav = screen.getByTestId('section-nav');
+    expect(nav.getAttribute('data-mobile')).toBe('true');
+
+    // Разделы и служебные пункты доступны и на телефоне.
+    expect(screen.getByLabelText('Рабочие места')).toBeTruthy();
+    expect(screen.getByLabelText('Заметки')).toBeTruthy();
+    expect(screen.getByLabelText('Уведомления')).toBeTruthy();
+    expect(screen.getByLabelText('Настройки')).toBeTruthy();
+    // Активный раздел выделен.
+    expect(screen.getByTestId('nav-library').getAttribute('aria-pressed')).toBe('true');
+    // Колонка слева не рисуется: свёрнутая иконка раскрытия не показывается.
+    expect(screen.queryByTestId('nav-expand')).toBeNull();
+  });
+
+  it('на телефоне показывает разметку активного раздела как и на широком окне', () => {
+    render(SectionNav, { props: props({ mobile: true, workspaceActive: true }) });
+
+    expect(screen.getByTestId('nav-workspace').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('nav-notes').getAttribute('aria-pressed')).toBe('false');
   });
 });

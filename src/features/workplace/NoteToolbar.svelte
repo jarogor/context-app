@@ -212,7 +212,7 @@
   {/if}
 
   <div class="ml-auto flex items-center gap-2" data-testid="reader-footer">
-    <div class="flex items-center gap-2" data-testid="note-toolbar-reading">
+    <div class="flex items-center gap-1 md:gap-2" data-testid="note-toolbar-reading">
       {#if workplace && workplacePages && workplacePage !== null}
         <div class="flex shrink-0 items-center gap-1 whitespace-nowrap" data-testid="reader-pages">
           <Button
@@ -255,7 +255,7 @@
       <span class="whitespace-nowrap role-caption text-[var(--muted-foreground)]" data-testid="reader-progress"
         >{Math.round(progress)}%</span
       >
-      <Progress value={progress} class="w-[7rem] max-[899px]:hidden" />
+      <Progress value={progress} class="w-[7rem] max-md:hidden" />
       {#if showZoom}
         <Button
           size="icon"

@@ -6,6 +6,7 @@
   import NoteToolbar from './NoteToolbar.svelte';
   import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
+  import { EmptyState } from '@texture/ui';
   import { activeTab } from './workplace';
   import type { TabAppearancePatch } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
@@ -13,6 +14,7 @@
   import { NOTE_TYPES } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
+  import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
 
   interface Props {
@@ -206,8 +208,8 @@
   /** Снимок нижней панели активной вкладки. */
   const activeFooter = $derived(tab ? (footerByTab[tab.id] ?? null) : null);
 
-  /** Точка перелома «узкое окно»: та же, что у панели уведомлений. */
-  const NARROW_WINDOW_QUERY = '(max-width: 899px)';
+  /** Точка перелома «узкое окно»: та же, что у общего компонента боковой панели. */
+  const NARROW_WINDOW_QUERY = NARROW_MAX_WIDTH;
 
   /** Узкое ли сейчас окно (для автозакрытия панели заметок на её ширине). */
   function isNarrowWindow(): boolean {
@@ -345,12 +347,12 @@
     <div class="relative flex min-h-0 flex-1">
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         {#if workspace.tabs.length === 0}
-          <div
-            class="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-[var(--muted-foreground)]"
-            data-testid="workplace-empty"
-          >
-            <p>Рабочее место пусто.</p>
-            <p>Откройте книгу в библиотеке, чтобы добавить её вкладкой.</p>
+          <div class="flex h-full items-center justify-center p-6" data-testid="workplace-empty">
+            <EmptyState
+              icon="workspace"
+              title="Рабочее место пусто"
+              description="Откройте книгу в разделе «Библиотеки», чтобы добавить её вкладкой."
+            />
           </div>
         {:else}
           <!--
@@ -414,6 +416,7 @@
           onCreateSet={onCreateSet}
           onRenameSet={onRenameSet}
           onRemoveSet={onRemoveSet}
+          onClose={onCloseNotes}
         />
       {/if}
       {#if booksOpen && !focusMode}
@@ -425,6 +428,7 @@
           onClose={onCloseTab}
           onDuplicate={onDuplicateTab}
           onEditAppearance={onEditTabAppearance}
+          onClosePanel={onToggleBooks}
         />
       {/if}
     </div>

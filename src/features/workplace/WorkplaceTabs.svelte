@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { Button, Dialog, Icon } from '@texture/ui';
+  import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@texture/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { publishUserNotification } from '../notifications/notifications';
@@ -304,6 +304,30 @@
       ? 'bg-[var(--background)] text-[var(--foreground)]'
       : 'text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
   }
+
+  /** Пункты контекстного меню рабочего места на телефоне: те же действия, что
+   * на широком окне стоят кнопками. */
+  const workplaceActions = $derived<MenuAction[]>([
+    { id: 'books', label: 'Открытые вкладки' },
+    ...(onToggleFocus
+      ? [
+          {
+            id: 'focus',
+            label: focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение',
+          },
+        ]
+      : []),
+  ]);
+
+  /** Обработка пункта меню рабочего места. */
+  function runWorkplaceAction(action: string) {
+    if (action === 'books') {
+      onToggleBooks();
+    }
+    if (action === 'focus') {
+      onToggleFocus?.();
+    }
+  }
 </script>
 
 <div
@@ -321,14 +345,14 @@
   </Button>
   {#if workspaceName}
     <span
-      class="max-w-[17.5rem] truncate role-subtitle text-[var(--foreground)]"
+      class="hidden max-w-[17.5rem] truncate role-subtitle text-[var(--foreground)] md:inline"
       data-testid="header-workspace-name"
       title={workspaceName}
     >
       {workspaceName}
     </span>
   {/if}
-  <span class="text-[var(--input)]" aria-hidden="true">|</span>
+  <span class="hidden text-[var(--input)] md:inline" aria-hidden="true">|</span>
   <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
        выталкивает их за пределы панели. -->
   <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-actions">
@@ -440,6 +464,11 @@
       </Button>
     {/if}
   </div>
+  <!--
+    Управление чтением и панелями: на телефоне второстепенные кнопки уходят в
+    контекстное меню, чтобы полоса оставалась свободной и удобной пальцу; на
+    широком окне те же действия стоят кнопками.
+  -->
   <Button
     variant={notesOpen ? 'primary' : 'secondary'}
     size="icon"
@@ -450,28 +479,38 @@
   >
     <Icon name="note" />
   </Button>
-  <Button
-    variant={booksOpen ? 'primary' : 'secondary'}
-    size="icon"
-    title="Открытые вкладки книг"
-    ariaLabel="Открытые вкладки книг"
-    ariaPressed={booksOpen}
-    onclick={onToggleBooks}
-  >
-    <Icon name="list" />
-  </Button>
-  {#if onToggleFocus}
+  <span class="hidden md:flex md:items-center md:gap-2">
     <Button
-      variant={focusMode ? 'primary' : 'secondary'}
+      variant={booksOpen ? 'primary' : 'secondary'}
       size="icon"
-      title={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
-      ariaLabel={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
-      ariaPressed={focusMode}
-      onclick={onToggleFocus}
+      title="Открытые вкладки книг"
+      ariaLabel="Открытые вкладки книг"
+      ariaPressed={booksOpen}
+      onclick={onToggleBooks}
     >
-      <Icon name="focus" />
+      <Icon name="list" />
     </Button>
-  {/if}
+    {#if onToggleFocus}
+      <Button
+        variant={focusMode ? 'primary' : 'secondary'}
+        size="icon"
+        title={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
+        ariaLabel={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
+        ariaPressed={focusMode}
+        onclick={onToggleFocus}
+      >
+        <Icon name="focus" />
+      </Button>
+    {/if}
+  </span>
+  <span class="flex md:hidden">
+    <ActionMenu
+      ariaLabel="Действия рабочего места"
+      title="Действия"
+      items={workplaceActions}
+      onselect={runWorkplaceAction}
+    />
+  </span>
 </div>
 
 <Dialog

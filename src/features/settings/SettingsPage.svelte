@@ -143,7 +143,7 @@
       <Icon name="close" />
     </Button>
   </div>
-  <ScrollArea testId="settings-sections" class="gap-6 p-4">
+  <ScrollArea testId="settings-sections" class="gap-6 p-4 md:p-6">
     {#if declarations.length === 0}
       <div class="p-6 text-center text-[var(--muted-foreground)]">
         Нет зарегистрированных настроек
@@ -151,7 +151,7 @@
     {:else}
       {#each declarations as item, index (item.declaration?.id ?? index)}
         {#if item.declaration}
-          <div class="flex flex-col" data-testid="settings-section">
+          <div class="flex min-w-0 flex-col" data-testid="settings-section">
             <UiRenderer
               declaration={item.declaration}
               diagnostics={item.diagnostics}
@@ -169,6 +169,7 @@
   <div
     class="flex shrink-0 items-center justify-end border-t border-[var(--border)] px-4 py-2"
     data-testid="settings-footer"
+    style="padding-bottom: max(0.5rem, var(--safe-bottom));"
   >
     <Button variant="primary" disabled={!dirty} onclick={save}>Сохранить</Button>
   </div>

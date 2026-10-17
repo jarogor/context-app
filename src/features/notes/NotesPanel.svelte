@@ -38,6 +38,8 @@
     onRenameSet?: (setId: string, name: string) => void;
     /** Удаление набора книги. */
     onRemoveSet?: (setId: string) => void;
+    /** Закрытие панели (на узком окне панель перекрывает содержимое). */
+    onClose?: () => void;
   }
 
   let {
@@ -57,6 +59,7 @@
     onCreateSet,
     onRenameSet,
     onRemoveSet,
+    onClose,
   }: Props = $props();
 
   /** Запрос поиска по цитатам. */
@@ -135,6 +138,7 @@
   testId="notes-panel"
   showSearch={hasBook}
   class="w-[var(--notes-panel-width)]"
+  {onClose}
 >
   {#snippet search()}
     <Input bind:value={query} placeholder="Поиск по заметкам" />

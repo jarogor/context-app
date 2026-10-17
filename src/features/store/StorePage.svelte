@@ -371,16 +371,16 @@
       </ul>
     {/if}
 
-    <div class="mt-3 flex flex-wrap gap-2">
-      <Input placeholder="Идентификатор" bind:value={storeId} class="max-w-[11.25rem]" />
+    <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <Input placeholder="Идентификатор" bind:value={storeId} class="sm:max-w-[11.25rem]" />
       <Select
         bind:value={storeKind}
         items={STORE_KIND_OPTIONS}
         ariaLabel="Вид стора"
-        class="max-w-[7.5rem]"
+        class="sm:max-w-[7.5rem]"
       />
-      <Input placeholder="Название" bind:value={storeTitle} class="max-w-[11.25rem]" />
-      <Input placeholder="Каталог или адрес" bind:value={storeLocation} class="max-w-[15rem]" />
+      <Input placeholder="Название" bind:value={storeTitle} class="sm:max-w-[11.25rem]" />
+      <Input placeholder="Каталог или адрес" bind:value={storeLocation} class="sm:max-w-[15rem]" />
       <Button variant="primary" onclick={addStore}>Добавить стор</Button>
     </div>
   </Card>

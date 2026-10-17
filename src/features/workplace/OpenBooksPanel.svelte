@@ -38,10 +38,20 @@
     onDuplicate: (id: string) => void;
     /** Правка оформления вкладки. */
     onEditAppearance: (id: string, patch: TabAppearancePatch) => void;
+    /** Закрытие панели (на узком окне панель перекрывает содержимое). */
+    onClosePanel?: () => void;
   }
 
-  let { tabs, activeTabId, openTabsLimit, onSelect, onClose, onDuplicate, onEditAppearance }: Props =
-    $props();
+  let {
+    tabs,
+    activeTabId,
+    openTabsLimit,
+    onSelect,
+    onClose,
+    onDuplicate,
+    onEditAppearance,
+    onClosePanel,
+  }: Props = $props();
 
   /** Доступность создания новых вкладок при текущем лимите. */
   const availability = $derived(openAvailability(tabs.length, openTabsLimit));
@@ -188,6 +198,7 @@
   title="Открытые вкладки книг"
   testId="open-books-panel"
   class="w-[var(--notes-panel-width)]"
+  onClose={onClosePanel}
 >
   {#snippet search()}
     <Input
