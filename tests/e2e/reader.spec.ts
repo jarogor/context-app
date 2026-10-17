@@ -125,7 +125,7 @@ test('открытие панели заметок не сбивает чита�
     const before = await body.evaluate(snapshot);
     const widthBefore = await frame.evaluate((element) => element.clientWidth);
 
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     // Дожидаемся перестройки текста под новую ширину области чтения.
     await expect
@@ -168,10 +168,9 @@ test('переключатель меняет тему области чтени
     await expect(root).toHaveAttribute('data-reader-theme', 'light');
     await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
 
-    // Переключатель темы принадлежит верхней панели чтения.
+    // Переключатель темы принадлежит единой панели чтения.
     const toggle = page.getByTestId('note-toolbar').getByTestId('reader-theme-toggle');
     await expect(toggle).toBeVisible();
-    await expect(page.getByTestId('reader-footer').getByTestId('reader-theme-toggle')).toHaveCount(0);
 
     await toggle.getByRole('button', { name: 'Тёмная тема области чтения' }).click();
 
@@ -204,7 +203,7 @@ test('со страницы книги можно вернуться к спис
 
     await library.getByRole('button', { name: /Демо-книга/ }).click();
     await expect(library.getByTestId('book-title')).toBeVisible();
-    await library.getByRole('button', { name: /К списку/ }).click();
+    await library.getByRole('button', { name: /К списку книг/ }).click();
 
     await expect(library.getByText('Демо-книга')).toBeVisible();
     await expect(library.getByText('Вторая книга')).toBeVisible();

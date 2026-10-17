@@ -13,6 +13,7 @@
 <script lang="ts">
   import { Select as SelectPrimitive } from 'bits-ui';
   import { cn } from '../utils';
+  import Icon from './Icon.svelte';
 
   interface Props {
     /** Текущее значение. */
@@ -65,31 +66,16 @@
     aria-label={ariaLabel}
     class={cn(
       'border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 data-[placeholder]:text-muted-foreground box-border flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border px-3 shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
-      size === 'sm' ? 'h-8 text-[0.75rem]' : 'h-9 text-sm',
+      size === 'sm' ? 'h-8 role-caption' : 'h-9 text-sm',
       className,
     )}
   >
     <SelectPrimitive.Value {placeholder} class="truncate text-left" />
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      aria-hidden="true"
-      class="text-muted-foreground shrink-0"
-    >
-      <path
-        d="m6 9 6 6 6-6"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
+    <Icon name="chevron-down" class="text-muted-foreground" />
   </SelectPrimitive.Trigger>
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
-      class="border-border bg-popover text-popover-foreground z-50 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-md border shadow-md"
+      class="border-border bg-popover text-popover-foreground z-50 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-md border shadow-overlay"
       sideOffset={4}
     >
       <SelectPrimitive.Viewport class="p-1">
@@ -103,16 +89,7 @@
             {#snippet children({ selected })}
               <span class="flex-1 truncate text-left">{item.label}</span>
               {#if selected}
-                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" class="shrink-0">
-                  <path
-                    d="M20 6 9 17l-5-5"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
+                <Icon name="check" class="shrink-0" />
               {/if}
             {/snippet}
           </SelectPrimitive.Item>

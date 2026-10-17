@@ -195,6 +195,6 @@ describe('UiRenderer', () => {
     expect(heading.className).toContain('font-semibold');
     const sectionText = screen.getByText('Общие параметры');
     expect(sectionText.className).toContain('text-muted-foreground');
-    expect(sectionText.className).toContain('text-[0.8125rem]');
+    expect(sectionText.className).toContain('role-body');
   });
 });

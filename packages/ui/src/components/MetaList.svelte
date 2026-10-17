@@ -34,7 +34,7 @@
 
 <div
   class={cn(
-    'flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8rem] text-[var(--muted-foreground)]',
+    'flex flex-wrap items-center gap-x-3 gap-y-1 role-caption text-[var(--muted-foreground)]',
     className,
   )}
 >

@@ -79,6 +79,93 @@ export async function isInvisibleScan(
   return result;
 }
 
+/** Ожидание готовности растра страницы перед его чтением.
+ *
+ * В WebKitGTK растр изображения (JPEG-скан, XObject `DCTDecode`) дорисовывается
+ * в канвас **асинхронно уже после** `page.render().promise`: сразу после
+ * отрисовки канвас может быть ещё белым. Тогда чтение пикселей не находит чернил,
+ * и выравнивание невидимого слоя молча пропускается — выделение съезжает
+ * относительно видимого текста. Ждём появления чернил, опрашивая кадры отрисовки
+ * с ограничением по времени: страница без чернил (пустой скан) ожидание не
+ * задерживает. Возвращает, дождались ли чернил.
+ */
+export async function waitForRasterInk(
+  canvas: HTMLCanvasElement,
+  maxWaitMillis = 500,
+): Promise<boolean> {
+  const width = canvas.width;
+  const height = canvas.height;
+  if (width <= 0 || height <= 0) {
+    return false;
+  }
+  const stepX = Math.max(1, Math.floor(width / 128));
+  const stepY = Math.max(1, Math.floor(height / 128));
+  const started = performance.now();
+  // «Чернилом» считается заметно тёмный непрозрачный пиксель — тот же признак,
+  // что и в `alignTextLayer`, поэтому ожидание и выравнивание согласованы.
+  const hasInk = (): boolean => {
+    let context: CanvasRenderingContext2D | null = null;
+    try {
+      context = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
+    } catch (error) {
+      return false;
+    }
+    if (!context) {
+      return false;
+    }
+    let pixels: Uint8ClampedArray;
+    try {
+      pixels = context.getImageData(0, 0, width, height).data;
+    } catch (error) {
+      // Песочница запретила чтение пикселей — выравнивание всё равно невозможно.
+      return true;
+    }
+    for (let y = 0; y < height; y += stepY) {
+      for (let x = 0; x < width; x += stepX) {
+        const index = (y * width + x) * 4;
+        if (
+          pixels[index + 3] > 0 &&
+          (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3 < 150
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  for (;;) {
+    if (hasInk()) {
+      return true;
+    }
+    if (performance.now() - started >= maxWaitMillis) {
+      return false;
+    }
+    await nextFrame();
+  }
+}
+
+/** Ожидание одного кадра отрисовки.
+ *
+ * `requestAnimationFrame` в скрытом документе не срабатывает, поэтому рядом
+ * стоит таймер-страховка: ожидание обязано завершиться даже без кадров.
+ */
+function nextFrame(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) {
+        return;
+      }
+      done = true;
+      resolve();
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(finish);
+    }
+    setTimeout(finish, 16);
+  });
+}
+
 /**
  * Подгонка невидимого текстового слоя под растр скана.
  *

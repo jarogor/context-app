@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ActionMenu, Input, type MenuAction, type MenuColor } from '@texture/ui';
+  import { ActionMenu, EmptyState, Input, SidePanel, Skeleton, type MenuAction, type MenuColor } from '@texture/ui';
   import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
   import NoteEntry from './NoteEntry.svelte';
   import NoteSetsControl from './NoteSetsControl.svelte';
@@ -130,16 +130,23 @@
   }
 </script>
 
-<aside
-  class="flex w-[var(--notes-panel-width)] min-w-0 flex-none flex-col border-l border-[var(--border)] bg-[var(--card)] max-[899px]:absolute max-[899px]:inset-0 max-[899px]:w-auto max-[899px]:border-l-0"
-  data-testid="notes-panel"
+<SidePanel
+  title="Заметки"
+  testId="notes-panel"
+  showSearch={hasBook}
+  class="w-[var(--notes-panel-width)]"
 >
+  {#snippet search()}
+    <Input bind:value={query} placeholder="Поиск по заметкам" />
+  {/snippet}
+
   {#if !hasBook}
-    <div
-      class="p-4 text-[0.8125rem] text-[var(--muted-foreground)]"
-      data-testid="notes-panel-empty"
-    >
-      Откройте книгу, чтобы вести заметки.
+    <div class="p-4" data-testid="notes-panel-empty">
+      <EmptyState
+        icon="book"
+        title="Книга не открыта"
+        description="Откройте книгу, чтобы вести заметки."
+      />
     </div>
   {:else}
     <NoteSetsControl
@@ -151,12 +158,8 @@
       onRemove={(setId) => onRemoveSet?.(setId)}
     />
 
-    <div class="border-b border-[var(--border)] p-2">
-      <Input bind:value={query} placeholder="Поиск по заметкам" />
-    </div>
-
     {#if loading && items.length === 0}
-      <p class="p-3 text-[0.8125rem] text-[var(--muted-foreground)]">Загрузка…</p>
+      <div class="p-3"><Skeleton rows={3} rowClass="h-10" /></div>
     {:else}
       <ul
         class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2"
@@ -196,7 +199,7 @@
           </NoteEntry>
         {:else}
           <li
-            class="px-2 py-3 text-center text-[0.8125rem] text-[var(--muted-foreground)]"
+            class="px-2 py-3 text-center role-body text-[var(--muted-foreground)]"
             data-testid="notes-list-empty"
           >
             {query
@@ -207,4 +210,4 @@
       </ul>
     {/if}
   {/if}
-</aside>
+</SidePanel>

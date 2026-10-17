@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import Button from './Button.svelte';
+  import Icon, { type IconName } from './Icon.svelte';
 
   interface Props {
     /** Действие кнопки; задаёт иконку, вариант оформления и подпись по умолчанию. */
@@ -23,22 +24,14 @@
     class?: string;
   }
 
-  /** Параметры действия: вариант кнопки, подпись и путь иконки. */
+  /** Параметры действия: вариант кнопки, подпись и имя иконки. */
   const ACTIONS: Record<
     IconButtonAction,
-    { variant: 'primary' | 'secondary' | 'ghost-danger'; title: string; path: string }
+    { variant: 'primary' | 'secondary' | 'ghost-danger'; title: string; icon: IconName }
   > = {
-    add: { variant: 'primary', title: 'Добавить', path: 'M12 5v14M5 12h14' },
-    delete: {
-      variant: 'ghost-danger',
-      title: 'Удалить',
-      path: 'M5 7h14M10 7V5h4v2M6 7l1 13h10l1-13',
-    },
-    edit: {
-      variant: 'secondary',
-      title: 'Изменить',
-      path: 'M4 20h4l10-10-4-4L4 16zM14 6l4 4',
-    },
+    add: { variant: 'primary', title: 'Добавить', icon: 'plus' },
+    delete: { variant: 'ghost-danger', title: 'Удалить', icon: 'trash' },
+    edit: { variant: 'secondary', title: 'Изменить', icon: 'pencil' },
   };
 
   let {
@@ -67,14 +60,5 @@
   {onclick}
   class={className}
 >
-  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-    <path
-      d={spec.path}
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-  </svg>
+  <Icon name={spec.icon} />
 </Button>

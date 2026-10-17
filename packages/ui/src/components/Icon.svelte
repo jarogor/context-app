@@ -24,7 +24,27 @@
     | 'compass'
     | 'note'
     | 'layers'
-    | 'circle';
+    | 'circle'
+    | 'gear'
+    | 'plus'
+    | 'chevron-left'
+    | 'chevron-right'
+    | 'chevron-down'
+    | 'copy'
+    | 'resize'
+    | 'move'
+    | 'pencil'
+    | 'bell'
+    | 'workspace'
+    | 'library'
+    | 'list'
+    | 'grid'
+    | 'focus'
+    | 'trash'
+    | 'duplicate'
+    | 'more'
+    | 'menu'
+    | 'monitor';
 
   /** Иконки, предлагаемые для оформления вкладки рабочего места.
    *
@@ -116,5 +136,60 @@
     <path d="M3 13l9 5 9-5M3 16.5l9 5 9-5" />
   {:else if name === 'circle'}
     <circle cx="12" cy="12" r="8" />
+  {:else if name === 'gear'}
+    <circle cx="12" cy="12" r="3.2" />
+    <path
+      d="M12 3.2v2M12 18.8v2M3.2 12h2M18.8 12h2M5.8 5.8l1.4 1.4M16.8 16.8l1.4 1.4M18.2 5.8l-1.4 1.4M7.2 16.8l-1.4 1.4"
+    />
+  {:else if name === 'plus'}
+    <path d="M12 5v14M5 12h14" />
+  {:else if name === 'chevron-left'}
+    <path d="M15 6l-6 6 6 6" />
+  {:else if name === 'chevron-right'}
+    <path d="M9 6l6 6-6 6" />
+  {:else if name === 'chevron-down'}
+    <path d="m6 9 6 6 6-6" />
+  {:else if name === 'copy'}
+    <path d="M9 9h9v9H9zM6 15V6h9" />
+  {:else if name === 'resize'}
+    <path d="M4 9h13M4 9l3-3M4 9l3 3M20 15H7M20 15l-3-3M20 15l-3 3" />
+  {:else if name === 'move'}
+    <path
+      d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
+    />
+  {:else if name === 'pencil'}
+    <path d="M4 20h4l10-10-4-4L4 16zM14 6l4 4" />
+  {:else if name === 'bell'}
+    <path d="M12 21a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 21Zm7-5v-1l-1.7-1.7V10a5.3 5.3 0 0 0-4-5.2V4a1.3 1.3 0 0 0-2.6 0v.8A5.3 5.3 0 0 0 6.7 10v4.3L5 16v1Z" />
+  {:else if name === 'workspace'}
+    <rect x="3.5" y="4" width="17" height="16" rx="2" />
+    <path d="M3.5 8.5h17M9 8.5V20" />
+  {:else if name === 'library'}
+    <rect x="4" y="3.5" width="4.5" height="17" rx="1" />
+    <rect x="10" y="3.5" width="4.5" height="17" rx="1" />
+    <path d="M16.2 4.3a1 1 0 0 1 1.25.7l3.1 14.2a1 1 0 0 1-.75 1.2l-1.9.45a1 1 0 0 1-1.2-.75L13.6 5.9a1 1 0 0 1 .75-1.2Z" />
+  {:else if name === 'list'}
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  {:else if name === 'grid'}
+    <rect x="4" y="4" width="7" height="7" rx="1" />
+    <rect x="13" y="4" width="7" height="7" rx="1" />
+    <rect x="4" y="13" width="7" height="7" rx="1" />
+    <rect x="13" y="13" width="7" height="7" rx="1" />
+  {:else if name === 'focus'}
+    <path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" />
+  {:else if name === 'trash'}
+    <path d="M5 7h14M10 7V5h4v2M6 7l1 13h10l1-13" />
+  {:else if name === 'duplicate'}
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+  {:else if name === 'more'}
+    <circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none" />
+  {:else if name === 'menu'}
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  {:else if name === 'monitor'}
+    <rect x="2.5" y="4" width="19" height="13" rx="2" />
+    <path d="M8 20.5h8" />
   {/if}
 </svg>

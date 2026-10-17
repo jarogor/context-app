@@ -2,6 +2,7 @@
   import { Dialog as DialogPrimitive } from 'bits-ui';
   import type { Snippet } from 'svelte';
   import { cn } from '../utils';
+  import Icon from './Icon.svelte';
 
   interface Props {
     /** Открытость диалога. */
@@ -33,7 +34,7 @@
     <DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/40" />
     <DialogPrimitive.Content
       class={cn(
-        'fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--popover)] p-5 text-[var(--popover-foreground)] shadow-md outline-none',
+        'fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--popover)] p-5 role-body text-[var(--popover-foreground)] shadow-overlay outline-none',
         className,
       )}
     >
@@ -44,9 +45,7 @@
           aria-label="Закрыть"
           class="absolute top-4 right-4 inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]"
         >
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
+          <Icon name="close" />
         </DialogPrimitive.Close>
       {/if}
     </DialogPrimitive.Content>

@@ -27,4 +27,36 @@ describe('Icon', () => {
       expect(svg?.childElementCount, name).toBeGreaterThan(0);
     }
   });
+
+  it('рисует иконки действий и разделов непустыми', () => {
+    const names = [
+      'gear',
+      'plus',
+      'chevron-left',
+      'chevron-right',
+      'chevron-down',
+      'copy',
+      'resize',
+      'move',
+      'pencil',
+      'bell',
+      'workspace',
+      'library',
+      'list',
+      'grid',
+      'focus',
+      'trash',
+      'duplicate',
+      'more',
+      'monitor',
+    ] as const;
+
+    for (const name of names) {
+      const { container } = render(Icon, { props: { name } });
+
+      const svg = container.querySelector('svg');
+      expect(svg, name).toBeTruthy();
+      expect(svg?.childElementCount, name).toBeGreaterThan(0);
+    }
+  });
 });

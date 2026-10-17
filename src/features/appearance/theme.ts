@@ -62,6 +62,51 @@ export async function loadReaderTheme(): Promise<ReaderThemeId> {
   return normalizeReaderThemeId(value);
 }
 
+/** Ключ сохранённого оформления для статичного экрана загрузки до бандла.
+ *
+ * Значение читает `index.html` до загрузки бандла: там нет ни дизайн-системы,
+ * ни токенов, поэтому цвета и сторону темы берут из этого ключа, чтобы экран
+ * загрузки сразу совпал с выбранным оформлением, а не показывал чужой набор.
+ */
+export const BOOT_APPEARANCE_KEY = 'texture.appearance';
+
+/** Оформление, пригодное для экрана загрузки до бандла. */
+export interface BootAppearance {
+  /** Предпочтение темы. */
+  theme: ThemePreference;
+  /** Активная палитра. */
+  palette: PaletteId;
+}
+
+/** Чтение сохранённого оформления экрана загрузки; `null` — данных нет. */
+export function readBootAppearance(): BootAppearance | null {
+  try {
+    const raw = localStorage.getItem(BOOT_APPEARANCE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const value = JSON.parse(raw) as { theme?: unknown; palette?: unknown };
+    return {
+      theme: normalizeThemePreference(value.theme),
+      palette: normalizePaletteId(value.palette),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Сохранение оформления для экрана загрузки следующего запуска. */
+export function persistBootAppearance(value: BootAppearance): void {
+  try {
+    localStorage.setItem(
+      BOOT_APPEARANCE_KEY,
+      JSON.stringify({ theme: value.theme, palette: value.palette }),
+    );
+  } catch {
+    // Недоступное хранилище не мешает применению оформления в текущей сессии.
+  }
+}
+
 /** Применение предпочтения темы к документу.
  *
  * Возвращает функцию снятия подписки на тему операционной системы (для

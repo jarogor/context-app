@@ -1,9 +1,12 @@
 <script lang="ts">
   import {
+    EmptyState,
     EntityList,
+    ErrorState,
+    Icon,
     PageShell,
     SearchCreate,
-    Spinner,
+    Skeleton,
     type MenuAction,
     type MetaItem,
   } from '@texture/ui';
@@ -118,25 +121,26 @@
   empty={view.length === 0}
 >
   {#snippet loadingContent()}
-    <div
-      class="flex items-center gap-2 p-4 text-[0.9rem] text-[var(--muted-foreground)]"
-      data-testid="notes-library-loading"
-    >
-      <Spinner />
-      Загрузка…
+    <div class="p-4" data-testid="notes-library-loading">
+      <Skeleton rows={4} />
     </div>
   {/snippet}
 
   {#snippet errorContent()}
-    <p class="p-4 text-[0.9rem] text-[var(--muted-foreground)]" data-testid="notes-library-error">
-      Не удалось загрузить заметки: {error}
-    </p>
+    <div class="p-4">
+      <ErrorState message={`Не удалось загрузить заметки: ${error}`} testId="notes-library-error" />
+    </div>
   {/snippet}
 
   {#snippet emptyContent()}
-    <p class="p-4 text-[0.9rem] text-[var(--muted-foreground)]" data-testid="notes-library-empty">
-      {query ? 'По запросу ничего не найдено.' : 'Заметок пока нет.'}
-    </p>
+    <EmptyState
+      icon="note"
+      title={query ? 'По запросу ничего не найдено' : 'Заметок пока нет'}
+      description={query
+        ? 'Измените запрос поиска.'
+        : 'Выделите фрагмент текста в книге, чтобы создать заметку.'}
+      testId="notes-library-empty"
+    />
   {/snippet}
 
   {#snippet form()}
@@ -158,23 +162,14 @@
     onAction={(set) => openBookOfSet(set)}
   >
     {#snippet titleContent(set)}
-      <svg
-        class="h-4 w-4 shrink-0 text-[var(--muted-foreground)] transition-transform"
-        class:rotate-90={isExpanded(set.id)}
-        viewBox="0 0 16 16"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M6 4l4 4-4 4"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
       <span
-        class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
+        class="inline-flex shrink-0 text-[var(--muted-foreground)] transition-transform"
+        class:rotate-90={isExpanded(set.id)}
+      >
+        <Icon name="chevron-right" />
+      </span>
+      <span
+        class="min-w-0 flex-1 truncate role-title"
         data-testid="notes-library-set-name"
       >
         {set.name}
@@ -183,7 +178,7 @@
 
     {#snippet trailing(set)}
       <span
-        class="text-[0.8rem] text-[var(--muted-foreground)]"
+        class="role-caption text-[var(--muted-foreground)]"
         data-testid="notes-library-count"
       >
         {noteCountLabel(set.noteItems.length)}
@@ -194,7 +189,7 @@
       {#if isExpanded(set.id)}
         {#if set.noteItems.length === 0}
           <p
-            class="px-3 text-[0.9rem] text-[var(--muted-foreground)]"
+            class="px-3 role-body text-[var(--muted-foreground)]"
             data-testid="notes-library-set-empty"
           >
             В наборе нет заметок.

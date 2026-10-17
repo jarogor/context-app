@@ -101,7 +101,7 @@ describe('раздел «Заметки» в оболочке', () => {
             ),
         ).toBe(false);
 
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
 
         await waitFor(() =>
             expect(
@@ -117,16 +117,16 @@ describe('раздел «Заметки» в оболочке', () => {
     it('открывается кнопкой-иконкой, показывает заголовок и реестр', async () => {
         render(App, { props: appProps() });
 
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
 
-        expect(screen.getByText('Заметки')).toBeTruthy();
+        expect(screen.getByTestId('section-title').textContent).toContain('Заметки');
         expect(screen.getByTestId('notes-library')).toBeTruthy();
     });
 
     it('показывает реестр, прочитанный при открытии раздела', async () => {
         render(App, { props: appProps([aggregateSet()]) });
 
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
 
         await waitFor(() => expect(screen.getByTestId('notes-library-book')).toBeTruthy());
         expect(screen.getByText('Книга A')).toBeTruthy();
@@ -134,7 +134,7 @@ describe('раздел «Заметки» в оболочке', () => {
 
     it('перечитывает реестр по событию notes:changed', async () => {
         render(App, { props: appProps([]) });
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         await waitFor(() => expect(screen.getByTestId('notes-library')).toBeTruthy());
         expect(screen.getByTestId('notes-library-empty')).toBeTruthy();
 
@@ -147,7 +147,7 @@ describe('раздел «Заметки» в оболочке', () => {
     it('передаёт интенты перехода в реестр', async () => {
         render(App, { props: appProps([aggregateSet()]) });
 
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
         const registry = screen.getByTestId('notes-library');
         const section = within(registry).getByTestId('notes-library-set');
@@ -182,7 +182,7 @@ describe('раздел «Заметки» в оболочке', () => {
             },
         });
 
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
         await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
         await fireEvent.click(await screen.findByText('Открыть книгу'));
@@ -210,7 +210,7 @@ describe('раздел «Заметки» в оболочке', () => {
             props: appProps([aggregateSet({ book_key: 'no-library', book_title: 'Без книги' })]),
         });
 
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
         await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
         await fireEvent.click(await screen.findByText('Открыть книгу'));
@@ -269,7 +269,7 @@ describe('тема области чтения в оболочке', () => {
             currentWorkspaceId: 'ws-1',
         };
         render(App, { props: { ...appProps(), initialRegistry: registry } });
-        await fireEvent.click(screen.getByLabelText('Рабочее место'));
+        await fireEvent.click(screen.getByTestId('nav-workspace'));
         await fireEvent.click(screen.getByTestId('workspace-open'));
         await waitFor(() => expect(settingsChanged).toBeTypeOf('function'));
 
@@ -295,47 +295,33 @@ describe('тема области чтения в оболочке', () => {
     });
 });
 
-describe('порядок кнопок верхней панели', () => {
-    /** Метки кнопок шапки в порядке слева направо. */
-    function headerLabels(): string[] {
-        const header = document.querySelector('header') as HTMLElement;
-        return Array.from(header.querySelectorAll('button')).map(
+describe('состав меню разделов', () => {
+    /** Метки пунктов меню разделов в порядке сверху вниз. */
+    function navLabels(): string[] {
+        const nav = document.querySelector('[data-testid="section-nav"]') as HTMLElement;
+        return Array.from(nav.querySelectorAll('button')).map(
             (node) => node.getAttribute('aria-label') ?? '',
         );
     }
 
-    it('логотип стоит у левого края, а настройки уехали вправо', async () => {
+    it('содержит разделы и служебные пункты', async () => {
         render(App, { props: appProps() });
 
-        const header = document.querySelector('header') as HTMLElement;
-        const children = Array.from(header.children);
-        // Первый ребёнок шапки — логотип: слева кнопок больше нет.
-        expect(children[0]?.textContent).toContain('Текстура');
-        // Кнопка настроек — последняя в правой группе.
-        expect(headerLabels().at(-1)).toBe('Настройки');
+        const labels = navLabels();
+        expect(labels).toContain('Рабочие места');
+        expect(labels).toContain('Библиотеки');
+        expect(labels).toContain('Заметки');
+        expect(labels).toContain('Уведомления');
+        expect(labels).toContain('Настройки');
     });
 
-    it('правая группа идёт: рабочее место, библиотеки, заметки, тема, уведомления, настройки', async () => {
+    it('разделы идут в порядке: рабочие места, библиотека, заметки', async () => {
         render(App, { props: appProps() });
 
-        const labels = headerLabels().filter((label) =>
-            [
-                'Настройки',
-                'Рабочее место',
-                'Библиотеки',
-                'Реестр заметок',
-                'Переключить тему',
-                'Уведомления',
-            ].includes(label),
+        const labels = navLabels().filter((label) =>
+            ['Рабочие места', 'Библиотеки', 'Заметки'].includes(label),
         );
-        expect(labels).toEqual([
-            'Рабочее место',
-            'Библиотеки',
-            'Реестр заметок',
-            'Переключить тему',
-            'Уведомления',
-            'Настройки',
-        ]);
+        expect(labels).toEqual(['Рабочие места', 'Библиотеки', 'Заметки']);
     });
 });
 
@@ -368,7 +354,7 @@ describe('активность кнопки рабочего места', () => 
 
     /** Признак нажатого состояния кнопки рабочего места в шапке. */
     function workspacePressed(): string | null {
-        return screen.getByLabelText('Рабочее место').getAttribute('aria-pressed');
+        return screen.getByTestId('nav-workspace').getAttribute('aria-pressed');
     }
 
     it('активна в списке, не активна в открытом месте и вновь активна при возврате', async () => {
@@ -398,13 +384,13 @@ describe('активность кнопки рабочего места', () => 
         expect(workspacePressed()).toBe('false');
 
         // Нажатие кнопки из открытого места возвращает к списку, не закрывая раздел.
-        await fireEvent.click(screen.getByLabelText('Рабочее место'));
+        await fireEvent.click(screen.getByTestId('nav-workspace'));
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
         expect(workspacePressed()).toBe('true');
 
         // Повторное нажатие в списке ничего не меняет: список остаётся главной
         // страницей, а кнопка не «отжимается».
-        await fireEvent.click(screen.getByLabelText('Рабочее место'));
+        await fireEvent.click(screen.getByTestId('nav-workspace'));
         expect(workspacePressed()).toBe('true');
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
         expect(screen.getByTestId('workplace-area').closest('.hidden')).toBeNull();
@@ -416,69 +402,70 @@ describe('активность кнопки рабочего места', () => 
         });
 
         // Раздел «Библиотеки»: повторное нажатие закрывает его и показывает список.
-        await fireEvent.click(screen.getByLabelText('Библиотеки'));
+        await fireEvent.click(screen.getByTestId('nav-library'));
         expect(screen.getByTestId('libraries-page')).toBeTruthy();
-        await fireEvent.click(screen.getByLabelText('Библиотеки'));
+        await fireEvent.click(screen.getByTestId('nav-library'));
         expect(screen.getByTestId('libraries-page').closest('.hidden')).toBeTruthy();
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
 
         // Раздел «Заметки»: то же поведение.
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         expect(screen.getByTestId('notes-library')).toBeTruthy();
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         expect(screen.queryByTestId('notes-library')).toBeNull();
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
     });
 });
 
 describe('полноэкранный раздел настроек', () => {
-    /** Текущая видимость шапки каркаса в jsdom (по классу `hidden`). */
-    function headerHidden(): boolean {
-        return (document.querySelector('header') as HTMLElement).classList.contains('hidden');
+    /** Видны ли меню разделов и панель раздела (скрыты при открытых настройках). */
+    function chromeHidden(): boolean {
+        return document.querySelector('[data-testid="section-nav"]') === null
+            && document.querySelector('[data-testid="section-panel"]') === null;
     }
 
-    it('открывается на всё окно без верхней панели', async () => {
+    it('открывается на всё окно без меню разделов', async () => {
         render(App, { props: appProps() });
 
-        expect(headerHidden()).toBe(false);
+        expect(chromeHidden()).toBe(false);
 
-        await fireEvent.click(screen.getByLabelText('Настройки'));
+        await fireEvent.click(screen.getByTestId('nav-settings'));
 
-        // Полноэкранные настройки: шапка с кнопками разделов скрыта.
-        expect(headerHidden()).toBe(true);
+        // Полноэкранные настройки: меню разделов и панель раздела скрыты.
+        expect(chromeHidden()).toBe(true);
         expect(screen.getByTestId('settings-page')).toBeTruthy();
     });
 
     it('закрывается кнопкой в углу и возвращает прежнюю область', async () => {
         render(App, { props: appProps() });
-        await fireEvent.click(screen.getByLabelText('Настройки'));
-        expect(headerHidden()).toBe(true);
+        await fireEvent.click(screen.getByTestId('nav-settings'));
+        expect(chromeHidden()).toBe(true);
 
         await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
 
-        // Раздел настроек скрыт, шапка вернулась.
+        // Раздел настроек скрыт, меню разделов вернулось.
         expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
-        expect(headerHidden()).toBe(false);
+        expect(chromeHidden()).toBe(false);
     });
 
     it('закрывается клавишей Escape', async () => {
         render(App, { props: appProps() });
-        await fireEvent.click(screen.getByLabelText('Настройки'));
-        expect(headerHidden()).toBe(true);
+        await fireEvent.click(screen.getByTestId('nav-settings'));
+        expect(chromeHidden()).toBe(true);
 
         await fireEvent.keyDown(window, { key: 'Escape' });
 
         expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
-        expect(headerHidden()).toBe(false);
+        expect(chromeHidden()).toBe(false);
     });
 
     it('возвращает область, из которой настройки открывали', async () => {
         render(App, { props: appProps() });
 
         // Открываем раздел «Заметки», затем из него — настройки.
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         expect(screen.getByTestId('notes-library')).toBeTruthy();
-        await fireEvent.click(screen.getByLabelText('Настройки'));
+        await fireEvent.click(screen.getByTestId('nav-settings'));
         await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
 
         // Возврат не пустой основной раздел: прежняя область сохранена.
@@ -526,9 +513,9 @@ describe('текущее рабочее место остаётся загруж
         await waitFor(() => expect(contentReads()).toBe(1));
 
         // Уходим в «Библиотеки» и возвращаемся: список рабочих мест, вкладки живы.
-        await fireEvent.click(screen.getByLabelText('Библиотеки'));
+        await fireEvent.click(screen.getByTestId('nav-library'));
         expect(screen.getByTestId('libraries-page')).toBeTruthy();
-        await fireEvent.click(screen.getByLabelText('Библиотеки'));
+        await fireEvent.click(screen.getByTestId('nav-library'));
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
 
         // Вкладки не размонтированы: слой вкладок существует, книга не прочитана заново.
@@ -548,9 +535,9 @@ describe('текущее рабочее место остаётся загруж
         await fireEvent.click(screen.getByTestId('workspace-open'));
         await waitFor(() => expect(contentReads()).toBe(1));
 
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         expect(screen.getByTestId('notes-library')).toBeTruthy();
-        await fireEvent.click(screen.getByLabelText('Реестр заметок'));
+        await fireEvent.click(screen.getByTestId('nav-notes'));
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
 
         expect(screen.getByTestId('workplace-tab-page')).toBeTruthy();
@@ -563,7 +550,7 @@ describe('текущее рабочее место остаётся загруж
         await fireEvent.click(screen.getByTestId('workspace-open'));
         await waitFor(() => expect(contentReads()).toBe(1));
 
-        await fireEvent.click(screen.getByLabelText('Настройки'));
+        await fireEvent.click(screen.getByTestId('nav-settings'));
         expect(screen.getByTestId('settings-page')).toBeTruthy();
         await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
 

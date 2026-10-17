@@ -281,7 +281,7 @@
         {/if}
       </span>
       <strong
-        class="min-w-0 flex-1 truncate text-[0.95rem] font-medium"
+        class="min-w-0 flex-1 truncate role-title"
         data-testid="library-name"
       >
         {libraryName(entry.path)}

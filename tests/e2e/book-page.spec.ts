@@ -59,7 +59,7 @@ test('возврат к списку сохраняет поиск', async ({ pa
 
     await library.getByPlaceholder('Название или автор').fill('Демо');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: /К списку/ }).click();
+    await library.getByRole('button', { name: /К списку книг/ }).click();
 
     await expect(library.getByPlaceholder('Название или автор')).toHaveValue('Демо');
     await expect(library.getByText('Вторая книга')).toBeHidden();

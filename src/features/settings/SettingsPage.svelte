@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, ErrorToast, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@texture/ui';
+  import { Button, ErrorToast, Icon, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@texture/ui';
   import type { UiIntent, UiNode, UiSpaceDeclaration } from '@texture/ui-schema';
   import { listenEvent } from '../../shared/app-bridge';
   import {
@@ -140,15 +140,7 @@
       ariaLabel="Закрыть настройки"
       onclick={() => onclose?.()}
     >
-      <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-        <path
-          d="M6 6l12 12M18 6L6 18"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          fill="none"
-        />
-      </svg>
+      <Icon name="close" />
     </Button>
   </div>
   <ScrollArea testId="settings-sections" class="gap-6 p-4">

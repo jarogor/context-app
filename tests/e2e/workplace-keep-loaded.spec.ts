@@ -106,7 +106,7 @@ async function addBook(page: import('@playwright/test').Page) {
     await openCurrentWorkspace(page);
     await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
-    const back = library.getByRole('button', { name: /К списку/ });
+    const back = library.getByRole('button', { name: /К списку книг/ });
     if ((await back.count()) > 0) {
         await back.click();
     }
@@ -126,9 +126,9 @@ test('уход в «Библиотеки» и возврат не перечит
     await page.goto('/');
     await addBook(page);
 
-    // Уходим в раздел «Библиотеки» и возвращаемся в «Рабочие места».
+    // Уходим в раздел «Библиотека» и возвращаемся повторным нажатием по нему.
     await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
-    await expect(page.getByTestId('libraries-page')).toBeVisible();
+    await expect(page.getByTestId('section-title')).toHaveText('Библиотеки', { timeout: 10000 });
     await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
 
     // Возврат показывает список рабочих мест, а вкладки остаются смонтированными.
@@ -152,9 +152,9 @@ test('уход в «Заметки» и возврат не перечитыва
     await page.goto('/');
     await addBook(page);
 
-    await page.getByRole('button', { name: 'Реестр заметок', exact: true }).click();
+    await page.getByTestId('nav-notes').click();
     await expect(page.getByTestId('notes-library')).toBeVisible();
-    await page.getByRole('button', { name: 'Реестр заметок', exact: true }).click();
+    await page.getByTestId('nav-notes').click();
 
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
     await expect(page.getByTestId('workplace-tab-page')).toBeAttached();

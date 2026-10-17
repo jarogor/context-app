@@ -24,6 +24,7 @@ import {
   loadReaderTheme,
   loadThemePalette,
   loadThemePreference,
+  persistBootAppearance,
 } from '../appearance/theme';
 import {
   DEFAULT_PALETTE,
@@ -163,6 +164,8 @@ async function applyAppearance(): Promise<AppearanceBootstrap> {
     applyAppThemeTracked(theme);
     applyAppPalette(palette);
     applyAppReaderTheme(readerTheme);
+    // Зеркало оформления для статичного экрана загрузки следующего запуска.
+    persistBootAppearance({ theme, palette });
     return { theme, palette, readerTheme };
 }
 

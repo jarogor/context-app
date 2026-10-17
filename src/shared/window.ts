@@ -7,10 +7,16 @@
 
 import { invokeCommand } from './app-bridge';
 
-/** Показ главного окна приложения. */
-export async function showAppWindow(): Promise<void> {
+/** Показ главного окна приложения.
+ *
+ * `theme` — применённая сторона темы (`light`/`dark`) или `system`. По ней
+ * ставится фон окна: он должен совпасть с уже отрисованным экраном загрузки,
+ * иначе при показе окна на миг мелькнёт чужая сторона темы (например, тёмный фон
+ * при выбранной светлой теме на тёмной системе).
+ */
+export async function showAppWindow(theme?: string): Promise<void> {
     try {
-        await invokeCommand('show_window', {});
+        await invokeCommand('show_window', { theme: theme ?? null });
     } catch {
         // Окно может быть уже показано ядром; отсутствие показа не ломает интерфейс.
     }

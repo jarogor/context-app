@@ -5,6 +5,7 @@
     Icon,
     IconButton,
     Input,
+    SidePanel,
     Textarea,
     TAB_ICON_NAMES,
     type IconName,
@@ -183,18 +184,20 @@
   }
 </script>
 
-<aside
-  class="flex w-[var(--notes-panel-width)] min-w-0 flex-none flex-col border-l border-[var(--border)] bg-[var(--card)] max-[899px]:absolute max-[899px]:inset-0 max-[899px]:w-auto max-[899px]:border-l-0"
-  data-testid="open-books-panel"
+<SidePanel
+  title="Открытые вкладки книг"
+  testId="open-books-panel"
+  class="w-[var(--notes-panel-width)]"
 >
-  <div class="border-b border-[var(--border)] p-2">
+  {#snippet search()}
     <Input
       bind:value={query}
       placeholder="Поиск по вкладкам"
       ariaLabel="Поиск по вкладкам"
       icon="search"
     />
-  </div>
+  {/snippet}
+
   <ul class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2">
     {#each visible as tab (tab.id)}
       <!--
@@ -215,7 +218,7 @@
         <div class="flex items-stretch gap-1">
           <button
             type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate px-2 py-[0.375rem] text-left text-[0.8125rem] [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate px-2 py-[0.375rem] text-left role-body [font:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => onSelect(tab.id)}
@@ -241,7 +244,7 @@
         </div>
         {#if tab.description}
           <p
-            class="truncate px-2 pb-[6px] text-[0.6875rem] text-[var(--muted-foreground)]"
+            class="truncate px-2 pb-[6px] role-caption text-[var(--muted-foreground)]"
             data-testid="open-books-item-description"
           >
             {tab.description}
@@ -282,15 +285,7 @@
                   ariaLabel="Отмена"
                   onclick={cancelEditing}
                 >
-                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                    <path
-                      d="M6 6l12 12M18 6L6 18"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                    />
-                  </svg>
+                  <Icon name="close" />
                 </Button>
                 <Button
                   variant="primary"
@@ -299,16 +294,7 @@
                   ariaLabel="Сохранить"
                   onclick={commitEditing}
                 >
-                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                    <path
-                      d="M5 13l4 4L19 7"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
+                  <Icon name="check" />
                 </Button>
               </div>
             </div>
@@ -317,11 +303,11 @@
       </li>
     {:else}
       <li
-        class="px-2 py-[0.375rem] text-[0.8125rem] text-[var(--muted-foreground)]"
+        class="px-2 py-[0.375rem] role-body text-[var(--muted-foreground)]"
         data-testid={tabs.length > 0 ? 'open-books-search-empty' : 'open-books-empty'}
       >
         {tabs.length > 0 ? 'Вкладок по запросу не найдено.' : 'Нет открытых книг'}
       </li>
     {/each}
   </ul>
-</aside>
+</SidePanel>

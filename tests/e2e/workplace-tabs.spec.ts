@@ -69,7 +69,7 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
     }
     await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
-    const back = library.getByRole('button', { name: /К списку/ });
+    const back = library.getByRole('button', { name: /К списку книг/ });
     if ((await back.count()) > 0) {
         await back.click();
     }
@@ -512,7 +512,7 @@ test('панели заметок и открытых книг взаимоис�
     await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
 
@@ -522,7 +522,7 @@ test('панели заметок и открытых книг взаимоис�
 
     // Панели одной ширины: тот же токен, что у панели заметок.
     const books = await page.getByTestId('open-books-panel').boundingBox();
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     const notes = await page.getByTestId('notes-panel').boundingBox();
     expect(books).not.toBeNull();
     expect(notes).not.toBeNull();

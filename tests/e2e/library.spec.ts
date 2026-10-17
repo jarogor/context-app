@@ -56,5 +56,21 @@ test('поиск фильтрует список и показывает пус�
     await expect(library.getByText('Демо-книга')).toBeHidden();
 
     await search.fill('нет такой книги');
-    await expect(library.getByText('В библиотеке пока нет книг.')).toBeVisible();
+    await expect(library.getByTestId('library-empty')).toBeVisible();
+});
+
+test('заголовок библиотеки согласован и не оставляет имя прежнего источника', async ({ page }) => {
+    await page.goto('/');
+    await showLibraryBookList(page);
+
+    // Открытая библиотека: имя источника показано под заголовком раздела.
+    await expect(page.getByTestId('section-title')).toHaveText('Библиотеки');
+    await expect(page.getByTestId('section-panel')).toContainText('demo-library');
+
+    // Возврат к выбору источников: заголовок остаётся «Библиотеки», а имя
+    // прежней библиотеки из панели раздела убирается.
+    await page.getByRole('button', { name: 'Выбрать библиотеку' }).click();
+
+    await expect(page.getByTestId('section-title')).toHaveText('Библиотеки');
+    await expect(page.getByTestId('section-panel')).not.toContainText('demo-library');
 });

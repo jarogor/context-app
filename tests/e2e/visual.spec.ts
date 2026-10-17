@@ -3,7 +3,7 @@ import { showLibraryBookList } from './workplace-area';
 
 test('снимок оболочки совпадает с эталоном', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('Текстура')).toBeVisible();
+  await expect(page.getByTestId('section-nav')).toBeVisible();
   await expect(page).toHaveScreenshot('shell.png');
 });
 

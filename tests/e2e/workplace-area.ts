@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 /** Кнопка-иконка рабочего места в верхней панели оболочки. */
 export function workspaceButton(page: Page) {
-    return page.getByLabel('Рабочее место', { exact: true });
+    return page.getByLabel('Рабочие места', { exact: true });
 }
 
 /** Область рабочего места: список рабочих мест или вкладки открытого места. */
@@ -39,15 +39,25 @@ export async function openWorkspaceArea(page: Page) {
 
 /** Показ списка книг библиотеки.
  *
- * Список книг больше не открывается «выключением» рабочего места: он живёт в
- * сценарии библиотеки, поэтому здесь открывается раздел «Библиотеки» и
- * выбирается библиотека — после её открытия показывается список книг.
+ * Раздел «Библиотека» открывается кнопкой меню разделов. Если библиотека ещё не
+ * открыта, внутри раздела показывается вид выбора источников: выбираем
+ * библиотеку, после чего раздел сразу показывает список книг.
  */
 export async function showLibraryBookList(page: Page) {
     await page.getByLabel('Библиотеки', { exact: true }).click();
-    await expect(page.getByTestId('libraries-page')).toBeVisible();
-    await page.getByRole('button', { name: /demo-library/ }).click();
-    await expect(page.getByTestId('library-page')).toBeVisible();
+    const sources = page.getByTestId('libraries-page');
+    const books = page.getByTestId('library-page');
+    // Раздел показывает список книг, когда библиотека открыта; иначе — вид
+    // выбора источников, где библиотеку нужно выбрать. Ждём, пока раздел
+    // определится с видом: сведения об активной библиотеке приходят асинхронно.
+    await Promise.race([
+        books.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
+        sources.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
+    ]);
+    if (await sources.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: /demo-library/ }).click();
+    }
+    await expect(books).toBeVisible();
 }
 
 /** Добавление книги вкладкой в текущее рабочее место.
@@ -64,7 +74,7 @@ export async function addBookToWorkspace(page: Page, title: string | RegExp) {
     }
     await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
-    const back = library.getByRole('button', { name: /К списку/ });
+    const back = library.getByRole('button', { name: /К списку книг/ });
     if ((await back.count()) > 0) {
         await back.click();
     }

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Menu, MenuItem } from '@texture/ui';
+  import { Button, Icon, Menu, MenuItem } from '@texture/ui';
   import NotificationsPanel from '../features/notifications/NotificationsPanel.svelte';
+  import SectionNav from './SectionNav.svelte';
+  import SectionPanel from './SectionPanel.svelte';
   import SettingsPage from '../features/settings/SettingsPage.svelte';
   import StorePage from '../features/store/StorePage.svelte';
   import LibraryPage from '../features/library/LibraryPage.svelte';
@@ -58,6 +60,7 @@
     applyAppReaderTheme,
     applyAppThemeTracked,
     paletteFromSettingsEvent,
+    persistBootAppearance,
     READER_THEME_SETTING_KEY,
     readerThemeFromSettingsEvent,
     THEME_SETTING_KEY,
@@ -114,6 +117,14 @@
   /** Открыта ли страница «Библиотеки»; состояние принадлежит оболочке. */
   let librariesOpen = $state(false);
 
+  /** Показан ли внутри раздела «Библиотека» вид выбора источников.
+   *
+   * Вид выбора источников показывается, когда библиотека ещё не открыта или
+   * пользователь запросил его явно. После открытия библиотеки раздел сам
+   * возвращается к списку книг.
+   */
+  let librarySourcesRequested = $state(false);
+
   /** Открыт ли раздел «Заметки»; состояние принадлежит оболочке. */
   let notesLibraryOpen = $state(false);
 
@@ -144,6 +155,24 @@
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
 
+  /** Раскрыто ли меню разделов (показаны названия пунктов).
+   *
+   * Состояние интерфейса, а не настройка: при запуске меню раскрыто, чтобы
+   * названия были видны; сворачивание оставляет иконки с подсветкой.
+   */
+  let navExpanded = $state(true);
+
+  /** Узкое ли окно: меню разделов свёрнуто, чтобы не отбирать место у содержимого.
+   *
+   * На узком окне раскрытая колонка заметно ужимает область чтения и панели,
+   * поэтому раскрытие доступно только на широком окне, а на узком пункты
+   * показываются иконками с доступными именами.
+   */
+  let narrowWindow = $state(false);
+
+  /** Раскрыто ли меню с учётом ширины окна. */
+  const navIsExpanded = $derived(navExpanded && !narrowWindow);
+
   /** Число непрочитанных уведомлений, полученное от области уведомлений. */
   let unreadCount = $state(
     untrack(
@@ -157,8 +186,28 @@
   /** Активная библиотека для шапки. */
   let activeLibrary: ActiveLibrary | null = $state(untrack(() => initialLibrary));
 
+  /** Виден ли вид выбора источников внутри раздела «Библиотека».
+   *
+   * Показывается, когда библиотека ещё не открыта или пользователь запросил его
+   * явно; после открытия библиотеки раздел сам возвращается к списку книг.
+   * Отдельный признак «библиотека открыта в этой сессии» нужен потому, что
+   * сведения об активной библиотеке приходят асинхронно.
+   */
+  let libraryOpened = $state(false);
+
+  const librarySourcesOpen = $derived(
+    librarySourcesRequested || (activeLibrary === null && !libraryOpened),
+  );
+
   /** Открыта ли область рабочего места; принадлежит оболочке. */
   let workspaceOpen = $state(true);
+
+  /** Режим сосредоточенного чтения: хром интерфейса скрыт, книге — максимум места.
+   *
+   * Скрывает меню разделов, панель раздела и панели рабочего места; состояние
+   * вкладок и чтения не меняется.
+   */
+  let focusMode = $state(false);
 
   /** Показывается ли список рабочих мест вместо вкладок; точка входа приложения. */
   let workspaceListMode = $state(true);
@@ -267,11 +316,6 @@
     return lastSegment(library.path);
   }
 
-  /** Показан ли основной раздел библиотеки. */
-  function isMainSection(): boolean {
-    return !settingsOpen && !librariesOpen && !notesLibraryOpen && !workspaceOpen;
-  }
-
   /** Видна ли область рабочего места (с учётом модальных разделов). */
   const workspaceVisible = $derived(workspaceOpen && !settingsOpen && !librariesOpen && !notesLibraryOpen);
 
@@ -289,19 +333,20 @@
   /** Виден ли раздел «Заметки» (с учётом модальных разделов). */
   const notesLibraryVisible = $derived(notesLibraryOpen && !settingsOpen && !librariesOpen);
 
-  /** Показывать ли в шапке имя активной библиотеки.
+  /** Показывать ли в панели раздела имя активной библиотеки.
    *
-   * В открытом рабочем месте имя и провайдер библиотеки не показываются: шапка
-   * отображает только имя самого рабочего места. В списке рабочих мест имя
-   * библиотеки остаётся.
+   * Имя источника показывается в разделе «Библиотеки» над списком книг; в
+   * списке библиотек (выбор источника) место имени занимает заголовок раздела,
+   * а в открытом рабочем месте панель раздела уступает место панели вкладок.
    */
   function showLibrary(): boolean {
-    return (
-      activeLibrary !== null &&
-      !settingsOpen &&
-      (isMainSection() || (workspaceOpen && activeWorkspaceName === null))
-    );
+    return activeLibrary !== null && !settingsOpen && librariesOpen && !notesLibraryOpen;
   }
+
+  /** Подпись-контекст панели раздела: имя источника над списком книг. */
+  const sectionSubtitle = $derived(
+    showLibrary() && !librarySourcesOpen ? (libraryName() ?? '') : '',
+  );
 
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
@@ -320,9 +365,16 @@
             : 'Библиотека',
   );
 
-  /** Имя открытого рабочего места для шапки; null в списке рабочих мест. */
+  /** Имя открытого рабочего места для панели вкладок; null, когда показан другой раздел. */
   const activeWorkspaceName = $derived(
-    workspaceOpen && !workspaceListMode && workspace ? workspace.name : null,
+    workspaceOpen &&
+      !workspaceListMode &&
+      !librariesOpen &&
+      !notesLibraryOpen &&
+      !settingsOpen &&
+      workspace
+      ? workspace.name
+      : null,
   );
 
   /** Замечания, показываемые в шапке одним индикатором.
@@ -351,10 +403,6 @@
     return alerts;
   });
 
-  /** Показывать ли в шапке название раздела помимо имени библиотеки. */
-  function showSectionLabel(): boolean {
-    return !(isMainSection() && activeLibrary !== null);
-  }
 
   /** Переключение раздела настроек как модального окна.
    *
@@ -392,10 +440,18 @@
     settingsOpen = false;
     notesLibraryOpen = false;
     librariesOpen = willOpen;
-    if (!willOpen) {
+    if (willOpen) {
+      // Вход в раздел показывает список книг; выбор источников — по кнопке.
+      librarySourcesRequested = false;
+    } else {
       workspaceOpen = true;
       workspaceListMode = true;
     }
+  }
+
+  /** Переключение вида выбора источников внутри раздела «Библиотека». */
+  function toggleLibrarySources() {
+    librarySourcesRequested = !librarySourcesOpen;
   }
 
   /** Переключение раздела «Заметки».
@@ -505,6 +561,7 @@
     const next = THEME_CYCLE[(index + 1) % THEME_CYCLE.length];
     themePreference = next;
     applyAppThemeTracked(next);
+    persistBootAppearance({ theme: next, palette });
     void saveAppearance({ [THEME_SETTING_KEY]: next });
   }
 
@@ -688,9 +745,10 @@
   /** Переход к библиотеке для добавления книги в текущее рабочее место. */
   function requestAddBook() {
     workspaceOpen = false;
-    librariesOpen = false;
     settingsOpen = false;
     notesLibraryOpen = false;
+    librariesOpen = true;
+    librarySourcesRequested = false;
   }
 
   /** Переуказание файла недоступной книги вкладки.
@@ -872,6 +930,14 @@
     let unlisten: (() => void) | undefined;
     let unlistenNotes: (() => void) | undefined;
     let unlistenSettings: (() => void) | undefined;
+    // Отслеживание ширины окна: на узком окне раскрытое меню разделов отбирает
+    // место у содержимого, поэтому там оно свёрнуто до иконок.
+    const narrowQuery = window.matchMedia('(max-width: 899px)');
+    narrowWindow = narrowQuery.matches;
+    const onNarrowChange = (event: MediaQueryListEvent) => {
+      narrowWindow = event.matches;
+    };
+    narrowQuery.addEventListener('change', onNarrowChange);
     void (async () => {
       unlisten = await listenEvent('source-catalog-changed', (value) => {
         const payload = value as ActiveLibrary | null;
@@ -897,6 +963,14 @@
           palette = nextPalette;
           applyAppPalette(nextPalette);
         }
+        // Зеркало оформления для экрана загрузки следующего запуска: обновляется
+        // при любом изменении темы или палитры, независимо от источника.
+        if (theme !== null || nextPalette !== null) {
+          persistBootAppearance({
+            theme: theme ?? themePreference,
+            palette: nextPalette ?? palette,
+          });
+        }
         // Тема области чтения меняется как из нижней панели читалки, так и из
         // настроек; применяется ко всем вкладкам сразу.
         const nextReaderTheme = readerThemeFromSettingsEvent(value);
@@ -912,6 +986,7 @@
       });
     })();
     return () => {
+      narrowQuery.removeEventListener('change', onNarrowChange);
       unlisten?.();
       unlistenNotes?.();
       unlistenSettings?.();
@@ -948,214 +1023,75 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<div class="flex h-full flex-col">
-  <header
-    class="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4 py-2"
-    class:hidden={settingsOpen}
-  >
-    <span class="text-base font-bold text-[var(--primary)]">Текстура</span>
-    {#if showLibrary()}
-      {#if activeLibrary?.provider_name}
-        <Badge>{activeLibrary.provider_name}</Badge>
-      {/if}
-      <span
-        class="max-w-[17.5rem] truncate text-sm text-[var(--muted-foreground)]"
-        title={activeLibrary?.path ?? ''}
-      >
-        {libraryName()}
-      </span>
-    {/if}
-    {#if showSectionLabel()}
-      {#if activeWorkspaceName}
-        <span
-          class="max-w-[17.5rem] truncate text-sm font-semibold text-[var(--foreground)]"
-          data-testid="header-workspace-name"
-          title={activeWorkspaceName}
-        >
-          {activeWorkspaceName}
-        </span>
-      {:else}
-        <span class="text-sm text-[var(--muted-foreground)]" data-testid="section-title"
-          >{sectionTitle}</span
-        >
-      {/if}
-    {/if}
-    <div class="ml-auto flex items-center gap-2">
-      {#if headerAlerts.length > 0}
-        <span
-          class="flex h-[1.6em] min-w-[1.6em] shrink-0 items-center justify-center rounded-full px-[0.5em] text-[0.7em] font-bold"
-          role="status"
-          data-testid="header-alerts"
-          title={headerAlerts.map((alert) => alert.text).join('\n')}
-          style:background={headerAlerts.some((alert) => !alert.warning)
-            ? 'var(--destructive)'
-            : 'var(--warning)'}
-          style:color={headerAlerts.some((alert) => !alert.warning)
-            ? 'var(--destructive-foreground)'
-            : 'var(--primary-foreground)'}
-          aria-label={`Замечания: ${headerAlerts.length}`}
-        >
-          {headerAlerts.length}
-        </span>
-      {/if}
-      <Button
-        variant={workspaceListVisible ? 'primary' : 'secondary'}
-        size="icon"
-        title="Рабочее место"
-        ariaLabel="Рабочее место"
-        ariaPressed={workspaceListVisible}
-        onclick={toggleWorkspace}
-      >
-        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-          <rect
-            x="3.5"
-            y="4"
-            width="17"
-            height="16"
-            rx="2"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          />
-          <path d="M3.5 8.5h17" stroke="currentColor" stroke-width="2" />
-          <path d="M9 8.5V20" stroke="currentColor" stroke-width="2" />
-        </svg>
-      </Button>
-      <Button
-        variant={librariesVisible ? 'primary' : 'secondary'}
-        size="icon"
-        title="Библиотеки"
-        ariaLabel="Библиотеки"
-        ariaPressed={librariesVisible}
-        onclick={toggleLibraries}
-      >
-        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-          <rect x="4" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
-          <rect x="10" y="3.5" width="4.5" height="17" rx="1" fill="currentColor" />
-          <path
-            d="M16.2 4.3a1 1 0 0 1 1.25.7l3.1 14.2a1 1 0 0 1-.75 1.2l-1.9.45a1 1 0 0 1-1.2-.75L13.6 5.9a1 1 0 0 1 .75-1.2Z"
-            fill="currentColor"
-          />
-        </svg>
-      </Button>
-      <Button
-        variant={notesLibraryVisible ? 'primary' : 'secondary'}
-        size="icon"
-        title="Реестр заметок"
-        ariaLabel="Реестр заметок"
-        ariaPressed={notesLibraryVisible}
-        onclick={toggleNotesLibrary}
-      >
-        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-          <path
-            d="M6 3.5h9.5L19.5 7v13.5a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linejoin="round"
-          />
-          <path d="M15 3.5V7h3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-          <path
-            d="M8.5 12h7M8.5 15.5h7"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
-      </Button>
-      <span class="mx-1 h-6 w-px shrink-0 bg-[var(--border)]" aria-hidden="true"></span>
-      <Button
-        variant="secondary"
-        size="icon"
-        title={`Тема: ${themeTitles[themePreference]} (нажмите, чтобы переключить)`}
-        ariaLabel="Переключить тему"
-        onclick={cycleTheme}
-      >
-        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-          {#if themePreference === 'light'}
-            <circle cx="12" cy="12" r="4.5" fill="currentColor" />
-            <path
-              d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              fill="none"
-            />
-          {:else if themePreference === 'dark'}
-            <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor" />
-          {:else}
-            <rect
-              x="2.5"
-              y="4"
-              width="19"
-              height="13"
-              rx="2"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-            />
-            <path d="M8 20.5h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          {/if}
-        </svg>
-      </Button>
-      <Button
-        variant={notificationsOpen ? 'primary' : 'secondary'}
-        size="icon"
-        title="Уведомления"
-        ariaLabel="Уведомления"
-        ariaPressed={notificationsOpen}
-        class="relative"
-        onclick={toggleNotifications}
-      >
-        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-          <path
-            d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5v-1l-1.7-1.7V10a5.3 5.3 0 0 0-4-5.2V4a1.3 1.3 0 0 0-2.6 0v.8A5.3 5.3 0 0 0 6.7 10v4.3L5 16v1Z"
-            fill="currentColor"
-          />
-        </svg>
-        <span
-          class="absolute -top-[0.35rem] -right-[0.35rem] flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-[0.3rem] text-[0.7rem] font-bold text-[var(--primary-foreground)]"
-          style:background={unreadCount === 0
-            ? 'var(--input)'
-            : 'var(--success)'}
-        >
-          {unreadCount}
-        </span>
-      </Button>
-      <Button
-        variant={settingsOpen ? 'primary' : 'secondary'}
-        size="icon"
-        title="Настройки"
-        ariaLabel="Настройки"
-        ariaPressed={settingsOpen}
-        onclick={toggleSettings}
-      >
-        <svg viewBox="0 0 24 24" width="1.125em" height="1.125em" aria-hidden="true">
-          <path
-            d="M4 6h16M4 12h16M4 18h16"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            fill="none"
-          />
-        </svg>
-      </Button>
-    </div>
-  </header>
+<div class="flex h-full">
+  {#if !settingsOpen && !focusMode}
+    <SectionNav
+      appName="Текстура"
+      workspaceActive={workspaceListVisible}
+      libraryActive={librariesVisible}
+      notesActive={notesLibraryVisible}
+      {notificationsOpen}
+      {settingsOpen}
+      {unreadCount}
+      alertCount={headerAlerts.length}
+      alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
+      alertError={headerAlerts.some((alert) => !alert.warning)}
+      themeTitle={themeTitles[themePreference]}
+      expanded={navIsExpanded}
+      onWorkspace={toggleWorkspace}
+      onLibrary={toggleLibraries}
+      onNotes={toggleNotesLibrary}
+      onNotifications={toggleNotifications}
+      onSettings={toggleSettings}
+      onTheme={cycleTheme}
+      onToggleExpanded={() => (navExpanded = !navExpanded)}
+    />
+  {/if}
 
-  <div class="relative flex min-h-0 flex-1 overflow-hidden">
-    <main class="flex min-w-0 flex-1">
-      <div
-        class="flex min-h-0 min-w-0 flex-1 flex-col"
-        class:hidden={settingsOpen || librariesOpen || notesLibraryOpen || workspaceOpen}
+  <!--
+    Панель уведомлений открывается слева, рядом со своим пунктом меню: элемент
+    управления и то, чем он управляет, остаются рядом. Панель идёт от верха
+    области и не перекрывает меню разделов. Она остаётся смонтированной и в
+    скрытом виде: иначе потеряла бы события журнала, пришедшие, пока она скрыта,
+    и показала бы устаревший список.
+  -->
+  <div
+    class="flex w-[var(--notifications-panel-width)] min-w-0 flex-none max-[899px]:absolute max-[899px]:inset-0 max-[899px]:z-20 max-[899px]:w-auto [&>aside]:border-r [&>aside]:border-l-0"
+    class:hidden={!notificationsOpen || settingsOpen || focusMode}
+    data-testid="notifications-slot"
+  >
+    <NotificationsPanel
+      initialEntries={initialNotifications.entries}
+      initialTechnicalVisible={initialNotifications.technicalVisible}
+      initialError={initialNotifications.error}
+      onUnreadChange={(count) => (unreadCount = count)}
+    />
+  </div>
+
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+    {#if !settingsOpen && !focusMode && !(workspaceVisible && !workspaceListMode)}
+      <SectionPanel
+        title={activeWorkspaceName ?? sectionTitle}
+        subtitle={activeWorkspaceName ? '' : sectionSubtitle}
+        titleTestId={activeWorkspaceName ? 'header-workspace-name' : 'section-title'}
       >
-        <LibraryPage
-          initialActiveLibrary={activeLibrary}
-          visible={isMainSection()}
-          targetWorkspaceName={workspace?.name ?? null}
-          onOpenInWorkplace={openBookInWorkspace}
-        />
-      </div>
+        {#snippet action()}
+          {#if librariesVisible}
+            <Button
+              variant={librarySourcesOpen ? 'secondary' : 'primary'}
+              size="sm"
+              title={librarySourcesOpen ? 'К списку книг' : 'Выбор библиотеки'}
+              onclick={toggleLibrarySources}
+            >
+              {librarySourcesOpen ? 'К списку книг' : 'Выбрать библиотеку'}
+            </Button>
+          {/if}
+        {/snippet}
+      </SectionPanel>
+    {/if}
+
+    <div class="relative flex min-h-0 flex-1 overflow-hidden">
+      <main class="flex min-w-0 flex-1">
       {#if notesLibraryVisible}
         <div class="flex min-h-0 min-w-0 flex-1">
           <NotesLibraryPage
@@ -1176,6 +1112,8 @@
           workspaces={registry.workspaces}
           currentWorkspaceId={registry.currentWorkspaceId}
           listMode={workspaceListMode}
+          {focusMode}
+          onToggleFocus={() => (focusMode = !focusMode)}
           booksOpen={booksPanelOpen}
           notesOpen={notesPanelOpen}
           notes={notesController.items}
@@ -1225,13 +1163,24 @@
         />
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesVisible}>
-        <LibrariesPage
-          onOpened={() => {
-            librariesOpen = false;
-            workspaceOpen = false;
-            settingsOpen = false;
-          }}
-        />
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={librarySourcesOpen}>
+          <LibraryPage
+            initialActiveLibrary={activeLibrary}
+            visible={librariesVisible && !librarySourcesOpen}
+            targetWorkspaceName={workspace?.name ?? null}
+            onOpenInWorkplace={openBookInWorkspace}
+          />
+        </div>
+        <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librarySourcesOpen}>
+          <LibrariesPage
+            onOpened={() => {
+              // Библиотека открыта: показываем список книг и читаем сведения о ней.
+              librarySourcesRequested = false;
+              libraryOpened = true;
+              void refreshActiveLibrary();
+            }}
+          />
+        </div>
       </div>
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!settingsOpen}>
         <Menu
@@ -1273,17 +1222,7 @@
         </div>
       </div>
     </main>
-    <aside
-      class="flex w-[var(--notifications-panel-width)] min-w-0 flex-none border-l border-[var(--border)] max-[899px]:absolute max-[899px]:inset-0 max-[899px]:w-auto max-[899px]:border-l-0"
-      class:hidden={!notificationsOpen || settingsOpen}
-    >
-      <NotificationsPanel
-        initialEntries={initialNotifications.entries}
-        initialTechnicalVisible={initialNotifications.technicalVisible}
-        initialError={initialNotifications.error}
-        onUnreadChange={(count) => (unreadCount = count)}
-      />
-    </aside>
+    </div>
   </div>
 
   <WorkspacePickerDialog

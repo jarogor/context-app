@@ -11,7 +11,7 @@ import { drawNotes } from './notes';
 import { post } from './protocol';
 import { renderSelection } from './selection';
 import { state, type CanvasInfo, type RenderedEntry } from './state';
-import { alignTextLayer, isInvisibleScan, textContentWithPageFonts } from './text-layer';
+import { alignTextLayer, isInvisibleScan, textContentWithPageFonts, waitForRasterInk } from './text-layer';
 import { recolorCanvas } from './theme';
 import {
   boundedRatio,
@@ -254,13 +254,22 @@ export async function renderPage(
     if (epoch !== state.renderEpoch) {
       throw new Error('отрисовка устарела из-за смены масштаба');
     }
-    // Перекраска растра в тёмной теме: светлый фон страницы становится тёмным,
-    // тёмный текст — светлым, оттенок сохраняется.
-    recolorCanvas(canvas, state.readerTheme, state.pageColors);
     // Скан (растр + невидимый слой): встроенный шрифт страницы — пустой «без
     // контуров», его подстановка сдвинула бы вертикаль слоя, поэтому у сканов
     // слой строится как раньше, а подгоняется по растру ниже.
     const scan = await isInvisibleScan(page, lib.OPS as unknown as Record<string, number>);
+    // Растр скана в WebKitGTK дорисовывается в канвас уже после `render().promise`.
+    // Пока изображение не готово, канвас белый: любое чтение пикселей ниже
+    // (перекраска под тему, выравнивание слоя) работало бы по пустому кадру —
+    // перекраска затёрла бы белый в тёмный, а выравнивание пропустилось бы, и
+    // выделение съезжало бы относительно видимого текста. Ждём растр один раз,
+    // до обоих чтений. Для цифровых страниц (вектор) ожидание не нужно.
+    if (scan) {
+      await waitForRasterInk(canvas);
+    }
+    // Перекраска растра в тёмной теме: светлый фон страницы становится тёмным,
+    // тёмный текст — светлым, оттенок сохраняется.
+    recolorCanvas(canvas, state.readerTheme, state.pageColors);
     let textContentSource: PdfTextContent | ReadableStream<Uint8Array> =
       page.streamTextContent() as unknown as ReadableStream<Uint8Array>;
     if (!scan) {
@@ -288,7 +297,7 @@ export async function renderPage(
     state.rendered.set(pageEl, entry);
     pageEl.dataset.rendered = '1';
     // Выравнивание слоя возможно только после вставки в документ: у откреплённых
-    // узлов нет геометрии.
+    // узлов нет геометрии. Растр к этому моменту уже дождан выше (`waitForRasterInk`).
     if (scan) {
       alignTextLayer(textLayerEl, canvas, pageEl.getBoundingClientRect());
     }

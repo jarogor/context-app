@@ -355,7 +355,7 @@
     {/if}
 
     {#if unsupported}
-      <p class="mt-3 text-[0.8125rem] text-[var(--muted-foreground)]">{unsupported}</p>
+      <p class="mt-3 role-body text-[var(--muted-foreground)]">{unsupported}</p>
     {/if}
     {#if packages.length > 0}
       <ul class="mt-3 flex list-none flex-col gap-2 p-0">

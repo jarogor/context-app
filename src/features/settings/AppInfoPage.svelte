@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Card, ScrollArea } from '@texture/ui';
+  import { Card, ErrorState, ScrollArea, Skeleton } from '@texture/ui';
   import { invokeCommand } from '../../shared/app-bridge';
 
   /** Служебное расположение в сведениях о приложении. */
@@ -61,9 +61,9 @@
 
 <ScrollArea testId="app-info-page" class="gap-4 p-4">
   {#if error}
-    <div class="text-[0.8125rem] text-[var(--destructive)]">{error}</div>
+    <ErrorState message={error} />
   {:else if !info}
-    <div class="p-6 text-center text-[var(--muted-foreground)]">Загрузка…</div>
+    <Skeleton rows={3} rowClass="h-20" />
   {:else}
     <Card>
       <div class="flex flex-wrap items-baseline gap-2">

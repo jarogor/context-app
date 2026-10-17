@@ -538,7 +538,7 @@
         {/if}
         {#if menuPosition && pendingAnchor}
           <div
-            class="absolute z-10 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-lg"
+            class="absolute z-10 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-overlay"
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >

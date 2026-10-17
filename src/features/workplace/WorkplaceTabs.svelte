@@ -34,6 +34,12 @@
     onToggleNotes: () => void;
     /** Возврат к списку рабочих мест. */
     onBackToList: () => void;
+    /** Имя открытого рабочего места для панели вкладок. */
+    workspaceName?: string | null;
+    /** Режим сосредоточенного чтения. */
+    focusMode?: boolean;
+    /** Переключение режима сосредоточенного чтения. */
+    onToggleFocus?: () => void;
   }
 
   let {
@@ -50,6 +56,9 @@
     onToggleBooks,
     onToggleNotes,
     onBackToList,
+    workspaceName = null,
+    focusMode = false,
+    onToggleFocus,
   }: Props = $props();
 
   /** Доступность создания новых вкладок при текущем лимите. */
@@ -308,17 +317,17 @@
     ariaLabel="К списку рабочих мест"
     onclick={onBackToList}
   >
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-      <path
-        d="M15 6l-6 6 6 6"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
+    <Icon name="chevron-left" />
   </Button>
+  {#if workspaceName}
+    <span
+      class="max-w-[17.5rem] truncate role-subtitle text-[var(--foreground)]"
+      data-testid="header-workspace-name"
+      title={workspaceName}
+    >
+      {workspaceName}
+    </span>
+  {/if}
   <span class="text-[var(--input)]" aria-hidden="true">|</span>
   <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
        выталкивает их за пределы панели. -->
@@ -331,9 +340,7 @@
         disabled={openBlocked}
         onclick={onAdd}
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        </svg>
+        <Icon name="plus" />
       </Button>
     </span>
     <span class="flex" title={openButtonTitle('Открыть файл с диска')}>
@@ -344,15 +351,7 @@
         disabled={openBlocked}
         onclick={onAddFile}
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path
-            d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h7A1.5 1.5 0 0 1 19 9v8.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5Z"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="folder" />
       </Button>
     </span>
   </div>
@@ -366,16 +365,7 @@
         disabled={safeStart === 0}
         onclick={() => shiftWindow(-1)}
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path
-            d="M15 6l-6 6 6 6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="chevron-left" />
       </Button>
     {/if}
     <div
@@ -394,7 +384,7 @@
           <button
             type="button"
             data-testid="workplace-tab"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate py-[0.125rem] pl-2 text-left text-[0.7rem] [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate py-[0.125rem] pl-2 text-left role-caption [font:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => selectTab(tab.id)}
@@ -414,10 +404,7 @@
                 : ''}"
               onclick={() => onDuplicate(tab.id)}
             >
-              <svg viewBox="0 0 24 24" width="0.85em" height="0.85em" aria-hidden="true">
-                <rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
-                <path d="M5 15V6a2 2 0 0 1 2-2h9" fill="none" stroke="currentColor" stroke-width="2" />
-              </svg>
+              <Icon name="duplicate" class="h-[0.85em] w-[0.85em]" />
             </button>
           </span>
           <button
@@ -428,16 +415,14 @@
             class="flex-none cursor-pointer px-[0.1875rem] pr-2 opacity-70 hover:opacity-100"
             onclick={() => askCloseTab(tab.id)}
           >
-            <svg viewBox="0 0 24 24" width="0.85em" height="0.85em" aria-hidden="true">
-              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
+            <Icon name="close" class="h-[0.85em] w-[0.85em]" />
           </button>
         </div>
       {/each}
     </div>
     {#if overflowing}
       <span
-        class="flex-none whitespace-nowrap text-[0.7rem] text-[var(--muted-foreground)]"
+        class="flex-none whitespace-nowrap role-caption text-[var(--muted-foreground)]"
         data-testid="workplace-tabs-counter"
         title={rangeTitle}
       >
@@ -451,38 +436,19 @@
         disabled={safeStart + capacity >= tabs.length}
         onclick={() => shiftWindow(1)}
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path
-            d="M9 6l6 6-6 6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="chevron-right" />
       </Button>
     {/if}
   </div>
   <Button
     variant={notesOpen ? 'primary' : 'secondary'}
     size="icon"
-    title="Заметки"
-    ariaLabel="Заметки"
+    title="Панель заметок"
+    ariaLabel="Панель заметок"
     ariaPressed={notesOpen}
     onclick={onToggleNotes}
   >
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-      <path
-        d="M6 3.5h9.5L20 8v12.5H6Z"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linejoin="round"
-      />
-      <path d="M15.5 3.5V8H20" fill="none" stroke="currentColor" stroke-width="2" />
-      <path d="M9 12h7M9 16h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-    </svg>
+    <Icon name="note" />
   </Button>
   <Button
     variant={booksOpen ? 'primary' : 'secondary'}
@@ -492,10 +458,20 @@
     ariaPressed={booksOpen}
     onclick={onToggleBooks}
   >
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-      <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-    </svg>
+    <Icon name="list" />
   </Button>
+  {#if onToggleFocus}
+    <Button
+      variant={focusMode ? 'primary' : 'secondary'}
+      size="icon"
+      title={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
+      ariaLabel={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
+      ariaPressed={focusMode}
+      onclick={onToggleFocus}
+    >
+      <Icon name="focus" />
+    </Button>
+  {/if}
 </div>
 
 <Dialog

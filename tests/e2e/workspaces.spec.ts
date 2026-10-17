@@ -82,7 +82,7 @@ test('до готовности реестра показывается загр
     await expect(page.getByTestId('bootstrap-loading')).toBeVisible();
     await expect(page.getByTestId('workspaces-page')).toHaveCount(0);
     await expect(page.getByTestId('workspaces-empty')).toHaveCount(0);
-    await expect(page.getByTestId('workspace-open')).toHaveText('Рабочее место');
+    await expect(page.getByTestId('workspace-open')).toContainText('Рабочее место');
 });
 
 test('ошибка загрузки реестра не выглядит как отсутствие рабочих мест', async ({ page }) => {
@@ -139,7 +139,7 @@ test('попытка после ошибки загрузки реестра о�
     await page.getByRole('button', { name: 'Повторить' }).click();
 
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
-    await expect(page.getByTestId('workspace-open')).toHaveText('Рабочее место');
+    await expect(page.getByTestId('workspace-open')).toContainText('Рабочее место');
 });
 
 test('пустой реестр показывает подсказку создать рабочее место', async ({ page }) => {
@@ -154,8 +154,8 @@ test('создание рабочего места добавляет его в 
     await createWorkspace(page, 'Исследование');
 
     await backToList(page);
-    await expect(page.getByTestId('workspace-open')).toHaveText('Исследование');
-    await expect(page.getByTestId('workspace-meta')).toContainText('текущее');
+    await expect(page.getByTestId('workspace-open')).toContainText('Исследование');
+    await expect(page.getByTestId('workspace-current')).toBeVisible();
 });
 
 test('переключение между рабочими местами сохраняет их вкладки', async ({ page }) => {
@@ -187,12 +187,12 @@ test('переименование рабочего места отражает�
     await createWorkspace(page, 'Черновик');
     await backToList(page);
 
-    await page.getByLabel('Действия с рабочим местом').click();
+    await page.getByLabel(/Действия с рабочим местом/).click();
     await page.getByRole('menuitem', { name: 'Переименовать' }).click();
     await page.getByPlaceholder('Новое имя').fill('Основное');
     await page.getByRole('button', { name: 'Сохранить' }).click();
 
-    await expect(page.getByTestId('workspace-open')).toHaveText('Основное');
+    await expect(page.getByTestId('workspace-open')).toContainText('Основное');
 });
 
 test('удаление рабочего места убирает его из списка', async ({ page }) => {
@@ -209,9 +209,9 @@ test('удаление рабочего места убирает его из с
     await page.getByRole('menuitem', { name: 'Удалить' }).click();
 
     await expect(page.getByTestId('workspace-item')).toHaveCount(1);
-    await expect(page.getByTestId('workspace-open')).toHaveText('Второе');
+    await expect(page.getByTestId('workspace-open')).toContainText('Второе');
     // Удалено не текущее место — Второе остаётся текущим.
-    await expect(page.getByTestId('workspace-meta')).toContainText('текущее');
+    await expect(page.getByTestId('workspace-current')).toBeVisible();
 });
 
 test('удаление последнего рабочего места показывает пустой список', async ({ page }) => {
@@ -219,7 +219,7 @@ test('удаление последнего рабочего места пока
     await createWorkspace(page, 'Единственное');
     await backToList(page);
 
-    await page.getByLabel('Действия с рабочим местом').click();
+    await page.getByLabel(/Действия с рабочим местом/).click();
     await page.getByRole('menuitem', { name: 'Удалить' }).click();
 
     await expect(page.getByTestId('workspaces-empty')).toBeVisible();

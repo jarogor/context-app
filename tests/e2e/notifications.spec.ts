@@ -39,18 +39,37 @@ test('панель уведомлений не выходит за предел�
   expect(noHorizontalScroll).toBe(true);
 });
 
-test('панель уведомлений не пересекает верхнюю панель', async ({ page }) => {
-  for (const width of [1600, 1000, 700]) {
+test('панель уведомлений стоит слева, рядом с меню разделов', async ({ page }) => {
+  for (const width of [1600, 1000]) {
     await page.setViewportSize({ width, height: 700 });
     await page.goto('/');
     await page.getByLabel('Уведомления').click();
 
-    const headerBox = await page.locator('header').boundingBox();
-    const asideBox = await page.locator('aside').boundingBox();
-    expect(headerBox).not.toBeNull();
+    const navBox = await page.getByTestId('section-nav').boundingBox();
+    const asideBox = await page.getByTestId('notifications-panel').boundingBox();
+    const mainBox = await page.locator('main').boundingBox();
+    expect(navBox).not.toBeNull();
     expect(asideBox).not.toBeNull();
+    expect(mainBox).not.toBeNull();
 
-    // Верхний край панели ниже нижнего края шапки.
-    expect(asideBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height - 1);
+    // Панель справа от меню разделов (не перекрывает его) и слева от содержимого:
+    // элемент управления и то, чем он управляет, стоят рядом.
+    expect(asideBox!.x).toBeGreaterThanOrEqual(navBox!.x + navBox!.width - 1);
+    expect(asideBox!.x + asideBox!.width).toBeLessThanOrEqual(mainBox!.x + 1);
   }
+});
+
+test('панель уведомлений начинается от верха контентной области', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 700 });
+  await page.goto('/');
+  await page.getByLabel('Уведомления').click();
+
+  const panelBox = await page.getByTestId('section-panel').boundingBox();
+  const asideBox = await page.getByTestId('notifications-panel').boundingBox();
+  expect(panelBox).not.toBeNull();
+  expect(asideBox).not.toBeNull();
+
+  // Верхний край панели совпадает с верхом области (не сползает вниз).
+  expect(Math.abs(asideBox!.y - panelBox!.y)).toBeLessThanOrEqual(2);
+  expect(asideBox!.height).toBeGreaterThan(panelBox!.height);
 });

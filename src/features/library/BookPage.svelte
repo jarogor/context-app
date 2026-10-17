@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BookCoverPlaceholder, Button } from '@texture/ui';
+  import { BookCoverPlaceholder, Button, ErrorState, Icon } from '@texture/ui';
   import type { BookWithCover } from './library';
 
   interface Props {
@@ -34,7 +34,16 @@
 </script>
 
 <div class="@container mx-auto w-full max-w-[47.5rem] p-6" data-testid="book-page">
-  <Button variant="ghost" size="sm" class="mb-4" onclick={onClose}>← К списку</Button>
+  <Button
+    variant="secondary"
+    size="icon"
+    title="К списку книг"
+    ariaLabel="К списку книг"
+    class="mb-4"
+    onclick={onClose}
+  >
+    <Icon name="chevron-left" />
+  </Button>
 
   <div class="flex flex-col gap-6 @min-[30rem]:flex-row">
     <div class="w-[11.25rem] flex-none">
@@ -46,21 +55,21 @@
     </div>
 
     <div class="min-w-0 flex-1">
-      <h1 class="text-xl font-semibold" data-testid="book-title">{book.title}</h1>
+      <h1 class="role-display" data-testid="book-title">{book.title}</h1>
       {#if book.authors.length > 0}
-        <p class="mt-1 text-[var(--muted-foreground)]">
+        <p class="mt-1 role-body text-[var(--muted-foreground)]">
           {book.authors.map((author) => author.name).join(', ')}
         </p>
       {/if}
 
       {#if book.series.length > 0}
-        <p class="mt-2 text-[0.8125rem] text-[var(--muted-foreground)]">
+        <p class="mt-2 role-body text-[var(--muted-foreground)]">
           Серия: {book.series.map((entry) => entry.series.name).join(', ')}
         </p>
       {/if}
 
       {#if book.tags.length > 0}
-        <p class="mt-1 text-[0.8125rem] text-[var(--muted-foreground)]">
+        <p class="mt-1 role-body text-[var(--muted-foreground)]">
           Теги: {book.tags.map((tag) => tag.name).join(', ')}
         </p>
       {/if}
@@ -72,12 +81,12 @@
           </Button>
         {/if}
         <Button variant="secondary" disabled={opening} onclick={onOpenExternal}>
-          {opening ? 'Открытие…' : 'Открыть'}
+          {opening ? 'Открытие…' : 'Открыть в системе'}
         </Button>
       </div>
 
       {#if externalError}
-        <p class="mt-3 text-[var(--destructive)]">{externalError}</p>
+        <ErrorState message={externalError} class="mt-3" />
       {/if}
     </div>
   </div>

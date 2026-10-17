@@ -1,6 +1,10 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import type { IconName } from './Icon.svelte';
   import ScrollArea from './ScrollArea.svelte';
+  import EmptyState from './EmptyState.svelte';
+  import ErrorState from './ErrorState.svelte';
+  import Skeleton from './Skeleton.svelte';
 
   interface Props {
     /** Содержимое страницы, когда нет состояний загрузки, ошибки или пустоты. */
@@ -13,8 +17,16 @@
     loading?: boolean;
     /** Ошибка загрузки содержимого (пустая строка — ошибки нет). */
     error?: string;
+    /** Повтор неудачной операции (показывает кнопку повтора в состоянии ошибки). */
+    onRetry?: () => void;
     /** Содержимое пусто. */
     empty?: boolean;
+    /** Иконка пустого состояния. */
+    emptyIcon?: IconName;
+    /** Заголовок пустого состояния (если не задано встроенное содержимое). */
+    emptyTitle?: string;
+    /** Действие пустого состояния. */
+    emptyAction?: Snippet;
     /** Содержимое состояния загрузки (переопределяет встроенное). */
     loadingContent?: Snippet;
     /** Содержимое состояния ошибки (переопределяет встроенное). */
@@ -43,7 +55,11 @@
     form,
     loading = false,
     error = '',
+    onRetry,
     empty = false,
+    emptyIcon,
+    emptyTitle = '',
+    emptyAction,
     loadingContent,
     errorContent,
     emptyContent,
@@ -65,19 +81,29 @@
     {#if loadingContent}
       {@render loadingContent()}
     {:else}
-      <p class="text-[var(--muted-foreground)]" data-testid={loadingTestId}>{loadingText}</p>
+      <Skeleton rows={4} testId={loadingTestId} />
+      {#if loadingText}
+        <p class="mt-2 role-caption text-[var(--muted-foreground)]" aria-hidden="true">
+          {loadingText}
+        </p>
+      {/if}
     {/if}
   {:else if state === 'error'}
     {#if errorContent}
       {@render errorContent()}
     {:else}
-      <p class="text-[var(--destructive)]" data-testid={errorTestId}>{error}</p>
+      <ErrorState message={error} onretry={onRetry} testId={errorTestId} />
     {/if}
   {:else if state === 'empty'}
     {#if emptyContent}
       {@render emptyContent()}
     {:else}
-      <p class="text-[var(--muted-foreground)]" data-testid={emptyTestId}>{emptyText}</p>
+      <EmptyState
+        icon={emptyIcon}
+        title={emptyTitle || emptyText}
+        action={emptyAction}
+        testId={emptyTestId}
+      />
     {/if}
   {:else if children}
     {@render children()}

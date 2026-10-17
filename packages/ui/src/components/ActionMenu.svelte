@@ -39,6 +39,7 @@
   import { cn } from '../utils';
   import { buttonVariants } from './Button.svelte';
   import ColorPicker from './ColorPicker.svelte';
+  import Icon from './Icon.svelte';
   import IconPicker from './IconPicker.svelte';
 
   interface Props {
@@ -129,17 +130,13 @@
 
 <DropdownMenu.Root bind:open>
   <DropdownMenu.Trigger {disabled} {title} aria-label={ariaLabel} class={triggerClass}>
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-      <circle cx="12" cy="5" r="1.6" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-      <circle cx="12" cy="19" r="1.6" fill="currentColor" />
-    </svg>
+    <Icon name="more" />
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
     <DropdownMenu.Content
       sideOffset={4}
       align="end"
-      class="border-border bg-popover text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md border p-1 shadow-md"
+      class="border-border bg-popover text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md border p-1 shadow-overlay"
     >
       {#if colors.length > 0}
         <div class="px-1.5 py-[0.375rem]">

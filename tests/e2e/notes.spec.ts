@@ -55,7 +55,7 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
     await openWorkspace(page);
     await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
-    const back = library.getByRole('button', { name: /К списку/ });
+    const back = library.getByRole('button', { name: /К списку книг/ });
     if ((await back.count()) > 0) {
         await back.click();
     }
@@ -64,15 +64,15 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
     await expect(page.getByTestId('workplace-area')).toBeVisible();
 }
 
-/** Открытие панели заметок. */
+/** Открытие панели заметок в рабочем месте. */
 async function openNotes(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
 }
 
-/** Открытие раздела «Заметки» (реестр) из верхней панели. */
+/** Открытие раздела «Заметки» (реестр) из меню разделов. */
 async function openNotesRegistry(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: 'Реестр заметок' }).click();
+    await page.getByTestId('nav-notes').click();
     await expect(page.getByTestId('notes-library')).toBeVisible();
 }
 
@@ -500,7 +500,7 @@ test('клик по подсветке открывает панель заме�
     await highlightParagraph(page, 'Первый абзац книги.');
 
     // Панель закрыта, книга видна.
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await expect(page.getByTestId('notes-panel')).toHaveCount(0);
 
     await bookDocument(page).locator('mark').first().click();
@@ -520,29 +520,27 @@ test('клик по заметке ведёт к выделению в книг�
     await expect(bookDocument(page).locator('mark').first()).toHaveText('Второй абзац книги.');
 });
 
-test('нижняя панель рабочего места — на всю ширину под панелью заметок', async ({ page }) => {
+test('единая панель чтения — на всю ширину над областью чтения', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 800 });
     await page.goto('/');
     await addBook(page, 'Демо-книга');
     await openNotes(page);
 
     const area = await page.getByTestId('workplace-area').boundingBox();
-    const footer = await page.getByTestId('reader-footer').boundingBox();
+    const toolbar = await page.getByTestId('note-toolbar').boundingBox();
     const notes = await page.getByTestId('notes-panel').boundingBox();
     const tabs = await page.getByTestId('workplace-tabs').boundingBox();
     expect(area).not.toBeNull();
-    expect(footer).not.toBeNull();
+    expect(toolbar).not.toBeNull();
     expect(notes).not.toBeNull();
     expect(tabs).not.toBeNull();
 
-    // Нижняя панель совпадает по всей ширине с областью рабочего места.
-    expect(Math.abs(footer!.width - area!.width)).toBeLessThanOrEqual(1);
-    // Панель заметок стоит справа от текста и выше нижней панели.
-    expect(notes!.x).toBeGreaterThan(0);
-    expect(notes!.y + notes!.height).toBeLessThanOrEqual(footer!.y + 1);
-    // Верхняя панель вкладок — на всю ширину, над нижней панелью.
+    // Единая панель чтения совпадает по ширине с областью рабочего места.
+    expect(Math.abs(toolbar!.width - area!.width)).toBeLessThanOrEqual(1);
+    // Она расположена сверху, над областью чтения и панелью заметок.
+    expect(toolbar!.y + toolbar!.height).toBeLessThanOrEqual(notes!.y + 1);
     expect(Math.abs(tabs!.width - area!.width)).toBeLessThanOrEqual(1);
-    expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(footer!.y);
+    expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(toolbar!.y + 1);
 });
 
 test('на узком окне панель заметок — на всю ширину, а выбор заметки закрывает её', async ({
@@ -560,13 +558,13 @@ test('на узком окне панель заметок — на всю ши�
     expect(notes).not.toBeNull();
     // Панель заметок занимает всю ширину области рабочего места.
     expect(Math.abs(notes!.width - area!.width)).toBeLessThanOrEqual(1);
-    // Нижняя панель остаётся видимой под панелью заметок.
-    await expect(page.getByTestId('reader-footer')).toBeVisible();
+    // Единая панель чтения остаётся видимой.
+    await expect(page.getByTestId('note-toolbar')).toBeVisible();
 
     // Переход к заметке в этом режиме закрывает панель, и видно страницу текста.
     await page.getByTestId('notes-item-link').click();
     await expect(page.getByTestId('notes-panel')).toHaveCount(0);
-    await expect(page.getByTestId('reader-footer')).toBeVisible();
+    await expect(page.getByTestId('note-toolbar')).toBeVisible();
 });
 
 test('удаление заметки убирает подсветку из книги', async ({ page }) => {
@@ -648,7 +646,7 @@ test('активный набор книги сохраняется при пе�
 
     await page.getByTestId('workplace-tab').first().click();
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Заметки' }).click();
+        await page.getByRole('button', { name: 'Панель заметок' }).click();
     }
 
     await expect(noteSetSelect(page)).toContainText('Черновик');
@@ -666,7 +664,7 @@ test('наборы одной книги не появляются у друго
     await addBook(page, 'Третья книга');
     await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Заметки' }).click();
+        await page.getByRole('button', { name: 'Панель заметок' }).click();
     }
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await expect(noteSetSelect(page)).toContainText('Наборов нет');
@@ -677,7 +675,7 @@ test('наборы одной книги не появляются у друго
 
     await page.getByTestId('workplace-tab').first().click();
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Заметки' }).click();
+        await page.getByRole('button', { name: 'Панель заметок' }).click();
     }
     await expectNoteSetOptions(page, ['Конспект'], ['Вторая книга']);
 });
@@ -696,7 +694,7 @@ test('активный набор книги сохраняется после �
     await page.reload();
     await openWorkspace(page);
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Заметки' }).click();
+        await page.getByRole('button', { name: 'Панель заметок' }).click();
     }
 
     await expect(noteSetSelect(page)).toContainText('Черновик');
@@ -878,7 +876,7 @@ async function noteInBook(
 ) {
     await addBook(page, book);
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Заметки' }).click();
+        await page.getByRole('button', { name: 'Панель заметок' }).click();
     }
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await highlightParagraph(page, text);

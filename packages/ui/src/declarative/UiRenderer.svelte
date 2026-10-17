@@ -78,7 +78,7 @@
     <span class="h-px min-w-4 flex-1 bg-[var(--border)]" aria-hidden="true"></span>
   </div>
   {#if groupDescription}
-    <p class="mb-3 text-muted-foreground text-[0.8125rem]" data-testid="settings-group-description">
+    <p class="mb-3 text-muted-foreground role-body" data-testid="settings-group-description">
       {groupDescription}
     </p>
   {/if}

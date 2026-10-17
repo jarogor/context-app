@@ -161,7 +161,7 @@ describe('область рабочего места: список и вклад
         });
 
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
-        expect(screen.getByTestId('workspace-meta').textContent).toContain('текущее');
+        expect(screen.getByTestId('workspace-current')).toBeTruthy();
     });
 
     it('оставляет вкладки смонтированными, когда показан список', () => {

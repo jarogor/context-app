@@ -43,7 +43,7 @@ test('выбор тёмной темы в настройках переключ�
 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   const background = await page
-    .locator('header')
+    .locator('body')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
   await chooseAndSave(page, 'Тема оформления', 'Тёмная');
@@ -51,7 +51,7 @@ test('выбор тёмной темы в настройках переключ�
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect
     .poll(async () =>
-      page.locator('header').evaluate((element) => getComputedStyle(element).backgroundColor),
+      page.locator('body').evaluate((element) => getComputedStyle(element).backgroundColor),
     )
     .not.toBe(background);
   await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
@@ -62,7 +62,7 @@ test('выбор палитры в настройках меняет цвета 
 
   await expect(page.locator('html')).toHaveAttribute('data-palette', 'gruvbox');
   const background = await page
-    .locator('header')
+    .locator('body')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
   await chooseAndSave(page, 'Палитра оформления', 'Mist');
@@ -70,7 +70,7 @@ test('выбор палитры в настройках меняет цвета 
   await expect(page.locator('html')).toHaveAttribute('data-palette', 'mist');
   await expect
     .poll(async () =>
-      page.locator('header').evaluate((element) => getComputedStyle(element).backgroundColor),
+      page.locator('body').evaluate((element) => getComputedStyle(element).backgroundColor),
     )
     .not.toBe(background);
 });

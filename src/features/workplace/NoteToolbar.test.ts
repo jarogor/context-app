@@ -14,6 +14,7 @@ function props(overrides: Record<string, unknown> = {}) {
         readerTheme: 'light' as const,
         onChangeZoom: vi.fn(),
         onChangeReaderTheme: vi.fn(),
+        notesMode: true,
         ...overrides,
     };
 }
@@ -108,6 +109,7 @@ describe('панель инструментов заметок', () => {
             props: props({
                 tool: { ...DEFAULT_NOTE_TOOL, type: 'quote' },
                 allowedTypes: ['quote'],
+                notesMode: true,
             }),
         });
 
@@ -127,12 +129,13 @@ describe('панель инструментов заметок', () => {
 
         const toolbar = screen.getByTestId('note-toolbar');
         const group = screen.getByTestId('note-toolbar-reading');
+        const footer = screen.getByTestId('reader-footer');
         const quote = screen.getByRole('button', { name: 'Цитата' });
 
         // Группа чтения идёт после инструментов заметок и прижата вправо.
         const order = Array.from(toolbar.querySelectorAll('*'));
         expect(order.indexOf(quote)).toBeLessThan(order.indexOf(group));
-        expect(group.className).toContain('ml-auto');
+        expect(footer.className).toContain('ml-auto');
     });
 });
 

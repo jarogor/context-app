@@ -7,7 +7,7 @@ test('в узком окне раздел настроек прокручива�
   // быть достижим прокруткой, а не обрезан.
   await page.setViewportSize({ width: 900, height: 260 });
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
   await page.getByTestId('settings-section').first().waitFor();
 
   const result = await bottomReachable(page, '[data-testid="settings-section"]');
@@ -20,7 +20,7 @@ test('в узком окне раздел настроек прокручива�
 test('прокрутка настроек не даёт горизонтальной прокрутки документа', async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 260 });
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
   await page.getByTestId('settings-section').first().waitFor();
 
   await bottomReachable(page, '[data-testid="settings-section"]');
@@ -33,7 +33,7 @@ test('прокрутка настроек не даёт горизонтальн
 
 test('страница настроек рендерит секции и поля', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
 
   const settings = page.locator('main');
   await expect(settings.getByTestId('settings-group-heading').first()).toBeVisible();
@@ -43,7 +43,7 @@ test('страница настроек рендерит секции и пол�
 
 test('секция рисуется группой с линией и отступом содержимого', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
 
   const heading = page.getByTestId('settings-group-heading').first();
   await expect(heading).toBeVisible();
@@ -58,7 +58,7 @@ test('секция рисуется группой с линией и отсту
 test('поле раскладывается двумя колонками: название слева, контрол справа', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 800 });
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
 
   const label = page.locator('main label', { hasText: 'Приветственное уведомление' });
   const labelBox = await label.boundingBox();
@@ -72,7 +72,7 @@ test('поле раскладывается двумя колонками: на�
 
 test('кнопка сохранения внизу недоступна без правок и включается после', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
 
   const settings = page.getByTestId('settings-page');
   const footer = page.getByTestId('settings-footer');
@@ -103,7 +103,7 @@ test('кнопка сохранения внизу недоступна без �
 
 test('дискретное поле сохраняется по кнопке, а не сразу', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
 
   const settings = page.getByTestId('settings-page');
   const checkbox = settings.locator('[role="checkbox"]').first();
@@ -121,7 +121,7 @@ test('дискретное поле сохраняется по кнопке, а
 
 test('раздел «Информация» показывает версию и расположение конфигов', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
   await menu.getByRole('button', { name: 'Информация' }).click();
@@ -134,22 +134,18 @@ test('раздел «Информация» показывает версию и
   await expect(page.getByText('Кэш компиляции WASM')).toBeVisible();
 });
 
-test('настройки открываются на всё окно без шапки каркаса', async ({ page }) => {
+test('настройки открываются на всё окно без меню разделов', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('header')).toBeVisible();
+  await expect(page.getByTestId('section-nav')).toBeVisible();
 
-  // Кнопка открытия стоит у правого края — там же, где будет закрытие.
-  const openBox = await page.getByLabel('Настройки', { exact: true }).boundingBox();
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
 
-  // Шапка с кнопками разделов скрыта, доступны только настройки.
-  await expect(page.locator('header')).toBeHidden();
+  // Меню разделов и панель раздела скрыты, доступны только настройки.
+  await expect(page.getByTestId('section-nav')).toBeHidden();
+  await expect(page.getByTestId('section-panel')).toBeHidden();
   await expect(page.getByTestId('settings-page')).toBeVisible();
-  // Кнопка закрытия — в том же правом углу, где была кнопка открытия.
-  const closeBox = await page.getByLabel('Закрыть настройки').boundingBox();
-  expect(openBox).not.toBeNull();
-  expect(closeBox).not.toBeNull();
-  expect(Math.abs(openBox!.x + openBox!.width - (closeBox!.x + closeBox!.width))).toBeLessThan(8);
+  // Кнопка закрытия — в правом верхнем углу страницы настроек.
+  await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
   // Внутреннее меню разделов настроек осталось.
   await expect(
     page.getByRole('navigation', { name: 'Разделы настроек' }),
@@ -160,15 +156,15 @@ test('кнопка закрытия и Escape возвращают прежню�
   await page.goto('/');
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
 
-  await page.getByLabel('Настройки', { exact: true }).click();
-  await expect(page.locator('header')).toBeHidden();
+  await page.getByTestId('nav-settings').click();
+  await expect(page.getByTestId('section-nav')).toBeHidden();
   await page.getByLabel('Закрыть настройки').click();
-  await expect(page.locator('header')).toBeVisible();
+  await expect(page.getByTestId('section-nav')).toBeVisible();
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
 
   // Escape закрывает раздел тем же действием.
-  await page.getByLabel('Настройки', { exact: true }).click();
-  await expect(page.locator('header')).toBeHidden();
+  await page.getByTestId('nav-settings').click();
+  await expect(page.getByTestId('section-nav')).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('settings-page')).toBeHidden();
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
@@ -178,7 +174,7 @@ test('поле настроек имеет акцентное название �
   page,
 }) => {
   await page.goto('/');
-  await page.getByLabel('Настройки', { exact: true }).click();
+  await page.getByTestId('nav-settings').click();
 
   const nameLabel = page.locator('main label', { hasText: 'Приветственное уведомление' });
   const nameFont = await nameLabel.evaluate((el) => getComputedStyle(el).fontSize);

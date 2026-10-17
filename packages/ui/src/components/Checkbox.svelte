@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Checkbox as CheckboxPrimitive } from 'bits-ui';
   import { cn } from '../utils';
+  import Icon from './Icon.svelte';
 
   interface Props {
     /** Состояние флажка. */
@@ -48,15 +49,7 @@
   {#snippet children({ checked })}
     <span class="text-current">
       {#if checked}
-        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M20 6 9 17l-5-5"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="check" class="h-3.5 w-3.5" />
       {/if}
     </span>
   {/snippet}

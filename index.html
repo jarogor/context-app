@@ -5,47 +5,95 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Текстура</title>
+    <script>
+      /* Оформление экрана загрузки до бандла.
+       *
+       * Значения берутся из `localStorage` (ключ `texture.appearance`): там
+       * оболочка держит зеркало сохранённой темы и палитры, потому что до
+       * загрузки бандла ядро недоступно. Если зеркала ещё нет, экран следует
+       * системной теме и палитре по умолчанию. Так экран загрузки сразу
+       * совпадает с выбранным оформлением, а не мелькает чужим набором. */
+      (function () {
+        var appearance = null;
+        try {
+          appearance = JSON.parse(localStorage.getItem('texture.appearance') || 'null');
+        } catch (error) {
+          appearance = null;
+        }
+        var palette = appearance && appearance.palette === 'mist' ? 'mist' : 'gruvbox';
+        var preference = appearance && appearance.theme ? appearance.theme : 'system';
+        var dark =
+          preference === 'dark' ||
+          (preference === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var root = document.documentElement;
+        root.dataset.palette = palette;
+        root.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
     <style>
-      /* Экран загрузки до сборки приложения: цвета — токены дизайн-системы
-         (`packages/ui/src/tokens.css`), выбор — по системной теме. Статичная
-         разметка нужна, чтобы окно не было пустым, пока грузится бандл; её
-         убирает src/main.ts при монтировании оболочки. Окно показывается
-         только после первой отрисовки этого экрана. */
+      /* Экран загрузки: единственное описание вида. Оно здесь, а не в
+         компоненте, потому что этот блок нужен ещё до бандла (пока грузится
+         Svelte) и остаётся в документе после — поэтому и оболочечный экран
+         (`BootstrapLoading`) рисуется теми же классами, и подмена одного экрана
+         другим незаметна. Цвета — токены активной палитры, выбранные скриптом
+         выше по сохранённому оформлению. Значения простые и намеренно не
+         зависят от собранного CSS. */
       :root {
-        color-scheme: light dark;
+        color-scheme: light;
+        --boot-background: #fbf1c7;
+        --boot-foreground: #3c3836;
+        --boot-muted-foreground: #7c6f64;
+      }
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+        --boot-background: #282828;
+        --boot-foreground: #ebdbb2;
+        --boot-muted-foreground: #a89984;
+      }
+      :root[data-palette='mist'] {
+        --boot-background: #ffffff;
+        --boot-foreground: #1c2125;
+        --boot-muted-foreground: #6b7280;
+      }
+      :root[data-palette='mist'][data-theme='dark'] {
+        --boot-background: #16191c;
+        --boot-foreground: #f1f3f4;
+        --boot-muted-foreground: #8b949b;
       }
       body {
         margin: 0;
-        background: #fbf1c7;
-        color: #3c3836;
+        background: var(--boot-background);
+        color: var(--boot-foreground);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
       }
-      #boot {
+      .boot-screen {
         display: flex;
         height: 100vh;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 0.75rem;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        color: #7c6f64;
+        color: var(--boot-muted-foreground);
       }
-      #boot .boot-spinner {
+      /* Отступ абзаца обнуляется: интервал задаёт `gap`; у пользовательского
+         агента `<p>` есть margin, из-за которого расстояние «индикатор↔текст»
+         отличалось бы от оболочечного экрана. */
+      .boot-screen p {
+        margin: 0;
+      }
+      /* Индикатор — тот же значок, что и `Spinner` дизайн-системы (24×24,
+         штрих 4). `display: block` обязателен: до бандла Tailwind ещё не
+         загружен и `<svg>` был бы инлайновым (тянул базовую линию и лишний
+         отступ), а после — блочным; без общего правила высота и зазор «прыгали». */
+      .boot-spinner {
+        display: block;
         width: 24px;
         height: 24px;
-        border: 2px solid currentColor;
-        border-top-color: transparent;
-        border-radius: 50%;
-        animation: boot-spin 0.8s linear infinite;
-      }
-      @media (prefers-color-scheme: dark) {
-        body {
-          background: #282828;
-          color: #ebdbb2;
-        }
-        #boot {
-          color: #a89984;
-        }
+        flex: none;
+        animation: boot-spin 1s linear infinite;
       }
       @keyframes boot-spin {
         to {
@@ -56,8 +104,21 @@
   </head>
   <body>
     <div id="app">
-      <div id="boot">
-        <div class="boot-spinner"></div>
+      <div id="boot" class="boot-screen">
+        <svg
+          class="boot-spinner"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25" />
+          <path
+            d="M12 2a10 10 0 0 1 10 10"
+            stroke="currentColor"
+            stroke-width="4"
+            stroke-linecap="round"
+          />
+        </svg>
         <p>Загрузка…</p>
       </div>
     </div>

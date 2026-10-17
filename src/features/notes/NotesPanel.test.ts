@@ -23,6 +23,8 @@ describe('панель заметок-цитат', () => {
         render(NotesPanel, { props: { items: [], sets: [], activeSetId: null, hasBook: true } });
         const panel = screen.getByTestId('notes-panel');
         expect(panel.className).toContain('var(--notes-panel-width)');
+        // На узком окне панель занимает всю ширину области: общее поведение
+        // задаёт компонент боковой панели.
         expect(panel.className).toContain('max-[899px]:absolute');
         expect(panel.className).toContain('max-[899px]:w-auto');
     });

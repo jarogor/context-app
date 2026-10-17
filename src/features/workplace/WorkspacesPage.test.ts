@@ -26,7 +26,9 @@ describe('экран списка рабочих мест', () => {
         });
 
         expect(screen.getAllByTestId('workspace-item')).toHaveLength(2);
-        expect(screen.getAllByTestId('workspace-meta')[1].textContent).toContain('текущее');
+        // Признак текущего места — отдельный значок, а не строка метаинформации.
+        expect(screen.getByTestId('workspace-current')).toBeTruthy();
+        expect(screen.getAllByTestId('workspace-current')).toHaveLength(1);
     });
 
     it('показывает дату создания рабочего места', () => {
@@ -64,7 +66,43 @@ describe('экран списка рабочих мест', () => {
         });
 
         expect(screen.getAllByTestId('workspace-item')).toHaveLength(1);
-        expect(screen.getByTestId('workspace-open').textContent?.trim()).toBe('Второе');
+        expect(screen.getByTestId('workspace-open').textContent).toContain('Второе');
+    });
+
+    it('показывает число книг рабочего места', () => {
+        render(WorkspacesPage, {
+            props: {
+                workspaces: [{ id: 'ws-1', name: 'Первое', bookCount: 3 }],
+                currentId: null,
+                ...handlers(),
+            },
+        });
+
+        expect(screen.getByTestId('workspace-meta').textContent).toContain('3 книг');
+    });
+
+    it('не падает, когда одна книга открыта в нескольких вкладках места', () => {
+        // Превью обложек ключуется путём книги: повтор пути (одна книга в двух
+        // вкладках) раньше давал дубликат ключа, падение рендера и вечный экран
+        // загрузки. Повторы должны отбрасываться.
+        render(WorkspacesPage, {
+            props: {
+                workspaces: [
+                    {
+                        id: 'ws-1',
+                        name: 'Первое',
+                        bookCount: 2,
+                        bookPaths: ['/lib/a.epub', '/lib/a.epub'],
+                    },
+                ],
+                currentId: null,
+                ...handlers(),
+            },
+        });
+
+        expect(screen.getByTestId('workspace-item')).toBeTruthy();
+        // В превью книга показана один раз, а не дважды.
+        expect(screen.getByTestId('workspace-covers').querySelectorAll('span')).toHaveLength(1);
     });
 
     it('показывает «ничего не найдено» при пустом результате поиска', async () => {
@@ -116,7 +154,7 @@ describe('экран списка рабочих мест', () => {
             props: { workspaces: [{ id: 'ws-1', name: 'Старое' }], currentId: null, ...base },
         });
 
-        await fireEvent.pointerDown(screen.getByLabelText('Действия с рабочим местом'), {
+        await fireEvent.pointerDown(screen.getByLabelText(/Действия с рабочим местом/), {
             button: 0,
         });
         await fireEvent.click(screen.getByRole('menuitem', { name: 'Переименовать' }));
@@ -133,7 +171,7 @@ describe('экран списка рабочих мест', () => {
             props: { workspaces: [{ id: 'ws-1', name: 'Первое' }], currentId: null, ...base },
         });
 
-        await fireEvent.pointerDown(screen.getByLabelText('Действия с рабочим местом'), {
+        await fireEvent.pointerDown(screen.getByLabelText(/Действия с рабочим местом/), {
             button: 0,
         });
         await fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить' }));

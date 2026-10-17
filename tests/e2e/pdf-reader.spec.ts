@@ -893,7 +893,7 @@ test.describe('резкость на дробных масштабах (HiDPI 1.
 
 test('выделение текста создаёт заметку-цитату с подсветкой на странице', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     await selectTextOnPage(page, 1);
 
@@ -910,7 +910,7 @@ test('выделение текста создаёт заметку-цитату
 
 test('полосы подсветки соседних строк не накладываются друг на друга', async ({ page }) => {
     await openPdf(page, 3, true);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     // Выделяем обе строки страницы: у текстового слоя высота строки включает
     // межстрочный интервал, и без среза наложения полупрозрачная подсветка в
@@ -1162,7 +1162,7 @@ test('меню заметки закрывается при снятии выд�
 
 test('заметка на странице восстанавливается после перезагрузки', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await selectTextOnPage(page, 1);
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
 
@@ -1176,14 +1176,14 @@ test('заметка на странице восстанавливается п
 
     await page.reload();
     await reopenWorkplace(page);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
     await expect(content(page).locator('.note')).toHaveCount(1);
 });
 
 test('клик по заметке ведёт к странице заметки', async ({ page }) => {
     await openPdf(page, 4);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await page.getByLabel('Текущая страница').fill('3');
     await page.getByLabel('Текущая страница').press('Enter');
     await expect
@@ -1211,11 +1211,11 @@ test('клик по заметке ведёт к странице заметки
 
 test('клик по подсветке открывает панель заметок и выбирает заметку', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await selectTextOnPage(page, 1);
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
 
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await expect(page.getByTestId('notes-panel')).toHaveCount(0);
 
     await content(page).locator('.note').first().click();
@@ -1232,7 +1232,7 @@ async function selectTool(page: Page, name: string) {
 test('меню цитаты копирует текст в буфер обмена', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await selectTextOnPage(page, 1);
     await expect(page.getByTestId('notes-item')).toHaveCount(1);
 
@@ -1250,7 +1250,7 @@ test('меню цитаты копирует текст в буфер обмен
 
 test('текстовая карточка создаётся кликом по странице', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     // Страничный формат сохраняет все три типа: текст и фигура доступны.
     const toolbar = page.getByTestId('note-toolbar');
@@ -1297,7 +1297,7 @@ test('текстовая карточка создаётся кликом по �
 
 test('текст карточки правится из её контекстного меню', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     await selectTool(page, 'Текст');
     await content(page)
@@ -1331,7 +1331,7 @@ test('над существующей заметкой под инструмен
     page,
 }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     await selectTool(page, 'Текст');
     await content(page)
@@ -1355,7 +1355,7 @@ test('над существующей заметкой под инструмен
 
 test('фигура рисуется протяжкой по странице', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     await selectTool(page, 'Фигура');
     const pageEl = content(page).locator('.page').first();
@@ -1378,7 +1378,7 @@ test('фигура рисуется протяжкой по странице', a
 
 test('фигура-эллипс рисуется и переживает смену масштаба', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     await selectTool(page, 'Фигура');
     await page.getByRole('button', { name: 'Вид фигуры' }).click();
@@ -1416,7 +1416,7 @@ test('фигура-эллипс рисуется и переживает сме�
 
 test('текстовую карточку в PDF можно переместить через контекстное меню', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     await selectTool(page, 'Текст');
     await content(page)
@@ -1459,7 +1459,7 @@ test('текстовую карточку в PDF можно переместит
 
 test('клик по заметке не переключает инструмент', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     await selectTool(page, 'Текст');
     await content(page)
@@ -1501,7 +1501,7 @@ test('клик по заметке не переключает инструме�
 
 test('фигуру в PDF можно выбрать кликом по контуру', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
 
     await selectTool(page, 'Фигура');
     const pageEl = content(page).locator('.page').first();
@@ -1530,7 +1530,7 @@ test('фигуру в PDF можно выбрать кликом по конту
 
 test('границы цитаты в PDF правятся маркерами по тексту', async ({ page }) => {
     await openPdf(page, 3);
-    await page.getByRole('button', { name: 'Заметки' }).click();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
     await selectTextOnPage(page, 1);
 
     await content(page).locator('.overlay .note').first().click();

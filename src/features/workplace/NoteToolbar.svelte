@@ -3,6 +3,8 @@
     Button,
     ColorPicker,
     Icon,
+    Input,
+    Progress,
     Select,
     DEFAULT_READER_THEME,
     type ColorSwatch,
@@ -43,6 +45,22 @@
     onChangeZoom?: (delta: number) => void;
     /** Переключение темы области чтения на противоположную. */
     onChangeReaderTheme?: (theme: ReaderThemeId) => void;
+    /** Показывать ли инструменты создания заметок (режим заметок). */
+    notesMode?: boolean;
+    /** Читается ли книга плагином рабочего места. */
+    workplace?: boolean;
+    /** Поддерживает ли плагин страницы. */
+    workplacePages?: boolean;
+    /** Текущая страница плагина или `null`. */
+    workplacePage?: number | null;
+    /** Общее число страниц плагина или `null`. */
+    workplacePageCount?: number | null;
+    /** Прогресс чтения в процентах. */
+    progress?: number;
+    /** Переход к соседней странице. */
+    onStepPage?: (delta: number) => void;
+    /** Переход к введённому номеру страницы. */
+    onGoToPage?: (page: number) => void;
   }
 
   let {
@@ -56,6 +74,14 @@
     readerTheme = DEFAULT_READER_THEME,
     onChangeZoom,
     onChangeReaderTheme,
+    notesMode = false,
+    workplace = false,
+    workplacePages = false,
+    workplacePage = null,
+    workplacePageCount = null,
+    progress = 0,
+    onStepPage,
+    onGoToPage,
   }: Props = $props();
 
   /** Варианты видов фигур для выпадающего списка. */
@@ -86,6 +112,17 @@
     readerTheme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на тёмную тему',
   );
 
+  /** Черновик правки поля текущей страницы; `null` — поле показывает снимок. */
+  let pageDraft = $state<string | null>(null);
+
+  /**
+   * Видимое значение поля страницы.
+   *
+   * Пока пользователь не правит поле, значение берётся из снимка текущей
+   * страницы и следует за листанием; во время правки показывается черновик.
+   */
+  const pageValue = $derived(pageDraft ?? (workplacePage === null ? '' : String(workplacePage)));
+
   /** Выбор типа заметки. */
   function selectType(type: NoteType) {
     if (type !== tool.type) {
@@ -109,28 +146,32 @@
   function toggleReaderTheme() {
     onChangeReaderTheme?.(readerTheme === 'dark' ? 'light' : 'dark');
   }
+
+  /** Переход к введённому номеру страницы. */
+  function commitPage() {
+    const draft = pageDraft?.trim();
+    if (draft !== undefined && draft !== '') {
+      const page = Number(draft);
+      if (Number.isInteger(page) && page >= 1) {
+        onGoToPage?.(page);
+      }
+    }
+    pageDraft = null;
+  }
 </script>
 
 <!--
-  Верхняя панель чтения. Слева выстроена единая логическая цепочка инструментов
-  заметок: типы заметок, затем вид фигуры и сразу за ним палитра цветов (только
-  для фигуры). Справа отдельной группой (`ml-auto`) прижато управление чтением:
-  масштаб текста и кнопка-переключатель темы области чтения. Так инструменты
-  заметок читаются как одна группа слева, а настройки вида — как отдельная группа
-  справа.
-
-  Блок типов и палитра цветов показываются, только когда формат предлагает больше
-  одного типа заметок: в текучем формате доступна единственная «цитата», и её
-  нажатая кнопка с палитрой были бы бесполезны. Палитра нужна только инструменту
-  фигуры и идёт после выбора её вида: цвет текста выбирается в модальном окне
-  заметки, цвет цитаты — в меню создания при выделении. Кнопки типов, вид фигуры и
-  палитра одного компактного размера, чтобы ряд читался единым.
+  Единая панель чтения. Слева — инструменты заметок (по требованию, в режиме
+  заметок): типы, вид фигуры и палитра цветов. Справа — управление чтением:
+  навигация по страницам, прогресс, масштаб и переключатель темы области
+  чтения. Так вкладки, управление и инструменты читаются одной панелью, а не
+  несколькими полосами подряд.
 -->
 <div
   class="flex h-10 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-2"
   data-testid="note-toolbar"
 >
-  {#if typeOptions.length > 1}
+  {#if notesMode && typeOptions.length > 1}
     <div class="flex items-center gap-1" role="group" aria-label="Тип заметки">
       {#each typeOptions as type (type)}
         <Button
@@ -147,7 +188,7 @@
     </div>
   {/if}
 
-  {#if tool.type === 'shape' && typeOptions.includes('shape')}
+  {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
     <div class="flex items-center" data-testid="note-tool-shape">
       <Select
         value={tool.shape}
@@ -160,7 +201,7 @@
     </div>
   {/if}
 
-  {#if tool.type === 'shape' && typeOptions.includes('shape')}
+  {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
     <ColorPicker
       colors={colorSwatches}
       onpick={(id) => selectColor(id as NoteColor)}
@@ -170,36 +211,81 @@
     />
   {/if}
 
-  <div class="ml-auto flex items-center gap-1" data-testid="note-toolbar-reading">
-    {#if showZoom}
-      <Button
-        size="icon"
-        variant="ghost"
-        title="Уменьшить масштаб"
-        ariaLabel="Уменьшить масштаб"
-        disabled={zoom <= minZoom}
-        onclick={() => onChangeZoom?.(-10)}>−</Button
+  <div class="ml-auto flex items-center gap-2" data-testid="reader-footer">
+    <div class="flex items-center gap-2" data-testid="note-toolbar-reading">
+      {#if workplace && workplacePages && workplacePage !== null}
+        <div class="flex shrink-0 items-center gap-1 whitespace-nowrap" data-testid="reader-pages">
+          <Button
+            size="icon"
+            variant="ghost"
+            title="Предыдущая страница"
+            ariaLabel="Предыдущая страница"
+            disabled={workplacePage <= 1}
+            onclick={() => onStepPage?.(-1)}
+          >
+            <Icon name="chevron-left" />
+          </Button>
+          <Input
+            class="h-6 w-[3.5rem] shrink-0 px-1 py-0 text-center"
+            ariaLabel="Текущая страница"
+            value={pageValue}
+            oninput={(event) => (pageDraft = event.currentTarget.value)}
+            onkeydown={(event) => {
+              if (event.key === 'Enter') {
+                commitPage();
+              }
+            }}
+            onblur={commitPage}
+          />
+          <span class="whitespace-nowrap" data-testid="reader-page-count"
+            >/ {workplacePageCount ?? '?'}</span
+          >
+          <Button
+            size="icon"
+            variant="ghost"
+            title="Следующая страница"
+            ariaLabel="Следующая страница"
+            disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
+            onclick={() => onStepPage?.(1)}
+          >
+            <Icon name="chevron-right" />
+          </Button>
+        </div>
+      {/if}
+      <span class="whitespace-nowrap role-caption text-[var(--muted-foreground)]" data-testid="reader-progress"
+        >{Math.round(progress)}%</span
       >
-      <span class="min-w-[3rem] text-center" data-testid="reader-zoom">{zoom}%</span>
-      <Button
-        size="icon"
-        variant="ghost"
-        title="Увеличить масштаб"
-        ariaLabel="Увеличить масштаб"
-        disabled={zoom >= maxZoom}
-        onclick={() => onChangeZoom?.(10)}>+</Button
-      >
-    {/if}
-    <div class="flex items-center gap-1" data-testid="reader-theme-toggle">
-      <Button
-        size="icon"
-        variant="ghost"
-        title={themeTitle}
-        ariaLabel={themeLabel}
-        onclick={toggleReaderTheme}
-      >
-        <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
-      </Button>
+      <Progress value={progress} class="w-[7rem] max-[899px]:hidden" />
+      {#if showZoom}
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Уменьшить масштаб"
+          ariaLabel="Уменьшить масштаб"
+          disabled={zoom <= minZoom}
+          onclick={() => onChangeZoom?.(-10)}>−</Button
+        >
+        <span class="min-w-[3rem] text-center role-caption" data-testid="reader-zoom">{zoom}%</span>
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Увеличить масштаб"
+          ariaLabel="Увеличить масштаб"
+          disabled={zoom >= maxZoom}
+          onclick={() => onChangeZoom?.(10)}>+</Button
+        >
+      {/if}
+      <div class="flex items-center gap-1" data-testid="reader-theme-toggle">
+        <Button
+          size="icon"
+          variant="ghost"
+          title={themeTitle}
+          ariaLabel={themeLabel}
+          onclick={toggleReaderTheme}
+        >
+          <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
+        </Button>
+      </div>
     </div>
   </div>
 </div>

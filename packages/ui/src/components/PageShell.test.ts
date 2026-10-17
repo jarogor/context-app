@@ -40,7 +40,13 @@ describe('PageShell', () => {
   it('показывает состояние ошибки', () => {
     render(PageShell, { props: { error: 'сбой', errorTestId: 'err' } });
 
-    expect(screen.getByTestId('err').textContent).toBe('сбой');
+    expect(screen.getByTestId('err').textContent).toContain('сбой');
+  });
+
+  it('показывает кнопку повтора при обработчике', () => {
+    render(PageShell, { props: { error: 'сбой', onRetry: () => {} } });
+
+    expect(screen.getByRole('button', { name: 'Повторить' })).toBeTruthy();
   });
 
   it('показывает пустое состояние вместо содержимого', () => {

@@ -74,7 +74,7 @@ async function openWorkplace(page: import('@playwright/test').Page) {
     }
     await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
-    const back = library.getByRole('button', { name: /К списку/ });
+    const back = library.getByRole('button', { name: /К списку книг/ });
     if ((await back.count()) > 0) {
         await back.click();
     }
@@ -101,9 +101,39 @@ test('плагин рабочего места сообщает прогресс
     const before = await html.evaluate((element) => getComputedStyle(element).fontSize);
     await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
     await expect(page.getByTestId('reader-zoom')).toHaveText('110%');
-    // Управление масштабом перенесено в верхнюю панель чтения.
+    // Управление масштабом расположено в единой панели чтения.
     await expect(page.getByTestId('note-toolbar').getByTestId('reader-zoom')).toBeVisible();
     await expect
         .poll(async () => html.evaluate((element) => getComputedStyle(element).fontSize))
         .not.toBe(before);
+});
+
+test('сосредоточенное чтение скрывает хром и возвращает его без потери состояния', async ({
+    page,
+}) => {
+    await openWorkplace(page);
+
+    // Хром интерфейса виден: меню разделов, панель вкладок, панель чтения.
+    await expect(page.getByTestId('section-nav')).toBeVisible();
+    await expect(page.getByTestId('workplace-tabs')).toBeVisible();
+    await expect(page.getByTestId('note-toolbar')).toBeVisible();
+    await expect(page.getByTestId('reader-progress')).toHaveText('42%');
+
+    await page.getByRole('button', { name: 'Сосредоточенное чтение' }).click();
+
+    // Хром скрыт: меню разделов и панель раздела; панель вкладок остаётся
+    // минимальной полосой с кнопкой выхода из режима.
+    await expect(page.getByTestId('section-nav')).toHaveCount(0);
+    await expect(page.getByTestId('section-panel')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Выйти из сосредоточенного чтения' })).toBeVisible();
+    // Книга остаётся открытой: содержимое на месте.
+    await expect(
+        page.frameLocator('iframe[title="Содержимое книги"]').getByText('Получено'),
+    ).toBeVisible();
+
+    // Выход возвращает раскладку, а состояние чтения не изменяется.
+    await page.getByRole('button', { name: 'Выйти из сосредоточенного чтения' }).click();
+    await expect(page.getByTestId('section-nav')).toBeVisible();
+    await expect(page.getByTestId('workplace-tabs')).toBeVisible();
+    await expect(page.getByTestId('reader-progress')).toHaveText('42%');
 });

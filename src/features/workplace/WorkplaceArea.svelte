@@ -4,7 +4,6 @@
   import OpenBooksPanel from './OpenBooksPanel.svelte';
   import NotesPanel from '../notes/NotesPanel.svelte';
   import NoteToolbar from './NoteToolbar.svelte';
-  import ReaderFooter from '../reader/ReaderFooter.svelte';
   import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
   import { activeTab } from './workplace';
@@ -109,6 +108,10 @@
     onRepointTab: (id: string) => void;
     /** Возврат к списку рабочих мест. */
     onBackToList: () => void;
+    /** Режим сосредоточенного чтения. */
+    focusMode?: boolean;
+    /** Переключение режима сосредоточенного чтения. */
+    onToggleFocus?: () => void;
     /** Создание рабочего места. */
     onCreateWorkspace: (name: string) => void;
     /** Открытие рабочего места. */
@@ -166,6 +169,8 @@
     onTabState,
     onRepointTab,
     onBackToList,
+    focusMode = false,
+    onToggleFocus,
     onCreateWorkspace,
     onOpenWorkspace,
     onRenameWorkspace,
@@ -270,7 +275,13 @@
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-area">
   {#if listMode || workspace === null}
     <WorkspacesPage
-      {workspaces}
+      workspaces={workspaces.map((item) => ({
+        id: item.id,
+        name: item.name,
+        createdAtMillis: item.createdAtMillis,
+        bookCount: item.tabs.length,
+        bookPaths: item.tabs.map((tab) => tab.path),
+      }))}
       currentId={currentWorkspaceId}
       onCreate={onCreateWorkspace}
       onOpen={onOpenWorkspace}
@@ -297,6 +308,9 @@
       {booksOpen}
       {notesOpen}
       {openTabsLimit}
+      workspaceName={workspace.name}
+      {focusMode}
+      onToggleFocus={onToggleFocus}
       onSelect={onSelectTab}
       onClose={onCloseTab}
       onDuplicate={onDuplicateTab}
@@ -316,8 +330,16 @@
         maxZoom={activeFooter?.maxZoom ?? 220}
         showZoom={activeFooter?.workplaceZoom ?? true}
         {readerTheme}
+        notesMode={notesOpen}
+        workplace={activeFooter?.workplace ?? false}
+        workplacePages={activeFooter?.workplacePages ?? false}
+        workplacePage={activeFooter?.page ?? null}
+        workplacePageCount={activeFooter?.pageCount ?? null}
+        progress={activeFooter?.progress ?? 0}
         onChangeZoom={changeZoom}
         onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
+        onStepPage={stepPage}
+        onGoToPage={goToPage}
       />
     {/if}
     <div class="relative flex min-h-0 flex-1">
@@ -374,7 +396,7 @@
           {/each}
         {/if}
       </div>
-      {#if notesOpen}
+      {#if notesOpen && !focusMode}
         <NotesPanel
           items={tabItems}
           sets={noteSets}
@@ -394,7 +416,7 @@
           onRemoveSet={onRemoveSet}
         />
       {/if}
-      {#if booksOpen}
+      {#if booksOpen && !focusMode}
         <OpenBooksPanel
           tabs={workspace.tabs}
           activeTabId={workspace.activeTabId}
@@ -406,17 +428,6 @@
         />
       {/if}
     </div>
-    {#if workspace.tabs.length > 0}
-      <ReaderFooter
-        workplace={activeFooter?.workplace ?? false}
-        workplacePages={activeFooter?.workplacePages ?? false}
-        workplacePage={activeFooter?.page ?? null}
-        workplacePageCount={activeFooter?.pageCount ?? null}
-        progress={activeFooter?.progress ?? 0}
-        onStepPage={stepPage}
-        onGoToPage={goToPage}
-      />
-    {/if}
     </div>
   {/if}
 </div>

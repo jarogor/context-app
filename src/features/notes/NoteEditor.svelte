@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, IconButton, Input, Textarea } from '@texture/ui';
+  import { Button, Icon, IconButton, Input, Textarea } from '@texture/ui';
 
   interface Props {
     /** Идентификатор редактируемой заметки. */
@@ -71,15 +71,7 @@
         ariaLabel="Отмена"
         onclick={onCancel}
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path
-            d="M6 6l12 12M18 6L6 18"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
+        <Icon name="close" />
       </Button>
       <Button
         variant="primary"
@@ -88,16 +80,7 @@
         ariaLabel="Сохранить"
         onclick={commit}
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path
-            d="M5 13l4 4L19 7"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="check" />
       </Button>
     </div>
   </div>

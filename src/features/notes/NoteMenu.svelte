@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from '@texture/ui';
+  import { Button, Icon } from '@texture/ui';
   import type { NoteType } from './notes';
 
   /** Контекстное меню заметки, общее для всех режимов чтения.
@@ -70,7 +70,7 @@
 </script>
 
 <div
-  class="absolute z-20 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-lg"
+  class="absolute z-20 flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-overlay"
   data-testid="note-menu"
   {style}
 >
@@ -82,16 +82,7 @@
       ariaLabel="Копировать текст"
       onclick={copyQuote}
     >
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-        <path
-          d="M9 9h9v9H9zM6 15V6h9"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
+      <Icon name="copy" />
     </Button>
     <Button
       variant="secondary"
@@ -100,16 +91,7 @@
       ariaLabel="Изменить выделение"
       onclick={onResize}
     >
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-        <path
-          d="M4 9h13M4 9l3-3M4 9l3 3M20 15H7M20 15l-3-3M20 15l-3 3"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
+      <Icon name="resize" />
     </Button>
   {:else}
     {#if type === 'text'}
@@ -120,16 +102,7 @@
         ariaLabel="Изменить текст"
         onclick={onEditText}
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path
-            d="M4 20h4l10-10-4-4L4 16v4zM14 6l4 4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="pencil" />
       </Button>
     {/if}
     <Button
@@ -139,21 +112,10 @@
       ariaLabel="Переместить"
       onclick={onMove}
     >
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-        <path
-          d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
+      <Icon name="move" />
     </Button>
   {/if}
   <Button variant="ghost" size="icon" title="Закрыть" ariaLabel="Закрыть" onclick={onClose}>
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-    </svg>
+    <Icon name="close" />
   </Button>
 </div>
