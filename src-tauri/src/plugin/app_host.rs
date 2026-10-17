@@ -59,10 +59,10 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "title": "Палитра оформления",
           "type": "select",
           "description": "Набор светлых и тёмных цветов интерфейса",
-          "default": "gruvbox",
+          "default": "linen",
           "options": [
-            { "value": "gruvbox", "title": "Gruvbox" },
-            { "value": "mist", "title": "Mist" }
+            { "value": "linen", "title": "Лён" },
+            { "value": "cobalt", "title": "Кобальт" }
           ]
         },
         {
@@ -337,10 +337,10 @@ impl AppPluginHost {
     ///
     /// Возвращается как есть (реестр палитр принадлежит дизайн-системе, ядро
     /// его не знает); отсутствующее значение заменяется палитрой по умолчанию
-    /// `gruvbox`.
+    /// `linen`.
     pub fn theme_palette(&mut self) -> String {
         self.app_setting_string("appearance.palette")
-            .unwrap_or_else(|| "gruvbox".to_string())
+            .unwrap_or_else(|| "linen".to_string())
     }
 
     /// Тема области чтения из настроек приложения.

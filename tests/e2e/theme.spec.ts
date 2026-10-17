@@ -60,14 +60,14 @@ test('выбор тёмной темы в настройках переключ�
 test('выбор палитры в настройках меняет цвета интерфейса', async ({ page }) => {
   await openSettings(page);
 
-  await expect(page.locator('html')).toHaveAttribute('data-palette', 'gruvbox');
+  await expect(page.locator('html')).toHaveAttribute('data-palette', 'linen');
   const background = await page
     .locator('body')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
-  await chooseAndSave(page, 'Палитра оформления', 'Mist');
+  await chooseAndSave(page, 'Палитра оформления', 'Кобальт');
 
-  await expect(page.locator('html')).toHaveAttribute('data-palette', 'mist');
+  await expect(page.locator('html')).toHaveAttribute('data-palette', 'cobalt');
   await expect
     .poll(async () =>
       page.locator('body').evaluate((element) => getComputedStyle(element).backgroundColor),

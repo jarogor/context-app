@@ -68,6 +68,9 @@
     return false;
   });
 
+  /** Число секций настроек. */
+  const sectionCount = $derived(declarations.filter((item) => item.declaration).length);
+
   /** Загрузка деклараций интерфейса настроек. */
   async function load() {
     const result = await asyncState.run(loadSettingsUi);
@@ -131,8 +134,17 @@
 
 <div class="flex min-h-0 flex-1 flex-col" data-testid="settings-page">
   <div
-    class="flex shrink-0 items-center justify-end border-b border-[var(--border)] px-4 py-2"
+    class="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-3 md:px-6"
   >
+    <div class="flex min-w-0 flex-1 flex-col">
+      <span class="role-eyebrow text-[var(--muted-foreground)]">Приложение</span>
+      <span class="role-display text-[var(--foreground)]">Настройки</span>
+    </div>
+    {#if sectionCount > 0}
+      <span class="role-caption text-[var(--muted-foreground)]">
+        Секций: {sectionCount}
+      </span>
+    {/if}
     <Button
       variant="secondary"
       size="icon"
@@ -143,34 +155,44 @@
       <Icon name="close" />
     </Button>
   </div>
-  <ScrollArea testId="settings-sections" class="gap-6 p-4 md:p-6">
-    {#if declarations.length === 0}
-      <div class="p-6 text-center text-[var(--muted-foreground)]">
-        Нет зарегистрированных настроек
-      </div>
-    {:else}
-      {#each declarations as item, index (item.declaration?.id ?? index)}
-        {#if item.declaration}
-          <div class="flex min-w-0 flex-col" data-testid="settings-section">
-            <UiRenderer
-              declaration={item.declaration}
-              diagnostics={item.diagnostics}
-              showGroup
-              baseline={saved[(item.declaration as UiSpaceDeclaration).id] ?? {}}
-              onintent={dispatch}
-              onvalues={(values: Record<string, unknown>) =>
-                updateDraft((item.declaration as UiSpaceDeclaration).id, values)}
-            />
-          </div>
-        {/if}
-      {/each}
-    {/if}
+
+  <ScrollArea testId="settings-sections" class="p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-6">
+      {#if declarations.length === 0}
+        <div class="p-6 text-center role-body text-[var(--muted-foreground)]">
+          Нет зарегистрированных настроек
+        </div>
+      {:else}
+        {#each declarations as item, index (item.declaration?.id ?? index)}
+          {#if item.declaration}
+            <section
+              class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 shadow-raised md:p-5"
+              data-testid="settings-section"
+            >
+              <UiRenderer
+                declaration={item.declaration}
+                diagnostics={item.diagnostics}
+                showGroup
+                baseline={saved[(item.declaration as UiSpaceDeclaration).id] ?? {}}
+                onintent={dispatch}
+                onvalues={(values: Record<string, unknown>) =>
+                  updateDraft((item.declaration as UiSpaceDeclaration).id, values)}
+              />
+            </section>
+          {/if}
+        {/each}
+      {/if}
+    </div>
   </ScrollArea>
+
   <div
-    class="flex shrink-0 items-center justify-end border-t border-[var(--border)] px-4 py-2"
+    class="flex flex-none items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--panel)] px-4 py-3"
     data-testid="settings-footer"
-    style="padding-bottom: max(0.5rem, var(--safe-bottom));"
+    style="padding-bottom: max(0.75rem, var(--safe-bottom));"
   >
+    <span class="role-caption text-[var(--muted-foreground)]">
+      {dirty ? 'Есть несохранённые изменения' : 'Все изменения сохранены'}
+    </span>
     <Button variant="primary" disabled={!dirty} onclick={save}>Сохранить</Button>
   </div>
 </div>

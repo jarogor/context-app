@@ -70,7 +70,7 @@
 </script>
 
 <div
-  class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-overlay"
+  class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-1 shadow-overlay"
   data-testid="note-menu"
   {style}
 >

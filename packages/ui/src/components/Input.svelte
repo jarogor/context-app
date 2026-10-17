@@ -51,7 +51,7 @@
    * кегль 16px: так палец попадает в поле, а мобильный webview не приближает
    * страницу при фокусе (автозум срабатывает на кегле меньше 16px). */
   const fieldClass =
-    'border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive box-border h-9 w-full min-w-0 rounded-md border text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:text-base';
+    'border-[var(--input)] bg-card placeholder:text-muted-foreground hover:border-[var(--muted-foreground)] focus-visible:border-ring focus-visible:ring-ring/35 aria-invalid:border-destructive box-border h-9 w-full min-w-0 rounded-[var(--radius)] border text-sm transition-[color,box-shadow,border-color] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:text-base';
 </script>
 
 {#if icon}
@@ -70,7 +70,7 @@
       {oninput}
       {onkeydown}
       {onblur}
-      class={cn(fieldClass, 'pl-8 pr-3 py-1')}
+      class={cn(fieldClass, 'pr-3 pl-8 py-1')}
     />
   </div>
 {:else}

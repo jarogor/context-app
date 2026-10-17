@@ -31,8 +31,8 @@ describe('applyPalette', () => {
   it('выставляет атрибут data-palette', () => {
     const root = { dataset: {} } as unknown as HTMLElement;
 
-    applyPalette('mist', root);
-    expect(root.dataset.palette).toBe('mist');
+    applyPalette('cobalt', root);
+    expect(root.dataset.palette).toBe('cobalt');
   });
 
   it('неизвестную палитру заменяет значением по умолчанию', () => {

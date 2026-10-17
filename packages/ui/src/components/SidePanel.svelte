@@ -7,14 +7,9 @@
    * Общая боковая панель области.
    *
    * Единое строение панелей приложения: шапка с заголовком и действиями,
-   * необязательный поиск и содержимое. Панели заметок, открытых вкладок и
-   * уведомлений собираются из этого компонента, чтобы не расходиться по ширине,
-   * отступам и состояниям. На узком окне панель занимает всю ширину области, а
-   * на широком — ширину из общего значения (передаётся классом от потребителя).
-   *
-   * На узком окне к шапке добавляется кнопка закрытия: панель перекрывает
-   * содержимое области, и без явного закрытия вернуться к нему нельзя жестом,
-   * как на широком окне (где панель лишь сужает содержимое).
+   * необязательный поиск и содержимое. На узком окне панель занимает всю ширину
+   * области и получает кнопку закрытия; на широком — свою ширину (классом
+   * потребителя) и остаётся на месте содержимого рядом с ним.
    */
   interface Props {
     /** Заголовок панели. */
@@ -59,13 +54,13 @@
   style="padding-left: var(--safe-left); padding-right: var(--safe-right);"
 >
   <div
-    class="flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--muted)] px-3 py-2.5"
+    class="flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 py-2.5"
   >
     {#if onClose}
       <span class="flex lg:hidden">
         <button
           type="button"
-          class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--muted-foreground)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+          class="text-muted-foreground hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
           title="Закрыть панель"
           aria-label="Закрыть панель"
           data-testid="side-panel-close"
@@ -75,7 +70,7 @@
         </button>
       </span>
     {/if}
-    <span class="role-subtitle min-w-0 truncate text-[var(--foreground)]">{title}</span>
+    <span class="role-heading min-w-0 truncate text-[var(--foreground)]">{title}</span>
     {#if badge}
       {@render badge()}
     {/if}

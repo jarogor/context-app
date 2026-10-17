@@ -59,43 +59,49 @@
   });
 </script>
 
-<ScrollArea testId="app-info-page" class="gap-4 p-4">
-  {#if error}
-    <ErrorState message={error} />
-  {:else if !info}
-    <Skeleton rows={3} rowClass="h-20" />
-  {:else}
-    <Card>
-      <div class="flex flex-wrap items-baseline gap-2">
-        <span class="text-base font-semibold">{info.name}</span>
-        <span class="font-mono text-sm text-[var(--muted-foreground)]">версия {info.version}</span>
-      </div>
-    </Card>
+<ScrollArea testId="app-info-page" class="p-4 md:p-6">
+  <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-5">
+    {#if error}
+      <ErrorState message={error} />
+    {:else if !info}
+      <Skeleton rows={3} rowClass="h-20" />
+    {:else}
+      <Card class="p-5">
+        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span class="role-heading">{info.name}</span>
+          <span class="role-mono text-[var(--muted-foreground)]">версия {info.version}</span>
+        </div>
+      </Card>
 
-    <Card>
-      <h2 class="mb-3 text-base font-semibold">Каркас</h2>
-      <ul class="flex list-none flex-col gap-2 p-0">
-        {#each frameworkPaths as path (path.key)}
-          <li class="flex flex-col gap-[0.125rem] rounded-md border border-[var(--border)] p-2">
-            <span class="text-sm font-bold">{path.title}</span>
-            <code class="break-all font-mono text-xs text-[var(--foreground)]">{path.path}</code>
-            <span class="text-xs text-[var(--muted-foreground)]">{path.note}</span>
-          </li>
-        {/each}
-      </ul>
-    </Card>
+      <Card class="p-5">
+        <h2 class="mb-3 role-heading">Каркас</h2>
+        <ul class="flex list-none flex-col gap-2 p-0">
+          {#each frameworkPaths as path (path.key)}
+            <li
+              class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-3"
+            >
+              <span class="role-title">{path.title}</span>
+              <code class="break-all role-mono text-[var(--foreground)]">{path.path}</code>
+              <span class="role-caption text-[var(--muted-foreground)]">{path.note}</span>
+            </li>
+          {/each}
+        </ul>
+      </Card>
 
-    <Card>
-      <h2 class="mb-3 text-base font-semibold">Приложение</h2>
-      <ul class="flex list-none flex-col gap-2 p-0">
-        {#each applicationPaths as path (path.key)}
-          <li class="flex flex-col gap-[0.125rem] rounded-md border border-[var(--border)] p-2">
-            <span class="text-sm font-bold">{path.title}</span>
-            <code class="break-all font-mono text-xs text-[var(--foreground)]">{path.path}</code>
-            <span class="text-xs text-[var(--muted-foreground)]">{path.note}</span>
-          </li>
-        {/each}
-      </ul>
-    </Card>
-  {/if}
+      <Card class="p-5">
+        <h2 class="mb-3 role-heading">Приложение</h2>
+        <ul class="flex list-none flex-col gap-2 p-0">
+          {#each applicationPaths as path (path.key)}
+            <li
+              class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-3"
+            >
+              <span class="role-title">{path.title}</span>
+              <code class="break-all role-mono text-[var(--foreground)]">{path.path}</code>
+              <span class="role-caption text-[var(--muted-foreground)]">{path.note}</span>
+            </li>
+          {/each}
+        </ul>
+      </Card>
+    {/if}
+  </div>
 </ScrollArea>

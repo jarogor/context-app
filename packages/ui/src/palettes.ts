@@ -8,7 +8,7 @@
  */
 
 /** Идентификатор палитры оформления. */
-export type PaletteId = 'gruvbox' | 'mist';
+export type PaletteId = 'linen' | 'cobalt';
 
 /** Палитра оформления: идентификатор и человекочитаемое название. */
 export interface Palette {
@@ -16,15 +16,17 @@ export interface Palette {
   id: PaletteId;
   /** Человекочитаемое название для интерфейса. */
   title: string;
+  /** Короткое пояснение характера палитры для выбора в настройках. */
+  description: string;
 }
 
-/** Палитра по умолчанию — официальная Gruvbox. */
-export const DEFAULT_PALETTE: PaletteId = 'gruvbox';
+/** Палитра по умолчанию — тёплый «Лён». */
+export const DEFAULT_PALETTE: PaletteId = 'linen';
 
 /** Реестр палитр дизайн-системы. */
 export const PALETTES: readonly Palette[] = [
-  { id: 'gruvbox', title: 'Gruvbox' },
-  { id: 'mist', title: 'Mist' },
+  { id: 'linen', title: 'Лён', description: 'Тёплая бумага со смолистым зелёным акцентом' },
+  { id: 'cobalt', title: 'Кобальт', description: 'Холодная нейтраль с глубоким синим акцентом' },
 ];
 
 /** Проверка, что значение — известный идентификатор палитры. */

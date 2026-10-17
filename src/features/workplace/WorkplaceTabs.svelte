@@ -70,22 +70,12 @@
   /** Лимит превышен: вкладок больше, чем разрешено. */
   const overLimit = $derived(availability === 'over-limit');
 
-  /** Краткая подсказка заблокированным кнопкам открытия.
-   *
-   * Все три кнопки создания вкладки («Добавить книгу», «Открыть файл с диска»,
-   * «Дублировать вкладку») показывают один и тот же краткий текст: он говорит,
-   * что действие недоступно из-за лимита. Подробности — в уведомлении.
-   */
+  /** Краткая подсказка заблокированным кнопкам открытия. */
   const openBlockedTitle = $derived(
     overLimit ? 'Превышен лимит открытых вкладок' : 'Достигнут лимит открытых вкладок',
   );
 
-  /** Подсказка кнопке открытия: краткая при блокировке, обычная иначе.
-   *
-   * Подсказка выставляется обёртке кнопки, а не самой кнопке: недоступная
-   * кнопка не получает событий указателя, и её собственная подсказка не
-   * показывается.
-   */
+  /** Подсказка кнопке открытия: краткая при блокировке, обычная иначе. */
   function openButtonTitle(base: string): string {
     return openBlocked ? openBlockedTitle : base;
   }
@@ -93,11 +83,7 @@
   /** Признак того, что о превышении лимита уже сообщено (для дедупликации). */
   let overLimitReported = false;
 
-  /** Публикация пояснения о превышении лимита с дедупликацией.
-   *
-   * Пока превышение сохраняется, запись публикуется один раз; при возврате в
-   * предел признак сбрасывается, и повторное превышение сообщается снова.
-   */
+  /** Публикация пояснения о превышении лимита с дедупликацией. */
   $effect(() => {
     if (!overLimit) {
       overLimitReported = false;
@@ -119,10 +105,10 @@
   const TAB_GAP_PX = 2;
 
   /** Высота и ширина вкладки в rem: весь элемент вместе с кнопками действий. */
-  const TAB_ROW_REM = 1.6;
+  const TAB_ROW_REM = 1.85;
 
   /** Ширина вкладки в rem. */
-  const TAB_WIDTH_REM = 7.5;
+  const TAB_WIDTH_REM = 9;
 
   /** Кегль корневого элемента по умолчанию, если его не удаётся прочитать. */
   const FALLBACK_ROOT_FONT_PX = 16;
@@ -149,11 +135,7 @@
     return TAB_WIDTH_REM * base;
   }
 
-  /** Ёмкость окна: сколько вкладок целиком видно в ширине списка.
-   *
-   * Навигация и счётчик стоят вне измеряемого списка, поэтому их место уже
-   * вычтено из ширины списка раскладкой — отдельный запас не нужен.
-   */
+  /** Ёмкость окна: сколько вкладок целиком видно в ширине списка. */
   const capacity = $derived(visibleTabCount(listWidth, tabWidthPx + TAB_GAP_PX));
 
   /** Помещаются ли все вкладки; иначе показываются навигация и счётчик. */
@@ -174,13 +156,7 @@
   /** Подсказка счётчика видимого диапазона. */
   const rangeTitle = $derived(`Показаны вкладки ${rangeFrom}–${rangeTo} из ${tabs.length}`);
 
-  /** Слежение за шириной списка вкладок и масштабом интерфейса.
-   *
-   * Первое измерение выполняется сразу, повторные — в кадре отрисовки, а
-   * состояние обновляется только при фактическом изменении значений: иначе
-   * запись состояния из обратного вызова наблюдателя вызывает новый цикл
-   * пересчёта размеров и предупреждение о незавершённом цикле.
-   */
+  /** Слежение за шириной списка вкладок и масштабом интерфейса. */
   $effect(() => {
     const el = listEl;
     if (!el) {
@@ -243,13 +219,7 @@
   /** Вкладка, закрытие которой ждёт подтверждения; `null` — диалог закрыт. */
   let closingTabId: string | null = $state(null);
 
-  /** Кнопка закрытия открывает подтверждение, а не закрывает вкладку сразу.
-   *
-   * Иконки дублирования и закрытия стоят рядом, и промах вместо дублирования не
-   * должен закрывать вкладку: закрытие выполняется только осознанным
-   * подтверждением в модальном окне. Запоминается именно эта вкладка, поэтому
-   * смена активной за время диалога закрывает нужную.
-   */
+  /** Кнопка закрытия открывает подтверждение, а не закрывает вкладку сразу. */
   function askCloseTab(id: string) {
     closingTabId = id;
   }
@@ -274,39 +244,32 @@
     return tab ? tabLabel(tab) : '';
   });
 
-  /** Фрагмент стиля с заливкой вкладки пользовательским цветом; пусто, если цвета нет.
-   *
-   * Цвет задаётся переменными, а не напрямую фоном: классы активного состояния и
-   * наведения должны оставаться сильнее базовой заливки, иначе у цветной вкладки
-   * пропало бы наведение. Панель вкладок стоит на приглушённом фоне, поэтому
-   * мягкий тон цвета смешивается именно с ним.
-   */
+  /** Фрагмент стиля с заливкой вкладки пользовательским цветом; пусто, если цвета нет. */
   function tabFill(tab: WorkspaceTab): string {
-    const base = tabColorFill(tab.color, 'var(--muted)', false);
-    const active = tabColorFill(tab.color, 'var(--muted)', true);
+    const base = tabColorFill(tab.color, 'var(--background)', false);
+    const active = tabColorFill(tab.color, 'var(--primary-soft)', true);
     return base && active ? ` --tab-fill: ${base}; --tab-fill-active: ${active};` : '';
   }
 
   /** Классы фона вкладки с учётом пользовательского цвета и активности.
    *
-   * Цветная вкладка залита мягким тоном (активная — плотнее); без цвета вид
-   * прежний. Наведение у цветной вкладки совпадает с обычным, поэтому состояние
-   * под курсором читается и у неё.
+   * Вкладки читаются как закладки: активная стоит на фоне содержимого и
+   * соединяется с ним — верхние углы скруглены, нижняя граница совпадает с
+   * полосой. Неактивные приглушены и подчёркиваются наведением.
    */
   function tabFillClass(tab: WorkspaceTab): string {
     const active = tab.id === activeTabId;
     if (tab.color) {
       return active
-        ? 'bg-[var(--tab-fill-active)] text-[var(--foreground)]'
-        : 'bg-[var(--tab-fill)] text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
+        ? 'border-[var(--border)] border-b-transparent bg-[var(--tab-fill-active)] text-[var(--foreground)]'
+        : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--tab-fill)] hover:text-[var(--foreground)]';
     }
     return active
-      ? 'bg-[var(--background)] text-[var(--foreground)]'
-      : 'text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
+      ? 'border-[var(--border)] border-b-transparent bg-[var(--card)] text-[var(--foreground)]'
+      : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--card)] hover:text-[var(--foreground)]';
   }
 
-  /** Пункты контекстного меню рабочего места на телефоне: те же действия, что
-   * на широком окне стоят кнопками. */
+  /** Пункты контекстного меню рабочего места на телефоне. */
   const workplaceActions = $derived<MenuAction[]>([
     { id: 'books', label: 'Открытые вкладки' },
     ...(onToggleFocus
@@ -331,12 +294,12 @@
 </script>
 
 <div
-  class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--muted)] px-2 py-1"
+  class="flex flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-2 pt-1.5"
   data-testid="workplace-tabs"
 >
   <Button
     size="icon"
-    variant="secondary"
+    variant="ghost"
     title="К списку рабочих мест"
     ariaLabel="К списку рабочих мест"
     onclick={onBackToList}
@@ -345,14 +308,13 @@
   </Button>
   {#if workspaceName}
     <span
-      class="hidden max-w-[17.5rem] truncate role-subtitle text-[var(--foreground)] md:inline"
+      class="hidden max-w-[17.5rem] truncate role-heading text-[var(--foreground)] md:inline"
       data-testid="header-workspace-name"
       title={workspaceName}
     >
       {workspaceName}
     </span>
   {/if}
-  <span class="hidden text-[var(--input)] md:inline" aria-hidden="true">|</span>
   <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
        выталкивает их за пределы панели. -->
   <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-actions">
@@ -379,7 +341,7 @@
       </Button>
     </span>
   </div>
-  <div class="flex min-w-0 flex-1 items-center gap-2">
+  <div class="flex min-w-0 flex-1 items-end gap-2 self-end">
     {#if overflowing}
       <Button
         size="icon"
@@ -393,13 +355,13 @@
       </Button>
     {/if}
     <div
-      class="flex min-w-0 flex-1 items-center gap-[0.125rem] overflow-hidden"
+      class="flex min-w-0 flex-1 items-end gap-[0.125rem] overflow-hidden"
       bind:this={listEl}
       data-testid="workplace-tabs-window"
     >
       {#each windowTabs as tab (tab.id)}
         <div
-          class="relative flex flex-none items-center overflow-hidden rounded-md {tabFillClass(
+          class="relative flex flex-none items-center overflow-hidden rounded-t-[var(--radius)] border border-b-0 {tabFillClass(
             tab,
           )}"
           style="width: {TAB_WIDTH_REM}rem; height: {TAB_ROW_REM}rem;{tabFill(tab)}"
@@ -408,7 +370,7 @@
           <button
             type="button"
             data-testid="workplace-tab"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate py-[0.125rem] pl-2 text-left role-caption [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 truncate py-[0.25rem] pl-2.5 text-left role-caption [font:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => selectTab(tab.id)}
@@ -423,7 +385,7 @@
               type="button"
               aria-label="Дублировать вкладку"
               disabled={openBlocked}
-              class="flex-none cursor-pointer px-[0.1875rem] opacity-70 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
+              class="flex-none cursor-pointer px-[0.1875rem] opacity-60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
                 ? 'text-destructive'
                 : ''}"
               onclick={() => onDuplicate(tab.id)}
@@ -436,7 +398,7 @@
             data-testid="workplace-tab-close"
             title="Закрыть вкладку"
             aria-label="Закрыть вкладку"
-            class="flex-none cursor-pointer px-[0.1875rem] pr-2 opacity-70 hover:opacity-100"
+            class="flex-none cursor-pointer px-[0.1875rem] pr-2 opacity-60 hover:opacity-100"
             onclick={() => askCloseTab(tab.id)}
           >
             <Icon name="close" class="h-[0.85em] w-[0.85em]" />
@@ -446,7 +408,7 @@
     </div>
     {#if overflowing}
       <span
-        class="flex-none whitespace-nowrap role-caption text-[var(--muted-foreground)]"
+        class="flex-none self-center whitespace-nowrap role-caption text-[var(--muted-foreground)]"
         data-testid="workplace-tabs-counter"
         title={rangeTitle}
       >
@@ -470,7 +432,7 @@
     широком окне те же действия стоят кнопками.
   -->
   <Button
-    variant={notesOpen ? 'primary' : 'secondary'}
+    variant={notesOpen ? 'primary' : 'ghost'}
     size="icon"
     title="Панель заметок"
     ariaLabel="Панель заметок"
@@ -479,9 +441,9 @@
   >
     <Icon name="note" />
   </Button>
-  <span class="hidden md:flex md:items-center md:gap-2">
+  <span class="hidden md:flex md:items-center md:gap-1">
     <Button
-      variant={booksOpen ? 'primary' : 'secondary'}
+      variant={booksOpen ? 'primary' : 'ghost'}
       size="icon"
       title="Открытые вкладки книг"
       ariaLabel="Открытые вкладки книг"
@@ -492,7 +454,7 @@
     </Button>
     {#if onToggleFocus}
       <Button
-        variant={focusMode ? 'primary' : 'secondary'}
+        variant={focusMode ? 'primary' : 'ghost'}
         size="icon"
         title={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
         ariaLabel={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
@@ -523,7 +485,7 @@
     }
   }}
 >
-  <p class="text-sm text-[var(--muted-foreground)]" data-testid="workplace-tab-close-question">
+  <p class="role-body text-[var(--muted-foreground)]" data-testid="workplace-tab-close-question">
     {closingTabLabel}
   </p>
   <div class="flex justify-end gap-2">

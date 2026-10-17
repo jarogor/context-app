@@ -27,12 +27,13 @@
 <button
   type="button"
   {disabled}
+  aria-current={active ? 'page' : undefined}
   {onclick}
   class={cn(
-    'cursor-pointer rounded-md border px-3 py-2 text-left text-sm [font:inherit] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
+    'cursor-pointer border-l-2 px-3 py-2 text-left text-sm transition-colors [font:inherit] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
     active
-      ? 'border-border bg-accent text-accent-foreground font-semibold'
-      : 'hover:bg-primary-soft border-transparent bg-transparent text-primary',
+      ? 'border-[var(--primary)] bg-[var(--primary-soft)] font-semibold text-[var(--foreground)]'
+      : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]',
     className,
   )}
 >

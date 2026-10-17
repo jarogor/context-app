@@ -90,10 +90,10 @@ export function readerThemeTokens(
 
 /** Светлые тона заметок: насыщенные, но среднесветлые оттенки.
  *
- * Пастельные 200-е тона были слишком выбелены и читались «не собой»: зелёный
- * уходил в бирюзу, красный в розовый, фиолетовый в лаванду. Здесь каждый цвет
- * задан в своём оттенке с достаточной насыщенностью, но остаётся достаточно
- * светлым, чтобы тёмный текст книги читался поверх подсветки.
+ * Пастельные тона были слишком выбелены и читались «не собой»: зелёный уходил в
+ * бирюзу, красный в розовый, фиолетовый в лаванду. Здесь каждый цвет задан в
+ * своём оттенке с достаточной насыщенностью, но остаётся достаточно светлым,
+ * чтобы тёмный текст книги читался поверх подсветки.
  */
 const LIGHT_NOTE_TONES: ReaderNoteTones = {
   yellow: '#f2cd52',
@@ -103,16 +103,13 @@ const LIGHT_NOTE_TONES: ReaderNoteTones = {
   purple: '#bba0e8',
 };
 
-/** Тёмные тона заметок палитры Gruvbox.
+/** Тёмные тона заметок палитры «Лён».
  *
  * Приглушённые цвета с верными оттенками, полупрозрачные: на тёмном фоне книги
  * дают спокойную цветную подложку, поверх которой светлый текст остаётся
- * читаемым; при осветлении на тёмной странице PDF не «вспыхивают». Оттенки не
- * берутся из акцентов Gruvbox (там зелёный жёлто-зелёный, синий бирюзовый, а
- * фиолетовый розовый): заметка должна выглядеть цветом, который выбрал
- * пользователь.
+ * читаемым; при осветлении на тёмной странице PDF не «вспыхивают».
  */
-const GRUVBOX_DARK_NOTE_TONES: ReaderNoteTones = {
+const LINEN_DARK_NOTE_TONES: ReaderNoteTones = {
   yellow: 'rgba(214, 158, 46, 0.4)',
   green: 'rgba(104, 168, 74, 0.45)',
   blue: 'rgba(69, 118, 176, 0.5)',
@@ -120,9 +117,9 @@ const GRUVBOX_DARK_NOTE_TONES: ReaderNoteTones = {
   purple: 'rgba(150, 96, 196, 0.45)',
 };
 
-/** Тёмные тона заметок палитры Mist: те же верные оттенки, приглушённые
- * полупрозрачностью — тот же приём, что и у Gruvbox. */
-const MIST_DARK_NOTE_TONES: ReaderNoteTones = {
+/** Тёмные тона заметок палитры «Кобальт»: те же верные оттенки, приглушённые
+ * полупрозрачностью — тот же приём, что и у «Льна». */
+const COBALT_DARK_NOTE_TONES: ReaderNoteTones = {
   yellow: 'rgba(202, 150, 40, 0.4)',
   green: 'rgba(74, 158, 96, 0.45)',
   blue: 'rgba(70, 120, 190, 0.5)',
@@ -138,7 +135,7 @@ export function readerThemeNoteTones(
   if (id !== 'dark') {
     return LIGHT_NOTE_TONES;
   }
-  return palette === 'mist' ? MIST_DARK_NOTE_TONES : GRUVBOX_DARK_NOTE_TONES;
+  return palette === 'cobalt' ? COBALT_DARK_NOTE_TONES : LINEN_DARK_NOTE_TONES;
 }
 
 /** Каналы цвета: компоненты 0..255 и прозрачность 0..1. */
@@ -211,7 +208,7 @@ export function solidNoteTones(tones: ReaderNoteTones, background: string): Read
  *
  * PDF — изображение листа: чтобы он не оставался белым, растр перекрашивается
  * по яркости. Куда уходит белая бумага (`paper`) и чёрный текст (`ink`) задаёт
- * палитра: у Gruvbox бумага тёплая, у Mist — холодная, поэтому и страница
+ * палитра: у «Льна» бумага тёплая, у «Кобальта» — холодная, поэтому и страница
  * сохраняет оттенок темы. Текст мягче чистого белого — так контраст ниже.
  */
 export interface ReaderPageColors {
@@ -221,45 +218,45 @@ export interface ReaderPageColors {
   ink: string;
 }
 
-/** Тёплая бумага и мягкий текст Gruvbox для страницы в тёмной теме. */
-const GRUVBOX_DARK_PAGE: ReaderPageColors = {
-  paper: '#33302d',
+/** Тёплая бумага и мягкий текст «Льна» для страницы в тёмной теме. */
+const LINEN_DARK_PAGE: ReaderPageColors = {
+  paper: '#26292a',
   ink: '#d5c4a1',
 };
 
-/** Холодная бумага и мягкий текст Mist для страницы в тёмной теме. */
-const MIST_DARK_PAGE: ReaderPageColors = {
-  paper: '#282d31',
+/** Холодная бумага и мягкий текст «Кобальта» для страницы в тёмной теме. */
+const COBALT_DARK_PAGE: ReaderPageColors = {
+  paper: '#20252d',
   ink: '#ccd2d6',
 };
 
 /** Цвета перекраски страницы по палитре (для тёмной стороны темы). */
 export function readerPageColors(palette: PaletteId): ReaderPageColors {
-  return palette === 'mist' ? MIST_DARK_PAGE : GRUVBOX_DARK_PAGE;
+  return palette === 'cobalt' ? COBALT_DARK_PAGE : LINEN_DARK_PAGE;
 }
 
 /** Светлые токены области чтения по палитрам. */
 const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
-  gruvbox: {
-    background: '#fbf1c7',
-    text: '#3c3836',
-    muted: '#7c6f64',
-    link: '#076678',
-    // Выделение в тон тёплой Gruvbox: приглушённый стально-синий, а не
+  linen: {
+    background: '#fbf8f1',
+    text: '#1f1d1a',
+    muted: '#6d675c',
+    link: '#2e5c52',
+    // Выделение в тон тёплой бумаги: приглушённый стально-синий, а не
     // стерильный системный синий. В PDF ложится умножением на светлую страницу.
-    selection: 'rgba(96, 140, 180, 0.35)',
+    selection: 'rgba(96, 140, 180, 0.32)',
     // Метки по краям живого выделения: тот же синий, но плотнее фоновой заливки,
     // чтобы признак читался без опоры только на цвет.
     selectionEdge: 'rgba(60, 100, 145, 0.9)',
     selectionEdgeWidth: 1,
   },
-  mist: {
+  cobalt: {
     background: '#ffffff',
-    text: '#1c2125',
-    muted: '#6b7280',
-    link: '#2563eb',
-    // Выделение Mist — привычный синеватый цвет.
-    selection: 'rgba(59, 130, 246, 0.32)',
+    text: '#16191f',
+    muted: '#616a77',
+    link: '#2c4b86',
+    // Выделение «Кобальта» — привычный синеватый цвет.
+    selection: 'rgba(59, 130, 246, 0.28)',
     selectionEdge: 'rgba(37, 99, 235, 0.9)',
     selectionEdgeWidth: 1,
   },
@@ -267,23 +264,23 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
 
 /** Тёмные токены области чтения по палитрам. */
 const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
-  gruvbox: {
-    background: '#282828',
-    text: '#ebdbb2',
-    muted: '#a89984',
-    link: '#83a598',
+  linen: {
+    background: '#17191a',
+    text: '#e7e2d7',
+    muted: '#9d968a',
+    link: '#7db9a7',
     // На тёмной странице заливка ложится осветлением: цвет светлее и чуть
     // плотнее, чтобы выделение читалось на тёмной бумаге и не уходило в фиолет.
     selection: 'rgba(120, 160, 195, 0.33)',
     selectionEdge: 'rgba(150, 190, 220, 0.9)',
     selectionEdgeWidth: 1,
   },
-  mist: {
-    background: '#16191c',
-    text: '#f1f3f4',
-    muted: '#8b949b',
-    link: '#7aa2d6',
-    selection: 'rgba(96, 165, 250, 0.33)',
+  cobalt: {
+    background: '#12151b',
+    text: '#e6e9f0',
+    muted: '#98a0ac',
+    link: '#8cace6',
+    selection: 'rgba(96, 165, 250, 0.3)',
     selectionEdge: 'rgba(147, 197, 253, 0.9)',
     selectionEdgeWidth: 1,
   },

@@ -10,18 +10,22 @@ function text(value: string) {
 }
 
 describe('PageShell', () => {
-  it('показывает содержимое и панель действий', () => {
+  it('показывает шапку, полосу управления и содержимое', () => {
     render(PageShell, {
       props: {
-        toolbar: text('панель'),
+        eyebrow: 'Точка входа',
+        title: 'Раздел',
+        controls: text('управление'),
         children: text('список'),
         testId: 'page',
       },
     });
 
-    expect(screen.getByText('панель')).toBeTruthy();
+    expect(screen.getByText('управление')).toBeTruthy();
     expect(screen.getByText('список')).toBeTruthy();
     expect(screen.getByTestId('page')).toBeTruthy();
+    expect(screen.getByTestId('page-title').textContent).toContain('Раздел');
+    expect(screen.getByTestId('page-controls')).toBeTruthy();
   });
 
   it('показывает состояние загрузки вместо содержимого', () => {

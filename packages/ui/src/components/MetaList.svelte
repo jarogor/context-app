@@ -51,10 +51,7 @@
         <span class="shrink-0">{item.label}</span>
       {/if}
       <span
-        class={cn(
-          'min-w-0 truncate',
-          item.strong ? 'font-medium text-[var(--foreground)]' : '',
-        )}
+        class={cn('min-w-0 truncate', item.strong ? 'font-medium text-[var(--foreground)]' : '')}
         data-testid={item.testId}
       >
         {item.value}

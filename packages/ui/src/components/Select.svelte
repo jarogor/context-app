@@ -65,17 +65,17 @@
     {id}
     aria-label={ariaLabel}
     class={cn(
-      'border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 data-[placeholder]:text-muted-foreground box-border flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border px-3 shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
+      'border-[var(--input)] bg-card text-foreground hover:border-[var(--muted-foreground)] focus-visible:border-ring focus-visible:ring-ring/35 data-[placeholder]:text-muted-foreground box-border flex w-full cursor-pointer items-center justify-between gap-2 rounded-[var(--radius)] border px-3 shadow-xs transition-[color,box-shadow,border-color] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
       size === 'sm' ? 'h-8 role-caption' : 'h-9 text-sm',
       className,
     )}
   >
     <SelectPrimitive.Value {placeholder} class="truncate text-left" />
-    <Icon name="chevron-down" class="text-muted-foreground" />
+    <Icon name="chevron-down" class="text-muted-foreground h-4 w-4" />
   </SelectPrimitive.Trigger>
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
-      class="border-border bg-popover text-popover-foreground z-50 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-md border shadow-overlay"
+      class="border-border bg-popover text-popover-foreground z-50 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-[var(--radius)] border shadow-overlay"
       sideOffset={4}
     >
       <SelectPrimitive.Viewport class="p-1">
@@ -89,7 +89,7 @@
             {#snippet children({ selected })}
               <span class="flex-1 truncate text-left">{item.label}</span>
               {#if selected}
-                <Icon name="check" class="shrink-0" />
+                <Icon name="check" class="text-primary shrink-0" />
               {/if}
             {/snippet}
           </SelectPrimitive.Item>

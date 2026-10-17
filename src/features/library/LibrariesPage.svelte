@@ -5,9 +5,9 @@
     Button,
     EntityList,
     Icon,
+    Input,
     PageShell,
     Progress,
-    SearchCreate,
     Spinner,
     type MenuAction,
     type MetaItem,
@@ -216,39 +216,53 @@
   loading={loading && entries.length === 0}
   loadingText="Загрузка…"
   empty={entries.length === 0}
-  emptyText="Нет открытых библиотек. Откройте директорию с книгами."
+  emptyIcon="library"
+  emptyTitle="Нет открытых библиотек"
+  emptyText="Откройте директорию с книгами — она появится в списке, и по ней построится каталог."
+  class="p-4 md:p-6"
 >
-  {#snippet form()}
-    <Button
-      variant="primary"
-      disabled={opening}
-      onclick={pickLibrary}
-      class="w-full"
-    >
+  {#snippet emptyAction()}
+    <Button variant="primary" disabled={opening} onclick={pickLibrary}>
       {#if openingNew}
         <Spinner class="h-4 w-4" />
       {/if}
+      <Icon name="folder" />
       Открыть библиотеку
     </Button>
   {/snippet}
 
-  {#snippet toolbar()}
-    <SearchCreate bind:query searchPlaceholder="Поиск библиотеки" />
-
-    {#if error}
-      <p class="text-[var(--destructive)]">{error}</p>
-    {/if}
-
-    {#if opening && progress}
-      <div class="flex flex-col gap-1">
-        <div class="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
-          <span>Индексация библиотеки…</span>
-          <span>{progress.percent}%</span>
-        </div>
-        <Progress value={progress.percent} />
-      </div>
-    {/if}
+  {#snippet controls()}
+    <Input
+      bind:value={query}
+      placeholder="Поиск библиотеки"
+      ariaLabel="Поиск библиотеки"
+      icon="search"
+      class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
+    />
+    <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+      <Button variant="primary" disabled={opening} onclick={pickLibrary}>
+        {#if openingNew}
+          <Spinner class="h-4 w-4" />
+        {/if}
+        <Icon name="folder" />
+        Открыть библиотеку
+      </Button>
+    </div>
   {/snippet}
+
+  {#if error}
+    <p class="role-body text-[var(--destructive)]" data-testid="libraries-error">{error}</p>
+  {/if}
+
+  {#if opening && progress}
+    <div class="flex flex-col gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3">
+      <div class="flex items-center justify-between role-caption text-[var(--muted-foreground)]">
+        <span>Индексация библиотеки…</span>
+        <span>{progress.percent}%</span>
+      </div>
+      <Progress value={progress.percent} />
+    </div>
+  {/if}
 
   <EntityList
     items={filtered}
@@ -267,7 +281,7 @@
   >
     {#snippet titleContent(entry)}
       <span
-        class="inline-flex h-4 w-4 shrink-0 items-center justify-center"
+        class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)]"
         aria-live="polite"
         title={entry.available ? 'доступна' : 'недоступна'}
         aria-label={entry.available ? 'доступна' : 'недоступна'}
@@ -275,21 +289,21 @@
         {#if openingPath === entry.path}
           <Spinner class="h-3.5 w-3.5 text-[var(--primary)]" />
         {:else if entry.available}
-          <Icon name="check" class="h-4 w-4 text-[var(--success)]" />
+          <Icon name="check" class="h-3.5 w-3.5 text-[var(--success)]" />
         {:else}
-          <Icon name="close" class="h-4 w-4 text-[var(--muted-foreground)]" />
+          <Icon name="close" class="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
         {/if}
       </span>
-      <strong
-        class="min-w-0 flex-1 truncate role-title"
-        data-testid="library-name"
-      >
+      <strong class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
         {libraryName(entry.path)}
       </strong>
+      {#if activePath === entry.path}
+        <Badge variant="default">текущая</Badge>
+      {/if}
     {/snippet}
 
     {#snippet trailing(entry)}
-      <Badge>{entry.providerName}</Badge>
+      <Badge variant="outline">{entry.providerName}</Badge>
     {/snippet}
   </EntityList>
 </PageShell>

@@ -6,7 +6,7 @@
     EmptyState,
     ErrorState,
     Icon,
-    SearchCreate,
+    Input,
     ScrollArea,
     Select,
     Skeleton,
@@ -331,44 +331,61 @@
 </script>
 
 {#if openedBook}
-  <ScrollArea testId="book-page-scroll">
-    <BookPage
-      book={openedBook}
-      {targetWorkspaceName}
-      canRead={canRead(openedBook)}
-      {opening}
-      {externalError}
-      onClose={closeBook}
-      onAdd={() => startReading(openedBook as BookWithCover)}
-      onOpenExternal={() => openInSystem(openedBook as BookWithCover)}
-    />
-  </ScrollArea>
+  <BookPage
+    book={openedBook}
+    {targetWorkspaceName}
+    canRead={canRead(openedBook)}
+    {opening}
+    {externalError}
+    onClose={closeBook}
+    onAdd={() => startReading(openedBook as BookWithCover)}
+    onOpenExternal={() => openInSystem(openedBook as BookWithCover)}
+  />
 {:else}
-  <ScrollArea testId="library-page" class="p-4 md:p-6">
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     {#if librarySelected}
-      <div class="mb-4 flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
-        <SearchCreate
-          bind:query={searchQuery}
-          searchPlaceholder="Название или автор"
-          class="min-w-0 flex-1"
-          onSearch={onSearchInput}
+      <!--
+        Полоса управления каталогом: поиск с лупой и справа — порядок, фильтр и
+        режим показа. Идёт отдельной строкой под панелью раздела и не
+        прокручивается вместе со списком.
+      -->
+      <div
+        class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
+        data-testid="library-controls"
+      >
+        <Input
+          bind:value={searchQuery}
+          placeholder="Название или автор"
+          ariaLabel="Название или автор"
+          icon="search"
+          class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
+          oninput={onSearchInput}
         />
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
+          <span class="mr-auto role-caption text-[var(--muted-foreground)] sm:mr-0">
+            {viewBooks.length} из {books.length}
+          </span>
           <Select
             bind:value={sortMode}
             items={sortOptions}
             ariaLabel="Порядок книг"
-            class="min-w-0 flex-1 md:w-[11rem] md:flex-none"
+            size="sm"
+            class="w-[9.5rem]"
           />
           <Select
             bind:value={coverFilter}
             items={coverOptions}
             ariaLabel="Фильтр книг"
-            class="min-w-0 flex-1 md:w-[11rem] md:flex-none"
+            size="sm"
+            class="w-[9.5rem]"
           />
-          <div class="flex flex-none items-center gap-1" role="group" aria-label="Режим показа">
+          <div
+            class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
+            role="group"
+            aria-label="Режим показа"
+          >
             <Button
-              variant={viewMode === 'grid' ? 'primary' : 'secondary'}
+              variant={viewMode === 'grid' ? 'primary' : 'ghost'}
               size="icon"
               title="Плитка"
               ariaLabel="Плитка"
@@ -378,7 +395,7 @@
               <Icon name="grid" />
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'primary' : 'secondary'}
+              variant={viewMode === 'list' ? 'primary' : 'ghost'}
               size="icon"
               title="Список"
               ariaLabel="Список"
@@ -392,90 +409,95 @@
       </div>
     {/if}
 
-    {#if !librarySelected}
-      <EmptyState
-        icon="library"
-        title="Библиотека не открыта"
-        description="Откройте библиотеку в разделе «Библиотеки»."
-        testId="library-not-selected"
-      />
-    {:else if loading && books.length === 0}
-      <Skeleton rows={3} rowClass="h-[16rem]" />
-    {:else if error}
-      <ErrorState message={error} testId="library-error" />
-    {:else if books.length === 0}
-      <EmptyState
-        icon="book"
-        title="В библиотеке пока нет книг"
-        description="Добавьте книги в папку библиотеки, и они появятся здесь."
-        testId="library-empty"
-      />
-    {:else if viewBooks.length === 0}
-      <EmptyState
-        icon="book"
-        title="Книг по фильтру нет"
-        description="Измените фильтр, чтобы увидеть книги."
-        testId="library-filtered-empty"
-      />
-    {:else if viewMode === 'grid'}
-      <ul
-        class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]"
-        data-testid="library-grid"
-      >
-        {#each viewBooks as book (book.id)}
-          <li>
-            <button
-              class="flex w-full cursor-pointer flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2 text-left [font:inherit] hover:shadow-raised"
-              type="button"
-              title="Страница книги"
-              onclick={() => openBook(book)}
-            >
-              {#if book.coverUri}
-                <img
-                  class="aspect-[2/3] w-full rounded-sm object-cover"
-                  src={book.coverUri}
-                  alt=""
-                />
-              {:else}
-                <BookCoverPlaceholder />
-              {/if}
-              <div>
-                <h2 class="role-title">{book.title}</h2>
-                <p class="mt-1 role-caption text-[var(--muted-foreground)]">
-                  {authorNames(book)}
-                </p>
-              </div>
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {:else}
-      <ul class="m-0 flex list-none flex-col gap-2 p-0" data-testid="library-list">
-        {#each viewBooks as book (book.id)}
-          <li>
-            <button
-              class="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 text-left [font:inherit] hover:shadow-raised"
-              type="button"
-              title="Страница книги"
-              onclick={() => openBook(book)}
-            >
-              <span class="block h-[4.5rem] w-[3rem] shrink-0 overflow-hidden rounded-sm">
-                {#if book.coverUri}
-                  <img class="h-full w-full object-cover" src={book.coverUri} alt="" />
-                {:else}
-                  <BookCoverPlaceholder class="h-full" />
-                {/if}
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block truncate role-title">{book.title}</span>
-                <span class="mt-0.5 block truncate role-caption text-[var(--muted-foreground)]">
-                  {authorNames(book)}
+    <ScrollArea testId="library-page" class="p-4 md:p-6">
+      {#if !librarySelected}
+        <EmptyState
+          icon="library"
+          title="Библиотека не открыта"
+          description="Откройте директорию с книгами в разделе «Библиотеки»."
+          testId="library-not-selected"
+        />
+      {:else if loading && books.length === 0}
+        <Skeleton rows={3} rowClass="h-[16rem]" />
+      {:else if error}
+        <ErrorState message={error} testId="library-error" />
+      {:else if books.length === 0}
+        <EmptyState
+          icon="book"
+          title="В библиотеке пока нет книг"
+          description="Добавьте книги в папку библиотеки, и они появятся здесь."
+          testId="library-empty"
+        />
+      {:else if viewBooks.length === 0}
+        <EmptyState
+          icon="book"
+          title="Книг по фильтру нет"
+          description="Измените фильтр, чтобы увидеть книги."
+          testId="library-filtered-empty"
+        />
+      {:else if viewMode === 'grid'}
+        <ul
+          class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]"
+          data-testid="library-grid"
+        >
+          {#each viewBooks as book (book.id)}
+            <li>
+              <button
+                class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 text-left shadow-raised transition-shadow [font:inherit] hover:shadow-overlay"
+                type="button"
+                title="Страница книги"
+                onclick={() => openBook(book)}
+              >
+                <span class="block overflow-hidden rounded-sm">
+                  {#if book.coverUri}
+                    <img
+                      class="aspect-[2/3] w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      src={book.coverUri}
+                      alt=""
+                    />
+                  {:else}
+                    <BookCoverPlaceholder />
+                  {/if}
                 </span>
-              </span>
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </ScrollArea>
+                <div class="min-w-0">
+                  <h2 class="line-clamp-2 role-subtitle" title={book.title}>{book.title}</h2>
+                  <p class="mt-1 truncate role-caption text-[var(--muted-foreground)]">
+                    {authorNames(book)}
+                  </p>
+                </div>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <ul class="m-0 flex list-none flex-col gap-2 p-0" data-testid="library-list">
+          {#each viewBooks as book (book.id)}
+            <li>
+              <button
+                class="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 text-left shadow-raised transition-colors [font:inherit] hover:bg-[var(--accent)]"
+                type="button"
+                title="Страница книги"
+                onclick={() => openBook(book)}
+              >
+                <span class="block h-[4.5rem] w-[3rem] shrink-0 overflow-hidden rounded-sm">
+                  {#if book.coverUri}
+                    <img class="h-full w-full object-cover" src={book.coverUri} alt="" />
+                  {:else}
+                    <BookCoverPlaceholder class="h-full" />
+                  {/if}
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate role-title">{book.title}</span>
+                  <span class="mt-0.5 block truncate role-caption text-[var(--muted-foreground)]">
+                    {authorNames(book)}
+                  </span>
+                </span>
+                <Icon name="chevron-right" class="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </ScrollArea>
+  </div>
 {/if}

@@ -264,12 +264,14 @@ test('список рабочих мест адаптивен к ширине о
     );
     expect(narrow).toBe(true);
 
-    // Широкое окно: список остаётся колонкой, а форма поиска/создания уходит влево.
+    // Широкое окно: список остаётся вертикальным, форма поиска — в полосе
+    // управления над списком, а не колонкой сбоку.
     await page.setViewportSize({ width: 1400, height: 800 });
-    const list = page.locator('ul', { has: page.getByTestId('workspace-item') });
+    const workspacesPage = page.getByTestId('workspaces-page');
+    const list = workspacesPage.locator('ul', { has: page.getByTestId('workspace-item') });
     const listBox = await list.boundingBox();
-    const searchBox = await page.getByPlaceholder('Поиск рабочего места').boundingBox();
+    const searchBox = await workspacesPage.getByPlaceholder('Поиск рабочего места').boundingBox();
     expect(listBox).not.toBeNull();
     expect(searchBox).not.toBeNull();
-    expect(searchBox!.x).toBeLessThan(listBox!.x);
+    expect(searchBox!.y).toBeLessThan(listBox!.y);
 });

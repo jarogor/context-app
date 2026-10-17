@@ -161,18 +161,24 @@
 </script>
 
 <!--
-  Единая панель чтения. Слева — инструменты заметок (по требованию, в режиме
-  заметок): типы, вид фигуры и палитра цветов. Справа — управление чтением:
-  навигация по страницам, прогресс, масштаб и переключатель темы области
-  чтения. Так вкладки, управление и инструменты читаются одной панелью, а не
-  несколькими полосами подряд.
+  Единая панель чтения. Слева — тип заметки и её инструменты (по требованию, в
+  режиме заметок): типы, вид фигуры и палитра цветов. Справа — управление
+  чтением: навигация по страницам, прогресс, масштаб и переключатель темы.
 -->
 <div
-  class="flex h-10 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-2"
+  class="flex h-11 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-3"
   data-testid="note-toolbar"
 >
+  {#if notesMode && (typeOptions.length > 1 || (tool.type === 'shape' && typeOptions.includes('shape')))}
+    <span class="role-eyebrow hidden text-[var(--muted-foreground)] sm:inline">Заметка</span>
+  {/if}
+
   {#if notesMode && typeOptions.length > 1}
-    <div class="flex items-center gap-1" role="group" aria-label="Тип заметки">
+    <div
+      class="flex items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-0.5"
+      role="group"
+      aria-label="Тип заметки"
+    >
       {#each typeOptions as type (type)}
         <Button
           variant={tool.type === type ? 'primary' : 'ghost'}
@@ -285,7 +291,6 @@
         >
           <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
         </Button>
-      </div>
-    </div>
+      </div>    </div>
   </div>
 </div>

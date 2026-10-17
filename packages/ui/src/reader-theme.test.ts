@@ -107,11 +107,11 @@ describe('readerPageColors', () => {
   });
 
   it('бумага темнее текста и палитры различаются', () => {
-    const gruvbox = readerPageColors('gruvbox');
-    const mist = readerPageColors('mist');
-    expect(gruvbox.paper).not.toBe(mist.paper);
+    const linen = readerPageColors('linen');
+    const cobalt = readerPageColors('cobalt');
+    expect(linen.paper).not.toBe(cobalt.paper);
     // Бумага темнее текста, теплее/холоднее нейтрального и не «почти чёрная».
-    for (const colors of [gruvbox, mist]) {
+    for (const colors of [linen, cobalt]) {
       const paper = Number.parseInt(colors.paper.slice(1), 16);
       const ink = Number.parseInt(colors.ink.slice(1), 16);
       const paperLum = ((paper >> 16) & 255) * 0.299 + ((paper >> 8) & 255) * 0.587 + (paper & 255) * 0.114;
@@ -126,13 +126,13 @@ describe('readerPageColors', () => {
 
 describe('readerThemeNoteTones', () => {
   it('светлая сторона общая для палитр и задана для всех цветов', () => {
-    const tones = readerThemeNoteTones('gruvbox', 'light');
+    const tones = readerThemeNoteTones('linen', 'light');
     expect(tones.yellow).toBe('#f2cd52');
     expect(tones.green).toBe('#82d991');
     expect(tones.blue).toBe('#84adf0');
     expect(tones.red).toBe('#ef817b');
     expect(tones.purple).toBe('#bba0e8');
-    expect(readerThemeNoteTones('mist', 'light')).toEqual(tones);
+    expect(readerThemeNoteTones('cobalt', 'light')).toEqual(tones);
   });
 
   it('тёмная сторона отличается и задана для всех цветов', () => {
@@ -147,7 +147,7 @@ describe('readerThemeNoteTones', () => {
   });
 
   it('тёмные тона заметок различимы между собой', () => {
-    const dark = readerThemeNoteTones('gruvbox', 'dark');
+    const dark = readerThemeNoteTones('linen', 'dark');
     const values = READER_NOTE_COLOR_IDS.map((color) => dark[color]);
     expect(new Set(values).size).toBe(values.length);
   });
@@ -182,8 +182,8 @@ describe('solidNoteTones', () => {
   });
 
   it('сохраняет различие цветов тёмной стороны', () => {
-    const tones = readerThemeNoteTones('gruvbox', 'dark');
-    const solid = solidNoteTones(tones, readerThemeTokens('gruvbox', 'dark').background);
+    const tones = readerThemeNoteTones('linen', 'dark');
+    const solid = solidNoteTones(tones, readerThemeTokens('linen', 'dark').background);
     const values = READER_NOTE_COLOR_IDS.map((color) => solid[color]);
     expect(new Set(values).size).toBe(values.length);
   });

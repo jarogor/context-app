@@ -2,13 +2,16 @@
   import type { Snippet } from 'svelte';
 
   /**
-   * Панель раздела.
+   * Панель контекста раздела.
    *
-   * Полоса над содержимым: заголовок текущего раздела, необязательный поиск и
-   * главное действие именно этого раздела. Показывает контекст «где я» и даёт
-   * одно основное действие, вместо ряда равнозначных иконок.
+   * Полоса между верхней панелью и содержимым: надзаголовок (где я), заголовок
+   * раздела-антиква, пояснение-контекст (например, открытая библиотека) и
+   * главное действие именно этого раздела. Показывает контекст и даёт одно
+   * основное действие, вместо ряда равнозначных иконок.
    */
   interface Props {
+    /** Надзаголовок (короткая метка раздела). */
+    eyebrow?: string;
     /** Заголовок текущего раздела. */
     title: string;
     /** Подпись-контекст под заголовком (например, имя источника). */
@@ -26,6 +29,7 @@
   }
 
   let {
+    eyebrow = '',
     title,
     subtitle = '',
     search,
@@ -37,12 +41,15 @@
 </script>
 
 <header
-  class="flex flex-wrap items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4 py-2.5 {className}"
+  class="flex flex-none flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-2.5 md:px-6 {className}"
   data-testid="section-panel"
 >
   <div class="flex min-w-0 flex-col">
+    {#if eyebrow}
+      <span class="role-eyebrow text-[var(--muted-foreground)]">{eyebrow}</span>
+    {/if}
     <span
-      class="truncate role-title text-[var(--foreground)]"
+      class="truncate role-heading text-[var(--foreground)]"
       data-testid={titleTestId}
     >{title}</span>
     {#if subtitle}

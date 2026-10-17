@@ -1,14 +1,13 @@
 <script lang="ts">
   import {
+    ActionMenu,
+    Badge,
     Button,
     EmptyState,
-    EntityList,
     Icon,
     Input,
     PageShell,
-    SearchCreate,
     type MenuAction,
-    type MetaItem,
   } from '@texture/ui';
   import { formatDateTime } from '../../shared/format';
   import { activeLibraryPath, loadCover } from '../library/library';
@@ -53,6 +52,9 @@
   /** Строка поиска по имени рабочего места. */
   let query = $state('');
 
+  /** Черновик имени создаваемого места. */
+  let newName = $state('');
+
   /** Идентификатор переименовываемого рабочего места. */
   let editingId: string | null = $state(null);
 
@@ -83,26 +85,7 @@
     return `${count} ${noun}`;
   }
 
-  /** Метаинформация рабочего места: дата создания и число книг. */
-  function metaItems(item: WorkspaceItem): MetaItem[] {
-    const items: MetaItem[] = [];
-    const created = formatDateTime(item.createdAtMillis ?? 0);
-    if (created) {
-      items.push({ icon: 'calendar', value: created, title: `Создано ${created}` });
-    }
-    items.push({
-      icon: 'book',
-      value: bookCountLabel(item.bookCount ?? 0),
-      title: 'Открытых книг',
-    });
-    return items;
-  }
-
-  /** Пути книг рабочего места для превью обложек (не более лимита).
-   *
-   * Повторы отбрасываются: одна книга может быть открыта в нескольких вкладках
-   * места, а в превью она показывается один раз.
-   */
+  /** Пути книг рабочего места для превью обложек (не более лимита). */
   function previewPaths(item: WorkspaceItem): string[] {
     const unique: string[] = [];
     for (const path of item.bookPaths ?? []) {
@@ -116,11 +99,7 @@
     return unique;
   }
 
-  /** Идентификатор книги в каталоге по абсолютному пути вложения.
-   *
-   * Идентификатор книги — её путь относительно корня библиотеки; книги вне
-   * библиотеки обложки не имеют.
-   */
+  /** Идентификатор книги в каталоге по абсолютному пути вложения. */
   function bookIdOf(path: string): string | null {
     if (!libraryRoot) {
       return null;
@@ -166,8 +145,6 @@
     covers = { ...covers, ...next };
   }
 
-  // Обложки перечитываются при изменении состава рабочих мест: снимок путей
-  // берётся отложенно, чтобы не запускать загрузку на каждое изменение.
   $effect(() => {
     void JSON.stringify(workspaces.map((item) => [item.id, previewPaths(item)]));
     const timer = setTimeout(() => {
@@ -175,6 +152,16 @@
     }, 100);
     return () => clearTimeout(timer);
   });
+
+  /** Создание рабочего места из поля ввода. */
+  function createFromField() {
+    const name = newName.trim();
+    if (!name) {
+      return;
+    }
+    onCreate(name);
+    newName = '';
+  }
 
   /** Начало переименования. */
   function startRename(id: string, name: string) {
@@ -210,106 +197,194 @@
   testId="workspaces-page"
   empty={workspaces.length === 0}
   emptyTestId="workspaces-empty"
+  class="p-4 md:p-6"
 >
   {#snippet emptyContent()}
     <EmptyState
       icon="workspace"
       title="Рабочих мест нет"
-      description="Создайте рабочее место, чтобы открыть в нём книги."
+      description="Рабочее место — это место исследования: в нём вы откроете книги вкладками и будете вести заметки. Создайте первое в поле «Новое рабочее место» выше."
       testId="workspaces-empty"
     />
   {/snippet}
 
-  {#snippet form()}
-    <SearchCreate
-      bind:query
-      createPlaceholder="Новое рабочее место"
-      createTitle="Создать рабочее место"
-      createAriaLabel="Создать рабочее место"
-      {onCreate}
-    />
-  {/snippet}
-
-  {#snippet toolbar()}
-    {#if workspaces.length > 0}
+  {#snippet controls()}
+    <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      {#if workspaces.length > 0}
+        <Input
+          bind:value={query}
+          placeholder="Поиск рабочего места"
+          ariaLabel="Поиск рабочего места"
+          icon="search"
+          class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
+        />
+        <span class="role-caption text-[var(--muted-foreground)]">
+          {filtered.length} из {workspaces.length}
+        </span>
+      {:else}
+        <span class="role-eyebrow text-[var(--muted-foreground)]">Новое рабочее место</span>
+      {/if}
+    </div>
+    <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
       <Input
-        bind:value={query}
-        placeholder="Поиск рабочего места"
-        ariaLabel="Поиск рабочего места"
-        icon="search"
+        bind:value={newName}
+        placeholder="Новое рабочее место"
+        ariaLabel="Новое рабочее место"
+        class="min-w-0 flex-1 sm:w-[15rem] sm:flex-none"
+        onkeydown={(event) => {
+          if (event.key === 'Enter') {
+            createFromField();
+          }
+        }}
       />
-    {/if}
+      <Button
+        variant="primary"
+        title="Создать рабочее место"
+        ariaLabel="Создать рабочее место"
+        disabled={!newName.trim()}
+        onclick={createFromField}
+      >
+        <Icon name="plus" />
+        <span class="hidden sm:inline">Создать</span>
+      </Button>
+    </div>
   {/snippet}
 
-  <EntityList
-    items={filtered}
-    key={(item) => item.id}
-    itemTestId="workspace-item"
-    buttonTestId="workspace-open"
-    notFound={workspaces.length > 0 && filtered.length === 0}
-    notFoundTestId="workspaces-not-found"
-    selected={(item) => item.id === currentId}
-    onSelect={(item) => onOpen(item.id)}
-    metaItems={metaItems}
-    metaTestId="workspace-meta"
-    actions={() => workspaceActions}
-    actionsLabel="Действия с рабочим местом"
-    onAction={runWorkspaceAction}
-    isEditing={(item) => editingId === item.id}
-  >
-    {#snippet titleContent(item)}
-      <span class="min-w-0 flex-1 truncate role-title" title={item.name}>{item.name}</span>
-    {/snippet}
-
-    {#snippet trailing(item)}
-      {#if previewPaths(item).length > 0}
-        <span class="flex items-center gap-1" data-testid="workspace-covers">
-          {#each previewPaths(item) as path (path)}
-            <span
-              class="flex h-7 w-[1.25rem] items-center justify-center overflow-hidden rounded-sm border border-[var(--border)] bg-[var(--muted)]"
-              title={path}
+  {#if workspaces.length > 0 && filtered.length === 0}
+    <EmptyState
+      icon="search"
+      title="Ничего не найдено"
+      description="Измените запрос поиска."
+      testId="workspaces-not-found"
+    />
+  {:else}
+    <ul
+      class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))]"
+      data-testid="workspaces-grid"
+    >
+      {#each filtered as item (item.id)}
+        <li data-testid="workspace-item">
+          {#if editingId === item.id}
+            <div
+              class="flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--primary-border)] bg-[var(--card)] p-4 shadow-raised"
             >
-              {#if covers[path]}
-                <img class="h-full w-full object-cover" src={covers[path]} alt="" />
-              {:else}
-                <Icon name="book" class="h-3 w-3 text-[var(--muted-foreground)]" />
-              {/if}
-            </span>
-          {/each}
-        </span>
-      {/if}
-      {#if item.id === currentId}
-        <span
-          class="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]"
-          data-testid="workspace-current"
-          title="Текущее рабочее место"
-          aria-label="Текущее рабочее место"
-        >
-          <Icon name="check" class="h-3 w-3" />
-        </span>
-      {/if}
-    {/snippet}
+              <span class="role-eyebrow text-[var(--muted-foreground)]">Переименование</span>
+              <Input
+                bind:value={editingName}
+                placeholder="Новое имя"
+                ariaLabel="Новое имя рабочего места"
+                onkeydown={(event) => {
+                  if (event.key === 'Enter') {
+                    commitRename();
+                  }
+                  if (event.key === 'Escape') {
+                    editingId = null;
+                  }
+                }}
+              />
+              <div class="flex items-center gap-2">
+                <Button variant="primary" size="sm" onclick={commitRename}>Сохранить</Button>
+                <Button variant="secondary" size="sm" onclick={() => (editingId = null)}>
+                  Отмена
+                </Button>
+              </div>
+            </div>
+          {:else}
+            <article
+              class="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] shadow-raised transition-[border-color,box-shadow] focus-within:border-[var(--primary-border)] hover:border-[var(--primary-border)]"
+              data-current={item.id === currentId ? 'true' : 'false'}
+            >
+              <!--
+                Обложки открытых книг — обложкой рабочего места: по ней место
+                узнаётся быстрее, чем по имени. Пустая полка подсказывает, что
+                место ещё не заполнено.
+              -->
+              <div
+                class="flex h-[6.5rem] items-center gap-2 overflow-hidden border-b border-[var(--border)] bg-[var(--muted)] px-3"
+              >
+                {#if previewPaths(item).length > 0}
+                  <span
+                    class="flex items-center gap-2"
+                    data-testid="workspace-covers"
+                  >
+                    {#each previewPaths(item) as path (path)}
+                      <span
+                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center overflow-hidden rounded-sm border border-[var(--border)] bg-[var(--card)] shadow-raised"
+                        title={path}
+                      >
+                        {#if covers[path]}
+                          <img class="h-full w-full object-cover" src={covers[path]} alt="" />
+                        {:else}
+                          <Icon name="book" class="h-4 w-4 text-[var(--muted-foreground)]" />
+                        {/if}
+                      </span>
+                    {/each}
+                  </span>
+                {:else}
+                  <span class="flex flex-col items-center gap-1 text-[var(--muted-foreground)]">
+                    <Icon name="workspace" class="h-6 w-6" />
+                    <span class="role-caption">Пустая полка</span>
+                  </span>
+                {/if}
+              </div>
 
-    {#snippet editContent()}
-      <div class="flex items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2">
-        <label class="flex min-w-0 flex-1 flex-col gap-1">
-          <span class="role-caption text-[var(--muted-foreground)]">Новое имя</span>
-          <Input
-            bind:value={editingName}
-            placeholder="Новое имя"
-            onkeydown={(event) => {
-              if (event.key === 'Enter') {
-                commitRename();
-              }
-              if (event.key === 'Escape') {
-                editingId = null;
-              }
-            }}
-          />
-        </label>
-        <Button variant="primary" size="sm" onclick={commitRename}>Сохранить</Button>
-        <Button variant="secondary" size="sm" onclick={() => (editingId = null)}>Отмена</Button>
-      </div>
-    {/snippet}
-  </EntityList>
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 cursor-pointer flex-col gap-2 p-4 text-left [font:inherit]"
+                data-testid="workspace-open"
+                title={item.name}
+                onclick={() => onOpen(item.id)}
+              >
+                <span class="flex min-w-0 items-center gap-2">
+                  <span class="min-w-0 flex-1 truncate role-heading" data-testid="workspace-name">
+                    {item.name}
+                  </span>
+                  {#if item.id === currentId}
+                    <span
+                      class="bg-primary text-primary-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                      data-testid="workspace-current"
+                      title="Текущее рабочее место"
+                      aria-label="Текущее рабочее место"
+                    >
+                      <Icon name="check" class="h-3 w-3" />
+                    </span>
+                  {/if}
+                </span>
+                <span
+                  class="flex flex-wrap items-center gap-x-3 gap-y-1 role-caption text-[var(--muted-foreground)]"
+                  data-testid="workspace-meta"
+                >
+                  {#if formatDateTime(item.createdAtMillis ?? 0)}
+                    <span class="inline-flex items-center gap-1">
+                      <Icon name="calendar" class="h-3.5 w-3.5" />
+                      {formatDateTime(item.createdAtMillis ?? 0)}
+                    </span>
+                  {/if}
+                  <span class="inline-flex items-center gap-1">
+                    <Icon name="book" class="h-3.5 w-3.5" />
+                    {bookCountLabel(item.bookCount ?? 0)}
+                  </span>
+                </span>
+              </button>
+
+              <div class="absolute top-2 right-2 flex items-center gap-1">
+                {#if item.bookCount}
+                  <Badge variant={item.id === currentId ? 'default' : 'muted'}>
+                    {item.bookCount}
+                  </Badge>
+                {/if}
+                <ActionMenu
+                  ariaLabel="Действия с рабочим местом"
+                  title="Действия"
+                  class="h-8 w-8"
+                  items={workspaceActions}
+                  onselect={(action) => runWorkspaceAction(item, action)}
+                />
+              </div>
+            </article>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  {/if}
 </PageShell>

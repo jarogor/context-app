@@ -42,7 +42,7 @@
   {oninput}
   spellcheck="false"
   class={cn(
-    'border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive box-border w-full rounded-md border px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+    'border-[var(--input)] bg-card placeholder:text-muted-foreground hover:border-[var(--muted-foreground)] focus-visible:border-ring focus-visible:ring-ring/35 aria-invalid:border-destructive box-border w-full rounded-[var(--radius)] border px-3 py-2 text-sm transition-[color,box-shadow,border-color] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
     className,
   )}
 ></textarea>

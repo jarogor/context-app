@@ -56,10 +56,10 @@ const SETTINGS_FIELDS: Record<
             key: 'appearance.palette',
             title: 'Палитра оформления',
             type: 'select',
-            default: 'gruvbox',
+            default: 'linen',
             options: [
-                { value: 'gruvbox', title: 'Gruvbox' },
-                { value: 'mist', title: 'Mist' },
+                { value: 'linen', title: 'Лён' },
+                { value: 'cobalt', title: 'Кобальт' },
             ],
         },
         {
@@ -89,7 +89,7 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
         'startup.welcome_notification': true,
         'diagnostics.log_level': 'info',
         'appearance.theme': 'system',
-        'appearance.palette': 'gruvbox',
+        'appearance.palette': 'linen',
         'reader.theme': 'light',
         'window.open_tabs_limit': 50,
     },

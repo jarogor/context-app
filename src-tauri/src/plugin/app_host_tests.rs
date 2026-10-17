@@ -301,7 +301,7 @@ fn refresh_registry_includes_palette_field() {
         .expect("поле палитры");
     assert_eq!(palette_field["type"], "select", "тип поля палитры");
     assert_eq!(
-        app_section["values"]["appearance.palette"], "gruvbox",
+        app_section["values"]["appearance.palette"], "linen",
         "значение по умолчанию для палитры"
     );
     cleanup(&storage);
@@ -632,20 +632,20 @@ fn theme_palette_reads_setting() {
     let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
         .expect("загрузка базовых плагинов");
     host.refresh_settings_registry(&[]).expect("регистрация");
-    assert_eq!(host.theme_palette(), "gruvbox", "значение по умолчанию");
+    assert_eq!(host.theme_palette(), "linen", "значение по умолчанию");
 
     host.invoke_capability(
         CAPABILITY_SETTINGS,
         "set",
         serde_json::json!({
             "section": "app.general",
-            "values": { "appearance.palette": "mist" }
+            "values": { "appearance.palette": "cobalt" }
         }),
     )
     .expect("сохранение палитры");
     assert_eq!(
         host.theme_palette(),
-        "mist",
+        "cobalt",
         "палитра прочитана из настроек"
     );
     cleanup(&storage);

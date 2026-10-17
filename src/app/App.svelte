@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { Button, Icon, Menu, MenuItem } from '@texture/ui';
+  import AppBar from './AppBar.svelte';
   import NotificationsPanel from '../features/notifications/NotificationsPanel.svelte';
   import SectionNav from './SectionNav.svelte';
   import SectionPanel from './SectionPanel.svelte';
@@ -52,7 +53,7 @@
   import { normalizeOpenTabsLimit } from '../features/workplace/workplace';
   import { openTabsLimitFromSettingsEvent } from '../features/workplace/open-tabs-limit';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
-  import { MOBILE_MAX_WIDTH, NARROW_MAX_WIDTH } from '../shared/breakpoints';
+  import { MOBILE_MAX_WIDTH } from '../shared/breakpoints';
   import { activeLibrary as fetchActiveLibrary } from '../shared/base-plugin';
   import { lastSegment } from '../shared/path';
   import {
@@ -156,27 +157,9 @@
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
 
-  /** Раскрыто ли меню разделов (показаны названия пунктов).
-   *
-   * Состояние интерфейса, а не настройка: при запуске меню раскрыто, чтобы
-   * названия были видны; сворачивание оставляет иконки с подсветкой.
-   */
-  let navExpanded = $state(true);
-
-  /** Узкое ли окно: меню разделов свёрнуто, чтобы не отбирать место у содержимого.
-   *
-   * На узком окне раскрытая колонка заметно ужимает область чтения и панели,
-   * поэтому раскрытие доступно только на широком окне, а на узком пункты
-   * показываются иконками с доступными именами.
-   */
-  let narrowWindow = $state(false);
-
-  /** Телефонная ширина: навигация переезжает в нижнюю полосу, колонка слева
-   * не показывается вовсе. Точка совпадает с токеном `--breakpoint-mobile`. */
+  /** Телефонная ширина: навигация переезжает в нижнюю полосу. Точка совпадает
+   * с токеном `--breakpoint-mobile`. */
   let mobileWindow = $state(false);
-
-  /** Раскрыто ли меню с учётом ширины окна. */
-  const navIsExpanded = $derived(navExpanded && !narrowWindow);
 
   /** Число непрочитанных уведомлений, полученное от области уведомлений. */
   let unreadCount = $state(
@@ -368,6 +351,19 @@
           : workspaceOpen
             ? 'Рабочие места'
             : 'Библиотека',
+  );
+
+  /** Надзаголовок раздела: короткая метка-«колонтитул» над заголовком. */
+  const sectionEyebrow = $derived(
+    settingsOpen
+      ? 'Оформление и плагины'
+      : librariesOpen
+        ? librarySourcesOpen
+          ? 'Источники'
+          : 'Каталог книг'
+        : notesLibraryOpen
+          ? 'Реестр'
+          : 'Точка входа',
   );
 
   /** Имя открытого рабочего места для панели вкладок; null, когда показан другой раздел. */
@@ -935,15 +931,8 @@
     let unlisten: (() => void) | undefined;
     let unlistenNotes: (() => void) | undefined;
     let unlistenSettings: (() => void) | undefined;
-    // Отслеживание ширины окна: на узком окне раскрытое меню разделов отбирает
-    // место у содержимого, поэтому там оно свёрнуто до иконок, а на телефонной
-    // ширине навигация уходит в нижнюю полосу и колонка слева не рисуется.
-    const narrowQuery = window.matchMedia(NARROW_MAX_WIDTH);
-    narrowWindow = narrowQuery.matches;
-    const onNarrowChange = (event: MediaQueryListEvent) => {
-      narrowWindow = event.matches;
-    };
-    narrowQuery.addEventListener('change', onNarrowChange);
+    // Отслеживание ширины окна: на телефонной ширине вкладки разделов уходят из
+    // верхней панели в нижнюю полосу.
     const mobileQuery = window.matchMedia(MOBILE_MAX_WIDTH);
     mobileWindow = mobileQuery.matches;
     const onMobileChange = (event: MediaQueryListEvent) => {
@@ -998,7 +987,6 @@
       });
     })();
     return () => {
-      narrowQuery.removeEventListener('change', onNarrowChange);
       mobileQuery.removeEventListener('change', onMobileChange);
       unlisten?.();
       unlistenNotes?.();
@@ -1037,42 +1025,45 @@
 <svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="flex h-full flex-col" data-mobile={mobileWindow ? 'true' : 'false'}>
-  <div class="relative flex min-h-0 flex-1">
-    {#if !settingsOpen && !focusMode && !mobileWindow}
-      <SectionNav
-        appName="Текстура"
-        workspaceActive={workspaceListVisible}
-        libraryActive={librariesVisible}
-        notesActive={notesLibraryVisible}
-        {notificationsOpen}
-        {settingsOpen}
-        {unreadCount}
-        alertCount={headerAlerts.length}
-        alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
-        alertError={headerAlerts.some((alert) => !alert.warning)}
-        themeTitle={themeTitles[themePreference]}
-        expanded={navIsExpanded}
-        mobile={false}
-        onWorkspace={toggleWorkspace}
-        onLibrary={toggleLibraries}
-        onNotes={toggleNotesLibrary}
-        onNotifications={toggleNotifications}
-        onSettings={toggleSettings}
-        onTheme={cycleTheme}
-        onToggleExpanded={() => (navExpanded = !navExpanded)}
-      />
-    {/if}
-
   <!--
-    Панель уведомлений открывается слева, рядом со своим пунктом меню: элемент
-    управления и то, чем он управляет, остаются рядом. Панель идёт от верха
-    области и не перекрывает меню разделов. Она остаётся смонтированной и в
-    скрытом виде: иначе потеряла бы события журнала, пришедшие, пока она скрыта,
+    Верхняя панель — постоянный «корешок»: имя приложения, вкладки разделов и
+    служебные действия. Скрывается в сосредоточенном чтении (книге — всё окно)
+    и в полноэкранных настройках (у них своя шапка с закрытием).
+  -->
+  {#if !focusMode && !settingsOpen}
+    <AppBar
+      workspaceActive={workspaceListVisible}
+      libraryActive={librariesVisible}
+      notesActive={notesLibraryVisible}
+      {notificationsOpen}
+      {settingsOpen}
+      {unreadCount}
+      alertCount={headerAlerts.length}
+      alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
+      alertError={headerAlerts.some((alert) => !alert.warning)}
+      themeTitle={themeTitles[themePreference]}
+      mobile={mobileWindow}
+      onHome={toggleWorkspace}
+      onWorkspace={toggleWorkspace}
+      onLibrary={toggleLibraries}
+      onNotes={toggleNotesLibrary}
+      onNotifications={toggleNotifications}
+      onSettings={toggleSettings}
+      onTheme={cycleTheme}
+    />
+  {/if}
+
+  <div class="relative flex min-h-0 flex-1">
+  <!--
+    Панель уведомлений выезжает справа, под своим пунктом в верхней панели:
+    элемент управления и то, чем он управляет, остаются рядом. Панель идёт от
+    верха области и не перекрывает панель раздела. Она остаётся смонтированной и
+    в скрытом виде: иначе потеряла бы события журнала, пришедшие, пока она скрыта,
     и показала бы устаревший список.
   -->
   <div
-    class="flex w-[var(--notifications-panel-width)] min-w-0 flex-none max-lg:absolute max-lg:inset-0 max-lg:z-[var(--layer-panel)] max-lg:w-auto [&>aside]:border-r [&>aside]:border-l-0"
-    class:hidden={!notificationsOpen || settingsOpen || focusMode}
+    class="flex min-w-0 flex-none max-lg:absolute max-lg:inset-0 max-lg:z-[var(--layer-panel)] max-lg:w-auto max-lg:order-none lg:order-last lg:w-[var(--notifications-panel-width)]"
+    class:hidden={!notificationsOpen || focusMode}
     data-testid="notifications-slot"
   >
     <NotificationsPanel
@@ -1087,6 +1078,7 @@
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     {#if !settingsOpen && !focusMode && !(workspaceVisible && !workspaceListMode)}
       <SectionPanel
+        eyebrow={activeWorkspaceName ? 'Рабочее место' : sectionEyebrow}
         title={activeWorkspaceName ?? sectionTitle}
         subtitle={activeWorkspaceName ? '' : sectionSubtitle}
         titleTestId={activeWorkspaceName ? 'header-workspace-name' : 'section-title'}
@@ -1199,14 +1191,14 @@
         </div>
       </div>
       <!--
-        Полноэкранный раздел настроек: на широком окне меню разделов слева
-        колонкой, на узком — горизонтальной полосой сверху, чтобы не отбирать
-        ширину у содержимого на телефоне.
+        Полноэкранный раздел настроек: собственный «корешок» раздела слева
+        (на узком окне — прокручиваемая полоса сверху), а справа — содержимое
+        выбранной страницы. Шапка настроек несёт заголовок и закрытие.
       -->
       <div class="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row" class:hidden={!settingsOpen}>
         <Menu
           ariaLabel="Разделы настроек"
-          class="shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--background)] p-2 max-md:flex-row md:w-[12.5rem] md:flex-none md:flex-col md:border-r md:border-b-0 md:p-3"
+          class="shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--panel)] p-2 max-md:flex-row md:w-[14rem] md:flex-none md:flex-col md:border-r md:border-b-0 md:p-3"
         >
           <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
             Общие
@@ -1260,13 +1252,13 @@
   </div>
 
   <!--
-    Нижняя навигация телефона: те же разделы и служебные пункты, что и в колонке
-    слева, но прижатые к нижнему краю и удобные пальцу. Показывается только на
-    телефонной ширине и не дублирует колонку: активна ровно одна компоновка.
+    Нижняя навигация телефона: те же разделы и служебные пункты, что и во
+    вкладках верхней панели, но прижатые к нижнему краю и удобные пальцу.
+    Показывается только на телефонной ширине и не дублирует вкладки: активна
+    ровно одна компоновка.
   -->
   {#if !settingsOpen && !focusMode && mobileWindow}
     <SectionNav
-      appName="Текстура"
       workspaceActive={workspaceListVisible}
       libraryActive={librariesVisible}
       notesActive={notesLibraryVisible}
@@ -1277,7 +1269,6 @@
       alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
       alertError={headerAlerts.some((alert) => !alert.warning)}
       themeTitle={themeTitles[themePreference]}
-      expanded={false}
       mobile
       onWorkspace={toggleWorkspace}
       onLibrary={toggleLibraries}
@@ -1285,7 +1276,6 @@
       onNotifications={toggleNotifications}
       onSettings={toggleSettings}
       onTheme={cycleTheme}
-      onToggleExpanded={() => (navExpanded = !navExpanded)}
     />
   {/if}
 </div>

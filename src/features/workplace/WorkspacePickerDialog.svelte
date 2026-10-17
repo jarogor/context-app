@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Dialog, SearchCreate } from '@texture/ui';
+  import { Dialog, Icon, SearchCreate } from '@texture/ui';
 
   /** Рабочее место в диалоге выбора. */
   interface WorkspaceItem {
@@ -47,6 +47,9 @@
     onOpenChange?.(value);
   }}
 >
+  <p class="role-body text-[var(--muted-foreground)]">
+    Выберите место, в которое добавится книга, или создайте новое.
+  </p>
   <SearchCreate
     bind:query
     createPlaceholder="Новое рабочее место"
@@ -57,12 +60,12 @@
   />
 
   {#if filtered.length === 0}
-    <p class="text-sm text-[var(--muted-foreground)]" data-testid="workspace-picker-empty">
+    <p class="role-body text-[var(--muted-foreground)]" data-testid="workspace-picker-empty">
       {workspaces.length === 0 ? 'Рабочих мест ещё нет.' : 'Ничего не найдено.'}
     </p>
   {:else}
     <ul
-      class="flex max-h-[20rem] list-none flex-col gap-1 overflow-y-auto p-0"
+      class="flex max-h-[20rem] list-none flex-col gap-1.5 overflow-y-auto p-0"
       data-testid="workspace-picker-list"
     >
       {#each filtered as item (item.id)}
@@ -70,11 +73,12 @@
           <button
             type="button"
             data-testid="workspace-picker-item"
-            class="w-full cursor-pointer truncate rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-left text-sm [font:inherit] hover:bg-[var(--muted)]"
+            class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)]"
             title={item.name}
             onclick={() => onSelect(item.id)}
           >
-            {item.name}
+            <Icon name="workspace" class="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
+            <span class="min-w-0 flex-1 truncate">{item.name}</span>
           </button>
         </li>
       {/each}

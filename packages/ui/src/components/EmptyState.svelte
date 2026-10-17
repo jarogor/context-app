@@ -8,8 +8,7 @@
    *
    * Показывает иконку, заголовок и пояснение, а при необходимости — главное
    * действие. Области используют этот компонент вместо голого абзаца серого
-   * текста, чтобы пустота объясняла причину и вела к следующему шагу, и чтобы
-   * состояние выглядело одинаково во всём приложении.
+   * текста, чтобы пустота объясняла причину и вела к следующему шагу.
    */
   interface Props {
     /** Иконка состояния. */
@@ -38,17 +37,20 @@
 
 <div
   class={cn(
-    'flex flex-col items-center justify-center gap-2 px-6 py-10 text-center',
+    'flex flex-col items-center justify-center gap-2 px-6 py-12 text-center',
     className,
   )}
   data-testid={testId}
 >
   {#if icon}
-    <span class="text-[var(--muted-foreground)]" aria-hidden="true">
-      <Icon name={icon} class="h-7 w-7" />
+    <span
+      class="text-[var(--muted-foreground)] flex size-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)]"
+      aria-hidden="true"
+    >
+      <Icon name={icon} class="h-6 w-6" />
     </span>
   {/if}
-  <p class="role-subtitle text-[var(--foreground)]">{title}</p>
+  <p class="role-heading mt-1 text-[var(--foreground)]">{title}</p>
   {#if description}
     <p class="max-w-[28rem] role-body text-[var(--muted-foreground)]">{description}</p>
   {/if}

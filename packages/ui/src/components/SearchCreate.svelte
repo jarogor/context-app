@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import IconButton from './IconButton.svelte';
   import Input from './Input.svelte';
   import { cn } from '../utils';

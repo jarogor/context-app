@@ -47,11 +47,14 @@
     class: className = '',
   }: Props = $props();
 
-  /** Обводка строки и выделение текущего пункта — общие для всех списков. */
+  /**
+   * Вид строки — «карточка-лист»: тонкая обводка, поднятая тень и мягкое
+   * выделение текущего пункта. Выделение идёт фоном, а не контрастной рамкой.
+   */
   const box = $derived(
     cn(
-      'rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] transition-colors',
-      selected ? 'bg-[var(--primary-soft)]' : '',
+      'rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] shadow-raised transition-colors',
+      selected ? 'border-[var(--primary-border)] bg-[var(--primary-soft)]' : '',
     ),
   );
 </script>
@@ -65,8 +68,8 @@
     type="button"
     data-testid={buttonTestId}
     class={cn(
-      'flex min-w-0 flex-1 flex-col gap-1.5 px-3 py-2.5 text-left [font:inherit]',
-      onclick && !disabled ? 'cursor-pointer hover:bg-[var(--muted)]' : 'cursor-default',
+      'flex min-w-0 flex-1 flex-col gap-1.5 rounded-[var(--radius)] px-3.5 py-3 text-left [font:inherit]',
+      onclick && !disabled ? 'cursor-pointer hover:bg-[var(--accent)]' : 'cursor-default',
       selected && onclick && !disabled ? 'hover:bg-[var(--primary-soft)]' : '',
       disabled ? 'cursor-not-allowed opacity-60' : '',
     )}

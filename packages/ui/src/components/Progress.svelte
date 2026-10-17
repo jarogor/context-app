@@ -18,7 +18,7 @@
 <ProgressPrimitive.Root
   value={clamped}
   max={100}
-  class={cn('bg-primary/20 relative h-2 w-full overflow-hidden rounded-full', className)}
+  class={cn('bg-[var(--primary-soft)] relative h-1.5 w-full overflow-hidden rounded-full', className)}
 >
   <div
     class="bg-primary h-full w-full flex-1 transition-transform duration-200"

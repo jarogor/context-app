@@ -69,16 +69,16 @@ describe('loadThemePreference', () => {
 
 describe('loadThemePalette', () => {
   it('возвращает сохранённую палитру', async () => {
-    invoke.mockResolvedValue('mist');
+    invoke.mockResolvedValue('cobalt');
 
-    await expect(loadThemePalette()).resolves.toBe('mist');
+    await expect(loadThemePalette()).resolves.toBe('cobalt');
     expect(invoke).toHaveBeenCalledWith('theme_palette', {});
   });
 
   it('приводит неизвестное значение к палитре по умолчанию', async () => {
     invoke.mockResolvedValue('solarized');
 
-    await expect(loadThemePalette()).resolves.toBe('gruvbox');
+    await expect(loadThemePalette()).resolves.toBe('linen');
   });
 });
 
@@ -119,9 +119,9 @@ describe('applyAppPalette', () => {
   it('выставляет data-palette', () => {
     const root = { dataset: {} } as unknown as HTMLElement;
 
-    applyAppPalette('mist', root);
+    applyAppPalette('cobalt', root);
 
-    expect(root.dataset.palette).toBe('mist');
+    expect(root.dataset.palette).toBe('cobalt');
   });
 
   it('неизвестную палитру заменяет значением по умолчанию', () => {
@@ -129,7 +129,7 @@ describe('applyAppPalette', () => {
 
     applyAppPalette('неизвестно', root);
 
-    expect(root.dataset.palette).toBe('gruvbox');
+    expect(root.dataset.palette).toBe('linen');
   });
 });
 
@@ -197,16 +197,16 @@ describe('paletteFromSettingsEvent', () => {
   it('извлекает палитру из события секции приложения', () => {
     const value = paletteFromSettingsEvent({
       section: APP_SETTINGS_SECTION,
-      values: { 'appearance.palette': 'mist' },
+      values: { 'appearance.palette': 'cobalt' },
     });
 
-    expect(value).toBe('mist');
+    expect(value).toBe('cobalt');
   });
 
   it('игнорирует события других секций', () => {
     const value = paletteFromSettingsEvent({
       section: 'notifications.notifications',
-      values: { 'appearance.palette': 'mist' },
+      values: { 'appearance.palette': 'cobalt' },
     });
 
     expect(value).toBeNull();

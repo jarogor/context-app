@@ -6,13 +6,32 @@
   import ErrorState from './ErrorState.svelte';
   import Skeleton from './Skeleton.svelte';
 
+  /**
+   * Каркас страницы-раздела «Печатного листа».
+   *
+   * Раздел читается сверху вниз тремя независимыми слоями, и каждый включается
+   * только там, где нужен:
+   * - **шапка** — надзаголовок, заголовок-антиква, пояснение и главное действие;
+   * - **полоса управления** — поиск и фильтры раздела (не прокручивается);
+   * - **содержимое** — то, что прокручивается, с общим пределом ширины.
+   *
+   * Раскладку содержимого задаёт сама страница: каркас не навязывает «форму
+   * слева, список справа». Список, сетка карточек, двухпанельный просмотр —
+   * это решение страницы, а не общего каркаса.
+   */
   interface Props {
+    /** Надзаголовок (короткая метка раздела). */
+    eyebrow?: string;
+    /** Заголовок раздела. */
+    title?: string;
+    /** Пояснение под заголовком. */
+    subtitle?: string;
+    /** Главное действие и вспомогательные кнопки раздела. */
+    actions?: Snippet;
+    /** Средства управления (поиск, фильтры) — под шапкой над содержимым. */
+    controls?: Snippet;
     /** Содержимое страницы, когда нет состояний загрузки, ошибки или пустоты. */
     children?: Snippet;
-    /** Панель действий над содержимым (в режиме формы — под формой в левой колонке). */
-    toolbar?: Snippet;
-    /** Панель формы: на широком окне — колонка слева, на узком — сверху. */
-    form?: Snippet;
     /** Идёт загрузка содержимого. */
     loading?: boolean;
     /** Ошибка загрузки содержимого (пустая строка — ошибки нет). */
@@ -45,14 +64,17 @@
     emptyTestId?: string;
     /** Метка страницы для тестов. */
     testId?: string;
-    /** Дополнительные классы. */
+    /** Дополнительные классы области прокрутки. */
     class?: string;
   }
 
   let {
+    eyebrow = '',
+    title = '',
+    subtitle = '',
+    actions,
+    controls,
     children,
-    toolbar,
-    form,
     loading = false,
     error = '',
     onRetry,
@@ -110,30 +132,45 @@
   {/if}
 {/snippet}
 
-<ScrollArea
-  testId={testId}
-  class={className}
->
-  <div
-    class="flex w-full max-w-[var(--content-max-width)] flex-col gap-4 px-4 py-4 md:px-6 md:py-6"
-  >
-    {#if form}
-      <div class="flex flex-col gap-4 @min-[44rem]:flex-row @min-[44rem]:items-start @min-[44rem]:gap-6">
-        <div class="flex min-w-0 flex-col gap-3 @min-[44rem]:w-[20rem] @min-[44rem]:flex-none">
-          {@render form()}
-          {#if toolbar}
-            <div class="flex flex-col gap-3">{@render toolbar()}</div>
-          {/if}
-        </div>
-        <div class="flex min-w-0 flex-1 flex-col gap-3">
-          {@render content()}
-        </div>
+<div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid={testId}>
+  {#if eyebrow || title || subtitle || actions}
+    <header
+      class="flex flex-none flex-wrap items-end gap-x-4 gap-y-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-3 md:px-6"
+      data-testid="page-header"
+    >
+      <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+        {#if eyebrow}
+          <span class="role-eyebrow text-[var(--muted-foreground)]">{eyebrow}</span>
+        {/if}
+        {#if title}
+          <h1 class="truncate role-display text-[var(--foreground)]" data-testid="page-title">
+            {title}
+          </h1>
+        {/if}
+        {#if subtitle}
+          <span class="truncate role-body text-[var(--muted-foreground)]">{subtitle}</span>
+        {/if}
       </div>
-    {:else}
-      {#if toolbar}
-        <div class="flex flex-col gap-3">{@render toolbar()}</div>
+      {#if actions}
+        <div class="flex min-w-0 flex-wrap items-center gap-2">{@render actions()}</div>
       {/if}
+    </header>
+  {/if}
+
+  {#if controls}
+    <div
+      class="flex flex-none flex-wrap items-center gap-3 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2.5 md:px-6"
+      data-testid="page-controls"
+    >
+      {@render controls()}
+    </div>
+  {/if}
+
+  <ScrollArea class={className}>
+    <div
+      class="flex w-full max-w-[var(--content-max-width)] flex-col gap-4 px-4 py-4 md:px-6 md:py-6"
+    >
       {@render content()}
-    {/if}
-  </div>
-</ScrollArea>
+    </div>
+  </ScrollArea>
+</div>

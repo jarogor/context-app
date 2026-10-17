@@ -141,7 +141,7 @@
   {onClose}
 >
   {#snippet search()}
-    <Input bind:value={query} placeholder="Поиск по заметкам" />
+    <Input bind:value={query} placeholder="Поиск по заметкам" ariaLabel="Поиск по заметкам" icon="search" />
   {/snippet}
 
   {#if !hasBook}
@@ -203,7 +203,7 @@
           </NoteEntry>
         {:else}
           <li
-            class="px-2 py-3 text-center role-body text-[var(--muted-foreground)]"
+            class="px-2 py-4 text-center role-body text-[var(--muted-foreground)]"
             data-testid="notes-list-empty"
           >
             {query

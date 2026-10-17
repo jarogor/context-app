@@ -2,6 +2,13 @@
   import { ActionMenu, Button, Input, Select, type MenuAction } from '@texture/ui';
   import type { NoteSetSummary } from './notes';
 
+  /**
+   * Управление наборами заметок книги.
+   *
+   * Наборы — единица организации заметок к книге. Здесь выбирают активный
+   * набор, создают новый и переименовывают или удаляют текущий. Действия
+   * собраны в меню, чтобы случайное удаление было маловероятным.
+   */
   interface Props {
     /** Наборы заметок книги. */
     sets: NoteSetSummary[];
@@ -108,10 +115,10 @@
   }
 </script>
 
-<div class="flex flex-col gap-2 border-b border-[var(--border)] p-2" data-testid="notes-sets">
+<div class="flex flex-col gap-2 border-b border-[var(--border)] p-2.5" data-testid="notes-sets">
   {#if creating}
     <label class="flex flex-col gap-1">
-      <span class="text-xs text-[var(--muted-foreground)]">Имя набора</span>
+      <span class="role-caption text-[var(--muted-foreground)]">Имя набора</span>
       <Input
         bind:value={newSetName}
         placeholder="Новый набор"
@@ -133,7 +140,7 @@
     </div>
   {:else if renaming}
     <label class="flex flex-col gap-1">
-      <span class="text-xs text-[var(--muted-foreground)]">Новое имя</span>
+      <span class="role-caption text-[var(--muted-foreground)]">Новое имя</span>
       <Input
         bind:value={renameName}
         placeholder="Новое имя"
@@ -154,6 +161,7 @@
       <Button variant="secondary" size="sm" onclick={() => (renaming = false)}>Отмена</Button>
     </div>
   {:else}
+    <span class="role-eyebrow text-[var(--muted-foreground)]">Набор</span>
     <div class="flex items-center gap-2">
       <Select
         value={activeSetId ?? ''}

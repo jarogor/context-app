@@ -132,7 +132,6 @@
     debug: 'DEBUG',
     trace: 'TRACE',
   };
-
 </script>
 
 <SidePanel
@@ -144,7 +143,7 @@
   {#snippet badge()}
     {#if unreadUser > 0}
       <span
-        class="flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-[0.6875rem] px-[0.375rem] role-caption text-[var(--primary-foreground)]"
+        class="flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-[0.6875rem] px-1.5 role-caption text-[var(--primary-foreground)]"
         style:background="var(--success)"
         aria-label={`Непрочитанных: ${unreadUser}`}
       >
@@ -166,34 +165,40 @@
 
   {#if visibleEntries.length === 0}
     <div class="p-4">
-      <EmptyState icon="bell" title="Нет уведомлений" />
+      <EmptyState icon="bell" title="Нет уведомлений" description="Здесь появятся события приложения." />
     </div>
   {:else}
     <div class="flex-1 overflow-y-auto p-2">
       {#each visibleEntries as entry (entry.id)}
-        <div
-          class="mb-2 rounded-md border border-l-[3px] border-[var(--border)] bg-[var(--card)] p-2"
-          style:border-left-color={accent(entry)}
-          class:opacity-60={entry.read}
+        <article
+          class="relative mb-2 overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3 pl-4"
+          class:opacity-65={entry.read}
         >
-          <Badge variant={entry.level === 'User' ? 'default' : 'muted'}>
-            {entry.level === 'User' ? 'User' : 'Tech'}
-          </Badge>
-          <Badge
-            variant="muted"
-            class={entry.severity === 'error'
-              ? 'text-[var(--destructive)]'
-              : entry.severity === 'warn'
-                ? 'text-[var(--warning)]'
-                : ''}
-          >
-            {severityLabels[entry.severity] ?? entry.severity}
-          </Badge>
-          <span class="break-words">{entry.message}</span>
-          <span class="mt-1 block role-caption text-[var(--muted-foreground)]">
-            {formatTime(entry.timestamp)}
-          </span>
-        </div>
+          <span
+            class="absolute inset-y-0 left-0 w-1"
+            style:background={accent(entry)}
+            aria-hidden="true"
+          ></span>
+          <div class="mb-1 flex flex-wrap items-center gap-2">
+            <Badge variant={entry.level === 'User' ? 'default' : 'outline'}>
+              {entry.level === 'User' ? 'User' : 'Tech'}
+            </Badge>
+            <Badge
+              variant="muted"
+              class={entry.severity === 'error'
+                ? 'text-[var(--destructive)]'
+                : entry.severity === 'warn'
+                  ? 'text-[var(--warning)]'
+                  : ''}
+            >
+              {severityLabels[entry.severity] ?? entry.severity}
+            </Badge>
+            <span class="ml-auto role-caption text-[var(--muted-foreground)]">
+              {formatTime(entry.timestamp)}
+            </span>
+          </div>
+          <p class="break-words role-body">{entry.message}</p>
+        </article>
       {/each}
     </div>
   {/if}

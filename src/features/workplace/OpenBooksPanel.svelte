@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     ActionMenu,
+    Badge,
     Button,
     Icon,
     IconButton,
@@ -88,14 +89,7 @@
     );
   });
 
-  /** Пункты меню оформления вкладки: каждое свойство меняется отдельно.
-   *
-   * Пунктов «изменить всё сразу» нет: пользователь трогает только то, что хочет,
-   * а незаданные свойства не показываются и не меняются. Дублирование и закрытие
-   * вкладки живут здесь же: отдельные кнопки у пункта опасны случайным нажатием и
-   * занимают место, поэтому выполняются осознанными пунктами меню. Пункт
-   * дублирования недоступен, когда создание вкладок заблокировано лимитом.
-   */
+  /** Пункты меню оформления вкладки: каждое свойство меняется отдельно. */
   const appearanceActions = $derived<MenuAction[]>([
     { id: 'rename', label: 'Название' },
     { id: 'describe', label: 'Описание' },
@@ -119,13 +113,7 @@
     return TAB_ICON_NAMES.map((icon) => ({ id: icon, label: icon, selected: icon === current }));
   }
 
-  /** Стиль пункта: переменные мягкого тона пользовательского цвета; пусто, если цвета нет.
-   *
-   * Цвет задаётся переменными, а не напрямую фоном: классы активного состояния и
-   * наведения должны оставаться сильнее базовой заливки, иначе у цветного пункта
-   * пропало бы наведение. Пункт стоит на фоне карточки, поэтому тон смешивается
-   * именно с ним; активный заливается плотнее, чтобы цвет не перебивал активность.
-   */
+  /** Стиль пункта: переменные мягкого тона пользовательского цвета; пусто, если цвета нет. */
   function itemFill(tab: WorkspaceTab): string {
     const base = tabColorFill(tab.color, 'var(--card)', false);
     const active = tabColorFill(tab.color, 'var(--card)', true);
@@ -136,10 +124,12 @@
   function itemFillClass(tab: WorkspaceTab): string {
     if (tab.color) {
       return tab.id === activeTabId
-        ? 'bg-[var(--item-fill-active)]'
+        ? 'bg-[var(--item-fill-active)] border-[var(--primary-border)]'
         : 'bg-[var(--item-fill)] hover:bg-[var(--muted)]';
     }
-    return tab.id === activeTabId ? 'bg-[var(--primary-soft)]' : 'hover:bg-[var(--muted)]';
+    return tab.id === activeTabId
+      ? 'bg-[var(--primary-soft)] border-[var(--primary-border)]'
+      : 'hover:bg-[var(--accent)]';
   }
 
   /** Начало правки текстового свойства вкладки. */
@@ -200,6 +190,10 @@
   class="w-[var(--notes-panel-width)]"
   onClose={onClosePanel}
 >
+  {#snippet headerActions()}
+    <Badge variant={overLimit ? 'warning' : 'outline'}>{tabs.length} / {openTabsLimit}</Badge>
+  {/snippet}
+
   {#snippet search()}
     <Input
       bind:value={query}
@@ -211,15 +205,8 @@
 
   <ul class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2">
     {#each visible as tab (tab.id)}
-      <!--
-        Активная вкладка выделяется мягким тоном дизайн-системы, а наведение —
-        приглушённым фоном: так активная вкладка читается во всех палитрах
-        (в том числе Mist в светлой теме), а наведение не спорит с ней.
-        Пользовательский цвет заливает весь пункт приглушённым оттенком; активный
-        заливается плотнее, чтобы цвет не перебивал активность.
-      -->
       <li
-        class="relative flex shrink-0 flex-col overflow-hidden rounded-md border border-[var(--border)] transition-colors {itemFillClass(
+        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] transition-colors {itemFillClass(
           tab,
         )}"
         style={itemFill(tab)}
@@ -229,7 +216,7 @@
         <div class="flex items-stretch gap-1">
           <button
             type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 truncate px-2 py-[0.375rem] text-left role-body [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate px-2.5 py-2 text-left role-body [font:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => onSelect(tab.id)}
@@ -242,7 +229,7 @@
           <ActionMenu
             ariaLabel="Оформление вкладки"
             title={overLimit ? 'Превышен лимит открытых вкладок' : 'Оформление'}
-            class="my-[2px] h-7 w-7 {overLimit ? 'text-destructive' : ''}"
+            class="my-1 h-7 w-7 {overLimit ? 'text-destructive' : ''}"
             items={appearanceActions}
             icons={iconOptions(tab.icon)}
             iconsLabel="Иконка вкладки"
@@ -255,18 +242,14 @@
         </div>
         {#if tab.description}
           <p
-            class="truncate px-2 pb-[6px] role-caption text-[var(--muted-foreground)]"
+            class="truncate px-2.5 pb-1.5 role-caption text-[var(--muted-foreground)]"
             data-testid="open-books-item-description"
           >
             {tab.description}
           </p>
         {/if}
         {#if editingTabId === tab.id && editingField}
-          <!-- Правка одного свойства: общая форма с полем, сохранением и отменой. -->
-          <div
-            class="flex flex-col gap-2 px-2 pb-2"
-            data-testid="open-books-item-editor"
-          >
+          <div class="flex flex-col gap-2 px-2 pb-2" data-testid="open-books-item-editor">
             {#if editingField === 'name'}
               <Input bind:value={draft} placeholder="Название" ariaLabel="Название вкладки" />
             {:else}
@@ -314,7 +297,7 @@
       </li>
     {:else}
       <li
-        class="px-2 py-[0.375rem] role-body text-[var(--muted-foreground)]"
+        class="px-2 py-4 text-center role-body text-[var(--muted-foreground)]"
         data-testid={tabs.length > 0 ? 'open-books-search-empty' : 'open-books-empty'}
       >
         {tabs.length > 0 ? 'Вкладок по запросу не найдено.' : 'Нет открытых книг'}

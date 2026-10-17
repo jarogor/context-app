@@ -23,7 +23,7 @@
         } catch (error) {
           appearance = null;
         }
-        var palette = appearance && appearance.palette === 'mist' ? 'mist' : 'gruvbox';
+        var palette = appearance && appearance.palette === 'cobalt' ? 'cobalt' : 'linen';
         var preference = appearance && appearance.theme ? appearance.theme : 'system';
         var dark =
           preference === 'dark' ||
@@ -44,25 +44,25 @@
          зависят от собранного CSS. */
       :root {
         color-scheme: light;
-        --boot-background: #fbf1c7;
-        --boot-foreground: #3c3836;
-        --boot-muted-foreground: #7c6f64;
+        --boot-background: #f1ece1;
+        --boot-foreground: #1f1d1a;
+        --boot-muted-foreground: #6d675c;
       }
       :root[data-theme='dark'] {
         color-scheme: dark;
-        --boot-background: #282828;
-        --boot-foreground: #ebdbb2;
-        --boot-muted-foreground: #a89984;
+        --boot-background: #17191a;
+        --boot-foreground: #e7e2d7;
+        --boot-muted-foreground: #9d968a;
       }
-      :root[data-palette='mist'] {
-        --boot-background: #ffffff;
-        --boot-foreground: #1c2125;
-        --boot-muted-foreground: #6b7280;
+      :root[data-palette='cobalt'] {
+        --boot-background: #f3f5f8;
+        --boot-foreground: #16191f;
+        --boot-muted-foreground: #616a77;
       }
-      :root[data-palette='mist'][data-theme='dark'] {
-        --boot-background: #16191c;
-        --boot-foreground: #f1f3f4;
-        --boot-muted-foreground: #8b949b;
+      :root[data-palette='cobalt'][data-theme='dark'] {
+        --boot-background: #12151b;
+        --boot-foreground: #e6e9f0;
+        --boot-muted-foreground: #98a0ac;
       }
       body {
         margin: 0;

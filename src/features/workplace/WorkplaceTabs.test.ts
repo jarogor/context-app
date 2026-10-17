@@ -65,7 +65,7 @@ afterEach(() => {
 
 describe('панель вкладок: окно и навигация', () => {
     it('показывает навигацию, счётчик и закреплённые кнопки действий при переполнении', () => {
-        mockWidth(368);
+        mockWidth(480);
         render(WorkplaceTabs, {
             props: {
                 tabs: tabs(7),
@@ -85,7 +85,7 @@ describe('панель вкладок: окно и навигация', () => {
     });
 
     it('навигация сдвигает видимый диапазон и счётчик', async () => {
-        mockWidth(368);
+        mockWidth(480);
         render(WorkplaceTabs, {
             props: {
                 tabs: tabs(5),
@@ -106,7 +106,7 @@ describe('панель вкладок: окно и навигация', () => {
     });
 
     it('навигация не меняет состав вкладок и активную вкладку', async () => {
-        mockWidth(368);
+        mockWidth(480);
         const base = handlers();
         render(WorkplaceTabs, {
             props: {
@@ -127,7 +127,7 @@ describe('панель вкладок: окно и навигация', () => {
     });
 
     it('скрывает навигацию и счётчик, когда все вкладки помещаются', () => {
-        mockWidth(250);
+        mockWidth(320);
         render(WorkplaceTabs, {
             props: {
                 tabs: tabs(2),
@@ -145,7 +145,7 @@ describe('панель вкладок: окно и навигация', () => {
     });
 
     it('сдвигает окно, чтобы показать активную вкладку за границей', async () => {
-        mockWidth(368);
+        mockWidth(480);
         const { rerender } = render(WorkplaceTabs, {
             props: {
                 tabs: tabs(5),
@@ -183,7 +183,7 @@ describe('панель вкладок: оформление вкладки', () 
     }
 
     it('показывает имя, иконку, цвет и описание в подсказке', () => {
-        mockWidth(250);
+        mockWidth(320);
         render(WorkplaceTabs, {
             props: {
                 tabs: [decorated()],
@@ -203,7 +203,7 @@ describe('панель вкладок: оформление вкладки', () 
     });
 
     it('оставляет прежний вид вкладки без оформления', () => {
-        mockWidth(250);
+        mockWidth(320);
         render(WorkplaceTabs, {
             props: {
                 tabs: [tab('t1', 'Книга 1')],
@@ -226,7 +226,7 @@ describe('панель вкладок: оформление вкладки', () 
 
 describe('панель вкладок: подтверждение закрытия', () => {
     it('открывает подтверждение по кнопке закрытия и не закрывает вкладку сразу', async () => {
-        mockWidth(250);
+        mockWidth(320);
         const base = handlers();
         render(WorkplaceTabs, {
             props: {
@@ -249,7 +249,7 @@ describe('панель вкладок: подтверждение закрыти
     });
 
     it('подтверждение закрывает запомненную вкладку', async () => {
-        mockWidth(250);
+        mockWidth(320);
         const base = handlers();
         render(WorkplaceTabs, {
             props: {
@@ -271,7 +271,7 @@ describe('панель вкладок: подтверждение закрыти
     });
 
     it('отмена подтверждения не меняет состав вкладок', async () => {
-        mockWidth(250);
+        mockWidth(320);
         const base = handlers();
         render(WorkplaceTabs, {
             props: {
@@ -291,7 +291,7 @@ describe('панель вкладок: подтверждение закрыти
     });
 
     it('иконки дублирования и закрытия остаются у вкладки', () => {
-        mockWidth(250);
+        mockWidth(320);
         render(WorkplaceTabs, {
             props: {
                 tabs: tabs(1),
@@ -307,7 +307,7 @@ describe('панель вкладок: подтверждение закрыти
     });
 
     it('подпись кнопки панели списка — «Открытые вкладки книг»', () => {
-        mockWidth(250);
+        mockWidth(320);
         render(WorkplaceTabs, {
             props: {
                 tabs: tabs(1),
@@ -324,7 +324,7 @@ describe('панель вкладок: подтверждение закрыти
 
 describe('панель вкладок: лимит открытых вкладок', () => {
     it('оставляет открытие и дублирование доступными ниже лимита', () => {
-        mockWidth(250);
+        mockWidth(320);
         render(WorkplaceTabs, {
             props: {
                 tabs: tabs(2),
@@ -345,7 +345,7 @@ describe('панель вкладок: лимит открытых вкладо�
     });
 
     it('блокирует открытие и дублирование при достижении лимита', async () => {
-        mockWidth(250);
+        mockWidth(320);
         render(WorkplaceTabs, {
             props: {
                 tabs: tabs(3),
@@ -371,7 +371,7 @@ describe('панель вкладок: лимит открытых вкладо�
     });
 
     it('выделяет превышение и публикует пояснение один раз', async () => {
-        mockWidth(250);
+        mockWidth(320);
         const { rerender } = render(WorkplaceTabs, {
             props: {
                 tabs: tabs(5),

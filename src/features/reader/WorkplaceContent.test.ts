@@ -22,7 +22,7 @@ function drawWorkplace() {
             title: 'Книга',
             zoom: 100,
             readerTheme: 'dark' as const,
-            palette: 'gruvbox' as const,
+            palette: 'linen' as const,
         },
     });
     return result;
@@ -55,8 +55,8 @@ describe('WorkplaceContent: тема области чтения', () => {
             (call) => (call[0] as { type?: string })?.type === 'reader-theme',
         )?.[0] as { value: { id: string; tokens: unknown; notes: unknown } };
         expect(payload.value.id).toBe('dark');
-        expect(payload.value.tokens).toEqual(readerThemeTokens('gruvbox', 'dark'));
-        expect(payload.value.notes).toEqual(readerThemeNoteTones('gruvbox', 'dark'));
+        expect(payload.value.tokens).toEqual(readerThemeTokens('linen', 'dark'));
+        expect(payload.value.notes).toEqual(readerThemeNoteTones('linen', 'dark'));
     });
 
     it('просит плагин довести отрисовку по возврате видимости', async () => {
@@ -67,7 +67,7 @@ describe('WorkplaceContent: тема области чтения', () => {
                 title: 'Книга',
                 zoom: 100,
                 readerTheme: 'dark' as const,
-                palette: 'gruvbox' as const,
+                palette: 'linen' as const,
                 visible: true,
             },
         });
@@ -101,7 +101,7 @@ describe('WorkplaceContent: тема области чтения', () => {
             title: 'Книга',
             zoom: 100,
             readerTheme: 'dark' as const,
-            palette: 'gruvbox' as const,
+            palette: 'linen' as const,
             visible: false,
         });
         await result.rerender({
@@ -110,7 +110,7 @@ describe('WorkplaceContent: тема области чтения', () => {
             title: 'Книга',
             zoom: 100,
             readerTheme: 'dark' as const,
-            palette: 'gruvbox' as const,
+            palette: 'linen' as const,
             visible: true,
         });
 

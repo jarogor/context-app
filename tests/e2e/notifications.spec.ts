@@ -39,23 +39,23 @@ test('панель уведомлений не выходит за предел�
   expect(noHorizontalScroll).toBe(true);
 });
 
-test('панель уведомлений стоит слева, рядом с меню разделов', async ({ page }) => {
+test('панель уведомлений выезжает справа, рядом с содержимым', async ({ page }) => {
   for (const width of [1600, 1000]) {
     await page.setViewportSize({ width, height: 700 });
     await page.goto('/');
     await page.getByLabel('Уведомления').click();
 
-    const navBox = await page.getByTestId('section-nav').boundingBox();
+    const viewport = page.viewportSize();
     const asideBox = await page.getByTestId('notifications-panel').boundingBox();
     const mainBox = await page.locator('main').boundingBox();
-    expect(navBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
     expect(asideBox).not.toBeNull();
     expect(mainBox).not.toBeNull();
 
-    // Панель справа от меню разделов (не перекрывает его) и слева от содержимого:
-    // элемент управления и то, чем он управляет, стоят рядом.
-    expect(asideBox!.x).toBeGreaterThanOrEqual(navBox!.x + navBox!.width - 1);
-    expect(asideBox!.x + asideBox!.width).toBeLessThanOrEqual(mainBox!.x + 1);
+    // Панель справа от содержимого и у правого края окна: элемент управления
+    // (колокольчик в верхней панели) и то, чем он управляет, стоят рядом.
+    expect(asideBox!.x).toBeGreaterThanOrEqual(mainBox!.x + mainBox!.width - 1);
+    expect(asideBox!.x + asideBox!.width).toBeLessThanOrEqual(viewport!.width + 1);
   }
 });
 

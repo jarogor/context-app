@@ -139,24 +139,24 @@ describe('протокол рабочего места: разбор сообщ�
 
 describe('протокол рабочего места: тема области чтения', () => {
   it('собирает сообщение с токенами палитры и стороны', () => {
-    const dark = buildReaderThemeMessage('gruvbox', 'dark');
+    const dark = buildReaderThemeMessage('linen', 'dark');
     expect(dark.type).toBe('reader-theme');
     expect(dark.value.id).toBe('dark');
-    expect(dark.value.tokens).toEqual(readerThemeTokens('gruvbox', 'dark'));
-    expect(dark.value.notes).toEqual(readerThemeNoteTones('gruvbox', 'dark'));
-    expect(dark.value.page).toEqual(readerPageColors('gruvbox'));
+    expect(dark.value.tokens).toEqual(readerThemeTokens('linen', 'dark'));
+    expect(dark.value.notes).toEqual(readerThemeNoteTones('linen', 'dark'));
+    expect(dark.value.page).toEqual(readerPageColors('linen'));
   });
 
   it('для светлой стороны отдаёт светлые токены и тона', () => {
-    const light = buildReaderThemeMessage('mist', 'light');
+    const light = buildReaderThemeMessage('cobalt', 'light');
     expect(light.value.id).toBe('light');
     expect(light.value.tokens.background).toBe('#ffffff');
     expect(light.value.notes.yellow).toBe('#f2cd52');
   });
 
   it('стороны различаются фоном и тонами заметок', () => {
-    const light = buildReaderThemeMessage('gruvbox', 'light');
-    const dark = buildReaderThemeMessage('gruvbox', 'dark');
+    const light = buildReaderThemeMessage('linen', 'light');
+    const dark = buildReaderThemeMessage('linen', 'dark');
     expect(light.value.tokens.background).not.toBe(dark.value.tokens.background);
     expect(light.value.notes.yellow).not.toBe(dark.value.notes.yellow);
   });

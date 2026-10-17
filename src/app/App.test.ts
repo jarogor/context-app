@@ -296,10 +296,19 @@ describe('тема области чтения в оболочке', () => {
 });
 
 describe('состав меню разделов', () => {
-    /** Метки пунктов меню разделов в порядке сверху вниз. */
+    /** Метки пунктов верхней панели и навигации в порядке слева направо. */
     function navLabels(): string[] {
-        const nav = document.querySelector('[data-testid="section-nav"]') as HTMLElement;
+        const bar = document.querySelector('[data-testid="app-bar"]') as HTMLElement;
+        const nav = bar.querySelector('[data-testid="section-nav"]') as HTMLElement;
         return Array.from(nav.querySelectorAll('button')).map(
+            (node) => node.getAttribute('aria-label') ?? '',
+        );
+    }
+
+    /** Метки служебных действий верхней панели. */
+    function serviceLabels(): string[] {
+        const bar = document.querySelector('[data-testid="app-bar"]') as HTMLElement;
+        return Array.from(bar.querySelectorAll('[data-testid^="nav-"]')).map(
             (node) => node.getAttribute('aria-label') ?? '',
         );
     }
@@ -311,8 +320,9 @@ describe('состав меню разделов', () => {
         expect(labels).toContain('Рабочие места');
         expect(labels).toContain('Библиотеки');
         expect(labels).toContain('Заметки');
-        expect(labels).toContain('Уведомления');
-        expect(labels).toContain('Настройки');
+        const service = serviceLabels();
+        expect(service).toContain('Уведомления');
+        expect(service).toContain('Настройки');
     });
 
     it('разделы идут в порядке: рабочие места, библиотека, заметки', async () => {

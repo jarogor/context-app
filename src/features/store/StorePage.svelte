@@ -1,6 +1,18 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Card, Checkbox, ErrorToast, IconButton, Input, Select, ScrollArea, createAsyncState } from '@texture/ui';
+  import {
+    Badge,
+    Button,
+    Card,
+    Checkbox,
+    ErrorToast,
+    Icon,
+    IconButton,
+    Input,
+    Select,
+    ScrollArea,
+    createAsyncState,
+  } from '@texture/ui';
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import {
     addStore as addStoreEntry,
@@ -73,6 +85,9 @@
   /** Расположение добавляемого стора. */
   let storeLocation = $state('');
 
+  /** Идёт ли установка плагина из файла. */
+  let installing = $state(false);
+
   /** Рабочие плагины без образцов для разработчика. */
   const regularPlugins = $derived(plugins.filter((plugin) => !plugin.sample));
 
@@ -137,19 +152,24 @@
 
   /** Установка пакета из выбранного zip-файла. */
   async function installFromFile() {
-    await asyncState.run(async () => {
-      const selected = await openDialog({
-        multiple: false,
-        directory: false,
-        filters: [{ name: 'Пакет плагина', extensions: ['zip'] }],
+    installing = true;
+    try {
+      await asyncState.run(async () => {
+        const selected = await openDialog({
+          multiple: false,
+          directory: false,
+          filters: [{ name: 'Пакет плагина', extensions: ['zip'] }],
+        });
+        const path = Array.isArray(selected) ? selected[0] : selected;
+        if (typeof path !== 'string' || !path) {
+          return;
+        }
+        await installPluginFromFile(path);
+        await load();
       });
-      const path = Array.isArray(selected) ? selected[0] : selected;
-      if (typeof path !== 'string' || !path) {
-        return;
-      }
-      await installPluginFromFile(path);
-      await load();
-    });
+    } finally {
+      installing = false;
+    }
   }
 
   /** Удаление установленного плагина. */
@@ -225,42 +245,89 @@
   });
 </script>
 
-<ScrollArea testId="store-page" class="gap-4 p-4">
-  <Card>
-    <div class="mb-3 flex items-start justify-between gap-3">
-      <h2 class="text-base font-semibold">Плагины</h2>
-      <Button variant="secondary" onclick={installFromFile}>Установить из файла</Button>
-    </div>
-    {#if plugins.length === 0}
-      <div class="p-4 text-center text-[var(--muted-foreground)]">
-        Нет плагинов
+<ScrollArea testId="store-page" class="p-4 md:p-6">
+  <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-5">
+    <Card class="p-5">
+      <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div class="flex min-w-0 flex-col gap-0.5">
+          <span class="role-eyebrow text-[var(--muted-foreground)]">Установленные</span>
+          <h2 class="role-heading">Плагины</h2>
+        </div>
+        <Button variant="secondary" disabled={installing} onclick={installFromFile}>
+          <Icon name="plus" />
+          Установить из файла
+        </Button>
       </div>
-    {:else}
-      <div class="flex flex-col gap-4">
-        {#each pluginGroups as group (group.kind)}
-          <div class="flex flex-col gap-2" data-testid="store-group" data-kind={group.kind}>
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-              {group.title}
-            </h3>
-            <ul class="flex list-none flex-col gap-2 p-0">
-              {#each group.plugins as plugin (plugin.id)}
+      {#if plugins.length === 0}
+        <div class="p-4 text-center role-body text-[var(--muted-foreground)]">Нет плагинов</div>
+      {:else}
+        <div class="flex flex-col gap-5">
+          {#each pluginGroups as group (group.kind)}
+            <div class="flex flex-col gap-2" data-testid="store-group" data-kind={group.kind}>
+              <h3 class="role-eyebrow text-[var(--muted-foreground)]">{group.title}</h3>
+              <ul class="flex list-none flex-col gap-2 p-0">
+                {#each group.plugins as plugin (plugin.id)}
+                  <li
+                    class="flex items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2.5"
+                  >
+                    <label class="flex min-w-0 flex-1 items-center gap-3 cursor-pointer">
+                      <Checkbox
+                        checked={plugin.enabled}
+                        onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
+                      />
+                      <span class="flex min-w-0 flex-col gap-[0.125rem]">
+                        <span class="flex flex-wrap items-baseline gap-2">
+                          <span class="role-title">{plugin.name}</span>
+                          <span class="role-mono text-[var(--muted-foreground)]">{plugin.id}</span>
+                        </span>
+                        {#if plugin.description}
+                          <span class="role-caption text-[var(--muted-foreground)]"
+                            >{plugin.description}</span
+                          >
+                        {/if}
+                      </span>
+                    </label>
+                    {#if plugin.removable}
+                      <IconButton
+                        action="delete"
+                        title="Удалить плагин"
+                        ariaLabel="Удалить плагин"
+                        onclick={() => uninstall(plugin.id)}
+                      />
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/each}
+        </div>
+
+        {#if samplePlugins.length > 0}
+          <details class="mt-4 border-t border-[var(--border)] pt-4">
+            <summary
+              class="cursor-pointer role-caption text-[var(--muted-foreground)] select-none"
+            >
+              Образцы для разработчика ({samplePlugins.length})
+            </summary>
+            <ul class="mt-2 flex list-none flex-col gap-2 p-0">
+              {#each samplePlugins as plugin (plugin.id)}
                 <li
-                  class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2"
+                  class="flex items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2.5 opacity-75"
                 >
-                  <label class="flex min-w-0 items-center gap-2">
+                  <label class="flex min-w-0 flex-1 items-center gap-3 cursor-pointer">
                     <Checkbox
                       checked={plugin.enabled}
                       onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
                     />
                     <span class="flex min-w-0 flex-col gap-[0.125rem]">
                       <span class="flex flex-wrap items-baseline gap-2">
-                        <span class="text-sm font-bold">{plugin.name}</span>
-                        <span class="font-mono text-xs text-[var(--muted-foreground)]"
-                          >{plugin.id}</span
-                        >
+                        <span class="role-title">{plugin.name}</span>
+                        <Badge variant="outline">образец</Badge>
                       </span>
                       {#if plugin.description}
-                        <span class="text-xs text-[var(--muted-foreground)]">{plugin.description}</span>
+                        <span class="role-caption text-[var(--muted-foreground)]"
+                          >{plugin.description}</span
+                        >
                       {/if}
                     </span>
                   </label>
@@ -275,115 +342,77 @@
                 </li>
               {/each}
             </ul>
-          </div>
-        {/each}
-      </div>
-
-      {#if samplePlugins.length > 0}
-        <details class="mt-3 border-t border-[var(--border)] pt-3">
-          <summary class="cursor-pointer text-xs text-[var(--muted-foreground)]">
-            Образцы для разработчика ({samplePlugins.length})
-          </summary>
-          <ul class="mt-2 flex list-none flex-col gap-2 p-0">
-            {#each samplePlugins as plugin (plugin.id)}
-              <li
-                class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2 opacity-70"
-              >
-                <label class="flex min-w-0 items-center gap-2">
-                  <Checkbox
-                    checked={plugin.enabled}
-                    onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
-                  />
-                  <span class="flex min-w-0 flex-col gap-[0.125rem]">
-                    <span class="flex flex-wrap items-baseline gap-2">
-                      <span class="text-sm font-bold">{plugin.name}</span>
-                      <Badge>образец</Badge>
-                    </span>
-                    {#if plugin.description}
-                      <span class="text-xs text-[var(--muted-foreground)]">{plugin.description}</span>
-                    {/if}
-                  </span>
-                </label>
-                {#if plugin.removable}
-                  <IconButton
-                    action="delete"
-                    title="Удалить плагин"
-                    ariaLabel="Удалить плагин"
-                    onclick={() => uninstall(plugin.id)}
-                  />
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        </details>
+          </details>
+        {/if}
       {/if}
-    {/if}
-  </Card>
+    </Card>
 
-  <Card>
-    <h2 class="mb-3 text-base font-semibold">Сторы</h2>
-    {#if stores.length === 0}
-      <div class="p-3 text-center text-[var(--muted-foreground)]">
-        Сторы не подключены
+    <Card class="p-5">
+      <div class="mb-4 flex flex-col gap-0.5">
+        <span class="role-eyebrow text-[var(--muted-foreground)]">Источники пакетов</span>
+        <h2 class="role-heading">Сторы</h2>
       </div>
-    {:else}
-      <ul class="flex list-none flex-col gap-2 p-0">
-        {#each stores as store (store.id)}
-          <li
-            class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] p-2"
-          >
-            <div class="flex min-w-0 flex-col gap-[0.125rem]">
-              <span class="text-sm font-bold">{store.title}</span>
-              <span class="text-xs text-[var(--muted-foreground)]">
-                {store.kind} · {store.location || '—'}
-              </span>
-            </div>
-            <div class="flex gap-2">
-              <Button variant="secondary" size="sm" onclick={() => showAvailable(store.id)}>
-                Пакеты
-              </Button>
-              <IconButton
-                action="delete"
-                title="Удалить стор"
-                ariaLabel="Удалить стор"
-                onclick={() => removeStore(store.id)}
-              />
-            </div>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+      {#if stores.length === 0}
+        <div class="p-3 text-center role-body text-[var(--muted-foreground)]">
+          Сторы не подключены
+        </div>
+      {:else}
+        <ul class="flex list-none flex-col gap-2 p-0">
+          {#each stores as store (store.id)}
+            <li
+              class="flex items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2.5"
+            >
+              <div class="flex min-w-0 flex-col gap-[0.125rem]">
+                <span class="role-title">{store.title}</span>
+                <span class="role-caption text-[var(--muted-foreground)]">
+                  {store.kind} · {store.location || '—'}
+                </span>
+              </div>
+              <div class="flex gap-2">
+                <Button variant="secondary" size="sm" onclick={() => showAvailable(store.id)}>
+                  Пакеты
+                </Button>
+                <IconButton
+                  action="delete"
+                  title="Удалить стор"
+                  ariaLabel="Удалить стор"
+                  onclick={() => removeStore(store.id)}
+                />
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
 
-    {#if unsupported}
-      <p class="mt-3 role-body text-[var(--muted-foreground)]">{unsupported}</p>
-    {/if}
-    {#if packages.length > 0}
-      <ul class="mt-3 flex list-none flex-col gap-2 p-0">
-        {#each packages as item (item.name)}
-          <li
-            class="flex items-center gap-2 rounded-md border border-[var(--border)] p-2"
-          >
-            <span class="text-sm font-bold">{item.name}</span>
-            <Badge>{item.version || '—'}</Badge>
-            <span class="text-xs text-[var(--muted-foreground)]">{item.description || ''}</span>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+      {#if unsupported}
+        <p class="mt-3 role-body text-[var(--muted-foreground)]">{unsupported}</p>
+      {/if}
+      {#if packages.length > 0}
+        <ul class="mt-3 flex list-none flex-col gap-2 p-0">
+          {#each packages as item (item.name)}
+            <li class="flex items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2.5">
+              <span class="role-title">{item.name}</span>
+              <Badge variant="outline">{item.version || '—'}</Badge>
+              <span class="role-caption text-[var(--muted-foreground)]">{item.description || ''}</span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
 
-    <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-      <Input placeholder="Идентификатор" bind:value={storeId} class="sm:max-w-[11.25rem]" />
-      <Select
-        bind:value={storeKind}
-        items={STORE_KIND_OPTIONS}
-        ariaLabel="Вид стора"
-        class="sm:max-w-[7.5rem]"
-      />
-      <Input placeholder="Название" bind:value={storeTitle} class="sm:max-w-[11.25rem]" />
-      <Input placeholder="Каталог или адрес" bind:value={storeLocation} class="sm:max-w-[15rem]" />
-      <Button variant="primary" onclick={addStore}>Добавить стор</Button>
-    </div>
-  </Card>
+      <div class="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4 sm:flex-row sm:flex-wrap">
+        <Input placeholder="Идентификатор" bind:value={storeId} class="sm:max-w-[11.25rem]" />
+        <Select
+          bind:value={storeKind}
+          items={STORE_KIND_OPTIONS}
+          ariaLabel="Вид стора"
+          class="sm:max-w-[7.5rem]"
+        />
+        <Input placeholder="Название" bind:value={storeTitle} class="sm:max-w-[11.25rem]" />
+        <Input placeholder="Каталог или адрес" bind:value={storeLocation} class="sm:max-w-[15rem]" />
+        <Button variant="primary" onclick={addStore}>Добавить стор</Button>
+      </div>
+    </Card>
+  </div>
 </ScrollArea>
 
 <ErrorToast message={asyncState.error} />

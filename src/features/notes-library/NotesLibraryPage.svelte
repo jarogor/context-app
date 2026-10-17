@@ -4,8 +4,8 @@
     EntityList,
     ErrorState,
     Icon,
+    Input,
     PageShell,
-    SearchCreate,
     Skeleton,
     type MenuAction,
     type MetaItem,
@@ -20,9 +20,7 @@
    *
    * Область презентационна: получает агрегат наборов и отдаёт интенты
    * перехода. **Заметки — первичны, книга — подпись:** акцент на наборе, книга —
-   * компактный контекст рядом. Наборы свёрнуты и раскрываются кликом; группировка,
-   * поиск и представление вынесены в `notes-library.ts`, запись заметки рисует
-   * общий `NoteEntry`.
+   * компактный контекст рядом. Наборы свёрнуты и раскрываются кликом.
    */
   interface Props {
     /** Наборы всех книг (агрегат `list_all_sets`). */
@@ -62,6 +60,9 @@
 
   /** При непустом поиске наборы раскрываются, чтобы были видны найденные заметки. */
   const searching = $derived(query.trim().length > 0);
+
+  /** Общее число заметок в реестре. */
+  const totalNotes = $derived(sets.reduce((sum, set) => sum + set.notes.length, 0));
 
   /** Раскрыт ли набор: раскрытые пользователем или поиск по содержимому. */
   function isExpanded(id: string): boolean {
@@ -119,6 +120,7 @@
   loading={loading && sets.length === 0}
   error={error}
   empty={view.length === 0}
+  class="p-4 md:p-6"
 >
   {#snippet loadingContent()}
     <div class="p-4" data-testid="notes-library-loading">
@@ -143,8 +145,26 @@
     />
   {/snippet}
 
-  {#snippet form()}
-    <SearchCreate bind:query searchPlaceholder="Поиск по заметкам" />
+  {#snippet controls()}
+    <Input
+      bind:value={query}
+      placeholder="Поиск по заметкам"
+      ariaLabel="Поиск по заметкам"
+      icon="search"
+      class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
+    />
+    {#if sets.length > 0}
+      <dl class="flex items-center gap-4 sm:ml-auto">
+        <div class="flex items-baseline gap-1.5">
+          <dt class="role-caption text-[var(--muted-foreground)]">Наборов</dt>
+          <dd class="role-title">{sets.length}</dd>
+        </div>
+        <div class="flex items-baseline gap-1.5">
+          <dt class="role-caption text-[var(--muted-foreground)]">Заметок</dt>
+          <dd class="role-title">{totalNotes}</dd>
+        </div>
+      </dl>
+    {/if}
   {/snippet}
 
   <EntityList
@@ -163,24 +183,20 @@
   >
     {#snippet titleContent(set)}
       <span
-        class="inline-flex shrink-0 text-[var(--muted-foreground)] transition-transform"
+        class="inline-flex size-5 shrink-0 items-center justify-center rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)] transition-transform"
+        class:border-[var(--primary-border)]={isExpanded(set.id)}
+        class:text-[var(--primary)]={isExpanded(set.id)}
         class:rotate-90={isExpanded(set.id)}
       >
-        <Icon name="chevron-right" />
+        <Icon name="chevron-right" class="h-3.5 w-3.5" />
       </span>
-      <span
-        class="min-w-0 flex-1 truncate role-title"
-        data-testid="notes-library-set-name"
-      >
+      <span class="min-w-0 flex-1 truncate role-title" data-testid="notes-library-set-name">
         {set.name}
       </span>
     {/snippet}
 
     {#snippet trailing(set)}
-      <span
-        class="role-caption text-[var(--muted-foreground)]"
-        data-testid="notes-library-count"
-      >
+      <span class="role-caption text-[var(--muted-foreground)]" data-testid="notes-library-count">
         {noteCountLabel(set.noteItems.length)}
       </span>
     {/snippet}
@@ -188,15 +204,12 @@
     {#snippet body(set)}
       {#if isExpanded(set.id)}
         {#if set.noteItems.length === 0}
-          <p
-            class="px-3 role-body text-[var(--muted-foreground)]"
-            data-testid="notes-library-set-empty"
-          >
+          <p class="px-3 role-body text-[var(--muted-foreground)]" data-testid="notes-library-set-empty">
             В наборе нет заметок.
           </p>
         {:else}
           <ul
-            class="m-0 flex list-none flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2"
+            class="m-0 flex list-none flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2"
             data-testid="notes-library-notes"
           >
             {#each set.noteItems as item (item.note.id)}

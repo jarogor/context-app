@@ -186,16 +186,16 @@ describe('нормализация', () => {
     });
 
     it('метка заметки следует стороне темы области чтения', () => {
-        const dark = noteMarkerColor({ color: 'yellow' }, 'dark', 'gruvbox');
-        const light = noteMarkerColor({ color: 'yellow' }, 'light', 'gruvbox');
+        const dark = noteMarkerColor({ color: 'yellow' }, 'dark', 'linen');
+        const light = noteMarkerColor({ color: 'yellow' }, 'light', 'linen');
         expect(dark).not.toBe(light);
         expect(light).toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
         // Тёмная сторона задана и различима для всех цветов.
-        const tones = noteHighlights('dark', 'gruvbox');
+        const tones = noteHighlights('dark', 'linen');
         for (const color of NOTE_COLORS) {
             expect(tones[color]).toBeTruthy();
             expect(tones[color]).not.toBe(NOTE_COLOR_HIGHLIGHTS[color]);
-            expect(noteMarkerColor({ color }, 'dark', 'gruvbox')).toBe(tones[color]);
+            expect(noteMarkerColor({ color }, 'dark', 'linen')).toBe(tones[color]);
         }
     });
 

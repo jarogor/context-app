@@ -8,7 +8,7 @@
    *
    * Компактное сообщение о неудаче загрузки внутри области: не прерывает работу
    * остального интерфейса и, когда известен способ повторить, предлагает это
-   * действие. Области используют общий вид ошибки вместо собственных абзацев.
+   * действие.
    */
   interface Props {
     /** Текст ошибки. */
@@ -34,7 +34,7 @@
 
 <div
   class={cn(
-    'flex flex-wrap items-center gap-2 rounded-[var(--radius)] border border-[var(--destructive-border)] bg-[var(--destructive-soft)] px-3 py-2 role-body text-[var(--destructive)]',
+    'border-[var(--destructive-border)] bg-[var(--destructive-soft)] text-[var(--destructive)] flex flex-wrap items-center gap-2 rounded-[var(--radius)] border px-3 py-2 role-body',
     className,
   )}
   data-testid={testId}

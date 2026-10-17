@@ -199,30 +199,27 @@ test('список библиотек адаптивен к ширине окн�
     );
     expect(noHorizontalScroll).toBe(true);
 
-    // Широкое окно: список остаётся колонкой, форма уходит влево.
+    // Широкое окно: список остаётся вертикальным, действие выстроено в полосе
+    // управления над списком, а не колонкой сбоку.
     await page.setViewportSize({ width: 1400, height: 800 });
-    const list = page.locator('ul', { has: page.getByTestId('library-item') });
+    const libraries = page.getByTestId('libraries-page');
+    const list = libraries.locator('ul', { has: page.getByTestId('library-item') });
     const listBox = await list.boundingBox();
-    const formBox = await page.getByRole('button', { name: /Открыть библиотеку/ }).boundingBox();
+    const controlsBox = await libraries.getByTestId('page-controls').boundingBox();
     expect(listBox).not.toBeNull();
-    expect(formBox).not.toBeNull();
-    expect(formBox!.x).toBeLessThan(listBox!.x);
+    expect(controlsBox).not.toBeNull();
+    expect(controlsBox!.y).toBeLessThan(listBox!.y);
 });
 
 test('открытие панели уведомлений не ломает список библиотек', async ({ page }) => {
-    // Окно 1024px: открытие панели (27rem) сужает область ниже точки перелома
-    // (44rem = 704px) настолько, что список не должен переполняться — область
-    // переходит на одноколоночную раскладку.
+    // Окно 1024px: открытие панели заметно сужает область; список не должен
+    // переполняться по горизонтали.
     await page.setViewportSize({ width: 1024, height: 800 });
     await page.goto('/');
     await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
     await expect(page.getByTestId('libraries-page')).toBeVisible();
 
     await page.getByLabel('Уведомления').click();
-
-    const columns = page.getByTestId('libraries-page').locator('[class*="max-w-"]').first().locator(':scope > div').first();
-    const direction = await columns.evaluate((node) => getComputedStyle(node).flexDirection);
-    expect(direction).toBe('column');
 
     const noHorizontalScroll = await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
@@ -238,10 +235,6 @@ test('открытие панели уведомлений не ломает с�
 
     await page.getByLabel('Уведомления').click();
 
-    const columns = page.getByTestId('workspaces-page').locator('[class*="max-w-"]').first().locator(':scope > div').first();
-    const direction = await columns.evaluate((node) => getComputedStyle(node).flexDirection);
-    expect(direction).toBe('column');
-
     const noHorizontalScroll = await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
     );
@@ -256,67 +249,64 @@ test('открытие панели уведомлений не ломает р�
 
     await page.getByLabel('Уведомления').click();
 
-    const columns = page.getByTestId('notes-library').locator('[class*="max-w-"]').first().locator(':scope > div').first();
-    const direction = await columns.evaluate((node) => getComputedStyle(node).flexDirection);
-    expect(direction).toBe('column');
-
     const noHorizontalScroll = await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
     );
     expect(noHorizontalScroll).toBe(true);
 });
 
-test('без открытой панели форма списка остаётся колонкой слева', async ({ page }) => {
-    // Широкое окно без панели: раскладка не должна измениться из-за новой точки.
+test('реестр заметок и библиотеки используют общую полосу управления', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 800 });
     await page.goto('/');
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
-    await expect(page.getByTestId('libraries-page')).toBeVisible();
 
-    const columns = page.getByTestId('libraries-page').locator('[class*="max-w-"]').first().locator(':scope > div').first();
-    const direction = await columns.evaluate((node) => getComputedStyle(node).flexDirection);
-    expect(direction).toBe('row');
+    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await expect(
+        page.getByTestId('libraries-page').getByTestId('page-controls'),
+    ).toBeVisible();
+
+    await page.getByTestId('nav-notes').click();
+    await expect(
+        page.getByTestId('notes-library').getByTestId('page-controls'),
+    ).toBeVisible();
 });
 
-test('меню разделов раскрывает и скрывает названия пунктов', async ({ page }) => {
+test('меню разделов показывает разделы вкладками верхней панели', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 800 });
     await page.goto('/');
 
     const nav = page.getByTestId('section-nav');
-    // При запуске меню раскрыто: названия пунктов видны.
-    await expect(nav).toHaveAttribute('data-expanded', 'true');
+    // Вкладки верхней панели показывают названия разделов.
+    await expect(nav).toHaveAttribute('data-mobile', 'false');
     await expect(nav.getByText('Заметки')).toBeVisible();
-
-    // Сворачивание: остаются иконки, названия скрыты, доступные имена сохранены.
-    await page.getByTestId('nav-collapse').click();
-    await expect(nav).toHaveAttribute('data-expanded', 'false');
-    await expect(nav.getByText('Заметки')).toHaveCount(0);
     await expect(page.getByTestId('nav-notes')).toHaveAttribute('aria-label', 'Заметки');
 
-    // Разворот обратно.
-    await page.getByTestId('nav-expand').click();
-    await expect(nav).toHaveAttribute('data-expanded', 'true');
-    await expect(nav.getByText('Заметки')).toBeVisible();
+    // Выбор раздела отмечает вкладку нажатой.
+    await page.getByTestId('nav-notes').click();
+    await expect(page.getByTestId('nav-notes')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('nav-workspace')).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('меню разделов держит пункты внутри своих границ', async ({ page }) => {
-    // Меню разделов не должно обрезать пункты: их границы внутри меню.
+test('панель разделов держит вкладки и действия внутри своих границ', async ({ page }) => {
+    // Панель разделов не должна обрезать вкладки: их границы внутри панели.
     await page.setViewportSize({ width: 1600, height: 800 });
     await page.goto('/');
 
+    const bar = page.getByTestId('app-bar');
+    const barBox = await bar.boundingBox();
     const nav = page.getByTestId('section-nav');
     const navBox = await nav.boundingBox();
     const settings = page.getByTestId('nav-settings');
     const settingsBox = await settings.boundingBox();
+    expect(barBox).not.toBeNull();
     expect(navBox).not.toBeNull();
     expect(settingsBox).not.toBeNull();
 
-    // Настройки — в нижней части меню, а не вне его границ.
-    expect(settingsBox!.x).toBeGreaterThanOrEqual(navBox!.x - 1);
-    expect(settingsBox!.x + settingsBox!.width).toBeLessThanOrEqual(navBox!.x + navBox!.width + 1);
-    expect(settingsBox!.y + settingsBox!.height).toBeLessThanOrEqual(navBox!.y + navBox!.height + 1);
+    // Служебное действие — справа от вкладок разделов и внутри верхней панели.
+    expect(settingsBox!.x).toBeGreaterThanOrEqual(navBox!.x + navBox!.width - 1);
+    expect(settingsBox!.x + settingsBox!.width).toBeLessThanOrEqual(barBox!.x + barBox!.width + 1);
+    expect(settingsBox!.y + settingsBox!.height).toBeLessThanOrEqual(barBox!.y + barBox!.height + 1);
 
-    // Порядок разделов сверху вниз: рабочие места, библиотека, заметки.
+    // Порядок разделов слева направо: рабочие места, библиотека, заметки.
     const order = await nav
         .getByRole('button')
         .evaluateAll((nodes) =>
@@ -326,8 +316,4 @@ test('меню разделов держит пункты внутри свои�
         ['Рабочие места', 'Библиотеки', 'Заметки'].includes(label),
     );
     expect(sections).toEqual(['Рабочие места', 'Библиотеки', 'Заметки']);
-
-    // Служебные пункты: уведомления и настройки — ниже разделов.
-    expect(order.indexOf('Настройки')).toBeGreaterThan(order.indexOf('Заметки'));
-    expect(order.indexOf('Уведомления')).toBeGreaterThan(order.indexOf('Заметки'));
 });

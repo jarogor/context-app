@@ -138,7 +138,7 @@ describe('загрузка начального состояния', () => {
                 return 'dark';
             }
             if (command === 'theme_palette') {
-                return 'mist';
+                return 'cobalt';
             }
             if (command === 'reader_theme') {
                 return 'dark';
@@ -148,15 +148,15 @@ describe('загрузка начального состояния', () => {
 
         const state = await loadBootstrap();
 
-        expect(state.appearance).toEqual({ theme: 'dark', palette: 'mist', readerTheme: 'dark' });
+        expect(state.appearance).toEqual({ theme: 'dark', palette: 'cobalt', readerTheme: 'dark' });
         expect(document.documentElement.dataset.theme).toBe('dark');
-        expect(document.documentElement.dataset.palette).toBe('mist');
+        expect(document.documentElement.dataset.palette).toBe('cobalt');
         expect(document.documentElement.dataset.readerTheme).toBe('dark');
     });
 
     it('оставляет оформление по умолчанию, если чтение не удалось', async () => {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.documentElement.setAttribute('data-palette', 'mist');
+        document.documentElement.setAttribute('data-palette', 'cobalt');
         invoke.mockImplementation(async (command: string) => {
             if (command === 'get_workspaces') {
                 return { workspaces: [] };
@@ -175,9 +175,9 @@ describe('загрузка начального состояния', () => {
 
         const state = await loadBootstrap();
 
-        expect(state.appearance).toEqual({ theme: 'system', palette: 'gruvbox', readerTheme: 'light' });
+        expect(state.appearance).toEqual({ theme: 'system', palette: 'linen', readerTheme: 'light' });
         expect(document.documentElement.dataset.theme).toBe('light');
-        expect(document.documentElement.dataset.palette).toBe('gruvbox');
+        expect(document.documentElement.dataset.palette).toBe('linen');
         expect(document.documentElement.dataset.readerTheme).toBe('light');
     });
 
