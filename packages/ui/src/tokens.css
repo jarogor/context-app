@@ -2,8 +2,8 @@
  *
  * Издание-инструмент исследователя книг: спокойная «бумажная» основа, глубокие
  * чернила и один акцентный тон. Язык намеренно отличается от типового shadcn:
- * плотная типографика с заголовочной антиквой (`--font-serif`), сдержанные
- * радиусы, мягкие тени и моноведущий акцент вместо контрастной рамки.
+ * единый гротеск во всём интерфейсе, сдержанные радиусы, мягкие тени и
+ * моноведущий акцент вместо контрастной рамки.
  *
  * Токены существуют в нескольких палитрах, у каждой — светлый и тёмный наборы.
  * Активный набор выбирают два атрибута на корне документа: `data-theme`
@@ -14,8 +14,8 @@
  * Палитра по умолчанию — «Лён» (`linen`): тёплая бумага со смолистым зелёным
  * акцентом. Она лежит в `:root` (светлый набор) и `:root[data-theme='dark']`
  * (тёмный), поэтому работает даже до установки атрибутов (статичный экран до
- * бандла). Вторая палитра — «Кобальт» (`cobalt`): холодная нейтраль с глубоким
- * синим акцентом; подключается атрибутом `data-palette='cobalt'`.
+ * бандла). Кроме неё есть «Кобальт» (`cobalt`), «Gruvbox» (`gruvbox`) и «Mist»
+ * (`mist`); подключаются атрибутом `data-palette`.
  *
  * Блок `@theme inline` превращает токены в утилиты Tailwind (`bg-background`,
  * `text-muted-foreground`, `border-border`, `rounded-lg`, …).
@@ -25,29 +25,50 @@
 
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
     Arial, sans-serif;
-  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia,
-    'Times New Roman', serif;
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Производные общие для всех палитр: ссылаются на базовые токены, поэтому
-   * пересчитываются под активный набор без повторного объявления. */
-  --primary-soft: color-mix(in oklab, var(--primary) 13%, var(--background));
-  --primary-border: color-mix(in oklab, var(--primary) 32%, var(--border));
+   * пересчитываются под активный набор без повторного объявления. Доли подобраны
+   * так, чтобы активная вкладка и выбранный пункт списка были различимы на фоне
+   * панели, а не сливались с ней. */
+  --primary-soft: color-mix(in oklab, var(--primary) 30%, var(--background));
+  --primary-border: color-mix(in oklab, var(--primary) 62%, var(--border));
   --destructive-soft: color-mix(in oklab, var(--destructive) 12%, var(--background));
   --destructive-border: color-mix(in oklab, var(--destructive) 42%, var(--border));
-  --accent-soft: color-mix(in oklab, var(--accent) 55%, var(--background));
+
+  /* Поверхности иерархии. Заливки-подсветки заданы **полупрозрачным акцентом
+   * палитры**: `--primary` у каждой темы свой (смола зелёная у «Льна», синяя у
+   * «Кобальта» и «Mist», бирюзовая у «Gruvbox»), поэтому подсветка наведения и
+   * выбора не серая и не одинаковая между темами — она в тон палитре. Прозрачность
+   * позволяет накладывать тон поверх любой подложки (страница, карточка,
+   * всплывающий слой), так что отклик заметен и в тёмных наборах, где непрозрачный
+   * цвет сливался бы с фоном. Врезка (`--surface-inset`) — наоборот, нейтральная
+   * и непрозрачная: она сама служит фоном, а не подсветкой. */
+  --surface-inset: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --surface-hover: color-mix(in oklab, var(--primary) 12%, transparent);
+  --surface-selected: color-mix(in oklab, var(--primary) 24%, transparent);
+  /* Линия-разделитель внутри списка: чуть заметнее обычной обводки, но тише
+   * акцента; разделяет строки в едином листе, не превращая их в рамки. */
+  --divider: color-mix(in oklab, var(--foreground) 12%, var(--background));
 
   /* Фон панелей (боковые панели, полосы, шапки) — производный от базовых
    * токенов активной палитры: отделён и от фона области, и от карточки. */
   --panel: color-mix(in oklab, var(--card) 58%, var(--muted));
   --panel-foreground: var(--foreground);
 
-  /* Единый набор теней: приподнятые панели и полосы — слабо, меню и диалоги —
-   * заметно. Мягкие, многослойные, без жёсткой обводки. */
-  --elevation-raised: 0 1px 1px color-mix(in oklab, var(--foreground) 6%, transparent),
-    0 2px 8px color-mix(in oklab, var(--foreground) 7%, transparent);
-  --elevation-overlay: 0 4px 10px color-mix(in oklab, var(--foreground) 12%, transparent),
-    0 18px 44px color-mix(in oklab, var(--foreground) 16%, transparent);
+  /* Всплывающий слой (меню, диалог, список выбора) отделяется от подложки
+   * **разными механизмами по стороне темы** — одним «тупым» приёмом не выходит:
+   *   - светлая тема: подложка светлая, поэтому слой «поднимается» мягкой тенью
+   *     (тень затемняет светлый фон);
+   *   - тёмная тема: затемнять нечего (фон уже тёмный), поэтому слой поднимается
+   *     **светлотой** поверхности, а тень лишь дополняет.
+   * Цвет слоя у каждой палитры свой (задаётся в её блоке ниже), чтобы меню было в
+   * тон теме, а не серым пятном по умолчанию. Обводка слоя — общий `--border`
+   * темы: отдельного «яркого» контура у всплывающих слоёв нет, иначе он выбивался
+   * бы из остального интерфейса. */
+  --overlay-surface: #fffdf6;
+  --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.12);
+  --elevation-raised: none;
 
   /* Единая максимальная ширина контента страницы: широкие окна не растягивают
    * списки в одну строку. На узком окне предел не действует. */
@@ -98,8 +119,6 @@
   --secondary-foreground: #1f1d1a;
   --muted: #e7e0d3;
   --muted-foreground: #6d675c;
-  --accent: #ddd4c3;
-  --accent-foreground: #26231e;
   --destructive: #9c3428;
   --destructive-foreground: #fbf8f1;
   /* Единая тонкая обводка областей и контролов: одно значение для полей ввода,
@@ -124,6 +143,11 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
+  /* Тёмная тема: затемнять нечего — слой поднимается светлотой своего оттенка,
+   * тень лишь дополняет. Цвет у каждой палитры свой (ниже). */
+  --overlay-surface: #2b3030;
+  --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.4);
+
   --background: #17191a;
   --foreground: #e7e2d7;
   --card: #1f2223;
@@ -136,8 +160,6 @@
   --secondary-foreground: #e7e2d7;
   --muted: #262a2b;
   --muted-foreground: #9d968a;
-  --accent: #2c3132;
-  --accent-foreground: #e7e2d7;
   --destructive: #e2685c;
   --destructive-foreground: #17191a;
   --border: color-mix(in oklab, var(--foreground) 14%, var(--background));
@@ -156,72 +178,212 @@
 }
 
 /* Палитра «Кобальт», светлый набор. Селектор специфичнее `:root`, поэтому
- * перекрывает светлую сторону «Льна». */
+ * перекрывает светлую сторону «Льна». Голубоватая бумага с насыщенным синим
+ * акцентом — характер палитры задан цветностью фона и акцента. */
 :root[data-palette='cobalt'] {
-  --background: #f3f5f8;
-  --foreground: #16191f;
+  --background: #e6ecf7;
+  --foreground: #0f1622;
   --card: #ffffff;
-  --card-foreground: #16191f;
+  --card-foreground: #0f1622;
   --popover: #ffffff;
-  --popover-foreground: #16191f;
-  --primary: #2c4b86;
+  --popover-foreground: #0f1622;
+  /* Цвет всплывающего слоя в тон этой палитры. */
+  --overlay-surface: #ffffff;
+  --primary: #1d47a8;
   --primary-foreground: #f7f9fc;
-  --secondary: #e5e9f0;
-  --secondary-foreground: #16191f;
-  --muted: #e8ecf2;
-  --muted-foreground: #616a77;
-  --accent: #e0e6f0;
-  --accent-foreground: #1a1e26;
+  --secondary: #d7e0f0;
+  --secondary-foreground: #0f1622;
+  --muted: #dae2f1;
+  --muted-foreground: #495a78;
   --destructive: #a83a2e;
   --destructive-foreground: #ffffff;
-  --border: color-mix(in oklab, var(--foreground) 12%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 18%, var(--background));
-  --ring: #2c4b86;
-  --sidebar: #e9edf4;
-  --sidebar-foreground: #16191f;
-  --sidebar-primary: #2c4b86;
+  --border: color-mix(in oklab, var(--foreground) 16%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 22%, var(--background));
+  --ring: #1d47a8;
+  --sidebar: #e2e9f6;
+  --sidebar-foreground: #0f1622;
+  --sidebar-primary: #1d47a8;
   --sidebar-primary-foreground: #f7f9fc;
-  --sidebar-accent: #e0e6f0;
-  --sidebar-accent-foreground: #1a1e26;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 11%, var(--background));
-  --sidebar-ring: #2c4b86;
-  --success: #3a7a52;
-  --warning: #9c6f1c;
+  --sidebar-accent: #cfd9ee;
+  --sidebar-accent-foreground: #0f1622;
+  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
+  --sidebar-ring: #1d47a8;
+  --success: #2f7d4f;
+  --warning: #8f6415;
 }
 
-/* Палитра «Кобальт», тёмный набор. */
+/* Палитра «Кобальт», тёмный набор. Глубокий синий фон с ярким голубым акцентом. */
 :root[data-palette='cobalt'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #12151b;
-  --foreground: #e6e9f0;
-  --card: #1a1f27;
-  --card-foreground: #e6e9f0;
-  --popover: #1a1f27;
-  --popover-foreground: #e6e9f0;
-  --primary: #8cace6;
-  --primary-foreground: #0f1219;
-  --secondary: #212732;
-  --secondary-foreground: #e6e9f0;
-  --muted: #212732;
-  --muted-foreground: #98a0ac;
-  --accent: #262e3a;
-  --accent-foreground: #e6e9f0;
+  --background: #0c1526;
+  --foreground: #e4e9f4;
+  --card: #15203a;
+  --card-foreground: #e4e9f4;
+  --popover: #15203a;
+  --popover-foreground: #e4e9f4;
+  /* Цвет всплывающего слоя в тон этой палитры. */
+  --overlay-surface: #1f2c4a;
+  --primary: #6f9bf0;
+  --primary-foreground: #0a101c;
+  --secondary: #1b2740;
+  --secondary-foreground: #e4e9f4;
+  --muted: #1b2740;
+  --muted-foreground: #90a0bd;
   --destructive: #e0685c;
-  --destructive-foreground: #12151b;
+  --destructive-foreground: #0c1526;
   --border: color-mix(in oklab, var(--foreground) 13%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 19%, var(--background));
-  --ring: #8cace6;
-  --sidebar: #171b22;
-  --sidebar-foreground: #e6e9f0;
-  --sidebar-primary: #8cace6;
-  --sidebar-primary-foreground: #0f1219;
-  --sidebar-accent: #262e3a;
-  --sidebar-accent-foreground: #e6e9f0;
+  --ring: #6f9bf0;
+  --sidebar: #101a2e;
+  --sidebar-foreground: #e4e9f4;
+  --sidebar-primary: #6f9bf0;
+  --sidebar-primary-foreground: #0a101c;
+  --sidebar-accent: #1f2c4a;
+  --sidebar-accent-foreground: #e4e9f4;
   --sidebar-border: color-mix(in oklab, var(--foreground) 12%, var(--background));
-  --sidebar-ring: #8cace6;
+  --sidebar-ring: #6f9bf0;
   --success: #78b98a;
   --warning: #dcae62;
+}
+
+/* Палитра «Gruvbox», светлый набор. Прежняя палитра приложения; подключается
+ * атрибутом `data-palette='gruvbox'`. */
+:root[data-palette='gruvbox'] {
+  --background: #fbf1c7;
+  --foreground: #3c3836;
+  --card: #fdf9e6;
+  --card-foreground: #3c3836;
+  --popover: #f9f5d7;
+  --popover-foreground: #3c3836;
+  /* Цвет всплывающего слоя в тон этой палитры. */
+  --overlay-surface: #fffbe8;
+  --primary: #076678;
+  --primary-foreground: #fbf1c7;
+  --secondary: #ebdbb2;
+  --secondary-foreground: #3c3836;
+  --muted: #ebdbb2;
+  --muted-foreground: #7c6f64;
+  --destructive: #9d0006;
+  --destructive-foreground: #fbf1c7;
+  --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
+  --ring: #076678;
+  --sidebar: #f9f5d7;
+  --sidebar-foreground: #3c3836;
+  --sidebar-primary: #076678;
+  --sidebar-primary-foreground: #fbf1c7;
+  --sidebar-accent: #ebdbb2;
+  --sidebar-accent-foreground: #3c3836;
+  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
+  --sidebar-ring: #076678;
+  --success: #427b58;
+  --warning: #b57614;
+}
+
+/* Палитра «Gruvbox», тёмный набор. */
+:root[data-palette='gruvbox'][data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: #282828;
+  --foreground: #ebdbb2;
+  --card: #32302f;
+  --card-foreground: #ebdbb2;
+  --popover: #32302f;
+  --popover-foreground: #ebdbb2;
+  /* Цвет всплывающего слоя в тон этой палитры. */
+  --overlay-surface: #403d3a;
+  --primary: #83a598;
+  --primary-foreground: #282828;
+  --secondary: #3c3836;
+  --secondary-foreground: #ebdbb2;
+  --muted: #3c3836;
+  --muted-foreground: #a89984;
+  --destructive: #fb4934;
+  --destructive-foreground: #282828;
+  --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
+  --ring: #83a598;
+  --sidebar: #32302f;
+  --sidebar-foreground: #ebdbb2;
+  --sidebar-primary: #83a598;
+  --sidebar-primary-foreground: #282828;
+  --sidebar-accent: #3c3836;
+  --sidebar-accent-foreground: #ebdbb2;
+  --sidebar-border: color-mix(in oklab, var(--foreground) 13%, var(--background));
+  --sidebar-ring: #83a598;
+  --success: #8ec07c;
+  --warning: #fabd2f;
+}
+
+/* Палитра «Mist», светлый набор. Нейтральная графитовая бумага без синевы:
+ * акцент — тёмно-серый, в отличие от синего «Кобальта». Подключается атрибутом
+ * `data-palette='mist'`. */
+:root[data-palette='mist'] {
+  --background: #f3f4f5;
+  --foreground: #1b1e21;
+  --card: #ffffff;
+  --card-foreground: #1b1e21;
+  --popover: #ffffff;
+  --popover-foreground: #1b1e21;
+  /* Цвет всплывающего слоя в тон этой палитры. */
+  --overlay-surface: #ffffff;
+  --primary: #454b52;
+  --primary-foreground: #fafbfc;
+  --secondary: #e5e7e9;
+  --secondary-foreground: #1b1e21;
+  --muted: #e7e9eb;
+  --muted-foreground: #565b60;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --border: color-mix(in oklab, var(--foreground) 16%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 22%, var(--background));
+  --ring: #454b52;
+  --sidebar: #eef0f1;
+  --sidebar-foreground: #1b1e21;
+  --sidebar-primary: #454b52;
+  --sidebar-primary-foreground: #fafbfc;
+  --sidebar-accent: #dfe2e4;
+  --sidebar-accent-foreground: #1b1e21;
+  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
+  --sidebar-ring: #454b52;
+  --success: #2f7d4f;
+  --warning: #976a15;
+}
+
+/* Палитра «Mist», тёмный набор. Нейтральный графит без синевы. */
+:root[data-palette='mist'][data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: #16181a;
+  --foreground: #eceef0;
+  --card: #1f2224;
+  --card-foreground: #eceef0;
+  --popover: #1f2224;
+  --popover-foreground: #eceef0;
+  /* Цвет всплывающего слоя в тон этой палитры. */
+  --overlay-surface: #2a2e31;
+  --primary: #b4bbc3;
+  --primary-foreground: #14161a;
+  --secondary: #24272a;
+  --secondary-foreground: #eceef0;
+  --muted: #24272a;
+  --muted-foreground: #9aa0a6;
+  --destructive: #e0685c;
+  --destructive-foreground: #16181a;
+  --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
+  --input: color-mix(in oklab, var(--foreground) 21%, var(--background));
+  --ring: #b4bbc3;
+  --sidebar: #191c1e;
+  --sidebar-foreground: #eceef0;
+  --sidebar-primary: #b4bbc3;
+  --sidebar-primary-foreground: #14161a;
+  --sidebar-accent: #2a2e31;
+  --sidebar-accent-foreground: #eceef0;
+  --sidebar-border: color-mix(in oklab, var(--foreground) 13%, var(--background));
+  --sidebar-ring: #b4bbc3;
+  --success: #7ab98c;
+  --warning: #d9ad63;
 }
 
 /* Токены области чтения: оформление чтения книги и метки заметок.
@@ -266,9 +428,44 @@
   --reader-note-mark: rgba(202, 150, 40, 0.75);
 }
 
+:root[data-palette='gruvbox'][data-reader-theme='light'] {
+  --reader-background: #fbf1c7;
+  --reader-foreground: #3c3836;
+  --reader-muted-foreground: #7c6f64;
+  --reader-link: #076678;
+  --reader-selection: rgba(96, 140, 180, 0.35);
+  --reader-note-mark: #f2cd52;
+}
+
+:root[data-palette='gruvbox'][data-reader-theme='dark'] {
+  --reader-background: #282828;
+  --reader-foreground: #ebdbb2;
+  --reader-muted-foreground: #a89984;
+  --reader-link: #83a598;
+  --reader-selection: rgba(120, 160, 195, 0.33);
+  --reader-note-mark: rgba(214, 158, 46, 0.75);
+}
+
+:root[data-palette='mist'][data-reader-theme='light'] {
+  --reader-background: #ffffff;
+  --reader-foreground: #1c2125;
+  --reader-muted-foreground: #6b7280;
+  --reader-link: #2563eb;
+  --reader-selection: rgba(59, 130, 246, 0.32);
+  --reader-note-mark: #f2cd52;
+}
+
+:root[data-palette='mist'][data-reader-theme='dark'] {
+  --reader-background: #16191c;
+  --reader-foreground: #f1f3f4;
+  --reader-muted-foreground: #8b949b;
+  --reader-link: #7aa2d6;
+  --reader-selection: rgba(96, 165, 250, 0.33);
+  --reader-note-mark: rgba(202, 150, 40, 0.75);
+}
+
 @theme inline {
   --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);
 
   /* Точки перелома Tailwind выводятся из общих токенов: `md` — телефон против
@@ -295,8 +492,6 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -306,14 +501,19 @@
   --color-warning: var(--warning);
   --color-primary-soft: var(--primary-soft);
   --color-primary-border: var(--primary-border);
-  --color-accent-soft: var(--accent-soft);
   --color-destructive-soft: var(--destructive-soft);
   --color-destructive-border: var(--destructive-border);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-selected: var(--surface-selected);
+  --color-divider: var(--divider);
+  --color-overlay-surface: var(--overlay-surface);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
 
-  /* Единый набор теней: `shadow-raised` для панелей и полос,
-   * `shadow-overlay` для меню и диалогов. */
+  /* Тень только у всплывающих слоёв (`shadow-overlay` для меню и диалогов,
+   * `shadow-raised` — мягкая, для поднятых мелочей). Плоские панели и списки
+   * тени не несут. */
   --shadow-raised: var(--elevation-raised);
   --shadow-overlay: var(--elevation-overlay);
 }
@@ -321,11 +521,10 @@
 /* Роли размера текста: единый набор вместо произвольных кеглей.
  *
  * Области выбирают роль (`role-title`, `role-body`, …), а не задают размер
- * шрифта на месте. Заголовочные роли набраны антиквой (`--font-serif`) — это и
- * есть характер системы: текстовый инструмент выглядит набранным, а не
- * «дашбордным». Размеры не опускаются ниже 0.75rem. */
+ * шрифта на месте. Весь интерфейс набран одним гротеском (`--font-sans`): роли
+ * различаются размером и насыщенностью, а не вторым шрифтом. Размеры не
+ * опускаются ниже 0.75rem. */
 @utility role-display {
-  font-family: var(--font-serif);
   font-size: 1.5rem;
   line-height: 1.25;
   font-weight: 600;
@@ -339,7 +538,6 @@
 }
 
 @utility role-heading {
-  font-family: var(--font-serif);
   font-size: 1.125rem;
   line-height: 1.35;
   font-weight: 600;

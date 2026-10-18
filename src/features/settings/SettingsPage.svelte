@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, ErrorToast, Icon, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@texture/ui';
+  import { Button, ErrorToast, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@texture/ui';
   import type { UiIntent, UiNode, UiSpaceDeclaration } from '@texture/ui-schema';
   import { listenEvent } from '../../shared/app-bridge';
   import {
@@ -16,11 +16,9 @@
     initialDeclarations?: NormalizedDeclaration[];
     /** Ошибка загрузки деклараций на бутстрапе. */
     initialError?: string;
-    /** Закрытие полноэкранного раздела настроек. */
-    onclose?: () => void;
   }
 
-  let { initialDeclarations, initialError = '', onclose }: Props = $props();
+  let { initialDeclarations, initialError = '' }: Props = $props();
 
   /** Декларации пространства «секция настроек», отданные плагином. */
   let declarations = $state<NormalizedDeclaration[]>(untrack(() => initialDeclarations ?? []));
@@ -67,9 +65,6 @@
     }
     return false;
   });
-
-  /** Число секций настроек. */
-  const sectionCount = $derived(declarations.filter((item) => item.declaration).length);
 
   /** Загрузка деклараций интерфейса настроек. */
   async function load() {
@@ -133,29 +128,6 @@
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col" data-testid="settings-page">
-  <div
-    class="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-3 md:px-6"
-  >
-    <div class="flex min-w-0 flex-1 flex-col">
-      <span class="role-eyebrow text-[var(--muted-foreground)]">Приложение</span>
-      <span class="role-display text-[var(--foreground)]">Настройки</span>
-    </div>
-    {#if sectionCount > 0}
-      <span class="role-caption text-[var(--muted-foreground)]">
-        Секций: {sectionCount}
-      </span>
-    {/if}
-    <Button
-      variant="secondary"
-      size="icon"
-      title="Закрыть настройки"
-      ariaLabel="Закрыть настройки"
-      onclick={() => onclose?.()}
-    >
-      <Icon name="close" />
-    </Button>
-  </div>
-
   <ScrollArea testId="settings-sections" class="p-4 md:p-6">
     <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-6">
       {#if declarations.length === 0}
@@ -166,7 +138,7 @@
         {#each declarations as item, index (item.declaration?.id ?? index)}
           {#if item.declaration}
             <section
-              class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 shadow-raised md:p-5"
+              class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 md:p-5"
               data-testid="settings-section"
             >
               <UiRenderer

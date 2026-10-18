@@ -83,11 +83,8 @@ test('переключение вкладок меняет активную кн
     await addBook(page, 'Демо-книга');
     await addBook(page, 'Третья книга');
 
-    // Имя открытого рабочего места видно в шапке, а библиотеки — нет.
-    await expect(page.getByTestId('header-workspace-name')).toHaveText('Рабочее место');
-    const header = page.locator('header');
-    await expect(header.getByText('library', { exact: true })).toHaveCount(0);
-    await expect(header.getByText('demo-library', { exact: true })).toHaveCount(0);
+    // Имя открытого рабочего места видно в навигационном тексте шапки.
+    await expect(page.getByTestId('app-context')).toContainText('Рабочее место');
 
     await expect(tab(page, 'Третья книга').getByTestId('workplace-tab')).toHaveAttribute(
         'aria-pressed',
@@ -440,9 +437,12 @@ test('правка оформления вкладки видна и в пане
     await expect(panel.getByRole('button', { name: /Черновик/ })).toBeVisible();
     await expect(panel.getByTestId('open-books-item-description')).toHaveText('сравнение глав');
 
-    // Панель вкладок: та же подпись и иконка, описание — в подсказке.
+    // Панель вкладок: та же подпись и иконка; в подсказке — книга и описание.
     const item = tab(page, 'Черновик');
-    await expect(item.getByTestId('workplace-tab')).toHaveAttribute('title', 'Черновик\nсравнение глав');
+    await expect(item.getByTestId('workplace-tab')).toHaveAttribute(
+        'title',
+        'Черновик — Демо-книга\nсравнение глав',
+    );
     await expect(item.getByTestId('workplace-tab').locator('svg')).toHaveCount(1);
 });
 

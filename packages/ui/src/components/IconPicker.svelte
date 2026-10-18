@@ -55,8 +55,8 @@
     <button
       type="button"
       class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[0.25rem] text-[var(--muted-foreground)] transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {item.selected
-        ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
-        : 'hover:bg-[var(--muted)]'}"
+        ? 'bg-[var(--surface-selected)] text-[var(--foreground)]'
+        : 'hover:bg-[var(--surface-hover)]'}"
       title={item.label}
       aria-label={item.label}
       aria-pressed={item.selected ? 'true' : 'false'}

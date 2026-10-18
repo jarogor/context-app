@@ -1463,7 +1463,7 @@
 
   {#if menuPosition && pendingAnchor}
     <div
-      class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-md border border-[var(--input)] bg-[var(--card)] p-[0.25rem] shadow-overlay"
+      class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--overlay-surface)] p-[0.25rem] shadow-overlay"
       data-testid="quote-menu"
       style={menuStyle()}
     >

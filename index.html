@@ -23,7 +23,8 @@
         } catch (error) {
           appearance = null;
         }
-        var palette = appearance && appearance.palette === 'cobalt' ? 'cobalt' : 'linen';
+        var known = ['linen', 'cobalt', 'gruvbox', 'mist'];
+        var palette = known.indexOf(appearance && appearance.palette) >= 0 ? appearance.palette : 'linen';
         var preference = appearance && appearance.theme ? appearance.theme : 'system';
         var dark =
           preference === 'dark' ||
@@ -55,20 +56,51 @@
         --boot-muted-foreground: #9d968a;
       }
       :root[data-palette='cobalt'] {
-        --boot-background: #f3f5f8;
-        --boot-foreground: #16191f;
-        --boot-muted-foreground: #616a77;
+        --boot-background: #e6ecf7;
+        --boot-foreground: #0f1622;
+        --boot-muted-foreground: #495a78;
       }
       :root[data-palette='cobalt'][data-theme='dark'] {
-        --boot-background: #12151b;
-        --boot-foreground: #e6e9f0;
-        --boot-muted-foreground: #98a0ac;
+        --boot-background: #0c1526;
+        --boot-foreground: #e4e9f4;
+        --boot-muted-foreground: #90a0bd;
+      }
+      :root[data-palette='gruvbox'] {
+        --boot-background: #fbf1c7;
+        --boot-foreground: #3c3836;
+        --boot-muted-foreground: #7c6f64;
+      }
+      :root[data-palette='gruvbox'][data-theme='dark'] {
+        --boot-background: #282828;
+        --boot-foreground: #ebdbb2;
+        --boot-muted-foreground: #a89984;
+      }
+      :root[data-palette='mist'] {
+        --boot-background: #f3f4f5;
+        --boot-foreground: #1b1e21;
+        --boot-muted-foreground: #565b60;
+      }
+      :root[data-palette='mist'][data-theme='dark'] {
+        --boot-background: #16181a;
+        --boot-foreground: #eceef0;
+        --boot-muted-foreground: #9aa0a6;
+      }
+      /* Шрифт и кегль экрана загрузки совпадают с приложением (`--font-sans` из
+         `tokens.css`, `html { font-size: 16px }`). Значения дублируются, потому
+         что до бандла собранный CSS недоступен, но обязаны совпадать буквально:
+         расхождение стека (`system-ui` против `sans-serif`) в WebKitGTK на Linux
+         даёт другой шрифт, и в момент загрузки бандла текст «прыгает».
+         Совпадение стека проверяется тестом `boot-screen.test.ts`. */
+      html,
+      body {
+        font-family:
+          system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+          Arial, sans-serif;
       }
       body {
         margin: 0;
         background: var(--boot-background);
         color: var(--boot-foreground);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 16px;
         line-height: 1.5;
       }

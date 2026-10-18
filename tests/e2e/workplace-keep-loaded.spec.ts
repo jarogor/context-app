@@ -91,6 +91,14 @@ test.beforeEach(async ({ page }) => {
 /** Открытие текущего рабочего места из списка. */
 async function openCurrentWorkspace(page: import('@playwright/test').Page) {
     const list = page.getByTestId('workspaces-page');
+    const tabs = page.getByTestId('workplace-tabs');
+    // Ждём, пока раздел определится с видом: список рабочих мест или уже
+    // открытые вкладки. Без ожидания проверка видимости списка могла пройти до
+    // его появления, и клик по месту не выполнялся.
+    await Promise.race([
+        list.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
+        tabs.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
+    ]);
     if (await list.isVisible().catch(() => false)) {
         const open = page.getByTestId('workspace-open').first();
         await open.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
@@ -98,7 +106,7 @@ async function openCurrentWorkspace(page: import('@playwright/test').Page) {
             await open.click();
         }
     }
-    await expect(page.getByTestId('workplace-tabs')).toBeVisible();
+    await expect(tabs).toBeVisible();
 }
 
 /** Добавление книги вкладкой в текущее рабочее место. */
@@ -126,10 +134,10 @@ test('уход в «Библиотеки» и возврат не перечит
     await page.goto('/');
     await addBook(page);
 
-    // Уходим в раздел «Библиотека» и возвращаемся повторным нажатием по нему.
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
-    await expect(page.getByTestId('section-title')).toHaveText('Библиотеки', { timeout: 10000 });
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    // Уходим в раздел «Библиотека» и возвращаемся кнопкой рабочего места.
+    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
+    await expect(page.getByTestId('app-context')).toContainText('Библиотека', { timeout: 10000 });
+    await page.getByRole('button', { name: 'Рабочее место', exact: true }).click();
 
     // Возврат показывает список рабочих мест, а вкладки остаются смонтированными.
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
@@ -154,7 +162,9 @@ test('уход в «Заметки» и возврат не перечитыва
 
     await page.getByTestId('nav-notes').click();
     await expect(page.getByTestId('notes-library')).toBeVisible();
-    await page.getByTestId('nav-notes').click();
+
+    // Возврат к рабочему месту: раздел «Заметки» больше не переключается.
+    await page.getByTestId('nav-workspace').click();
 
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
     await expect(page.getByTestId('workplace-tab-page')).toBeAttached();

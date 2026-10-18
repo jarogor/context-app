@@ -125,11 +125,11 @@
     if (tab.color) {
       return tab.id === activeTabId
         ? 'bg-[var(--item-fill-active)] border-[var(--primary-border)]'
-        : 'bg-[var(--item-fill)] hover:bg-[var(--muted)]';
+        : 'bg-[var(--item-fill)] hover:bg-[var(--surface-hover)]';
     }
     return tab.id === activeTabId
       ? 'bg-[var(--primary-soft)] border-[var(--primary-border)]'
-      : 'hover:bg-[var(--accent)]';
+      : 'hover:bg-[var(--surface-hover)]';
   }
 
   /** Начало правки текстового свойства вкладки. */
@@ -200,6 +200,7 @@
       placeholder="Поиск по вкладкам"
       ariaLabel="Поиск по вкладкам"
       icon="search"
+      clearable
     />
   {/snippet}
 

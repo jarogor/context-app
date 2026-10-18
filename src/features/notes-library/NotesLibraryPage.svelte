@@ -120,7 +120,6 @@
   loading={loading && sets.length === 0}
   error={error}
   empty={view.length === 0}
-  class="p-4 md:p-6"
 >
   {#snippet loadingContent()}
     <div class="p-4" data-testid="notes-library-loading">
@@ -151,6 +150,7 @@
       placeholder="Поиск по заметкам"
       ariaLabel="Поиск по заметкам"
       icon="search"
+      clearable
       class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
     />
     {#if sets.length > 0}
@@ -208,14 +208,16 @@
             В наборе нет заметок.
           </p>
         {:else}
-          <ul
-            class="m-0 flex list-none flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2"
+          <div
+            class="border-t border-[var(--divider)] bg-[var(--surface-inset)] p-2 pl-4"
             data-testid="notes-library-notes"
           >
-            {#each set.noteItems as item (item.note.id)}
-              <NoteEntry {item} {readerTheme} {palette} onclick={(note) => openNoteOfSet(set, note)} />
-            {/each}
-          </ul>
+            <ul class="m-0 flex list-none flex-col gap-1 p-0">
+              {#each set.noteItems as item (item.note.id)}
+                <NoteEntry {item} {readerTheme} {palette} onclick={(note) => openNoteOfSet(set, note)} />
+              {/each}
+            </ul>
+          </div>
         {/if}
       {/if}
     {/snippet}

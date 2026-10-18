@@ -4,7 +4,6 @@
   import AppBar from './AppBar.svelte';
   import NotificationsPanel from '../features/notifications/NotificationsPanel.svelte';
   import SectionNav from './SectionNav.svelte';
-  import SectionPanel from './SectionPanel.svelte';
   import SettingsPage from '../features/settings/SettingsPage.svelte';
   import StorePage from '../features/store/StorePage.svelte';
   import LibraryPage from '../features/library/LibraryPage.svelte';
@@ -295,14 +294,8 @@
   /** Вкладка, для которой выбирается новая книга (переуказание файла). */
   let repointTabId: string | null = $state(null);
 
-  /** Имя активной библиотеки по последнему сегменту пути. */
-  function libraryName(): string | null {
-    const library = activeLibrary;
-    if (!library?.path) {
-      return null;
-    }
-    return lastSegment(library.path);
-  }
+  /** Ссылка на страницу библиотеки: уход в другой раздел сбрасывает открытую книгу. */
+  let libraryPage: { resetBook: () => void } | undefined = $state();
 
   /** Видна ли область рабочего места (с учётом модальных разделов). */
   const workspaceVisible = $derived(workspaceOpen && !settingsOpen && !librariesOpen && !notesLibraryOpen);
@@ -321,21 +314,6 @@
   /** Виден ли раздел «Заметки» (с учётом модальных разделов). */
   const notesLibraryVisible = $derived(notesLibraryOpen && !settingsOpen && !librariesOpen);
 
-  /** Показывать ли в панели раздела имя активной библиотеки.
-   *
-   * Имя источника показывается в разделе «Библиотеки» над списком книг; в
-   * списке библиотек (выбор источника) место имени занимает заголовок раздела,
-   * а в открытом рабочем месте панель раздела уступает место панели вкладок.
-   */
-  function showLibrary(): boolean {
-    return activeLibrary !== null && !settingsOpen && librariesOpen && !notesLibraryOpen;
-  }
-
-  /** Подпись-контекст панели раздела: имя источника над списком книг. */
-  const sectionSubtitle = $derived(
-    showLibrary() && !librarySourcesOpen ? (libraryName() ?? '') : '',
-  );
-
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
     settingsOpen
@@ -345,37 +323,36 @@
           ? 'Информация'
           : 'Настройки'
       : librariesOpen
-        ? 'Библиотеки'
+        ? 'Библиотека'
         : notesLibraryOpen
           ? 'Заметки'
-          : workspaceOpen
-            ? 'Рабочие места'
-            : 'Библиотека',
+          : 'Рабочее место',
   );
 
-  /** Надзаголовок раздела: короткая метка-«колонтитул» над заголовком. */
-  const sectionEyebrow = $derived(
-    settingsOpen
-      ? 'Оформление и плагины'
-      : librariesOpen
-        ? librarySourcesOpen
-          ? 'Источники'
-          : 'Каталог книг'
-        : notesLibraryOpen
-          ? 'Реестр'
-          : 'Точка входа',
-  );
+  /**
+   * Навигационный текст шапки: где находится пользователь и что выбрано.
+   *
+   * Раздел показывается сам по себе, а конкретный выбор — его именем: открытое
+   * рабочее место или открытая библиотека (как «Рабочее место · имя»). Шапка —
+   * единственное место, где это видно.
+   */
+  const appContext = $derived.by(() => {
+    if (workspaceVisible && !workspaceListMode && workspace) {
+      return `${sectionTitle} · ${workspace.name}`;
+    }
+    if (librariesVisible && activeLibrary?.path) {
+      return `${sectionTitle} · ${lastSegment(activeLibrary.path)}`;
+    }
+    return sectionTitle;
+  });
 
-  /** Имя открытого рабочего места для панели вкладок; null, когда показан другой раздел. */
-  const activeWorkspaceName = $derived(
-    workspaceOpen &&
-      !workspaceListMode &&
-      !librariesOpen &&
-      !notesLibraryOpen &&
-      !settingsOpen &&
-      workspace
-      ? workspace.name
-      : null,
+  /** Название текущей страницы настроек для их шапки. */
+  const settingsSectionTitle = $derived(
+    settingsSection === 'plugins'
+      ? 'Плагины'
+      : settingsSection === 'about'
+        ? 'Информация'
+        : 'Общие',
   );
 
   /** Замечания, показываемые в шапке одним индикатором.
@@ -433,24 +410,24 @@
 
   /** Переключение страницы «Библиотеки».
    *
-   * Закрытие раздела возвращает пользователя к главной странице — списку
-   * рабочих мест, а не к списку книг библиотеки.
+   * Раздел всегда открывается **списком библиотек**: выбор библиотеки — точка
+   * входа, а список книг открывается уже выбором конкретной библиотеки. Книги
+   * открытой библиотеки не грузятся заново: уход со страницы книги сбрасывает её,
+   * а каталог библиотеки остаётся загруженным в общем состоянии.
    */
   function toggleLibraries() {
-    const willOpen = !librariesOpen;
     settingsOpen = false;
     notesLibraryOpen = false;
-    librariesOpen = willOpen;
-    if (willOpen) {
-      // Вход в раздел показывает список книг; выбор источников — по кнопке.
-      librarySourcesRequested = false;
-    } else {
-      workspaceOpen = true;
-      workspaceListMode = true;
-    }
+    librariesOpen = true;
+    librarySourcesRequested = true;
+    libraryPage?.resetBook();
   }
 
-  /** Переключение вида выбора источников внутри раздела «Библиотека». */
+  /** Переключение вида выбора источников внутри раздела «Библиотека».
+   *
+   * Возврат к списку книг после выбора библиотеки; кнопки «Выбрать библиотеку»
+   * внутри списка книг нет — за списком библиотек идём кнопкой раздела в шапке.
+   */
   function toggleLibrarySources() {
     librarySourcesRequested = !librarySourcesOpen;
   }
@@ -460,19 +437,14 @@
    * Реестр читается при открытии раздела с показом индикатора: он зависит от
    * объёма пользовательских заметок, и на стадии начальной загрузки его не
    * читают. После первой загрузки реестр обновляется по событию `notes:changed`.
-   * Закрытие раздела возвращает к главной странице — списку рабочих мест.
+   * Раздел открывается сам, а не переключается: активная кнопка не «отжимается»
+   * в другой раздел.
    */
   function toggleNotesLibrary() {
-    const willOpen = !notesLibraryOpen;
     settingsOpen = false;
     librariesOpen = false;
-    notesLibraryOpen = willOpen;
-    if (willOpen) {
-      void ensureNotesLibrary();
-    } else {
-      workspaceOpen = true;
-      workspaceListMode = true;
-    }
+    notesLibraryOpen = true;
+    void ensureNotesLibrary();
   }
 
   /** Загрузка реестра наборов заметок, если он ещё не читался.
@@ -1032,6 +1004,7 @@
   -->
   {#if !focusMode && !settingsOpen}
     <AppBar
+      context={appContext}
       workspaceActive={workspaceListVisible}
       libraryActive={librariesVisible}
       notesActive={notesLibraryVisible}
@@ -1043,7 +1016,6 @@
       alertError={headerAlerts.some((alert) => !alert.warning)}
       themeTitle={themeTitles[themePreference]}
       mobile={mobileWindow}
-      onHome={toggleWorkspace}
       onWorkspace={toggleWorkspace}
       onLibrary={toggleLibraries}
       onNotes={toggleNotesLibrary}
@@ -1076,28 +1048,6 @@
   </div>
 
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-    {#if !settingsOpen && !focusMode && !(workspaceVisible && !workspaceListMode)}
-      <SectionPanel
-        eyebrow={activeWorkspaceName ? 'Рабочее место' : sectionEyebrow}
-        title={activeWorkspaceName ?? sectionTitle}
-        subtitle={activeWorkspaceName ? '' : sectionSubtitle}
-        titleTestId={activeWorkspaceName ? 'header-workspace-name' : 'section-title'}
-      >
-        {#snippet action()}
-          {#if librariesVisible}
-            <Button
-              variant={librarySourcesOpen ? 'secondary' : 'primary'}
-              size="sm"
-              title={librarySourcesOpen ? 'К списку книг' : 'Выбор библиотеки'}
-              onclick={toggleLibrarySources}
-            >
-              {librarySourcesOpen ? 'К списку книг' : 'Выбрать библиотеку'}
-            </Button>
-          {/if}
-        {/snippet}
-      </SectionPanel>
-    {/if}
-
     <div class="relative flex min-h-0 flex-1 overflow-hidden">
       <main class="flex min-w-0 flex-1">
       {#if notesLibraryVisible}
@@ -1173,6 +1123,7 @@
       <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librariesVisible}>
         <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={librarySourcesOpen}>
           <LibraryPage
+            bind:this={libraryPage}
             initialActiveLibrary={activeLibrary}
             visible={librariesVisible && !librarySourcesOpen}
             targetWorkspaceName={workspace?.name ?? null}
@@ -1195,42 +1146,66 @@
         (на узком окне — прокручиваемая полоса сверху), а справа — содержимое
         выбранной страницы. Шапка настроек несёт заголовок и закрытие.
       -->
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row" class:hidden={!settingsOpen}>
-        <Menu
-          ariaLabel="Разделы настроек"
-          class="shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--panel)] p-2 max-md:flex-row md:w-[14rem] md:flex-none md:flex-col md:border-r md:border-b-0 md:p-3"
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={!settingsOpen}>
+        <!--
+          Шапка настроек одна на все их страницы: заголовок текущего раздела и
+          закрытие справа. Раньше закрытие было только у страницы «Общие» и с
+          других вкладок из настроек нельзя было выйти — теперь оно всегда на
+          месте.
+        -->
+        <header
+          class="flex flex-none items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-3"
+          data-testid="settings-header"
         >
-          <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
-            Общие
-          </MenuItem>
-          <MenuItem active={settingsSection === 'plugins'} onclick={() => selectSettingsSection('plugins')}>
-            Плагины
-          </MenuItem>
-          <MenuItem active={settingsSection === 'about'} onclick={() => selectSettingsSection('about')}>
-            Информация
-          </MenuItem>
-        </Menu>
-        <div class="flex min-h-0 min-w-0 flex-1">
-          <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'general'}>
-            <SettingsPage
-              initialDeclarations={initialSettings.declarations}
-              initialError={initialSettings.error}
-              onclose={closeSettings}
-            />
-          </div>
-          <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'plugins'}>
-            <StorePage
-              initialPlugins={initialStore.plugins}
-              initialStores={initialStore.stores}
-              initialPending={initialStore.activationPending}
-              initialError={initialStore.error}
-              onPendingChange={(pending) => (activationPending = pending)}
-            />
-          </div>
-          <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'about'}>
-            {#if settingsSection === 'about'}
-              <AppInfoPage />
-            {/if}
+          <span class="min-w-0 flex-1 truncate role-heading text-[var(--foreground)]"
+            >{settingsSectionTitle}</span
+          >
+          <Button
+            variant="secondary"
+            size="icon"
+            title="Закрыть настройки"
+            ariaLabel="Закрыть настройки"
+            onclick={closeSettings}
+          >
+            <Icon name="close" />
+          </Button>
+        </header>
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
+          <Menu
+            ariaLabel="Разделы настроек"
+            class="shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--panel)] p-2 max-md:flex-row md:w-[14rem] md:flex-none md:flex-col md:border-r md:border-b-0 md:p-3"
+          >
+            <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
+              Общие
+            </MenuItem>
+            <MenuItem active={settingsSection === 'plugins'} onclick={() => selectSettingsSection('plugins')}>
+              Плагины
+            </MenuItem>
+            <MenuItem active={settingsSection === 'about'} onclick={() => selectSettingsSection('about')}>
+              Информация
+            </MenuItem>
+          </Menu>
+          <div class="flex min-h-0 min-w-0 flex-1">
+            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'general'}>
+              <SettingsPage
+                initialDeclarations={initialSettings.declarations}
+                initialError={initialSettings.error}
+              />
+            </div>
+            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'plugins'}>
+              <StorePage
+                initialPlugins={initialStore.plugins}
+                initialStores={initialStore.stores}
+                initialPending={initialStore.activationPending}
+                initialError={initialStore.error}
+                onPendingChange={(pending) => (activationPending = pending)}
+              />
+            </div>
+            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'about'}>
+              {#if settingsSection === 'about'}
+                <AppInfoPage />
+              {/if}
+            </div>
           </div>
         </div>
       </div>

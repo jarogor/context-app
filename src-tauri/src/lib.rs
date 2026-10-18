@@ -94,9 +94,6 @@ pub fn run() {
                 APP_DISPLAY_NAME,
                 app.package_info().version.to_string(),
                 &app_state_root,
-                &user_plugins_dir,
-                &bundled_plugins_dir,
-                &bundled_base,
             );
 
             app.manage(Mutex::new(AppState::new(
@@ -160,6 +157,7 @@ pub fn run() {
             commands::reader_viewer_files,
             commands::reader_viewer_file,
             commands::reader_content,
+            commands::reader_cover,
             commands::reader_open_external,
             commands::reader_book_chunk,
             commands::reader_forget_book,

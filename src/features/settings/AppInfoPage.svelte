@@ -7,8 +7,6 @@
   interface AppPath {
     /** Машинный ключ расположения. */
     key: string;
-    /** Уровень расположения: каркас или приложение. */
-    level: 'framework' | 'application';
     /** Человекочитаемое название. */
     title: string;
     /** Абсолютный путь. */
@@ -40,20 +38,6 @@
     }
   }
 
-  /** Расположения заданного уровня из снимка (пустой список до загрузки). */
-  function pathsAtLevel(level: 'framework' | 'application'): AppPath[] {
-    if (!info) {
-      return [];
-    }
-    return info.paths.filter((path) => path.level === level);
-  }
-
-  /** Расположения уровня каркаса. */
-  const frameworkPaths = $derived(pathsAtLevel('framework'));
-
-  /** Расположения уровня приложения. */
-  const applicationPaths = $derived(pathsAtLevel('application'));
-
   onMount(() => {
     void load();
   });
@@ -74,24 +58,9 @@
       </Card>
 
       <Card class="p-5">
-        <h2 class="mb-3 role-heading">Каркас</h2>
+        <h2 class="mb-3 role-heading">Файлы приложения</h2>
         <ul class="flex list-none flex-col gap-2 p-0">
-          {#each frameworkPaths as path (path.key)}
-            <li
-              class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-3"
-            >
-              <span class="role-title">{path.title}</span>
-              <code class="break-all role-mono text-[var(--foreground)]">{path.path}</code>
-              <span class="role-caption text-[var(--muted-foreground)]">{path.note}</span>
-            </li>
-          {/each}
-        </ul>
-      </Card>
-
-      <Card class="p-5">
-        <h2 class="mb-3 role-heading">Приложение</h2>
-        <ul class="flex list-none flex-col gap-2 p-0">
-          {#each applicationPaths as path (path.key)}
+          {#each info.paths as path (path.key)}
             <li
               class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-3"
             >

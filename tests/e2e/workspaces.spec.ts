@@ -82,7 +82,7 @@ test('до готовности реестра показывается загр
     await expect(page.getByTestId('bootstrap-loading')).toBeVisible();
     await expect(page.getByTestId('workspaces-page')).toHaveCount(0);
     await expect(page.getByTestId('workspaces-empty')).toHaveCount(0);
-    await expect(page.getByTestId('workspace-open')).toContainText('Рабочее место');
+    await expect(page.getByTestId('workspace-name').first()).toContainText('Рабочее место');
 });
 
 test('ошибка загрузки реестра не выглядит как отсутствие рабочих мест', async ({ page }) => {
@@ -139,7 +139,56 @@ test('попытка после ошибки загрузки реестра о�
     await page.getByRole('button', { name: 'Повторить' }).click();
 
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
-    await expect(page.getByTestId('workspace-open')).toContainText('Рабочее место');
+    await expect(page.getByTestId('workspace-name').first()).toContainText('Рабочее место');
+});
+
+test('список рабочих мест показывает обложки книг с числом остальных', async ({ page }) => {
+    await page.goto('/');
+    await createWorkspace(page, 'Первое');
+
+    // Добавляем книгу: обложка извлекается из самого файла.
+    await page.getByRole('button', { name: /Добавить книгу/ }).click();
+    const library = page.locator('main');
+    await library.getByRole('button', { name: /Демо-книга/ }).click();
+    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await pickWorkspaceIfAsked(page);
+    await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+
+    await backToList(page);
+
+    // Обложка видна картинкой, а не пустым квадратом-заглушкой, даже без
+    // открытой библиотеки: она берётся из файла книги.
+    const cover = page.getByTestId('workspace-covers').locator('img');
+    await expect(cover).toHaveCount(1);
+    await expect
+        .poll(async () => (await cover.getAttribute('src')) ?? '')
+        .toContain('data:image');
+
+    // Числа книг и вкладок — в одном блоке метаинформации.
+    const meta = page.getByTestId('workspace-meta');
+    await expect(meta.getByTestId('workspace-book-count')).toContainText('1 книга');
+    await expect(meta.getByTestId('workspace-tab-count')).toContainText('1 вкладка');
+});
+
+test('числа книг и вкладок совпадают, когда книга открыта одной вкладкой', async ({ page }) => {
+    await page.goto('/');
+    await createWorkspace(page, 'Первое');
+    await page.getByRole('button', { name: /Добавить книгу/ }).click();
+    const library = page.locator('main');
+    await library.getByRole('button', { name: /Демо-книга/ }).click();
+    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await pickWorkspaceIfAsked(page);
+
+    // Дублируем вкладку: книга та же, вкладок стало две.
+    await page.getByLabel('Дублировать вкладку').first().click();
+    await backToList(page);
+
+    const meta = page.getByTestId('workspace-meta');
+    await expect(meta.getByTestId('workspace-book-count')).toContainText('1 книга');
+    await expect(meta.getByTestId('workspace-tab-count')).toContainText('2 вкладок');
+    // Обложка показана один раз — по книге, а не по вкладке.
+    await expect(page.getByTestId('workspace-covers').locator('img')).toHaveCount(1);
+    await expect(page.getByTestId('workspace-covers-more')).toHaveCount(0);
 });
 
 test('пустой реестр показывает подсказку создать рабочее место', async ({ page }) => {
@@ -154,7 +203,7 @@ test('создание рабочего места добавляет его в 
     await createWorkspace(page, 'Исследование');
 
     await backToList(page);
-    await expect(page.getByTestId('workspace-open')).toContainText('Исследование');
+    await expect(page.getByTestId('workspace-name')).toContainText('Исследование');
     await expect(page.getByTestId('workspace-current')).toBeVisible();
 });
 
@@ -174,11 +223,11 @@ test('переключение между рабочими местами сох
     await expect(page.getByTestId('workplace-tab')).toHaveCount(0);
 
     await backToList(page);
-    await page.getByTestId('workspace-open').filter({ hasText: 'Первое' }).click();
+    await page.locator('[data-testid="workspace-item"]', { hasText: 'Первое' }).getByTestId('workspace-open').click();
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 
     await backToList(page);
-    await page.getByTestId('workspace-open').filter({ hasText: 'Второе' }).click();
+    await page.locator('[data-testid="workspace-item"]', { hasText: 'Второе' }).getByTestId('workspace-open').click();
     await expect(page.getByTestId('workplace-tab')).toHaveCount(0);
 });
 
@@ -192,7 +241,7 @@ test('переименование рабочего места отражает�
     await page.getByPlaceholder('Новое имя').fill('Основное');
     await page.getByRole('button', { name: 'Сохранить' }).click();
 
-    await expect(page.getByTestId('workspace-open')).toContainText('Основное');
+    await expect(page.getByTestId('workspace-name')).toContainText('Основное');
 });
 
 test('удаление рабочего места убирает его из списка', async ({ page }) => {
@@ -209,7 +258,7 @@ test('удаление рабочего места убирает его из с
     await page.getByRole('menuitem', { name: 'Удалить' }).click();
 
     await expect(page.getByTestId('workspace-item')).toHaveCount(1);
-    await expect(page.getByTestId('workspace-open')).toContainText('Второе');
+    await expect(page.getByTestId('workspace-name')).toContainText('Второе');
     // Удалено не текущее место — Второе остаётся текущим.
     await expect(page.getByTestId('workspace-current')).toBeVisible();
 });

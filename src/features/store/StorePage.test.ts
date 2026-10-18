@@ -53,7 +53,7 @@ describe('страница плагинов и сторов', () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 
-  it('группирует плагины по назначению', () => {
+  it('показывает все плагины одним списком, без деления на виды', () => {
     render(StorePage, {
       initialPlugins: [
         {
@@ -85,15 +85,13 @@ describe('страница плагинов и сторов', () => {
       initialPending: false,
     });
 
-    const groups = screen.getAllByTestId('store-group');
-    expect(groups.map((group) => group.getAttribute('data-kind'))).toEqual([
-      'books',
-      'format',
-      'extension',
-    ]);
-    expect(screen.getByText('Источники книг')).toBeTruthy();
-    expect(screen.getByText('Форматы чтения')).toBeTruthy();
-    expect(screen.getByText('Расширения')).toBeTruthy();
+    // Один список плагинов: заголовков-групп по видам нет.
+    const list = screen.getByTestId('store-plugins');
+    expect(list.querySelectorAll('li')).toHaveLength(3);
+    expect(screen.queryByTestId('store-group')).toBeNull();
+    expect(screen.getByText('books-source')).toBeTruthy();
+    expect(screen.getByText('format-pdf')).toBeTruthy();
+    expect(screen.getByText('installed-plugin')).toBeTruthy();
   });
 
   it('показывает пустое состояние без плагинов и сторов', () => {

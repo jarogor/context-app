@@ -98,33 +98,152 @@ describe('waitForRasterInk', () => {
 });
 
 describe('alignTextLayer', () => {
-  it('растягивает последний span строки до правого края чернил', () => {
-    // Строка из двух span'ов; правый (хвост) короче чернил растра.
+  /** Страница 100×20 пунктов: рамка нужна, чтобы доли считались, а не делились на ноль. */
+  function pageBox(): DOMRect {
+    return { top: 0, bottom: 20, left: 0, right: 100, width: 100, height: 20, x: 0, y: 0 } as DOMRect;
+  }
+
+  /** Спан строки с заданной горизонтальной рамкой. */
+  function spanWithBox(text: string, left: number, right: number): HTMLSpanElement {
+    const span = document.createElement('span');
+    span.textContent = text;
+    Object.defineProperty(span, 'getBoundingClientRect', {
+      value: () =>
+        ({ top: 0, bottom: 20, left, right, width: right - left, height: 20, x: left, y: 0 }) as DOMRect,
+    });
+    return span;
+  }
+
+  /** Канвас-«скан»: вертикальные штрихи-«буквы» до заданного столбца.
+   *
+   * Сплошная полоса чернил похожа на горизонтальную линейку, которую выравнивание
+   * намеренно пропускает, поэтому штрихи чередуются с пробелами, как буквы.
+   */
+  function canvasInkTo(width: number, height: number, inkRight: number): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const data = new Uint8ClampedArray(width * height * 4).fill(255);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < inkRight; x += 1) {
+        if (x % 8 >= 4) {
+          continue;
+        }
+        const index = (y * width + x) * 4;
+        data[index] = 0;
+        data[index + 1] = 0;
+        data[index + 2] = 0;
+      }
+    }
+    const context = { getImageData: () => ({ data } as unknown as ImageData) } as unknown as CanvasRenderingContext2D;
+    Object.defineProperty(canvas, 'getContext', { value: () => context });
+    Object.defineProperty(canvas, 'getBoundingClientRect', {
+      value: () => ({ width, height, left: 0, top: 0, right: width, bottom: height, x: 0, y: 0 }),
+    });
+    return canvas;
+  }
+
+  /** Канвас-«скан» в тёмной теме: светлые штрихи-«буквы» на тёмной бумаге. */
+  function darkCanvasInkTo(width: number, height: number, inkRight: number): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    // Бумага — вне обоих порогов «чернил» (не светлая и не тёмная), чтобы тест
+    // проверял именно признак тёмной темы, а не яркость фона.
+    const data = new Uint8ClampedArray(width * height * 4).fill(150);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < inkRight; x += 1) {
+        if (x % 8 >= 4) {
+          continue;
+        }
+        const index = (y * width + x) * 4;
+        data[index] = 231;
+        data[index + 1] = 226;
+        data[index + 2] = 215;
+      }
+    }
+    for (let index = 3; index < data.length; index += 4) {
+      data[index] = 255;
+    }
+    const context = {
+      getImageData: () => ({ data } as unknown as ImageData),
+    } as unknown as CanvasRenderingContext2D;
+    Object.defineProperty(canvas, 'getContext', { value: () => context });
+    Object.defineProperty(canvas, 'getBoundingClientRect', {
+      value: () => ({ width, height, left: 0, top: 0, right: width, bottom: height, x: 0, y: 0 }),
+    });
+    return canvas;
+  }
+
+  it('растягивает строку целиком: и хвост, и середину', () => {
+    // Невидимая строка короче растра: растягивается вся строка от левого края,
+    // поэтому середина и хвост остаются на своих видимых местах.
     const page = document.createElement('div');
     const layer = document.createElement('div');
     layer.className = 'textLayer';
-    const first = document.createElement('span');
-    first.textContent = 'Начало строки';
-    const tail = document.createElement('span');
-    tail.textContent = 'хвост';
+    const first = spanWithBox('Начало строки', 0, 40);
+    const tail = spanWithBox('хвост', 40, 80);
     layer.append(first, tail);
     page.append(layer);
     document.body.append(page);
-    Object.defineProperty(tail, 'getBoundingClientRect', {
-      value: () => ({ top: 0, bottom: 20, left: 40, right: 80, width: 40, height: 20, x: 40, y: 0 }),
-    });
-    Object.defineProperty(first, 'getBoundingClientRect', {
-      value: () => ({ top: 0, bottom: 20, left: 0, right: 40, width: 40, height: 20, x: 0, y: 0 }),
-    });
     Object.defineProperty(window, 'getComputedStyle', {
       value: () => ({ fontSize: '12px', transform: 'none' }) as unknown as CSSStyleDeclaration,
     });
 
-    const canvas = canvasWithInk(100, 20, true);
-    const aligned = alignTextLayer(layer, canvas, page.getBoundingClientRect());
+    // Чернила растра шире слоя; штрихи-«буквы» идут до правого края.
+    const canvas = canvasInkTo(100, 20, 96);
+    const aligned = alignTextLayer(layer, canvas, pageBox());
 
-    // Строка выровнена по чернилам: правый край полосы доходит до них.
     expect(aligned).toBeGreaterThanOrEqual(1);
+    const scale = (span: HTMLElement) =>
+      Number.parseFloat(span.style.transform.replace('matrix(', '').split(',')[0]);
+    // Оба слова строки растянуты одинаково; левый край строки на месте.
+    expect(scale(first)).toBeGreaterThan(1);
+    expect(scale(tail)).toBeCloseTo(scale(first), 5);
+    expect(Number.parseFloat(first.style.left)).toBe(0);
+    page.remove();
+  });
+
+  it('не трогает строку, стоящую вровень с чернилами', () => {
+    const page = document.createElement('div');
+    const layer = document.createElement('div');
+    layer.className = 'textLayer';
+    // Правый край строки — на границе штриха: чернила не шире строки.
+    const span = spanWithBox('Строка', 0, 92);
+    layer.append(span);
+    page.append(layer);
+    document.body.append(page);
+    Object.defineProperty(window, 'getComputedStyle', {
+      value: () => ({ fontSize: '12px', transform: 'none' }) as unknown as CSSStyleDeclaration,
+    });
+
+    const canvas = canvasInkTo(100, 20, 96);
+    alignTextLayer(layer, canvas, pageBox());
+
+    expect(span.style.left).toBe('');
+    expect(span.style.transform).toBe('');
+    page.remove();
+  });
+
+  it('на тёмной странице чернилами считает светлый текст', () => {
+    // Тёмная тема перекрашивает растр: светлый текст на тёмной бумаге.
+    const page = document.createElement('div');
+    const layer = document.createElement('div');
+    layer.className = 'textLayer';
+    const tail = spanWithBox('хвост', 40, 80);
+    layer.append(spanWithBox('Начало строки', 0, 40), tail);
+    page.append(layer);
+    document.body.append(page);
+    Object.defineProperty(window, 'getComputedStyle', {
+      value: () => ({ fontSize: '12px', transform: 'none' }) as unknown as CSSStyleDeclaration,
+    });
+
+    const canvas = darkCanvasInkTo(100, 20, 96);
+    // Без признака тёмной темы «чернил» не найти: слова не трогаются.
+    expect(alignTextLayer(layer, canvas, pageBox(), false)).toBe(0);
+    expect(tail.style.transform).toBe('');
+    // С признаком — светлый текст считается чернилами, слова выравниваются.
+    expect(alignTextLayer(layer, canvas, pageBox(), true)).toBeGreaterThanOrEqual(1);
     page.remove();
   });
 });

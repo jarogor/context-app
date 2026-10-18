@@ -50,7 +50,7 @@ test('разделы меню показывают активный раздел
 test('при запуске открыт список рабочих мест', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByLabel('Рабочие места', { exact: true })).toHaveAttribute(
+    await expect(page.getByLabel('Рабочее место', { exact: true })).toHaveAttribute(
         'aria-pressed',
         'true',
     );
@@ -68,7 +68,7 @@ test('закрытие настроек возвращает к списку р�
 
     await page.getByLabel('Закрыть настройки').click();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
-    await expect(page.getByLabel('Рабочие места', { exact: true })).toHaveAttribute(
+    await expect(page.getByLabel('Рабочее место', { exact: true })).toHaveAttribute(
         'aria-pressed',
         'true',
     );
@@ -89,18 +89,18 @@ test('настройки закрываются клавишей Escape', async 
 test('кнопка рабочего места открывает список из раздела библиотеки', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
     await page.getByRole('button', { name: /demo-library/ }).click();
     await expect(page.locator('main')).toBeVisible();
 
-    await page.getByLabel('Рабочие места', { exact: true }).click();
+    await page.getByLabel('Рабочее место', { exact: true }).click();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 });
 
 test('кнопка рабочего места активна только в списке и возвращает к нему', async ({ page }) => {
     await page.goto('/');
 
-    const workspace = page.getByLabel('Рабочие места', { exact: true });
+    const workspace = page.getByLabel('Рабочее место', { exact: true });
 
     // Старт: показан список рабочих мест — кнопка нажата.
     await expect(workspace).toHaveAttribute('aria-pressed', 'true');
@@ -120,9 +120,10 @@ test('кнопка рабочего места активна только в с
 test('страница библиотек показывает историю с временем', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
 
-    await expect(page.getByTestId('section-title')).toHaveText('Библиотеки');
+    // Навигационный текст в шапке показывает текущий раздел.
+    await expect(page.getByTestId('app-context')).toContainText('Библиотека');
     const entry = page.getByRole('button', { name: /demo-library/ });
     await expect(entry).toBeVisible();
     await expect(page.getByText('books-source', { exact: true })).toBeVisible();
@@ -132,7 +133,7 @@ test('страница библиотек показывает историю с
 test('после открытия библиотеки страница выбора закрывается', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
     await page.getByRole('button', { name: /demo-library/ }).click();
 
     await expect(page.getByTestId('libraries-page')).toBeHidden();
@@ -149,7 +150,7 @@ test('список книг открывается через раздел «Б�
 test('кнопка рабочего места не «отжимается» и не уводит с главной страницы', async ({ page }) => {
     await page.goto('/');
 
-    const workspace = page.getByLabel('Рабочие места', { exact: true });
+    const workspace = page.getByLabel('Рабочее место', { exact: true });
 
     // Старт: показан список рабочих мест — кнопка нажата.
     await expect(workspace).toHaveAttribute('aria-pressed', 'true');
@@ -163,26 +164,27 @@ test('кнопка рабочего места не «отжимается» и 
     await expect(page.getByText('Библиотека не открыта')).toBeHidden();
 });
 
-test('повторное нажатие по активной кнопке раздела возвращает к списку рабочих мест', async ({
-    page,
-}) => {
+test('раздел остаётся открытым при повторном нажатии по его кнопке', async ({ page }) => {
     await page.goto('/');
 
-    const libraries = page.getByRole('button', { name: 'Библиотеки', exact: true });
+    const libraries = page.getByRole('button', { name: 'Библиотека', exact: true });
     const notes = page.getByTestId('nav-notes');
+    const workspace = page.getByRole('button', { name: 'Рабочее место', exact: true });
 
-    // Раздел «Библиотеки»: повторное нажатие закрывает его и показывает список.
+    // Раздел «Библиотеки»: повторное нажатие оставляет раздел открытым.
     await libraries.click();
     await expect(page.getByTestId('libraries-page')).toBeVisible();
     await libraries.click();
-    await expect(page.getByTestId('libraries-page')).toBeHidden();
-    await expect(page.getByTestId('workspaces-page')).toBeVisible();
+    await expect(page.getByTestId('libraries-page')).toBeVisible();
 
     // Раздел «Заметки»: то же поведение.
     await notes.click();
     await expect(page.getByTestId('notes-library')).toBeVisible();
     await notes.click();
-    await expect(page.getByTestId('notes-library')).toBeHidden();
+    await expect(page.getByTestId('notes-library')).toBeVisible();
+
+    // Возврат к рабочему месту — своей кнопкой.
+    await workspace.click();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 });
 
@@ -190,7 +192,7 @@ test('список библиотек адаптивен к ширине окн�
     // Узкое окно: страница не даёт горизонтальной прокрутки и показывает поиск.
     await page.setViewportSize({ width: 600, height: 700 });
     await page.goto('/');
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
     await expect(page.getByTestId('libraries-page')).toBeVisible();
     await expect(page.getByTestId('libraries-page').getByPlaceholder('Поиск библиотеки')).toBeVisible();
 
@@ -216,7 +218,7 @@ test('открытие панели уведомлений не ломает с�
     // переполняться по горизонтали.
     await page.setViewportSize({ width: 1024, height: 800 });
     await page.goto('/');
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
     await expect(page.getByTestId('libraries-page')).toBeVisible();
 
     await page.getByLabel('Уведомления').click();
@@ -259,7 +261,7 @@ test('реестр заметок и библиотеки используют �
     await page.setViewportSize({ width: 1600, height: 800 });
     await page.goto('/');
 
-    await page.getByRole('button', { name: 'Библиотеки', exact: true }).click();
+    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
     await expect(
         page.getByTestId('libraries-page').getByTestId('page-controls'),
     ).toBeVisible();
@@ -313,7 +315,7 @@ test('панель разделов держит вкладки и действ�
             nodes.map((node) => (node as HTMLElement).getAttribute('aria-label') ?? ''),
         );
     const sections = order.filter((label) =>
-        ['Рабочие места', 'Библиотеки', 'Заметки'].includes(label),
+        ['Рабочее место', 'Библиотека', 'Заметки'].includes(label),
     );
-    expect(sections).toEqual(['Рабочие места', 'Библиотеки', 'Заметки']);
+    expect(sections).toEqual(['Рабочее место', 'Библиотека', 'Заметки']);
 });

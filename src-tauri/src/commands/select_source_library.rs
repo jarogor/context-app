@@ -12,6 +12,9 @@ use crate::plugin::AppState;
 ///
 /// Команда асинхронная, чтобы тяжёлое открытие/индексация не блокировали
 /// главный поток и интерфейс мог отрисовать прогресс.
+///
+/// Если запрошен тот же путь, что уже открыт, команда ничего не переоткрывает:
+/// выбор уже загруженной библиотеки не должен заново строить её индекс.
 #[tauri::command]
 pub async fn select_source_library(
     state: State<'_, Mutex<AppState>>,
@@ -19,6 +22,18 @@ pub async fn select_source_library(
     storage_root: String,
 ) -> Result<Value, String> {
     let mut state = crate::commands::lock_state(state.inner())?;
+
+    // Быстрый путь: та же библиотека уже активна — ни опроса source-плагинов, ни
+    // переиндексации. Повторный выбор того же каталога ничего не меняет.
+    if let Some((active_path, provider, provider_name)) = state.session.active_library() {
+        if active_path == path {
+            return Ok(serde_json::json!({
+                "provider": provider,
+                "provider_name": provider_name,
+                "reused": true,
+            }));
+        }
+    }
 
     let provider = state
         .session

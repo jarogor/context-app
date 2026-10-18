@@ -74,14 +74,14 @@
 
   /** Разделы приложения в порядке показа. */
   const sections: Array<{ id: string; label: string; icon: IconName; active: boolean }> = $derived([
-    { id: 'workspace', label: 'Рабочие места', icon: 'workspace', active: workspaceActive },
-    { id: 'library', label: 'Библиотеки', icon: 'library', active: libraryActive },
+    { id: 'workspace', label: 'Рабочее место', icon: 'workspace', active: workspaceActive },
+    { id: 'library', label: 'Библиотека', icon: 'library', active: libraryActive },
     { id: 'notes', label: 'Заметки', icon: 'note', active: notesActive },
   ]);
 
   /** Короткая подпись раздела для нижней навигации на телефоне. */
   const shortLabels: Record<string, string> = {
-    workspace: 'Места',
+    workspace: 'Место',
     library: 'Книги',
     notes: 'Заметки',
   };
@@ -106,11 +106,9 @@
 {#snippet desktopTab(item: { id: string; label: string; icon: IconName; active: boolean })}
   <button
     type="button"
-    class="relative flex shrink-0 cursor-pointer items-center gap-2 rounded-t-[var(--radius)] px-3 py-2 transition-colors [font:inherit]"
-    class:text-[var(--foreground)]={item.active}
-    class:text-[var(--muted-foreground)]={!item.active}
-    class:hover:text-[var(--foreground)]={!item.active}
-    class:hover:bg-[var(--accent)]={!item.active}
+    class="flex shrink-0 cursor-pointer items-center gap-2 rounded-[var(--radius)] px-3 py-1.5 text-[var(--foreground)] transition-colors [font:inherit]"
+    class:bg-[var(--primary-soft)]={item.active}
+    class:hover:bg-[var(--surface-hover)]={!item.active}
     aria-pressed={item.active}
     aria-label={item.label}
     title={item.label}
@@ -119,11 +117,6 @@
   >
     <Icon name={item.icon} class="h-[1.15rem] w-[1.15rem]" />
     <span class="min-w-0 truncate role-subtitle">{item.label}</span>
-    <span
-      class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--primary)] transition-opacity"
-      class:opacity-0={!item.active}
-      aria-hidden="true"
-    ></span>
   </button>
 {/snippet}
 
@@ -139,11 +132,9 @@
 })}
   <button
     type="button"
-    class="relative flex min-h-[var(--touch-target)] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius)] px-1 py-1 transition-colors [font:inherit]"
+    class="relative flex min-h-[var(--touch-target)] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius)] px-1 py-1 text-[var(--foreground)] transition-colors [font:inherit]"
     class:bg-[var(--primary-soft)]={item.active}
-    class:text-[var(--primary)]={item.active}
-    class:text-[var(--muted-foreground)]={!item.active}
-    class:hover:bg-[var(--muted)]={!item.active}
+    class:hover:bg-[var(--surface-hover)]={!item.active}
     aria-pressed={item.active}
     aria-label={item.ariaLabel}
     title={item.title}
@@ -220,7 +211,7 @@
   </nav>
 {:else}
   <nav
-    class="flex min-w-0 flex-1 items-end gap-1 {className}"
+    class="flex min-w-0 items-center gap-1 {className}"
     aria-label="Разделы приложения"
     data-testid="section-nav"
     data-mobile="false"

@@ -114,12 +114,12 @@ describe('раздел «Заметки» в оболочке', () => {
         );
     });
 
-    it('открывается кнопкой-иконкой, показывает заголовок и реестр', async () => {
+    it('открывается кнопкой-иконкой, показывает раздел в навигационном тексте', async () => {
         render(App, { props: appProps() });
 
         await fireEvent.click(screen.getByTestId('nav-notes'));
 
-        expect(screen.getByTestId('section-title').textContent).toContain('Заметки');
+        expect(screen.getByTestId('app-context').textContent).toContain('Заметки');
         expect(screen.getByTestId('notes-library')).toBeTruthy();
     });
 
@@ -317,8 +317,8 @@ describe('состав меню разделов', () => {
         render(App, { props: appProps() });
 
         const labels = navLabels();
-        expect(labels).toContain('Рабочие места');
-        expect(labels).toContain('Библиотеки');
+        expect(labels).toContain('Рабочее место');
+        expect(labels).toContain('Библиотека');
         expect(labels).toContain('Заметки');
         const service = serviceLabels();
         expect(service).toContain('Уведомления');
@@ -329,9 +329,9 @@ describe('состав меню разделов', () => {
         render(App, { props: appProps() });
 
         const labels = navLabels().filter((label) =>
-            ['Рабочие места', 'Библиотеки', 'Заметки'].includes(label),
+            ['Рабочее место', 'Библиотека', 'Заметки'].includes(label),
         );
-        expect(labels).toEqual(['Рабочие места', 'Библиотеки', 'Заметки']);
+        expect(labels).toEqual(['Рабочее место', 'Библиотека', 'Заметки']);
     });
 });
 
@@ -406,32 +406,29 @@ describe('активность кнопки рабочего места', () => 
         expect(screen.getByTestId('workplace-area').closest('.hidden')).toBeNull();
     });
 
-    it('повторное нажатие по активной кнопке раздела возвращает к списку рабочих мест', async () => {
+    it('повторное нажатие по активной кнопке раздела не «отжимает» её', async () => {
         render(App, {
             props: { ...appProps(), initialRegistry: registryWithWorkspace() },
         });
 
-        // Раздел «Библиотеки»: повторное нажатие закрывает его и показывает список.
+        // Раздел «Библиотеки»: повторное нажатие оставляет раздел открытым.
         await fireEvent.click(screen.getByTestId('nav-library'));
         expect(screen.getByTestId('libraries-page')).toBeTruthy();
         await fireEvent.click(screen.getByTestId('nav-library'));
-        expect(screen.getByTestId('libraries-page').closest('.hidden')).toBeTruthy();
-        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+        expect(screen.getByTestId('libraries-page').closest('.hidden')).toBeNull();
 
         // Раздел «Заметки»: то же поведение.
         await fireEvent.click(screen.getByTestId('nav-notes'));
         expect(screen.getByTestId('notes-library')).toBeTruthy();
         await fireEvent.click(screen.getByTestId('nav-notes'));
-        expect(screen.queryByTestId('notes-library')).toBeNull();
-        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+        expect(screen.getByTestId('notes-library')).toBeTruthy();
     });
 });
 
 describe('полноэкранный раздел настроек', () => {
-    /** Видны ли меню разделов и панель раздела (скрыты при открытых настройках). */
+    /** Видны ли меню разделов в шапке (скрыто при открытых настройках). */
     function chromeHidden(): boolean {
-        return document.querySelector('[data-testid="section-nav"]') === null
-            && document.querySelector('[data-testid="section-panel"]') === null;
+        return document.querySelector('[data-testid="section-nav"]') === null;
     }
 
     it('открывается на всё окно без меню разделов', async () => {
@@ -522,10 +519,11 @@ describe('текущее рабочее место остаётся загруж
         await fireEvent.click(screen.getByTestId('workspace-open'));
         await waitFor(() => expect(contentReads()).toBe(1));
 
-        // Уходим в «Библиотеки» и возвращаемся: список рабочих мест, вкладки живы.
+        // Уходим в «Библиотеки» и возвращаемся кнопкой рабочего места: раздел
+        // остаётся открытым, поэтому возврат — кнопкой рабочего места.
         await fireEvent.click(screen.getByTestId('nav-library'));
         expect(screen.getByTestId('libraries-page')).toBeTruthy();
-        await fireEvent.click(screen.getByTestId('nav-library'));
+        await fireEvent.click(screen.getByTestId('nav-workspace'));
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
 
         // Вкладки не размонтированы: слой вкладок существует, книга не прочитана заново.
@@ -547,7 +545,7 @@ describe('текущее рабочее место остаётся загруж
 
         await fireEvent.click(screen.getByTestId('nav-notes'));
         expect(screen.getByTestId('notes-library')).toBeTruthy();
-        await fireEvent.click(screen.getByTestId('nav-notes'));
+        await fireEvent.click(screen.getByTestId('nav-workspace'));
         expect(screen.getByTestId('workspaces-page')).toBeTruthy();
 
         expect(screen.getByTestId('workplace-tab-page')).toBeTruthy();

@@ -41,9 +41,9 @@
 </script>
 
 <li
-  class="group relative shrink-0 overflow-hidden rounded-[var(--radius)] border border-[var(--border)] py-2.5 pr-2 pl-4 transition-colors {selected
-    ? 'border-[var(--primary-border)] bg-[var(--primary-soft)]'
-    : 'bg-[var(--card)] hover:border-[var(--primary-border)]'}"
+  class="group relative shrink-0 overflow-hidden rounded-[var(--radius)] border py-2.5 pr-2 pl-4 transition-colors {selected
+    ? 'border-[var(--primary-border)] bg-[var(--surface-selected)]'
+    : 'border-transparent bg-[var(--card)] hover:bg-[var(--surface-hover)]'}"
   data-testid="notes-item"
   data-color={item.note.color}
   data-selected={selected ? 'true' : 'false'}

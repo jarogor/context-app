@@ -25,6 +25,13 @@ describe('реестр палитр', () => {
     expect(normalizePaletteId('solarized')).toBe(DEFAULT_PALETTE);
     expect(normalizePaletteId(undefined)).toBe(DEFAULT_PALETTE);
   });
+
+  it('даёт каждой палитре своё описание', () => {
+    // Палитры должны быть различимы по характеру: две палитры с одним описанием
+    // («нейтральная с синим акцентом») — это дубликаты.
+    const descriptions = PALETTES.map((palette) => palette.description);
+    expect(new Set(descriptions).size).toBe(descriptions.length);
+  });
 });
 
 describe('applyPalette', () => {

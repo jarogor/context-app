@@ -33,7 +33,7 @@
     'cursor-pointer border-l-2 px-3 py-2 text-left text-sm transition-colors [font:inherit] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
     active
       ? 'border-[var(--primary)] bg-[var(--primary-soft)] font-semibold text-[var(--foreground)]'
-      : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]',
+      : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',
     className,
   )}
 >

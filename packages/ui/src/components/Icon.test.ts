@@ -43,6 +43,7 @@ describe('Icon', () => {
       'workspace',
       'library',
       'list',
+      'tabs',
       'grid',
       'focus',
       'trash',

@@ -14,63 +14,37 @@ beforeEach(() => {
   invoke.mockReset();
 });
 
-/** Снимок сведений о приложении с расположениями обоих уровней. */
+/** Снимок сведений о приложении. */
 function infoResponse() {
   return {
     name: 'Текстура',
     version: '0.1.0',
     paths: [
       {
-        key: 'framework_plugins',
-        level: 'framework',
-        title: 'Плагины каркаса в поставке',
-        path: '/res/base-plugins',
-        note: 'Служебные плагины каркаса',
-      },
-      {
-        key: 'wasm_cache',
-        level: 'framework',
-        title: 'Кэш компиляции WASM',
-        path: '/data/app-state/wasm-cache',
-        note: 'Скомпилированные модули плагинов',
-      },
-      {
         key: 'app_state',
-        level: 'application',
-        title: 'Служебное состояние приложения',
+        title: 'Состояние приложения',
         path: '/data/app-state',
-        note: 'Реестры приложения',
-      },
-      {
-        key: 'application_plugins',
-        level: 'application',
-        title: 'Плагины приложения в поставке',
-        path: '/res/plugins',
-        note: 'Источники книг, форматы, заметки',
+        note: 'Настройки, плагины, кеш и данные интерфейса',
       },
     ],
   };
 }
 
 describe('страница «Информация»', () => {
-  it('разводит расположения каркаса и приложения', async () => {
+  it('показывает одно расположение без жаргона и деления плагинов', async () => {
     invoke.mockResolvedValue(infoResponse());
 
     render(AppInfoPage);
 
-    await waitFor(() => expect(screen.getByText('Каркас')).toBeTruthy());
-    expect(screen.getByText('Приложение')).toBeTruthy();
-
-    const framework = screen.getByText('Каркас').closest('div') as HTMLElement;
-    const application = screen.getByText('Приложение').closest('div') as HTMLElement;
-
-    expect(framework.textContent).toContain('Плагины каркаса в поставке');
-    expect(framework.textContent).toContain('Кэш компиляции WASM');
-    expect(framework.textContent).not.toContain('Служебное состояние приложения');
-
-    expect(application.textContent).toContain('Служебное состояние приложения');
-    expect(application.textContent).toContain('Плагины приложения в поставке');
-    expect(application.textContent).not.toContain('Кэш компиляции WASM');
+    await waitFor(() => expect(screen.getByText('Файлы приложения')).toBeTruthy());
+    expect(screen.getByText('Состояние приложения')).toBeTruthy();
+    expect(screen.getByText('/data/app-state')).toBeTruthy();
+    // Деления плагинов и уровней в интерфейсе нет.
+    expect(screen.queryByText('Плагины')).toBeNull();
+    expect(screen.queryByText('Кэш плагинов')).toBeNull();
+    expect(screen.queryByText(/в поставке/)).toBeNull();
+    expect(screen.queryByText('Каркас')).toBeNull();
+    expect(screen.queryByText('Приложение')).toBeNull();
   });
 
   it('показывает состояние ошибки вместо пустого экрана', async () => {

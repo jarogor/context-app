@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import WorkplaceArea from './WorkplaceArea.svelte';
 import { DEFAULT_NOTE_TOOL, normalizeNote, noteList } from '../notes/notes';
 
+vi.mock('../../shared/app-bridge', () => ({
+    invokeCommand: vi.fn(async () => null),
+    listenEvent: vi.fn(async () => () => {}),
+    openDialog: vi.fn(async () => null),
+}));
+
 /** Обязательные обработчики области с заглушками. */
 function handlers() {
     return {
@@ -251,6 +257,8 @@ describe('область рабочего места: список и вклад
         );
         expect(screen.getByTestId('reader-zoom').textContent).toBe('100%');
         expect(screen.getByTestId('reader-progress').textContent).toBe('0%');
+        // Прогресс есть у текучей книги; у постраничной он не показывается.
+        expect(screen.getByTestId('reader-progress')).toBeTruthy();
     });
 
     it('на узком окне переход к заметке закрывает панель заметок', async () => {        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({

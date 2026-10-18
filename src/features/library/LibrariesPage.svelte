@@ -140,6 +140,8 @@
     error = null;
     progress = null;
     try {
+      // Уже открытая библиотека не переоткрывается: ядро вернёт её без опроса
+      // source-плагинов и переиндексации (см. `select_source_library`).
       await invokeCommand('select_source_library', {
         path,
         storageRoot: appConfig.state_dir,
@@ -151,7 +153,7 @@
     } finally {
       openingPath = null;
       progress = null;
-      await loadHistory();
+      void loadHistory();
     }
   }
 
@@ -219,7 +221,6 @@
   emptyIcon="library"
   emptyTitle="Нет открытых библиотек"
   emptyText="Откройте директорию с книгами — она появится в списке, и по ней построится каталог."
-  class="p-4 md:p-6"
 >
   {#snippet emptyAction()}
     <Button variant="primary" disabled={opening} onclick={pickLibrary}>
@@ -237,6 +238,7 @@
       placeholder="Поиск библиотеки"
       ariaLabel="Поиск библиотеки"
       icon="search"
+      clearable
       class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
     />
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
@@ -270,7 +272,6 @@
     itemTestId="library-item"
     notFound={entries.length > 0 && filtered.length === 0}
     notFoundTestId="libraries-not-found"
-    selected={(entry) => activePath === entry.path}
     disabled={(entry) => !entry.available || opening}
     onSelect={(entry) => void openLibrary(entry.path)}
     metaItems={metaItems}
@@ -298,7 +299,7 @@
         {libraryName(entry.path)}
       </strong>
       {#if activePath === entry.path}
-        <Badge variant="default">текущая</Badge>
+        <Badge variant="default">Текущая</Badge>
       {/if}
     {/snippet}
 

@@ -31,8 +31,8 @@ describe('SectionNav', () => {
   it('показывает разделы с доступными именами во вкладках верхней панели', () => {
     render(SectionNav, { props: props() });
 
-    expect(screen.getByLabelText('Рабочие места')).toBeTruthy();
-    expect(screen.getByLabelText('Библиотеки')).toBeTruthy();
+    expect(screen.getByLabelText('Рабочее место')).toBeTruthy();
+    expect(screen.getByLabelText('Библиотека')).toBeTruthy();
     expect(screen.getByLabelText('Заметки')).toBeTruthy();
     expect(screen.getByTestId('section-nav').getAttribute('data-mobile')).toBe('false');
   });
@@ -68,7 +68,7 @@ describe('SectionNav', () => {
     expect(nav.getAttribute('data-mobile')).toBe('true');
 
     // Разделы и служебные пункты доступны и на телефоне.
-    expect(screen.getByLabelText('Рабочие места')).toBeTruthy();
+    expect(screen.getByLabelText('Рабочее место')).toBeTruthy();
     expect(screen.getByLabelText('Заметки')).toBeTruthy();
     expect(screen.getByLabelText('Уведомления')).toBeTruthy();
     expect(screen.getByLabelText('Настройки')).toBeTruthy();

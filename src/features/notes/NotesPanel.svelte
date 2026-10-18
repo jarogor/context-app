@@ -141,7 +141,7 @@
   {onClose}
 >
   {#snippet search()}
-    <Input bind:value={query} placeholder="Поиск по заметкам" ariaLabel="Поиск по заметкам" icon="search" />
+    <Input bind:value={query} placeholder="Поиск по заметкам" ariaLabel="Поиск по заметкам" icon="search" clearable />
   {/snippet}
 
   {#if !hasBook}

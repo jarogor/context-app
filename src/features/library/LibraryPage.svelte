@@ -20,6 +20,7 @@
     openBookExternal,
     readerFormats,
     type Book,
+    type BookFile,
     type BookWithCover,
   } from './library';
   import type { ActiveLibrary } from '../lifecycle/bootstrap';
@@ -68,6 +69,9 @@
 
   /** Корень активной библиотеки для сборки абсолютного пути книги. */
   let libraryRoot = $state('');
+
+  /** Корень, для которого уже загружен каталог: повторный выбор не перечитывает. */
+  let libraryRootUsed = $state('');
 
   /** Режим показа книг: плитка или список. */
   let viewMode = $state<'grid' | 'list'>('grid');
@@ -214,6 +218,7 @@
    */
   async function onCatalogChanged(value?: unknown) {
     const payload = value as ActiveLibrary | null;
+    const nextRoot = payload?.path ?? '';
     if (payload?.path) {
       libraryRoot = payload.path;
     } else {
@@ -223,6 +228,12 @@
         libraryRoot = '';
       }
     }
+    // Та же библиотека уже загружена: не перечитываем каталог и обложки заново.
+    // Библиотека перечитывается только при смене корня.
+    if (librarySelected && nextRoot !== '' && nextRoot === libraryRootUsed && books.length > 0) {
+      return;
+    }
+    libraryRootUsed = libraryRoot;
     librarySelected = true;
     searchQuery = '';
     clearTimeout(searchTimer);
@@ -242,14 +253,45 @@
     openedBook = null;
   }
 
-  /** Формат файла содержимого книги. */
+  /** Сброс открытой книги при уходе из раздела библиотеки. */
+  export function resetBook() {
+    openedBook = null;
+  }
+
+  /** Форматы файлов-содержимого книги: формат и поддерживается ли чтением. */
+  function bookFormats(book: Book): { format: string; readable: boolean }[] {
+    return book.files
+      .filter((file) => file.kind === 'book')
+      .map((file) => {
+        const format = file.format.toLowerCase();
+        return { format, readable: supportedFormats.includes(format) };
+      });
+  }
+
+  /** Формат файла содержимого книги, который откроется чтением (или первый). */
   function bookFormat(book: Book): string {
-    return book.files.find((file) => file.kind === 'book')?.format?.toLowerCase() ?? '';
+    const formats = bookFormats(book);
+    return (formats.find((entry) => entry.readable) ?? formats[0])?.format ?? '';
+  }
+
+  /** Поддерживает ли книгу чтение хотя бы в одном формате. */
+  function canRead(book: Book): boolean {
+    return bookFormats(book).some((entry) => entry.readable);
+  }
+
+  /** Файл содержимого книги заданного формата (или читаемого по умолчанию). */
+  function bookFile(book: Book, format?: string): BookFile | undefined {
+    const target = format || bookFormat(book);
+    return (
+      book.files.find(
+        (file) => file.kind === 'book' && file.format.toLowerCase() === target,
+      ) ?? book.files.find((file) => file.kind === 'book')
+    );
   }
 
   /** Абсолютный путь файла содержимого книги (вложение вкладки). */
-  function bookPath(book: Book): string {
-    const relative = book.files.find((file) => file.kind === 'book')?.path ?? '';
+  function bookPath(book: Book, format?: string): string {
+    const relative = bookFile(book, format)?.path ?? '';
     if (!relative) {
       return '';
     }
@@ -262,14 +304,13 @@
     return `${libraryRoot.replace(/[\\/]+$/, '')}/${relative}`;
   }
 
-  /** Поддерживает ли книгу встроенное чтение или плагин рабочего места. */
-  function canRead(book: Book): boolean {
-    return supportedFormats.includes(bookFormat(book));
-  }
-
   /** Открытие книги вкладкой рабочего места. */
-  function startReading(book: BookWithCover) {
-    onOpenInWorkplace({ path: bookPath(book), title: book.title, format: bookFormat(book) });
+  function startReading(book: BookWithCover, format?: string) {
+    onOpenInWorkplace({
+      path: bookPath(book, format),
+      title: book.title,
+      format: format || bookFormat(book),
+    });
   }
 
   /** Ошибка открытия во внешнем приложении. */
@@ -334,11 +375,12 @@
   <BookPage
     book={openedBook}
     {targetWorkspaceName}
+    formats={bookFormats(openedBook)}
     canRead={canRead(openedBook)}
     {opening}
     {externalError}
     onClose={closeBook}
-    onAdd={() => startReading(openedBook as BookWithCover)}
+    onAdd={(format) => startReading(openedBook as BookWithCover, format)}
     onOpenExternal={() => openInSystem(openedBook as BookWithCover)}
   />
 {:else}
@@ -350,7 +392,7 @@
         прокручивается вместе со списком.
       -->
       <div
-        class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
+        class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
         data-testid="library-controls"
       >
         <Input
@@ -358,6 +400,7 @@
           placeholder="Название или автор"
           ariaLabel="Название или автор"
           icon="search"
+          clearable
           class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
           oninput={onSearchInput}
         />
@@ -443,12 +486,14 @@
           {#each viewBooks as book (book.id)}
             <li>
               <button
-                class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 text-left shadow-raised transition-shadow [font:inherit] hover:shadow-overlay"
+                class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
                 type="button"
                 title="Страница книги"
                 onclick={() => openBook(book)}
               >
-                <span class="block overflow-hidden rounded-sm">
+                <span
+                  class="block overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--muted)]"
+                >
                   {#if book.coverUri}
                     <img
                       class="aspect-[2/3] w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
@@ -470,11 +515,14 @@
           {/each}
         </ul>
       {:else}
-        <ul class="m-0 flex list-none flex-col gap-2 p-0" data-testid="library-list">
+        <ul
+          class="m-0 flex list-none flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0"
+          data-testid="library-list"
+        >
           {#each viewBooks as book (book.id)}
-            <li>
+            <li class="border-b border-[var(--divider)] last:border-b-0">
               <button
-                class="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 text-left shadow-raised transition-colors [font:inherit] hover:bg-[var(--accent)]"
+                class="flex w-full cursor-pointer items-center gap-3 p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
                 type="button"
                 title="Страница книги"
                 onclick={() => openBook(book)}

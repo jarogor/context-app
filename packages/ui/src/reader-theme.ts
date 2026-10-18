@@ -127,6 +127,24 @@ const COBALT_DARK_NOTE_TONES: ReaderNoteTones = {
   purple: 'rgba(146, 96, 190, 0.45)',
 };
 
+/** Тёмные тона заметок палитры «Gruvbox»: тёплые, как сама палитра. */
+const GRUVBOX_DARK_NOTE_TONES: ReaderNoteTones = {
+  yellow: 'rgba(250, 189, 47, 0.4)',
+  green: 'rgba(184, 187, 38, 0.4)',
+  blue: 'rgba(131, 165, 152, 0.45)',
+  red: 'rgba(251, 73, 52, 0.4)',
+  purple: 'rgba(211, 134, 155, 0.45)',
+};
+
+/** Тёмные тона заметок палитры «Mist»: нейтрально-холодные. */
+const MIST_DARK_NOTE_TONES: ReaderNoteTones = {
+  yellow: 'rgba(216, 173, 74, 0.4)',
+  green: 'rgba(96, 168, 118, 0.45)',
+  blue: 'rgba(104, 150, 214, 0.5)',
+  red: 'rgba(214, 88, 88, 0.4)',
+  purple: 'rgba(158, 116, 204, 0.45)',
+};
+
 /** Мягкие тона заметок для палитры и стороны темы области чтения. */
 export function readerThemeNoteTones(
   palette: PaletteId,
@@ -135,7 +153,16 @@ export function readerThemeNoteTones(
   if (id !== 'dark') {
     return LIGHT_NOTE_TONES;
   }
-  return palette === 'cobalt' ? COBALT_DARK_NOTE_TONES : LINEN_DARK_NOTE_TONES;
+  if (palette === 'cobalt') {
+    return COBALT_DARK_NOTE_TONES;
+  }
+  if (palette === 'gruvbox') {
+    return GRUVBOX_DARK_NOTE_TONES;
+  }
+  if (palette === 'mist') {
+    return MIST_DARK_NOTE_TONES;
+  }
+  return LINEN_DARK_NOTE_TONES;
 }
 
 /** Каналы цвета: компоненты 0..255 и прозрачность 0..1. */
@@ -225,14 +252,37 @@ const LINEN_DARK_PAGE: ReaderPageColors = {
 };
 
 /** Холодная бумага и мягкий текст «Кобальта» для страницы в тёмной теме. */
+/** Холодная синяя бумага и мягкий текст «Кобальта» для страницы в тёмной теме. */
 const COBALT_DARK_PAGE: ReaderPageColors = {
-  paper: '#20252d',
-  ink: '#ccd2d6',
+  paper: '#1b2946',
+  ink: '#e4e9f4',
+};
+
+/** Тёплая бумага и мягкий текст «Gruvbox» для страницы в тёмной теме. */
+const GRUVBOX_DARK_PAGE: ReaderPageColors = {
+  paper: '#26292a',
+  ink: '#d5c4a1',
+};
+
+/** Холодная бумага и мягкий текст «Mist» для страницы в тёмной теме. */
+/** Нейтральная графитовая бумага «Mist» для страницы в тёмной теме. */
+const MIST_DARK_PAGE: ReaderPageColors = {
+  paper: '#242729',
+  ink: '#eceef0',
 };
 
 /** Цвета перекраски страницы по палитре (для тёмной стороны темы). */
 export function readerPageColors(palette: PaletteId): ReaderPageColors {
-  return palette === 'cobalt' ? COBALT_DARK_PAGE : LINEN_DARK_PAGE;
+  if (palette === 'cobalt') {
+    return COBALT_DARK_PAGE;
+  }
+  if (palette === 'mist') {
+    return MIST_DARK_PAGE;
+  }
+  if (palette === 'gruvbox') {
+    return GRUVBOX_DARK_PAGE;
+  }
+  return LINEN_DARK_PAGE;
 }
 
 /** Светлые токены области чтения по палитрам. */
@@ -254,10 +304,29 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     background: '#ffffff',
     text: '#16191f',
     muted: '#616a77',
-    link: '#2c4b86',
+    link: '#1d47a8',
     // Выделение «Кобальта» — привычный синеватый цвет.
     selection: 'rgba(59, 130, 246, 0.28)',
     selectionEdge: 'rgba(37, 99, 235, 0.9)',
+    selectionEdgeWidth: 1,
+  },
+  gruvbox: {
+    background: '#fbf1c7',
+    text: '#3c3836',
+    muted: '#7c6f64',
+    link: '#076678',
+    selection: 'rgba(96, 140, 180, 0.35)',
+    selectionEdge: 'rgba(60, 100, 145, 0.9)',
+    selectionEdgeWidth: 1,
+  },
+  mist: {
+    background: '#ffffff',
+    text: '#1c2125',
+    muted: '#6b7280',
+    link: '#454b52',
+    // «Mist» — нейтральная палитра: выделение серое, без синевы «Кобальта».
+    selection: 'rgba(120, 130, 140, 0.32)',
+    selectionEdge: 'rgba(70, 78, 86, 0.9)',
     selectionEdgeWidth: 1,
   },
 };
@@ -276,12 +345,31 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
     selectionEdgeWidth: 1,
   },
   cobalt: {
-    background: '#12151b',
-    text: '#e6e9f0',
-    muted: '#98a0ac',
-    link: '#8cace6',
+    background: '#0c1526',
+    text: '#e4e9f4',
+    muted: '#90a0bd',
+    link: '#6f9bf0',
     selection: 'rgba(96, 165, 250, 0.3)',
     selectionEdge: 'rgba(147, 197, 253, 0.9)',
+    selectionEdgeWidth: 1,
+  },
+  gruvbox: {
+    background: '#282828',
+    text: '#ebdbb2',
+    muted: '#a89984',
+    link: '#83a598',
+    selection: 'rgba(120, 160, 195, 0.33)',
+    selectionEdge: 'rgba(150, 190, 220, 0.9)',
+    selectionEdgeWidth: 1,
+  },
+  mist: {
+    background: '#16181a',
+    text: '#eceef0',
+    muted: '#9aa0a6',
+    link: '#b4bbc3',
+    // Нейтральные серые тона выделения: без синевы «Кобальта».
+    selection: 'rgba(150, 158, 166, 0.3)',
+    selectionEdge: 'rgba(200, 206, 212, 0.9)',
     selectionEdgeWidth: 1,
   },
 };

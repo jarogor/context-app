@@ -4,7 +4,6 @@
     ColorPicker,
     Icon,
     Input,
-    Progress,
     Select,
     DEFAULT_READER_THEME,
     type ColorSwatch,
@@ -45,7 +44,7 @@
     onChangeZoom?: (delta: number) => void;
     /** Переключение темы области чтения на противоположную. */
     onChangeReaderTheme?: (theme: ReaderThemeId) => void;
-    /** Показывать ли инструменты создания заметок (режим заметок). */
+    /** Показывать ли инструменты создания заметок (книга открыта). */
     notesMode?: boolean;
     /** Читается ли книга плагином рабочего места. */
     workplace?: boolean;
@@ -55,7 +54,7 @@
     workplacePage?: number | null;
     /** Общее число страниц плагина или `null`. */
     workplacePageCount?: number | null;
-    /** Прогресс чтения в процентах. */
+    /** Прогресс чтения в процентах (у постраничных форматов не показывается). */
     progress?: number;
     /** Переход к соседней странице. */
     onStepPage?: (delta: number) => void;
@@ -101,6 +100,13 @@
       selected: tool.color === color,
     })),
   );
+
+  /** Подсказки кнопок типов заметок: объясняют назначение, а не повторяют подпись. */
+  const NOTE_TYPE_TITLES: Record<NoteType, string> = {
+    quote: 'Выделить текст на странице и сохранить цитату',
+    text: 'Поставить текстовую карточку в любом месте страницы',
+    shape: 'Обвести область на странице фигурой',
+  };
 
   /** Подпись кнопки-переключателя: называет тему, на которую кнопка переключает. */
   const themeLabel = $derived(
@@ -161,18 +167,17 @@
 </script>
 
 <!--
-  Единая панель чтения. Слева — тип заметки и её инструменты (по требованию, в
-  режиме заметок): типы, вид фигуры и палитра цветов. Справа — управление
-  чтением: навигация по страницам, прогресс, масштаб и переключатель темы.
+  Единая панель чтения. Слева — инструменты заметок: типы, вид фигуры и палитра
+  цветов (показываются всегда, пока открыта книга, чтобы создание заметок было
+  доступно и без открытой панели заметок). Справа — управление чтением: навигация
+  по страницам, прогресс, масштаб и переключатель темы. Числовые элементы не
+  меняют ширину при смене числа цифр (табличные цифры и фиксированные слоты),
+  поэтому панель не «прыгает».
 -->
 <div
-  class="flex h-11 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-3"
+  class="flex h-11 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-3 [font-variant-numeric:tabular-nums]"
   data-testid="note-toolbar"
 >
-  {#if notesMode && (typeOptions.length > 1 || (tool.type === 'shape' && typeOptions.includes('shape')))}
-    <span class="role-eyebrow hidden text-[var(--muted-foreground)] sm:inline">Заметка</span>
-  {/if}
-
   {#if notesMode && typeOptions.length > 1}
     <div
       class="flex items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-0.5"
@@ -183,7 +188,7 @@
         <Button
           variant={tool.type === type ? 'primary' : 'ghost'}
           size="sm"
-          title={NOTE_TYPE_LABELS[type]}
+          title={NOTE_TYPE_TITLES[type]}
           ariaLabel={NOTE_TYPE_LABELS[type]}
           ariaPressed={tool.type === type}
           onclick={() => selectType(type)}
@@ -217,80 +222,110 @@
     />
   {/if}
 
-  <div class="ml-auto flex items-center gap-2" data-testid="reader-footer">
-    <div class="flex items-center gap-1 md:gap-2" data-testid="note-toolbar-reading">
-      {#if workplace && workplacePages && workplacePage !== null}
-        <div class="flex shrink-0 items-center gap-1 whitespace-nowrap" data-testid="reader-pages">
-          <Button
-            size="icon"
-            variant="ghost"
-            title="Предыдущая страница"
-            ariaLabel="Предыдущая страница"
-            disabled={workplacePage <= 1}
-            onclick={() => onStepPage?.(-1)}
-          >
-            <Icon name="chevron-left" />
-          </Button>
-          <Input
-            class="h-6 w-[3.5rem] shrink-0 px-1 py-0 text-center"
-            ariaLabel="Текущая страница"
-            value={pageValue}
-            oninput={(event) => (pageDraft = event.currentTarget.value)}
-            onkeydown={(event) => {
-              if (event.key === 'Enter') {
-                commitPage();
-              }
-            }}
-            onblur={commitPage}
-          />
-          <span class="whitespace-nowrap" data-testid="reader-page-count"
-            >/ {workplacePageCount ?? '?'}</span
-          >
-          <Button
-            size="icon"
-            variant="ghost"
-            title="Следующая страница"
-            ariaLabel="Следующая страница"
-            disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
-            onclick={() => onStepPage?.(1)}
-          >
-            <Icon name="chevron-right" />
-          </Button>
-        </div>
-      {/if}
-      <span class="whitespace-nowrap role-caption text-[var(--muted-foreground)]" data-testid="reader-progress"
-        >{Math.round(progress)}%</span
+  <div class="ml-auto flex items-center gap-3" data-testid="reader-footer">
+  <!--
+    Постраничная навигация: кнопки стоят **в ряд** и идут слева направо —
+    «Следующая страница» (вниз), «Предыдущая страница» (вверх), затем поле номера
+    и число страниц. Прогресса чтения у постраничных форматов нет: он дублировал
+    бы место в книге.
+  -->
+  {#if workplace && workplacePages && workplacePage !== null}
+    <div class="flex shrink-0 items-center gap-1.5" data-testid="reader-pages">
+      <button
+        type="button"
+        title="Следующая страница"
+        aria-label="Следующая страница"
+        disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
+        class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+        onclick={() => onStepPage?.(1)}
       >
-      <Progress value={progress} class="w-[7rem] max-md:hidden" />
-      {#if showZoom}
-        <Button
-          size="icon"
-          variant="ghost"
-          title="Уменьшить масштаб"
-          ariaLabel="Уменьшить масштаб"
-          disabled={zoom <= minZoom}
-          onclick={() => onChangeZoom?.(-10)}>−</Button
-        >
-        <span class="min-w-[3rem] text-center role-caption" data-testid="reader-zoom">{zoom}%</span>
-        <Button
-          size="icon"
-          variant="ghost"
-          title="Увеличить масштаб"
-          ariaLabel="Увеличить масштаб"
-          disabled={zoom >= maxZoom}
-          onclick={() => onChangeZoom?.(10)}>+</Button
-        >
-      {/if}
-      <div class="flex items-center gap-1" data-testid="reader-theme-toggle">
-        <Button
-          size="icon"
-          variant="ghost"
-          title={themeTitle}
-          ariaLabel={themeLabel}
-          onclick={toggleReaderTheme}
-        >
-          <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
-        </Button>
-      </div>    </div>
+        <Icon name="chevron-down" class="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        title="Предыдущая страница"
+        aria-label="Предыдущая страница"
+        disabled={workplacePage <= 1}
+        class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+        onclick={() => onStepPage?.(-1)}
+      >
+        <Icon name="chevron-up" class="h-4 w-4" />
+      </button>
+      <!--
+        Поле номера и число страниц — фиксированной ширины по максимуму
+        разрядности счётчика: смена «9 → 10» не сдвигает ни кнопки, ни соседние
+        блоки, поэтому вся полоса стоит на месте.
+      -->
+      <Input
+        class="h-6 w-[3.25rem] shrink-0 px-1 py-0 text-center"
+        ariaLabel="Текущая страница"
+        value={pageValue}
+        oninput={(event) => (pageDraft = event.currentTarget.value)}
+        onkeydown={(event) => {
+          if (event.key === 'Enter') {
+            commitPage();
+          }
+        }}
+        onblur={commitPage}
+      />
+      <span
+        class="inline-block min-w-[2.75rem] whitespace-nowrap text-left"
+        data-testid="reader-page-count"
+        >/ {workplacePageCount ?? '?'}</span
+      >
+    </div>
+  {/if}
+  <!--
+    Прогресс чтения остаётся только у текучих (текстовых) книг: у постраничных он
+    дублировал бы место в книге и загромождал полосу. Цифра фиксированной ширины,
+    поэтому не «прыгает».
+  -->
+  {#if !(workplace && workplacePages)}
+    <span
+      class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap role-caption text-[var(--muted-foreground)]"
+      data-testid="reader-progress"
+      >{Math.round(progress)}%</span
+    >
+  {/if}
+  <!--
+    Масштаб: кнопки «меньше/больше» стоят рядом друг с другом **слева** от
+    цифры, а сама цифра — фиксированной ширины, поэтому кнопки и переключатель
+    темы не «прыгают» при смене числа разрядов.
+  -->
+  {#if showZoom}
+    <div class="flex shrink-0 items-center gap-0.5" data-testid="reader-zoom-group">
+      <Button
+        size="icon"
+        variant="ghost"
+        title="Уменьшить масштаб"
+        ariaLabel="Уменьшить масштаб"
+        disabled={zoom <= minZoom}
+        onclick={() => onChangeZoom?.(-10)}>−</Button
+      >
+      <Button
+        size="icon"
+        variant="ghost"
+        title="Увеличить масштаб"
+        ariaLabel="Увеличить масштаб"
+        disabled={zoom >= maxZoom}
+        onclick={() => onChangeZoom?.(10)}>+</Button
+      >
+      <span
+        class="inline-block w-[3.25rem] text-center role-caption"
+        data-testid="reader-zoom">{zoom}%</span
+      >
+    </div>
+  {/if}
+  <div class="flex shrink-0 items-center gap-1" data-testid="reader-theme-toggle">
+    <Button
+      size="icon"
+      variant="ghost"
+      title={themeTitle}
+      ariaLabel={themeLabel}
+      onclick={toggleReaderTheme}
+    >
+      <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
+    </Button>
+  </div>
   </div>
 </div>

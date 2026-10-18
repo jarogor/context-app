@@ -60,7 +60,7 @@
       <span class="flex lg:hidden">
         <button
           type="button"
-          class="text-muted-foreground hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
           title="Закрыть панель"
           aria-label="Закрыть панель"
           data-testid="side-panel-close"

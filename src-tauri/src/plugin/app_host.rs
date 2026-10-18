@@ -62,7 +62,9 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "default": "linen",
           "options": [
             { "value": "linen", "title": "Лён" },
-            { "value": "cobalt", "title": "Кобальт" }
+            { "value": "cobalt", "title": "Кобальт" },
+            { "value": "gruvbox", "title": "Gruvbox" },
+            { "value": "mist", "title": "Mist" }
           ]
         },
         {

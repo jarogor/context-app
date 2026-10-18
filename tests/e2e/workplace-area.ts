@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 /** Кнопка-иконка рабочего места в верхней панели оболочки. */
 export function workspaceButton(page: Page) {
-    return page.getByLabel('Рабочие места', { exact: true });
+    return page.getByLabel('Рабочее место', { exact: true });
 }
 
 /** Область рабочего места: список рабочих мест или вкладки открытого места. */
@@ -39,17 +39,15 @@ export async function openWorkspaceArea(page: Page) {
 
 /** Показ списка книг библиотеки.
  *
- * Раздел «Библиотека» открывается кнопкой меню разделов. Если библиотека ещё не
- * открыта, внутри раздела показывается вид выбора источников: выбираем
- * библиотеку, после чего раздел сразу показывает список книг.
+ * Раздел «Библиотека» открывается кнопкой меню разделов и всегда показывает
+ * список библиотек. Выбираем библиотеку — раздел сразу показывает список книг.
  */
 export async function showLibraryBookList(page: Page) {
-    await page.getByLabel('Библиотеки', { exact: true }).click();
+    await page.getByLabel('Библиотека', { exact: true }).click();
     const sources = page.getByTestId('libraries-page');
     const books = page.getByTestId('library-page');
-    // Раздел показывает список книг, когда библиотека открыта; иначе — вид
-    // выбора источников, где библиотеку нужно выбрать. Ждём, пока раздел
-    // определится с видом: сведения об активной библиотеке приходят асинхронно.
+    // Раздел показывает список библиотек; открытие библиотеки сменяет его списком
+    // книг. Ждём, пока раздел определится, и выбираем библиотеку, если виден список.
     await Promise.race([
         books.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
         sources.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),

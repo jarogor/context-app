@@ -34,7 +34,7 @@
     <DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/40" />
     <DialogPrimitive.Content
       class={cn(
-        'fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[min(32.5rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--popover)] p-4 role-body text-[var(--popover-foreground)] shadow-overlay outline-none md:p-5',
+        'fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[min(32.5rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--overlay-surface)] p-4 role-body text-[var(--popover-foreground)] outline-none md:p-5 shadow-overlay',
         className,
       )}
     >
@@ -43,7 +43,7 @@
       {#if showClose}
         <DialogPrimitive.Close
           aria-label="Закрыть"
-          class="absolute top-4 right-4 inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]"
+          class="absolute top-4 right-4 inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
         >
           <Icon name="close" />
         </DialogPrimitive.Close>

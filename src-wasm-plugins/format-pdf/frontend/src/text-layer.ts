@@ -35,6 +35,40 @@ export async function textContentWithPageFonts(page: PdfPage): Promise<PdfTextCo
 }
 
 /**
+ * Ожидание готовности шрифтов страницы.
+ *
+ * Ширину невидимой строки pdf.js подгоняет сжатием (`scaleX`), измеряя текст
+ * через `canvas.measureText` **в момент раскладки**. Если встроенный шрифт к этому
+ * моменту ещё не загружен, замер идёт запасным шрифтом, и буквы внутри строки
+ * уезжают относительно видимого текста — выделение не совпадает с ним. В Chromium
+ * запасной шрифт близок к встроенному и расхождение незаметно, в WebKitGTK — нет,
+ * поэтому одной отрисовки недостаточно: шрифт нужно дождаться явно.
+ *
+ * Ожидание ограничено по времени: недоступный или битый шрифт не должен
+ * задерживать показ страницы, а раскладка просто пойдёт запасным.
+ */
+export async function waitForPageFonts(
+  content: PdfTextContent,
+  maxWaitMillis = 1500,
+): Promise<void> {
+  const names = Object.keys(content.styles);
+  if (names.length === 0) {
+    return;
+  }
+  try {
+    const loads = names.map((name) =>
+      document.fonts.load(`1em "${name}"`).catch(() => undefined),
+    );
+    await Promise.race([
+      Promise.all(loads),
+      new Promise<void>((resolve) => setTimeout(resolve, maxWaitMillis)),
+    ]);
+  } catch (error) {
+    // Отсутствие Font Loading API не мешает: раскладка идёт как раньше.
+  }
+}
+
+/**
  * Признак «скан с невидимым текстовым слоем» по номеру страницы.
  *
  * Проверяются операции страницы: есть изображение, есть текст, и **весь** текст
@@ -169,20 +203,32 @@ function nextFrame(): Promise<void> {
 /**
  * Подгонка невидимого текстового слоя под растр скана.
  *
- * У строки выравнивается её последний span: невидимый слой не доходит до растра
- * именно на правом краю строки, а середина и так совпадает. Растягивается
- * собственный масштаб span'а (`scaleX`) — буквы остаются невидимы, меняется лишь
- * ширина прямоугольника выделения, поэтому переносы строк не затрагиваются.
+ * Невидимый слой скана не совпадает с растром по горизонтали: он раскладывается
+ * запасным шрифтом, а ширина строки подгоняется сжатием, поэтому **все** слова
+ * строки короче видимых, а не только последнее. Здесь строка целиком
+ * растягивается от её левого края до правого края чернил растра: каждый span
+ * строки сдвигается и растягивается пропорционально (`k = чернила / строка`),
+ * поэтому любое слово — и в начале, и в середине, и в конце — снова ложится на
+ * свой видимый фрагмент, а не только хвост строки. Растягивается собственный
+ * масштаб span'а (`scaleX`) и его левый отступ; буквы остаются невидимы, меняется
+ * лишь ширина и положение прямоугольников выделения, поэтому переносы строк не
+ * затрагиваются.
+ *
  * Правый край строки — конец последнего «пятна» чернил (цепочки столбцов, где
  * пробелы короче 0.7 кегля перешагиваются). Строки с горизонтальной линейкой и
  * промахи за пределами разумного растяжения пропускаются.
  *
- * Возвращает число выровненных span'ов.
+ * `dark` переключает признак чернил: на тёмной странице (перекрашенной под тему)
+ * текст светлый, а бумага тёмная, поэтому «чернилом» считается светлый пиксель.
+ *
+ * Возвращает число выровненных строк; `0` означает, что чернил не нашлось и
+ * ничего не изменено — тогда выравнивание можно безопасно повторить.
  */
 export function alignTextLayer(
   textLayerEl: HTMLElement,
   canvas: HTMLCanvasElement,
   pageBounds: DOMRect,
+  dark = false,
 ): number {
   const canvasRect = canvas.getBoundingClientRect();
   const ratio = canvasRect.width > 0 ? canvas.width / canvasRect.width : 1;
@@ -212,15 +258,16 @@ export function alignTextLayer(
   }
   const isInk = (x: number, y: number): boolean => {
     const index = (y * cw + x) * 4;
-    return (
-      pixels[index + 3] > 0 &&
-      (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3 < 150
-    );
+    if (pixels[index + 3] === 0) {
+      return false;
+    }
+    const luminance = (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3;
+    return dark ? luminance > 150 : luminance < 150;
   };
   // Строки слоя: спаны с заметным вертикальным перекрытием — одна строка (как в
-  // `tileByLine`). У каждой строки запоминается её самый правый span — именно он
-  // не доходит до растра на правом краю.
-  const items: { span: HTMLElement; rect: DOMRect }[] = [];
+  // `tileByLine`). Собираются **все** спаны строки, а не только последний: сжатие
+  // слоя неоднородно по строке, и выравнивать нужно каждое слово.
+  const measured: { span: HTMLElement; rect: DOMRect }[] = [];
   for (const span of textLayerEl.querySelectorAll('span')) {
     if (!span || (span.textContent || '').trim().length <= 1) {
       continue;
@@ -229,11 +276,11 @@ export function alignTextLayer(
     if (rect.width <= 0 || rect.height <= 0) {
       continue;
     }
-    items.push({ span: span as HTMLElement, rect });
+    measured.push({ span: span as HTMLElement, rect });
   }
-  items.sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
-  const lines: { top: number; bottom: number; tail: { span: HTMLElement; rect: DOMRect } }[] = [];
-  for (const item of items) {
+  measured.sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
+  const lines: { top: number; bottom: number; spans: { span: HTMLElement; rect: DOMRect }[] }[] = [];
+  for (const item of measured) {
     const line = lines[lines.length - 1];
     if (line) {
       const overlap =
@@ -242,30 +289,31 @@ export function alignTextLayer(
       if (overlap > minHeight * 0.5) {
         line.top = Math.min(line.top, item.rect.top);
         line.bottom = Math.max(line.bottom, item.rect.bottom);
-        if (item.rect.right > line.tail.rect.right) {
-          line.tail = item;
-        }
+        line.spans.push(item);
         continue;
       }
     }
-    lines.push({ top: item.rect.top, bottom: item.rect.bottom, tail: item });
+    lines.push({ top: item.rect.top, bottom: item.rect.bottom, spans: [item] });
   }
   let aligned = 0;
-  for (const { tail } of lines) {
-    const { span, rect } = tail;
-    const fontSize = parseFloat(getComputedStyle(span).fontSize) || 0;
+  for (const line of lines) {
+    const fontSize = parseFloat(getComputedStyle(line.spans[0].span).fontSize) || 0;
     if (fontSize <= 0) {
       continue;
     }
-    const y0 = Math.max(0, Math.floor((rect.top - canvasRect.top) * ratio));
-    const y1 = Math.min(ch - 1, Math.ceil((rect.bottom - canvasRect.top) * ratio));
-    const x0 = Math.max(0, Math.floor((rect.left - canvasRect.left) * ratio));
-    const x1 = cw - 1;
-    if (x0 > x1 || y0 > y1) {
+    const y0 = Math.max(0, Math.floor((line.top - canvasRect.top) * ratio));
+    const y1 = Math.min(ch - 1, Math.ceil((line.bottom - canvasRect.top) * ratio));
+    if (y0 > y1) {
       continue;
     }
     // Столбцы чернил в полосе строки и заполненность её строк (для отсева
     // горизонтальных линеек: у них почти вся полоса закрашена).
+    const bandTop = Math.min(...line.spans.map((item) => item.rect.left));
+    const x0 = Math.max(0, Math.floor((bandTop - canvasRect.left) * ratio) - 1);
+    const x1 = cw - 1;
+    if (x0 > x1) {
+      continue;
+    }
     const columns = new Uint8Array(x1 - x0 + 1);
     const rowInk = new Int32Array(y1 - y0 + 1);
     for (let x = x0; x <= x1; x += 1) {
@@ -287,13 +335,15 @@ export function alignTextLayer(
     if (ruled) {
       continue;
     }
-    // От правого края букв самого span'а идём вправо, перешагивая пробелы
+    const pageWidth = pageBounds.width;
+    // От правого края букв самого правого span'а идём вправо, перешагивая пробелы
     // (промежутки короче 0.7 кегля), и обрываемся на длинном разрыве: так правый
     // край строки — конец последнего пятна, а сноска справа не приклеивается.
+    const tail = line.spans.reduce((a, b) => (b.rect.right > a.rect.right ? b : a));
     const maxGap = Math.max(2, Math.round(0.7 * fontSize * ratio));
     const spanBoxRight = Math.min(
       columns.length - 1,
-      Math.ceil((rect.right - canvasRect.left) * ratio) - x0,
+      Math.ceil((tail.rect.right - canvasRect.left) * ratio) - x0,
     );
     let anchor = -1;
     for (let x = spanBoxRight; x >= 0; x -= 1) {
@@ -321,36 +371,50 @@ export function alignTextLayer(
     if (runEnd >= columns.length - 1) {
       continue;
     }
-    const pageWidth = pageBounds.width;
     const inkRight =
       ((x0 + runEnd + 1) / ratio + canvasRect.left - pageBounds.left) / pageWidth;
-    const spanLeft = (rect.left - pageBounds.left) / pageWidth;
-    const spanRight = (rect.right - pageBounds.left) / pageWidth;
-    const spanWidth = spanRight - spanLeft;
-    const inkWidth = inkRight - spanLeft;
-    // Правый край растягивается от левого (он совпадает): короткий слой
-    // подтягивается к расту, а выступы и промахи не трогаются.
-    if (spanWidth <= 0.001 || inkWidth <= spanWidth) {
+    const lineLeft = Math.min(...line.spans.map((item) => item.rect.left));
+    const lineRight = Math.max(...line.spans.map((item) => item.rect.right));
+    const lineStart = (lineLeft - pageBounds.left) / pageWidth;
+    const lineEnd = (lineRight - pageBounds.left) / pageWidth;
+    const lineWidth = lineEnd - lineStart;
+    const inkWidth = inkRight - lineStart;
+    // Строка растягивается целиком от левого края (он совпадает): короткий слой
+    // подтягивается к расту, а выступы и промахи не трогаются. Пропорция по
+    // строке сохраняет взаимное положение слов внутри неё, поэтому выделение
+    // совпадает с видимым текстом и в начале, и в середине, и в конце строки.
+    if (lineWidth <= 0.001 || inkWidth <= lineWidth) {
       continue;
     }
-    const ratioToInk = inkWidth / spanWidth;
-    if (ratioToInk > 1.3) {
+    const ratioToInk = inkWidth / lineWidth;
+    if (ratioToInk > 1.4) {
       continue;
     }
-    const matrix = getComputedStyle(span).transform;
-    const base =
-      matrix === 'none'
-        ? [1, 0, 0, 1, 0, 0]
-        : matrix
-            .slice(matrix.indexOf('(') + 1, -1)
-            .split(',')
-            .map(Number);
-    if (!base[0]) {
-      continue;
+    let changed = false;
+    for (const item of line.spans) {
+      const matrix = getComputedStyle(item.span).transform;
+      const base =
+        matrix === 'none'
+          ? [1, 0, 0, 1, 0, 0]
+          : matrix
+              .slice(matrix.indexOf('(') + 1, -1)
+              .split(',')
+              .map(Number);
+      // Поворот и наклон не трогаются: пропорциональный сдвиг верен только для
+      // горизонтальной строки без наклона.
+      if (!base[0] || base[1] !== 0 || base[2] !== 0) {
+        continue;
+      }
+      const spanLeft = (item.rect.left - pageBounds.left) / pageWidth;
+      const newLeft = lineStart + (spanLeft - lineStart) * ratioToInk;
+      item.span.style.left = `${newLeft * pageWidth}px`;
+      item.span.style.transformOrigin = '0% 0%';
+      item.span.style.transform = `matrix(${base[0] * ratioToInk}, ${base[1]}, ${base[2]}, ${base[3]}, ${base[4]}, ${base[5]})`;
+      changed = true;
     }
-    span.style.transformOrigin = '0% 0%';
-    span.style.transform = `matrix(${base[0] * ratioToInk}, ${base[1]}, ${base[2]}, ${base[3]}, ${base[4]}, ${base[5]})`;
-    aligned += 1;
+    if (changed) {
+      aligned += 1;
+    }
   }
   return aligned;
 }

@@ -197,7 +197,7 @@ describe('панель вкладок: оформление вкладки', () 
         const item = screen.getAllByTestId('workplace-tab')[0];
         expect(item.textContent).toContain('Черновик');
         expect(item.querySelector('svg')).toBeTruthy();
-        expect(item.getAttribute('title')).toBe('Черновик\nсравнение глав');
+        expect(item.getAttribute('title')).toBe('Черновик — Книга 1\nсравнение глав');
         const box = screen.getAllByTestId('workplace-tab-item')[0];
         expect(box.getAttribute('style')).toContain('#2563eb');
     });

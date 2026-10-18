@@ -27,7 +27,6 @@
     type Store,
     type StorePackage,
   } from './plugin-store';
-
   interface Props {
     /** Передача оболочке признака неприменённых изменений активности. */
     onPendingChange?: (pending: boolean) => void;
@@ -87,41 +86,6 @@
 
   /** Идёт ли установка плагина из файла. */
   let installing = $state(false);
-
-  /** Рабочие плагины без образцов для разработчика. */
-  const regularPlugins = $derived(plugins.filter((plugin) => !plugin.sample));
-
-  /** Образцы для разработчика, показываются отдельной группой в конце. */
-  const samplePlugins = $derived(plugins.filter((plugin) => plugin.sample));
-
-  /** Русские названия назначений плагинов для заголовков групп. */
-  const KIND_TITLES: Record<string, string> = {
-    framework: 'Каркас',
-    books: 'Источники книг',
-    notes: 'Заметки',
-    format: 'Форматы чтения',
-    extension: 'Расширения',
-  };
-
-  /** Порядок групп назначений на странице. */
-  const KIND_ORDER = ['framework', 'books', 'notes', 'format', 'extension'];
-
-  /** Рабочие плагины, сгруппированные по назначению. */
-  const pluginGroups = $derived.by(() => {
-    const groups = new Map<string, PluginEntry[]>();
-    for (const plugin of regularPlugins) {
-      const bucket = groups.get(plugin.kind) ?? [];
-      bucket.push(plugin);
-      groups.set(plugin.kind, bucket);
-    }
-    const known = KIND_ORDER.filter((kind) => groups.has(kind));
-    const rest = [...groups.keys()].filter((kind) => !KIND_ORDER.includes(kind));
-    return [...known, ...rest].map((kind) => ({
-      kind,
-      title: KIND_TITLES[kind] ?? kind,
-      plugins: groups.get(kind) ?? [],
-    }));
-  });
 
   /** Сообщение оболочке о наличии неприменённых изменений активности. */
   function publishPending(pending: boolean) {
@@ -250,8 +214,10 @@
     <Card class="p-5">
       <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div class="flex min-w-0 flex-col gap-0.5">
-          <span class="role-eyebrow text-[var(--muted-foreground)]">Установленные</span>
           <h2 class="role-heading">Плагины</h2>
+          <span class="role-caption text-[var(--muted-foreground)]"
+            >Отключите ненужные; изменения применятся после перезапуска</span
+          >
         </div>
         <Button variant="secondary" disabled={installing} onclick={installFromFile}>
           <Icon name="plus" />
@@ -261,96 +227,45 @@
       {#if plugins.length === 0}
         <div class="p-4 text-center role-body text-[var(--muted-foreground)]">Нет плагинов</div>
       {:else}
-        <div class="flex flex-col gap-5">
-          {#each pluginGroups as group (group.kind)}
-            <div class="flex flex-col gap-2" data-testid="store-group" data-kind={group.kind}>
-              <h3 class="role-eyebrow text-[var(--muted-foreground)]">{group.title}</h3>
-              <ul class="flex list-none flex-col gap-2 p-0">
-                {#each group.plugins as plugin (plugin.id)}
-                  <li
-                    class="flex items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2.5"
-                  >
-                    <label class="flex min-w-0 flex-1 items-center gap-3 cursor-pointer">
-                      <Checkbox
-                        checked={plugin.enabled}
-                        onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
-                      />
-                      <span class="flex min-w-0 flex-col gap-[0.125rem]">
-                        <span class="flex flex-wrap items-baseline gap-2">
-                          <span class="role-title">{plugin.name}</span>
-                          <span class="role-mono text-[var(--muted-foreground)]">{plugin.id}</span>
-                        </span>
-                        {#if plugin.description}
-                          <span class="role-caption text-[var(--muted-foreground)]"
-                            >{plugin.description}</span
-                          >
-                        {/if}
-                      </span>
-                    </label>
-                    {#if plugin.removable}
-                      <IconButton
-                        action="delete"
-                        title="Удалить плагин"
-                        ariaLabel="Удалить плагин"
-                        onclick={() => uninstall(plugin.id)}
-                      />
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-            </div>
-          {/each}
-        </div>
-
-        {#if samplePlugins.length > 0}
-          <details class="mt-4 border-t border-[var(--border)] pt-4">
-            <summary
-              class="cursor-pointer role-caption text-[var(--muted-foreground)] select-none"
+        <ul class="flex list-none flex-col gap-2 p-0" data-testid="store-plugins">
+          {#each plugins as plugin (plugin.id)}
+            <li
+              class="flex items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2.5"
             >
-              Образцы для разработчика ({samplePlugins.length})
-            </summary>
-            <ul class="mt-2 flex list-none flex-col gap-2 p-0">
-              {#each samplePlugins as plugin (plugin.id)}
-                <li
-                  class="flex items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-2.5 opacity-75"
-                >
-                  <label class="flex min-w-0 flex-1 items-center gap-3 cursor-pointer">
-                    <Checkbox
-                      checked={plugin.enabled}
-                      onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
-                    />
-                    <span class="flex min-w-0 flex-col gap-[0.125rem]">
-                      <span class="flex flex-wrap items-baseline gap-2">
-                        <span class="role-title">{plugin.name}</span>
-                        <Badge variant="outline">образец</Badge>
-                      </span>
-                      {#if plugin.description}
-                        <span class="role-caption text-[var(--muted-foreground)]"
-                          >{plugin.description}</span
-                        >
-                      {/if}
-                    </span>
-                  </label>
-                  {#if plugin.removable}
-                    <IconButton
-                      action="delete"
-                      title="Удалить плагин"
-                      ariaLabel="Удалить плагин"
-                      onclick={() => uninstall(plugin.id)}
-                    />
+              <label class="flex min-w-0 flex-1 items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={plugin.enabled}
+                  onchange={(event) => setEnabled(plugin.id, event.currentTarget.checked)}
+                />
+                <span class="flex min-w-0 flex-col gap-[0.125rem]">
+                  <span class="role-title">{plugin.name}</span>
+                  {#if plugin.description}
+                    <span class="role-caption text-[var(--muted-foreground)]"
+                      >{plugin.description}</span
+                    >
                   {/if}
-                </li>
-              {/each}
-            </ul>
-          </details>
-        {/if}
+                </span>
+              </label>
+              {#if plugin.removable}
+                <IconButton
+                  action="delete"
+                  title="Удалить плагин"
+                  ariaLabel="Удалить плагин"
+                  onclick={() => uninstall(plugin.id)}
+                />
+              {/if}
+            </li>
+          {/each}
+        </ul>
       {/if}
     </Card>
 
     <Card class="p-5">
       <div class="mb-4 flex flex-col gap-0.5">
-        <span class="role-eyebrow text-[var(--muted-foreground)]">Источники пакетов</span>
         <h2 class="role-heading">Сторы</h2>
+        <span class="role-caption text-[var(--muted-foreground)]"
+          >Источники пакетов плагинов</span
+        >
       </div>
       {#if stores.length === 0}
         <div class="p-3 text-center role-body text-[var(--muted-foreground)]">

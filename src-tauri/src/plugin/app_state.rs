@@ -346,6 +346,61 @@ impl AppState {
         Err(last)
     }
 
+    /// Обложка книги по пути через source-плагин.
+    ///
+    /// Рабочее место адресует книгу путём и не зависит от открытой библиотеки,
+    /// поэтому обложка извлекается из самой книги или из её папки: у generic-
+    /// источника — встроенная в EPUB/FB2, у Calibre — соседний файл `cover.*`.
+    /// Ответ плагина, совпавший по формату с самой книгой, отбрасывается: это
+    /// значит, что плагин вернул файл книги, а не обложку. Возвращает `null`,
+    /// если обложки нет.
+    pub(crate) fn reader_cover_of(
+        runtime: &mut PluginRuntime,
+        path: &str,
+    ) -> Result<serde_json::Value, String> {
+        let name = Self::apply_sandbox(runtime, path)?;
+        let book_format = std::path::Path::new(path)
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        let mut ids = runtime.source_plugin_ids();
+        // Библиотеки Calibre распознаются по раскладке и приоритету выше
+        // generic-источника, поэтому их обработчик ставится первым: у Calibre
+        // обложка — соседний файл, а generic вернул бы саму книгу.
+        ids.sort_by_key(|id| {
+            let name = runtime.plugin_name(id).unwrap_or_default();
+            if name.contains("calibre") {
+                0
+            } else {
+                1
+            }
+        });
+        for id in ids {
+            let Ok(output) =
+                runtime.invoke_operation(&id, "cover", serde_json::json!({ "path": name }))
+            else {
+                continue;
+            };
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(&output) else {
+                continue;
+            };
+            if value.get("data").map(|data| data.is_null()).unwrap_or(true) {
+                continue;
+            }
+            let format = value
+                .get("format")
+                .and_then(|format| format.as_str())
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            if format == book_format {
+                continue;
+            }
+            return Ok(value);
+        }
+        Ok(serde_json::json!({ "data": null }))
+    }
+
     /// Содержимое файла вложения по пути.
     ///
     /// Файл читается напрямую, без песочницы библиотеки: рабочее место не знает,

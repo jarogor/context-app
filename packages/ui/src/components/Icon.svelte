@@ -30,6 +30,7 @@
     | 'chevron-left'
     | 'chevron-right'
     | 'chevron-down'
+    | 'chevron-up'
     | 'copy'
     | 'resize'
     | 'move'
@@ -38,6 +39,7 @@
     | 'workspace'
     | 'library'
     | 'list'
+    | 'tabs'
     | 'grid'
     | 'focus'
     | 'trash'
@@ -149,6 +151,8 @@
     <path d="M9 6l6 6-6 6" />
   {:else if name === 'chevron-down'}
     <path d="m6 9 6 6 6-6" />
+  {:else if name === 'chevron-up'}
+    <path d="m6 15 6-6 6 6" />
   {:else if name === 'copy'}
     <path d="M9 9h9v9H9zM6 15V6h9" />
   {:else if name === 'resize'}
@@ -170,6 +174,8 @@
     <path d="M16.2 4.3a1 1 0 0 1 1.25.7l3.1 14.2a1 1 0 0 1-.75 1.2l-1.9.45a1 1 0 0 1-1.2-.75L13.6 5.9a1 1 0 0 1 .75-1.2Z" />
   {:else if name === 'list'}
     <path d="M4 6h16M4 12h16M4 18h16" />
+  {:else if name === 'tabs'}
+    <path d="M4 6h16M4 12h16M4 18h10" />
   {:else if name === 'grid'}
     <rect x="4" y="4" width="7" height="7" rx="1" />
     <rect x="13" y="4" width="7" height="7" rx="1" />

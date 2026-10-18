@@ -91,6 +91,19 @@ pub async fn reader_content(
     handle.with_ready(|runtime| AppState::reader_content_of(runtime, &path))?
 }
 
+/// Обложка книги по пути (base64) либо `null`, если обложки нет.
+///
+/// Обложка извлекается из самого файла, поэтому список рабочих мест показывает
+/// обложки книг без открытой библиотеки.
+#[tauri::command]
+pub async fn reader_cover(
+    state: State<'_, Mutex<AppState>>,
+    path: String,
+) -> Result<Value, String> {
+    let handle = reader_handle(state.inner())?;
+    handle.with_ready(|runtime| AppState::reader_cover_of(runtime, &path))?
+}
+
 /// Открытие файла книги системным приложением.
 #[tauri::command]
 pub async fn reader_open_external(

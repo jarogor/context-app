@@ -8,7 +8,7 @@
  */
 
 /** Идентификатор палитры оформления. */
-export type PaletteId = 'linen' | 'cobalt';
+export type PaletteId = 'linen' | 'cobalt' | 'gruvbox' | 'mist';
 
 /** Палитра оформления: идентификатор и человекочитаемое название. */
 export interface Palette {
@@ -26,7 +26,9 @@ export const DEFAULT_PALETTE: PaletteId = 'linen';
 /** Реестр палитр дизайн-системы. */
 export const PALETTES: readonly Palette[] = [
   { id: 'linen', title: 'Лён', description: 'Тёплая бумага со смолистым зелёным акцентом' },
-  { id: 'cobalt', title: 'Кобальт', description: 'Холодная нейтраль с глубоким синим акцентом' },
+  { id: 'cobalt', title: 'Кобальт', description: 'Голубая бумага с насыщенным синим акцентом' },
+  { id: 'gruvbox', title: 'Gruvbox', description: 'Тёплая контрастная палитра с бирюзовым акцентом' },
+  { id: 'mist', title: 'Mist', description: 'Нейтральная графитовая палитра без цветного фона' },
 ];
 
 /** Проверка, что значение — известный идентификатор палитры. */

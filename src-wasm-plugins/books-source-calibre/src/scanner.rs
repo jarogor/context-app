@@ -186,6 +186,42 @@ pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
     }
 }
 
+/// Обложка из файла `cover.*` рядом с файлом книги.
+///
+/// Библиотека адресуется файлом книги (`<автор>/<книга>/<файл>`), а обложка
+/// Calibre лежит в той же папке отдельным файлом `cover.jpg`. Папка книги —
+/// родительская для переданного пути; в ней ищется файл с базовым именем
+/// `cover` и расширением из допустимых. Возвращает байты и формат обложки.
+pub(crate) fn sibling_cover(fs: &impl Fs, path: &str) -> Result<Option<(Vec<u8>, String)>, String> {
+    let folder = match path.rsplit_once('/') {
+        Some((folder, _)) => folder,
+        None => "",
+    };
+    let entries = fs.list_dir(folder)?;
+    for entry in &entries {
+        if entry.kind != EntryKind::File {
+            continue;
+        }
+        let Some(extension) = Path::new(&entry.name)
+            .extension()
+            .and_then(|value| value.to_str())
+        else {
+            continue;
+        };
+        let extension = extension.to_ascii_lowercase();
+        if Path::new(&entry.name)
+            .file_stem()
+            .and_then(|value| value.to_str())
+            == Some("cover")
+            && COVER_FORMATS.contains(&extension.as_str())
+        {
+            let cover_path = join(folder, &entry.name);
+            return Ok(Some((fs.read_bytes(&cover_path)?, extension)));
+        }
+    }
+    Ok(None)
+}
+
 /// Является ли файл содержимым книги по его имени.
 fn is_book_file(name: &str) -> bool {
     Path::new(name)

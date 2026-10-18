@@ -127,11 +127,14 @@ test('раздел «Информация» показывает версию и
   await menu.getByRole('button', { name: 'Информация' }).click();
 
   await expect(page.getByText('версия 0.1.0')).toBeVisible();
-  // Уровни разведены: каркас и приложение показаны отдельными группами.
-  await expect(page.getByRole('heading', { name: 'Каркас' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Приложение' })).toBeVisible();
-  await expect(page.getByText('/home/user/.texture/app-state', { exact: true })).toBeVisible();
-  await expect(page.getByText('Кэш компиляции WASM')).toBeVisible();
+  const info = page.getByTestId('app-info-page');
+  await expect(info.getByRole('heading', { name: 'Файлы приложения' })).toBeVisible();
+  await expect(info.getByText('/home/user/.texture/app-state', { exact: true })).toBeVisible();
+  // Одно расположение состояния; деления плагинов и жаргона нет.
+  await expect(info.locator('li', { hasText: 'Состояние приложения' }).first()).toBeVisible();
+  await expect(info.getByText(/в поставке/)).toHaveCount(0);
+  await expect(info.getByText('Каркас')).toHaveCount(0);
+  await expect(info.getByText('Кэш плагинов')).toHaveCount(0);
 });
 
 test('настройки открываются на всё окно без меню разделов', async ({ page }) => {
@@ -140,16 +143,31 @@ test('настройки открываются на всё окно без ме
 
   await page.getByTestId('nav-settings').click();
 
-  // Меню разделов и панель раздела скрыты, доступны только настройки.
+  // Меню разделов скрыто, доступны только настройки.
   await expect(page.getByTestId('section-nav')).toBeHidden();
-  await expect(page.getByTestId('section-panel')).toBeHidden();
   await expect(page.getByTestId('settings-page')).toBeVisible();
-  // Кнопка закрытия — в правом верхнем углу страницы настроек.
+  // Кнопка закрытия — в шапке настроек.
   await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
   // Внутреннее меню разделов настроек осталось.
   await expect(
     page.getByRole('navigation', { name: 'Разделы настроек' }),
   ).toBeVisible();
+});
+
+test('кнопка закрытия доступна с любой страницы настроек', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('nav-settings').click();
+
+  const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
+  // Закрытие есть и на «Плагинах», и на «Информации», а не только на «Общих».
+  await menu.getByRole('button', { name: 'Плагины' }).click();
+  await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
+
+  await menu.getByRole('button', { name: 'Информация' }).click();
+  await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
+
+  await page.getByLabel('Закрыть настройки').click();
+  await expect(page.getByTestId('settings-page')).toBeHidden();
 });
 
 test('кнопка закрытия и Escape возвращают прежнюю область', async ({ page }) => {

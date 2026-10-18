@@ -105,16 +105,16 @@ pub fn invoke(input: String) -> FnResult<String> {
                 .get("query")
                 .and_then(|value| value.as_str())
                 .unwrap_or_default()
-                .to_ascii_lowercase();
+                .to_lowercase();
             let books = catalog
                 .books
                 .into_iter()
                 .filter(|book| {
-                    book.title.to_ascii_lowercase().contains(&query)
+                    book.title.to_lowercase().contains(&query)
                         || book
                             .authors
                             .iter()
-                            .any(|author| author.to_ascii_lowercase().contains(&query))
+                            .any(|author| author.to_lowercase().contains(&query))
                 })
                 .collect::<Vec<_>>();
             serde_json::to_string(&json!({ "books": books }))?

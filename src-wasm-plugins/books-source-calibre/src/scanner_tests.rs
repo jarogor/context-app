@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{build_book, list_books, probe, PROBE_PRIORITY};
+use super::{build_book, list_books, probe, sibling_cover, PROBE_PRIORITY};
 use crate::models::ExternalFileKind;
 use crate::test_fs::TestFs;
 use zip::write::SimpleFileOptions;
@@ -121,4 +121,65 @@ fn probe_detects_only_calibre_structure() {
     fs::create_dir_all(&flat).expect("плоский корень");
     fs::write(flat.join("book.epub"), "epub").expect("файл книги");
     assert_eq!(probe(&TestFs::new(flat)).expect("проверка"), None);
+}
+
+/// Обложка берётся из соседнего файла `cover.*` в папке книги.
+#[test]
+fn sibling_cover_reads_cover_next_to_book() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    let book = root.join("Автор").join("Книга");
+    fs::create_dir_all(&book).expect("папка книги");
+    fs::write(book.join("book.pdf"), "pdf").expect("книга");
+    fs::write(book.join("cover.jpg"), "cover-bytes").expect("обложка");
+    let fs = TestFs::new(root);
+
+    let cover = sibling_cover(&fs, "Автор/Книга/book.pdf")
+        .expect("поиск обложки")
+        .expect("обложка найдена");
+    assert_eq!(cover.0, b"cover-bytes");
+    assert_eq!(cover.1, "jpg");
+}
+
+/// Без файла `cover.*` обложки нет: сам файл книги не подменяет её.
+#[test]
+fn sibling_cover_is_none_without_cover_file() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    let book = root.join("Автор").join("Книга");
+    fs::create_dir_all(&book).expect("папка книги");
+    fs::write(book.join("book.pdf"), "pdf").expect("книга");
+    let fs = TestFs::new(root);
+
+    assert!(sibling_cover(&fs, "Автор/Книга/book.pdf")
+        .expect("поиск обложки")
+        .is_none());
+}
+
+/// Файлы разных форматов одной книги остаются одной книгой со всеми форматами.
+#[test]
+fn groups_multiple_formats_of_one_book() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    let book = root.join("Автор").join("Книга");
+    fs::create_dir_all(&book).expect("папка книги");
+    fs::write(book.join("book.epub"), "epub").expect("epub");
+    fs::write(book.join("book.pdf"), "pdf").expect("pdf");
+    fs::write(book.join("book.fb2"), "fb2").expect("fb2");
+    fs::write(book.join("cover.jpg"), "cover").expect("обложка");
+    let fs = TestFs::new(root);
+
+    let listings = list_books(&fs).expect("обход");
+    // Раскладка «автор/книга» даёт одну книгу, а не по книге на формат.
+    assert_eq!(listings.len(), 1);
+    let entry = build_book(&fs, &listings[0]);
+
+    let mut formats: Vec<_> = entry
+        .files
+        .iter()
+        .filter(|file| matches!(file.kind, ExternalFileKind::Book))
+        .map(|file| file.format.clone())
+        .collect();
+    formats.sort();
+    assert_eq!(formats, ["epub", "fb2", "pdf"]);
 }

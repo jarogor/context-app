@@ -34,8 +34,6 @@
     onToggleNotes: () => void;
     /** Возврат к списку рабочих мест. */
     onBackToList: () => void;
-    /** Имя открытого рабочего места для панели вкладок. */
-    workspaceName?: string | null;
     /** Режим сосредоточенного чтения. */
     focusMode?: boolean;
     /** Переключение режима сосредоточенного чтения. */
@@ -56,7 +54,6 @@
     onToggleBooks,
     onToggleNotes,
     onBackToList,
-    workspaceName = null,
     focusMode = false,
     onToggleFocus,
   }: Props = $props();
@@ -246,27 +243,28 @@
 
   /** Фрагмент стиля с заливкой вкладки пользовательским цветом; пусто, если цвета нет. */
   function tabFill(tab: WorkspaceTab): string {
-    const base = tabColorFill(tab.color, 'var(--background)', false);
-    const active = tabColorFill(tab.color, 'var(--primary-soft)', true);
+    const base = tabColorFill(tab.color, 'var(--muted)', false);
+    const active = tabColorFill(tab.color, 'var(--muted)', true);
     return base && active ? ` --tab-fill: ${base}; --tab-fill-active: ${active};` : '';
   }
 
   /** Классы фона вкладки с учётом пользовательского цвета и активности.
    *
-   * Вкладки читаются как закладки: активная стоит на фоне содержимого и
-   * соединяется с ним — верхние углы скруглены, нижняя граница совпадает с
-   * полосой. Неактивные приглушены и подчёркиваются наведением.
+   * Вкладки — самостоятельные плашки на приглушённой полосе (как было в прежнем
+   * оформлении): скруглены со всех сторон, не «стоят» на нижней границе. Активная
+   * залита фоном содержимого, неактивные прозрачны и подсвечиваются наведением
+   * акцентом. Никаких рамок и «опоры» на низ.
    */
   function tabFillClass(tab: WorkspaceTab): string {
     const active = tab.id === activeTabId;
     if (tab.color) {
       return active
-        ? 'border-[var(--border)] border-b-transparent bg-[var(--tab-fill-active)] text-[var(--foreground)]'
-        : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--tab-fill)] hover:text-[var(--foreground)]';
+        ? 'bg-[var(--tab-fill-active)] text-[var(--foreground)]'
+        : 'bg-[var(--tab-fill)] text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
     }
     return active
-      ? 'border-[var(--border)] border-b-transparent bg-[var(--card)] text-[var(--foreground)]'
-      : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--card)] hover:text-[var(--foreground)]';
+      ? 'bg-[var(--background)] text-[var(--foreground)]'
+      : 'text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
   }
 
   /** Пункты контекстного меню рабочего места на телефоне. */
@@ -294,7 +292,7 @@
 </script>
 
 <div
-  class="flex flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-2 pt-1.5"
+  class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--muted)] px-2 py-1.5"
   data-testid="workplace-tabs"
 >
   <Button
@@ -306,15 +304,6 @@
   >
     <Icon name="chevron-left" />
   </Button>
-  {#if workspaceName}
-    <span
-      class="hidden max-w-[17.5rem] truncate role-heading text-[var(--foreground)] md:inline"
-      data-testid="header-workspace-name"
-      title={workspaceName}
-    >
-      {workspaceName}
-    </span>
-  {/if}
   <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
        выталкивает их за пределы панели. -->
   <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-actions">
@@ -341,7 +330,7 @@
       </Button>
     </span>
   </div>
-  <div class="flex min-w-0 flex-1 items-end gap-2 self-end">
+  <div class="flex min-w-0 flex-1 items-center gap-2">
     {#if overflowing}
       <Button
         size="icon"
@@ -355,13 +344,13 @@
       </Button>
     {/if}
     <div
-      class="flex min-w-0 flex-1 items-end gap-[0.125rem] overflow-hidden"
+      class="flex min-w-0 flex-1 items-center gap-[0.125rem] overflow-hidden"
       bind:this={listEl}
       data-testid="workplace-tabs-window"
     >
       {#each windowTabs as tab (tab.id)}
         <div
-          class="relative flex flex-none items-center overflow-hidden rounded-t-[var(--radius)] border border-b-0 {tabFillClass(
+          class="relative flex flex-none items-center overflow-hidden rounded-[var(--radius)] {tabFillClass(
             tab,
           )}"
           style="width: {TAB_WIDTH_REM}rem; height: {TAB_ROW_REM}rem;{tabFill(tab)}"
@@ -450,7 +439,7 @@
       ariaPressed={booksOpen}
       onclick={onToggleBooks}
     >
-      <Icon name="list" />
+      <Icon name="tabs" />
     </Button>
     {#if onToggleFocus}
       <Button

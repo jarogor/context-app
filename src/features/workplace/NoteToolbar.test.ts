@@ -15,6 +15,7 @@ function props(overrides: Record<string, unknown> = {}) {
         onChangeZoom: vi.fn(),
         onChangeReaderTheme: vi.fn(),
         notesMode: true,
+        progress: 0,
         ...overrides,
     };
 }
@@ -26,6 +27,25 @@ describe('панель инструментов заметок', () => {
         expect(screen.getByRole('button', { name: 'Цитата' })).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Текст' })).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Фигура' })).toBeTruthy();
+    });
+
+    it('не дублирует подпись кнопки в подсказке: подсказка объясняет назначение', () => {
+        render(NoteToolbar, { props: props() });
+
+        const quote = screen.getByRole('button', { name: 'Цитата' });
+        const quoteTitle = quote.getAttribute('title') ?? '';
+        // Подсказка не равна подписи и объясняет, что делает кнопка.
+        expect(quoteTitle).not.toBe('Цитата');
+        expect(quoteTitle.toLowerCase()).toContain('цитат');
+
+        const shape = screen.getByRole('button', { name: 'Фигура' });
+        expect(shape.getAttribute('title') ?? '').not.toBe('Фигура');
+    });
+
+    it('не показывает служебный надзаголовок «Заметка»', () => {
+        render(NoteToolbar, { props: props() });
+
+        expect(screen.queryByText('Заметка')).toBeNull();
     });
 
     it('сообщает о выборе типа', async () => {
@@ -87,8 +107,7 @@ describe('панель инструментов заметок', () => {
         expect(picker.className).toContain('h-8');
     });
 
-    it('выстраивает элементы слева одной цепочкой: типы, вид фигуры, цвет', async () => {
-        render(NoteToolbar, { props: props({ tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' } }) });
+    it('выстраивает элементы слева одной цепочкой: типы, вид фигуры, цвет', async () => {        render(NoteToolbar, { props: props({ tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' } }) });
 
         const toolbar = screen.getByTestId('note-toolbar');
         const color = screen.getByTestId('note-tool-color-picker');
@@ -128,13 +147,13 @@ describe('панель инструментов заметок', () => {
         render(NoteToolbar, { props: props() });
 
         const toolbar = screen.getByTestId('note-toolbar');
-        const group = screen.getByTestId('note-toolbar-reading');
         const footer = screen.getByTestId('reader-footer');
         const quote = screen.getByRole('button', { name: 'Цитата' });
+        const zoom = screen.getByTestId('reader-zoom-group');
 
         // Группа чтения идёт после инструментов заметок и прижата вправо.
         const order = Array.from(toolbar.querySelectorAll('*'));
-        expect(order.indexOf(quote)).toBeLessThan(order.indexOf(group));
+        expect(order.indexOf(quote)).toBeLessThan(order.indexOf(zoom));
         expect(footer.className).toContain('ml-auto');
     });
 });
@@ -175,6 +194,62 @@ describe('панель чтения: масштаб', () => {
 
         expect(screen.queryByTestId('reader-zoom')).toBeNull();
         expect(screen.queryByRole('button', { name: 'Увеличить масштаб' })).toBeNull();
+    });
+
+    it('держит ширину масштаба и прогресса фиксированной независимо от числа цифр', () => {
+        const { unmount } = render(NoteToolbar, { props: props({ zoom: 60, progress: 5 }) });
+        expect(screen.getByTestId('reader-progress').className).toContain('w-[2.75rem]');
+        expect(screen.getByTestId('reader-zoom').className).toContain('w-[3.25rem]');
+        expect(screen.getByTestId('reader-zoom-group')).toBeTruthy();
+        unmount();
+
+        render(NoteToolbar, { props: props({ zoom: 220, progress: 100 }) });
+        expect(screen.getByTestId('reader-progress').className).toContain('w-[2.75rem]');
+        expect(screen.getByTestId('reader-zoom').className).toContain('w-[3.25rem]');
+    });
+
+    it('не показывает прогресс у постраничной книги', () => {
+        render(NoteToolbar, {
+            props: props({
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 1200,
+                zoom: 100,
+            }),
+        });
+
+        // Постраничная навигация есть, а прогресса чтения нет.
+        expect(screen.getByTestId('reader-pages')).toBeTruthy();
+        expect(screen.queryByTestId('reader-progress')).toBeNull();
+    });
+
+    it('держит поле страницы фиксированной ширины на любой разрядности', () => {
+        const { unmount } = render(NoteToolbar, {
+            props: props({
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 9,
+            }),
+        });
+        const field = screen.getByLabelText('Текущая страница');
+        expect(field.className).toContain('w-[3.25rem]');
+        expect(field.className).toContain('shrink-0');
+        unmount();
+
+        render(NoteToolbar, {
+            props: props({
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 1200,
+            }),
+        });
+        // Та же ширина: смена «9 → 1200» не сдвигает ни кнопки, ни соседей.
+        const wide = screen.getByLabelText('Текущая страница');
+        expect(wide.className).toContain('w-[3.25rem]');
+        expect(screen.getByTestId('reader-pages').className).toContain('shrink-0');
     });
 });
 

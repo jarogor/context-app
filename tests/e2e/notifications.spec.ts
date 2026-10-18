@@ -64,12 +64,16 @@ test('панель уведомлений начинается от верха �
   await page.goto('/');
   await page.getByLabel('Уведомления').click();
 
-  const panelBox = await page.getByTestId('section-panel').boundingBox();
+  // Панель идёт от верха контентной области: её верхний край совпадает с верхом
+  // области рабочего места, а низ — с низом области (панели раздела под шапкой
+  // больше нет).
+  const areaBox = await page.getByTestId('workplace-area').boundingBox();
   const asideBox = await page.getByTestId('notifications-panel').boundingBox();
-  expect(panelBox).not.toBeNull();
+  expect(areaBox).not.toBeNull();
   expect(asideBox).not.toBeNull();
 
-  // Верхний край панели совпадает с верхом области (не сползает вниз).
-  expect(Math.abs(asideBox!.y - panelBox!.y)).toBeLessThanOrEqual(2);
-  expect(asideBox!.height).toBeGreaterThan(panelBox!.height);
+  expect(Math.abs(asideBox!.y - areaBox!.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(asideBox!.y + asideBox!.height - (areaBox!.y + areaBox!.height))).toBeLessThanOrEqual(
+    2,
+  );
 });

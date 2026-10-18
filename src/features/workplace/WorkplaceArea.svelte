@@ -310,7 +310,6 @@
       {booksOpen}
       {notesOpen}
       {openTabsLimit}
-      workspaceName={workspace.name}
       {focusMode}
       onToggleFocus={onToggleFocus}
       onSelect={onSelectTab}
@@ -332,7 +331,7 @@
         maxZoom={activeFooter?.maxZoom ?? 220}
         showZoom={activeFooter?.workplaceZoom ?? true}
         {readerTheme}
-        notesMode={notesOpen}
+        notesMode={true}
         workplace={activeFooter?.workplace ?? false}
         workplacePages={activeFooter?.workplacePages ?? false}
         workplacePage={activeFooter?.page ?? null}

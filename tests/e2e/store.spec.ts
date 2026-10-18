@@ -10,8 +10,8 @@ test('стор показывает перечень плагинов и акт�
   const store = page.locator('main');
   await expect(store.getByText('books-source-calibre', { exact: true })).toBeVisible();
   await expect(store.getByText('installed-plugin', { exact: true })).toBeVisible();
-  // Рабочие плагины и образцы для разработчика разделены.
-  await expect(store.getByText('Образцы для разработчика (2)')).toBeVisible();
+  // Все плагины — одним списком, без деления на виды и «образцы».
+  await expect(store.getByTestId('store-plugins').locator('li')).toHaveCount(4);
 
   // Отключаемый пользовательский плагин можно удалить, поставляемый — нет.
   await expect(store.getByRole('button', { name: 'Удалить' })).toHaveCount(1);

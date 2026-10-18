@@ -40,14 +40,7 @@ fn setup_base_plugins(name: &str) -> PathBuf {
 fn state_with_base(name: &str, base_root: PathBuf) -> AppState {
     let app_state_root = test_util::test_root(&format!("app-state-root-{name}"));
     let session = PluginSession::idle(PathBuf::from("."), base_root.clone());
-    let app_info = AppInfo::build(
-        "Текстура",
-        "0.1.0",
-        &app_state_root,
-        &app_state_root.join("plugins"),
-        &app_state_root.join("resources"),
-        &base_root,
-    );
+    let app_info = AppInfo::build("Текстура", "0.1.0", &app_state_root);
     let reader_config = ReaderConfig {
         directories: Vec::new(),
         disabled: Vec::new(),

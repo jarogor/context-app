@@ -2,6 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import WorkspacesPage from './WorkspacesPage.svelte';
 
+vi.mock('../../shared/app-bridge', () => ({
+    invokeCommand: vi.fn(async () => null),
+    listenEvent: vi.fn(async () => () => {}),
+    openDialog: vi.fn(async () => null),
+}));
+
 /** Обработчики экрана с заглушками по умолчанию. */
 function handlers() {
     return {
@@ -26,8 +32,7 @@ describe('экран списка рабочих мест', () => {
         });
 
         expect(screen.getAllByTestId('workspace-item')).toHaveLength(2);
-        // Признак текущего места — отдельный значок, а не строка метаинформации.
-        expect(screen.getByTestId('workspace-current')).toBeTruthy();
+        expect(screen.getByTestId('workspace-current').textContent).toContain('Текущее');
         expect(screen.getAllByTestId('workspace-current')).toHaveLength(1);
     });
 
@@ -66,19 +71,28 @@ describe('экран списка рабочих мест', () => {
         });
 
         expect(screen.getAllByTestId('workspace-item')).toHaveLength(1);
-        expect(screen.getByTestId('workspace-open').textContent).toContain('Второе');
+        expect(screen.getByTestId('workspace-name').textContent).toContain('Второе');
     });
 
-    it('показывает число книг рабочего места', () => {
+    it('показывает книги и вкладки рядом, в одном блоке', () => {
         render(WorkspacesPage, {
             props: {
-                workspaces: [{ id: 'ws-1', name: 'Первое', bookCount: 3 }],
+                workspaces: [
+                    {
+                        id: 'ws-1',
+                        name: 'Первое',
+                        // Одна книга открыта двумя вкладками: книг две, вкладок три.
+                        bookPaths: ['/lib/a.epub', '/lib/b.epub', '/lib/a.epub'],
+                    },
+                ],
                 currentId: null,
                 ...handlers(),
             },
         });
 
-        expect(screen.getByTestId('workspace-meta').textContent).toContain('3 книг');
+        const meta = screen.getByTestId('workspace-meta').textContent ?? '';
+        expect(meta).toContain('2 книг');
+        expect(meta).toContain('3 вкладок');
     });
 
     it('не падает, когда одна книга открыта в нескольких вкладках места', () => {

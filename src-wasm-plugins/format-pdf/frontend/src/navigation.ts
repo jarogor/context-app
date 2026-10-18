@@ -64,6 +64,25 @@ export function gotoPage(page: number): void {
   }
 }
 
+/**
+ * Прокрутка к началу или концу книги клавишами `Home`/`End`.
+ *
+ * Прокрутка выполняется напрямую (`scrollTop`), а не `scrollIntoView`: после
+ * ручной прокрутки к краю браузер не должен «застревать» на последней цели
+ * `scrollIntoView`, из-за чего следующая клавиша не срабатывала. `End` ставит
+ * прокрутку в самый низ (конец последней страницы), `Home` — в самое начало.
+ */
+export function pageToEdge(edge: 'start' | 'end'): void {
+  const max = viewer.scrollHeight - viewer.clientHeight;
+  viewer.scrollTop = edge === 'start' ? 0 : Math.max(0, max);
+  const page = pageAtTop();
+  if (page !== state.currentPage) {
+    state.currentPage = page;
+  }
+  reportState();
+  scheduleWindowRefresh();
+}
+
 /** Прокрутка к самой заметке: её полоса оказывается у верха области.
  *
  * Прокрутка идёт к элементу заметки, а не к началу страницы: при увеличенной

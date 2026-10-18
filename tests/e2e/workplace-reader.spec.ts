@@ -117,14 +117,12 @@ test('сосредоточенное чтение скрывает хром и �
     await expect(page.getByTestId('section-nav')).toBeVisible();
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
     await expect(page.getByTestId('note-toolbar')).toBeVisible();
-    await expect(page.getByTestId('reader-progress')).toHaveText('42%');
 
     await page.getByRole('button', { name: 'Сосредоточенное чтение' }).click();
 
-    // Хром скрыт: меню разделов и панель раздела; панель вкладок остаётся
-    // минимальной полосой с кнопкой выхода из режима.
+    // Хром скрыт: меню разделов; панель вкладок остаётся минимальной полосой с
+    // кнопкой выхода из режима.
     await expect(page.getByTestId('section-nav')).toHaveCount(0);
-    await expect(page.getByTestId('section-panel')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Выйти из сосредоточенного чтения' })).toBeVisible();
     // Книга остаётся открытой: содержимое на месте.
     await expect(

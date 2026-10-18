@@ -81,6 +81,11 @@ function lastUpdatedAt(notes: Note[]): number {
 }
 
 /** Совпадает ли заметка с запросом: название, комментарий, цитата, текст, место. */
+/** Подходит ли заметка под запрос: любое из полей содержит подстроку.
+ *
+ * Сравнение — по любому вхождению, а не по совпадению целого слова: поиск
+ * находит набор и по началу имени.
+ */
 function noteMatches(note: Note, needle: string): boolean {
     return [note.title, note.comment, note.quote, note.text, note.chapter, notePlace(note)].some(
         (value) => value.toLowerCase().includes(needle),

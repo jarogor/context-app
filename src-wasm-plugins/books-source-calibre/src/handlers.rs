@@ -101,16 +101,16 @@ pub(crate) fn search(request: &Request) -> Result<String, String> {
         .get("query")
         .and_then(|value| value.as_str())
         .unwrap_or_default()
-        .to_ascii_lowercase();
+        .to_lowercase();
     let books = catalog
         .books
         .iter()
         .filter(|book| {
-            book.title.to_ascii_lowercase().contains(&query)
+            book.title.to_lowercase().contains(&query)
                 || book
                     .authors
                     .iter()
-                    .any(|author| author.to_ascii_lowercase().contains(&query))
+                    .any(|author| author.to_lowercase().contains(&query))
         })
         .cloned()
         .collect::<Vec<_>>();
@@ -131,7 +131,13 @@ pub(crate) fn read(request: &Request) -> Result<String, String> {
         .map_err(|error| error.to_string())
 }
 
-/// Обложка книги из индекса или из файла.
+/// Обложка книги из индекса, из файла книги или из соседнего файла `cover.*`.
+///
+/// С индексом (`book_id`) обложка берётся из каталога библиотеки. С путём
+/// (`path`) книга адресуется файлом, и библиотека может быть не открыта — тогда
+/// обложка ищется в самой папке книги: у Calibre это отдельный файл `cover.jpg`
+/// рядом с файлом книги (встроенной обложки у PDF/DjVu нет). Если соседнего
+/// файла нет, обложки нет: возвращается `null`, а не сам файл книги.
 pub(crate) fn cover(request: &Request) -> Result<String, String> {
     let fs = HostFs;
     if let Some(id) = request
@@ -144,6 +150,18 @@ pub(crate) fn cover(request: &Request) -> Result<String, String> {
                 .map_err(|error| error.to_string())
         } else {
             serde_json::to_string(&json!({ "data": null })).map_err(|error| error.to_string())
+        }
+    } else if let Some(path) = request.payload.get("path").and_then(|value| value.as_str()) {
+        match crate::scanner::sibling_cover(&fs, path)? {
+            Some((bytes, format)) => {
+                let encoded =
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+                serde_json::to_string(&json!({ "data": encoded, "format": format }))
+                    .map_err(|error| error.to_string())
+            }
+            None => {
+                serde_json::to_string(&json!({ "data": null })).map_err(|error| error.to_string())
+            }
         }
     } else {
         let path = book_path(&request.payload, true)?;

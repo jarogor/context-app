@@ -91,25 +91,6 @@ describe('страница настроек из декларации', () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 
-  it('вызывает колбэк закрытия по кнопке в углу', async () => {
-    const onclose = vi.fn();
-    render(SettingsPage, {
-      props: {
-        initialDeclarations: [
-          {
-            declaration: { space: 'settings.section', id: 'app.general', nodes: [] },
-            diagnostics: [],
-          },
-        ],
-        initialError: '',
-        onclose,
-      },
-    });
-
-    await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
-    expect(onclose).toHaveBeenCalled();
-  });
-
   it('держит кнопку сохранения недоступной без правок', () => {
     render(SettingsPage, {
       initialDeclarations: [

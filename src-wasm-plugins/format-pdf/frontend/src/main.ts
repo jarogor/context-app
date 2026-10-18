@@ -28,7 +28,7 @@ import {
   startObserver,
   wakeViewerScroll,
 } from './render';
-import { gotoNote, gotoPage, handleScroll, pageAtTop, scrollToFraction } from './navigation';
+import { gotoNote, gotoPage, handleScroll, pageAtTop, pageToEdge, scrollToFraction } from './navigation';
 import { applyReaderTheme } from './theme';
 import { state } from './state';
 
@@ -225,6 +225,7 @@ function bindEvents(): void {
   document.addEventListener('selectionchange', handleSelectionChange);
   /* Клик по заметке: приложение выбирает её, а вьюер показывает меню действий. */
   pagesEl.addEventListener('click', handlePagesClick);
+  addEventListener('keydown', handleKeyDown);
   addEventListener('resize', handleRatioChange);
   addEventListener('resize', handleViewerResize);
   new ResizeObserver(() => {
@@ -232,6 +233,45 @@ function bindEvents(): void {
       scheduleWindowRefresh();
     }
   }).observe(viewer);
+}
+
+/**
+ * Обработка клавиш навигации по книге.
+ *
+ * `Home`/`End` прокручивают книгу к началу или концу, `PageUp`/`PageDown` —
+ * на высоту области чтения (листание экранами). Клавиши сами управляют
+ * `scrollTop`, а не полагаются на прокрутку браузера: иначе после ручного
+ * перехода к краю следующая клавиша игнорировалась бы. Поля ввода клавиши не
+ * перехватывают, чтобы правка номера страницы работала как обычно.
+ */
+function handleKeyDown(event: KeyboardEvent): void {
+  if (!state.doc || event.altKey || event.ctrlKey || event.metaKey) {
+    return;
+  }
+  const target = event.target as HTMLElement | null;
+  if (target && (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName))) {
+    return;
+  }
+  const height = viewer.clientHeight;
+  switch (event.key) {
+    case 'Home':
+      pageToEdge('start');
+      break;
+    case 'End':
+      pageToEdge('end');
+      break;
+    case 'PageUp':
+      viewer.scrollTop = Math.max(0, viewer.scrollTop - height);
+      handleScroll();
+      break;
+    case 'PageDown':
+      viewer.scrollTop = viewer.scrollTop + height;
+      handleScroll();
+      break;
+    default:
+      return;
+  }
+  event.preventDefault();
 }
 
 /** Начальная загрузка модуля рисования. */

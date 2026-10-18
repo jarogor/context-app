@@ -5,12 +5,13 @@
     Button,
     EmptyState,
     Icon,
+    IconButton,
     Input,
     PageShell,
     type MenuAction,
   } from '@texture/ui';
   import { formatDateTime } from '../../shared/format';
-  import { activeLibraryPath, loadCover } from '../library/library';
+  import { loadFileCover } from '../library/library';
 
   /** Рабочее место в списке. */
   interface WorkspaceItem {
@@ -20,7 +21,7 @@
     name: string;
     /** Время создания (Unix, мс); необязательно. */
     createdAtMillis?: number;
-    /** Число открытых книг (вкладок) рабочего места. */
+    /** Число открытых вкладок рабочего места. */
     bookCount?: number;
     /** Пути книг открытых вкладок — для превью обложек. */
     bookPaths?: string[];
@@ -61,14 +62,11 @@
   /** Черновик имени при переименовании. */
   let editingName = $state('');
 
-  /** Обложки книг по пути (data URI); `null` — обложки нет. */
+  /** Обложки книг по абсолютному пути файла (data URI); `null` — обложки нет. */
   let covers = $state<Record<string, string | null>>({});
 
-  /** Корень активной библиотеки для вычисления идентификатора книги. */
-  let libraryRoot = $state('');
-
-  /** Число превью обложек в одном рабочем месте. */
-  const COVER_PREVIEW_LIMIT = 3;
+  /** Число превью обложек в одном рабочем месте; остальные — счётчиком. */
+  const COVER_PREVIEW_LIMIT = 6;
 
   /** Рабочие места, отфильтрованные поиском по имени. */
   const filtered = $derived.by(() => {
@@ -85,59 +83,66 @@
     return `${count} ${noun}`;
   }
 
-  /** Пути книг рабочего места для превью обложек (не более лимита). */
+  /** Подпись числа вкладок рабочего места. */
+  function tabCountLabel(count: number): string {
+    const noun = count % 10 === 1 && count % 100 !== 11 ? 'вкладка' : 'вкладок';
+    return `${count} ${noun}`;
+  }
+
+  /** Число открытых вкладок рабочего места. */
+  function tabCount(item: WorkspaceItem): number {
+    // Вкладка — один путь; повтор книги во вкладках — разные вкладки.
+    return (item.bookPaths ?? []).filter((path) => path).length || (item.bookCount ?? 0);
+  }
+
+  /** Число различных книг рабочего места (одна книга в разных вкладках — одна). */
+  function bookCount(item: WorkspaceItem): number {
+    const paths = bookPaths(item);
+    return paths.length > 0 ? paths.length : (item.bookCount ?? 0);
+  }
+
+  /** Обложки для показа: не больше лимита, остальные — счётчиком. */
   function previewPaths(item: WorkspaceItem): string[] {
+    return bookPaths(item).slice(0, COVER_PREVIEW_LIMIT);
+  }
+
+  /** Сколько книг сверх показанных обложек. */
+  function hiddenCount(item: WorkspaceItem): number {
+    return Math.max(0, bookCount(item) - previewPaths(item).length);
+  }
+
+  /** Все различные пути книг рабочего места. */
+  function bookPaths(item: WorkspaceItem): string[] {
     const unique: string[] = [];
     for (const path of item.bookPaths ?? []) {
       if (path && !unique.includes(path)) {
         unique.push(path);
       }
-      if (unique.length >= COVER_PREVIEW_LIMIT) {
-        break;
-      }
     }
     return unique;
   }
 
-  /** Идентификатор книги в каталоге по абсолютному пути вложения. */
-  function bookIdOf(path: string): string | null {
-    if (!libraryRoot) {
-      return null;
-    }
-    const root = libraryRoot.replace(/[\\/]+$/, '');
-    if (!path.startsWith(root + '/')) {
-      return null;
-    }
-    return path.slice(root.length + 1);
-  }
-
-  /** Загрузка обложек открытых книг рабочих мест (best-effort). */
+  /** Загрузка обложек открытых книг рабочих мест (best-effort).
+   *
+   * Обложка извлекается из самого файла книги, поэтому список работает и без
+   * открытой библиотеки. Уже загруженные книги не перезапрашиваются.
+   */
   async function loadCovers() {
-    const paths = new Set<string>();
+    const paths: string[] = [];
     for (const item of workspaces) {
       for (const path of previewPaths(item)) {
-        paths.add(path);
+        if (!(path in covers) && !paths.includes(path)) {
+          paths.push(path);
+        }
       }
     }
-    if (paths.size === 0) {
+    if (paths.length === 0) {
       return;
-    }
-    if (!libraryRoot) {
-      try {
-        libraryRoot = await activeLibraryPath();
-      } catch {
-        libraryRoot = '';
-      }
     }
     const next: Record<string, string | null> = {};
     for (const path of paths) {
-      const id = bookIdOf(path);
-      if (!id) {
-        next[path] = null;
-        continue;
-      }
       try {
-        next[path] = await loadCover(id);
+        next[path] = await loadFileCover(path);
       } catch {
         next[path] = null;
       }
@@ -197,7 +202,6 @@
   testId="workspaces-page"
   empty={workspaces.length === 0}
   emptyTestId="workspaces-empty"
-  class="p-4 md:p-6"
 >
   {#snippet emptyContent()}
     <EmptyState
@@ -216,13 +220,12 @@
           placeholder="Поиск рабочего места"
           ariaLabel="Поиск рабочего места"
           icon="search"
+          clearable
           class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
         />
         <span class="role-caption text-[var(--muted-foreground)]">
           {filtered.length} из {workspaces.length}
         </span>
-      {:else}
-        <span class="role-eyebrow text-[var(--muted-foreground)]">Новое рабочее место</span>
       {/if}
     </div>
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
@@ -237,16 +240,13 @@
           }
         }}
       />
-      <Button
-        variant="primary"
+      <IconButton
+        action="add"
         title="Создать рабочее место"
         ariaLabel="Создать рабочее место"
         disabled={!newName.trim()}
         onclick={createFromField}
-      >
-        <Icon name="plus" />
-        <span class="hidden sm:inline">Создать</span>
-      </Button>
+      />
     </div>
   {/snippet}
 
@@ -266,7 +266,7 @@
         <li data-testid="workspace-item">
           {#if editingId === item.id}
             <div
-              class="flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--primary-border)] bg-[var(--card)] p-4 shadow-raised"
+              class="flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--primary-border)] bg-[var(--card)] p-4"
             >
               <span class="role-eyebrow text-[var(--muted-foreground)]">Переименование</span>
               <Input
@@ -291,16 +291,30 @@
             </div>
           {:else}
             <article
-              class="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] shadow-raised transition-[border-color,box-shadow] focus-within:border-[var(--primary-border)] hover:border-[var(--primary-border)]"
+              class="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] transition-colors hover:bg-[var(--surface-hover)]"
               data-current={item.id === currentId ? 'true' : 'false'}
             >
+              <!--
+                Весь пункт кликабелен: невидимая кнопка-наложение кроет карточку
+                целиком, поэтому открыть место можно и по обложкам, и по тексту.
+                Меню действий стоит выше наложения и нажатий места не перехватывает.
+              -->
+              <button
+                type="button"
+                class="absolute inset-0 z-[1] cursor-pointer"
+                data-testid="workspace-open"
+                aria-label={`Открыть «${item.name}»`}
+                title={item.name}
+                onclick={() => onOpen(item.id)}
+              ></button>
+
               <!--
                 Обложки открытых книг — обложкой рабочего места: по ней место
                 узнаётся быстрее, чем по имени. Пустая полка подсказывает, что
                 место ещё не заполнено.
               -->
               <div
-                class="flex h-[6.5rem] items-center gap-2 overflow-hidden border-b border-[var(--border)] bg-[var(--muted)] px-3"
+                class="pointer-events-none flex h-[6.5rem] items-center gap-2 overflow-hidden border-b border-[var(--divider)] bg-[var(--muted)] px-3"
               >
                 {#if previewPaths(item).length > 0}
                   <span
@@ -309,7 +323,7 @@
                   >
                     {#each previewPaths(item) as path (path)}
                       <span
-                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center overflow-hidden rounded-sm border border-[var(--border)] bg-[var(--card)] shadow-raised"
+                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center overflow-hidden rounded-sm border border-[var(--border)] bg-[var(--muted)]"
                         title={path}
                       >
                         {#if covers[path]}
@@ -319,6 +333,15 @@
                         {/if}
                       </span>
                     {/each}
+                    {#if hiddenCount(item) > 0}
+                      <span
+                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center rounded-sm border border-[var(--border)] bg-[var(--card)] role-caption text-[var(--muted-foreground)]"
+                        data-testid="workspace-covers-more"
+                        title={`Ещё ${bookCountLabel(hiddenCount(item))}`}
+                      >
+                        +{hiddenCount(item)}
+                      </span>
+                    {/if}
                   </span>
                 {:else}
                   <span class="flex flex-col items-center gap-1 text-[var(--muted-foreground)]">
@@ -328,26 +351,13 @@
                 {/if}
               </div>
 
-              <button
-                type="button"
-                class="flex min-w-0 flex-1 cursor-pointer flex-col gap-2 p-4 text-left [font:inherit]"
-                data-testid="workspace-open"
-                title={item.name}
-                onclick={() => onOpen(item.id)}
-              >
+              <div class="pointer-events-none flex min-w-0 flex-1 flex-col gap-2 p-4 text-left">
                 <span class="flex min-w-0 items-center gap-2">
                   <span class="min-w-0 flex-1 truncate role-heading" data-testid="workspace-name">
                     {item.name}
                   </span>
                   {#if item.id === currentId}
-                    <span
-                      class="bg-primary text-primary-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                      data-testid="workspace-current"
-                      title="Текущее рабочее место"
-                      aria-label="Текущее рабочее место"
-                    >
-                      <Icon name="check" class="h-3 w-3" />
-                    </span>
+                    <Badge testId="workspace-current">Текущее</Badge>
                   {/if}
                 </span>
                 <span
@@ -360,19 +370,18 @@
                       {formatDateTime(item.createdAtMillis ?? 0)}
                     </span>
                   {/if}
-                  <span class="inline-flex items-center gap-1">
+                  <span class="inline-flex items-center gap-1" data-testid="workspace-book-count">
                     <Icon name="book" class="h-3.5 w-3.5" />
-                    {bookCountLabel(item.bookCount ?? 0)}
+                    {bookCountLabel(bookCount(item))}
+                  </span>
+                  <span class="inline-flex items-center gap-1" data-testid="workspace-tab-count">
+                    <Icon name="tabs" class="h-3.5 w-3.5" />
+                    {tabCountLabel(tabCount(item))}
                   </span>
                 </span>
-              </button>
+              </div>
 
-              <div class="absolute top-2 right-2 flex items-center gap-1">
-                {#if item.bookCount}
-                  <Badge variant={item.id === currentId ? 'default' : 'muted'}>
-                    {item.bookCount}
-                  </Badge>
-                {/if}
+              <div class="absolute top-2 right-2 z-[2] flex items-center gap-1">
                 <ActionMenu
                   ariaLabel="Действия с рабочим местом"
                   title="Действия"

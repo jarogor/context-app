@@ -88,8 +88,7 @@
     expanded={expanded?.(item)}
     buttonTestId={buttonTestId}
     onclick={onSelect ? () => onSelect(item) : undefined}
-  >
-    {#snippet titleContent()}
+  >    {#snippet titleContent()}
       {@render title(item)}
     {/snippet}
 
@@ -123,9 +122,17 @@
 {#if notFound}
   <p class="text-[var(--muted-foreground)]" data-testid={notFoundTestId}>{notFoundText}</p>
 {:else if container === 'div'}
-  <div class={cn('flex flex-col gap-2', className)}>
+  <div
+    class={cn(
+      'flex flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]',
+      className,
+    )}
+  >
     {#each items as item (key(item))}
-      <section class="flex flex-col gap-2" data-testid={itemTestId}>
+      <section
+        class="flex flex-col border-b border-[var(--divider)] last:border-b-0"
+        data-testid={itemTestId}
+      >
         {@render listRow(item)}
         {#if body}
           {@render body(item)}
@@ -134,9 +141,14 @@
     {/each}
   </div>
 {:else}
-  <ul class={cn('flex list-none flex-col gap-2 p-0', className)}>
+  <ul
+    class={cn(
+      'flex min-w-0 list-none flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0',
+      className,
+    )}
+  >
     {#each items as item (key(item))}
-      <li data-testid={itemTestId}>
+      <li class="border-b border-[var(--divider)] last:border-b-0" data-testid={itemTestId}>
         {#if isEditing?.(item) && editContent}
           {@render editContent(item)}
         {:else}

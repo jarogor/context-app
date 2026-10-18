@@ -48,13 +48,19 @@
   }: Props = $props();
 
   /**
-   * Вид строки — «карточка-лист»: тонкая обводка, поднятая тень и мягкое
-   * выделение текущего пункта. Выделение идёт фоном, а не контрастной рамкой.
+   * Вид строки — лист списка: без рамки у каждой строки. Строки отделяются
+   * тонкой линией-разделителем (последняя — без неё), а наведение и выбор
+   * подсвечивают **всю строку целиком** фоном. Так список читается единым
+   * листом, а не набором рамок, и при этом строки не сливаются с фоном.
    */
   const box = $derived(
     cn(
-      'rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] shadow-raised transition-colors',
-      selected ? 'border-[var(--primary-border)] bg-[var(--primary-soft)]' : '',
+      'bg-[var(--card)] transition-colors',
+      selected
+        ? 'bg-[var(--surface-selected)]'
+        : onclick && !disabled
+          ? 'hover:bg-[var(--surface-hover)]'
+          : '',
     ),
   );
 </script>
@@ -68,10 +74,11 @@
     type="button"
     data-testid={buttonTestId}
     class={cn(
-      'flex min-w-0 flex-1 flex-col gap-1.5 rounded-[var(--radius)] px-3.5 py-3 text-left [font:inherit]',
-      onclick && !disabled ? 'cursor-pointer hover:bg-[var(--accent)]' : 'cursor-default',
-      selected && onclick && !disabled ? 'hover:bg-[var(--primary-soft)]' : '',
+      'flex min-w-0 flex-1 flex-col gap-1.5 px-3.5 py-3 text-left [font:inherit]',
+      onclick && !disabled ? 'cursor-pointer' : 'cursor-default',
       disabled ? 'cursor-not-allowed opacity-60' : '',
+      // Фон наведения/выбора — на всей строке (`ListRow`), а не на внутренней
+      // кнопке: иначе выделялась бы только часть пункта со скруглёнными краями.
     )}
     {disabled}
     aria-label={ariaLabel}

@@ -61,3 +61,16 @@ test('снимок верхней панели чтения в тёмной те
   await expect(page.locator('html')).toHaveAttribute('data-reader-theme', 'dark');
   await expect(page.getByTestId('note-toolbar')).toHaveScreenshot('reader-toolbar-dark.png');
 });
+
+test('список рабочих мест читается в светлой палитре Gruvbox', async ({ page }) => {
+  // Регрессия: в Gruvbox карточка почти совпадала с фоном, и список сливался.
+  await page.addInitScript(() => {
+    (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
+      handlers: { theme_palette: () => 'gruvbox' },
+    };
+  });
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-palette', 'gruvbox');
+  await expect(page.getByTestId('workspaces-page')).toBeVisible();
+  await expect(page).toHaveScreenshot('workspaces-gruvbox.png');
+});

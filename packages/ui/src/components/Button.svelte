@@ -13,11 +13,11 @@
     base: 'focus-visible:border-ring focus-visible:ring-ring/35 aria-invalid:border-destructive inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[var(--radius)] text-sm font-medium whitespace-nowrap transition-[color,background-color,box-shadow,transform] outline-none focus-visible:ring-[3px] active:translate-y-px disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:shrink-0',
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground hover:brightness-110 shadow-raised',
+        primary: 'bg-primary text-primary-foreground hover:brightness-110',
         secondary:
-          'bg-card text-foreground border border-[var(--border)] hover:bg-accent hover:text-accent-foreground',
-        ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-        danger: 'bg-destructive text-destructive-foreground hover:brightness-110 shadow-raised',
+          'bg-card text-foreground border border-[var(--border)] hover:bg-surface-hover',
+        ghost: 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
+        danger: 'bg-destructive text-destructive-foreground hover:brightness-110',
         'ghost-danger':
           'border border-[var(--border)] text-destructive hover:bg-destructive-soft hover:border-destructive-border',
       },

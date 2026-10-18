@@ -11,7 +11,7 @@ import { drawNotes } from './notes';
 import { post } from './protocol';
 import { renderSelection } from './selection';
 import { state, type CanvasInfo, type RenderedEntry } from './state';
-import { alignTextLayer, isInvisibleScan, textContentWithPageFonts, waitForRasterInk } from './text-layer';
+import { alignTextLayer, isInvisibleScan, textContentWithPageFonts, waitForPageFonts, waitForRasterInk } from './text-layer';
 import { recolorCanvas } from './theme';
 import {
   boundedRatio,
@@ -173,6 +173,31 @@ function restoreRendered(pageEl: HTMLElement, entry: RenderedEntry | null): void
   }
 }
 
+/** Выравнивание невидимого слоя скана после того, как растр готов.
+ *
+ * Выравнивание читает пиксели растра, но `page.render().promise` завершается
+ * ещё до того, как движок дорисовал изображение скана: раннее чтение нашло бы
+ * белую страницу. Поэтому первый проход пробует выровнять слой, а если чернил
+ * не нашлось (функция вернула `0`), ждёт появления растра и повторяет. Так
+ * выравнивание либо срабатывает по готовому растру, либо, при нечитаемых
+ * пикселях, молча пропускается.
+ */
+async function alignWhenRasterReady(
+  pageEl: HTMLElement,
+  textLayerEl: HTMLElement,
+  canvas: HTMLCanvasElement,
+): Promise<void> {
+  const dark = state.readerTheme === 'dark';
+  if (alignTextLayer(textLayerEl, canvas, pageEl.getBoundingClientRect(), dark) > 0) {
+    return;
+  }
+  const ready = await waitForRasterInk(canvas);
+  if (!ready) {
+    return;
+  }
+  alignTextLayer(textLayerEl, canvas, pageEl.getBoundingClientRect(), dark);
+}
+
 /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок.
  *
  * При повторной отрисовке окна (`preserve`) новый канвас рисуется откреплённым и
@@ -274,8 +299,13 @@ export async function renderPage(
       page.streamTextContent() as unknown as ReadableStream<Uint8Array>;
     if (!scan) {
       // Встроенные шрифты страницы ставятся вперёд запасных: так буквы невидимого
-      // слоя идут по метрикам PDF, а не подстановки.
-      textContentSource = await textContentWithPageFonts(page);
+      // слоя идут по метрикам PDF, а не подстановки. Шрифты дожидаются **до**
+      // раскладки: pdf.js меряет ширину строки в момент раскладки, и незагруженный
+      // встроенный шрифт дал бы замер запасным — буквы внутри строки уехали бы
+      // относительно видимого текста (в WebKitGTK заметно, в Chromium почти нет).
+      const content = await textContentWithPageFonts(page);
+      await waitForPageFonts(content);
+      textContentSource = content;
     }
     const textLayer = new lib.TextLayer({
       textContentSource: textContentSource as never,
@@ -296,11 +326,11 @@ export async function renderPage(
     }
     state.rendered.set(pageEl, entry);
     pageEl.dataset.rendered = '1';
-    // Выравнивание слоя возможно только после вставки в документ: у откреплённых
-    // узлов нет геометрии. Растр к этому моменту уже дождан выше (`waitForRasterInk`).
-    if (scan) {
-      alignTextLayer(textLayerEl, canvas, pageEl.getBoundingClientRect());
-    }
+    // Выравнивание слоя по растру: и у сканов (невидимый текст под картинкой),
+    // и у цифровых страниц, где слой разошёлся с видимым текстом из-за метрик
+    // шрифта. Возможно только после вставки в документ: у откреплённых узлов нет
+    // геометрии.
+    await alignWhenRasterReady(pageEl, textLayerEl, canvas);
     drawNotes(pageEl, state.notes);
     // Слой выделения строится по положению текста: после отрисовки он
     // восстанавливается, если выделение ещё живо.

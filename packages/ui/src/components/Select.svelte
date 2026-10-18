@@ -65,7 +65,7 @@
     {id}
     aria-label={ariaLabel}
     class={cn(
-      'border-[var(--input)] bg-card text-foreground hover:border-[var(--muted-foreground)] focus-visible:border-ring focus-visible:ring-ring/35 data-[placeholder]:text-muted-foreground box-border flex w-full cursor-pointer items-center justify-between gap-2 rounded-[var(--radius)] border px-3 shadow-xs transition-[color,box-shadow,border-color] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
+      'border-[var(--input)] bg-card text-foreground hover:border-[var(--border)] focus-visible:border-ring focus-visible:ring-ring/35 data-[placeholder]:text-muted-foreground box-border flex w-full cursor-pointer items-center justify-between gap-2 rounded-[var(--radius)] border px-3 transition-[color,box-shadow,border-color] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
       size === 'sm' ? 'h-8 role-caption' : 'h-9 text-sm',
       className,
     )}
@@ -75,7 +75,7 @@
   </SelectPrimitive.Trigger>
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
-      class="border-border bg-popover text-popover-foreground z-50 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-[var(--radius)] border shadow-overlay"
+      class="border-[var(--border)] bg-[var(--overlay-surface)] text-popover-foreground z-50 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-[var(--radius)] border shadow-overlay"
       sideOffset={4}
     >
       <SelectPrimitive.Viewport class="p-1">
@@ -84,7 +84,7 @@
             value={item.value}
             label={item.label}
             disabled={item.disabled}
-            class="data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+            class="data-[highlighted]:bg-surface-hover flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
           >
             {#snippet children({ selected })}
               <span class="flex-1 truncate text-left">{item.label}</span>

@@ -46,4 +46,17 @@ describe('ListRow', () => {
     expect(screen.getByRole('button').getAttribute('aria-current')).toBe('true');
     expect(screen.getByTestId('row').getAttribute('data-selected')).toBe('true');
   });
+
+  it('подсвечивает при наведении всю строку, а не внутреннюю кнопку', () => {
+    render(ListRow, {
+      props: { testId: 'row', titleContent: text('Название'), onclick: vi.fn() },
+    });
+
+    const row = screen.getByTestId('row');
+    const button = screen.getByRole('button');
+    // Фон наведения — на самой строке, кнопка его не несёт: иначе подсвечивалась
+    // бы только часть пункта, а не вся строка целиком.
+    expect(row.className).toContain('hover:bg');
+    expect(button.className).not.toContain('hover:bg');
+  });
 });

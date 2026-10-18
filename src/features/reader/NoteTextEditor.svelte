@@ -53,7 +53,7 @@
 </script>
 
 <div
-  class="absolute inset-x-0 bottom-4 z-[var(--layer-popup)] mx-auto w-[26.25rem] max-w-[90%] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3 shadow-overlay"
+  class="absolute inset-x-0 bottom-4 z-[var(--layer-popup)] mx-auto w-[26.25rem] max-w-[90%] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--overlay-surface)] p-3 shadow-overlay"
   data-testid="text-card-editor"
 >
   <Textarea

@@ -35,13 +35,17 @@
     variant?: 'default' | 'muted' | 'outline' | 'success' | 'warning';
     /** Дополнительные классы. */
     class?: string;
+    /** Подпись-подсказка. */
+    title?: string;
+    /** Метка для тестов. */
+    testId?: string;
     /** Содержимое. */
     children: Snippet;
   }
 
-  let { variant = 'muted', class: className = '', children }: Props = $props();
+  let { variant = 'muted', class: className = '', title, testId, children }: Props = $props();
 </script>
 
-<span class={cn(badgeVariants({ variant }), className)}>
+<span class={cn(badgeVariants({ variant }), className)} {title} data-testid={testId}>
   {@render children()}
 </span>

@@ -638,6 +638,14 @@ export function defaultMockConfig(): MockBridgeConfig {
             invoke_base_plugin_operation: baseOperation,
             invoke_plugin_operation: pluginOperation,
             reader_content: () => demoContent(),
+            // Обложка книги из самого файла: у демонстрационного EPUB она есть,
+            // поэтому список рабочих мест показывает картинку, а не заглушку.
+            reader_cover: (payload: unknown) => {
+                const path = (payload as { path?: string } | null)?.path ?? '';
+                return path.toLowerCase().endsWith('.epub')
+                    ? { data: TINY_PNG, format: 'png' }
+                    : { data: null };
+            },
             reader_formats: () => ['demo'],
             reader_plugin_for_format: () => null,
             reader_open_external: () => ({ opened: true }),
@@ -668,25 +676,10 @@ export function defaultMockConfig(): MockBridgeConfig {
                 version: '0.1.0',
                 paths: [
                     {
-                        key: 'framework_plugins',
-                        level: 'framework',
-                        title: 'Плагины каркаса в поставке',
-                        path: '/home/user/.texture/resources/base-plugins',
-                        note: 'Служебные плагины каркаса',
-                    },
-                    {
                         key: 'app_state',
-                        level: 'application',
-                        title: 'Служебное состояние приложения',
+                        title: 'Состояние приложения',
                         path: '/home/user/.texture/app-state',
-                        note: 'Реестры приложения',
-                    },
-                    {
-                        key: 'wasm_cache',
-                        level: 'framework',
-                        title: 'Кэш компиляции WASM',
-                        path: '/home/user/.texture/app-state/wasm-cache',
-                        note: 'Скомпилированные модули плагинов',
+                        note: 'Настройки, плагины, кеш и данные интерфейса',
                     },
                 ],
             }),
