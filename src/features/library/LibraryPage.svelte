@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import {
-    BookCoverPlaceholder,
+    BookCover,
     Button,
     EmptyState,
     ErrorState,
@@ -492,17 +492,12 @@
                 onclick={() => openBook(book)}
               >
                 <span
-                  class="block overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--muted)]"
+                  class="block overflow-hidden rounded-[var(--radius)]"
                 >
-                  {#if book.coverUri}
-                    <img
-                      class="aspect-[2/3] w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                      src={book.coverUri}
-                      alt=""
-                    />
-                  {:else}
-                    <BookCoverPlaceholder />
-                  {/if}
+                  <BookCover
+                    src={book.coverUri ?? null}
+                    imgClass="transition-transform duration-200 group-hover:scale-[1.02]"
+                  />
                 </span>
                 <div class="min-w-0">
                   <h2 class="line-clamp-2 role-subtitle" title={book.title}>{book.title}</h2>
@@ -527,12 +522,8 @@
                 title="Страница книги"
                 onclick={() => openBook(book)}
               >
-                <span class="block h-[4.5rem] w-[3rem] shrink-0 overflow-hidden rounded-sm">
-                  {#if book.coverUri}
-                    <img class="h-full w-full object-cover" src={book.coverUri} alt="" />
-                  {:else}
-                    <BookCoverPlaceholder class="h-full" />
-                  {/if}
+                <span class="block h-[4.5rem] w-[3rem] shrink-0">
+                  <BookCover src={book.coverUri ?? null} class="h-full w-[3rem] rounded-sm" />
                 </span>
                 <span class="min-w-0 flex-1">
                   <span class="block truncate role-title">{book.title}</span>

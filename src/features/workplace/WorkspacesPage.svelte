@@ -2,6 +2,7 @@
   import {
     ActionMenu,
     Badge,
+    BookCover,
     Button,
     EmptyState,
     Icon,
@@ -89,8 +90,14 @@
     ...loadedCovers,
   });
 
-  /** Число превью обложек в одном рабочем месте; остальные — счётчиком. */
-  const COVER_PREVIEW_LIMIT = 6;
+  /** Число превью обложек в одном рабочем месте; остальные — счётчиком.
+   *
+   * Ограничение подобрано под наименьшую ширину карточки (`17rem`): четыре
+   * плитки по `3.4rem` с промежутками помещаются целиком. Когда книг больше,
+   * один слот занимает счётчик «ещё N», поэтому весь ряд виден и ничего не
+   * обрезается.
+   */
+  const COVER_PREVIEW_LIMIT = 4;
 
   /** Рабочие места, отфильтрованные поиском по имени. */
   const filtered = $derived.by(() => {
@@ -125,14 +132,27 @@
     return paths.length > 0 ? paths.length : (item.bookCount ?? 0);
   }
 
-  /** Обложки для показа: не больше лимита, остальные — счётчиком. */
+  /** План полки обложек: показанные пути, число скрытых, всего книг.
+   *
+   * Когда книг больше лимита, один слот занимает счётчик «ещё N», поэтому
+   * показанных обложек на одну меньше лимита: весь ряд помещается в карточку и
+   * не обрезается.
+   */
+  function coverPlan(item: WorkspaceItem): { paths: string[]; hidden: number } {
+    const all = bookPaths(item);
+    const total = all.length > 0 ? all.length : (item.bookCount ?? 0);
+    const shown = total > COVER_PREVIEW_LIMIT ? COVER_PREVIEW_LIMIT - 1 : total;
+    return { paths: all.slice(0, shown), hidden: total - shown };
+  }
+
+  /** Обложки для показа: не больше лимита (счётчик занимает слот). */
   function previewPaths(item: WorkspaceItem): string[] {
-    return bookPaths(item).slice(0, COVER_PREVIEW_LIMIT);
+    return coverPlan(item).paths;
   }
 
   /** Сколько книг сверх показанных обложек. */
   function hiddenCount(item: WorkspaceItem): number {
-    return Math.max(0, bookCount(item) - previewPaths(item).length);
+    return coverPlan(item).hidden;
   }
 
   /** Все различные пути книг рабочего места. */
@@ -326,10 +346,12 @@
               <!--
                 Обложки открытых книг — обложкой рабочего места: по ней место
                 узнаётся быстрее, чем по имени. Пустая полка подсказывает, что
-                место ещё не заполнено.
+                место ещё не заполнено. Счётчик скрытых книг — такой же слот в
+                ряду (см. `previewPaths`): число превью уменьшается на один,
+                поэтому весь ряд помещается в карточку и не обрезается.
               -->
               <div
-                class="pointer-events-none flex h-[6.5rem] items-center gap-2 overflow-hidden border-b border-[var(--divider)] bg-[var(--muted)] px-3"
+                class="pointer-events-none flex h-[6.5rem] items-center gap-2 overflow-hidden border-b border-[var(--divider)] bg-[var(--card)] px-3"
               >
                 {#if previewPaths(item).length > 0}
                   <span
@@ -337,20 +359,15 @@
                     data-testid="workspace-covers"
                   >
                     {#each previewPaths(item) as path (path)}
-                      <span
-                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center overflow-hidden rounded-sm border border-[var(--border)] bg-[var(--muted)]"
-                        title={path}
-                      >
-                        {#if covers[path]}
-                          <img class="h-full w-full object-cover" src={covers[path]} alt="" />
-                        {:else}
-                          <Icon name="book" class="h-4 w-4 text-[var(--muted-foreground)]" />
-                        {/if}
-                      </span>
+                      <BookCover
+                        src={covers[path]}
+                        class="h-[5rem] w-[3.4rem] shrink-0 rounded-sm"
+                        testId="workspace-cover"
+                      />
                     {/each}
                     {#if hiddenCount(item) > 0}
                       <span
-                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center rounded-sm border border-[var(--border)] bg-[var(--card)] role-caption text-[var(--muted-foreground)]"
+                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center rounded-sm border border-[var(--border)] bg-[var(--muted)] role-caption text-[var(--muted-foreground)]"
                         data-testid="workspace-covers-more"
                         title={`Ещё ${bookCountLabel(hiddenCount(item))}`}
                       >

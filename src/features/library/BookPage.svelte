@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Badge, BookCoverPlaceholder, Button, ErrorState, Icon } from '@texture/ui';
+  import { Badge, BookCover, Button, ErrorState, Icon } from '@texture/ui';
   import type { BookWithCover } from './library';
 
   interface Props {
@@ -122,15 +122,7 @@
       <!-- Обложка-«корешок»: слева на широком окне, сверху на узком. -->
       <div class="flex flex-col gap-3">
         <div class="w-[11.25rem] flex-none self-start">
-          {#if book.coverUri}
-            <img
-              class="aspect-[2/3] w-full rounded-[var(--radius)] object-cover"
-              src={book.coverUri}
-              alt=""
-            />
-          {:else}
-            <BookCoverPlaceholder class="rounded-[var(--radius)]" />
-          {/if}
+          <BookCover src={book.coverUri ?? null} class="rounded-[var(--radius)]" />
         </div>
       </div>
 

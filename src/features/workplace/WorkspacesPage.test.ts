@@ -116,7 +116,7 @@ describe('экран списка рабочих мест', () => {
 
         expect(screen.getByTestId('workspace-item')).toBeTruthy();
         // В превью книга показана один раз, а не дважды.
-        expect(screen.getByTestId('workspace-covers').querySelectorAll('span')).toHaveLength(1);
+        expect(screen.getByTestId('workspace-covers').querySelectorAll('[data-testid="workspace-cover"]')).toHaveLength(1);
     });
 
     it('показывает «ничего не найдено» при пустом результате поиска', async () => {

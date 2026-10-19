@@ -1,6 +1,8 @@
+use super::archive::{epub_cover, read_zip_entry, rootfile_path};
 use super::*;
 use std::io::{Cursor, Write};
 use zip::write::SimpleFileOptions;
+use zip::ZipArchive;
 use zip::ZipWriter;
 
 /// Добавление записи в EPUB-архив.
@@ -164,4 +166,106 @@ fn empty_spine_reports_error() {
     let result = read_epub_chapters(&bytes);
 
     assert!(result.is_err(), "отсутствие глав в spine даёт ошибку");
+}
+
+/// Сборка EPUB с произвольным содержимым OPF и набора файлов.
+fn build_epub_with_opf(opf: &str, files: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+    add_file(
+        &mut writer,
+        "META-INF/container.xml",
+        br#"<?xml version="1.0"?>
+<container><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>"#,
+    );
+    add_file(&mut writer, "OEBPS/content.opf", opf.as_bytes());
+    for (path, bytes) in files {
+        add_file(&mut writer, &format!("OEBPS/{path}"), bytes);
+    }
+    writer.finish().expect("завершение архива").into_inner()
+}
+
+/// Извлечение обложки из EPUB-байтов.
+fn cover_of(bytes: &[u8]) -> Option<(Vec<u8>, String)> {
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("архив");
+    let rootfile = rootfile_path(&mut archive).expect("content.opf");
+    let opf = read_zip_entry(&mut archive, &rootfile).expect("чтение OPF");
+    epub_cover(&mut archive, &opf, &rootfile)
+}
+
+#[test]
+fn cover_from_meta_name() {
+    let opf = r#"<?xml version="1.0"?>
+<package><metadata><meta name="cover" content="ci"/></metadata>
+<manifest>
+<item id="ci" href="images/cover.png" media-type="image/png"/>
+</manifest></package>"#;
+    let bytes = build_epub_with_opf(opf, &[("images/cover.png", &[1, 2, 3])]);
+
+    let (data, format) = cover_of(&bytes).expect("обложка найдена по meta name");
+
+    assert_eq!(data, vec![1, 2, 3]);
+    assert_eq!(format, "png");
+}
+
+#[test]
+fn cover_from_properties() {
+    let opf = r#"<?xml version="1.0"?>
+<package><manifest>
+<item id="x" href="images/oblozhka.jpg" media-type="image/jpeg" properties="cover-image"/>
+</manifest></package>"#;
+    let bytes = build_epub_with_opf(opf, &[("images/oblozhka.jpg", &[9])]);
+
+    let (_, format) = cover_of(&bytes).expect("обложка найдена по properties");
+
+    assert_eq!(format, "jpeg");
+}
+
+#[test]
+fn cover_from_guide_reference() {
+    let opf = r#"<?xml version="1.0"?>
+<package>
+<manifest>
+<item id="coverpage" href="text/cover.xhtml" media-type="application/xhtml+xml"/>
+<item id="img" href="images/front.jpg" media-type="image/jpeg"/>
+</manifest>
+<guide><reference type="cover" title="Cover" href="text/cover.xhtml"/></guide>
+</package>"#;
+    let page = br#"<html><body><img src="../images/front.jpg"/></body></html>"#;
+    let bytes = build_epub_with_opf(
+        opf,
+        &[("text/cover.xhtml", page), ("images/front.jpg", &[7, 7])],
+    );
+
+    let (data, format) = cover_of(&bytes).expect("обложка найдена по guide");
+
+    assert_eq!(data, vec![7, 7]);
+    assert_eq!(format, "jpeg");
+}
+
+#[test]
+fn cover_from_cover_named_item() {
+    // Ни метаданных, ни properties, ни guide: имя файла содержит «cover».
+    let opf = r#"<?xml version="1.0"?>
+<package><manifest>
+<item id="c1" href="images/the-cover.jpeg" media-type="image/jpeg"/>
+</manifest></package>"#;
+    let bytes = build_epub_with_opf(opf, &[("images/the-cover.jpeg", &[4, 5, 6])]);
+
+    let (data, _) = cover_of(&bytes).expect("обложка найдена по имени файла");
+
+    assert_eq!(data, vec![4, 5, 6]);
+}
+
+#[test]
+fn no_cover_when_absent() {
+    let opf = r#"<?xml version="1.0"?>
+<package><manifest>
+<item id="ch" href="text/ch.xhtml" media-type="application/xhtml+xml"/>
+</manifest></package>"#;
+    let bytes = build_epub_with_opf(opf, &[("text/ch.xhtml", b"<p>text</p>")]);
+
+    assert!(
+        cover_of(&bytes).is_none(),
+        "обложки нет — null, а не ошибка"
+    );
 }

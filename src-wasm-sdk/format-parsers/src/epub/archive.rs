@@ -6,7 +6,7 @@ use quick_xml::events::Event;
 use quick_xml::Reader;
 use zip::ZipArchive;
 
-use crate::xml::{attribute_value, text_between};
+use crate::xml::{attribute_value, local_name, text_between};
 
 /// Чтение записи архива EPUB.
 pub(super) fn read_zip_entry(
@@ -123,28 +123,178 @@ pub(super) fn cover_format(media_type: Option<&str>, href: &str) -> String {
 }
 
 /// Извлечение обложки EPUB из манифеста OPF.
+///
+/// Обложка ищется по стандартам EPUB в порядке надёжности:
+/// 1. `<meta name="cover" content="id">` (EPUB 2);
+/// 2. элемент манифеста с `properties="cover-image"` (EPUB 3);
+/// 3. `guide`/`reference type="cover"` со ссылкой на страницу обложки, из
+///    которой берётся первое изображение;
+/// 4. элемент манифеста, чей `id` или `href` содержит `cover`.
+///
+/// Последние два фолбэка нужны реальным книгам: часть из них не помечает
+/// обложку ни метаданными, ни свойством, и без этого обложка не находилась.
 pub(super) fn epub_cover(
     archive: &mut ZipArchive<Cursor<&[u8]>>,
     opf: &[u8],
     opf_path: &str,
 ) -> Option<(Vec<u8>, String)> {
     let (cover_id, items) = manifest_items(opf);
-    let href = items
+    let by_id = cover_id
+        .as_ref()
+        .and_then(|id| items.iter().find(|item| &item.id == id));
+    let by_property = items
         .iter()
-        .find(|item| Some(&item.id) == cover_id.as_ref())
-        .or_else(|| {
-            items
-                .iter()
-                .find(|item| item.properties.contains("cover-image"))
-        })
-        .map(|item| item.href.clone())?;
+        .find(|item| item.properties.contains("cover-image"));
+    let by_href = items.iter().find(|item| has_cover_in_name(&item.href));
+    let by_id_name = items
+        .iter()
+        .find(|item| item.id.to_lowercase().contains("cover"));
+
+    // 1–2: явная метка обложки.
+    if let Some(item) = by_id.or(by_property) {
+        if let Some(cover) = read_cover_item(archive, opf_path, item) {
+            return Some(cover);
+        }
+    }
+    // 3: страница обложки из guide — берём первое изображение в ней.
+    if let Some(cover) = cover_from_guide(archive, opf, opf_path) {
+        return Some(cover);
+    }
+    // 4: имя элемента или файла содержит «cover».
+    for item in [by_href, by_id_name].into_iter().flatten() {
+        if is_image_item(item) {
+            if let Some(cover) = read_cover_item(archive, opf_path, item) {
+                return Some(cover);
+            }
+        }
+    }
+    None
+}
+
+/// Чтение обложки по элементу манифеста.
+fn read_cover_item(
+    archive: &mut ZipArchive<Cursor<&[u8]>>,
+    opf_path: &str,
+    item: &ManifestItem,
+) -> Option<(Vec<u8>, String)> {
+    let path = resolve_relative(opf_path, &item.href)?;
+    let bytes = read_zip_entry(archive, &path).ok()?;
+    Some((bytes, cover_format(item.media_type.as_deref(), &item.href)))
+}
+
+/// Изображение ли элемент манифеста по медиатипу.
+fn is_image_item(item: &ManifestItem) -> bool {
+    item.media_type
+        .as_deref()
+        .unwrap_or_default()
+        .starts_with("image/")
+}
+
+/// Есть ли «cover» в имени файла.
+fn has_cover_in_name(href: &str) -> bool {
+    href.rsplit('/')
+        .next()
+        .unwrap_or(href)
+        .to_ascii_lowercase()
+        .contains("cover")
+}
+
+/// Обложка со страницы `guide`/`reference type="cover"`.
+///
+/// Часть книг описывает обложку отдельной XHTML-страницей в `guide`; берём из
+/// неё первое изображение манифеста.
+fn cover_from_guide(
+    archive: &mut ZipArchive<Cursor<&[u8]>>,
+    opf: &[u8],
+    opf_path: &str,
+) -> Option<(Vec<u8>, String)> {
+    let (_, items) = manifest_items(opf);
+    let cover_href = guide_cover_href(opf)?;
+    let page_path = resolve_relative(opf_path, &cover_href)?;
+    let page = read_zip_entry(archive, &page_path).ok()?;
+    let image_src = first_image_src(&page)?;
+    let image_href = resolve_relative(&page_path, &image_src)?;
+    // Медиатип ищем в манифесте по разрешённому пути; иначе по расширению.
     let media_type = items
         .iter()
-        .find(|item| item.href == href)
+        .find(|item| resolve_relative(opf_path, &item.href).as_deref() == Some(image_href.as_str()))
         .and_then(|item| item.media_type.clone());
-    let path = resolve_relative(opf_path, &href)?;
-    let bytes = read_zip_entry(archive, &path).ok()?;
-    Some((bytes, cover_format(media_type.as_deref(), &href)))
+    let bytes = read_zip_entry(archive, &image_href).ok()?;
+    Some((bytes, cover_format(media_type.as_deref(), &image_href)))
+}
+
+/// Путь обложки из `guide`/`reference type="cover"`.
+fn guide_cover_href(opf: &[u8]) -> Option<String> {
+    let mut reader = Reader::from_reader(opf);
+    let mut buffer = Vec::new();
+    let mut in_guide = false;
+    loop {
+        match reader.read_event_into(&mut buffer) {
+            Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
+                let name = local_name(event.name().as_ref());
+                if name == "guide" {
+                    in_guide = true;
+                } else if in_guide && name == "reference" {
+                    let mut kind = String::new();
+                    let mut href = String::new();
+                    for attribute in event.attributes().flatten() {
+                        match attribute.key.as_ref() {
+                            b"type" => {
+                                if let Ok(value) = attribute.unescape_value() {
+                                    kind = value.into_owned();
+                                }
+                            }
+                            b"href" => {
+                                if let Ok(value) = attribute.unescape_value() {
+                                    href = value.into_owned();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    if kind == "cover" && !href.is_empty() {
+                        return Some(href);
+                    }
+                }
+            }
+            Ok(Event::End(event)) => {
+                if local_name(event.name().as_ref()) == "guide" {
+                    in_guide = false;
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+        buffer.clear();
+    }
+    None
+}
+
+/// Первый `src` изображения на XHTML-странице.
+fn first_image_src(page: &[u8]) -> Option<String> {
+    let mut reader = Reader::from_reader(page);
+    let mut buffer = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buffer) {
+            Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
+                if local_name(event.name().as_ref()) == "img" {
+                    for attribute in event.attributes().flatten() {
+                        if attribute.key.as_ref() == b"src" {
+                            if let Ok(value) = attribute.unescape_value() {
+                                return Some(value.into_owned());
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+        buffer.clear();
+    }
+    None
 }
 
 /// Путь к OPF-файлу из `container.xml` архива.
