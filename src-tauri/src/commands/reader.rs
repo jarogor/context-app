@@ -94,14 +94,89 @@ pub async fn reader_content(
 /// Обложка книги по пути (base64) либо `null`, если обложки нет.
 ///
 /// Обложка извлекается из самого файла, поэтому список рабочих мест показывает
-/// обложки книг без открытой библиотеки.
+/// обложки книг без открытой библиотеки. Результат кэшируется на диске по
+/// размеру и времени изменения файла: повторный показ не разбирает книгу снова.
 #[tauri::command]
 pub async fn reader_cover(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
+    let (size, mtime_ms) = AppState::file_fingerprint(&path);
+    // Кэш проверяется под коротким общим замком; извлечение идёт вне его.
+    if let Some(cached) = {
+        let mut state = crate::commands::lock_state(state.inner())?;
+        state.cover_cache_lookup(&path, size, mtime_ms)
+    } {
+        return Ok(cover_value(cached.as_ref()));
+    }
     let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| AppState::reader_cover_of(runtime, &path))?
+    let value = handle.with_ready(|runtime| AppState::reader_cover_of(runtime, &path))??;
+    let cover = AppState::cover_data_from_value(&value);
+    {
+        let mut state = crate::commands::lock_state(state.inner())?;
+        state.cover_cache_store(&path, size, mtime_ms, cover);
+        state.cover_cache_flush();
+    }
+    Ok(value)
+}
+
+/// Обложки книг рабочего места по списку путей (data URI либо `null`).
+///
+/// Обложки готовятся за один вызов и кэшируются на диске: список рабочих мест
+/// получает их сразу при запуске, а не дорисовывает по одной. Неизвестные пути
+/// отбрасываются, порядок ответа значения не имеет — оболочка ищет по пути.
+#[tauri::command]
+pub async fn workspace_covers(
+    state: State<'_, Mutex<AppState>>,
+    paths: Vec<String>,
+) -> Result<Value, String> {
+    let mut result = serde_json::Map::new();
+    let mut missing: Vec<String> = Vec::new();
+    {
+        let mut guard = crate::commands::lock_state(state.inner())?;
+        for path in &paths {
+            let (size, mtime_ms) = AppState::file_fingerprint(path);
+            match guard.cover_cache_lookup(path, size, mtime_ms) {
+                Some(cover) => {
+                    result.insert(path.clone(), cover_value(cover.as_ref()));
+                }
+                None => missing.push(path.clone()),
+            }
+        }
+    }
+    if missing.is_empty() {
+        return Ok(Value::Object(result));
+    }
+    let handle = reader_handle(state.inner())?;
+    let extracted = handle.with_ready(|runtime| {
+        let mut values: Vec<(String, Option<Value>)> = Vec::new();
+        for path in &missing {
+            let value = AppState::reader_cover_of(runtime, path)
+                .unwrap_or_else(|_| serde_json::json!({ "data": null }));
+            values.push((path.clone(), Some(value)));
+        }
+        values
+    })?;
+    {
+        let mut guard = crate::commands::lock_state(state.inner())?;
+        for (path, value) in extracted {
+            let value = value.unwrap_or_else(|| serde_json::json!({ "data": null }));
+            let (size, mtime_ms) = AppState::file_fingerprint(&path);
+            let cover = AppState::cover_data_from_value(&value);
+            guard.cover_cache_store(&path, size, mtime_ms, cover);
+            result.insert(path, value);
+        }
+        guard.cover_cache_flush();
+    }
+    Ok(Value::Object(result))
+}
+
+/// Значение ответа обложки (`{data, format}`) для интерфейса.
+fn cover_value(cover: Option<&crate::plugin::cover_cache::CoverData>) -> Value {
+    match cover {
+        Some(cover) => serde_json::json!({ "data": cover.data, "format": cover.format }),
+        None => serde_json::json!({ "data": null }),
+    }
 }
 
 /// Открытие файла книги системным приложением.

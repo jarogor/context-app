@@ -11,7 +11,7 @@
     type MenuAction,
   } from '@texture/ui';
   import { formatDateTime } from '../../shared/format';
-  import { loadFileCover } from '../library/library';
+  import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
 
   /** Рабочее место в списке. */
   interface WorkspaceItem {
@@ -62,8 +62,32 @@
   /** Черновик имени при переименовании. */
   let editingName = $state('');
 
-  /** Обложки книг по абсолютному пути файла (data URI); `null` — обложки нет. */
-  let covers = $state<Record<string, string | null>>({});
+  /** Все пути превью книг рабочих мест. */
+  function allPreviewPaths(items: WorkspaceItem[]): string[] {
+    const paths: string[] = [];
+    for (const item of items) {
+      for (const path of previewPaths(item)) {
+        if (path && !paths.includes(path)) {
+          paths.push(path);
+        }
+      }
+    }
+    return paths;
+  }
+
+  /** Обложки, догруженные после запуска (сверх кэша бутстрапа). */
+  let loadedCovers = $state<CoverMap>({});
+
+  /** Обложки книг по абсолютному пути файла (data URI); `null` — обложки нет.
+   *
+   * Источник — кэш обложек (`covers.ts`), заполненный на бутстрапе: к первому
+   * рендеру обложки уже известны, поэтому `loadedCovers` пуст, а список не
+   * пустует. Догруженные обложки сливаются поверх.
+   */
+  const covers = $derived<CoverMap>({
+    ...cachedCovers(allPreviewPaths(workspaces)),
+    ...loadedCovers,
+  });
 
   /** Число превью обложек в одном рабочем месте; остальные — счётчиком. */
   const COVER_PREVIEW_LIMIT = 6;
@@ -122,12 +146,19 @@
     return unique;
   }
 
-  /** Загрузка обложек открытых книг рабочих мест (best-effort).
+  /** Загрузка обложек открытых книг рабочих мест.
    *
-   * Обложка извлекается из самого файла книги, поэтому список работает и без
-   * открытой библиотеки. Уже загруженные книги не перезапрашиваются.
+   * К моменту первого рендера обложки книг уже посчитаны на бутстрапе и лежат в
+   * кэше оболочки, поэтому список рисуется с обложками сразу. Здесь догружаются
+   * только пути, которых в кэше ещё нет (например, книга, добавленная после
+   * запуска), — одним вызовом ядра. Ошибка не прерывает показ списка.
    */
-  async function loadCovers() {
+  async function loadCoversFor(paths: string[]) {
+    await loadCovers(paths);
+    loadedCovers = { ...loadedCovers, ...cachedCovers(paths) };
+  }
+
+  $effect(() => {
     const paths: string[] = [];
     for (const item of workspaces) {
       for (const path of previewPaths(item)) {
@@ -139,23 +170,7 @@
     if (paths.length === 0) {
       return;
     }
-    const next: Record<string, string | null> = {};
-    for (const path of paths) {
-      try {
-        next[path] = await loadFileCover(path);
-      } catch {
-        next[path] = null;
-      }
-    }
-    covers = { ...covers, ...next };
-  }
-
-  $effect(() => {
-    void JSON.stringify(workspaces.map((item) => [item.id, previewPaths(item)]));
-    const timer = setTimeout(() => {
-      void loadCovers();
-    }, 100);
-    return () => clearTimeout(timer);
+    void loadCoversFor(paths);
   });
 
   /** Создание рабочего места из поля ввода. */

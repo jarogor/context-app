@@ -8,6 +8,8 @@ use std::sync::Arc;
 use super::shared_runtime::SharedRuntime;
 use crate::plugin::{AppInfo, AppPluginHost, PluginRuntime, PluginScope, PluginSession, Severity};
 
+use super::cover_cache::{CoverCache, CoverData};
+
 /// Настройки ленивого runtime чтения книг рабочим местом.
 ///
 /// Runtime собирает source- и рабочие плагины без привязки к открытой
@@ -122,6 +124,12 @@ pub struct AppState {
     app_host: Option<Arc<SharedRuntime<AppPluginHost>>>,
     /// Содержимое файлов вложений по пути: ядро не интерпретирует байты.
     workplace_files: HashMap<String, Vec<u8>>,
+    /// Дисковый кэш обложек книг по пути.
+    ///
+    /// Извлечение обложки дорого, а список рабочих мест показывает её сразу,
+    /// поэтому результат кэшируется между запусками. `None` — кэш ещё не
+    /// прочитан с диска.
+    cover_cache: Option<CoverCache>,
 }
 
 impl AppState {
@@ -146,6 +154,7 @@ impl AppState {
             app_host_config,
             app_host: None,
             workplace_files: HashMap::new(),
+            cover_cache: None,
         }
     }
 
@@ -399,6 +408,83 @@ impl AppState {
             return Ok(value);
         }
         Ok(serde_json::json!({ "data": null }))
+    }
+
+    /// Размер и время изменения файла книги (Unix, мс).
+    ///
+    /// Используется для проверки свежести кэша обложки: `None` — метаданные
+    /// недоступны, и запись не считается свежей.
+    pub(crate) fn file_fingerprint(path: &str) -> (Option<u64>, Option<i64>) {
+        let Ok(metadata) = std::fs::metadata(path) else {
+            return (None, None);
+        };
+        let size = Some(metadata.len());
+        let mtime_ms = metadata
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|duration| duration.as_millis() as i64);
+        (size, mtime_ms)
+    }
+
+    /// Актуальная обложка из кэша: `Some(inner)` — запись свежая, где `inner`
+    /// это обложка или её отсутствие; `None` — записи нет или файл изменился.
+    ///
+    /// Кэш читается с диска при первом обращении и удерживается в состоянии.
+    pub(crate) fn cover_cache_lookup(
+        &mut self,
+        path: &str,
+        size: Option<u64>,
+        mtime_ms: Option<i64>,
+    ) -> Option<Option<CoverData>> {
+        let root = self.app_state_root.clone();
+        let cache = self
+            .cover_cache
+            .get_or_insert_with(|| CoverCache::load(&root));
+        cache
+            .fresh(path, size, mtime_ms)
+            .map(|entry| entry.cover.clone())
+    }
+
+    /// Сохранение обложки книги в кэш в памяти (без записи на диск).
+    pub(crate) fn cover_cache_store(
+        &mut self,
+        path: &str,
+        size: Option<u64>,
+        mtime_ms: Option<i64>,
+        cover: Option<CoverData>,
+    ) {
+        let root = self.app_state_root.clone();
+        let cache = self
+            .cover_cache
+            .get_or_insert_with(|| CoverCache::load(&root));
+        cache.store(path, size, mtime_ms, cover);
+    }
+
+    /// Сохранение кэша обложек на диск; ошибка записи не прерывает выдачу.
+    pub(crate) fn cover_cache_flush(&mut self) {
+        if let Some(cache) = &self.cover_cache {
+            let _ = cache.save(&self.app_state_root);
+        }
+    }
+
+    /// Разбор ответа плагина обложки в данные кэша.
+    ///
+    /// `{data: null}` или пустые данные дают `None` — обложки нет.
+    pub(crate) fn cover_data_from_value(value: &serde_json::Value) -> Option<CoverData> {
+        let data = value.get("data")?.as_str()?;
+        if data.is_empty() {
+            return None;
+        }
+        let format = value
+            .get("format")
+            .and_then(|format| format.as_str())
+            .unwrap_or("jpeg")
+            .to_ascii_lowercase();
+        Some(CoverData {
+            format,
+            data: data.to_string(),
+        })
     }
 
     /// Содержимое файла вложения по пути.

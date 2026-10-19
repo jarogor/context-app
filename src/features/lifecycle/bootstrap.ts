@@ -46,6 +46,7 @@ import {
 } from '../store/plugin-store';
 import { DEFAULT_OPEN_TABS_LIMIT } from '../workplace/workplace';
 import { loadOpenTabsLimit } from '../workplace/open-tabs-limit';
+import { loadCovers } from '../library/covers';
 import { invokeCommand } from '../../shared/app-bridge';
 import { activeLibrary } from '../../shared/base-plugin';
 
@@ -138,6 +139,10 @@ export async function loadBootstrap(): Promise<BootstrapState> {
             loadStoreBootstrap(),
             loadOpenTabsLimit().catch(() => DEFAULT_OPEN_TABS_LIMIT),
         ]);
+    // Обложки книг рабочих мест готовятся до первого кадра: список рисуется с
+    // ними сразу и не дорисовывает их по одной. Извлечение кэшируется в ядре,
+    // поэтому повторный запуск читает готовые обложки.
+    await loadWorkspaceCovers(registry).catch(() => {});
     return {
         registry,
         activeLibrary: library,
@@ -147,6 +152,31 @@ export async function loadBootstrap(): Promise<BootstrapState> {
         store,
         openTabsLimit,
     };
+}
+
+/** Пути книг всех вкладок рабочих мест из непрозрачного реестра. */
+function workspaceBookPaths(registry: unknown): string[] {
+    const record = (registry ?? {}) as { workspaces?: unknown };
+    const workspaces = Array.isArray(record.workspaces) ? record.workspaces : [];
+    const paths: string[] = [];
+    for (const item of workspaces) {
+        const tabs = (item as { tabs?: unknown })?.tabs;
+        if (!Array.isArray(tabs)) {
+            continue;
+        }
+        for (const tab of tabs) {
+            const path = String((tab as { path?: unknown })?.path ?? '').trim();
+            if (path && !paths.includes(path)) {
+                paths.push(path);
+            }
+        }
+    }
+    return paths;
+}
+
+/** Загрузка обложек книг рабочих мест в кэш оболочки до первого рендера. */
+async function loadWorkspaceCovers(registry: unknown): Promise<void> {
+    await loadCovers(workspaceBookPaths(registry));
 }
 
 /** Чтение и применение оформления до первого кадра.

@@ -81,6 +81,33 @@ describe('загрузка начального состояния', () => {
         ).toBe(false);
     });
 
+    it('готовит обложки книг рабочих мест до готовности оболочки', async () => {
+        const registry = {
+            workspaces: [
+                { id: 'ws-1', tabs: [{ path: '/lib/a.epub' }, { path: '/lib/b.fb2' }] },
+                { id: 'ws-2', tabs: [{ path: '/lib/a.epub' }] },
+            ],
+        };
+        invoke.mockImplementation(async (command: string) => {
+            if (command === 'get_workspaces') {
+                return registry;
+            }
+            if (command === 'workspace_covers') {
+                return {
+                    '/lib/a.epub': { data: 'AAAA', format: 'png' },
+                    '/lib/b.fb2': { data: null },
+                };
+            }
+            return null;
+        });
+
+        await loadBootstrap();
+
+        // Обложки запрошены одним вызовом по уникальным путям всех вкладок.
+        const coversCall = invoke.mock.calls.find(([command]) => command === 'workspace_covers');
+        expect(coversCall?.[1]).toEqual({ paths: ['/lib/a.epub', '/lib/b.fb2'] });
+    });
+
     it('не считает ошибку загрузки настроек сбоем бутстрапа', async () => {
         invoke.mockImplementation(async (command: string) => {
             if (command === 'get_workspaces') {

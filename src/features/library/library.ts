@@ -97,21 +97,8 @@ export async function loadCover(bookId: string): Promise<string | null> {
   return coverDataUri(value);
 }
 
-/** Обложка книги из самого файла по абсолютному пути (data URI или `null`).
- *
- * Рабочее место адресует книгу путём и не зависит от открытой библиотеки:
- * обложка извлекается из файла (встроенная в EPUB/FB2 и подобное).
- */
-export async function loadFileCover(path: string): Promise<string | null> {
-  const value = (await invokeCommand('reader_cover', { path })) as {
-    data?: string | null;
-    format?: string;
-  } | null;
-  return coverDataUri(value ?? {});
-}
-
 /** Data URI обложки из ответа плагина; `null`, если данных нет. */
-function coverDataUri(value: { data?: string | null; format?: string }): string | null {
+export function coverDataUri(value: { data?: string | null; format?: string }): string | null {
   if (!value.data) {
     return null;
   }

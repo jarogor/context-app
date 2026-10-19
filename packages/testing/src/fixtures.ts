@@ -649,6 +649,17 @@ export function defaultMockConfig(): MockBridgeConfig {
             reader_formats: () => ['demo'],
             reader_plugin_for_format: () => null,
             reader_open_external: () => ({ opened: true }),
+            // Обложки книг рабочего места приходят одним вызовом: путь → данные.
+            workspace_covers: (payload: unknown) => {
+                const paths = ((payload as { paths?: unknown } | null)?.paths ?? []) as string[];
+                const covers: Record<string, unknown> = {};
+                for (const path of paths) {
+                    covers[path] = path.toLowerCase().endsWith('.epub')
+                        ? { data: TINY_PNG, format: 'png' }
+                        : { data: null };
+                }
+                return covers;
+            },
             reader_book_chunk: (payload: unknown) => {
                 const value = (payload ?? {}) as { path?: string };
                 const bytes = value.path ? `file:${value.path}` : '';

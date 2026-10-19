@@ -6,6 +6,7 @@
   import NoteToolbar from './NoteToolbar.svelte';
   import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
+import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import { EmptyState } from '@texture/ui';
   import { activeTab } from './workplace';
   import type { TabAppearancePatch } from './workplace';

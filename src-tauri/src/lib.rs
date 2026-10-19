@@ -158,6 +158,7 @@ pub fn run() {
             commands::reader_viewer_file,
             commands::reader_content,
             commands::reader_cover,
+            commands::workspace_covers,
             commands::reader_open_external,
             commands::reader_book_chunk,
             commands::reader_forget_book,
