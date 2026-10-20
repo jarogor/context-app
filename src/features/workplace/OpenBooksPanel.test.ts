@@ -44,6 +44,35 @@ describe('панель открытых книг: оформление', () => {
         expect(screen.getByText('Черновик').closest('button')?.querySelector('svg')).toBeTruthy();
     });
 
+    it('показывает путь к файлу книги иконкой', () => {
+        render(OpenBooksPanel, {
+            props: { tabs: [tab('t1')], activeTabId: 't1', ...handlers() },
+        });
+
+        const path = screen.getByTestId('open-books-item-path');
+        expect(path.textContent).toContain('/lib/t1.epub');
+        expect(path.closest('[title]')?.getAttribute('title')).toBe('/lib/t1.epub');
+    });
+
+    it('называет книгу отдельно, если вкладка переименована', () => {
+        render(OpenBooksPanel, {
+            props: { tabs: [tab('t1', { name: 'Черновик' })], activeTabId: 't1', ...handlers() },
+        });
+
+        const meta = screen.getByTestId('open-books-item-meta');
+        expect(meta.textContent).toContain('Книга t1');
+        expect(meta.textContent).toContain('/lib/t1.epub');
+    });
+
+    it('не повторяет название книги, когда вкладка не переименована', () => {
+        render(OpenBooksPanel, {
+            props: { tabs: [tab('t1')], activeTabId: 't1', ...handlers() },
+        });
+
+        const meta = screen.getByTestId('open-books-item-meta');
+        expect(meta.textContent).not.toContain('Книга t1');
+    });
+
     it('оставляет прежний вид пункта без оформления', () => {
         render(OpenBooksPanel, {
             props: { tabs: [tab('t1')], activeTabId: 't1', ...handlers() },

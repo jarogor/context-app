@@ -6,6 +6,7 @@
     Icon,
     IconButton,
     Input,
+    MetaList,
     SidePanel,
     Textarea,
     TAB_ICON_NAMES,
@@ -13,6 +14,7 @@
     type MenuAction,
     type MenuColor,
     type MenuIcon,
+    type MetaItem,
   } from '@texture/ui';
   import {
     openAvailability,
@@ -111,6 +113,29 @@
   /** Образцы выбора иконки вкладки: текущая иконка отмечена. */
   function iconOptions(current?: IconName): MenuIcon[] {
     return TAB_ICON_NAMES.map((icon) => ({ id: icon, label: icon, selected: icon === current }));
+  }
+
+  /** Метаинформация пункта: книга и путь к её файлу.
+   *
+   * Название книги показывается, только если вкладка переименована: иначе оно
+   * уже стоит подписью пункта. Путь показывается всегда — по нему видно, что это
+   * за файл, даже когда вкладки одной книги открыты несколько раз.
+   */
+  function metaItems(tab: WorkspaceTab): MetaItem[] {
+    const items: MetaItem[] = [];
+    const book = tab.title.trim();
+    if (book && book !== tabLabel(tab)) {
+      items.push({ icon: 'book', value: book, title: `Книга: ${book}` });
+    }
+    if (tab.path) {
+      items.push({
+        icon: 'folder',
+        value: tab.path,
+        title: tab.path,
+        testId: 'open-books-item-path',
+      });
+    }
+    return items;
   }
 
   /** Стиль пункта: переменные мягкого тона пользовательского цвета; пусто, если цвета нет. */
@@ -248,6 +273,11 @@
           >
             {tab.description}
           </p>
+        {/if}
+        {#if metaItems(tab).length > 0}
+          <div class="px-2.5 pb-1.5" data-testid="open-books-item-meta">
+            <MetaList items={metaItems(tab)} />
+          </div>
         {/if}
         {#if editingTabId === tab.id && editingField}
           <div class="flex flex-col gap-2 px-2 pb-2" data-testid="open-books-item-editor">

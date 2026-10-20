@@ -441,9 +441,20 @@ test('правка оформления вкладки видна и в пане
     const item = tab(page, 'Черновик');
     await expect(item.getByTestId('workplace-tab')).toHaveAttribute(
         'title',
-        'Черновик — Демо-книга\nсравнение глав',
+        'Черновик (Демо-книга)\nсравнение глав',
     );
     await expect(item.getByTestId('workplace-tab').locator('svg')).toHaveCount(1);
+});
+
+test('в пункте панели виден путь к файлу книги', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openBooks(page);
+
+    const item = page.getByTestId('open-books-panel').getByTestId('open-books-item');
+    await expect(item.getByTestId('open-books-item-path')).toHaveText('/demo-library/demo-1.epub');
+    // Точный текст пути доступен в подсказке: строка обрезается по ширине панели.
+    await expect(item.locator('span[title="/demo-library/demo-1.epub"]')).toHaveCount(1);
 });
 
 test('цвет вкладки заливает её и в панели, и на панели вкладок', async ({ page }) => {
