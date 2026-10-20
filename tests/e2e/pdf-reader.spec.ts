@@ -327,18 +327,29 @@ function content(page: Page) {
     return page.frameLocator('iframe[title="Содержимое книги"]');
 }
 
-/** Приведение области чтения к заданному масштабу (шаг кнопок — 10 %). */
+/** Приведение области чтения к заданному уровню шкалы масштаба.
+ *
+ * Шаг кнопок — не фиксированные 10 %: панель идёт по общей лестнице уровней, где
+ * на краях диапазона шаг крупнее. Хелпер читает фактический масштаб и жмёт кнопку
+ * в нужную сторону, пока не достигнет цели.
+ */
 async function setZoom(page: Page, target: number) {
     const readZoom = async () =>
         Number(((await page.getByTestId('reader-zoom').textContent()) ?? '100').replace('%', ''));
+    const bigger = page.getByRole('button', { name: 'Увеличить масштаб' });
+    const smaller = page.getByRole('button', { name: 'Уменьшить масштаб' });
     let current = await readZoom();
-    while (current < target) {
-        await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
-        current += 10;
-    }
-    while (current > target) {
-        await page.getByRole('button', { name: 'Уменьшить масштаб' }).click();
-        current -= 10;
+    while (current !== target) {
+        const before = current;
+        if (current < target) {
+            await bigger.click();
+        } else {
+            await smaller.click();
+        }
+        await expect
+            .poll(readZoom)
+            .not.toBe(before);
+        current = await readZoom();
     }
 }
 
@@ -400,6 +411,37 @@ test('PDF открывается плагином рабочего места с
     await expect(frame.locator('.page')).toHaveCount(3);
     await expect(page.getByLabel('Текущая страница')).toHaveValue('1');
     await expect(page.getByTestId('reader-page-count')).toHaveText('/ 3');
+});
+
+test('масштаб идёт по обратимой шкале уровней', async ({ page }) => {
+    await openPdf(page, 3);
+    const zoom = page.getByTestId('reader-zoom');
+    const bigger = page.getByRole('button', { name: 'Увеличить масштаб' });
+    const smaller = page.getByRole('button', { name: 'Уменьшить масштаб' });
+
+    /** Нажатие кнопки масштаба с ожиданием нового значения. */
+    const step = async (button: typeof bigger, expected: string) => {
+        const before = await zoom.textContent();
+        await button.click();
+        await expect.poll(async () => zoom.textContent()).not.toBe(before);
+        await expect(zoom).toHaveText(expected);
+    };
+
+    // Уровни шкалы: 100 → 110 → 120 (шаг 10 у удобного масштаба).
+    await step(bigger, '110%');
+    await step(bigger, '120%');
+
+    // Уменьшение возвращает к тем же уровням — шкала обратима.
+    await step(smaller, '110%');
+    await step(smaller, '100%');
+
+    // Прогрессивность: у крупного масштаба шаг больше, чем у удобного.
+    // От 100 % уровни идут 110…180, 200, 220, 250, 300, 350, 400, 500.
+    for (let index = 0; index < 15; index += 1) {
+        await bigger.click();
+    }
+    await expect.poll(async () => zoom.textContent()).toBe('500%');
+    await step(bigger, '600%');
 });
 
 test('тема области чтения перекрашивает и фон плагина, и страницу', async ({ page }) => {
@@ -675,8 +717,9 @@ test('сильное увеличение не оставляет страниц
 
     // Приближаем до максимального масштаба: страница в пикселях становится
     // огромной, и без ограничения канвас превысил бы допустимый размер.
-    for (let index = 0; index < 60; index += 1) {
-        await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
+    const bigger = page.getByRole('button', { name: 'Увеличить масштаб' });
+    while (await bigger.isEnabled()) {
+        await bigger.click();
     }
 
     const pageEl = content(page).locator('.page').first();

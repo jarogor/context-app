@@ -159,17 +159,19 @@ describe('панель инструментов заметок', () => {
 });
 
 describe('панель чтения: масштаб', () => {
-    it('показывает текущий масштаб и сообщает об изменении', async () => {
+    it('показывает текущий масштаб и сообщает о направлении изменения', async () => {
         const onChangeZoom = vi.fn();
         render(NoteToolbar, { props: props({ zoom: 110, onChangeZoom }) });
 
         expect(screen.getByTestId('reader-zoom').textContent).toBe('110%');
 
+        // Кнопки передают направление шага (`1`/`-1`), а не величину: шкала
+        // уровней живёт в читалке, панель лишь просит шагнуть в сторону.
         await fireEvent.click(screen.getByRole('button', { name: 'Увеличить масштаб' }));
-        expect(onChangeZoom).toHaveBeenCalledWith(10);
+        expect(onChangeZoom).toHaveBeenCalledWith(1);
 
         await fireEvent.click(screen.getByRole('button', { name: 'Уменьшить масштаб' }));
-        expect(onChangeZoom).toHaveBeenCalledWith(-10);
+        expect(onChangeZoom).toHaveBeenCalledWith(-1);
     });
 
     it('блокирует кнопки на границах масштаба', () => {
@@ -234,7 +236,7 @@ describe('панель чтения: масштаб', () => {
             }),
         });
         const field = screen.getByLabelText('Текущая страница');
-        expect(field.className).toContain('w-[3.25rem]');
+        expect(field.className).toContain('w-[3.5rem]');
         expect(field.className).toContain('shrink-0');
         unmount();
 
@@ -248,8 +250,41 @@ describe('панель чтения: масштаб', () => {
         });
         // Та же ширина: смена «9 → 1200» не сдвигает ни кнопки, ни соседей.
         const wide = screen.getByLabelText('Текущая страница');
-        expect(wide.className).toContain('w-[3.25rem]');
+        expect(wide.className).toContain('w-[3.5rem]');
         expect(screen.getByTestId('reader-pages').className).toContain('shrink-0');
+    });
+
+    it('выравнивает номер страницы вправо: он образует отношение «n / m»', () => {
+        render(NoteToolbar, {
+            props: props({
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 1200,
+            }),
+        });
+
+        // Номер в поле прижат вправо — к косой черте счётчика, а не по центру.
+        expect(screen.getByLabelText('Текущая страница').className).toContain('text-right');
+        expect(screen.getByLabelText('Текущая страница').className).not.toContain('text-center');
+    });
+
+    it('оставляет запас у счётчика страниц справа от последней цифры', () => {
+        render(NoteToolbar, {
+            props: props({
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 1,
+                workplacePageCount: 1200,
+            }),
+        });
+
+        // Счётчик — естественной ширины с правым отступом: на четырёх- и
+        // пятизначном числе текст не упирается в край группы.
+        const count = screen.getByTestId('reader-page-count');
+        expect(count.textContent).toBe('/ 1200');
+        expect(count.className).toContain('pr-2');
+        expect(count.className).toContain('shrink-0');
     });
 });
 

@@ -40,8 +40,8 @@
     showZoom?: boolean;
     /** Текущая тема области чтения. */
     readerTheme?: ReaderThemeId;
-    /** Изменение масштаба на заданную величину. */
-    onChangeZoom?: (delta: number) => void;
+    /** Изменение масштаба на один шаг шкалы: `1` — увеличение, `-1` — уменьшение. */
+    onChangeZoom?: (direction: 1 | -1) => void;
     /** Переключение темы области чтения на противоположную. */
     onChangeReaderTheme?: (theme: ReaderThemeId) => void;
     /** Показывать ли инструменты создания заметок (книга открыта). */
@@ -259,7 +259,7 @@
         блоки, поэтому вся полоса стоит на месте.
       -->
       <Input
-        class="h-8 w-[3.25rem] shrink-0 border-0 bg-card px-1 py-0 text-center text-sm"
+        class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm"
         ariaLabel="Текущая страница"
         value={pageValue}
         oninput={(event) => (pageDraft = event.currentTarget.value)}
@@ -271,7 +271,7 @@
         onblur={commitPage}
       />
       <span
-        class="inline-block min-w-[2.75rem] whitespace-nowrap text-left text-sm"
+        class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm"
         data-testid="reader-page-count"
         >/ {workplacePageCount ?? '?'}</span
       >
@@ -306,7 +306,7 @@
         ariaLabel="Уменьшить масштаб"
         class="size-8"
         disabled={zoom <= minZoom}
-        onclick={() => onChangeZoom?.(-10)}>−</Button
+        onclick={() => onChangeZoom?.(-1)}>−</Button
       >
       <Button
         size="icon"
@@ -315,7 +315,7 @@
         ariaLabel="Увеличить масштаб"
         class="size-8"
         disabled={zoom >= maxZoom}
-        onclick={() => onChangeZoom?.(10)}>+</Button
+        onclick={() => onChangeZoom?.(1)}>+</Button
       >
       <span
         class="inline-block w-[3.25rem] text-center text-sm"
@@ -329,6 +329,7 @@
       variant="ghost"
       title={themeTitle}
       ariaLabel={themeLabel}
+      class="size-8"
       onclick={toggleReaderTheme}
     >
       <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />

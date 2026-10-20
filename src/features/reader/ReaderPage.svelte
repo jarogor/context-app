@@ -21,6 +21,7 @@
   import NoteTextEditor from './NoteTextEditor.svelte';
   import type { QuoteAnchor } from './reader/anchor';
   import { canStepPage, clampPage, pageProgress } from './reader/page-state';
+  import { nextZoom, type ZoomDirection } from './zoom';
 
   interface Props {
     /** Путь к файлу открытой книги (вложение вкладки). */
@@ -345,9 +346,13 @@
     }
   }
 
-  /** Изменение масштаба текста в допустимых границах. */
-  function changeZoom(delta: number) {
-    zoom = Math.max(minZoom, Math.min(maxZoom, zoom + delta));
+  /** Изменение масштаба текста в допустимых границах по общей лестнице уровней.
+   *
+   * Шаг не фиксирован: и увеличение, и уменьшение переходят к соседнему уровню
+   * шкалы (`nextZoom`), поэтому шкала обратима и не ломается у нижней границы.
+   */
+  function changeZoom(direction: ZoomDirection) {
+    zoom = nextZoom(zoom, direction, minZoom, maxZoom);
     reportState();
   }
 
@@ -381,8 +386,8 @@
   }
 
   /** Изменение масштаба из нижней панели рабочего места. */
-  export function changeFooterZoom(delta: number) {
-    changeZoom(delta);
+  export function changeFooterZoom(direction: ZoomDirection) {
+    changeZoom(direction);
   }
 
   /** Переход к соседней странице из нижней панели рабочего места. */

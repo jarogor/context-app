@@ -235,9 +235,9 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   }
 
   /** Изменение масштаба активной вкладки из нижней панели. */
-  function changeZoom(delta: number) {
+  function changeZoom(direction: 1 | -1) {
     if (tab) {
-      readers.get(tab.id)?.changeFooterZoom(delta);
+      readers.get(tab.id)?.changeFooterZoom(direction);
     }
   }
 

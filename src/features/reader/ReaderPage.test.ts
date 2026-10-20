@@ -50,7 +50,7 @@ describe('ReaderPage как содержимое вкладки', () => {
         });
 
         await screen.findByTestId('reader-loading');
-        component.component.changeFooterZoom(10);
+        component.component.changeFooterZoom(1);
         await tick();
 
         expect(onStateChange).toHaveBeenCalledWith({ zoom: 140, position: 40 });
