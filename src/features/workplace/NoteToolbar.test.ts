@@ -253,6 +253,101 @@ describe('панель чтения: масштаб', () => {
     });
 });
 
+describe('панель чтения: единый вид групп управления', () => {
+    it('обрамляет навигацию и масштаб так же, как блок типов заметок', () => {
+        render(NoteToolbar, {
+            props: props({
+                tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' },
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 1200,
+            }),
+        });
+
+        // Все три области — с рамкой, фоном и внутренним отступом блока типов.
+        const types = screen.getByRole('group', { name: 'Тип заметки' });
+        const pages = screen.getByTestId('reader-pages');
+        const zoom = screen.getByTestId('reader-zoom-group');
+        for (const group of [types, pages, zoom]) {
+            expect(group.className).toContain('border-[var(--border)]');
+            expect(group.className).toContain('bg-[var(--background)]');
+            expect(group.className).toContain('p-0.5');
+        }
+    });
+
+    it('держит внутренние элементы групп одной высоты', () => {
+        render(NoteToolbar, {
+            props: props({
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 1200,
+            }),
+        });
+
+        // Высота элементов внутри групп равна `h-8` (`size-8`): области не
+        // расходятся по высоте из-за разного размера кнопок.
+        expect(screen.getByRole('button', { name: 'Следующая страница' }).className).toContain('h-8');
+        expect(screen.getByRole('button', { name: 'Предыдущая страница' }).className).toContain('h-8');
+        expect(screen.getByLabelText('Текущая страница').className).toContain('h-8');
+        expect(screen.getByRole('button', { name: 'Увеличить масштаб' }).className).toContain('size-8');
+    });
+
+    it('держит одинаковый кегль текста во всех группах', () => {
+        render(NoteToolbar, {
+            props: props({
+                tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' },
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 1200,
+            }),
+        });
+
+        // Панель задаёт кегль один раз (`text-sm`), а не разными ролями у групп.
+        expect(screen.getByTestId('note-toolbar').className).toContain('text-sm');
+        expect(screen.getByLabelText('Текущая страница').className).toContain('text-sm');
+        expect(screen.getByTestId('reader-page-count').className).toContain('text-sm');
+        expect(screen.getByTestId('reader-zoom').className).toContain('text-sm');
+        expect(screen.getByRole('button', { name: 'Вид фигуры' }).className).toContain('text-sm');
+    });
+
+    it('показывает поле страницы без обводки, но с прежним цветом', () => {
+        render(NoteToolbar, {
+            props: props({
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 1200,
+            }),
+        });
+
+        // Поле номера — с прежним цветом (`bg-card`) и без обводки (`border-0`):
+        // рамка делала поле похожим на кнопку.
+        const field = screen.getByLabelText('Текущая страница');
+        expect(field.className).toContain('bg-card');
+        expect(field.className).toContain('border-0');
+    });
+
+    it('держит группы вплотную: промежуток панели небольшой', () => {
+        render(NoteToolbar, {
+            props: props({
+                tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' },
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 1200,
+            }),
+        });
+
+        // Промежуток панели и её правой группы одинаков и невелик (`gap-1.5`
+        // = 6px): группы стоят тесной связкой, а не вразрядку.
+        expect(screen.getByTestId('note-toolbar').className).toContain('gap-1.5');
+        expect(screen.getByTestId('reader-footer').className).toContain('gap-1.5');
+    });
+});
+
 describe('панель чтения: переключатель темы', () => {
     it('называет тему, на которую переключает кнопка', () => {
         const { rerender } = render(NoteToolbar, { props: props({ readerTheme: 'light' }) });

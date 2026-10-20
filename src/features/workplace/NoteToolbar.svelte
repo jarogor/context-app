@@ -175,7 +175,7 @@
   поэтому панель не «прыгает».
 -->
 <div
-  class="flex h-11 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-3 [font-variant-numeric:tabular-nums]"
+  class="flex h-11 flex-wrap items-center gap-1.5 border-b border-[var(--border)] bg-[var(--card)] px-3 text-sm [font-variant-numeric:tabular-nums]"
   data-testid="note-toolbar"
 >
   {#if notesMode && typeOptions.length > 1}
@@ -204,8 +204,7 @@
       <Select
         value={tool.shape}
         items={shapeOptions}
-        size="sm"
-        class="w-[9.375rem]"
+        class="h-8 w-[9.375rem] text-sm"
         ariaLabel="Вид фигуры"
         onchange={selectShape}
       />
@@ -222,7 +221,7 @@
     />
   {/if}
 
-  <div class="ml-auto flex items-center gap-3" data-testid="reader-footer">
+  <div class="ml-auto flex items-center gap-1.5" data-testid="reader-footer">
   <!--
     Постраничная навигация: кнопки стоят **в ряд** и идут слева направо —
     «Следующая страница» (вниз), «Предыдущая страница» (вверх), затем поле номера
@@ -230,13 +229,16 @@
     бы место в книге.
   -->
   {#if workplace && workplacePages && workplacePage !== null}
-    <div class="flex shrink-0 items-center gap-1.5" data-testid="reader-pages">
+    <div
+      class="flex shrink-0 items-center gap-1.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-0.5"
+      data-testid="reader-pages"
+    >
       <button
         type="button"
         title="Следующая страница"
         aria-label="Следующая страница"
         disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
-        class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+        class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
         onclick={() => onStepPage?.(1)}
       >
         <Icon name="chevron-down" class="h-4 w-4" />
@@ -246,7 +248,7 @@
         title="Предыдущая страница"
         aria-label="Предыдущая страница"
         disabled={workplacePage <= 1}
-        class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+        class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
         onclick={() => onStepPage?.(-1)}
       >
         <Icon name="chevron-up" class="h-4 w-4" />
@@ -257,7 +259,7 @@
         блоки, поэтому вся полоса стоит на месте.
       -->
       <Input
-        class="h-6 w-[3.25rem] shrink-0 px-1 py-0 text-center"
+        class="h-8 w-[3.25rem] shrink-0 border-0 bg-card px-1 py-0 text-center text-sm"
         ariaLabel="Текущая страница"
         value={pageValue}
         oninput={(event) => (pageDraft = event.currentTarget.value)}
@@ -269,7 +271,7 @@
         onblur={commitPage}
       />
       <span
-        class="inline-block min-w-[2.75rem] whitespace-nowrap text-left"
+        class="inline-block min-w-[2.75rem] whitespace-nowrap text-left text-sm"
         data-testid="reader-page-count"
         >/ {workplacePageCount ?? '?'}</span
       >
@@ -282,7 +284,7 @@
   -->
   {#if !(workplace && workplacePages)}
     <span
-      class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap role-caption text-[var(--muted-foreground)]"
+      class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
       data-testid="reader-progress"
       >{Math.round(progress)}%</span
     >
@@ -293,12 +295,16 @@
     темы не «прыгают» при смене числа разрядов.
   -->
   {#if showZoom}
-    <div class="flex shrink-0 items-center gap-0.5" data-testid="reader-zoom-group">
+    <div
+      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-0.5"
+      data-testid="reader-zoom-group"
+    >
       <Button
         size="icon"
         variant="ghost"
         title="Уменьшить масштаб"
         ariaLabel="Уменьшить масштаб"
+        class="size-8"
         disabled={zoom <= minZoom}
         onclick={() => onChangeZoom?.(-10)}>−</Button
       >
@@ -307,11 +313,12 @@
         variant="ghost"
         title="Увеличить масштаб"
         ariaLabel="Увеличить масштаб"
+        class="size-8"
         disabled={zoom >= maxZoom}
         onclick={() => onChangeZoom?.(10)}>+</Button
       >
       <span
-        class="inline-block w-[3.25rem] text-center role-caption"
+        class="inline-block w-[3.25rem] text-center text-sm"
         data-testid="reader-zoom">{zoom}%</span
       >
     </div>
