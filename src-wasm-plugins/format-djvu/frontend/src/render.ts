@@ -1,52 +1,85 @@
 /** Отрисовка страниц книги и окон канваса.
  *
- * Страница DjVu рисуется растром с плотностью экрана; обычные масштабы
- * помещаются в канвас целиком, сильное увеличение — окном видимой области с
- * запасом. Рядом с растром идёт невидимый текстовый слой, поверх — подсветки
- * заметок и слой выделения.
+ * В разметке живут только страницы у видимой области (см. `list`): книга бывает
+ * на тысячи страниц, и полный список страниц не помещается ни в память, ни во
+ * время. При смене масштаба распорки виртуального списка пересчитываются, а
+ * рисуются заново лишь страницы окна.
  */
-import { newPixmap, renderRequest, type DjVuPage } from './engine';
-import { OVERLAY_CLASS, TEXT_LAYER_CLASS, overlayOf, pagesEl, scrollProgress, viewer } from './dom';
+import { newPixmap, renderRequest, type DjVuModule, type DjVuPage } from './engine';
+import { TEXT_LAYER_CLASS, overlayOf, scrollProgress, viewer } from './dom';
+import {
+  listHeight,
+  pageOffset,
+  pageSize,
+  realizeWindow,
+  rebuildMetrics,
+  resetList,
+} from './list';
 import { drawNotes } from './notes';
 import { post } from './protocol';
 import { renderSelection } from './selection';
 import { state, type CanvasInfo, type RenderedEntry } from './state';
-import { buildTextLayer } from './text-layer';
+import { alignTextLayerToRaster, buildTextLayer, fitTextLayer } from './text-layer';
 import { recolorCanvas } from './theme';
-import {
-  boundedRatio,
-  desiredWindow,
-  snapToDevice,
-  type WindowBox,
-} from './viewport';
+import { boundedRatio, desiredWindow, snapToDevice, type WindowBox } from './viewport';
 
 /** Порядковый номер страницы элемента (1-based). */
-function pageNumber(pageEl: HTMLElement): number {
+export function pageNumber(pageEl: HTMLElement): number {
   return Number(pageEl.dataset.page);
 }
 
-/** Масштаб отображения: 100 % — естественный размер страницы файла. */
-function zoomScale(): number {
-  return state.zoom / 100;
+/** Пикселей CSS в дюйме: 100 % масштаба — естественный размер страницы. */
+export const CSS_DPI = 96;
+
+/** Натуральный размер страницы в CSS-пикселях.
+ *
+ * Как в PDF-плагине: 100 % — естественный размер страницы файла, переведённый в
+ * CSS по разрешению (`пиксели × 96 / DPI`). Размер не зависит от размера окна.
+ */
+export function naturalPageSize(page: DjVuPage): { width: number; height: number } {
+  const stored = page.dpi() || 300;
+  const dpi = effectiveDpi(page);
+  return {
+    width: (page.width_at(stored) * CSS_DPI) / dpi,
+    height: (page.height_at(stored) * CSS_DPI) / dpi,
+  };
 }
 
-/** Размер страницы в пикселях при текущем масштабе. */
-export function pageSize(index: number): { width: number; height: number } {
-  const natural = state.naturalSizes[index] ||
-    state.naturalSizes[0] || { width: 612, height: 792 };
-  const scale = zoomScale();
-  return { width: natural.width * scale, height: natural.height * scale };
-}
-
-/** Обновление размеров страницы после уточнения её натурального размера. */
-function resizePage(index: number): void {
-  const pageEl = pagesEl.children[index] as HTMLElement | undefined;
-  if (!pageEl || pageEl.dataset.rendered === '1') {
-    return;
+/** Обновление высот распорок и размеров живых страниц после смены масштаба. */
+export function resizePages(): void {
+  rebuildMetrics();
+  for (const [page, pageEl] of state.pages) {
+    const size = pageSize(page - 1);
+    pageEl.style.width = size.width + 'px';
+    pageEl.style.height = size.height + 'px';
   }
-  const size = pageSize(index);
-  pageEl.style.width = size.width + 'px';
-  pageEl.style.height = size.height + 'px';
+}
+
+/** Полная перестройка списка после открытия книги. */
+export function layoutPages(): void {
+  resetList();
+  // Новая книга: снимаем возможную паузу отрисовки и очередь прежней книги.
+  state.renderToken += 1;
+  renderQueue = [];
+  if (renderTimer !== null) {
+    clearTimeout(renderTimer);
+    renderTimer = null;
+  }
+  if (settleTimer !== null) {
+    clearTimeout(settleTimer);
+    settleTimer = null;
+  }
+  rebuildMetrics();
+  realizeWindow();
+}
+
+/** Сообщение о текущей странице, числе страниц, масштабе и прогрессе. */
+export function reportState(): void {
+  post({
+    type: 'state',
+    value: { page: state.currentPage, pages: state.pageCount, zoom: state.zoom },
+  });
+  post({ type: 'progress', value: scrollProgress() });
 }
 
 /** Подготовка канваса страницы: окно и плотность. */
@@ -84,40 +117,20 @@ function setupCanvas(pageEl: HTMLElement, viewport: { width: number; height: num
   return { canvas, info: { x, y, width, height, ratio } };
 }
 
-/** Сообщение о текущей странице, числе страниц, масштабе и прогрессе. */
-export function reportState(): void {
-  post({
-    type: 'state',
-    value: { page: state.currentPage, pages: state.pageCount, zoom: state.zoom },
-  });
-  post({ type: 'progress', value: scrollProgress() });
-}
-
-/** Построение каркаса страниц: размеры без растров. */
-export function layoutPages(): void {
-  pagesEl.replaceChildren();
-  for (let index = 0; index < state.pageCount; index += 1) {
-    const size = pageSize(index);
-    const pageEl = document.createElement('div');
-    pageEl.className = 'page';
-    pageEl.dataset.page = String(index + 1);
-    pageEl.style.width = size.width + 'px';
-    pageEl.style.height = size.height + 'px';
-    const overlay = document.createElement('div');
-    overlay.className = OVERLAY_CLASS;
-    pageEl.append(overlay);
-    pagesEl.append(pageEl);
+/** Освобождение канвасов всех страниц окна (при смене масштаба или темы).
+ *
+ * Смена масштаба отменяет и незавершённую очередь отрисовки: страницы рисуются
+ * заново уже под новый масштаб.
+ */
+export function releaseWindowPages(): void {
+  state.renderToken += 1;
+  renderQueue = [];
+  if (renderTimer !== null) {
+    clearTimeout(renderTimer);
+    renderTimer = null;
   }
-}
-
-/** Обновление размеров каркаса при смене масштаба. */
-export function resizePages(): void {
-  for (const node of pagesEl.children) {
-    const pageEl = node as HTMLElement;
-    const index = pageNumber(pageEl) - 1;
-    const size = pageSize(index);
-    pageEl.style.width = size.width + 'px';
-    pageEl.style.height = size.height + 'px';
+  for (const pageEl of state.pages.values()) {
+    releasePage(pageEl);
   }
 }
 
@@ -150,6 +163,14 @@ function detachForRerender(pageEl: HTMLElement): RenderedEntry | null {
   const entry = state.rendered.get(pageEl);
   state.rendered.delete(pageEl);
   delete pageEl.dataset.rendered;
+  // Текстовый слой снимается сразу: он не рисуется, но остаётся в разметке и
+  // перехватывает выделение. Его слова относятся к прежнему масштабу страницы,
+  // поэтому браузер выделял бы текст из старого слоя, а не из нового — выделение
+  // расходилось бы с видимыми буквами. Канвас остаётся: он держит картинку,
+  // пока новый растр не готов.
+  if (entry) {
+    entry.textLayer.remove();
+  }
   return entry || null;
 }
 
@@ -161,10 +182,49 @@ function restoreRendered(pageEl: HTMLElement, entry: RenderedEntry | null): void
   }
 }
 
-/** Целевой DPI отрисовки страницы: природный DPI × масштаб × плотность. */
-function targetDpi(index: number, ratio: number): number {
-  const native = state.nativeDpis[index] || 300;
-  return Math.max(1, Math.round(native * zoomScale() * ratio));
+/** Разрешение файла, по которому считается натуральный размер страницы.
+ *
+ * Защита от заведомо неверного DPI в метаданных (0 или 1): по нему страница
+ * вышла бы в десятки метров. Обычные значения (100–1200) берутся как есть.
+ */
+function effectiveDpi(page: DjVuPage): number {
+  const stored = page.dpi() || 300;
+  return stored >= 24 && stored <= 1200 ? stored : 300;
+}
+
+/** Целевой DPI отрисовки страницы в системе координат файла.
+ *
+ * Размер страницы переведён в CSS по её разрешению, поэтому растр нужен по
+ * CSS-пикселям: `96 × масштаб × плотность окна`. Если DPI файла признан
+ * неверным, целевой DPI приводится к тому же разрешению, по которому посчитан
+ * размер.
+ */
+function targetDpi(page: DjVuPage, info: CanvasInfo, quality: number): number {
+  const stored = page.dpi() || 300;
+  const dpi = effectiveDpi(page);
+  const scale = (state.zoom / 100) * CSS_DPI * (stored / dpi) * quality;
+  return Math.max(1, Math.round(scale * info.ratio));
+}
+
+/** Запас детализации растра над пикселями канваса. */
+const RASTER_QUALITY = 1.5;
+/** Предельная площадь растровой страницы (пиксели) с запасом детализации. */
+const RASTER_AREA = 6 * 1024 * 1024;
+
+/**
+ * Запас детализации растра.
+ *
+ * Канвас строится ровно по плотности окна (целое число пикселей на CSS-пиксель),
+ * поэтому браузер не пересэмплирует его и шрифт остаётся чётким. Детализация
+ * добавляется внутри: движок рисует страницу крупнее, а сжатие до размера
+ * канваса даёт гладкие штрихи. На крупных страницах запас снимается, иначе
+ * отрисовка и память тормозят.
+ */
+function rasterQuality(info: CanvasInfo): number {
+  const area = info.width * info.height * info.ratio * info.ratio;
+  return area > 0 && area * RASTER_QUALITY * RASTER_QUALITY <= RASTER_AREA
+    ? RASTER_QUALITY
+    : 1;
 }
 
 /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок.
@@ -176,6 +236,7 @@ function targetDpi(index: number, ratio: number): number {
 export function renderPage(
   pageEl: HTMLElement,
   preserve: RenderedEntry | null = null,
+  token: number = state.renderToken,
 ): void {
   const doc = state.doc;
   if (state.rendered.has(pageEl) || state.pending.has(pageEl) || !doc) {
@@ -192,13 +253,20 @@ export function renderPage(
     restoreRendered(pageEl, preserve);
     return;
   }
-  const nativeDpi = page.dpi() || 300;
-  state.nativeDpis[index] = nativeDpi;
-  state.naturalSizes[index] = {
-    width: page.width_at(nativeDpi),
-    height: page.height_at(nativeDpi),
-  };
-  resizePage(index);
+  // Размер страницы измеряется при первой отрисовке: ленивый разбор позволяет
+  // не читать все страницы книги при открытии.
+  if (!state.naturalSizes[index]) {
+    const measured = naturalPageSize(page);
+    state.naturalSizes[index] = measured;
+    // Неоднородные страницы уточняют высоту списка: распорки пересчитываются.
+    if (
+      Math.abs(measured.width - state.defaultSize.width) > 1 ||
+      Math.abs(measured.height - state.defaultSize.height) > 1
+    ) {
+      rebuildMetrics();
+      scheduleWindowRefresh();
+    }
+  }
   const viewport = pageSize(index);
   pageEl.style.width = viewport.width + 'px';
   pageEl.style.height = viewport.height + 'px';
@@ -219,43 +287,88 @@ export function renderPage(
   const entry: RenderedEntry = { canvas, textLayer: textLayerEl, info, paint: state.paintKey };
 
   try {
-    const dpi = targetDpi(index, info.ratio);
-    const request = renderRequest(dpi);
+    const dpi = targetDpi(page, info, rasterQuality(info));
+    // Пикселей растра на CSS-пиксель страницы: для файла с неверным DPI не
+    // совпадает с плотностью окна, для обычного — совпадает.
+    const pixelsPerCss = page.width_at(dpi) / Math.max(1, viewport.width);
+    const request = renderRequest(state.module as DjVuModule, dpi);
     const whole =
       Math.abs(info.x) < 0.5 &&
       Math.abs(info.y) < 0.5 &&
-      Math.abs(info.width * info.ratio - page.width_at(dpi)) <= 1 &&
-      Math.abs(info.height * info.ratio - page.height_at(dpi)) <= 1;
+      Math.abs(info.width * pixelsPerCss - page.width_at(dpi)) <= 1 &&
+      Math.abs(info.height * pixelsPerCss - page.height_at(dpi)) <= 1;
     if (!whole) {
       const pageWidth = page.width_at(dpi);
       const pageHeight = page.height_at(dpi);
-      const x = Math.min(Math.max(0, Math.round(info.x * info.ratio)), pageWidth - 1);
-      const y = Math.min(Math.max(0, Math.round(info.y * info.ratio)), pageHeight - 1);
+      const x = Math.min(Math.max(0, Math.round(info.x * pixelsPerCss)), pageWidth - 1);
+      const y = Math.min(Math.max(0, Math.round(info.y * pixelsPerCss)), pageHeight - 1);
       const width = Math.min(
-        Math.max(1, Math.round(info.width * info.ratio)),
+        Math.max(1, Math.round(info.width * pixelsPerCss)),
         pageWidth - x,
       );
       const height = Math.min(
-        Math.max(1, Math.round(info.height * info.ratio)),
+        Math.max(1, Math.round(info.height * pixelsPerCss)),
         pageHeight - y,
       );
       request.set_region(x, y, width, height);
     }
-    const pixmap = newPixmap();
+    const pixmap = newPixmap(state.module as DjVuModule);
     page.render_request(request, pixmap);
+    // Растр может прийти крупнее канваса (запас детализации): рисунок сжимается
+    // до его пикселей — так штрихи шрифта выходят гладкими, а канвас стоит ровно
+    // по плотности окна.
     const pixels = new Uint8ClampedArray(pixmap.view());
-    context.putImageData(new ImageData(pixels, pixmap.width(), pixmap.height()), 0, 0);
+    const source = new ImageData(pixels, pixmap.width(), pixmap.height());
+    if (pixmap.width() === canvas.width && pixmap.height() === canvas.height) {
+      context.putImageData(source, 0, 0);
+    } else {
+      const scratch = document.createElement('canvas');
+      scratch.width = pixmap.width();
+      scratch.height = pixmap.height();
+      scratch.getContext('2d')?.putImageData(source, 0, 0);
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(scratch, 0, 0, canvas.width, canvas.height);
+    }
     // Перекраска растра в тёмной теме: светлый фон страницы становится тёмным,
     // тёмный текст — светлым, оттенок сохраняется.
     recolorCanvas(canvas, state.readerTheme, state.pageColors);
     const zones = page.text_zones_json(dpi);
     if (zones) {
-      textLayerEl.append(buildTextLayer(zones, info.ratio, viewport));
+      // Слова строятся прямо в слое страницы: `buildTextLayer` собирает готовый
+      // слой, и его нельзя вкладывать в другой — вложенный слой перекрывает
+      // слова наружного, и выделение берёт не тот текст.
+      const built = buildTextLayer(zones, pixelsPerCss, viewport);
+      textLayerEl.append(...Array.from(built.childNodes));
     }
     // Готовые слои встают одним кадром: при перерисовке окна старый канвас
     // удерживался до этого момента, поэтому прокрутка не обнажает пустоту.
+    // Отрисовка могла устареть, пока шла: масштаб сменили, и поколение другое.
+    // Тогда готовые канвас и слой не вставляются — иначе в разметке оказались бы
+    // два текстовых слоя, и выделение брало бы слова из прежнего, не совпадая с
+    // видимыми буквами.
+    if (token !== state.renderToken) {
+      canvas.remove();
+      textLayerEl.remove();
+      return;
+    }
+    // Прежние канвас и слой страницы снимаются перед вставкой: страница могла
+    // быть отрисована повторно без передачи старого канваса, и два текстовых
+    // слоя в разметке перехватывали бы выделение — его слова относятся к
+    // прежнему масштабу и не совпадают с видимыми буквами.
+    for (const stale of Array.from(pageEl.querySelectorAll(`.${TEXT_LAYER_CLASS}`))) {
+      stale.remove();
+    }
+    for (const stale of Array.from(pageEl.querySelectorAll('canvas'))) {
+      stale.remove();
+    }
     pageEl.insertBefore(canvas, overlay);
     pageEl.insertBefore(textLayerEl, overlay);
+    // После вставки измеряется ширина текста: слой подгоняет слова по зонам,
+    // а затем зоны ставятся по фактическим чернилам растра — иначе выделение
+    // расходится с видимым текстом.
+    fitTextLayer(textLayerEl);
+    alignTextLayerToRaster(textLayerEl, canvas, state.readerTheme === 'dark');
     if (preserve) {
       preserve.canvas.remove();
       preserve.textLayer.remove();
@@ -281,86 +394,172 @@ export function renderPage(
   }
 }
 
-/** Наблюдение за видимостью страниц: рендер вблизи, освобождение вдали. */
-export function startObserver(): void {
-  if (state.observer) {
-    state.observer.disconnect();
-  }
-  state.observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        const pageEl = entry.target as HTMLElement;
-        if (entry.isIntersecting) {
-          renderPage(pageEl);
-        } else if (entry.intersectionRatio === 0) {
-          releasePage(pageEl);
-        }
-      }
-    },
-    { root: viewer, rootMargin: '1200px 0px' },
-  );
-  for (const pageEl of pagesEl.children) {
-    state.observer.observe(pageEl);
+/** Очередь страниц на отрисовку: видимые впереди, соседние — следом. */
+interface QueueItem {
+  /** Элемент страницы. */
+  pageEl: HTMLElement;
+  /** Прежний растр, который удерживается до готовности нового. */
+  preserve: RenderedEntry | null;
+}
+
+let renderQueue: QueueItem[] = [];
+/** Таймер продолжения очереди отрисовки. */
+let renderTimer: ReturnType<typeof setTimeout> | null = null;
+/** Таймер паузы после прокрутки: растр рисуется, когда прокрутка успокоилась. */
+let settleTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Постановка страницы в очередь, если её ещё нет. */
+function enqueue(pageEl: HTMLElement, preserve: RenderedEntry | null = null): void {
+  if (!renderQueue.some((item) => item.pageEl === pageEl)) {
+    renderQueue.push({ pageEl, preserve });
   }
 }
 
-/** Пересчёт окон отрисованных страниц при прокрутке.
+/**
+ * Отрисовка очереди порциями.
  *
- * Когда страница рисуется целиком (обычные масштабы), видимая область всегда
- * внутри её канваса, и перерисовки при прокрутке не происходит. Когда страница
- * целиком не помещается и нарисована окном, прокрутка, уводящая видимую область
- * за пределы окна, освобождает страницу и рисует её заново под новое положение.
+ * Одна порция ограничена по времени и обрабатывает страницы по одной: кадр не
+ * блокируется, интерфейс отзывается на прокрутку и кнопки масштаба. Поколение
+ * `renderToken` отменяет устаревшую очередь при смене масштаба.
  */
-export function refreshWindows(): void {
-  state.windowScheduled = false;
+function runRenderQueue(): void {
+  renderTimer = null;
+  const token = state.renderToken;
+  const started = performance.now();
+  while (renderQueue.length > 0) {
+    if (token !== state.renderToken) {
+      renderQueue = [];
+      return;
+    }
+    const item = renderQueue.shift() as QueueItem;
+    if (
+      !item.pageEl.isConnected ||
+      state.rendered.has(item.pageEl) ||
+      state.pending.has(item.pageEl)
+    ) {
+      continue;
+    }
+    renderPage(item.pageEl, item.preserve, token);
+    if (performance.now() - started > 12) {
+      break;
+    }
+  }
+  if (renderQueue.length > 0) {
+    renderTimer = setTimeout(runRenderQueue, 16);
+  }
+}
+
+/** Планирование очереди отрисовки (несколько страниц, но не одним кадром). */
+function scheduleRenderQueue(): void {
+  if (renderTimer !== null || renderQueue.length === 0) {
+    return;
+  }
+  renderTimer = setTimeout(runRenderQueue, 0);
+}
+
+/** Отрисовка страниц виртуального окна: видимые впереди, соседние — следом.
+ *
+ * Во время прокрутки растр не рисуется: страницы окна только пересобираются, а
+ * рисунок появляется после её окончания. Иначе тяжёлая отрисовка страницы
+ * приходилась бы на каждый кадр прокрутки и она бы дёргалась.
+ *
+ * У готовой страницы проверяется, покрывает ли её канвас видимую часть: страница
+ * выше области чтения рисуется окном, и прокрутка внутри неё уводит видимую часть
+ * за пределы канваса. Без этой проверки низ страницы оставался бы нерисованным.
+ */
+function renderWindow(): void {
   const viewerRect = viewer.getBoundingClientRect();
-  for (const node of pagesEl.children) {
-    const pageEl = node as HTMLElement;
-    const index = pageNumber(pageEl) - 1;
-    if (!state.naturalSizes[index]) {
+  const visible: HTMLElement[] = [];
+  const nearby: HTMLElement[] = [];
+  const rerender: Array<[HTMLElement, RenderedEntry | null]> = [];
+  for (let page = state.windowStart; page <= state.windowEnd; page += 1) {
+    const pageEl = state.pages.get(page);
+    if (!pageEl) {
       continue;
     }
     const rect = pageEl.getBoundingClientRect();
-    const interTop = Math.max(rect.top, viewerRect.top);
-    const interBottom = Math.min(rect.bottom, viewerRect.bottom);
-    const interLeft = Math.max(rect.left, viewerRect.left);
-    const interRight = Math.min(rect.right, viewerRect.right);
-    if (interBottom <= interTop || interRight <= interLeft) {
+    const onScreen = rect.bottom > viewerRect.top && rect.top < viewerRect.bottom;
+    if (!onScreen) {
+      if (rect.bottom > viewerRect.top - 320 && rect.top < viewerRect.bottom + 320) {
+        nearby.push(pageEl);
+      } else {
+        releasePage(pageEl);
+      }
       continue;
     }
     const entry = state.rendered.get(pageEl);
-    // Растр под прежний отпечаток раскраски (смена темы/палитры в скрытой области
-    // или на другой странице) устарел: перерисовываем при первой видимости — и
-    // при прокрутке, и при переходе на страницу. Старый канвас удерживается до
-    // готовности нового, чтобы не обнажать пустоту.
+    // Устаревшая раскраска: страница перерисовывается, а не показывается старой.
     const stalePaint = entry ? entry.paint !== state.paintKey : false;
-    if (!entry || stalePaint) {
-      const stale = entry ? detachForRerender(pageEl) : null;
-      renderPage(pageEl, stale);
-      continue;
-    }
-    // Видимая область и окно канваса — в одной системе: CSS-пиксели относительно
-    // страницы.
-    const visTop = interTop - rect.top;
-    const visBottom = interBottom - rect.top;
-    const visLeft = interLeft - rect.left;
-    const visRight = interRight - rect.left;
-    const info = entry.info;
-    const covered =
-      visTop >= info.y &&
-      visBottom <= info.y + info.height &&
-      visLeft >= info.x &&
-      visRight <= info.x + info.width;
-    if (!covered) {
+    if (!entry || stalePaint || !coversVisible(rect, viewerRect, entry)) {
       // Старый канвас удерживается до готовности нового: иначе прокрутка
       // обнажала бы белый прямоугольник на время отрисовки.
-      const stale = detachForRerender(pageEl);
-      renderPage(pageEl, stale);
+      rerender.push([pageEl, detachForRerender(pageEl)]);
+      continue;
+    }
+    visible.push(pageEl);
+  }
+  // Видимая нерисованная страница рисуется сразу, пока не откреплённый канвас
+  // занимал бы её место: остальное дорисуется из очереди.
+  renderQueue = [];
+  for (let index = 0; index < rerender.length; index += 1) {
+    const [pageEl, preserve] = rerender[index];
+    if (index === 0) {
+      renderPage(pageEl, preserve, state.renderToken);
+    } else {
+      enqueue(pageEl, preserve);
     }
   }
+  for (const pageEl of visible) {
+    if (!state.rendered.has(pageEl)) {
+      enqueue(pageEl);
+    }
+  }
+  for (const pageEl of nearby) {
+    if (!state.rendered.has(pageEl)) {
+      enqueue(pageEl);
+    }
+  }
+  scheduleRenderQueue();
 }
 
-/** Планирование пересчёта окон после прокрутки. */
+/** Покрывает ли канвас страницы её видимую часть (в CSS-пикселях страницы).
+ *
+ * Границы окна привязаны к сетке устройства и могут быть дробными, поэтому
+ * сравнение идёт с допуском: иначе видимая часть, начинающаяся с нуля, не
+ * покрывалась бы окном с границей 0.26 и страница перерисовывалась бы на каждом
+ * пересчёте.
+ */
+const COVER_TOLERANCE = 1.5;
+
+function coversVisible(
+  rect: DOMRect,
+  viewerRect: DOMRect,
+  entry: RenderedEntry,
+): boolean {
+  const info = entry.info;
+  const top = Math.max(rect.top, viewerRect.top) - rect.top;
+  const bottom = Math.min(rect.bottom, viewerRect.bottom) - rect.top;
+  const left = Math.max(rect.left, viewerRect.left) - rect.left;
+  const right = Math.min(rect.right, viewerRect.right) - rect.left;
+  return (
+    top >= info.y - COVER_TOLERANCE &&
+    bottom <= info.y + info.height + COVER_TOLERANCE &&
+    left >= info.x - COVER_TOLERANCE &&
+    right <= info.x + info.width + COVER_TOLERANCE
+  );
+}
+
+/** Пересчёт окна страниц и их отрисовка (после прокрутки, масштаба, темы). */
+export function refreshWindows(): void {
+  state.windowScheduled = false;
+  if (!state.doc) {
+    return;
+  }
+  realizeWindow();
+  renderWindow();
+}
+
+/** Планирование пересчёта окна после прокрутки. */
 export function scheduleWindowRefresh(): void {
   if (state.windowScheduled) {
     return;
@@ -369,13 +568,49 @@ export function scheduleWindowRefresh(): void {
   requestAnimationFrame(refreshWindows);
 }
 
+/**
+ * Уведомление о прокрутке: окно пересобирается сразу, а растр — после паузы.
+ *
+ * Пересборка окна дешёвая (несколько узлов), поэтому она идёт на каждом кадре и
+ * место под страницы не «уезжает»; тяжёлая отрисовка откладывается, пока
+ * прокрутка не успокоилась.
+ */
+export function notifyScrolling(): void {
+  // Во время прокрутки пересобирается только окно страниц (дешёвая операция):
+  // место под страницы обновляется сразу, а растр рисуется после её окончания.
+  realizeWindow();
+  if (settleTimer !== null) {
+    clearTimeout(settleTimer);
+  }
+  settleTimer = setTimeout(() => {
+    settleTimer = null;
+    refreshWindows();
+  }, 90);
+}
+
+/**
+ * Отложенная отрисовка после серии изменений (например, нажатий масштаба).
+ *
+ * Пока пользователь подряд меняет масштаб, растр не рисуется: каждый вызов
+ * сбрасывает паузу, и страницы приходят в новый масштаб один раз — по её
+ * окончании. Так серия нажатий не запускает тяжёлую отрисовку на каждое.
+ */
+export function settleRender(): void {
+  if (settleTimer !== null) {
+    clearTimeout(settleTimer);
+  }
+  settleTimer = setTimeout(() => {
+    settleTimer = null;
+    refreshWindows();
+  }, 140);
+}
+
 /** Доведение отрисовки после смены раскраски или возврата видимости.
  *
- * Растр перекрашивается при отрисовке: устаревшие (под прежний отпечаток)
- * страницы рисуются заново при первой видимости. Пока область содержимого скрыта
- * (открыт раздел настроек), у неё нулевой размер — рисовать нечем, и пересчёт окон
- * откладывается до появления размера (сообщение `show` от хоста или наблюдатель
- * размера).
+ * Устаревшие (под прежний отпечаток раскраски) страницы рисуются заново при
+ * первой видимости. Пока область содержимого скрыта (открыт раздел настроек), у
+ * неё нулевой размер — рисовать нечем, и пересчёт откладывается до появления
+ * размера (сообщение `show` от хоста).
  */
 export function repaintDirtyPages(): void {
   if (!state.doc) {
@@ -383,6 +618,16 @@ export function repaintDirtyPages(): void {
   }
   refreshWindows();
   scheduleWindowRefresh();
+}
+
+/** Высота списка страниц: используется для проверки раскладки. */
+export function currentListHeight(): number {
+  return listHeight();
+}
+
+/** Смещение страницы от начала списка: используется навигацией. */
+export function offsetOfPage(page: number): number {
+  return pageOffset(page);
 }
 
 /** Пробуждение прокрутки области после возврата видимости.

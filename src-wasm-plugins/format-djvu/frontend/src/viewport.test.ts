@@ -12,7 +12,7 @@ import {
 
 describe('displayRatio', () => {
   it('не превышает предел и подставляет единицу без плотности', () => {
-    expect(displayRatio(3)).toBe(2.5);
+    expect(displayRatio(3)).toBe(2);
     expect(displayRatio(0)).toBe(1);
     expect(displayRatio(1.5)).toBe(1.5);
   });
@@ -20,7 +20,7 @@ describe('displayRatio', () => {
 
 describe('boundedRatio', () => {
   it('ограничивает плотность пределом стороны', () => {
-    const ratio = boundedRatio(MAX_CANVAS_SIDE, 10, 2.5);
+    const ratio = boundedRatio(MAX_CANVAS_SIDE, 10, 2);
     expect(ratio).toBeLessThanOrEqual(MAX_CANVAS_SIDE / MAX_CANVAS_SIDE);
     expect(ratio).toBeGreaterThan(0);
   });
@@ -72,9 +72,9 @@ describe('desiredWindow', () => {
       viewport,
       2,
     );
-    // y0 = 1000 - 512 = 488, высота = 600 + 1024 = 1624.
-    expect(window.y0).toBe(488);
-    expect(window.height).toBe(1624);
+    // y0 = 1000 - 192 = 808, высота = 600 + 384 = 984.
+    expect(window.y0).toBe(808);
+    expect(window.height).toBe(984);
     expect(window.width).toBeGreaterThanOrEqual(128);
   });
 

@@ -5,7 +5,7 @@
  */
 
 /** Запас вокруг видимой области страницы для канваса, CSS px. */
-export const WINDOW_MARGIN = 512;
+export const WINDOW_MARGIN = 192;
 /** Минимальная длина стороны канваса, CSS px. */
 export const MIN_WINDOW_SIDE = 128;
 /** Предельный размер стороны канваса, CSS px.
@@ -13,10 +13,17 @@ export const MIN_WINDOW_SIDE = 128;
  * Больше — браузер оставляет канвас белым; ограничение не даёт окну выродиться
  * на гигантском мониторе или при большом `devicePixelRatio`. */
 export const MAX_CANVAS_SIDE = 8192;
-/** Предельная площадь канваса (пиксели): страховка от нехватки памяти. */
+/** Предельная площадь канваса (пиксели).
+ *
+ * Ограничение — по памяти и времени отрисовки. Оно должно быть с запасом выше
+ * обычной страницы скана: растр страницы нужен не только для показа, но и для
+ * выравнивания текстового слоя по буквам, а страница, нарисованная окном, этого
+ * не даёт — слова вне окна остаются на неточных зонах движка. */
 export const MAX_CANVAS_AREA = 32 * 1024 * 1024;
 /** Верхний предел плотности растра. */
-export const MAX_CANVAS_RATIO = 2.5;
+export const MAX_CANVAS_RATIO = 2;
+/** Запас плотности растра над CSS-пикселями. */
+export const RASTER_QUALITY = 1;
 
 /** Прямоугольник с левым верхом (в любых пикселях). */
 export interface AnchorRect {
@@ -56,7 +63,7 @@ export function displayRatio(devicePixelRatio: number): number {
  * и площади канваса (иначе браузер оставит его белым).
  */
 export function boundedRatio(width: number, height: number, devicePixelRatio: number): number {
-  let ratio = displayRatio(devicePixelRatio);
+  let ratio = displayRatio(devicePixelRatio) * RASTER_QUALITY;
   if (width > 0 && width * ratio > MAX_CANVAS_SIDE) {
     ratio = MAX_CANVAS_SIDE / width;
   }
@@ -79,6 +86,24 @@ export function boundedRatio(width: number, height: number, devicePixelRatio: nu
  */
 export function snapToDevice(value: number, ratio: number): number {
   return Math.round(value * ratio) / ratio;
+}
+
+/** Плотность, при которой вся страница помещается в пределы канваса.
+ *
+ * Страница рисуется целиком всегда, когда это возможно: растр нужен не только
+ * для показа, но и для выравнивания текстового слоя. Если растр покрывает лишь
+ * окно видимой области, слова за его пределами остаются на неточных зонах
+ * движка — и выделение там расходится с буквами. Поэтому при большой странице
+ * плотность понижается до предела площади, а не обрезается окно.
+ */
+export function pageRatio(width: number, height: number, devicePixelRatio: number): number {
+  let ratio = displayRatio(devicePixelRatio);
+  if (width > 0 && height > 0) {
+    const areaLimit = Math.sqrt(MAX_CANVAS_AREA / (width * height));
+    ratio = Math.min(ratio, areaLimit);
+    ratio = Math.min(ratio, MAX_CANVAS_SIDE / width, MAX_CANVAS_SIDE / height);
+  }
+  return Math.max(0.25, ratio);
 }
 
 /** Признак, что вся страница помещается в пределы канваса при плотности. */

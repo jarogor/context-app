@@ -2,7 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import {
     loadWorkplaceBundle,
-    openBookExternally,
+    openBookFile,
     readWorkplaceBook,
   } from './reader';
   import { buildViewerDocument } from './viewer-bundle';
@@ -226,7 +226,7 @@
         onError?.(error);
         break;
       case 'open-external':
-        void openBookExternally(path);
+        void openBookFile(path);
         break;
     }
   }

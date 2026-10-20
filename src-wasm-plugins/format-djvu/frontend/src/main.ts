@@ -19,17 +19,17 @@ import { noteById } from './notes';
 import { decodeBase64, parseIncoming, post } from './protocol';
 import {
   layoutPages,
-  releasePage,
-  renderPage,
+  naturalPageSize,
+  offsetOfPage,
+  releaseWindowPages,
   repaintDirtyPages,
   reportState,
   resizePages,
   scheduleWindowRefresh,
-  startObserver,
+  settleRender,
   wakeViewerScroll,
 } from './render';
-import { gotoNote, gotoPage, handleScroll, pageAtTop, pageToEdge, scrollToFraction } from './navigation';
-import { applyReaderTheme } from './theme';
+import { centerHorizontally, gotoNote, gotoPage, handleScroll, pageAtTop, pageToEdge, scrollToFraction } from './navigation';import { applyReaderTheme } from './theme';
 import { state } from './state';
 
 /** Открытие книги: загрузка движка, документа и построение каркаса страниц. */
@@ -40,28 +40,24 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
   // Предыдущая книга: освобождаем её холсты, иначе карта держала бы их.
   state.rendered.clear();
   state.pending.clear();
-  state.renderEpoch += 1;
   try {
-    await loadEngine();
-    state.doc = openDocument(decodeBase64(data));
+    state.module = await loadEngine();
+    state.doc = openDocument(state.module, decodeBase64(data));
     state.pageCount = state.doc.page_count();
+    // Размеры читаются лениво: у книги на тысячи страниц разбор всех сразу
+    // занял бы секунды. Первая страница задаёт размер по умолчанию — она же
+    // видна при открытии.
+    state.naturalSizes = new Array(state.pageCount);
+    state.defaultSize = naturalPageSize(state.doc.page(0));
+    state.naturalSizes[0] = state.defaultSize;
+    // Как в PDF: 100 % — абсолютный естественный размер страницы файла.
     state.initialZoom = Number(zoomValue) || 100;
     state.zoom = state.initialZoom;
-    state.naturalSizes = [];
-    state.nativeDpis = [];
-    for (let index = 0; index < state.pageCount; index += 1) {
-      const page = state.doc.page(index);
-      const dpi = page.dpi() || 300;
-      state.nativeDpis.push(dpi);
-      state.naturalSizes.push({
-        width: page.width_at(dpi),
-        height: page.height_at(dpi),
-      });
-    }
     layoutPages();
-    startObserver();
+    scheduleWindowRefresh();
     status.hidden = true;
     scrollToFraction(position);
+    centerHorizontally();
     state.currentPage = pageAtTop();
     reportState();
   } catch (error) {
@@ -79,26 +75,15 @@ function applyZoom(value: number): void {
   if (next === state.zoom) {
     return;
   }
-  const anchorEl = pagesEl.children[state.currentPage - 1] as HTMLElement | undefined;
-  const offsetBefore = anchorEl ? anchorEl.offsetTop - viewer.scrollTop : 0;
+  const anchorPage = state.currentPage;
+  const offsetBefore = offsetOfPage(anchorPage) - viewer.scrollTop;
   state.zoom = next;
-  // Смена масштаба отменяет незавершённые отрисовки: иначе они завершатся в старом
-  // масштабе и оставят страницу белой.
-  state.renderEpoch += 1;
+  // Смена масштаба пересчитывает виртуальную раскладку и сбрасывает растры
+  // окна: перерисовываются только его страницы.
+  releaseWindowPages();
   resizePages();
-  for (const node of pagesEl.children) {
-    releasePage(node as HTMLElement);
-  }
-  for (const node of pagesEl.children) {
-    const pageEl = node as HTMLElement;
-    const rect = pageEl.getBoundingClientRect();
-    if (rect.bottom > -1200 && rect.top < window.innerHeight + 1200) {
-      void renderPage(pageEl);
-    }
-  }
-  if (anchorEl) {
-    viewer.scrollTop = anchorEl.offsetTop - offsetBefore;
-  }
+  viewer.scrollTop = offsetOfPage(anchorPage) - offsetBefore;
+  settleRender();
   reportState();
 }
 
@@ -109,17 +94,8 @@ function handleRatioChange(): void {
     return;
   }
   state.lastRatio = ratio;
-  state.renderEpoch += 1;
-  for (const node of pagesEl.children) {
-    releasePage(node as HTMLElement);
-  }
-  for (const node of pagesEl.children) {
-    const pageEl = node as HTMLElement;
-    const rect = pageEl.getBoundingClientRect();
-    if (rect.bottom > -1200 && rect.top < window.innerHeight + 1200) {
-      void renderPage(pageEl);
-    }
-  }
+  releaseWindowPages();
+  scheduleWindowRefresh();
 }
 
 /** Пересчёт окон при изменении области просмотра (панели, размер окна). */
@@ -132,6 +108,7 @@ function handleViewerResize(): void {
   }
   state.lastViewerWidth = viewer.clientWidth;
   state.lastViewerHeight = viewer.clientHeight;
+  // Размер страницы не зависит от окна: пересчитываются только канвасы.
   scheduleWindowRefresh();
 }
 
@@ -235,7 +212,7 @@ function bindEvents(): void {
   addEventListener('resize', handleViewerResize);
   new ResizeObserver(() => {
     if (viewer.clientWidth > 0 && viewer.clientHeight > 0) {
-      scheduleWindowRefresh();
+      handleViewerResize();
     }
   }).observe(viewer);
 }

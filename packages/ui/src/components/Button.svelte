@@ -56,6 +56,8 @@
     title?: string;
     /** Метка доступности. */
     ariaLabel?: string;
+    /** Идентификатор для тестов. */
+    testId?: string;
     /** Состояние нажатой (активной) кнопки. */
     ariaPressed?: boolean;
     /** Обработчик нажатия. */
@@ -72,6 +74,7 @@
     class: className = '',
     title,
     ariaLabel,
+    testId,
     ariaPressed,
     onclick,
     children,
@@ -84,6 +87,7 @@
   {title}
   aria-label={ariaLabel}
   aria-pressed={ariaPressed}
+  data-testid={testId}
   {onclick}
   class={cn(buttonVariants({ variant, size }), className)}
 >

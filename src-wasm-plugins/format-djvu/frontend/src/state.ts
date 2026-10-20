@@ -4,7 +4,7 @@
  * собрано в один объект, чтобы модули могли читать и менять его явно.
  */
 import type { PageColors } from './types';
-import type { DjVuDocument } from './engine';
+import type { DjVuDocument, DjVuModule } from './engine';
 import { createPageColors } from './theme';
 
 /** Натуральный размер страницы при масштабе 1, в CSS-пикселях. */
@@ -43,12 +43,12 @@ export interface CanvasInfo {
 
 /** Состояние модуля рисования. */
 export interface ViewerState {
+  /** Загруженный модуль движка DjVu (после инициализации). */
+  module: DjVuModule | null;
   /** Документ DjVu текущей книги. */
   doc: DjVuDocument | null;
   /** Общее число страниц. */
   pageCount: number;
-  /** Природный DPI каждой страницы (для масштаба 100 %). */
-  nativeDpis: number[];
   /** Текущий масштаб в процентах. */
   zoom: number;
   /** Начальный масштаб вкладки. */
@@ -57,14 +57,30 @@ export interface ViewerState {
   notes: import('./types').ViewerNote[];
   /** Активный инструмент создания заметок. */
   tool: import('./types').ViewerTool;
-  /** Натуральные размеры страниц при масштабе 1. */
-  naturalSizes: PageSize[];
+  /** Известные натуральные размеры страниц; неизвестные берут размер по умолчанию. */
+  naturalSizes: (PageSize | undefined)[];
+  /** Размер страницы по умолчанию (первая прочитанная страница). */
+  defaultSize: PageSize;
+  /** Живые страницы виртуального окна: номер (1-based) → элемент. */
+  pages: Map<number, HTMLElement>;
+  /** Смещения верхов страниц от начала списка (0-based: `offsets[i]` — перед страницей `i+1`). */
+  offsets: number[];
+  /** Общая высота списка страниц, CSS px. */
+  totalHeight: number;
+  /** Первая страница виртуального окна (1-based). */
+  windowStart: number;
+  /** Последняя страница виртуального окна (1-based). */
+  windowEnd: number;
+  /** Распорка до окна страниц. */
+  spacerTop: HTMLElement | null;
+  /** Распорка после окна страниц. */
+  spacerBottom: HTMLElement | null;
   /** Отрисованные страницы: элемент страницы → её запись. */
   rendered: Map<HTMLElement, RenderedEntry>;
   /** Страницы, отрисовка которых уже идёт. */
   pending: Set<HTMLElement>;
-  /** Поколение рендера: смена масштаба отменяет незавершённые отрисовки. */
-  renderEpoch: number;
+  /** Поколение отрисовки: смена масштаба отменяет запланированные страницы. */
+  renderToken: number;
   /** Сторона темы области чтения. */
   readerTheme: 'light' | 'dark';
   /** Отпечаток раскраски страниц. */
@@ -75,8 +91,6 @@ export interface ViewerState {
   currentPage: number;
   /** Выполняется ли планирование пересчёта окон. */
   windowScheduled: boolean;
-  /** Наблюдатель видимости страниц. */
-  observer: IntersectionObserver | null;
   /** Идёт ли планирование обновления текущей страницы после прокрутки. */
   scrollScheduled: boolean;
   /** Последняя учтённая плотность экрана. */
@@ -89,23 +103,30 @@ export interface ViewerState {
 
 /** Состояние модуля рисования. */
 export const state: ViewerState = {
+  module: null,
   doc: null,
   pageCount: 0,
-  nativeDpis: [],
   zoom: 100,
   initialZoom: 100,
   notes: [],
   tool: { type: 'quote', shape: 'line', color: 'yellow' },
   naturalSizes: [],
+  defaultSize: { width: 612, height: 792 },
+  pages: new Map(),
+  offsets: [0],
+  totalHeight: 0,
+  windowStart: 1,
+  windowEnd: 0,
+  spacerTop: null,
+  spacerBottom: null,
   rendered: new Map(),
   pending: new Set(),
-  renderEpoch: 0,
+  renderToken: 0,
   readerTheme: 'light',
   paintKey: '',
   pageColors: createPageColors(null),
   currentPage: 1,
   windowScheduled: false,
-  observer: null,
   scrollScheduled: false,
   lastRatio: 1,
   lastViewerWidth: 0,

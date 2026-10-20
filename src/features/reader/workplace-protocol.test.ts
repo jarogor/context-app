@@ -49,12 +49,19 @@ describe('протокол рабочего места: разбор сообщ�
   it('нормализует состояние позиции: нечисловые значения дают null', () => {
     expect(parseViewerMessage(message('state', { page: 3, pages: '10' }), TOOL)).toEqual({
       type: 'state',
-      value: { page: 3, pages: 10 },
+      value: { page: 3, pages: 10, zoom: null },
     });
     // Нечисловая строка и отсутствующее поле дают null.
     expect(parseViewerMessage(message('state', { page: 'нет' }), TOOL)).toEqual({
       type: 'state',
-      value: { page: null, pages: null },
+      value: { page: null, pages: null, zoom: null },
+    });
+  });
+
+  it('передаёт масштаб, выбранный модулем рисования', () => {
+    expect(parseViewerMessage(message('state', { page: 1, pages: 5, zoom: 42 }), TOOL)).toEqual({
+      type: 'state',
+      value: { page: 1, pages: 5, zoom: 42 },
     });
   });
 

@@ -60,7 +60,7 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
         await back.click();
     }
     await library.getByRole('button', { name: new RegExp(title) }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
     await expect(page.getByTestId('workplace-area')).toBeVisible();
 }
 

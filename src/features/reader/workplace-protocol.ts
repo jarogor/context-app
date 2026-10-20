@@ -74,6 +74,8 @@ export interface WorkplaceState {
   page: number | null;
   /** Общее число страниц или `null`. */
   pages: number | null;
+  /** Масштаб, выбранный модулем при открытии (или `null`). */
+  zoom?: number | null;
 }
 
 /** Контекстное меню заметки: прямоугольник в координатах области содержимого. */
@@ -139,10 +141,11 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
     case 'capabilities':
       return { type: 'capabilities', value: (message.value as WorkplaceCapabilities) ?? {} };
     case 'state': {
-      const value = (message.value as { page?: unknown; pages?: unknown }) ?? {};
+      const value = (message.value as { page?: unknown; pages?: unknown; zoom?: unknown }) ?? {};
       const page = Number.isFinite(Number(value.page)) ? Number(value.page) : null;
       const pages = Number.isFinite(Number(value.pages)) ? Number(value.pages) : null;
-      return { type: 'state', value: { page, pages } };
+      const zoom = Number.isFinite(Number(value.zoom)) ? Number(value.zoom) : null;
+      return { type: 'state', value: { page, pages, zoom } };
     }
     case 'progress':
       return typeof message.value === 'number'

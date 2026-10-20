@@ -21,6 +21,7 @@
 
 import { createHash } from 'node:crypto';
 import {
+    copyFileSync,
     cpSync,
     existsSync,
     mkdirSync,
@@ -38,7 +39,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** Каталог исходников WASM-плагинов (Cargo workspace). */
 const WORKSPACE = join(ROOT, 'src-wasm-plugins');
 /** Ресурсы поставляемых source/extension-плагинов. */
-const PLUGINS_DIR = join(ROOT, 'src-tauri', 'resources', 'plugins');
+const PLUGINS_DIR_NAME = 'plugins';
+const PLUGINS_DIR = join(ROOT, 'src-tauri', 'resources', PLUGINS_DIR_NAME);
 /** Ресурсы плагинов каркаса. */
 const BASE_PLUGINS_DIR = join(ROOT, 'src-tauri', 'resources', 'base-plugins');
 /** Имя файла с хэшем развёрнутого каталога. */
@@ -251,6 +253,44 @@ function check(plugin) {
     return problems;
 }
 
+/**
+ * Каталоги собранного приложения, куда Tauri копирует ресурсы при сборке.
+ *
+ * Приложение в режиме разработки читает плагины не из `resources`, а из
+ * каталога сборки (`target/debug/plugins`): Tauri кладёт их туда своим шагом
+ * сборки, и без пересборки Rust эта копия отстаёт от `resources`. Развёрнутые
+ * артефакты дублируются туда сразу, чтобы `make plugins` обновлял и копию,
+ * которую реально читает запущенное приложение.
+ */
+function buildOutputDirs() {
+    const target = join(ROOT, 'src-tauri', 'target');
+    const dirs = [];
+    for (const profile of ['debug', 'release']) {
+        const dir = join(target, profile, PLUGINS_DIR_NAME);
+        if (existsSync(join(target, profile))) {
+            dirs.push(dir);
+        }
+    }
+    return dirs;
+}
+
+/** Дублирование развёрнутого плагина в каталоги сборки приложения. */
+function mirrorToBuild(pluginName, outDir) {
+    for (const buildDir of buildOutputDirs()) {
+        const destination = join(buildDir, pluginName);
+        rmSync(destination, { recursive: true, force: true });
+        mkdirSync(destination, { recursive: true });
+        for (const relative of collectFiles(outDir)) {
+            if (relative === HASH_FILE) {
+                continue;
+            }
+            const target = join(destination, relative);
+            mkdirSync(dirname(target), { recursive: true });
+            copyFileSync(join(outDir, relative), target);
+        }
+    }
+}
+
 /** Точка входа. */
 function main() {
     const command = process.argv[2];
@@ -258,6 +298,7 @@ function main() {
     if (command === 'build') {
         for (const plugin of plugins) {
             deploy(plugin);
+            mirrorToBuild(plugin.name, targetDir(plugin.manifest, plugin.name));
         }
         return;
     }

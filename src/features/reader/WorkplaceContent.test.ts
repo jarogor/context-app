@@ -6,7 +6,7 @@ import { readerThemeNoteTones, readerThemeTokens } from '@texture/ui';
 vi.mock('./reader', () => ({
     loadWorkplaceBundle: vi.fn(async () => ({ entry: '<html></html>', files: [] })),
     readWorkplaceBook: vi.fn(async () => ({ data: '' })),
-    openBookExternally: vi.fn(),
+    openBookFile: vi.fn(),
 }));
 
 vi.mock('./viewer-bundle', () => ({

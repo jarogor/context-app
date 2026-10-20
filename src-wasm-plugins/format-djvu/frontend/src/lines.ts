@@ -90,11 +90,20 @@ export function tileByLine(rects: Rect[] | null | undefined): LineTiles {
       // Верхний край крайней строки обрезается на полшага от соседа снизу: у
       // скана инлайн-бокс выше шага, и без обрезки полоса «торчит» вверх.
       tops[index] = Math.max(center - (centers[index + 1] - center) / 2, lines[index].top);
+    } else {
+      // Крайняя строка выделения с одной стороны: за ней нет соседа, и
+      // растягивать её в межстрочный промежуток некуда — иначе полоса выходит
+      // за буквы, и выделение перестаёт с ними совпадать. Край остаётся по
+      // фактической границе строки.
+      tops[index] = lines[index].top;
     }
     if (index < lines.length - 1 && joined[index]) {
       bottoms[index] = (center + centers[index + 1]) / 2;
     } else if (index > 0 && joined[index - 1]) {
       bottoms[index] = Math.min(center + (center - centers[index - 1]) / 2, lines[index].bottom);
+    } else {
+      // Снизу соседа нет — низ берётся по самой строке (см. выше).
+      bottoms[index] = lines[index].bottom;
     }
   }
   const merged: Rect[] = [];

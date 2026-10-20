@@ -41,7 +41,7 @@ async function openWorkplaceBook(page: import('@playwright/test').Page) {
   await showLibraryBookList(page);
   const library = page.locator('main');
   await library.getByRole('button', { name: /Демо-книга/ }).click();
-  await library.getByRole('button', { name: /Добавить в/ }).click();
+  await library.getByRole('button', { name: /Читать/ }).click();
   await pickWorkspaceIfAsked(page);
   await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 }
@@ -73,4 +73,37 @@ test('список рабочих мест читается в светлой п
   await expect(page.locator('html')).toHaveAttribute('data-palette', 'gruvbox');
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
   await expect(page).toHaveScreenshot('workspaces-gruvbox.png');
+});
+
+test('снимок страницы книги с несколькими форматами', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
+      handlers: {
+        active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
+        reader_formats: () => ['pdf'],
+        invoke_plugin_operation: () => ({
+          catalog: {
+            books: [
+              {
+                id: 'multi',
+                title: 'Книга в двух форматах',
+                authors: ['Тестовый автор'],
+                series: [],
+                tags: [],
+                files: [
+                  { kind: 'book', path: 'multi.fb2', format: 'fb2' },
+                  { kind: 'book', path: 'multi.pdf', format: 'pdf' },
+                ],
+              },
+            ],
+          },
+        }),
+      },
+    };
+  });
+  await page.goto('/');
+  await showLibraryBookList(page);
+  const library = page.locator('main');
+  await library.getByRole('button', { name: /Книга в двух форматах/ }).click();
+  await expect(library.getByTestId('book-page')).toHaveScreenshot('book-page-formats.png');
 });

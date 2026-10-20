@@ -32,7 +32,7 @@ async function openWorkplace(page: import('@playwright/test').Page) {
     await showLibrary(page);
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
     await pickWorkspaceIfAsked(page);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 }

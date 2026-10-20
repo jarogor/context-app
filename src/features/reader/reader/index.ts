@@ -11,8 +11,11 @@ import type { BookChapter, BookContent } from './types';
 
 export type { BookChapter, BookContent } from './types';
 
+/** Форматы, поддерживаемые встроенным чтением (текстовые). */
+export const BUILTIN_FORMATS = ['epub', 'fb2'];
+
 /** Форматы, поддерживаемые встроенным чтением. */
-const SUPPORTED_FORMATS = ['epub', 'fb2'];
+const SUPPORTED_FORMATS: readonly string[] = BUILTIN_FORMATS;
 
 /** Ошибка неподдерживаемого встроенным чтением формата. */
 export class UnsupportedFormatError extends Error {
@@ -56,8 +59,8 @@ export async function loadBookContent(
   return normalizeContent(response);
 }
 
-/** Открытие файла книги в системном приложении. */
-export async function openBookExternally(
+/** Открытие файла книги. */
+export async function openBookFile(
   path: string,
   backend: ReaderBackend = defaultBackend(),
 ): Promise<void> {

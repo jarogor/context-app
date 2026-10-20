@@ -8,7 +8,7 @@
     formatFromPath,
     isSupportedFormat,
     loadBookContent,
-    openBookExternally,
+    openBookFile,
     selectWorkplacePlugin,
     type BookContent,
     type WorkplaceSelection,
@@ -356,11 +356,11 @@
     reportState();
   }
 
-  /** Открытие файла книги в системном приложении. */
-  async function openInSystem() {
+  /** Открытие файла книги. */
+  async function openFile() {
     error = null;
     try {
-      await openBookExternally(path);
+      await openBookFile(path);
     } catch (e) {
       error = String(e);
     }
@@ -461,7 +461,7 @@
           description="Формат этой книги пока не поддерживается встроенным чтением."
         >
           {#snippet action()}
-            <Button variant="secondary" onclick={openInSystem}>Открыть</Button>
+            <Button variant="secondary" onclick={openFile}>Открыть</Button>
           {/snippet}
         </EmptyState>
       </div>
@@ -508,8 +508,19 @@
             workplacePageCount = value.pages;
             if (value.pages && value.page) {
               progress = pageProgress(value.page, value.pages);
-              reportState();
             }
+            // Плагин сам выбирает удобный масштаб (например, подгонку по ширине
+            // при открытии): приложение принимает его, пока пользователь не
+            // задал масштаб явно.
+            if (
+              typeof value.zoom === 'number' &&
+              value.zoom > 0 &&
+              value.zoom !== zoom &&
+              zoom === untrack(() => initialZoom)
+            ) {
+              zoom = value.zoom;
+            }
+            reportState();
           }}
           onProgress={(value) => {
             progress = value;

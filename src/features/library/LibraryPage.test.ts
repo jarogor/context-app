@@ -95,7 +95,7 @@ describe('страница библиотеки', () => {
     await screen.findByText('Демо-книга');
 
     await fireEvent.click(screen.getByRole('button', { name: /Демо-книга/ }));
-    await fireEvent.click(screen.getByRole('button', { name: /Добавить в/ }));
+    await fireEvent.click(screen.getByTestId('book-read-epub'));
 
     // Путь книги — абсолютный: корень из события, а не пустой из монтирования.
     expect(onOpenInWorkplace).toHaveBeenCalledWith(
@@ -103,7 +103,7 @@ describe('страница библиотеки', () => {
     );
   });
 
-  it('подписывает кнопку добавления именем рабочего места', async () => {
+  it('называет рабочее место в действии чтения', async () => {
     render(LibraryPage, {
       props: { initialActiveLibrary: null, targetWorkspaceName: 'Исследование', onOpenInWorkplace: vi.fn() },
     });
@@ -113,7 +113,63 @@ describe('страница библиотеки', () => {
     await screen.findByText('Демо-книга');
     await fireEvent.click(screen.getByRole('button', { name: /Демо-книга/ }));
 
-    expect(screen.getByRole('button', { name: 'Добавить в «Исследование»' })).toBeTruthy();
+    expect(screen.getByTestId('book-read-epub')).toBeTruthy();
+  });
+
+  it('даёт отдельную кнопку на каждый читаемый формат книги', async () => {
+    const onOpenInWorkplace = vi.fn();
+    invoke.mockImplementation(async (command) => {
+      if (command === 'reader_formats') {
+        return ['pdf'];
+      }
+      if (command === 'active_library') {
+        return { path: '/demo-library', provider_name: 'books-source' };
+      }
+      if (command === 'invoke_plugin_operation') {
+        return {
+          catalog: {
+            books: [
+              {
+                id: 'two-formats',
+                title: 'Демо-книга',
+                authors: [],
+                series: [],
+                tags: [],
+                files: [
+                  { kind: 'book', path: 'two-formats.fb2', format: 'fb2' },
+                  { kind: 'book', path: 'two-formats.pdf', format: 'pdf' },
+                ],
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    render(LibraryPage, {
+      props: {
+        initialActiveLibrary: null,
+        targetWorkspaceName: 'Исследование',
+        onOpenInWorkplace,
+      },
+    });
+
+    await waitFor(() => expect(catalogChanged).toBeTruthy());
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'books-source' });
+    await screen.findByText('Демо-книга');
+    await fireEvent.click(screen.getByRole('button', { name: /Демо-книга/ }));
+
+    // Отдельное действие чтения на каждый формат: FB2 и PDF.
+    expect(screen.getByTestId('book-read-fb2')).toBeTruthy();
+    expect(screen.getByTestId('book-read-pdf')).toBeTruthy();
+
+    await fireEvent.click(screen.getByTestId('book-read-fb2'));
+    expect(onOpenInWorkplace).toHaveBeenCalledWith({
+      path: '/demo-library/two-formats.fb2',
+      title: 'Демо-книга',
+      format: 'fb2',
+    });
   });
 
   it('отправляет серверный поиск с задержкой, а не на каждый символ', async () => {

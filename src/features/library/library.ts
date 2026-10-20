@@ -37,6 +37,14 @@ export interface Book {
 /** Книга с извлечённой обложкой (data URI). */
 export type BookWithCover = Book & { coverUri?: string };
 
+/** Формат файла книги и его поддержка чтением. */
+export interface BookFormatInfo {
+  /** Формат файла в нижнем регистре. */
+  format: string;
+  /** Открывается ли формат чтением приложения. */
+  readable: boolean;
+}
+
 /** Вызов непрозрачной операции активного source-плагина сессии. */
 async function operation<T>(action: string, payload: unknown = {}): Promise<T> {
   return (await invokeCommand('invoke_plugin_operation', {
@@ -113,9 +121,13 @@ export function coverDataUri(value: { data?: string | null; format?: string }): 
   return `data:${mime};base64,${value.data}`;
 }
 
-/** Открытие файла книги во внешнем системном приложении. */
-export async function openBookExternal(bookId: string): Promise<void> {
-  await operation('open_external', { book_id: bookId });
+/** Открытие конкретного файла книги.
+ *
+ * Книга с несколькими форматами открывается тем файлом, который выбрал
+ * пользователь, а не первым файлом записи каталога.
+ */
+export async function openBookFile(path: string): Promise<void> {
+  await invokeCommand('reader_open_external', { path });
 }
 
 /** Форматы, поддерживаемые встроенным чтением. */

@@ -17,12 +17,14 @@
     activeLibraryPath,
     listBooks,
     loadCover,
-    openBookExternal,
+    openBookFile,
     readerFormats,
     type Book,
     type BookFile,
+    type BookFormatInfo,
     type BookWithCover,
   } from './library';
+  import { BUILTIN_FORMATS } from '../reader/reader';
   import type { ActiveLibrary } from '../lifecycle/bootstrap';
 
   interface Props {
@@ -62,7 +64,7 @@
   let openedBook: BookWithCover | null = $state(null);
 
   /** Форматы, поддерживаемые встроенным чтением. */
-  let supportedFormats: string[] = $state(['epub']);
+  let supportedFormats: string[] = $state([...BUILTIN_FORMATS]);
 
   /** Запрошены ли форматы чтения; повторный запрос не выполняется. */
   let formatsLoaded = $state(false);
@@ -204,9 +206,11 @@
     formatsLoaded = true;
     try {
       const formats = await readerFormats();
-      supportedFormats = [...new Set(['epub', ...formats.map((value) => value.toLowerCase())])];
+      supportedFormats = [
+        ...new Set([...BUILTIN_FORMATS, ...formats.map((value) => value.toLowerCase())]),
+      ];
     } catch {
-      supportedFormats = ['epub'];
+      supportedFormats = [...BUILTIN_FORMATS];
     }
   }
 
@@ -259,7 +263,7 @@
   }
 
   /** Форматы файлов-содержимого книги: формат и поддерживается ли чтением. */
-  function bookFormats(book: Book): { format: string; readable: boolean }[] {
+  function bookFormats(book: Book): BookFormatInfo[] {
     return book.files
       .filter((file) => file.kind === 'book')
       .map((file) => {
@@ -279,9 +283,19 @@
     return bookFormats(book).some((entry) => entry.readable);
   }
 
-  /** Файл содержимого книги заданного формата (или читаемого по умолчанию). */
+  /** Файл содержимого книги заданного формата (или читаемого по умолчанию).
+   *
+   * Если формат задан явно, файл другого формата не подставляется: иначе выбор
+   * FB2 открывал бы PDF, когда совпадения нет.
+   */
   function bookFile(book: Book, format?: string): BookFile | undefined {
-    const target = format || bookFormat(book);
+    if (format) {
+      const target = format.toLowerCase();
+      return book.files.find(
+        (file) => file.kind === 'book' && file.format.toLowerCase() === target,
+      );
+    }
+    const target = bookFormat(book);
     return (
       book.files.find(
         (file) => file.kind === 'book' && file.format.toLowerCase() === target,
@@ -313,22 +327,22 @@
     });
   }
 
-  /** Ошибка открытия во внешнем приложении. */
-  let externalError: string | null = $state(null);
+  /** Ошибка открытия файла книги. */
+  let openError: string | null = $state(null);
 
-  /** Идёт открытие во внешнем приложении. */
-  let opening = $state(false);
+  /** Формат файла, открываемого сейчас (или null). */
+  let openingFormat: string | null = $state(null);
 
-  /** Открытие файла книги в системном приложении. */
-  async function openInSystem(book: BookWithCover) {
-    externalError = null;
-    opening = true;
+  /** Открытие файла заданного формата книги. */
+  async function openFormatFile(book: BookWithCover, format: string) {
+    openError = null;
+    openingFormat = format;
     try {
-      await openBookExternal(book.id);
+      await openBookFile(bookPath(book, format));
     } catch (e) {
-      externalError = String(e);
+      openError = String(e);
     } finally {
-      opening = false;
+      openingFormat = null;
     }
   }
 
@@ -374,14 +388,13 @@
 {#if openedBook}
   <BookPage
     book={openedBook}
-    {targetWorkspaceName}
     formats={bookFormats(openedBook)}
     canRead={canRead(openedBook)}
-    {opening}
-    {externalError}
+    {openingFormat}
+    {openError}
     onClose={closeBook}
     onAdd={(format) => startReading(openedBook as BookWithCover, format)}
-    onOpenExternal={() => openInSystem(openedBook as BookWithCover)}
+    onOpen={(format) => openFormatFile(openedBook as BookWithCover, format)}
   />
 {:else}
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">

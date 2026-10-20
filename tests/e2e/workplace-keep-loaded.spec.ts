@@ -119,7 +119,7 @@ async function addBook(page: import('@playwright/test').Page) {
         await back.click();
     }
     await library.getByRole('button', { name: /Демо-планшет/ }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-планшет');
     // Книга действительно прочитана: одна порция содержимого.
     await expect.poll(() => page.evaluate(() => window.__BOOK_CHUNKS__ ?? 0)).toBe(1);

@@ -50,6 +50,11 @@ function djvuBase64(): string {
     return readFileSync(resolve(ROOT, 'tests', 'fixtures', 'carte.djvu')).toString('base64');
 }
 
+/** Многостраничная DjVu-книга: виртуальный список держит лишь окно страниц. */
+function multiDjvuBase64(): string {
+    return readFileSync(resolve(ROOT, 'tests', 'fixtures', 'djvu3spec.djvu')).toString('base64');
+}
+
 /** Каталог с книгой формата djvu. */
 const DJVU_BOOKS = {
     catalog: {
@@ -67,10 +72,9 @@ const DJVU_BOOKS = {
 };
 
 /** Установка мока: плагин DjVu и книга формата djvu. */
-async function installDjvuMock(page: Page) {
+async function installDjvuMock(page: Page, data = djvuBase64()) {
     const files = viewerFiles();
     const entry = viewerEntry();
-    const data = djvuBase64();
     await page.addInitScript(
         (payload: { data: string; books: unknown; entry: string; files: unknown }) => {
             (
@@ -139,8 +143,8 @@ function content(page: Page) {
 }
 
 /** Открытие DjVu вкладкой рабочего места. */
-async function openDjvu(page: Page) {
-    await installDjvuMock(page);
+async function openDjvu(page: Page, data?: string) {
+    await installDjvuMock(page, data);
     await page.goto('/');
     await addBookToWorkspace(page, /Демо-книга/);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
@@ -154,6 +158,15 @@ test('DjVu открывается плагином страницами с те�
     await expect(frame.locator('.page canvas').first()).toBeVisible();
     await expect(frame.locator('.page')).toHaveCount(1);
     await expect(frame.locator('.textLayer span').first()).toBeAttached();
+    // Как в PDF: 100 % — абсолютный естественный размер страницы, и изменение
+    // размера окна его НЕ меняет.
+    await expect(page.getByTestId('reader-zoom')).toHaveText('100%');
+    const pageEl = frame.locator('.page').first();
+    const widthAt = async () => Math.round((await pageEl.boundingBox())?.width ?? 0);
+    // carte.djvu: 4200 px при 300 dpi → 1344 CSS-пикселя (4200 × 96 / 300).
+    expect(await widthAt()).toBe(1344);
+    await page.setViewportSize({ width: 900, height: 700 });
+    await expect.poll(widthAt).toBe(1344);
     await expect(page.getByLabel('Текущая страница')).toHaveValue('1');
     await expect(page.getByTestId('reader-page-count')).toHaveText('/ 1');
 });
@@ -162,8 +175,9 @@ test('масштаб меняет размер страницы DjVu, не сб�
     await openDjvu(page);
     const pageEl = content(page).locator('.page').first();
     const before = await pageEl.boundingBox();
+    const zoomBefore = await page.getByTestId('reader-zoom').textContent();
     await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
-    await expect(page.getByTestId('reader-zoom')).toHaveText('110%');
+    await expect.poll(async () => page.getByTestId('reader-zoom').textContent()).not.toBe(zoomBefore);
     await expect
         .poll(async () => (await pageEl.boundingBox())?.width ?? 0)
         .toBeGreaterThan(before?.width ?? 0);
@@ -190,5 +204,475 @@ test('тема области чтения перекрашивает стран
     await expect(content(page).locator('html')).toHaveAttribute('data-reader-theme', 'dark');
     await expect.poll(paperBrightness).toBeLessThan(light);
     await expect(page.getByLabel('Текущая страница')).toHaveValue('1');
-    await expect(page.getByTestId('reader-zoom')).toHaveText('100%');
+});
+
+test('многостраничная книга держит в разметке только окно страниц', async ({ page }) => {
+    await openDjvu(page, multiDjvuBase64());
+    const frame = content(page);
+    await frame.locator('.page canvas').first().waitFor({ timeout: 30000 });
+    // Книга на 71 страницу: в DOM лишь несколько, остальное — распорки списка.
+    const rendered = await frame.locator('.page').count();
+    expect(rendered).toBeLessThan(40);
+    await expect(frame.locator('.page-spacer')).toHaveCount(2);
+    const before = await frame.locator('.page').first().getAttribute('data-page');
+    // Прокрутка в середину книги: окно страниц переезжает, число узлов не растёт.
+    await frame.locator('#viewer').evaluate((element) => {
+        element.scrollTop = element.scrollHeight * 0.5;
+        element.dispatchEvent(new Event('scroll'));
+    });
+    await expect
+        .poll(async () => frame.locator('.page').first().getAttribute('data-page'))
+        .not.toBe(before);
+    expect(await frame.locator('.page').count()).toBeLessThan(40);
+    await expect(frame.locator('.page canvas').first()).toBeVisible();
+});
+
+test('страница открывается по центру области чтения', async ({ page }) => {
+    // Узкое окно: страница 1344 CSS-пикселя шире области чтения, поэтому её
+    // середина должна оказаться в середине окна, а не оставаться за краем.
+    await page.setViewportSize({ width: 700, height: 600 });
+    await openDjvu(page);
+    const frame = content(page);
+    await frame.locator('.page canvas').first().waitFor({ timeout: 30000 });
+    const geometry = await frame.locator('#viewer').evaluate((element) => {
+        const viewer = element as HTMLElement;
+        const pageEl = viewer.querySelector('.page') as HTMLElement;
+        const viewerBox = viewer.getBoundingClientRect();
+        const pageBox = pageEl.getBoundingClientRect();
+        return {
+            scrollLeft: Math.round(viewer.scrollLeft),
+            overflow: Math.round(viewer.scrollWidth - viewer.clientWidth),
+            pageCenter: Math.round(pageBox.left + pageBox.width / 2 - viewerBox.left),
+            viewerCenter: Math.round(viewer.clientWidth / 2),
+        };
+    });
+    expect(geometry.overflow).toBeGreaterThan(0);
+    expect(geometry.scrollLeft).toBe(Math.round(geometry.overflow / 2));
+    expect(Math.abs(geometry.pageCenter - geometry.viewerCenter)).toBeLessThanOrEqual(2);
+});
+
+/** Доля чернил строки, попавших в рамку выделения (то, что видит пользователь). */
+async function wordInkCoverage(
+    page: Page,
+    frame: ReturnType<typeof content>,
+    target: { x: number; y: number },
+): Promise<number | null> {
+    const iframeBox = await page.locator('iframe[title="Содержимое книги"]').boundingBox();
+    if (!iframeBox) {
+        return null;
+    }
+    await page.mouse.dblclick(iframeBox.x + target.x, iframeBox.y + target.y);
+    await page.waitForTimeout(150);
+    return frame.locator('#viewer').evaluate(() => {
+        const band = document.querySelector('.selection-layer .selection-band') as HTMLElement | null;
+        if (!band) {
+            return null;
+        }
+        const pageEl = band.closest('.page') as HTMLElement;
+        const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
+        if (!canvas) {
+            return null;
+        }
+        const bandBox = band.getBoundingClientRect();
+        const canvasBox = canvas.getBoundingClientRect();
+        const ratioX = canvas.width / canvasBox.width;
+        const ratioY = canvas.height / canvasBox.height;
+        let pixels: Uint8ClampedArray;
+        try {
+            pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+        } catch {
+            return null;
+        }
+        const isInk = (x: number, y: number): boolean => {
+            const index = (y * canvas.width + x) * 4;
+            if (pixels[index + 3] < 128) {
+                return false;
+            }
+            return (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3 < 100;
+        };
+        const x0 = Math.max(0, Math.floor((bandBox.left - canvasBox.left) * ratioX));
+        const x1 = Math.min(canvas.width - 1, Math.ceil((bandBox.right - canvasBox.left) * ratioX));
+        // Полоса строки: рамка с малым запасом, соседние строки не захватываются.
+        const pad = bandBox.height * ratioY * 0.08;
+        const y0 = Math.max(0, Math.floor((bandBox.top - canvasBox.top) * ratioY - pad));
+        const y1 = Math.min(canvas.height - 1, Math.ceil((bandBox.bottom - canvasBox.top) * ratioY + pad));
+        if (x1 <= x0 || y1 <= y0) {
+            return null;
+        }
+        let inside = 0;
+        let strip = 0;
+        for (let y = y0; y <= y1; y += 1) {
+            for (let x = x0; x <= x1; x += 1) {
+                if (!isInk(x, y)) {
+                    continue;
+                }
+                strip += 1;
+                const cx = x / ratioX + canvasBox.left;
+                const cy = y / ratioY + canvasBox.top;
+                if (cx >= bandBox.left && cx <= bandBox.right && cy >= bandBox.top && cy <= bandBox.bottom) {
+                    inside += 1;
+                }
+            }
+        }
+        return strip > 0 ? inside / strip : null;
+    });
+}
+
+/** Слова, целиком видимые и лежащие в окне канваса. */
+async function visibleWords(frame: ReturnType<typeof content>, limit = 4) {
+    return frame.locator('#viewer').evaluate((element, max) => {
+        const viewer = element as HTMLElement;
+        const viewerBox = viewer.getBoundingClientRect();
+        const found: Array<{ x: number; y: number; text: string }> = [];
+        for (const pageEl of viewer.querySelectorAll('.page')) {
+            const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
+            if (!canvas) {
+                continue;
+            }
+            const canvasBox = canvas.getBoundingClientRect();
+            for (const span of pageEl.querySelectorAll('.textLayer span')) {
+                const box = span.getBoundingClientRect();
+                if (box.width < 25) {
+                    continue;
+                }
+                if (box.top < viewerBox.top + 15 || box.bottom > viewerBox.bottom - 15) {
+                    continue;
+                }
+                if (box.top < canvasBox.top - 2 || box.bottom > canvasBox.bottom + 2) {
+                    continue;
+                }
+                if (box.left < canvasBox.left + 2 || box.right > canvasBox.right - 2) {
+                    continue;
+                }
+                found.push({
+                    x: box.left + box.width / 2,
+                    y: box.top + box.height / 2,
+                    text: (span.textContent ?? '').trim().slice(0, 12),
+                });
+                if (found.length >= max) {
+                    return found;
+                }
+            }
+        }
+        return found;
+    }, limit);
+}
+
+test('выделение слов совпадает с видимым текстом', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    // Многостраничная книга с текстом: у карты (carte) тёмный фон, и порог
+    // чернил в замере захватывал бы его.
+    await openDjvu(page, multiDjvuBase64());
+    const frame = content(page);
+    await frame.locator('.page canvas').first().waitFor({ timeout: 40000 });
+    // Двойной клик по слову и выделение нескольких строк: рамка выделения
+    // строится по чернилам растра, а слова одной строки имеют общую вертикаль.
+    const check = () =>
+        frame.locator('#viewer').evaluate(() => {
+            const viewer = document.getElementById('viewer') as HTMLElement;
+            const viewerBox = viewer.getBoundingClientRect();
+            const pageEl = [...viewer.querySelectorAll('.page')].find((el) => el.querySelector('canvas')) as HTMLElement;
+            const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement;
+            const canvasBox = canvas.getBoundingClientRect();
+            const ratioX = canvas.width / canvasBox.width;
+            const ratioY = canvas.height / canvasBox.height;
+            let pixels: Uint8ClampedArray;
+            try {
+                pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+            } catch {
+                return null;
+            }
+            const isInk = (x: number, y: number): boolean => {
+                const index = (y * canvas.width + x) * 4;
+                if (pixels[index + 3] < 128) {
+                    return false;
+                }
+                return (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3 < 100;
+            };
+            // Слова строки: у них одна вертикаль и высота.
+            const wordSpans = [...pageEl.querySelectorAll('.textLayer span')].filter((span) => {
+                const box = span.getBoundingClientRect();
+                return box.top > viewerBox.top + 150 && box.bottom < viewerBox.bottom - 150 && box.width > 25;
+            });
+            if (wordSpans.length < 6) {
+                return null;
+            }
+            // Выделение от первого слова до конца слова ниже — по нескольким строкам.
+            const first = wordSpans[0];
+            const last = wordSpans[Math.min(10, wordSpans.length - 1)];
+            const range = document.createRange();
+            range.setStart(first.firstChild as Node, 0);
+            range.setEnd(last.firstChild as Node, (last.textContent ?? '').length);
+            const selection = window.getSelection() as Selection;
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.dispatchEvent(new Event('selectionchange'));
+            const bands = [...pageEl.querySelectorAll('.selection-band')];
+            // Чернила каждого выделенного слова и их попадание в его полосу.
+            // Слово засчитывается той полосе, в чей вертикальный промежуток
+            // попадает его центр — так строки не смешиваются.
+            const selectedSpans = wordSpans.slice(0, Math.min(11, wordSpans.length));
+            const coverages: number[] = [];
+            for (const span of selectedSpans) {
+                const wordBox = span.getBoundingClientRect();
+                const center = (wordBox.left + wordBox.right) / 2;
+                const band = bands.find((item) => {
+                    const box = item.getBoundingClientRect();
+                    return box.left <= center && box.right >= center;
+                });
+                if (!band) {
+                    coverages.push(0);
+                    continue;
+                }
+                const box = band.getBoundingClientRect();
+                const x0 = Math.max(0, Math.floor((wordBox.left - canvasBox.left) * ratioX));
+                const x1 = Math.min(canvas.width - 1, Math.ceil((wordBox.right - canvasBox.left) * ratioX));
+                const y0 = Math.max(0, Math.floor((wordBox.top - canvasBox.top) * ratioY));
+                const y1 = Math.min(canvas.height - 1, Math.ceil((wordBox.bottom - canvasBox.top) * ratioY));
+                let inside = 0;
+                let total = 0;
+                for (let y = y0; y <= y1; y += 1) {
+                    for (let x = x0; x <= x1; x += 1) {
+                        if (!isInk(x, y)) {
+                            continue;
+                        }
+                        total += 1;
+                        const cy = y / ratioY + canvasBox.top;
+                        if (cy >= box.top && cy <= box.bottom) {
+                            inside += 1;
+                        }
+                    }
+                }
+                if (total > 0) {
+                    coverages.push(inside / total);
+                }
+            }
+            const heights = new Set<string>();
+            for (const span of wordSpans.slice(0, 6)) {
+                heights.add(`${span.style.top}|${span.style.height}`);
+            }
+            return { bands: bands.length, coverages, distinctLineHeights: heights.size, selected: selection.toString().trim().slice(0, 30) };
+        });
+    const first = await check();
+    expect(first).not.toBeNull();
+    expect(first!.selected.length).toBeGreaterThan(5);
+    expect(first!.bands).toBeGreaterThan(0);
+    // Итоговая доля чернил выделенных слов, попавших в полосы.
+    const totalInk = first!.coverages.reduce((sum, value) => sum + value, 0);
+    expect(totalInk / first!.coverages.length).toBeGreaterThan(0.85);
+    // Слова одной строки делят вертикаль: иначе полосы не стыкуются.
+    expect(first!.distinctLineHeights).toBeLessThan(6);
+});
+
+test('прокрутка внутри увеличенной страницы дорисовывает низ', async ({ page }) => {
+    await page.setViewportSize({ width: 700, height: 500 });
+    await openDjvu(page);
+    const frame = content(page);
+    await frame.locator('.page canvas').first().waitFor({ timeout: 30000 });
+    // Сильное увеличение: страница не помещается в канвас целиком и рисуется
+    // окном видимой области. Прокрутка внутри неё уводит видимую часть за
+    // пределы канваса — низ должен дорисовываться, а не оставаться пустым.
+    for (let step = 0; step < 6; step += 1) {
+        await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
+    }
+    await expect(page.getByTestId('reader-zoom')).not.toHaveText('100%');
+    const coverage = () =>
+        frame.locator('#viewer').evaluate((element) => {
+            const viewer = element as HTMLElement;
+            const viewerBox = viewer.getBoundingClientRect();
+            let coveredHeight = 0;
+            for (const canvas of viewer.querySelectorAll('.page canvas')) {
+                const box = canvas.getBoundingClientRect();
+                coveredHeight += Math.max(
+                    0,
+                    Math.min(box.bottom, viewerBox.bottom) - Math.max(box.top, viewerBox.top),
+                );
+            }
+            return viewer.clientHeight > 0 ? coveredHeight / viewer.clientHeight : 0;
+        });
+    await expect.poll(coverage, { timeout: 20000 }).toBeGreaterThan(0.9);
+    for (const delta of [400, 700]) {
+        await frame.locator('#viewer').evaluate((element, step) => {
+            element.scrollTop += step;
+            element.dispatchEvent(new Event('scroll'));
+        }, delta);
+        await expect.poll(coverage, { timeout: 20000 }).toBeGreaterThan(0.9);
+    }
+});
+
+test('рамка слова стоит на его буквах, а не на соседней строке', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await openDjvu(page, multiDjvuBase64());
+    const frame = content(page);
+    await frame.locator('.page canvas').first().waitFor({ timeout: 40000 });
+    // Симптом, который видит пользователь: рамка слова уезжает на строку выше
+    // его букв. Проверяется по растру: центр рамки должен попадать в ту строку
+    // чернил, где у слова в его же столбцах есть буквы. Строки ищутся по
+    // проекции чернил, поэтому метрика не зависит от самих рамок.
+    const measure = () =>
+        frame.locator('#viewer').evaluate(() => {
+            const viewer = document.getElementById('viewer') as HTMLElement;
+            const viewerBox = viewer.getBoundingClientRect();
+            const pageEl = [...viewer.querySelectorAll('.page')].find((el) => el.querySelector('canvas')) as HTMLElement;
+            const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement;
+            const canvasBox = canvas.getBoundingClientRect();
+            const ratioX = canvas.width / canvasBox.width;
+            const ratioY = canvas.height / canvasBox.height;
+            const dark = document.documentElement.dataset.readerTheme === 'dark';
+            let pixels: Uint8ClampedArray;
+            try {
+                pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+            } catch {
+                return null;
+            }
+            const isInk = (x: number, y: number): boolean => {
+                const index = (y * canvas.width + x) * 4;
+                if (pixels[index + 3] < 128) {
+                    return false;
+                }
+                const luminance = (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3;
+                return dark ? luminance > 150 : luminance < 100;
+            };
+            const spans = [...pageEl.querySelectorAll('.textLayer span')].filter(
+                (span) => span.getBoundingClientRect().width > 15,
+            ) as HTMLElement[];
+            if (spans.length < 10) {
+                return null;
+            }
+            // Строки чернил по столбцам слов.
+            const mask = new Uint8Array(canvas.width);
+            for (const span of spans) {
+                const box = span.getBoundingClientRect();
+                const x0 = Math.max(0, Math.floor((box.left - canvasBox.left) * ratioX));
+                const x1 = Math.min(canvas.width - 1, Math.ceil((box.right - canvasBox.left) * ratioX));
+                for (let x = x0; x <= x1; x += 1) {
+                    mask[x] = 1;
+                }
+            }
+            const profile: number[] = [];
+            for (let y = 0; y < canvas.height; y += 1) {
+                let ink = 0;
+                for (let x = 0; x < canvas.width; x += 1) {
+                    if (mask[x] === 1 && isInk(x, y)) {
+                        ink += 1;
+                    }
+                }
+                profile.push(ink);
+            }
+            const peak = Math.max(...profile);
+            if (peak === 0) {
+                return null;
+            }
+            const floor = peak * 0.12;
+            const rows: Array<{ top: number; bottom: number }> = [];
+            let start = -1;
+            for (let y = 0; y <= profile.length; y += 1) {
+                const on = y < profile.length && profile[y] >= floor;
+                if (on) {
+                    if (start < 0) {
+                        start = y;
+                    }
+                } else if (start >= 0) {
+                    rows.push({ top: start, bottom: y - 1 });
+                    start = -1;
+                }
+            }
+            const heights = rows.map((row) => row.bottom - row.top + 1).sort((a, b) => a - b);
+            const typical = heights[Math.floor(heights.length / 2)] || 1;
+            const real = rows.filter((row) => row.bottom - row.top + 1 >= typical * 0.5);
+            if (real.length < 4) {
+                return null;
+            }
+            const steps: number[] = [];
+            for (let index = 1; index < real.length; index += 1) {
+                steps.push(real[index].top - real[index - 1].top);
+            }
+            steps.sort((a, b) => a - b);
+            const pitch = steps[Math.floor(steps.length / 2)] || typical;
+            // Для каждого видимого слова: центр рамки против строки его букв.
+            let ok = 0;
+            let byLine = 0;
+            const samples: string[] = [];
+            for (const span of spans) {
+                const box = span.getBoundingClientRect();
+                if (box.top < canvasBox.top || box.bottom > canvasBox.bottom) {
+                    continue;
+                }
+                if (box.top < viewerBox.top + 20 || box.bottom > viewerBox.bottom - 20) {
+                    continue;
+                }
+                const x0 = Math.max(0, Math.floor((box.left - canvasBox.left) * ratioX));
+                const x1 = Math.min(canvas.width - 1, Math.ceil((box.right - canvasBox.left) * ratioX));
+                if (x1 <= x0) {
+                    continue;
+                }
+                // Мелкий текст (колонтитулы, сноски) не проверяется: в разметке
+                // файла его зоны мельче и смещены относительно букв, и это
+                // свойство самого файла, а не выравнивания.
+                const boxCenter = ((box.top + box.bottom) / 2 - canvasBox.top) * ratioY;
+                let best = -1;
+                let bestDistance = Number.POSITIVE_INFINITY;
+                for (let index = 0; index < real.length; index += 1) {
+                    let ink = 0;
+                    for (let y = real[index].top; y <= real[index].bottom && ink <= 8; y += 1) {
+                        for (let x = x0; x <= x1; x += 1) {
+                            if (isInk(x, y)) {
+                                ink += 1;
+                                if (ink > 8) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (ink <= 8) {
+                        continue;
+                    }
+                    const distance = Math.abs((real[index].top + real[index].bottom) / 2 - boxCenter);
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        best = index;
+                    }
+                }
+                if (best < 0) {
+                    continue;
+                }
+                // Смещение на строку: центр рамки ушёл от строки её букв почти на
+                // целый межстрочный шаг. Половина шага — обычный запас разметки.
+                if (bestDistance > pitch * 0.75) {
+                    byLine += 1;
+                    if (samples.length < 12) {
+                        samples.push(
+                            `${(span.textContent ?? '').trim().slice(0, 6)}|h=${Math.round(box.height * ratioY)}|d=${Math.round(bestDistance)}`,
+                        );
+                    }
+                } else {
+                    ok += 1;
+                }
+            }
+            if (ok + byLine === 0) {
+                return null;
+            }
+            return { ok, byLine, pitch: Math.round(pitch / ratioY), samples };
+        });
+    const check = async () => {
+        const result = await measure();
+        expect(result).not.toBeNull();
+        // Рамки стоят на своих строках: смещённых на строку — считанные проценты.
+        expect(result!.byLine / (result!.ok + result!.byLine), JSON.stringify(result)).toBeLessThan(0.05);
+        expect(result!.ok, JSON.stringify(result)).toBeGreaterThan(0);
+    };
+    await check();
+    await page.getByLabel('Тёмная тема области чтения').click();
+    await expect(frame.locator('html')).toHaveAttribute('data-reader-theme', 'dark');
+    await page.waitForTimeout(3000);
+    await check();
+    for (const zoom of [70, 150]) {
+        const current = Number.parseInt((await page.getByTestId('reader-zoom').textContent()) ?? '100', 10);
+        const name = zoom > current ? 'Увеличить масштаб' : 'Уменьшить масштаб';
+        for (let index = 0; index < Math.abs(zoom - current) / 10; index += 1) {
+            await page.getByRole('button', { name }).click();
+        }
+        await page.waitForTimeout(3000);
+        await check();
+    }
 });

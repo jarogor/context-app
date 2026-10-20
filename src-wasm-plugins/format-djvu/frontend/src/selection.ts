@@ -19,16 +19,93 @@ export function fractionRect(bounds: DOMRect, pageBounds: DOMRect): Rect {
   };
 }
 
-/** Прямоугольники диапазона в долях страницы. */
+/** Прямоугольники выделения в долях страницы.
+ *
+ * За основу берутся боксы span'ов текстового слоя, а не `range.getClientRects()`.
+ * Прямоугольник диапазона — это инлайновый бокс шрифта: он выше и смещён
+ * относительно заданных `top`/`height` слова (у системного шрифта разница
+ * доходит до нескольких пикселей). Полоса, построенная по нему, идёт не по
+ * видимым буквам. Бокс span'а задаётся по чернилам растра (см.
+ * `alignTextLayerToRaster`), поэтому совпадает с буквами, — и полоса тоже.
+ */
 export function selectionRects(range: Range, pageBounds: DOMRect): Rect[] {
   const rects: Rect[] = [];
-  for (const bounds of range.getClientRects()) {
+  for (const bounds of spanRects(range)) {
     if (bounds.width <= 0 || bounds.height <= 0) {
       continue;
     }
     rects.push(fractionRect(bounds, pageBounds));
   }
   return rects;
+}
+
+/**
+ * Прямоугольники выделения по боксам span'ов.
+ *
+ * Диапазон может начинаться и заканчиваться в середине слова: тогда берётся
+ * доля ширины бокса пропорционально длине вошедшего текста. Высота и вертикаль
+ * всегда от бокса span'а — именно они совпадают с видимыми буквами.
+ */
+function spanRects(range: Range): DOMRect[] {
+  const out: DOMRect[] = [];
+  const collect = (node: Node): void => {
+    const element = node.nodeType === Node.ELEMENT_NODE
+      ? (node as Element)
+      : node.parentElement;
+    const span = element ? element.closest<HTMLElement>('.textLayer span') : null;
+    if (!span || !span.firstChild) {
+      // Текст вне спанов (например, пробелы между ними) даёт обычные боксы.
+      out.push(...Array.from(range.getClientRects()));
+      return;
+    }
+    const own = span.getBoundingClientRect();
+    const text = span.firstChild as Text;
+    const length = text.length;
+    if (!(length > 0) || !(own.width > 0)) {
+      return;
+    }
+    // Доля слова, вошедшая в диапазон.
+    let from = 0;
+    let to = length;
+    const startInside = range.startContainer === text;
+    const endInside = range.endContainer === text;
+    if (startInside) {
+      from = Math.max(0, Math.min(length, range.startOffset));
+    }
+    if (endInside) {
+      to = Math.max(0, Math.min(length, range.endOffset));
+    }
+    if (!startInside && !endInside) {
+      from = 0;
+      to = length;
+    }
+    if (to <= from) {
+      return;
+    }
+    const left = own.left + (own.width * from) / length;
+    const right = own.left + (own.width * to) / length;
+    out.push(new DOMRect(left, own.top, Math.max(0, right - left), own.height));
+  };
+  // Узлы, затронутые диапазоном.
+  const walker = document.createTreeWalker(
+    range.commonAncestorContainer,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+  );
+  const nodes: Node[] = [];
+  let current: Node | null = walker.currentNode;
+  while (current) {
+    if (range.intersectsNode(current)) {
+      nodes.push(current);
+    }
+    current = walker.nextNode();
+  }
+  for (const node of nodes) {
+    collect(node);
+  }
+  if (out.length === 0) {
+    out.push(...Array.from(range.getClientRects()));
+  }
+  return out;
 }
 
 /**

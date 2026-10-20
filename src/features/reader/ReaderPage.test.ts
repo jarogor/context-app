@@ -12,7 +12,7 @@ vi.mock('./reader', () => ({
         authors: [],
         chapters: [{ title: null, html: '<p>Текст</p>' }],
     })),
-    openBookExternally: vi.fn(),
+    openBookFile: vi.fn(),
     selectWorkplacePlugin: vi.fn(async () => null),
 }));
 

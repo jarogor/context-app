@@ -150,7 +150,7 @@ test('список рабочих мест показывает обложки �
     await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
     await pickWorkspaceIfAsked(page);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 
@@ -176,7 +176,7 @@ test('числа книг и вкладок совпадают, когда кн�
     await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
     await pickWorkspaceIfAsked(page);
 
     // Дублируем вкладку: книга та же, вкладок стало две.
@@ -214,7 +214,7 @@ test('переключение между рабочими местами сох
     await page.getByRole('button', { name: /Добавить книгу/ }).click();
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
     await pickWorkspaceIfAsked(page);
     await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 

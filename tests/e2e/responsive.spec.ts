@@ -107,7 +107,7 @@ test('панель заметок на телефоне закрывается �
     await showLibraryBookList(page);
     const library = page.locator('main');
     await library.getByRole('button', { name: /Демо-книга/ }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
     const picker = page.getByTestId('workspace-picker-item');
     if (await picker.count()) {
         await picker.first().click();

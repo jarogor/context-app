@@ -4,26 +4,22 @@
  * переходе из списка повторяется, пока её элемент не появится (страница при
  * переходе может ещё отрисовываться).
  */
-import { pagesEl, viewer } from './dom';
-import { reportState, scheduleWindowRefresh } from './render';
+import { viewer } from './dom';
+import {
+  currentListHeight,
+  notifyScrolling,
+  offsetOfPage,
+  reportState,
+  scheduleWindowRefresh,
+} from './render';
+import { pageAtOffset } from './list';
 import { showMoveGuide } from './note-ops';
 import { editor } from './editing-state';
 import { state } from './state';
 
 /** Страница, находящаяся у верха области чтения. */
 export function pageAtTop(): number {
-  const top = viewer.scrollTop;
-  let result = 1;
-  for (const node of pagesEl.children) {
-    const pageEl = node as HTMLElement;
-    const offset = pageEl.offsetTop;
-    if (offset <= top + 8) {
-      result = Number(pageEl.dataset.page);
-    } else {
-      break;
-    }
-  }
-  return result;
+  return pageAtOffset(viewer.scrollTop);
 }
 
 /** Обновление текущей страницы и прогресса после прокрутки. */
@@ -39,29 +35,37 @@ export function handleScroll(): void {
       state.currentPage = page;
     }
     reportState();
-    scheduleWindowRefresh();
+    notifyScrolling();
     if (editor.moveGuide) {
       showMoveGuide();
     }
   });
 }
 
-/** Прокрутка к доле книги в процентах. */
+/** Прокрутка к доле книги в процентах (высота списка виртуальная). */
 export function scrollToFraction(percent: number): void {
-  const max = viewer.scrollHeight - viewer.clientHeight;
+  const max = currentListHeight() - viewer.clientHeight;
   viewer.scrollTop = max * (Math.max(0, Math.min(100, percent)) / 100);
+}
+
+/** Центрирование книги по горизонтали в области чтения.
+ *
+ * Страница шире области чтения переполняет список вправо, и при открытии её
+ * левый край оказывается у левой границы, а середина — за экраном. Прокрутка
+ * ставится на середину переполнения, поэтому книга видна по центру.
+ */
+export function centerHorizontally(): void {
+  const max = viewer.scrollWidth - viewer.clientWidth;
+  viewer.scrollLeft = max > 0 ? Math.round(max / 2) : 0;
 }
 
 /** Прокрутка к странице (постраничный режим помещает её в область видимости). */
 export function gotoPage(page: number): void {
   const target = Math.max(1, Math.min(state.pageCount, Math.trunc(page)));
-  const pageEl = pagesEl.children[target - 1] as HTMLElement | undefined;
-  if (pageEl) {
-    pageEl.scrollIntoView({ block: 'start' });
-    state.currentPage = target;
-    reportState();
-    scheduleWindowRefresh();
-  }
+  viewer.scrollTop = offsetOfPage(target);
+  state.currentPage = target;
+  scheduleWindowRefresh();
+  reportState();
 }
 
 /**
@@ -73,7 +77,7 @@ export function gotoPage(page: number): void {
  * прокрутку в самый низ (конец последней страницы), `Home` — в самое начало.
  */
 export function pageToEdge(edge: 'start' | 'end'): void {
-  const max = viewer.scrollHeight - viewer.clientHeight;
+  const max = currentListHeight() - viewer.clientHeight;
   viewer.scrollTop = edge === 'start' ? 0 : Math.max(0, max);
   const page = pageAtTop();
   if (page !== state.currentPage) {

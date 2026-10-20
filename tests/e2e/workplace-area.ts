@@ -77,6 +77,6 @@ export async function addBookToWorkspace(page: Page, title: string | RegExp) {
         await back.click();
     }
     await library.getByRole('button', { name: title }).click();
-    await library.getByRole('button', { name: /Добавить в/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
     await expect(page.getByTestId('workplace-area')).toBeVisible();
 }
