@@ -441,7 +441,7 @@ test('правка оформления вкладки видна и в пане
     const item = tab(page, 'Черновик');
     await expect(item.getByTestId('workplace-tab')).toHaveAttribute(
         'title',
-        'Черновик (Демо-книга)\nсравнение глав',
+        'Черновик (Демо-книга)',
     );
     await expect(item.getByTestId('workplace-tab').locator('svg')).toHaveCount(1);
 });

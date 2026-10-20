@@ -48,24 +48,17 @@ export function tabColorFill(
   return `color-mix(in oklab, ${NOTE_COLOR_SWATCHES[color]} ${percent}%, ${base})`;
 }
 
-/** Подсказка вкладки: название книги, пользовательское имя и описание.
+/** Подсказка вкладки: пользовательское имя и название книги.
  *
  * Вкладка может быть переименована, поэтому подсказка **всегда** называет книгу:
  * иначе по имени вкладки нельзя понять, какая это книга. Имя и книга стоят в
- * одной строке в форме `Имя (Книга)`, описание добавляется отдельной строкой.
+ * одной строке в форме `Имя (Книга)`.
  */
-export function tabTooltip(tab: Pick<WorkspaceTab, 'name' | 'title' | 'description'>): string {
+export function tabTooltip(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
   const label = tabLabel(tab);
-  const lines: string[] = [];
   // Пользовательское имя перекрывает название книги — книгу называем в скобках.
   if (tab.name?.trim() && tab.title?.trim() && tab.name.trim() !== tab.title.trim()) {
-    lines.push(`${label} (${tab.title})`);
-  } else {
-    lines.push(tab.title?.trim() || label);
+    return `${label} (${tab.title})`;
   }
-  const description = tab.description?.trim();
-  if (description) {
-    lines.push(description);
-  }
-  return lines.join('\n');
+  return tab.title?.trim() || label;
 }
