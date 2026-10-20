@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Читалка DjVu</title>
+    <!--texture-viewer-style-->
+  </head>
+  <body>
+    <div id="viewer"><div id="pages"></div></div>
+    <div id="status">Ожидание книги…</div>
+
+    <!--
+      Классический скрипт выполняется до модульного: он получает адрес
+      собранного бандла из файлов модуля. Сеть и относительные ссылки в
+      песочнице не работают, поэтому адрес выдаёт прелюдия приложения.
+    -->
+    <script type="module">
+      import(textureViewerUrl('./viewer.js'));
+    </script>
+  </body>
+</html>

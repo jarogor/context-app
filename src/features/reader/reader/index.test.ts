@@ -37,8 +37,13 @@ describe('isSupportedFormat', () => {
     expect(isSupportedFormat('EPUB')).toBe(true);
   });
 
+  it('поддерживает FB2 как текстовый формат', () => {
+    expect(isSupportedFormat('fb2')).toBe(true);
+    expect(isSupportedFormat('FB2')).toBe(true);
+  });
+
   it('не поддерживает другие форматы', () => {
-    expect(isSupportedFormat('fb2')).toBe(false);
+    expect(isSupportedFormat('docx')).toBe(false);
     expect(isSupportedFormat('')).toBe(false);
   });
 });
@@ -60,9 +65,9 @@ describe('loadBookContent', () => {
   });
 
   it('отвергает неподдерживаемый формат', async () => {
-    const backend = backendFor('fb2');
+    const backend = backendFor('docx');
 
-    await expect(loadBookContent('/lib/book.fb2', backend)).rejects.toBeInstanceOf(
+    await expect(loadBookContent('/lib/book.docx', backend)).rejects.toBeInstanceOf(
       UnsupportedFormatError,
     );
   });

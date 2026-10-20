@@ -1,0 +1,13 @@
+{
+  "exclude": ["frontend"],
+  "assets": [
+    {
+      "from": "node_modules/djvu-rs/simd128/djvu_rs_bg.wasm",
+      "to": "viewer/djvu_simd128.wasm"
+    },
+    {
+      "from": "node_modules/djvu-rs/scalar/djvu_rs_bg.wasm",
+      "to": "viewer/djvu_scalar.wasm"
+    }
+  ]
+}

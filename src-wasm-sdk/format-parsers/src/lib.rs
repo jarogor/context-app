@@ -5,4 +5,5 @@
 //! зависит от плагинов: ей пользуются независимо.
 
 pub mod epub;
+pub mod fb2;
 pub mod xml;

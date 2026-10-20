@@ -1,0 +1,13 @@
+{
+  "contract_version": 1,
+  "level": "application",
+  "kind": "format",
+  "id": "5a7c9e21-3d4b-4f8c-8a6e-2b1d0c9f7e43",
+  "name": "format-djvu",
+  "description": "Плагин формата чтения: чтение DjVu со страницами, масштабом и заметками",
+  "formats": [
+    "djvu"
+  ],
+  "viewer": "viewer/index.html",
+  "host_functions": []
+}

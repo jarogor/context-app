@@ -1,0 +1,371 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  /* Фон вокруг страниц следует теме области чтения (приложение шлёт
+     значение в переменную). */
+  background: var(--reader-background, #525659);
+  font-family: system-ui, sans-serif;
+}
+/* Область прокрутки: книга показывается целиком, все страницы подряд. */
+#viewer {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #8a8f98 #3f4247;
+}
+#viewer::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+#viewer::-webkit-scrollbar-track {
+  background: #3f4247;
+}
+#viewer::-webkit-scrollbar-thumb {
+  background: #8a8f98;
+  border-radius: 6px;
+}
+#pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Контейнер растягивается под самую широкую страницу, поэтому страница
+     шире области чтения переполняет контейнер вправо (достижима прокруткой),
+     а не влево (левая часть такой страницы была бы обрезана и недостижима).
+     При страницах уже области чтения min-width удерживает ширину окна, и
+     страницы центрируются. */
+  width: max-content;
+  min-width: 100%;
+  gap: 12px;
+  padding: 16px 0;
+}
+.page {
+  position: relative;
+  /* Пока страница не отрисована (или показана окном при сильном
+     увеличении), виден фон рамки: в тёмной теме он тоже тёмный, иначе
+     белые прямоугольники вспыхивали бы на тёмном окружении. */
+  background: var(--page-background, #fff);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  /* Подсветки заметок смешиваются только со страницей, не с фоном окна. */
+  isolation: isolate;
+}
+.page canvas {
+  /* Канвас покрывает видимую область страницы и позиционируется по ней. */
+  position: absolute;
+  display: block;
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  /* Слой заметок лежит выше канваса и текстового слоя по порядку в DOM
+     (вставляется последним), поэтому `z-index` ему не нужен. И его нельзя
+     задавать: `z-index` создаёт контекст наложения, внутри которого
+     `mix-blend-mode` подсветки смешивался бы с прозрачным фоном слоя, а не
+     с канвасом страницы, и полупрозрачный цвет выбеливал бы текст. */
+  pointer-events: none;
+}
+.overlay .note {
+  position: absolute;
+  /* Цвет подсветки задаётся приложением по теме области чтения; запасной —
+     прежний жёлтый. */
+  background: var(--note-yellow, rgba(253, 224, 71, 0.65));
+  /* Умножение сохраняет тёмный текст контрастным, а фон делает цветным. */
+  mix-blend-mode: multiply;
+  border-radius: 2px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* Тёмная страница: умножение на тёмном фоне давало бы невидимую тёмную
+   подложку, поэтому подсветка и фигура ложатся осветлением. */
+html[data-reader-theme='dark'] .overlay .note,
+html[data-reader-theme='dark'] .overlay .note-shape {
+  mix-blend-mode: screen;
+}
+.overlay .note[data-flash='true'] {
+  background: rgba(245, 158, 11, 0.85) !important;
+}
+/* Карточка текстовой заметки в долях страницы. */
+.overlay .note-card {
+  position: absolute;
+  max-width: 220px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  /* Текст карточки берёт сторону темы: на тёмной подложке — светлый. */
+  color: var(--reader-foreground, #1f2937);
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* Слой фигур: не перехватывает события вне своих линий. */
+.overlay .note-shape {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  /* Фигура ложится на текст умножением, как подсветка цитаты: цвет заливки
+     сохраняется, а текст под ней остаётся контрастным. Режим задан на слое
+     фигуры, а не на её SVG-элементах: на дочерних элементах он в WebKit не
+     применяется, и фигура становится невидимой. */
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+/* Фигура — полупрозрачная заливка цветом заметки, как подсветка цитаты,
+   без обводки: прямоугольник и эллипс залиты, линия — толстый штрих.
+   Видимая фигура пропускает события, выбор идёт по мишени ниже. */
+.overlay .note-shape line,
+.overlay .note-shape rect,
+.overlay .note-shape ellipse {
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+/* Мягкость заливки задаётся прозрачностью на слое фигуры: цвет берётся из
+   темы области чтения, а прозрачность — общая для всех областей. */
+.overlay .note-shape rect,
+.overlay .note-shape ellipse {
+  fill-opacity: 0.5;
+}
+.overlay .note-shape line {
+  stroke-opacity: 0.6;
+}
+/* Прозрачная мишень по всей фигуре: у линии это широкий штрих, у
+   прямоугольника и эллипса — вся залитая область. */
+.overlay .note-shape .note-shape-hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 16;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+  cursor: pointer;
+}
+/* Направляющие перемещения: рамка выбранной заметки и её оси. */
+.overlay .note-move-guide {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+  z-index: 15;
+}
+.overlay .note-move-guide::before,
+.overlay .note-move-guide::after {
+  content: '';
+  position: absolute;
+  background: #2563eb;
+  opacity: 0.6;
+}
+.overlay .note-move-guide::before {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+.overlay .note-move-guide::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+.overlay .note-card[data-flash='true'],
+.overlay .note-shape[data-flash='true'] {
+  opacity: 0.4;
+}
+/* Рамка предпросмотра фигуры во время протяжки. */
+.overlay .note-preview {
+  position: absolute;
+  border: 1px dashed #2563eb;
+  pointer-events: none;
+}
+/* Контекстное меню заметки на странице. */
+.overlay .note-menu {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #9ca3af;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  font-size: 12px;
+  pointer-events: auto;
+}
+.overlay .note-menu button {
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  border-radius: 4px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+}
+.overlay .note-menu button svg {
+  display: block;
+  pointer-events: none;
+}
+.overlay .note-menu button:hover {
+  background: #e5e7eb;
+}
+/* Во время правки границ цитаты подсветка не должна перехватывать
+   указатель: по позиции курсора определяется символ текста под ним. */
+body[data-editing='resize'] .overlay .note,
+body[data-editing='resize'] .overlay .note-card,
+body[data-editing='resize'] .overlay .note-shape {
+  pointer-events: none;
+}
+/* Маркер границы цитаты при правке. */
+.overlay .note-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: #1d4ed8;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: ew-resize;
+  z-index: 25;
+  pointer-events: auto;
+}
+body[data-editing='move'] .overlay .note-card,
+body[data-editing='move'] .overlay [data-note-id] {
+  cursor: move;
+}
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Свойства ниже выравнивают метрики слоя с зонами текста DjVu: без них
+     унаследованные от оболочки `letter-spacing`/`word-spacing`/`text-align`/
+     `text-size-adjust` сдвигали бы глифы относительно прямоугольников
+     выделения. */
+  text-align: initial;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  transform-origin: 0 0;
+}
+.textLayer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  overflow: hidden;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+/* Выделение текста рисует собственный слой (см. `renderSelection`), а не
+   браузер: браузер кладёт прямоугольник на каждую строку, и при плотном
+   межстрочном интервале они перекрываются — на стыках заливка темнеет, а
+   текст мутнеет. Нативное выделение прозрачно, только для копирования. */
+.textLayer ::selection {
+  background: transparent;
+}
+/* Слой выделения: заливка по строкам и вертикальные метки по краям всего
+   выделения. Заливка — один элемент во всю страницу, обрезанный по
+   прямоугольникам диапазона (как в официальном просмотрщике pdf.js): сырые
+   прямоугольники строк могут перекрываться по высоте, а единая маска не даёт
+   заливке темнеть на стыках и не сужает полосы до середины букв. Заливка
+   ложится на страницу умножением (на тёмной стороне — осветлением), как
+   подсветка цитаты, поэтому растр текста остаётся чётким. */
+.selection-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.selection-layer .selection-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--reader-selection, rgba(37, 99, 235, 0.35));
+  mix-blend-mode: multiply;
+}
+.selection-layer .selection-fill svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+html[data-reader-theme='dark'] .selection-layer .selection-fill {
+  mix-blend-mode: screen;
+}
+.selection-layer .selection-band {
+  position: absolute;
+  pointer-events: none;
+}
+/* Признак активного выделения: вертикальные метки по краям полос — «курсоры»
+   выделения. Отличают живое выделение от подсветки заметки (та меток не
+   получает). Метки плотнее заливки, но того же оттенка, и лежат внутри слоя
+   с наложением, поэтому остаются чёткими на растре. */
+.selection-layer .selection-band::before,
+.selection-layer .selection-band::after {
+  content: none;
+  position: absolute;
+  /* Метка чуть выходит за строку сверху и снизу, но не «торчит» заметно:
+     по полпикселя с каждой стороны. */
+  top: -0.5px;
+  bottom: -0.5px;
+  width: var(--reader-selection-edge-width, 1px);
+  background: var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
+  /* Радиус — половина толщины: метка читается капсулой при любой ширине. */
+  border-radius: calc(0.5 * var(--reader-selection-edge-width, 1px));
+}
+/* Метки стоят у краёв всего выделения: левая — в начале, правая — в конце.
+   У промежуточных строк меток нет, иначе они читаются как отдельные
+   выделения (особенно при строках разной длины). Метка центрируется на
+   самой границе полосы (внутрь/наружу поровну, на полширины): её середина
+   совпадает с краем выделения, и полоса не кажется шире на толщину метки. */
+.selection-layer .selection-band[data-edge='start']::before,
+.selection-layer .selection-band[data-edge='both']::before {
+  content: '';
+  left: calc(-0.5 * var(--reader-selection-edge-width, 1px));
+}
+.selection-layer .selection-band[data-edge='end']::after,
+.selection-layer .selection-band[data-edge='both']::after {
+  content: '';
+  right: calc(-0.5 * var(--reader-selection-edge-width, 1px));
+}
+/* Инструменты текста и фигуры не работают с выделением: прицел вместо
+   текстового курсора и запрет выделения текста под протяжкой. */
+body[data-tool='text'],
+body[data-tool='shape'] {
+  cursor: crosshair;
+}
+body[data-tool='text'] *,
+body[data-tool='shape'] * {
+  cursor: crosshair !important;
+  user-select: none;
+}
+/* Под инструментами «текст» и «фигура» поверх существующей заметки новую
+   не поставить: клик открывает меню уже имеющейся заметки. Заметка при
+   этом кликабельна, и курсор это показывает — указатель вместо прицела,
+   чтобы место не читалось как свободное. */
+body[data-tool='text'] .overlay .note,
+body[data-tool='text'] .overlay .note-card,
+body[data-tool='text'] .overlay .note-shape .note-shape-hit,
+body[data-tool='shape'] .overlay .note,
+body[data-tool='shape'] .overlay .note-card,
+body[data-tool='shape'] .overlay .note-shape .note-shape-hit {
+  cursor: pointer !important;
+}
+#status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e5e7eb;
+  padding: 24px;
+  text-align: center;
+}
+#status[hidden] {
+  display: none;
+}

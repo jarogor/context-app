@@ -12,7 +12,7 @@ import type { BookChapter, BookContent } from './types';
 export type { BookChapter, BookContent } from './types';
 
 /** Форматы, поддерживаемые встроенным чтением. */
-const SUPPORTED_FORMATS = ['epub'];
+const SUPPORTED_FORMATS = ['epub', 'fb2'];
 
 /** Ошибка неподдерживаемого встроенным чтением формата. */
 export class UnsupportedFormatError extends Error {

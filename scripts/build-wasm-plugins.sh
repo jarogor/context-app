@@ -23,5 +23,6 @@ cd "$ROOT"
 # внутри каталога плагина: собирается в статические файлы `viewer/` до раскладки
 # артефактов (они в git не хранятся).
 npm run build -w format-pdf-viewer
+npm run build -w format-djvu-viewer
 
 node scripts/plugin-artifacts.mjs build

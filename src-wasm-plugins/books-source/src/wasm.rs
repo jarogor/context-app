@@ -138,15 +138,22 @@ pub fn invoke(input: String) -> FnResult<String> {
         }
         "content" => {
             let (path, format) = book_file_info(&request.payload)?;
-            if format != "epub" {
-                return Err(extism_pdk::Error::msg(format!(
-                    "формат не поддерживается встроенным чтением: {format}"
-                ))
-                .into());
-            }
             let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
-            let chapters =
-                crate::epub::read_epub_chapters(&bytes).map_err(extism_pdk::Error::msg)?;
+            let chapters = match format.as_str() {
+                "epub" => serde_json::to_value(
+                    crate::epub::read_epub_chapters(&bytes).map_err(extism_pdk::Error::msg)?,
+                )?,
+                "fb2" => serde_json::to_value(
+                    format_parsers::fb2::read_fb2_chapters(&bytes)
+                        .map_err(extism_pdk::Error::msg)?,
+                )?,
+                _ => {
+                    return Err(extism_pdk::Error::msg(format!(
+                        "формат не поддерживается встроенным чтением: {format}"
+                    ))
+                    .into());
+                }
+            };
             let (title, authors) = book_identity(&request.payload, &path);
             serde_json::to_string(&json!({
                 "title": title,

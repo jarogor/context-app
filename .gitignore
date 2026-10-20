@@ -37,6 +37,7 @@ src-tauri/resources/base-plugins/
 
 # Собранный модуль рисования плагина формата чтения (см. frontend/)
 src-wasm-plugins/format-pdf/viewer/
+src-wasm-plugins/format-djvu/viewer/
 
 # Playwright
 test-results/
