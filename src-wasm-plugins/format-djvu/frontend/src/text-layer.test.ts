@@ -320,10 +320,34 @@ describe('alignTextLayerToRaster', () => {
       return { left, right: left + width };
     }
 
+    it('масштабирует слово от левого края, а не от середины', () => {
+      // Дефект: `scaleX` без `transform-origin` масштабирует от середины — при
+      // сжатии рамка уезжала влево, конец слова оставался недовыделенным на
+      // полбуквы, а начало заходило на предыдущее слово. Рамка должна начинаться
+      // ровно на своей первой букве.
+      const { host, canvas, layer } = lineSetup(
+        [
+          { left: 60, right: 68 },
+          { left: 71, right: 79 },
+          { left: 82, right: 90 },
+        ],
+        [{ text: 'да', left: 60, width: 31 }],
+      );
+      try {
+        alignTextLayerToRaster(layer, canvas, false);
+        const span = layer.querySelector('span') as HTMLElement;
+        expect(span.style.transformOrigin).toBe('0 0');
+        // Начало рамки — на первой букве (60), хотя масштаб не 1.
+        expect(Number.parseFloat(span.style.left)).toBeCloseTo(60, 0);
+        const box = frame(span);
+        expect(box.left).toBeCloseTo(60, 0);
+        expect(box.right).toBeCloseTo(91, 0);
+      } finally {
+        host.remove();
+      }
+    });
+
     it('не тянет длинное слово до конца строки при соседе справа', () => {
-      // Регрессия: условие «зона шире трёх высот строки» отбрасывало почти все
-      // слова в ветку «последнее слово», и рамка тянулась до конца строки —
-      // слово выглядело растянутым на всю строку.
       const { host, canvas, layer } = lineSetup(
         [
           { left: 20, right: 28 },

@@ -197,7 +197,7 @@ export function renderSelection(): void {
   }
   // Полосы и заливка приводятся к межстрочному шагу (см. `tileByLine`):
   // выделение одинаково и на цифровой странице, и на скане.
-  const { merged: bands, raw: fillRects } = tileByLine(rects);
+  const { merged: bands } = tileByLine(rects);
   if (bands.length === 0) {
     return;
   }
@@ -206,7 +206,11 @@ export function renderSelection(): void {
   const fill = document.createElement('div');
   fill.className = 'selection-fill';
   selectionClipId += 1;
-  applyFillMask(fill, fillRects, selectionClipId);
+  // Заливка — по полосам строк, а не по кускам слов: иначе между словами
+  // остаются белые щели, и блок текста не выглядит единой фигурой. Полоса
+  // строки уже покрывает промежутки между словами, но не выходит за границы
+  // выделения.
+  applyFillMask(fill, bands, selectionClipId);
   layer.append(fill);
   bands.forEach((rect, index) => {
     const band = document.createElement('div');

@@ -70,39 +70,47 @@ export function tileByLine(rects: Rect[] | null | undefined): LineTiles {
     lineOf.push(created);
   }
   const centers = lines.map((line) => (line.top + line.bottom) / 2);
-  // Пары соседних полос стыкуются, только когда строки стоят «вплотную»:
-  // инлайн-боксы перекрываются или разрыв между ними не больше высоты бокса.
+  // Шаг строк: медиана расстояний между серединами соседних полос. Медиана
+  // устойчива к случайному пропуску строки и к абзацному отступу.
+  const steps: number[] = [];
+  for (let index = 1; index < centers.length; index += 1) {
+    steps.push(centers[index] - centers[index - 1]);
+  }
+  steps.sort((a, b) => a - b);
+  const pitch = steps.length > 0 ? steps[Math.floor(steps.length / 2)] : 0;
+  // Строки одного абзаца стоят на ровном шаге. Признак «вплотную» берётся от
+  // шага и от промежутка между боксами: у слоя скана бокс равен высоте букв, и
+  // промежуток между строками больше бокса — по одному боксу строки абзаца
+  // никогда не считались бы соседними, и полосы шли бы с щелями. Абзацный отступ
+  // оставляет промежуток в разы больше бокса — там полосы не стыкуются.
   const joined = new Array<boolean>(Math.max(lines.length - 1, 0)).fill(false);
   for (let index = 1; index < lines.length; index += 1) {
-    const previousBox = lines[index - 1].bottom - lines[index - 1].top;
-    const box = lines[index].bottom - lines[index].top;
+    const distance = centers[index] - centers[index - 1];
     const gap = lines[index].top - lines[index - 1].bottom;
-    joined[index - 1] = gap <= Math.min(previousBox, box);
+    const box = Math.min(
+      lines[index - 1].bottom - lines[index - 1].top,
+      lines[index].bottom - lines[index].top,
+    );
+    joined[index - 1] =
+      pitch > 0 && distance > 0 && distance <= pitch * 1.35 && gap <= box * 1.8;
   }
   const tops = lines.map((line) => line.top);
   const bottoms = lines.map((line) => line.bottom);
   for (let index = 0; index < lines.length; index += 1) {
     const center = centers[index];
+    // Внутри абзаца полоса тянется до середины промежутка с соседней строкой:
+    // полосы стыкуются встык, и блок текста выглядит единой фигурой, как в PDF.
     if (index > 0 && joined[index - 1]) {
-      // Общая граница со строкой сверху — посередине между серединами.
       tops[index] = (centers[index - 1] + center) / 2;
-    } else if (index < lines.length - 1 && joined[index]) {
-      // Верхний край крайней строки обрезается на полшага от соседа снизу: у
-      // скана инлайн-бокс выше шага, и без обрезки полоса «торчит» вверх.
-      tops[index] = Math.max(center - (centers[index + 1] - center) / 2, lines[index].top);
     } else {
-      // Крайняя строка выделения с одной стороны: за ней нет соседа, и
-      // растягивать её в межстрочный промежуток некуда — иначе полоса выходит
-      // за буквы, и выделение перестаёт с ними совпадать. Край остаётся по
-      // фактической границе строки.
+      // Крайняя строка выделения или строка после абзацного отступа: растягивать
+      // её в промежуток некуда — иначе полоса выходит за буквы и цепляет чужой
+      // абзац. Край остаётся по фактической границе строки.
       tops[index] = lines[index].top;
     }
     if (index < lines.length - 1 && joined[index]) {
       bottoms[index] = (center + centers[index + 1]) / 2;
-    } else if (index > 0 && joined[index - 1]) {
-      bottoms[index] = Math.min(center + (center - centers[index - 1]) / 2, lines[index].bottom);
     } else {
-      // Снизу соседа нет — низ берётся по самой строке (см. выше).
       bottoms[index] = lines[index].bottom;
     }
   }

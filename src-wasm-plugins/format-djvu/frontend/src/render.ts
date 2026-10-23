@@ -210,26 +210,37 @@ function targetDpi(page: DjVuPage, info: CanvasInfo, quality: number): number {
 const RASTER_QUALITY = 1.5;
 /** Предельная площадь растровой страницы (пиксели) с запасом детализации. */
 const RASTER_AREA = 6 * 1024 * 1024;
+/** Нижний предел разрешения отрисовки, dpi. */
+const MIN_RASTER_DPI = 144;
 
 /**
  * Запас детализации растра.
  *
- * Канвас строится ровно по плотности окна, поэтому браузер не пересэмплирует
- * его. Детализация добавляется внутри: движок рисует страницу крупнее, а сжатие
- * до размера канваса сглаживает штрихи. Без запаса мелкий масштаб (до 80 %)
- * выходит пиксельным: тонкие штрихи рисуются в один пиксель без сглаживания.
- * На крупных страницах запас снимается — там 1:1 уже достаточно резкое, а
- * память и время отрисовки ограничены.
+ * Разрешение отрисовки задаётся масштабом: на 40 % это около 40 dpi, и штрихи
+ * букв тоньше пикселя — мелкий масштаб выходит пиксельным. Поэтому страница
+ * всегда рисуется не ниже `MIN_RASTER_DPI` и сжимается до размера канваса: при
+ * сжатии штрихи получают сглаживание и остаются читаемыми. На крупных масштабах
+ * базовое разрешение уже выше предела, и запас равен 1,5 — поведение не
+ * меняется.
  *
  * Выравнивание текстового слоя читает пиксели КАНВАСА (после сжатия), поэтому
  * запас не меняет его геометрию: рамки слов остаются на буквах при любом
  * масштабе.
  */
-function rasterQuality(info: CanvasInfo): number {
-  const area = info.width * info.height * info.ratio * info.ratio;
-  return area > 0 && area * RASTER_QUALITY * RASTER_QUALITY <= RASTER_AREA
-    ? RASTER_QUALITY
-    : 1;
+function rasterQuality(page: DjVuPage, info: CanvasInfo): number {
+  const stored = page.dpi() || 300;
+  const dpi = effectiveDpi(page);
+  // Разрешение без запаса: столько пикселей файла приходится на CSS-пиксель.
+  const base = (state.zoom / 100) * CSS_DPI * (stored / dpi) * info.ratio;
+  const byQuality = base > 0 ? Math.max(1, MIN_RASTER_DPI / base) : RASTER_QUALITY;
+  const quality = Math.max(RASTER_QUALITY, byQuality);
+  // Предел площади: запас снимается, пока растр не влезет в допустимый размер.
+  const cssArea = info.width * info.height * info.ratio * info.ratio;
+  if (cssArea > 0) {
+    const limit = Math.sqrt(RASTER_AREA / cssArea);
+    return Math.max(1, Math.min(quality, limit));
+  }
+  return quality;
 }
 
 /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок.
@@ -292,7 +303,7 @@ export function renderPage(
   const entry: RenderedEntry = { canvas, textLayer: textLayerEl, info, paint: state.paintKey };
 
   try {
-    const dpi = targetDpi(page, info, rasterQuality(info));
+    const dpi = targetDpi(page, info, rasterQuality(page, info));
     // Пикселей растра на CSS-пиксель страницы: для файла с неверным DPI не
     // совпадает с плотностью окна, для обычного — совпадает.
     const pixelsPerCss = page.width_at(dpi) / Math.max(1, viewport.width);

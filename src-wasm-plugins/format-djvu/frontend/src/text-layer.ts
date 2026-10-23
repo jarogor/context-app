@@ -139,6 +139,11 @@ export function fitTextLayer(layer: HTMLElement): void {
       continue;
     }
     spans[index].style.width = natural + 'px';
+    // Масштаб — от ЛЕВОГО края: при центровом `transform-origin` (по умолчанию)
+    // слово сжимается симметрично, и рамка уезжает влево — конец слова
+    // оказывается недовыделенным на полбуквы, а начало заходит на предыдущее
+    // слово. Левый край слова остаётся на месте, правый ставится по ширине.
+    spans[index].style.transformOrigin = '0 0';
     spans[index].style.transform = `scaleX(${target / natural})`;
   }
 }
@@ -355,6 +360,201 @@ export function alignTextLayerToRaster(
   for (const bucket of rowWords.values()) {
     bucket.sort((first, second) => first.zoneLeft - second.zoneLeft);
   }
+  // Горизонталь — по разрывам чернил полосы, а не по краям зон. Зона OCR сдвинута
+  // от букв: её левый край заходит на предыдущее слово, правый не доходит до
+  // конца своего — поэтому рамка выходила короче слова на полбуквы и заезжала на
+  // соседа. Полоса строки режется на столько частей, сколько в ней слов по зонам,
+  // и границами служат самые широкие разрывы чернил. Внутри слова разрыв между
+  // буквами уже межсловного, а выбор по числу слов не зависит от порога: он
+  // одинаково верен для плотного и разреженного шрифта и при любом масштабе.
+  const segments = new Map<PlacedWord, { left: number; right: number }>();
+  for (const bucket of rowWords.values()) {
+    const sample = bucket[0];
+    const y0 = Math.max(0, Math.floor(sample.top * ratio));
+    const y1 = Math.min(height - 1, Math.ceil(sample.bottom * ratio));
+    if (y1 <= y0) {
+      continue;
+    }
+    // Чернильные столбцы полосы строки.
+    const columnInk = new Uint8Array(width);
+    for (let x = 0; x < width; x += 1) {
+      for (let y = y0; y <= y1; y += 1) {
+        if (isInk(x, y)) {
+          columnInk[x] = 1;
+          break;
+        }
+      }
+    }
+    // Непрерывные участки чернил и разрывы между ними.
+    const runs: Array<{ left: number; right: number }> = [];
+    let runStart = -1;
+    for (let x = 0; x <= width; x += 1) {
+      const ink = x < width && columnInk[x] === 1;
+      if (ink && runStart < 0) {
+        runStart = x;
+      }
+      if (!ink && runStart >= 0) {
+        runs.push({ left: runStart, right: x - 1 });
+        runStart = -1;
+      }
+    }
+    if (runs.length === 0) {
+      continue;
+    }
+    if (bucket.length === 1) {
+      // Одна зона на полосе — слово, либо зона, растянутая на строку.
+      const zone = bucket[0];
+      const lineHeightPx = y1 - y0 + 1;
+      const chars = Math.max(1, (zone.span.textContent ?? '').trim().length);
+      // Растянутость определяется по числу символов: слово такой длины в разы
+      // уже зоны, растянутой на строку. Порог от одной высоты строки не годится —
+      // длинное слово тоже шире нескольких высот.
+      const stretched = zone.zoneRight - zone.zoneLeft > chars * lineHeightPx * 0.8;
+      let last = -1;
+      if (stretched) {
+        // Растянутая зона: берутся участки одного слова. Граница — разрыв, резко
+        // больший остальных (между словами), а не порог в пикселях: у плотного
+        // шрифта межбуквенный разрыв почти равен межсловному, и порог не
+        // разделяет. Если все разрывы соразмерны, слово занимает всю полосу.
+        const gaps: Array<{ index: number; length: number }> = [];
+        for (let index = 1; index < runs.length; index += 1) {
+          gaps.push({ index, length: runs[index].left - runs[index - 1].right - 1 });
+        }
+        const lengths = gaps.map((gap) => gap.length).sort((a, b) => a - b);
+        let split = -1;
+        for (let index = 1; index < lengths.length; index += 1) {
+          // Скачок в 1.8 раза отличает межсловный разрыв от межбуквенного.
+          if (lengths[index] >= lengths[index - 1] * 1.8) {
+            const at = lengths[index];
+            const gap = gaps.find((item) => item.length === at);
+            split = gap ? gap.index : -1;
+          }
+        }
+        last = split > 0 ? split - 1 : runs.length - 1;
+      } else {
+        // Обычная зона: участки, попавшие в её пределы. Внутри слова встречаются
+        // разреженные буквы (курсив, разрядка), и брать одну группу значило бы
+        // обрезать слово.
+        last = -1;
+        const margin = Math.max(2, Math.round(lineHeightPx * 0.5));
+        for (let index = 0; index < runs.length; index += 1) {
+          const run = runs[index];
+          if (run.right < zone.zoneLeft - margin) {
+            continue;
+          }
+          if (run.left > zone.zoneRight + margin) {
+            break;
+          }
+          last = index;
+        }
+      }
+      let first = -1;
+      for (let index = 0; index <= last; index += 1) {
+        if (runs[index].right >= zone.zoneLeft - lineHeightPx) {
+          first = index;
+          break;
+        }
+      }
+      if (first >= 0 && last >= first) {
+        segments.set(zone, { left: runs[first].left, right: runs[last].right });
+      }
+      continue;
+    }
+    // Границы слов ищутся ЛОКАЛЬНО: у каждой пары соседних зон известен стык
+    // (правый край предыдущей, левый край следующей), и разрыв ищется только в
+    // узком окне вокруг него. Глобальный выбор «N самых широких разрывов» не
+    // годится: у плотного шрифта межсловный разрыв бывает уже межбуквенного, и
+    // тогда границы уезжают на буквы внутри слов — полоса режется, и рамка
+    // съезжает на соседа.
+    const lineHeightPx = y1 - y0 + 1;
+    // Окно ограничено серединами соседних зон: дальше начинается чужое слово, и
+    // разрыв там уже не граница. Запас в 0,6 высоты строки покрывает смещение
+    // зоны от букв.
+    const delta = Math.max(4, Math.round(lineHeightPx * 0.6));
+    /** Для слова `i`: участок чернил, с которого оно начинается. */
+    const startsAt = new Array<number>(bucket.length).fill(-1);
+    startsAt[0] = 0;
+    // Курсор держит границы монотонными: слово не может начаться раньше
+    // предыдущего. Без этого узкая зона получала пустой участок.
+    let cursor = 0;
+    for (let index = 1; index < bucket.length; index += 1) {
+      const previous = bucket[index - 1];
+      const current = bucket[index];
+      const previousCenter = (previous.zoneLeft + previous.zoneRight) / 2;
+      const currentCenter = (current.zoneLeft + current.zoneRight) / 2;
+      const seamLow = Math.min(previous.zoneRight, current.zoneLeft);
+      const seamHigh = Math.max(previous.zoneRight, current.zoneLeft);
+      const low = Math.max(seamLow - delta, previousCenter + 1);
+      const high = Math.min(seamHigh + delta, currentCenter - 1);
+      let best = -1;
+      let bestWidth = -1;
+      let nearest = -1;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      for (let run = cursor + 1; run < runs.length; run += 1) {
+        const gapLeft = runs[run - 1].right;
+        const gapRight = runs[run].left;
+        // Участок уже за окном — дальше искать нечего.
+        if (gapLeft > high) {
+          break;
+        }
+        const middle = (gapLeft + gapRight) / 2;
+        if (middle < low) {
+          nearest = run;
+          nearestDistance = low - middle;
+          continue;
+        }
+        if (middle > high) {
+          if (nearest < 0) {
+            nearest = run;
+            nearestDistance = middle - high;
+          }
+          break;
+        }
+        const width = gapRight - gapLeft - 1;
+        if (width > bestWidth) {
+          bestWidth = width;
+          best = run;
+        }
+        if (nearestDistance > middle - low) {
+          nearest = run;
+          nearestDistance = middle - low;
+        }
+      }
+      // Разрыв в окне не найден (буквы слиплись) — берётся ближайший к стыку:
+      // рамка тогда граничит с соседом, а не тянется до конца строки.
+      const chosen = best > 0 ? best : nearest > 0 ? nearest : cursor + 1;
+      startsAt[index] = Math.min(Math.max(chosen, cursor + 1), Math.max(0, runs.length - 1));
+      cursor = startsAt[index];
+    }
+    for (let index = 0; index < bucket.length; index += 1) {
+      const from = startsAt[index];
+      if (from < 0) {
+        continue;
+      }
+      let to: number;
+      if (index < bucket.length - 1) {
+        to = startsAt[index + 1] - 1;
+      } else {
+        // У последнего слова справа границы от соседа нет: конец берётся по его
+        // зоне с запасом. Иначе рамка тянулась бы до конца полосы — на колонцифру
+        // или номер страницы.
+        to = from;
+        for (let run = from; run < runs.length; run += 1) {
+          if (runs[run].left > bucket[index].zoneRight + delta) {
+            break;
+          }
+          to = run;
+        }
+      }
+      if (to < from) {
+        continue;
+      }
+      segments.set(bucket[index], {
+        left: runs[from].left,
+        right: runs[to].right,
+      });
+    }
+  }
   const measured: Array<{
     span: HTMLElement;
     left: number;
@@ -363,71 +563,9 @@ export function alignTextLayerToRaster(
     height: number;
   }> = [];
   for (const word of placed) {
-    let left = -1;
-    let right = -1;
-    if (word.row >= 0) {
-      const bucket = rowWords.get(word.row) as PlacedWord[];
-      const position = bucket.indexOf(word);
-      const next = position < bucket.length - 1 ? bucket[position + 1] : null;
-      const y0 = Math.max(0, Math.floor(word.top * ratio));
-      const y1 = Math.min(height - 1, Math.ceil(word.bottom * ratio));
-      const lineHeightPx = Math.max(1, y1 - y0 + 1);
-      const zoneWidth = word.zoneRight - word.zoneLeft;
-      // Признак чернил в столбце полосы слова.
-      const columnHasInk = (x: number): boolean => {
-        for (let y = y0; y <= y1; y += 1) {
-          if (isInk(x, y)) {
-            return true;
-          }
-        }
-        return false;
-      };
-      if (next) {
-        // Граница со следующим словом известна: правый край — последние чернила
-        // перед левым краем зоны следующего слова. Зона своего слова бывает и
-        // уже букв, и растянутой на строку — на границу это не влияет, потому
-        // что её задаёт сосед. Условие «зона шире трёх высот» здесь непригодно:
-        // длинное слово всегда шире трёх высот строки, и рамка уезжала в конец
-        // строки.
-        const searchLeft = Math.max(0, Math.floor(word.zoneLeft));
-        const searchRight = Math.min(width - 1, Math.ceil(next.zoneLeft) - 1);
-        if (searchRight >= searchLeft) {
-          for (let x = searchLeft; x <= searchRight; x += 1) {
-            if (columnHasInk(x)) {
-              if (left < 0) {
-                left = x;
-              }
-              right = x;
-            }
-          }
-        }
-      } else {
-        // Последнее слово строки: справа соседа нет. Зона, растянутая на строку,
-        // берёт только первое слово полосы (разрыв до остального больше высоты
-        // строки); обычная зона ограничивает поиск своим правым краем с запасом.
-        const stretched = zoneWidth > lineHeightPx * 3;
-        const stopGap = Math.max(2, Math.round(lineHeightPx * 1.2));
-        const searchLeft = Math.max(0, Math.floor(word.zoneLeft));
-        const searchRight = stretched
-          ? width - 1
-          : Math.min(width - 1, Math.ceil(word.zoneRight + lineHeightPx));
-        let empty = 0;
-        for (let x = searchLeft; x <= searchRight; x += 1) {
-          if (columnHasInk(x)) {
-            if (left < 0) {
-              left = x;
-            }
-            right = x;
-            empty = 0;
-          } else if (left >= 0) {
-            empty += 1;
-            if (empty > stopGap) {
-              break;
-            }
-          }
-        }
-      }
-    }
+    const segment = segments.get(word);
+    const left = segment ? segment.left : -1;
+    const right = segment ? segment.right : -1;
     measured.push({
       span: word.span,
       left:
@@ -460,6 +598,9 @@ export function alignTextLayerToRaster(
     const natural = naturals[index];
     if (natural > 0 && item.width > 0) {
       item.span.style.width = natural + 'px';
+      // Масштаб от левого края — иначе рамка сжимается к середине слова и
+      // теряет конец (см. `fitTextLayer`).
+      item.span.style.transformOrigin = '0 0';
       item.span.style.transform = `scaleX(${item.width / natural})`;
     }
   }
