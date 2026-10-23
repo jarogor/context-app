@@ -206,25 +206,18 @@ function targetDpi(page: DjVuPage, info: CanvasInfo, quality: number): number {
   return Math.max(1, Math.round(scale * info.ratio));
 }
 
-/** Запас детализации растра над пикселями канваса. */
-const RASTER_QUALITY = 1.5;
-/** Предельная площадь растровой страницы (пиксели) с запасом детализации. */
-const RASTER_AREA = 6 * 1024 * 1024;
-
 /**
- * Запас детализации растра.
+ * Плотность детализации растра.
  *
- * Канвас строится ровно по плотности окна (целое число пикселей на CSS-пиксель),
- * поэтому браузер не пересэмплирует его и шрифт остаётся чётким. Детализация
- * добавляется внутри: движок рисует страницу крупнее, а сжатие до размера
- * канваса даёт гладкие штрихи. На крупных страницах запас снимается, иначе
- * отрисовка и память тормозят.
+ * Растр рисуется ровно в пикселях канваса (один пиксель движка на пиксель
+ * канваса) при любом масштабе страницы. Запас детализации был источником
+ * «случайной» перестройки: его включал порог площади, поэтому на одних
+ * масштабах растр приходил крупнее канваса и сжимался, а на других — нет, и
+ * выравнивание текстового слоя видело разные пиксели букв. Одно правило для
+ * всех масштабов делает положение букв воспроизводимым.
  */
-function rasterQuality(info: CanvasInfo): number {
-  const area = info.width * info.height * info.ratio * info.ratio;
-  return area > 0 && area * RASTER_QUALITY * RASTER_QUALITY <= RASTER_AREA
-    ? RASTER_QUALITY
-    : 1;
+function rasterQuality(): number {
+  return 1;
 }
 
 /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок.
@@ -287,7 +280,7 @@ export function renderPage(
   const entry: RenderedEntry = { canvas, textLayer: textLayerEl, info, paint: state.paintKey };
 
   try {
-    const dpi = targetDpi(page, info, rasterQuality(info));
+    const dpi = targetDpi(page, info, rasterQuality());
     // Пикселей растра на CSS-пиксель страницы: для файла с неверным DPI не
     // совпадает с плотностью окна, для обычного — совпадает.
     const pixelsPerCss = page.width_at(dpi) / Math.max(1, viewport.width);

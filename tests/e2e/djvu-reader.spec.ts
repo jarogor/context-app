@@ -415,13 +415,26 @@ test('выделение слов совпадает с видимым текс�
             const coverages: number[] = [];
             for (const span of selectedSpans) {
                 const wordBox = span.getBoundingClientRect();
-                const center = (wordBox.left + wordBox.right) / 2;
-                const band = bands.find((item) => {
+                // Полоса своего слова — та, что накрывает его и по горизонтали, и
+                // по вертикали. По одной горизонтали находится полоса соседней
+                // строки (у строк общий диапазон столбцов), и замер мерил бы
+                // чернила слова против чужой полосы.
+                let band: Element | null = null;
+                let bestOverlap = 0;
+                for (const item of bands) {
                     const box = item.getBoundingClientRect();
-                    return box.left <= center && box.right >= center;
-                });
+                    const overlapX = Math.min(box.right, wordBox.right) - Math.max(box.left, wordBox.left);
+                    const overlapY = Math.min(box.bottom, wordBox.bottom) - Math.max(box.top, wordBox.top);
+                    if (overlapX <= 0 || overlapY <= 0) {
+                        continue;
+                    }
+                    if (overlapX * overlapY > bestOverlap) {
+                        bestOverlap = overlapX * overlapY;
+                        band = item;
+                    }
+                }
+                // Слово без своей полосы не входит в выделение — не считается.
                 if (!band) {
-                    coverages.push(0);
                     continue;
                 }
                 const box = band.getBoundingClientRect();
@@ -457,9 +470,10 @@ test('выделение слов совпадает с видимым текс�
     expect(first).not.toBeNull();
     expect(first!.selected.length).toBeGreaterThan(5);
     expect(first!.bands).toBeGreaterThan(0);
-    // Итоговая доля чернил выделенных слов, попавших в полосы.
-    const totalInk = first!.coverages.reduce((sum, value) => sum + value, 0);
-    expect(totalInk / first!.coverages.length).toBeGreaterThan(0.85);
+    // Доля чернил выделенных слов, попавших в полосы: каждое слово своей полосы.
+    expect(first!.coverages.length).toBeGreaterThan(0);
+    const worst = Math.min(...first!.coverages);
+    expect(worst, JSON.stringify(first!.coverages)).toBeGreaterThan(0.85);
     // Слова одной строки делят вертикаль: иначе полосы не стыкуются.
     expect(first!.distinctLineHeights).toBeLessThan(6);
 });

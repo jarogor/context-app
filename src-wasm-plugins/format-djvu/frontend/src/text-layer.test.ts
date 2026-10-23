@@ -242,6 +242,185 @@ describe('alignTextLayerToRaster', () => {
     }
   });
 
+  describe('горизонталь по буквам слова', () => {
+    /** Стенд: канвас с буквами одной строки и слой с зонами слов. */
+    function lineSetup(
+      letters: Array<{ left: number; right: number }>,
+      zones: Array<{ text: string; left: number; width: number }>,
+      lineTop = 20,
+      lineBottom = 34,
+    ) {
+      const side = 400;
+      const host = document.createElement('div');
+      host.style.cssText = `position:absolute;left:0;top:0;width:${side}px;height:${side}px`;
+      document.body.append(host);
+      const canvas = document.createElement('canvas');
+      canvas.width = side;
+      canvas.height = side;
+      const pixels = new Uint8ClampedArray(side * side * 4);
+      for (let index = 0; index < pixels.length; index += 4) {
+        pixels[index] = 255;
+        pixels[index + 1] = 255;
+        pixels[index + 2] = 255;
+        pixels[index + 3] = 255;
+      }
+      for (const letter of letters) {
+        for (let y = lineTop; y <= lineBottom; y += 1) {
+          for (let x = letter.left; x <= letter.right; x += 1) {
+            const index = (y * side + x) * 4;
+            pixels[index] = 0;
+            pixels[index + 1] = 0;
+            pixels[index + 2] = 0;
+          }
+        }
+      }
+      const context = {
+        getImageData: () => ({ data: pixels }),
+      } as unknown as CanvasRenderingContext2D;
+      Object.defineProperty(canvas, 'getContext', { value: () => context });
+      Object.defineProperty(canvas, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, right: side, bottom: side, width: side, height: side }),
+      });
+      host.append(canvas);
+      const layer = document.createElement('div');
+      layer.className = 'textLayer';
+      layer.style.cssText = `position:absolute;left:0;top:0;width:${side}px;height:${side}px`;
+      Object.defineProperty(layer, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, right: side, bottom: side, width: side, height: side }),
+      });
+      host.append(layer);
+      for (const zone of zones) {
+        const span = document.createElement('span');
+        span.textContent = zone.text + ' ';
+        span.style.cssText = `position:absolute;left:${zone.left}px;top:${lineTop}px;width:${zone.width}px;height:${lineBottom - lineTop + 1}px;font-size:12px;white-space:pre;color:transparent`;
+        Object.defineProperty(span, 'getBoundingClientRect', {
+          value: () => ({
+            left: zone.left,
+            top: lineTop,
+            right: zone.left + zone.width,
+            bottom: lineBottom + 1,
+            width: zone.width,
+            height: lineBottom - lineTop + 1,
+          }),
+        });
+        // jsdom не считает ширину содержимого: она задаётся явно, чтобы
+        // `scaleX` получал определённое значение.
+        Object.defineProperty(span, 'scrollWidth', { value: 100 });
+        layer.append(span);
+      }
+      return { host, canvas, layer };
+    }
+
+    /** Левый и правый край рамки слова в пикселях растра. */
+    function frame(span: HTMLElement): { left: number; right: number } {
+      const left = Number.parseFloat(span.style.left);
+      const natural = Number.parseFloat(span.style.width);
+      const scale = /scaleX\(([^)]+)\)/.exec(span.style.transform);
+      const width = scale ? natural * Number.parseFloat(scale[1]) : natural;
+      return { left, right: left + width };
+    }
+
+    it('накрывает всё длинное слово, хотя зона уже букв', () => {
+      // Дефект: рамка начиналась на верной букве, а конец обрезался — и тем
+      // сильнее, чем слово длиннее. Причина — окно поиска чернил вокруг зоны,
+      // которая уже самого слова.
+      const { host, canvas, layer } = lineSetup(
+        [
+          { left: 20, right: 28 },
+          { left: 31, right: 39 },
+          { left: 42, right: 50 },
+          { left: 53, right: 61 },
+          { left: 64, right: 72 },
+        ],
+        [{ text: 'слово', left: 20, width: 40 }],
+      );
+      try {
+        alignTextLayerToRaster(layer, canvas, false);
+        const span = layer.querySelector('span') as HTMLElement;
+        const box = frame(span);
+        expect(box.left).toBeCloseTo(20, 0);
+        // Правый край — по последней букве слова (72), а не по краю зоны (60).
+        expect(box.right).toBeCloseTo(73, 0);
+      } finally {
+        host.remove();
+      }
+    });
+
+    it('берёт одно слово, когда зона растянута на всю строку', () => {
+      // Зона строки с текстом одного слова: рамка не должна растягиваться на
+      // полстроки, а обязана совпасть с буквами первого слова.
+      const { host, canvas, layer } = lineSetup(
+        [
+          { left: 20, right: 34 },
+          { left: 40, right: 54 },
+          { left: 60, right: 74 },
+          { left: 100, right: 114 },
+        ],
+        [{ text: 'Вся', left: 20, width: 360 }],
+      );
+      try {
+        alignTextLayerToRaster(layer, canvas, false);
+        const span = layer.querySelector('span') as HTMLElement;
+        const box = frame(span);
+        expect(box.left).toBeCloseTo(20, 0);
+        expect(box.right).toBeCloseTo(75, 0);
+      } finally {
+        host.remove();
+      }
+    });
+
+    it('не режет слово на буквах, если просвет внутри слова', () => {
+      // Дефект: `с→п` в плотном шрифте даёт просвет 13 px при межсловном 16, и
+      // рамка обрывалась на первой букве.
+      // Внутри слова просвет `с→п` почти как межсловный: 13 px.
+      const { host, canvas, layer } = lineSetup(
+        [
+          { left: 20, right: 40 },
+          { left: 54, right: 74 },
+          { left: 88, right: 108 },
+        ],
+        [{ text: 'спасает', left: 20, width: 104 }],
+      );
+      try {
+        alignTextLayerToRaster(layer, canvas, false);
+        const span = layer.querySelector('span') as HTMLElement;
+        const box = frame(span);
+        expect(box.left).toBeCloseTo(20, 0);
+        // Все три буквы слова — до 108; четвёртая группа дальше — не его.
+        expect(box.right).toBeCloseTo(109, 0);
+      } finally {
+        host.remove();
+      }
+    });
+
+    it('ставит каждому слову строки свою группу букв', () => {
+      // Смежные слова: у каждого своя рамка, без захвата чужих букв.
+      const { host, canvas, layer } = lineSetup(
+        [
+          { left: 20, right: 36 },
+          { left: 40, right: 56 },
+          { left: 100, right: 116 },
+          { left: 120, right: 136 },
+        ],
+        [
+          { text: 'первое', left: 20, width: 60 },
+          { text: 'второе', left: 100, width: 60 },
+        ],
+      );
+      try {
+        alignTextLayerToRaster(layer, canvas, false);
+        const spans = Array.from(layer.querySelectorAll('span')) as HTMLElement[];
+        const boxes = spans.map(frame);
+        expect(boxes[0].left).toBeCloseTo(20, 0);
+        expect(boxes[0].right).toBeCloseTo(57, 0);
+        expect(boxes[1].left).toBeCloseTo(100, 0);
+        expect(boxes[1].right).toBeCloseTo(137, 0);
+      } finally {
+        host.remove();
+      }
+    });
+  });
+
   it('возвращает ноль без доступа к пикселям', () => {
     const layer = document.createElement('div');
     const fake = {
