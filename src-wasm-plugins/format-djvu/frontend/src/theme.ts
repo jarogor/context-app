@@ -188,7 +188,7 @@ export function recolorCanvas(canvas: HTMLCanvasElement, theme: 'light' | 'dark'
   if (theme !== 'dark') {
     return;
   }
-  const context = canvas.getContext('2d');
+  const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context || !canvas.width || !canvas.height) {
     return;
   }

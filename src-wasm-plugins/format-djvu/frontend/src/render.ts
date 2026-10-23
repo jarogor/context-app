@@ -120,7 +120,9 @@ function setupCanvas(pageEl: HTMLElement, viewport: { width: number; height: num
 /** Освобождение канвасов всех страниц окна (при смене масштаба или темы).
  *
  * Смена масштаба отменяет и незавершённую очередь отрисовки: страницы рисуются
- * заново уже под новый масштаб.
+ * заново уже под новый масштаб. Прежний растр НЕ снимается сразу: пока новый не
+ * готов, он держит картинку на месте. Иначе на время отрисовки (до полусекунды
+ * на страницу) на месте текста была пустота.
  */
 export function releaseWindowPages(): void {
   state.renderToken += 1;
@@ -130,8 +132,43 @@ export function releaseWindowPages(): void {
     renderTimer = null;
   }
   for (const pageEl of state.pages.values()) {
-    releasePage(pageEl);
+    if (!preserveOldRaster(pageEl)) {
+      releasePage(pageEl);
+    }
   }
+}
+
+/**
+ * Удержание прежнего растра до готовности нового.
+ *
+ * Кадр остаётся в разметке и растягивается по новому размеру страницы: он
+ * немного мягче, зато текст не пропадает на время отрисовки. Текстовый слой
+ * снимается — его слова относятся к прежнему масштабу и перехватывали бы
+ * выделение. Запись об отрисовке удаляется, чтобы страница попала в очередь, а
+ * старый канвас снимет `renderPage` перед вставкой нового.
+ *
+ * Возвращает false, если держать нечего.
+ */
+function preserveOldRaster(pageEl: HTMLElement): boolean {
+  const entry = state.rendered.get(pageEl);
+  if (!entry) {
+    return false;
+  }
+  entry.textLayer.remove();
+  // Растр окна (не вся страница) растягивать нельзя: он покрывает только часть
+  // страницы, и растяжение сдвинуло бы текст. Такой канвас снимается.
+  const wholePage = Math.abs(entry.info.x) < 0.5 && Math.abs(entry.info.y) < 0.5;
+  state.rendered.delete(pageEl);
+  delete pageEl.dataset.rendered;
+  if (!wholePage) {
+    entry.canvas.remove();
+    return true;
+  }
+  entry.canvas.style.left = '0';
+  entry.canvas.style.top = '0';
+  entry.canvas.style.width = '100%';
+  entry.canvas.style.height = '100%';
+  return true;
 }
 
 /** Освобождение канваса и текстового слоя страницы (память при прокрутке). */
@@ -298,7 +335,10 @@ export function renderPage(
   const setup = setupCanvas(pageEl, viewport);
   const canvas = setup.canvas;
   const info = setup.info;
-  const context = canvas.getContext('2d');
+  // Канвас читается пикселями (`alignTextLayerToRaster`, перекраска темы),
+  // поэтому контекст создаётся в режиме частого чтения: иначе браузер держит
+  // растр на видеокарте и каждое `getImageData` стоит сотни миллисекунд.
+  const context = canvas.getContext('2d', { willReadFrequently: true });
   const overlay = overlayOf(pageEl);
   if (!context || !overlay) {
     state.pending.delete(pageEl);
@@ -546,8 +586,8 @@ function renderWindow(): void {
     }
     visible.push(pageEl);
   }
-  // Видимая нерисованная страница рисуется сразу, пока не откреплённый канвас
-  // занимал бы её место: остальное дорисуется из очереди.
+  // Видимая нерисованная страница рисуется сразу: она перед глазами, и ждать
+  // кадра очереди незачем. Остальные дорисуются из очереди по кадрам.
   renderQueue = [];
   for (let index = 0; index < rerender.length; index += 1) {
     const [pageEl, preserve] = rerender[index];
@@ -636,6 +676,9 @@ export function notifyScrolling(): void {
   }, 90);
 }
 
+/** Пауза склейки серии нажатий, мс. */
+const SETTLE_DELAY = 140;
+
 /**
  * Отложенная отрисовка после серии изменений (например, нажатий масштаба).
  *
@@ -650,7 +693,7 @@ export function settleRender(): void {
   settleTimer = setTimeout(() => {
     settleTimer = null;
     refreshWindows();
-  }, 140);
+  }, SETTLE_DELAY);
 }
 
 /** Доведение отрисовки после смены раскраски или возврата видимости.

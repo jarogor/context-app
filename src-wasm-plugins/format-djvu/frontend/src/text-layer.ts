@@ -183,7 +183,7 @@ export function alignTextLayerToRaster(
   }
   let context: CanvasRenderingContext2D | null;
   try {
-    context = canvas.getContext('2d');
+    context = canvas.getContext('2d', { willReadFrequently: true });
   } catch {
     return 0;
   }
@@ -214,26 +214,36 @@ export function alignTextLayerToRaster(
   const boxRatio = fontContentRatio();
   // Полосы строк растра: проекция чернил по столбцам слов. Полоса строки — то,
   // что видно на странице, и она задаёт вертикаль рамки.
-  const columnMask = new Uint8Array(width);
+  //
+  // Проход идёт по пикселям столбцов слов, а не по всей странице: раньше на
+  // каждую строку проверялась вся ширина, и выравнивание стоило около двух
+  // секунд на страницу. Набор столбцов тот же — за пределами слов чернила в
+  // проекцию не входят.
+  const columns: number[] = [];
+  const seenColumn = new Uint8Array(width);
   for (const item of spans) {
     const x0 = Math.max(0, Math.floor((item.rect.left - canvasRect.left) * ratio));
     const x1 = Math.min(width - 1, Math.ceil((item.rect.right - canvasRect.left) * ratio));
     for (let x = x0; x <= x1; x += 1) {
-      columnMask[x] = 1;
-    }
-  }
-  const counts = new Int32Array(height);
-  let peak = 0;
-  for (let y = 0; y < height; y += 1) {
-    let ink = 0;
-    for (let x = 0; x < width; x += 1) {
-      if (columnMask[x] === 1 && isInk(x, y)) {
-        ink += 1;
+      if (seenColumn[x] === 0) {
+        seenColumn[x] = 1;
+        columns.push(x);
       }
     }
-    counts[y] = ink;
-    if (ink > peak) {
-      peak = ink;
+  }
+  columns.sort((a, b) => a - b);
+  const counts = new Int32Array(height);
+  let peak = 0;
+  for (const x of columns) {
+    for (let y = 0; y < height; y += 1) {
+      if (isInk(x, y)) {
+        counts[y] += 1;
+      }
+    }
+  }
+  for (let y = 0; y < height; y += 1) {
+    if (counts[y] > peak) {
+      peak = counts[y];
     }
   }
   if (peak === 0) {
@@ -323,41 +333,62 @@ export function alignTextLayerToRaster(
     let row = -1;
     let nearestDistance = Number.POSITIVE_INFINITY;
     if (rows.length > 0) {
-      const x0 = Math.max(0, Math.floor((rect.left - canvasRect.left) * ratio));
-      const x1 = Math.min(width - 1, Math.ceil((rect.right - canvasRect.left) * ratio));
-      // Вертикальный профиль чернил в столбцах слова.
-      const own = new Int32Array(height);
-      for (let x = x0; x <= x1; x += 1) {
-        for (let y = 0; y < height; y += 1) {
-          if (isInk(x, y)) {
-            own[y] += 1;
-          }
-        }
-      }
-      let ownPeak = 0;
-      for (let y = 0; y < height; y += 1) {
-        if (own[y] > ownPeak) {
-          ownPeak = own[y];
-        }
-      }
+      // Кандидаты — строки в окне вокруг центра зоны. Профиль считается только
+      // в этом окне: проход по всей высоте страницы для каждого слова стоил
+      // секунды на страницу.
+      const candidates: number[] = [];
+      let windowTop = Number.POSITIVE_INFINITY;
+      let windowBottom = Number.NEGATIVE_INFINITY;
       for (let index = 0; index < rows.length; index += 1) {
-        const distance = Math.abs((rows[index].top + rows[index].bottom + 1) / 2 - zoneCenter);
-        if (distance >= nearestDistance) {
+        const rowCenter = (rows[index].top + rows[index].bottom + 1) / 2;
+        const distance = Math.abs(rowCenter - zoneCenter);
+        if (distance > pitch * 1.5) {
           continue;
         }
-        // Строка-кандидат должна иметь чернила в столбцах слова: иначе это
-        // строка соседнего абзаца или колонтитул, и слово к ней не относится.
-        let ink = 0;
-        if (ownPeak > 0) {
-          for (let y = rows[index].top; y <= rows[index].bottom; y += 1) {
-            ink += own[y];
+        candidates.push(index);
+        windowTop = Math.min(windowTop, rows[index].top);
+        windowBottom = Math.max(windowBottom, rows[index].bottom);
+      }
+      if (candidates.length > 0) {
+        const x0 = Math.max(0, Math.floor((rect.left - canvasRect.left) * ratio));
+        const x1 = Math.min(width - 1, Math.ceil((rect.right - canvasRect.left) * ratio));
+        const from = Math.max(0, Math.floor(windowTop));
+        const to = Math.min(height - 1, Math.ceil(windowBottom));
+        // Вертикальный профиль чернил в столбцах слова.
+        const own = new Int32Array(Math.max(1, to - from + 1));
+        for (let x = x0; x <= x1; x += 1) {
+          for (let y = from; y <= to; y += 1) {
+            if (isInk(x, y)) {
+              own[y - from] += 1;
+            }
           }
         }
-        if (ownPeak > 0 && ink < ownPeak * 0.15) {
-          continue;
+        let ownPeak = 0;
+        for (let index = 0; index < own.length; index += 1) {
+          if (own[index] > ownPeak) {
+            ownPeak = own[index];
+          }
         }
-        nearestDistance = distance;
-        row = index;
+        for (const index of candidates) {
+          const distance = Math.abs((rows[index].top + rows[index].bottom + 1) / 2 - zoneCenter);
+          // Строка-кандидат должна иметь чернила в столбцах слова: иначе это
+          // строка соседнего абзаца или колонтитул, и слово к ней не относится.
+          let ink = 0;
+          if (ownPeak > 0) {
+            const lineFrom = Math.max(from, rows[index].top);
+            const lineTo = Math.min(to, rows[index].bottom);
+            for (let y = lineFrom; y <= lineTo; y += 1) {
+              ink += own[y - from];
+            }
+          }
+          if (ownPeak > 0 && ink < ownPeak * 0.15) {
+            continue;
+          }
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            row = index;
+          }
+        }
       }
     }
     let top = rect.top - canvasRect.top;
@@ -411,12 +442,30 @@ export function alignTextLayerToRaster(
     if (y1 <= y0) {
       continue;
     }
-    // Чернильные столбцы полосы строки.
-    const columnInk = new Uint8Array(width);
-    for (let x = 0; x < width; x += 1) {
+    // Высота полосы строки: от неё считаются запас поиска и пороги.
+    const lineHeightPx = y1 - y0 + 1;
+    // Чернильные столбцы полосы строки — от первого до последнего столбца её
+    // слов с запасом. Зона бывает уже букв (и на крупном масштабе расходятся
+    // сильнее), поэтому запас берётся с избытком; за его пределами — поля
+    // страницы. Проход идёт по непрерывному диапазону, а не по всей ширине: это
+    // вдвое-втрое меньше работы на строку.
+    const slack = Math.round(lineHeightPx * 4);
+    let bandFrom = width - 1;
+    let bandTo = 0;
+    for (const word of bucket) {
+      bandFrom = Math.min(bandFrom, Math.floor(word.zoneLeft));
+      bandTo = Math.max(bandTo, Math.ceil(word.zoneRight));
+    }
+    const bandLeft = Math.max(0, bandFrom - slack);
+    const bandRight = Math.min(width - 1, bandTo + slack);
+    if (bandRight < bandLeft) {
+      continue;
+    }
+    const columnInk = new Uint8Array(bandRight - bandLeft + 1);
+    for (let x = bandLeft; x <= bandRight; x += 1) {
       for (let y = y0; y <= y1; y += 1) {
         if (isInk(x, y)) {
-          columnInk[x] = 1;
+          columnInk[x - bandLeft] = 1;
           break;
         }
       }
@@ -424,13 +473,13 @@ export function alignTextLayerToRaster(
     // Непрерывные участки чернил и разрывы между ними.
     const runs: Array<{ left: number; right: number }> = [];
     let runStart = -1;
-    for (let x = 0; x <= width; x += 1) {
-      const ink = x < width && columnInk[x] === 1;
+    for (let index = 0; index <= columnInk.length; index += 1) {
+      const ink = index < columnInk.length && columnInk[index] === 1;
       if (ink && runStart < 0) {
-        runStart = x;
+        runStart = index;
       }
       if (!ink && runStart >= 0) {
-        runs.push({ left: runStart, right: x - 1 });
+        runs.push({ left: runStart + bandLeft, right: index - 1 + bandLeft });
         runStart = -1;
       }
     }
@@ -440,7 +489,6 @@ export function alignTextLayerToRaster(
     if (bucket.length === 1) {
       // Одна зона на полосе — слово, либо зона, растянутая на строку.
       const zone = bucket[0];
-      const lineHeightPx = y1 - y0 + 1;
       const chars = Math.max(1, (zone.span.textContent ?? '').trim().length);
       // Растянутость определяется по числу символов: слово такой длины в разы
       // уже зоны, растянутой на строку. Порог от одной высоты строки не годится —
@@ -502,7 +550,6 @@ export function alignTextLayerToRaster(
     // годится: у плотного шрифта межсловный разрыв бывает уже межбуквенного, и
     // тогда границы уезжают на буквы внутри слов — полоса режется, и рамка
     // съезжает на соседа.
-    const lineHeightPx = y1 - y0 + 1;
     // Окно ограничено серединами соседних зон: дальше начинается чужое слово, и
     // разрыв там уже не граница. Запас в 0,6 высоты строки покрывает смещение
     // зоны от букв.

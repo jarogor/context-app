@@ -79,10 +79,15 @@ function applyZoom(value: number): void {
   const offsetBefore = offsetOfPage(anchorPage) - viewer.scrollTop;
   state.zoom = next;
   // Смена масштаба пересчитывает виртуальную раскладку и сбрасывает растры
-  // окна: перерисовываются только его страницы.
+  // окна: перерисовываются только его страницы. Прежний растр остаётся видимым
+  // до готовности нового, поэтому пустой страницы на время отрисовки нет.
   releaseWindowPages();
   resizePages();
   viewer.scrollTop = offsetOfPage(anchorPage) - offsetBefore;
+  // Размер области после смены содержимого не менялся: запоминаем его, чтобы
+  // `ResizeObserver` не запустил пересчёт второй раз на то же изменение.
+  state.lastViewerWidth = viewer.clientWidth;
+  state.lastViewerHeight = viewer.clientHeight;
   settleRender();
   reportState();
 }
