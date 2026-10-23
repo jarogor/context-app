@@ -315,11 +315,47 @@ export function alignTextLayerToRaster(
   for (const item of spans) {
     const rect = item.rect;
     const zoneCenter = (rect.top + rect.height / 2 - canvasRect.top) * ratio + boundedShift;
+    // Строка ищется по ЧЕРНИЛАМ В СТОЛБЦАХ САМОГО СЛОВА, а не по всей странице.
+    // Полоса, найденная по всей ширине, расширяется выносными элементами
+    // соседних строк (курсив, «р», «у», «д»), и её центр уходит на полстроки —
+    // рамка съезжает на соседнюю строку. В столбцах своего слова буквы — только
+    // его строки.
     let row = -1;
     let nearestDistance = Number.POSITIVE_INFINITY;
-    for (let index = 0; index < rows.length; index += 1) {
-      const distance = Math.abs((rows[index].top + rows[index].bottom + 1) / 2 - zoneCenter);
-      if (distance < nearestDistance) {
+    if (rows.length > 0) {
+      const x0 = Math.max(0, Math.floor((rect.left - canvasRect.left) * ratio));
+      const x1 = Math.min(width - 1, Math.ceil((rect.right - canvasRect.left) * ratio));
+      // Вертикальный профиль чернил в столбцах слова.
+      const own = new Int32Array(height);
+      for (let x = x0; x <= x1; x += 1) {
+        for (let y = 0; y < height; y += 1) {
+          if (isInk(x, y)) {
+            own[y] += 1;
+          }
+        }
+      }
+      let ownPeak = 0;
+      for (let y = 0; y < height; y += 1) {
+        if (own[y] > ownPeak) {
+          ownPeak = own[y];
+        }
+      }
+      for (let index = 0; index < rows.length; index += 1) {
+        const distance = Math.abs((rows[index].top + rows[index].bottom + 1) / 2 - zoneCenter);
+        if (distance >= nearestDistance) {
+          continue;
+        }
+        // Строка-кандидат должна иметь чернила в столбцах слова: иначе это
+        // строка соседнего абзаца или колонтитул, и слово к ней не относится.
+        let ink = 0;
+        if (ownPeak > 0) {
+          for (let y = rows[index].top; y <= rows[index].bottom; y += 1) {
+            ink += own[y];
+          }
+        }
+        if (ownPeak > 0 && ink < ownPeak * 0.15) {
+          continue;
+        }
         nearestDistance = distance;
         row = index;
       }
@@ -604,5 +640,9 @@ export function alignTextLayerToRaster(
       item.span.style.transform = `scaleX(${item.width / natural})`;
     }
   }
+  // Межстрочный шаг страницы в CSS-пикселях: по нему строится высота полосы
+  // выделения. Без него одиночное слово выделялось бы по высоте букв, а блок —
+  // по высоте строки, и выделение выглядело бы двумя разными.
+  layer.dataset.linePitch = String(pitch / ratio);
   return measured.length;
 }

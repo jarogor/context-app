@@ -209,7 +209,7 @@ function targetDpi(page: DjVuPage, info: CanvasInfo, quality: number): number {
 /** Запас детализации растра над пикселями канваса. */
 const RASTER_QUALITY = 1.5;
 /** Предельная площадь растровой страницы (пиксели) с запасом детализации. */
-const RASTER_AREA = 6 * 1024 * 1024;
+const RASTER_AREA = 26 * 1024 * 1024;
 /** Нижний предел разрешения отрисовки, dpi. */
 const MIN_RASTER_DPI = 144;
 
@@ -217,11 +217,11 @@ const MIN_RASTER_DPI = 144;
  * Запас детализации растра.
  *
  * Разрешение отрисовки задаётся масштабом: на 40 % это около 40 dpi, и штрихи
- * букв тоньше пикселя — мелкий масштаб выходит пиксельным. Поэтому страница
- * всегда рисуется не ниже `MIN_RASTER_DPI` и сжимается до размера канваса: при
- * сжатии штрихи получают сглаживание и остаются читаемыми. На крупных масштабах
- * базовое разрешение уже выше предела, и запас равен 1,5 — поведение не
- * меняется.
+ * букв тоньше пикселя — мелкий масштаб выходит пиксельным. Поэтому растр
+ * рисуется не ниже родного разрешения файла (`page.dpi()`): JB2 хранит буквы в
+ * родном разрешении, и при отрисовке мельче движок пересэмплирует двухцветный
+ * слой без сглаживания — буквы становятся ступенчатыми. Рисование в родном
+ * разрешении и однократное сжатие до канваса даёт гладкие штрихи.
  *
  * Выравнивание текстового слоя читает пиксели КАНВАСА (после сжатия), поэтому
  * запас не меняет его геометрию: рамки слов остаются на буквах при любом
@@ -230,17 +230,25 @@ const MIN_RASTER_DPI = 144;
 function rasterQuality(page: DjVuPage, info: CanvasInfo): number {
   const stored = page.dpi() || 300;
   const dpi = effectiveDpi(page);
-  // Разрешение без запаса: столько пикселей файла приходится на CSS-пиксель.
+  // Разрешение отрисовки без запаса, dpi.
   const base = (state.zoom / 100) * CSS_DPI * (stored / dpi) * info.ratio;
-  const byQuality = base > 0 ? Math.max(1, MIN_RASTER_DPI / base) : RASTER_QUALITY;
-  const quality = Math.max(RASTER_QUALITY, byQuality);
-  // Предел площади: запас снимается, пока растр не влезет в допустимый размер.
+  let quality = RASTER_QUALITY;
+  if (base > 0) {
+    // Ниже родного разрешения файла растр не опускается: иначе движок
+    // пересэмплирует JB2 и штрихи выходят ступенчатыми.
+    const wanted = Math.max(MIN_RASTER_DPI, stored);
+    if (base < wanted) {
+      quality = Math.max(quality, wanted / base);
+    }
+  }
+  // Предел площади: запас снимается только если растр не влезает в допустимый
+  // размер. Ниже 1 не опускаемся — растр мельче канваса браузер растягивает.
   const cssArea = info.width * info.height * info.ratio * info.ratio;
   if (cssArea > 0) {
     const limit = Math.sqrt(RASTER_AREA / cssArea);
-    return Math.max(1, Math.min(quality, limit));
+    quality = Math.min(quality, limit);
   }
-  return quality;
+  return Math.max(1, quality);
 }
 
 /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок.
@@ -338,13 +346,37 @@ export function renderPage(
     if (pixmap.width() === canvas.width && pixmap.height() === canvas.height) {
       context.putImageData(source, 0, 0);
     } else {
-      const scratch = document.createElement('canvas');
-      scratch.width = pixmap.width();
-      scratch.height = pixmap.height();
-      scratch.getContext('2d')?.putImageData(source, 0, 0);
+      // Сжатие выполняется ступенями не более чем вдвое за шаг. Однократное
+      // уменьшение в 4–5 раз (страница на 40 % рисуется в родном разрешении)
+      // теряет тонкие штрихи: браузерные движки берут далеко не все пиксели
+      // источника, и буквы выходят ступенчатыми. Пошаговое уменьшение вдвое
+      // сохраняет штрихи, потому что на каждом шаге свёртка берёт все пиксели.
+      const stage = document.createElement('canvas');
+      let width = pixmap.width();
+      let height = pixmap.height();
+      stage.width = width;
+      stage.height = height;
+      stage.getContext('2d')?.putImageData(source, 0, 0);
+      while (width > canvas.width * 2 && height > canvas.height * 2) {
+        const next = document.createElement('canvas');
+        width = Math.max(canvas.width, Math.round(width / 2));
+        height = Math.max(canvas.height, Math.round(height / 2));
+        next.width = width;
+        next.height = height;
+        const step = next.getContext('2d');
+        if (!step) {
+          break;
+        }
+        step.imageSmoothingEnabled = true;
+        step.imageSmoothingQuality = 'high';
+        step.drawImage(stage, 0, 0, width, height);
+        stage.width = width;
+        stage.height = height;
+        stage.getContext('2d')?.drawImage(next, 0, 0);
+      }
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = 'high';
-      context.drawImage(scratch, 0, 0, canvas.width, canvas.height);
+      context.drawImage(stage, 0, 0, canvas.width, canvas.height);
     }
     // Перекраска растра в тёмной теме: светлый фон страницы становится тёмным,
     // тёмный текст — светлым, оттенок сохраняется.

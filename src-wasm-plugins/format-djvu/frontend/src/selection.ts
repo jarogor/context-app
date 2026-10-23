@@ -30,13 +30,33 @@ export function fractionRect(bounds: DOMRect, pageBounds: DOMRect): Rect {
  */
 export function selectionRects(range: Range, pageBounds: DOMRect): Rect[] {
   const rects: Rect[] = [];
+  const pitch = pagePitch(range);
   for (const bounds of spanRects(range)) {
     if (bounds.width <= 0 || bounds.height <= 0) {
+      continue;
+    }
+    // Вертикаль полосы — по межстрочному шагу страницы (см. `tileByLine`): так
+    // одиночное слово и блок выделяются одинаково, полосой на высоту строки.
+    if (pitch > 0) {
+      const center = bounds.top + bounds.height / 2;
+      rects.push({
+        x: (bounds.left - pageBounds.left) / pageBounds.width,
+        y: (center - pitch / 2 - pageBounds.top) / pageBounds.height,
+        width: bounds.width / pageBounds.width,
+        height: pitch / pageBounds.height,
+      });
       continue;
     }
     rects.push(fractionRect(bounds, pageBounds));
   }
   return rects;
+}
+
+/** Межстрочный шаг страницы выделения в CSS-пикселях; 0 — шаг неизвестен. */
+function pagePitch(range: Range): number {
+  const startLayer = elementOf(range.startContainer)?.closest<HTMLElement>(`.${TEXT_LAYER_CLASS}`);
+  const value = startLayer ? Number.parseFloat(startLayer.dataset.linePitch ?? '') : Number.NaN;
+  return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 /**
@@ -60,7 +80,12 @@ function spanRects(range: Range): DOMRect[] {
     }
     const own = span.getBoundingClientRect();
     const text = span.firstChild as Text;
-    const length = text.length;
+    // Хвостовой пробел зоны — не буква: он нужен только для непрерывности
+    // выделения и копирования. Если делить ширину по полной длине текста,
+    // двойной клик по слову (диапазон без пробела) даёт рамку короче слова на
+    // долю пробела — тем заметнее, чем слово короче. Ширина делится только
+    // между буквами.
+    const length = text.data.replace(/\s+$/, '').length;
     if (!(length > 0) || !(own.width > 0)) {
       return;
     }
