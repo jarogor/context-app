@@ -320,10 +320,42 @@ describe('alignTextLayerToRaster', () => {
       return { left, right: left + width };
     }
 
+    it('не тянет длинное слово до конца строки при соседе справа', () => {
+      // Регрессия: условие «зона шире трёх высот строки» отбрасывало почти все
+      // слова в ветку «последнее слово», и рамка тянулась до конца строки —
+      // слово выглядело растянутым на всю строку.
+      const { host, canvas, layer } = lineSetup(
+        [
+          { left: 20, right: 28 },
+          { left: 31, right: 39 },
+          { left: 42, right: 50 },
+          { left: 53, right: 61 },
+          { left: 64, right: 72 },
+          { left: 100, right: 108 },
+          { left: 111, right: 119 },
+          { left: 122, right: 130 },
+        ],
+        [
+          { text: 'длинное', left: 20, width: 53 },
+          { text: 'ещё', left: 100, width: 31 },
+        ],
+      );
+      try {
+        alignTextLayerToRaster(layer, canvas, false);
+        const spans = Array.from(layer.querySelectorAll('span')) as HTMLElement[];
+        const boxes = spans.map(frame);
+        // Первое слово шириной 53 (больше трёх высот строки 15), но рамка —
+        // только по своим буквам, до 73, а не до конца строки 131.
+        expect(boxes[0].left).toBeCloseTo(20, 0);
+        expect(boxes[0].right).toBeCloseTo(73, 0);
+        expect(boxes[1].left).toBeCloseTo(100, 0);
+        expect(boxes[1].right).toBeCloseTo(131, 0);
+      } finally {
+        host.remove();
+      }
+    });
+
     it('накрывает всё длинное слово, хотя зона уже букв', () => {
-      // Дефект: рамка начиналась на верной букве, а конец обрезался — и тем
-      // сильнее, чем слово длиннее. Причина — окно поиска чернил вокруг зоны,
-      // которая уже самого слова.
       const { host, canvas, layer } = lineSetup(
         [
           { left: 20, right: 28 },

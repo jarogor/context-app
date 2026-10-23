@@ -382,30 +382,37 @@ export function alignTextLayerToRaster(
         }
         return false;
       };
-      if (next && zoneWidth <= lineHeightPx * 3) {
-        // Обычная зона слова: чернила от её левого края до левого края зоны
-        // следующего слова. Зона шире трёх высот строки — это уже не слово, а
-        // строка или блок (см. ниже).
+      if (next) {
+        // Граница со следующим словом известна: правый край — последние чернила
+        // перед левым краем зоны следующего слова. Зона своего слова бывает и
+        // уже букв, и растянутой на строку — на границу это не влияет, потому
+        // что её задаёт сосед. Условие «зона шире трёх высот» здесь непригодно:
+        // длинное слово всегда шире трёх высот строки, и рамка уезжала в конец
+        // строки.
         const searchLeft = Math.max(0, Math.floor(word.zoneLeft));
         const searchRight = Math.min(width - 1, Math.ceil(next.zoneLeft) - 1);
-        for (let x = searchLeft; x <= searchRight; x += 1) {
-          if (columnHasInk(x)) {
-            if (left < 0) {
-              left = x;
+        if (searchRight >= searchLeft) {
+          for (let x = searchLeft; x <= searchRight; x += 1) {
+            if (columnHasInk(x)) {
+              if (left < 0) {
+                left = x;
+              }
+              right = x;
             }
-            right = x;
           }
         }
       } else {
-        // Последнее слово строки или зона, растянутая на строку: справа границы
-        // от соседней зоны нет, поэтому слово — первая группа чернил от левого
-        // края зоны. Группы разделяются просветом заметно больше высоты строки:
-        // внутри слова таких просветов не бывает, а до колонцифры или номера
-        // страницы — бывает.
+        // Последнее слово строки: справа соседа нет. Зона, растянутая на строку,
+        // берёт только первое слово полосы (разрыв до остального больше высоты
+        // строки); обычная зона ограничивает поиск своим правым краем с запасом.
+        const stretched = zoneWidth > lineHeightPx * 3;
         const stopGap = Math.max(2, Math.round(lineHeightPx * 1.2));
         const searchLeft = Math.max(0, Math.floor(word.zoneLeft));
+        const searchRight = stretched
+          ? width - 1
+          : Math.min(width - 1, Math.ceil(word.zoneRight + lineHeightPx));
         let empty = 0;
-        for (let x = searchLeft; x < width; x += 1) {
+        for (let x = searchLeft; x <= searchRight; x += 1) {
           if (columnHasInk(x)) {
             if (left < 0) {
               left = x;
