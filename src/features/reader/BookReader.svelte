@@ -2,12 +2,15 @@
   import { onMount, untrack } from 'svelte';
   import { Button, Icon } from '@texture/ui';
   import {
+    applyReaderFont,
     applyReaderPalette,
     applyReaderTheme,
     DEFAULT_PALETTE,
+    DEFAULT_READER_FONT,
     DEFAULT_READER_THEME,
     readerThemeTokens,
     type PaletteId,
+    type ReaderFontId,
     type ReaderThemeId,
   } from '@texture/ui';
   import type { BookContent } from './reader';
@@ -66,6 +69,8 @@
     tool?: NoteTool;
     /** Тема области чтения (светлая или тёмная). */
     readerTheme?: ReaderThemeId;
+    /** Гарнитура книги: с засечками или без. */
+    readerFont?: ReaderFontId;
     /** Палитра оформления: общий реестр дизайн-системы. */
     palette?: PaletteId;
     /** Выделение пользователя, ставшее цитатой. */
@@ -92,6 +97,7 @@
     visible = true,
     tool = DEFAULT_NOTE_TOOL,
     readerTheme = DEFAULT_READER_THEME,
+    readerFont = DEFAULT_READER_FONT,
     palette = DEFAULT_PALETTE,
     onQuote,
     onTextPoint,
@@ -1245,7 +1251,7 @@
    */
   let html = $state('');
   onMount(() => {
-    html = buildDocument(content, { palette, readerTheme });
+    html = buildDocument(content, { palette, readerTheme, readerFont });
     /** Завершение протяжки фигуры при отпускании кнопки вне области чтения.
      *
      * `mouseup` внутри документа книги не приходит, если курсор вышел за пределы
@@ -1289,9 +1295,13 @@
   $effect(() => {
     const value = readerTheme;
     const paletteValue = palette;
+    const fontValue = readerFont;
     if (doc) {
       applyReaderTheme(value, doc.documentElement);
       applyReaderPalette(paletteValue, doc.documentElement);
+      // Гарнитура ставится атрибутом: перестройка текста не нужна, позиция
+      // чтения и подсветки заметок сохраняются.
+      applyReaderFont(fontValue, doc.documentElement);
     }
   });
 

@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_PALETTE, PALETTES } from './palettes';
 import {
+  applyReaderFont,
   applyReaderTheme,
   blendNoteToneOverBackground,
+  DEFAULT_READER_FONT,
   DEFAULT_READER_THEME,
+  isReaderFontId,
   isReaderThemeId,
+  normalizeReaderFontId,
   normalizeReaderThemeId,
+  READER_FONTS,
+  readerFontFamily,
   READER_NOTE_COLOR_IDS,
   readerPageColors,
   readerThemeNoteTones,
@@ -186,5 +192,49 @@ describe('solidNoteTones', () => {
     const solid = solidNoteTones(tones, readerThemeTokens('linen', 'dark').background);
     const values = READER_NOTE_COLOR_IDS.map((color) => solid[color]);
     expect(new Set(values).size).toBe(values.length);
+  });
+});
+
+describe('гарнитура книги', () => {
+  it('сохраняет допустимые значения', () => {
+    expect(isReaderFontId('serif')).toBe(true);
+    expect(isReaderFontId('sans')).toBe(true);
+    expect(normalizeReaderFontId('sans')).toBe('sans');
+  });
+
+  it('неизвестное значение приводит к шрифту с засечками', () => {
+    expect(DEFAULT_READER_FONT).toBe('serif');
+    expect(isReaderFontId('mono')).toBe(false);
+    expect(normalizeReaderFontId('mono')).toBe('serif');
+    expect(normalizeReaderFontId(undefined)).toBe('serif');
+  });
+
+  it('семейство шрифта отличается у обеих гарнитур', () => {
+    const serif = readerFontFamily('serif');
+    const sans = readerFontFamily('sans');
+    expect(serif).toContain('serif');
+    expect(sans).toContain('system-ui');
+    expect(serif).not.toBe(sans);
+    for (const font of READER_FONTS) {
+      expect(readerFontFamily(font).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('applyReaderFont', () => {
+  it('выставляет атрибут data-reader-font', () => {
+    const root = { dataset: {} } as unknown as HTMLElement;
+
+    applyReaderFont('sans', root);
+
+    expect(root.dataset.readerFont).toBe('sans');
+  });
+
+  it('неизвестную гарнитуру заменяет шрифтом с засечками', () => {
+    const root = { dataset: {} } as unknown as HTMLElement;
+
+    applyReaderFont('неизвестная', root);
+
+    expect(root.dataset.readerFont).toBe('serif');
   });
 });

@@ -52,6 +52,7 @@ function appProps(sets: Array<Record<string, unknown>> = []) {
             theme: 'system' as const,
             palette: DEFAULT_PALETTE,
             readerTheme: 'light' as const,
+            readerFont: 'serif' as const,
         },
         initialSettings: { declarations: [], error: '' },
         initialNotifications: { entries: [], technicalVisible: false, error: '' },

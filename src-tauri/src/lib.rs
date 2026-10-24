@@ -149,6 +149,7 @@ pub fn run() {
             commands::theme_preference,
             commands::theme_palette,
             commands::reader_theme,
+            commands::reader_font,
             commands::window_open_tabs_limit,
             commands::show_window,
             commands::reader_formats,

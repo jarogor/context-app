@@ -8,10 +8,12 @@
 mod archive;
 mod chapters;
 mod metadata;
+mod style;
 mod text;
 
 pub use chapters::{read_epub_chapters, EpubChapter};
 pub use metadata::{extract, parse_epub_metadata};
+pub use style::{sanitize_css, BookStyle};
 pub use text::read_epub_text;
 
 #[cfg(test)]

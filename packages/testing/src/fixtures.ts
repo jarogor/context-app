@@ -73,6 +73,16 @@ const SETTINGS_FIELDS: Record<
             ],
         },
         {
+            key: 'reader.font',
+            title: 'Шрифт книги',
+            type: 'select',
+            default: 'serif',
+            options: [
+                { value: 'serif', title: 'С засечками' },
+                { value: 'sans', title: 'Без засечек' },
+            ],
+        },
+        {
             key: 'window.open_tabs_limit',
             title: 'Лимит открытых вкладок',
             type: 'number',
@@ -91,6 +101,7 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
         'appearance.theme': 'system',
         'appearance.palette': 'linen',
         'reader.theme': 'light',
+        'reader.font': 'serif',
         'window.open_tabs_limit': 50,
     },
 };
@@ -680,6 +691,7 @@ export function defaultMockConfig(): MockBridgeConfig {
             theme_preference: () => SETTINGS_VALUES['app.general']['appearance.theme'],
             theme_palette: () => SETTINGS_VALUES['app.general']['appearance.palette'],
             reader_theme: () => SETTINGS_VALUES['app.general']['reader.theme'],
+            reader_font: () => SETTINGS_VALUES['app.general']['reader.font'],
             window_open_tabs_limit: () => SETTINGS_VALUES['app.general']['window.open_tabs_limit'],
             show_window: () => null,
             app_info: () => ({

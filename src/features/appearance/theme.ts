@@ -8,12 +8,15 @@
 
 import {
   applyPalette,
+  applyReaderFont,
   applyReaderTheme,
   applyTheme,
   normalizePaletteId,
+  normalizeReaderFontId,
   normalizeReaderThemeId,
   normalizeThemePreference,
   type PaletteId,
+  type ReaderFontId,
   type ReaderThemeId,
   type ThemePreference,
   type UnsubscribeTheme,
@@ -31,6 +34,9 @@ export const PALETTE_SETTING_KEY = 'appearance.palette';
 
 /** Ключ темы области чтения в секции настроек приложения. */
 export const READER_THEME_SETTING_KEY = 'reader.theme';
+
+/** Ключ гарнитуры книги в секции настроек приложения. */
+export const READER_FONT_SETTING_KEY = 'reader.font';
 
 /** Чтение сохранённого предпочтения темы из ядра.
  *
@@ -60,6 +66,15 @@ export async function loadThemePalette(): Promise<PaletteId> {
 export async function loadReaderTheme(): Promise<ReaderThemeId> {
   const value = await invokeCommand('reader_theme', {});
   return normalizeReaderThemeId(value);
+}
+
+/** Чтение сохранённой гарнитуры книги из ядра.
+ *
+ * Неизвестное или отсутствующее значение приводится к шрифту с засечками.
+ */
+export async function loadReaderFont(): Promise<ReaderFontId> {
+  const value = await invokeCommand('reader_font', {});
+  return normalizeReaderFontId(value);
 }
 
 /** Ключ сохранённого оформления для статичного экрана загрузки до бандла.
@@ -148,6 +163,11 @@ export function applyAppReaderTheme(theme: unknown, root?: HTMLElement): void {
   applyReaderTheme(normalizeReaderThemeId(theme), root);
 }
 
+/** Применение гарнитуры книги к корню области содержимого. */
+export function applyAppReaderFont(font: unknown, root?: HTMLElement): void {
+  applyReaderFont(normalizeReaderFontId(font), root);
+}
+
 /** Извлечение темы из события `settings:changed`.
  *
  * Возвращает предпочтение только для секции приложения; для других секций или
@@ -188,6 +208,20 @@ export function readerThemeFromSettingsEvent(payload: unknown): ReaderThemeId | 
   }
   const value = values[READER_THEME_SETTING_KEY];
   return value === undefined ? null : normalizeReaderThemeId(value);
+}
+
+/** Извлечение гарнитуры книги из события `settings:changed`.
+ *
+ * Возвращает гарнитуру только для секции приложения; для других секций или при
+ * отсутствии значения — `null`, чтобы оболочка не меняла шрифт книги зря.
+ */
+export function readerFontFromSettingsEvent(payload: unknown): ReaderFontId | null {
+  const values = appSettingsValues(payload);
+  if (values === null) {
+    return null;
+  }
+  const value = values[READER_FONT_SETTING_KEY];
+  return value === undefined ? null : normalizeReaderFontId(value);
 }
 
 /** Значения секции приложения из события `settings:changed` или `null`. */

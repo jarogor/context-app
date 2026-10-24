@@ -8,8 +8,9 @@ use serde::Serialize;
 use zip::ZipArchive;
 
 use super::archive::{
-    cover_format, manifest_items, read_zip_entry, resolve_relative, rootfile_path,
+    cover_format, manifest_items, read_zip_entry, resolve_relative, rootfile_path, ManifestItem,
 };
+use super::style::{book_style, inline_styles};
 use crate::xml::strip_markup;
 
 /// Глава EPUB для рабочей страницы чтения.
@@ -25,13 +26,18 @@ pub struct EpubChapter {
 ///
 /// Порядок глав задаётся spine OPF, а не порядком записей архива. Изображения
 /// главы, доступные внутри EPUB, встраиваются в HTML как `data:`-URI, поэтому
-/// странице чтения не нужен доступ к архиву. Сценарии `<script>` удаляются.
+/// странице чтения не нужен доступ к архиву. Сценарии `<script>` удаляются, а
+/// издательский CSS книги очищается и встраивается в каждую главу: без него
+/// вёрстка книги (заголовки, отступы, курсив, таблицы) терялась.
 pub fn read_epub_chapters(bytes: &[u8]) -> Result<Vec<EpubChapter>, String> {
     let mut archive =
         ZipArchive::new(Cursor::new(bytes)).map_err(|_| "не удалось открыть EPUB".to_string())?;
     let rootfile = rootfile_path(&mut archive)?;
     let opf = read_zip_entry(&mut archive, &rootfile)?;
     let (_, items) = manifest_items(&opf);
+    // Оформление собирается один раз на книгу: главы ссылаются на общий CSS.
+    let sources = style_sources(&mut archive, &rootfile, &items);
+    let style = book_style(&sources).css;
     let chapters = spine_ids(&opf)
         .into_iter()
         .filter_map(|idref| {
@@ -48,9 +54,10 @@ pub fn read_epub_chapters(bytes: &[u8]) -> Result<Vec<EpubChapter>, String> {
             let source = String::from_utf8_lossy(&raw).into_owned();
             let body = body_content(&source);
             let html = embed_images(&mut archive, &path, &body);
+            let html = strip_scripts(&html);
             Some(EpubChapter {
                 title: chapter_title(&source),
-                html: strip_scripts(&html),
+                html: with_style(&html, &style, &inline_styles(&source)),
             })
         })
         .collect::<Vec<_>>();
@@ -58,6 +65,71 @@ pub fn read_epub_chapters(bytes: &[u8]) -> Result<Vec<EpubChapter>, String> {
         return Err("в EPUB нет читаемых глав".to_string());
     }
     Ok(chapters)
+}
+
+/// Стили книги из манифеста: внешние CSS-файлы и `<style>` глав.
+///
+/// Ссылки на CSS берутся из манифеста, поэтому оформление собирается даже для
+/// файлов, на которые главы ссылаются через `<link>`, а не напрямую. Порядок
+/// источников — порядок манифеста: так сохраняется приоритет издателя.
+fn style_sources(
+    archive: &mut ZipArchive<Cursor<&[u8]>>,
+    rootfile: &str,
+    items: &[ManifestItem],
+) -> Vec<(String, String)> {
+    let mut sources: Vec<(String, String)> = Vec::new();
+    for item in items {
+        let is_style = item
+            .media_type
+            .as_deref()
+            .is_some_and(|media| media.contains("css"))
+            || item.href.to_ascii_lowercase().ends_with(".css");
+        if !is_style {
+            continue;
+        }
+        let Some(path) = resolve_relative(rootfile, &item.href) else {
+            continue;
+        };
+        let Ok(bytes) = read_zip_entry(archive, &path) else {
+            continue;
+        };
+        sources.push((path, String::from_utf8_lossy(&bytes).into_owned()));
+    }
+    sources
+}
+
+/// Встраивание очищенного оформления книги в главу.
+///
+/// Своё оформление главы (`<style>`) идёт после общего: правила самой главы
+/// уточняют книгу. Стили уже очищены, поэтому в документ попадают только
+/// безопасные свойства.
+fn with_style(html: &str, book: &str, inline: &[String]) -> String {
+    let mut css = String::new();
+    for source in inline {
+        let cleaned = super::style::sanitize_css(source);
+        if cleaned.is_empty() {
+            continue;
+        }
+        if !css.is_empty() {
+            css.push('\n');
+        }
+        css.push_str(&cleaned);
+    }
+    if book.is_empty() && css.is_empty() {
+        return html.to_string();
+    }
+    let mut style = String::from("<style>");
+    if !book.is_empty() {
+        style.push_str(book);
+    }
+    if !css.is_empty() {
+        if !book.is_empty() {
+            style.push('\n');
+        }
+        style.push_str(&css);
+    }
+    style.push_str("</style>");
+    format!("{style}{html}")
 }
 
 /// Порядок идентификаторов элементов spine OPF.

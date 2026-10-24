@@ -16,7 +16,13 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
-  import { DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
+  import {
+    DEFAULT_READER_FONT,
+    DEFAULT_READER_THEME,
+    type PaletteId,
+    type ReaderFontId,
+    type ReaderThemeId,
+  } from '@texture/ui';
 
   interface Props {
     /** Текущее рабочее место или null, когда его нет. */
@@ -111,6 +117,10 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     onRepointTab: (id: string) => void;
     /** Возврат к списку рабочих мест. */
     onBackToList: () => void;
+    /** Гарнитура книги: с засечками или без. */
+    readerFont?: ReaderFontId;
+    /** Переключение гарнитуры книги. */
+    onChangeReaderFont?: (font: ReaderFontId) => void;
     /** Режим сосредоточенного чтения. */
     focusMode?: boolean;
     /** Переключение режима сосредоточенного чтения. */
@@ -157,6 +167,8 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     openTabsLimit,
     readerTheme = DEFAULT_READER_THEME,
     palette,
+    readerFont = DEFAULT_READER_FONT,
+    onChangeReaderFont,
     onChangeReaderTheme,
     allowedNoteTypes = NOTE_TYPES,
     onDeleteNote,
@@ -332,6 +344,8 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
         maxZoom={activeFooter?.maxZoom ?? 220}
         showZoom={activeFooter?.workplaceZoom ?? true}
         {readerTheme}
+        {readerFont}
+        onChangeReaderFont={onChangeReaderFont}
         notesMode={true}
         workplace={activeFooter?.workplace ?? false}
         workplacePages={activeFooter?.workplacePages ?? false}
@@ -378,6 +392,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
                   notes={notesByTab[item.id] ?? []}
                   {tool}
                   {readerTheme}
+                  {readerFont}
                   {palette}
                   active={item.id === workspace.activeTabId}
                   visible={visible && item.id === workspace.activeTabId && !listMode}

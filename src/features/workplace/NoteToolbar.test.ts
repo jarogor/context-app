@@ -12,8 +12,10 @@ function props(overrides: Record<string, unknown> = {}) {
         minZoom: 60,
         maxZoom: 220,
         readerTheme: 'light' as const,
+        readerFont: 'serif' as const,
         onChangeZoom: vi.fn(),
         onChangeReaderTheme: vi.fn(),
+        onChangeReaderFont: vi.fn(),
         notesMode: true,
         progress: 0,
         ...overrides,
@@ -408,5 +410,38 @@ describe('панель чтения: переключатель темы', () =>
 
         await fireEvent.click(screen.getByRole('button', { name: 'Светлая тема области чтения' }));
         expect(onChangeReaderTheme).toHaveBeenCalledWith('light');
+    });
+});
+
+describe('панель чтения: переключатель шрифта книги', () => {
+    it('называет шрифт, на который переключает кнопка', () => {
+        const { rerender } = render(NoteToolbar, { props: props({ readerFont: 'serif' }) });
+        // С засечками кнопка переключает на шрифт без засечек — так и называется.
+        expect(screen.getByRole('button', { name: 'Шрифт без засечек' })).toBeTruthy();
+
+        rerender(props({ readerFont: 'sans' }));
+        expect(screen.getByRole('button', { name: 'Шрифт с засечками' })).toBeTruthy();
+    });
+
+    it('переключает шрифт с засечками на шрифт без засечек', async () => {
+        const onChangeReaderFont = vi.fn();
+        render(NoteToolbar, { props: props({ readerFont: 'serif', onChangeReaderFont }) });
+
+        await fireEvent.click(screen.getByRole('button', { name: 'Шрифт без засечек' }));
+        expect(onChangeReaderFont).toHaveBeenCalledWith('sans');
+    });
+
+    it('переключает шрифт без засечек на шрифт с засечками', async () => {
+        const onChangeReaderFont = vi.fn();
+        render(NoteToolbar, { props: props({ readerFont: 'sans', onChangeReaderFont }) });
+
+        await fireEvent.click(screen.getByRole('button', { name: 'Шрифт с засечками' }));
+        expect(onChangeReaderFont).toHaveBeenCalledWith('serif');
+    });
+
+    it('без обработчика кнопки шрифта нет', () => {
+        render(NoteToolbar, { props: props({ onChangeReaderFont: undefined }) });
+
+        expect(screen.queryByTestId('reader-font-toggle')).toBeNull();
     });
 });

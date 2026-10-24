@@ -74,3 +74,12 @@ test('выбор палитры в настройках меняет цвета 
     )
     .not.toBe(background);
 });
+
+test('выбор шрифта книги в настройках применяется к области чтения', async ({ page }) => {
+    await openSettings(page);
+
+    await expect(page.locator('html')).toHaveAttribute('data-reader-font', 'serif');
+    await chooseAndSave(page, 'Шрифт книги', 'Без засечек');
+
+    await expect(page.locator('html')).toHaveAttribute('data-reader-font', 'sans');
+});

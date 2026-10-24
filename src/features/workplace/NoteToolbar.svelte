@@ -5,8 +5,10 @@
     Icon,
     Input,
     Select,
+    DEFAULT_READER_FONT,
     DEFAULT_READER_THEME,
     type ColorSwatch,
+    type ReaderFontId,
     type ReaderThemeId,
   } from '@texture/ui';
   import {
@@ -40,6 +42,10 @@
     showZoom?: boolean;
     /** Текущая тема области чтения. */
     readerTheme?: ReaderThemeId;
+    /** Текущая гарнитура книги. */
+    readerFont?: ReaderFontId;
+    /** Переключение гарнитуры книги на противоположную. */
+    onChangeReaderFont?: (font: ReaderFontId) => void;
     /** Изменение масштаба на один шаг шкалы: `1` — увеличение, `-1` — уменьшение. */
     onChangeZoom?: (direction: 1 | -1) => void;
     /** Переключение темы области чтения на противоположную. */
@@ -71,8 +77,10 @@
     maxZoom = 220,
     showZoom = true,
     readerTheme = DEFAULT_READER_THEME,
+    readerFont = DEFAULT_READER_FONT,
     onChangeZoom,
     onChangeReaderTheme,
+    onChangeReaderFont,
     notesMode = false,
     workplace = false,
     workplacePages = false,
@@ -117,6 +125,21 @@
   const themeTitle = $derived(
     readerTheme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на тёмную тему',
   );
+
+  /** Подпись кнопки-переключателя гарнитуры: называет шрифт, на который она переключает. */
+  const fontLabel = $derived(
+    readerFont === 'serif' ? 'Шрифт без засечек' : 'Шрифт с засечками',
+  );
+
+  /** Подсказка кнопки-переключателя гарнитуры. */
+  const fontTitle = $derived(
+    readerFont === 'serif' ? 'Переключить на шрифт без засечек' : 'Переключить на шрифт с засечками',
+  );
+
+  /** Переключение гарнитуры книги на противоположную. */
+  function toggleReaderFont() {
+    onChangeReaderFont?.(readerFont === 'serif' ? 'sans' : 'serif');
+  }
 
   /** Черновик правки поля текущей страницы; `null` — поле показывает снимок. */
   let pageDraft = $state<string | null>(null);
@@ -321,6 +344,31 @@
         class="inline-block w-[3.25rem] text-center text-sm"
         data-testid="reader-zoom">{zoom}%</span
       >
+    </div>
+  {/if}
+  {#if onChangeReaderFont}
+    <!--
+      Гарнитура книги: одна кнопка переключает шрифт с засечками и без.
+      Знак — «Аа» той гарнитуры, на которую кнопка переключает, поэтому
+      действие видно без чтения подсказки.
+    -->
+    <div class="flex shrink-0 items-center gap-1" data-testid="reader-font-toggle">
+      <Button
+        size="icon"
+        variant="ghost"
+        title={fontTitle}
+        ariaLabel={fontLabel}
+        class="size-8"
+        onclick={toggleReaderFont}
+      >
+        <span
+          class="text-[0.95rem] leading-none"
+          style="font-family: {readerFont === 'serif'
+            ? "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            : "Georgia, 'Times New Roman', serif"}"
+          aria-hidden="true">Аа</span
+        >
+      </Button>
     </div>
   {/if}
   <div class="flex shrink-0 items-center gap-1" data-testid="reader-theme-toggle">

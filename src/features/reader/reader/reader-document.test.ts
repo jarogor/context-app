@@ -93,6 +93,44 @@ describe('документ книги', () => {
         expect(html).toContain('right:calc(-0.5 * var(--rt-selection-edge-width,1px))');
     });
 
+    it('задаёт типографику книги: заголовки по уровням и цитаты', () => {
+        const html = documentFor();
+        // Без собственной типографики книга с оформлением в классах (или вовсе без
+        // CSS) выглядела ровным текстом: заголовки того же кегля, что и абзацы.
+        expect(html).toContain('h1{font-size:1.8em;}');
+        expect(html).toContain('h2{font-size:1.5em;}');
+        expect(html).toContain('h3{font-size:1.3em;}');
+        expect(html).toContain('h1,h2,h3,h4,h5,h6{');
+        expect(html).toContain('blockquote{');
+        expect(html).toContain('ul,ol{');
+        expect(html).toContain('table{border-collapse:collapse;');
+        // Ни одного абсолютного размера в типографике: всё следует за масштабом.
+        expect(html).not.toMatch(/h1\{font-size:\d+px/);
+    });
+
+    it('закрепляет поля и ширину колонки за читалкой', () => {
+        const html = documentFor();
+        // Издательский CSS книги снимал поля `body`, и текст прижимался к левому
+        // краю области чтения. Каркас документа объявлен с `!important`.
+        expect(html).toContain('body{margin:0 auto !important;max-width:760px !important;');
+        expect(html).toContain('padding:24px 32px !important;');
+        expect(html).toContain('box-sizing:border-box;');
+    });
+
+    it('проставляет гарнитуру книги на корень и выбирает её атрибутом', () => {
+        const serif = documentFor();
+        // Семейства обеих гарнитур заданы сразу, как палитры и стороны темы:
+        // смена шрифта не пересобирает содержимое книги.
+        expect(serif).toContain("html[data-reader-font='serif'] body{font-family:");
+        expect(serif).toContain("html[data-reader-font='sans'] body{font-family:");
+        expect(serif).toContain('data-reader-font="serif"');
+        const sans = buildDocument(
+            { title: 'Книга', authors: [], chapters: [{ title: null, html: '<p>Текст</p>' }] },
+            { readerFont: 'sans' },
+        );
+        expect(sans).toContain('data-reader-font="sans"');
+    });
+
     it('проставляет стартовую тему области чтения на корень', () => {
         const light = documentFor();
         expect(light).toContain('data-reader-theme="light"');

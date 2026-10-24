@@ -58,11 +58,14 @@
   import {
     APP_SETTINGS_SECTION,
     applyAppPalette,
+    applyAppReaderFont,
     applyAppReaderTheme,
     applyAppThemeTracked,
     paletteFromSettingsEvent,
     persistBootAppearance,
+    READER_FONT_SETTING_KEY,
     READER_THEME_SETTING_KEY,
+    readerFontFromSettingsEvent,
     readerThemeFromSettingsEvent,
     THEME_SETTING_KEY,
     themeFromSettingsEvent,
@@ -70,11 +73,14 @@
   import { saveSettingsValues } from '../features/settings/settings';
   import {
     DEFAULT_PALETTE,
+    DEFAULT_READER_FONT,
     DEFAULT_READER_THEME,
     normalizePaletteId,
+    normalizeReaderFontId,
     normalizeReaderThemeId,
     normalizeThemePreference,
     type PaletteId,
+    type ReaderFontId,
     type ReaderThemeId,
     type ThemePreference,
   } from '@texture/ui';
@@ -228,6 +234,11 @@
   /** Тема области чтения: общая настройка, независимая от темы интерфейса. */
   let readerTheme = $state<ReaderThemeId>(
     untrack(() => normalizeReaderThemeId(initialAppearance.readerTheme ?? DEFAULT_READER_THEME)),
+  );
+
+  /** Гарнитура книги: общая настройка, независимая от темы интерфейса. */
+  let readerFont = $state<ReaderFontId>(
+    untrack(() => normalizeReaderFontId(initialAppearance.readerFont ?? DEFAULT_READER_FONT)),
   );
 
   /** Лимит числа открытых вкладок рабочего места. */
@@ -552,6 +563,22 @@
     readerTheme = next;
     applyAppReaderTheme(next);
     void saveAppearance({ [READER_THEME_SETTING_KEY]: next });
+  }
+
+  /** Смена гарнитуры книги (переключатель «с засечками / без засечек»).
+   *
+   * Гарнитура общая для приложения и применяется ко всем вкладкам сразу: шрифт
+   * выбирает читатель, а не книга, поэтому он не должен сбрасываться при
+   * переключении вкладки.
+   */
+  function changeReaderFont(font: ReaderFontId) {
+    const next = normalizeReaderFontId(font);
+    if (next === readerFont) {
+      return;
+    }
+    readerFont = next;
+    applyAppReaderFont(next);
+    void saveAppearance({ [READER_FONT_SETTING_KEY]: next });
   }
 
   /** Выбор активной вкладки. */
@@ -951,6 +978,13 @@
           readerTheme = nextReaderTheme;
           applyAppReaderTheme(nextReaderTheme);
         }
+        // Гарнитура книги меняется в настройках; переключатель в панели чтения
+        // пишет то же значение, поэтому источник не важен.
+        const nextReaderFont = readerFontFromSettingsEvent(value);
+        if (nextReaderFont !== null) {
+          readerFont = nextReaderFont;
+          applyAppReaderFont(nextReaderFont);
+        }
         // Лимит открытых вкладок меняется в настройках; применяется сразу.
         const nextOpenTabsLimit = openTabsLimitFromSettingsEvent(value);
         if (nextOpenTabsLimit !== null) {
@@ -1083,6 +1117,8 @@
           selectedNoteId={selectedNoteId}
           tool={notesController.tool}
           {readerTheme}
+          {readerFont}
+          onChangeReaderFont={changeReaderFont}
           {palette}
           {openTabsLimit}
           onChangeReaderTheme={changeReaderTheme}

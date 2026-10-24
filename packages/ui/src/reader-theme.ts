@@ -21,6 +21,25 @@ export const DEFAULT_READER_THEME: ReaderThemeId = 'light';
 /** Все допустимые значения темы области чтения. */
 export const READER_THEMES = ['light', 'dark'] as const;
 
+/** Гарнитура книги: с засечками или без. */
+export type ReaderFontId = 'serif' | 'sans';
+
+/** Гарнитура книги по умолчанию — с засечками: так набирают художественную прозу. */
+export const DEFAULT_READER_FONT: ReaderFontId = 'serif';
+
+/** Все допустимые значения гарнитуры книги. */
+export const READER_FONTS = ['serif', 'sans'] as const;
+
+/** Семейство шрифта книги для каждой гарнитуры.
+ *
+ * Шрифты только системные: приложение не поставляет своих, поэтому книга
+ * выглядит одинаково предсказуемо и грузится без задержки.
+ */
+export const READER_FONT_FAMILIES: Record<ReaderFontId, string> = {
+    serif: "Georgia, 'Times New Roman', 'PT Serif', serif",
+    sans: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+};
+
 /** Токены оформления области чтения. */
 export interface ReaderThemeTokens {
     /** Фон области чтения. */
@@ -376,3 +395,35 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
         selectionEdgeWidth: 1,
     },
 };
+
+/** Проверка, что значение — известная гарнитура книги. */
+export function isReaderFontId(value: unknown): value is ReaderFontId {
+    return value === 'serif' || value === 'sans';
+}
+
+/** Приведение произвольного значения к гарнитуре книги.
+ *
+ * Неизвестное или отсутствующее значение трактуется как шрифт с засечками:
+ * некорректные данные не должны оставлять книгу без выбранного шрифта.
+ */
+export function normalizeReaderFontId(value: unknown): ReaderFontId {
+    return isReaderFontId(value) ? value : DEFAULT_READER_FONT;
+}
+
+/** Семейство шрифта книги по гарнитуре. */
+export function readerFontFamily(id: unknown): string {
+    return READER_FONT_FAMILIES[normalizeReaderFontId(id)];
+}
+
+/** Установка гарнитуры книги на корень области содержимого.
+ *
+ * Ставит атрибут `data-reader-font` (по аналогии с `data-reader-theme`).
+ * Документ книги выбирает семейство правилом по этому атрибуту, поэтому смена
+ * шрифта не пересобирает содержимое: позиция чтения и заметки сохраняются.
+ */
+export function applyReaderFont(
+    id: unknown,
+    root: HTMLElement = document.documentElement,
+): void {
+    root.dataset.readerFont = normalizeReaderFontId(id);
+}

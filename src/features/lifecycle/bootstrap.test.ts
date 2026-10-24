@@ -153,10 +153,11 @@ describe('загрузка начального состояния', () => {
         await expect(loadBootstrap()).rejects.toThrow('реестр недоступен');
     });
 
-    it('применяет сохранённые тему, палитру и тему области чтения до готовности оболочки', async () => {
+    it('применяет сохранённые тему, палитру, тему и шрифт области чтения до готовности оболочки', async () => {
         document.documentElement.removeAttribute('data-theme');
         document.documentElement.removeAttribute('data-palette');
         document.documentElement.removeAttribute('data-reader-theme');
+        document.documentElement.removeAttribute('data-reader-font');
         invoke.mockImplementation(async (command: string) => {
             if (command === 'get_workspaces') {
                 return { workspaces: [] };
@@ -170,15 +171,24 @@ describe('загрузка начального состояния', () => {
             if (command === 'reader_theme') {
                 return 'dark';
             }
+            if (command === 'reader_font') {
+                return 'sans';
+            }
             return null;
         });
 
         const state = await loadBootstrap();
 
-        expect(state.appearance).toEqual({ theme: 'dark', palette: 'cobalt', readerTheme: 'dark' });
+        expect(state.appearance).toEqual({
+            theme: 'dark',
+            palette: 'cobalt',
+            readerTheme: 'dark',
+            readerFont: 'sans',
+        });
         expect(document.documentElement.dataset.theme).toBe('dark');
         expect(document.documentElement.dataset.palette).toBe('cobalt');
         expect(document.documentElement.dataset.readerTheme).toBe('dark');
+        expect(document.documentElement.dataset.readerFont).toBe('sans');
     });
 
     it('оставляет оформление по умолчанию, если чтение не удалось', async () => {
@@ -197,15 +207,24 @@ describe('загрузка начального состояния', () => {
             if (command === 'reader_theme') {
                 throw new Error('тема области чтения недоступна');
             }
+            if (command === 'reader_font') {
+                throw new Error('гарнитура книги недоступна');
+            }
             return null;
         });
 
         const state = await loadBootstrap();
 
-        expect(state.appearance).toEqual({ theme: 'system', palette: 'linen', readerTheme: 'light' });
+        expect(state.appearance).toEqual({
+            theme: 'system',
+            palette: 'linen',
+            readerTheme: 'light',
+            readerFont: 'serif',
+        });
         expect(document.documentElement.dataset.theme).toBe('light');
         expect(document.documentElement.dataset.palette).toBe('linen');
         expect(document.documentElement.dataset.readerTheme).toBe('light');
+        expect(document.documentElement.dataset.readerFont).toBe('serif');
     });
 
     it('использует лимит вкладок по умолчанию, если чтение не удалось', async () => {

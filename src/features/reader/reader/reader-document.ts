@@ -14,16 +14,21 @@
 
 import {
   DEFAULT_PALETTE,
+  DEFAULT_READER_FONT,
   DEFAULT_READER_THEME,
   normalizePaletteId,
+  normalizeReaderFontId,
   normalizeReaderThemeId,
   PALETTES,
+  READER_FONT_FAMILIES,
+  READER_FONTS,
   READER_NOTE_COLOR_IDS,
   READER_THEMES,
   readerThemeNoteTones,
   readerThemeTokens,
   solidNoteTones,
   type PaletteId,
+  type ReaderFontId,
   type ReaderThemeId,
 } from '@texture/ui';
 
@@ -50,6 +55,8 @@ export interface ReaderDocumentOptions {
   palette?: PaletteId;
   /** Сторона темы области чтения. */
   readerTheme?: ReaderThemeId;
+  /** Гарнитура книги: с засечками или без. */
+  readerFont?: ReaderFontId;
 }
 
 /** CSS-переменные темы области чтения для палитры и стороны. */
@@ -95,12 +102,49 @@ function buildStyle(): string {
     // атрибуты не выставлены (первый кадр документа).
     `html{${themeVariables(DEFAULT_PALETTE, DEFAULT_READER_THEME)}}`,
     ...rules,
-    'body{margin:0 auto;max-width:760px;padding:24px 32px;background:var(--rt-background);',
-    "color:var(--rt-foreground);font-family:Georgia,'Times New Roman',serif;line-height:1.6;}",
+    // Поля и ширина колонки документа принадлежат читалке, а не книге: при
+    // переносе текста из EPUB в несжатом виде издательский CSS снимал их, и
+    // текст прижимался к левому краю области. `!important` защищает каркас от
+    // правил книги, которые всё же доходят до `body`.
+    'body{margin:0 auto !important;max-width:760px !important;',
+    'padding:24px 32px !important;box-sizing:border-box;}',
+    'body{background:var(--rt-background);color:var(--rt-foreground);line-height:1.6;}',
+    // Гарнитура книги выбирается атрибутом на корне документа: смена шрифта не
+    // пересобирает содержимое, позиция чтения и заметки сохраняются. Семейства
+    // заданы для обеих гарнитур сразу — так же, как палитры и стороны темы.
+    ...READER_FONTS.map(
+      (font) => `html[data-reader-font='${font}'] body{font-family:${READER_FONT_FAMILIES[font]};}`,
+    ),
+    // База — гарнитура по умолчанию: правило действует, пока атрибут не выставлен.
+    `html body{font-family:${READER_FONT_FAMILIES[DEFAULT_READER_FONT]};}`,
+    // Типографика книги: без неё книга с оформлением в классах (или вовсе без
+    // CSS) выглядела ровным текстом — заголовки того же кегля, что и абзацы.
+    // Правила намеренно слабые (`ем` и `rem`, а не пиксели): они следуют за
+    // масштабом чтения и не спорят с более точными правилами книги.
     'img{max-width:100%;height:auto;}',
-    'h1,h2,h3{line-height:1.25;}',
+    'h1,h2,h3,h4,h5,h6{line-height:1.25;margin:1.4em 0 0.6em;font-weight:600;}',
+    'h1{font-size:1.8em;}',
+    'h2{font-size:1.5em;}',
+    'h3{font-size:1.3em;}',
+    'h4{font-size:1.15em;}',
+    'h5,h6{font-size:1em;}',
+    'p{margin:0.7em 0;text-align:justify;hyphens:auto;}',
+    // Первый абзац после заголовка не получает отступа первой строки: так
+    // набирают книги, и иначе абзац «проваливается» от заголовка.
+    'h1+p,h2+p,h3+p,h4+p,h5+p,h6+p{text-indent:0;}',
+    'blockquote{margin:1em 0 1em 1.5em;padding-left:1em;',
+    'border-left:2px solid var(--rt-muted);color:var(--rt-muted);font-style:italic;}',
+    'ul,ol{margin:0.8em 0;padding-left:1.6em;}',
+    'li{margin:0.3em 0;}',
+    'hr{border:0;border-top:1px solid var(--rt-muted);margin:1.6em 0;}',
+    'table{border-collapse:collapse;margin:1em 0;max-width:100%;}',
+    'td,th{padding:0.3em 0.6em;border:1px solid var(--rt-muted);}',
+    'pre{white-space:pre-wrap;overflow-wrap:break-word;}',
+    'code,kbd,pre{font-family:ui-monospace,monospace;font-size:0.92em;}',
+    'sup,sub{line-height:0;}',
     'a{color:var(--rt-link);}',
-    'small,figcaption{color:var(--rt-muted);}',
+    'small,figcaption{color:var(--rt-muted);font-size:0.9em;}',
+    'figure{margin:1em 0;}',
     // Инструменты текста и фигуры не работают с выделением текста: курсор
     // меняется на прицел, а протяжка не выделяет текст под собой.
     'body[data-tool="text"],body[data-tool="shape"]{cursor:crosshair;user-select:none;}',
@@ -218,6 +262,7 @@ function buildStyle(): string {
 export function buildDocument(value: BookContent, options: ReaderDocumentOptions = {}): string {
   const palette = normalizePaletteId(options.palette);
   const readerTheme = normalizeReaderThemeId(options.readerTheme);
+  const readerFont = normalizeReaderFontId(options.readerFont);
   const style = buildStyle();
   const body = value.chapters
     .map(
@@ -225,5 +270,5 @@ export function buildDocument(value: BookContent, options: ReaderDocumentOptions
         `<section class="${CHAPTER_CLASS}" data-chapter="${index}">${chapter.html}</section>`,
     )
     .join('\n');
-  return `<!doctype html><html lang="ru" data-reader-palette="${palette}" data-reader-theme="${readerTheme}"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}</body></html>`;
+  return `<!doctype html><html lang="ru" data-reader-palette="${palette}" data-reader-theme="${readerTheme}" data-reader-font="${readerFont}"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}</body></html>`;
 }

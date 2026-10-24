@@ -19,8 +19,10 @@ import type { NormalizedDeclaration } from '../settings/settings';
 import { loadSettingsUi } from '../settings/settings';
 import {
   applyAppPalette,
+  applyAppReaderFont,
   applyAppReaderTheme,
   applyAppThemeTracked,
+  loadReaderFont,
   loadReaderTheme,
   loadThemePalette,
   loadThemePreference,
@@ -28,8 +30,10 @@ import {
 } from '../appearance/theme';
 import {
   DEFAULT_PALETTE,
+  DEFAULT_READER_FONT,
   DEFAULT_READER_THEME,
   type PaletteId,
+  type ReaderFontId,
   type ReaderThemeId,
   type ThemePreference,
 } from '@texture/ui';
@@ -84,6 +88,8 @@ export interface AppearanceBootstrap {
     palette: PaletteId;
     /** Тема области чтения (светлая или тёмная), независимая от интерфейса. */
     readerTheme: ReaderThemeId;
+    /** Гарнитура книги: с засечками или без. */
+    readerFont: ReaderFontId;
 }
 
 /** Декларации интерфейса настроек и ошибка их загрузки на бутстрапе. */
@@ -186,17 +192,19 @@ async function loadWorkspaceCovers(registry: unknown): Promise<void> {
  * светлая область чтения) и не прерывает вход.
  */
 async function applyAppearance(): Promise<AppearanceBootstrap> {
-    const [theme, palette, readerTheme] = await Promise.all([
+    const [theme, palette, readerTheme, readerFont] = await Promise.all([
         loadThemePreference().catch(() => 'system' as ThemePreference),
         loadThemePalette().catch(() => DEFAULT_PALETTE),
         loadReaderTheme().catch(() => DEFAULT_READER_THEME),
+        loadReaderFont().catch(() => DEFAULT_READER_FONT),
     ]);
     applyAppThemeTracked(theme);
     applyAppPalette(palette);
     applyAppReaderTheme(readerTheme);
+    applyAppReaderFont(readerFont);
     // Зеркало оформления для статичного экрана загрузки следующего запуска.
     persistBootAppearance({ theme, palette });
-    return { theme, palette, readerTheme };
+    return { theme, palette, readerTheme, readerFont };
 }
 
 /** Загрузка деклараций настроек; ошибка даёт пустое пространство с диагностикой. */

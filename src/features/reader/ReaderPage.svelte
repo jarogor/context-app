@@ -13,7 +13,14 @@
     type BookContent,
     type WorkplaceSelection,
   } from './reader';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
+  import {
+    DEFAULT_PALETTE,
+    DEFAULT_READER_FONT,
+    DEFAULT_READER_THEME,
+    type PaletteId,
+    type ReaderFontId,
+    type ReaderThemeId,
+  } from '@texture/ui';
   import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
@@ -40,6 +47,8 @@
     tool?: NoteTool;
     /** Тема области чтения (светлая или тёмная). */
     readerTheme?: ReaderThemeId;
+    /** Гарнитура книги: с засечками или без. */
+    readerFont?: ReaderFontId;
     /** Палитра оформления: общий реестр дизайн-системы. */
     palette?: PaletteId;
     onStateChange?: (state: { zoom: number; position: number }) => void;
@@ -99,6 +108,7 @@
     notes = [],
     tool = DEFAULT_NOTE_TOOL,
     readerTheme = DEFAULT_READER_THEME,
+    readerFont = DEFAULT_READER_FONT,
     palette = DEFAULT_PALETTE,
     onStateChange,
     onFooter,
@@ -625,6 +635,7 @@
           {visible}
           {tool}
           {readerTheme}
+          {readerFont}
           {palette}
           onQuote={(anchor, color) => onQuote?.(anchor, color)}
           onTextPoint={(anchor) => startTextCard(anchor)}

@@ -3,7 +3,7 @@
   import ReaderPage, { type FooterSnapshot } from '../reader/ReaderPage.svelte';
   import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
-  import type { PaletteId, ReaderThemeId } from '@texture/ui';
+  import type { PaletteId, ReaderFontId, ReaderThemeId } from '@texture/ui';
 
   /** Читалка вкладки для перехода к заметке и управления нижней панелью. */
   export interface TabReader {
@@ -36,6 +36,8 @@
     tool?: NoteTool;
     /** Тема области чтения: общая настройка приложения. */
     readerTheme?: ReaderThemeId;
+    /** Гарнитура книги: общая настройка приложения. */
+    readerFont?: ReaderFontId;
     /** Палитра оформления: общий реестр дизайн-системы. */
     palette?: PaletteId;
     /** Снимок состояния нижней панели чтения для рабочего места. */
@@ -75,6 +77,7 @@
     notes,
     tool,
     readerTheme,
+    readerFont,
     palette,
     onFooter,
     active,
@@ -109,6 +112,7 @@
   {notes}
   {tool}
   {readerTheme}
+  {readerFont}
   {palette}
   visible={visible && active}
   {onStateChange}

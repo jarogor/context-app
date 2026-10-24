@@ -23,15 +23,15 @@ pub(super) fn read_zip_entry(
 }
 
 /// Описание элемента манифеста OPF.
-pub(super) struct ManifestItem {
+pub struct ManifestItem {
     /// Идентификатор элемента манифеста.
-    pub(super) id: String,
+    pub id: String,
     /// Путь к файлу относительно OPF.
-    pub(super) href: String,
+    pub href: String,
     /// Свойства элемента (например, `cover-image`).
-    pub(super) properties: String,
+    pub properties: String,
     /// Медиатип элемента.
-    pub(super) media_type: Option<String>,
+    pub media_type: Option<String>,
 }
 
 /// Метаданные манифеста OPF: идентификатор обложки и элементы.

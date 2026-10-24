@@ -13,6 +13,7 @@ pub mod library_history_list;
 pub mod plugin_activation_pending;
 pub mod plugin_operation;
 pub mod reader;
+pub mod reader_font;
 pub mod reader_theme;
 pub mod save_workspaces;
 pub mod select_source_library;
@@ -103,6 +104,9 @@ pub use theme_palette::__cmd__theme_palette;
 pub use theme_palette::__tauri_command_name_theme_palette;
 pub use theme_palette::theme_palette;
 
+pub use reader_font::__cmd__reader_font;
+pub use reader_font::__tauri_command_name_reader_font;
+pub use reader_font::reader_font;
 pub use reader_theme::__cmd__reader_theme;
 pub use reader_theme::__tauri_command_name_reader_theme;
 pub use reader_theme::reader_theme;

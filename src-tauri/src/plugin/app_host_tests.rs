@@ -695,6 +695,85 @@ fn reader_theme_reads_setting() {
     cleanup(&storage);
 }
 
+/// Проверка, что поле выбора гарнитуры книги зарегистрировано.
+#[test]
+fn refresh_registry_includes_reader_font_field() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-reader-font-field");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+
+    let output = host
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
+        .expect("список секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
+    let app_section = parsed["sections"]
+        .as_array()
+        .expect("массив секций")
+        .iter()
+        .find(|section| section["id"] == "app.general")
+        .expect("секция приложения");
+    let font_field = app_section["fields"]
+        .as_array()
+        .expect("поля секции")
+        .iter()
+        .find(|field| field["key"] == "reader.font")
+        .expect("поле гарнитуры книги");
+    assert_eq!(font_field["type"], "select", "тип поля гарнитуры");
+    assert_eq!(
+        app_section["values"]["reader.font"], "serif",
+        "значение по умолчанию для гарнитуры"
+    );
+    cleanup(&storage);
+}
+
+/// Проверка чтения гарнитуры книги из настроек приложения.
+#[test]
+fn reader_font_reads_setting() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-reader-font");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+    assert_eq!(host.reader_font(), "serif", "значение по умолчанию");
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "reader.font": "sans" }
+        }),
+    )
+    .expect("сохранение гарнитуры книги");
+    assert_eq!(
+        host.reader_font(),
+        "sans",
+        "гарнитура прочитана из настроек"
+    );
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "reader.font": "неизвестная" }
+        }),
+    )
+    .expect("сохранение неизвестного значения");
+    assert_eq!(
+        host.reader_font(),
+        "serif",
+        "неизвестное значение приведено к serif"
+    );
+    cleanup(&storage);
+}
+
 /// Проверка сквозного сценария заметок: создание набора и заметки и сохранение
 /// их между перезапусками runtime, а также безвредный отказ без плагина.
 #[test]

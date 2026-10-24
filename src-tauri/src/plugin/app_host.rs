@@ -79,6 +79,17 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           ]
         },
         {
+          "key": "reader.font",
+          "title": "Шрифт книги",
+          "type": "select",
+          "description": "Гарнитура текста книги: с засечками или без",
+          "default": "serif",
+          "options": [
+            { "value": "serif", "title": "С засечками" },
+            { "value": "sans", "title": "Без засечек" }
+          ]
+        },
+        {
           "key": "window.open_tabs_limit",
           "title": "Лимит открытых вкладок",
           "type": "number",
@@ -354,6 +365,18 @@ impl AppPluginHost {
         match self.app_setting_string("reader.theme").as_deref() {
             Some("dark") => "dark".to_string(),
             _ => "light".to_string(),
+        }
+    }
+
+    /// Гарнитура книги из настроек приложения.
+    ///
+    /// `serif` — шрифт с засечками (по умолчанию, так набирают прозу), `sans` —
+    /// без засечек. Неизвестное или отсутствующее значение трактуется как
+    /// `serif`, чтобы книга не осталась без выбранного шрифта.
+    pub fn reader_font(&mut self) -> String {
+        match self.app_setting_string("reader.font").as_deref() {
+            Some("sans") => "sans".to_string(),
+            _ => "serif".to_string(),
         }
     }
 

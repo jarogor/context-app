@@ -151,6 +151,96 @@ fn chapter_html_excludes_document_wrappers() {
     assert!(!result[0].html.contains("<body"), "обёртка body удалена");
 }
 
+/// Сборка EPUB с общей таблицей стилей и одной главой.
+///
+/// CSS объявлен в манифесте, как в настоящей книге: оформление собирается по
+/// манифесту, а не по упоминаниям в главах.
+fn build_epub_with_css(css: &str, chapter: &str) -> Vec<u8> {
+    let opf = r#"<?xml version="1.0"?>
+<package><manifest>
+<item id="ch0" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+<item id="css" href="style.css" media-type="text/css"/>
+</manifest><spine><itemref idref="ch0"/></spine></package>"#;
+    build_epub_with_opf(
+        opf,
+        &[
+            ("chapter.xhtml", chapter.as_bytes()),
+            ("style.css", css.as_bytes()),
+        ],
+    )
+}
+
+#[test]
+fn chapter_carries_book_style() {
+    // Конвертированные книги держат вёрстку в классах и общем CSS: без него
+    // глава выглядела ровным текстом.
+    let bytes = build_epub_with_css(
+        ".calibre1 { font-size: 2em; text-align: center; } .calibre2 { text-indent: 1.5em; }",
+        r#"<html><body><h1 class="calibre1">Заголовок</h1><p class="calibre2">Абзац</p></body></html>"#,
+    );
+
+    let result = read_epub_chapters(&bytes).expect("разбор глав");
+
+    assert!(result[0].html.contains("<style>"), "стиль встроен в главу");
+    assert!(
+        result[0].html.contains(".calibre1"),
+        "правило заголовка сохранено"
+    );
+    assert!(
+        result[0].html.contains("text-indent:1.5em"),
+        "отступ абзаца сохранён"
+    );
+}
+
+#[test]
+fn chapter_drops_unsafe_book_style() {
+    let bytes = build_epub_with_css(
+        "body { color: red; background: black; } p { position: absolute; float: left; width: 100px; }",
+        "<p>Текст</p>",
+    );
+
+    let result = read_epub_chapters(&bytes).expect("разбор глав");
+
+    assert!(
+        !result[0].html.contains("color:red"),
+        "цвет задаёт тема: {}",
+        result[0].html
+    );
+    assert!(
+        !result[0].html.contains("position:absolute"),
+        "позиционирование отброшено"
+    );
+}
+
+#[test]
+fn chapter_without_book_style_has_no_style_block() {
+    let chapters = [("chapter.xhtml", "<p>Текст</p>")];
+    let bytes = build_epub(&chapters, &[0], &[]);
+
+    let result = read_epub_chapters(&bytes).expect("разбор глав");
+
+    assert!(
+        !result[0].html.contains("<style>"),
+        "пустой стиль не встраивается"
+    );
+}
+
+#[test]
+fn chapter_inline_style_is_kept() {
+    let chapters = [(
+        "chapter.xhtml",
+        "<style>p{text-indent:2em}</style><p>Текст</p>",
+    )];
+    let bytes = build_epub(&chapters, &[0], &[]);
+
+    let result = read_epub_chapters(&bytes).expect("разбор глав");
+
+    assert!(
+        result[0].html.contains("text-indent:2em"),
+        "свой стиль главы сохранён"
+    );
+}
+
 #[test]
 fn broken_archive_reports_error() {
     let result = read_epub_chapters(b"not an epub");
