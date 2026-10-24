@@ -56,6 +56,12 @@
   --panel: color-mix(in oklab, var(--card) 58%, var(--muted));
   --panel-foreground: var(--foreground);
 
+  /* Фон неактивной вкладки. Вкладки стоят на полосе `--muted`; чтобы неактивную
+   * плашку было видно, её фон чуть отделён от полосы — на 5% чернил. Отличие
+   * намеренно лёгкое: вкладка читается как плашка, но не спорит ни с полосой,
+   * ни с активной вкладкой, которая залита фоном содержимого. */
+  --tab-idle-surface: color-mix(in oklab, var(--foreground) 5%, var(--muted));
+
   /* Всплывающий слой (меню, диалог, список выбора) отделяется от подложки
    * **разными механизмами по стороне темы** — одним «тупым» приёмом не выходит:
    *   - светлая тема: подложка светлая, поэтому слой «поднимается» мягкой тенью
@@ -506,6 +512,7 @@
   --color-surface-inset: var(--surface-inset);
   --color-surface-hover: var(--surface-hover);
   --color-surface-selected: var(--surface-selected);
+  --color-tab-idle-surface: var(--tab-idle-surface);
   --color-divider: var(--divider);
   --color-overlay-surface: var(--overlay-surface);
   --color-sidebar: var(--sidebar);

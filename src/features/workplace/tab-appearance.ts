@@ -16,8 +16,19 @@ import type { TabColor, WorkspaceTab } from './workplace';
  */
 const TAB_FILL_PERCENT = 20;
 
-/** Доля цвета в заливке активной вкладки относительно базовой. */
-const TAB_FILL_ACTIVE_FACTOR = 1.6;
+/** Доля цвета в заливке активной вкладки, в процентах.
+ *
+ * Заметно плотнее неактивной: активная вкладка должна читаться цветом сразу,
+ * даже рядом с цветной неактивной, которая залита лишь слабым оттенком.
+ */
+const TAB_FILL_ACTIVE_PERCENT = 40;
+
+/** Доля цвета в фоне неактивной вкладки панели вкладок, в процентах.
+ *
+ * Меньше базовой заливки: цветная неактивная должна отличаться от нецветной лишь
+ * слабым оттенком, а не насыщенной заливкой.
+ */
+const TAB_IDLE_FILL_PERCENT = 7;
 
 /** Эффективная подпись вкладки: пользовательское имя перекрывает название книги.
  *
@@ -25,7 +36,7 @@ const TAB_FILL_ACTIVE_FACTOR = 1.6;
  * заменяет его.
  */
 export function tabLabel(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
-  return tab.name?.trim() || tab.title;
+    return tab.name?.trim() || tab.title;
 }
 
 /** CSS-фон заливки вкладки; отсутствует, если цвет не задан.
@@ -37,15 +48,28 @@ export function tabLabel(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
  * вкладка оставалась отличимой от активной.
  */
 export function tabColorFill(
-  color: TabColor | undefined,
-  base = 'var(--card)',
-  active = false,
+    color: TabColor | undefined,
+    base = 'var(--card)',
+    active = false,
 ): string | undefined {
-  if (!color) {
-    return undefined;
-  }
-  const percent = Math.round(TAB_FILL_PERCENT * (active ? TAB_FILL_ACTIVE_FACTOR : 1));
-  return `color-mix(in oklab, ${NOTE_COLOR_SWATCHES[color]} ${percent}%, ${base})`;
+    if (!color) {
+        return undefined;
+    }
+    const percent = active ? TAB_FILL_ACTIVE_PERCENT : TAB_FILL_PERCENT;
+    return `color-mix(in oklab, ${NOTE_COLOR_SWATCHES[color]} ${percent}%, ${base})`;
+}
+
+/** CSS-фон неактивной цветной вкладки панели вкладок; отсутствует, если цвета нет.
+ *
+ * Отличие от нецветной вкладки слабое: доля цвета вдвое меньше базовой заливки,
+ * а основа — общий фон неактивной вкладки (`--tab-idle-surface`), поэтому среди
+ * плашек полосы цвет читается оттенком, а не насыщенной заливкой.
+ */
+export function tabIdleFill(color: TabColor | undefined): string | undefined {
+    if (!color) {
+        return undefined;
+    }
+    return `color-mix(in oklab, ${NOTE_COLOR_SWATCHES[color]} ${TAB_IDLE_FILL_PERCENT}%, var(--tab-idle-surface))`;
 }
 
 /** Подсказка вкладки: пользовательское имя и название книги.
@@ -55,10 +79,10 @@ export function tabColorFill(
  * одной строке в форме `Имя (Книга)`.
  */
 export function tabTooltip(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
-  const label = tabLabel(tab);
-  // Пользовательское имя перекрывает название книги — книгу называем в скобках.
-  if (tab.name?.trim() && tab.title?.trim() && tab.name.trim() !== tab.title.trim()) {
-    return `${label} (${tab.title})`;
-  }
-  return tab.title?.trim() || label;
+    const label = tabLabel(tab);
+    // Пользовательское имя перекрывает название книги — книгу называем в скобках.
+    if (tab.name?.trim() && tab.title?.trim() && tab.name.trim() !== tab.title.trim()) {
+        return `${label} (${tab.title})`;
+    }
+    return tab.title?.trim() || label;
 }

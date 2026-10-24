@@ -202,6 +202,61 @@ describe('панель вкладок: оформление вкладки', () 
         expect(box.getAttribute('style')).toContain('#2563eb');
     });
 
+    it('даёт неактивной вкладке фон, отличный от полосы', () => {
+        // Дефект: неактивная вкладка без цвета сливалась с полосой, потому что
+        // фон у неё отсутствовал. Фон общий для всех неактивных вкладок.
+        mockWidth(320);
+        render(WorkplaceTabs, {
+            props: {
+                tabs: [tab('t1', 'Книга 1'), tab('t2', 'Книга 2')],
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...handlers(),
+            },
+        });
+        const [active, inactive] = screen.getAllByTestId('workplace-tab-item');
+        expect(active.className).toContain('bg-[var(--background)]');
+        expect(inactive.className).toContain('bg-[var(--tab-idle-surface)]');
+    });
+
+    it('заливает неактивную цветную вкладку поверх общего фона', () => {
+        // Цветная неактивная отличается от нецветной только слабым оттенком
+        // цвета, а основа у них одна — фон неактивной вкладки.
+        mockWidth(320);
+        render(WorkplaceTabs, {
+            props: {
+                tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...handlers(),
+            },
+        });
+        const [, colored] = screen.getAllByTestId('workplace-tab-item');
+        expect(colored.className).toContain('bg-[var(--tab-fill)]');
+        expect(colored.getAttribute('style')).toContain('var(--tab-idle-surface)');
+    });
+
+    it('заливает активную цветную вкладку плотнее неактивной', () => {
+        // Активная заливается заметно плотнее: 40% цвета против 7% у неактивной.
+        mockWidth(320);
+        render(WorkplaceTabs, {
+            props: {
+                tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
+                activeTabId: 't2',
+                booksOpen: false,
+                notesOpen: false,
+                ...handlers(),
+            },
+        });
+        const active = screen.getAllByTestId('workplace-tab-item')[1];
+        expect(active.className).toContain('bg-[var(--tab-fill-active)]');
+        expect(active.getAttribute('style')).toContain(
+            '--tab-fill-active: color-mix(in oklab, #2563eb 40%',
+        );
+    });
+
     it('оставляет прежний вид вкладки без оформления', () => {
         mockWidth(320);
         render(WorkplaceTabs, {

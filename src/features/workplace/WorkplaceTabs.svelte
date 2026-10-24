@@ -5,7 +5,7 @@
   import { openAvailability } from './workplace';
   import { publishUserNotification } from '../notifications/notifications';
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
-  import { tabColorFill, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabColorFill, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -241,19 +241,25 @@
     return tab ? tabLabel(tab) : '';
   });
 
-  /** Фрагмент стиля с заливкой вкладки пользовательским цветом; пусто, если цвета нет. */
+  /** Фрагмент стиля вкладки: заливка пользовательским цветом.
+   *
+   * У вкладки без цвета фон задаётся классом (`--tab-idle-surface`), поэтому
+   * переменная не нужна. У цветной: неактивная залита слабым оттенком цвета
+   * поверх общего фона неактивной вкладки, активная — прежней плотной заливкой.
+   */
   function tabFill(tab: WorkspaceTab): string {
-    const base = tabColorFill(tab.color, 'var(--muted)', false);
+    const base = tabIdleFill(tab.color);
     const active = tabColorFill(tab.color, 'var(--muted)', true);
     return base && active ? ` --tab-fill: ${base}; --tab-fill-active: ${active};` : '';
   }
 
   /** Классы фона вкладки с учётом пользовательского цвета и активности.
    *
-   * Вкладки — самостоятельные плашки на приглушённой полосе (как было в прежнем
-   * оформлении): скруглены со всех сторон, не «стоят» на нижней границе. Активная
-   * залита фоном содержимого, неактивные прозрачны и подсвечиваются наведением
-   * акцентом. Никаких рамок и «опоры» на низ.
+   * Вкладки — самостоятельные плашки на полосе: скруглены со всех сторон, не
+   * «стоят» на нижней границе. Фон неактивной вкладки общий для всех
+   * (`--tab-idle-surface`): он чуть отличается от полосы, поэтому вкладку видно,
+   * но отличие лёгкое. Цветная неактивная залита сверх этого фона мягким
+   * оттенком своего цвета, активная — фоном содержимого. Наведение — прежнее.
    */
   function tabFillClass(tab: WorkspaceTab): string {
     const active = tab.id === activeTabId;
@@ -264,7 +270,7 @@
     }
     return active
       ? 'bg-[var(--background)] text-[var(--foreground)]'
-      : 'text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
+      : 'bg-[var(--tab-idle-surface)] text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
   }
 
   /** Пункты контекстного меню рабочего места на телефоне. */
