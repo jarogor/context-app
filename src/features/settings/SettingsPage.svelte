@@ -94,8 +94,14 @@
     }
   }
 
-  /** Сохранение черновика всех секций одним неделимым действием. */
-  async function save() {
+  /** Сохранение черновика всех секций одним неделимым действием.
+   *
+   * Интерфейс не ждёт записи: значения сразу считаются сохранёнными (кнопка
+   * гаснет, раздел можно закрыть), а запись идёт в фоне. Ошибка записи
+   * возвращает черновик и показывается сообщением, поэтому неудачное сохранение
+   * не теряется молча.
+   */
+  function save() {
     const sections: SettingsSectionValues[] = Object.entries(draft).map(([section, values]) => ({
       section,
       values,
@@ -103,17 +109,36 @@
     if (sections.length === 0) {
       return;
     }
+    const pending = draft;
     // Своё сохранение уже возвращает актуальные декларации, поэтому ответ на
     // событие `settings:changed` для этих секций не нужен: повторная загрузка
     // всего интерфейса настроек задерживала отклик на закрытие раздела.
     ignoreChanged = new Set(sections.map((item) => item.section));
+    // Кнопка гаснет сразу: правки приняты, ждать записи незачем.
+    draft = {};
+    void writeSections(sections, pending);
+  }
+
+  /** Фоновая запись значений и разбор результата.
+   *
+   * Отдельно от `save`, чтобы отклик интерфейса не зависел от времени записи в
+   * хранилище плагина.
+   */
+  async function writeSections(
+    sections: SettingsSectionValues[],
+    pending: Record<string, Record<string, unknown>>,
+  ) {
     const result = await asyncState.run(() => saveSettingsSections(sections));
-    if (result) {
-      declarations = result.declarations;
-      syncSaved(result.declarations);
-      // Черновик синхронизируется с сохранённым состоянием: кнопка снова гаснет.
-      draft = {};
-      asyncState.error = result.error;
+    if (!result) {
+      // Запись не удалась: возвращаем правки, чтобы их не потерять.
+      draft = pending;
+      return;
+    }
+    declarations = result.declarations;
+    syncSaved(result.declarations);
+    asyncState.error = result.error;
+    if (result.error) {
+      draft = pending;
     }
   }
 
