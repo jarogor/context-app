@@ -391,6 +391,20 @@
                   {#if item.id === currentId}
                     <Badge testId="workspace-current">Текущее</Badge>
                   {/if}
+                  <!--
+                    Меню действий — в строке названия, как в списках библиотек и
+                    наборов заметок: тот же размер кнопки по умолчанию и те же
+                    отступы. Прежние собственный размер и абсолютное
+                    позиционирование расходились с остальными списками.
+                  -->
+                  <span class="pointer-events-auto relative z-[2] flex shrink-0 items-center">
+                    <ActionMenu
+                      ariaLabel="Действия с рабочим местом"
+                      title="Действия"
+                      items={workspaceActions}
+                      onselect={(action) => runWorkspaceAction(item, action)}
+                    />
+                  </span>
                 </span>
                 <span
                   class="flex flex-wrap items-center gap-x-3 gap-y-1 role-caption text-[var(--muted-foreground)]"
@@ -411,16 +425,6 @@
                     {tabCountLabel(tabCount(item))}
                   </span>
                 </span>
-              </div>
-
-              <div class="absolute top-2 right-2 z-[2] flex items-center gap-1">
-                <ActionMenu
-                  ariaLabel="Действия с рабочим местом"
-                  title="Действия"
-                  class="h-8 w-8"
-                  items={workspaceActions}
-                  onselect={(action) => runWorkspaceAction(item, action)}
-                />
               </div>
             </article>
           {/if}

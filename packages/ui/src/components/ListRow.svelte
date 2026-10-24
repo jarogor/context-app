@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { cn } from '../utils';
+  import RowActions from './RowActions.svelte';
 
   interface Props {
     /** Обработчик клика по пункту; без него пункт не интерактивен. */
@@ -99,6 +100,8 @@
   </button>
 
   {#if actions}
-    <div class="flex shrink-0 items-center p-2">{@render actions()}</div>
+    <RowActions class="p-2">
+      {@render actions()}
+    </RowActions>
   {/if}
 </div>

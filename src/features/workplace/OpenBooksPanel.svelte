@@ -7,6 +7,7 @@
     IconButton,
     Input,
     MetaList,
+    RowActions,
     SidePanel,
     Textarea,
     TAB_ICON_NAMES,
@@ -245,17 +246,17 @@
   <ul class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2">
     {#each visible as tab (tab.id)}
       <li
-        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border transition-colors {itemFillClass(
+        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border py-2.5 pr-2 pl-4 transition-colors {itemFillClass(
           tab,
         )}"
         style={itemFill(tab)}
         data-testid="open-books-item"
         data-active={tab.id === activeTabId ? 'true' : 'false'}
       >
-        <div class="flex items-stretch gap-1 pr-2">
+        <div class="flex items-start gap-2">
           <button
             type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate px-2.5 py-2 text-left role-body [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate text-left role-body [font:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => onSelect(tab.id)}
@@ -265,19 +266,21 @@
             {/if}
             <span class="min-w-0 flex-1 truncate">{tabLabel(tab)}</span>
           </button>
-          <ActionMenu
-            ariaLabel="Оформление вкладки"
-            title={overLimit ? 'Превышен лимит открытых вкладок' : 'Оформление'}
-            class="my-1 h-7 w-7 {overLimit ? 'text-destructive' : ''}"
-            items={appearanceActions}
-            icons={iconOptions(tab.icon)}
-            iconsLabel="Иконка вкладки"
-            oniconselect={(icon) => onEditAppearance(tab.id, { icon })}
-            colors={colorOptions(tab.color)}
-            colorsLabel="Цвет вкладки"
-            oncolorselect={(color) => onEditAppearance(tab.id, { color: color as TabColor })}
-            onselect={(action) => runAppearanceAction(tab, action)}
-          />
+          <RowActions>
+            <ActionMenu
+              ariaLabel="Оформление вкладки"
+              title={overLimit ? 'Превышен лимит открытых вкладок' : 'Оформление'}
+              class="h-7 w-7 {overLimit ? 'text-destructive' : ''}"
+              items={appearanceActions}
+              icons={iconOptions(tab.icon)}
+              iconsLabel="Иконка вкладки"
+              oniconselect={(icon) => onEditAppearance(tab.id, { icon })}
+              colors={colorOptions(tab.color)}
+              colorsLabel="Цвет вкладки"
+              oncolorselect={(color) => onEditAppearance(tab.id, { color: color as TabColor })}
+              onselect={(action) => runAppearanceAction(tab, action)}
+            />
+          </RowActions>
         </div>
         {#if tab.description}
           <p

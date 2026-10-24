@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Badge } from '@texture/ui';
+  import { Badge, RowActions } from '@texture/ui';
   import type { Snippet } from 'svelte';
   import { formatDateTime } from '../../shared/format';
   import { noteMarkerColor, NOTE_TYPE_LABELS, type NoteListItem } from './notes';
@@ -90,7 +90,9 @@
         >
       {/if}
     </button>
-    {@render actions?.()}
+    <RowActions>
+      {@render actions?.()}
+    </RowActions>
   </div>
   {@render children?.()}
 </li>

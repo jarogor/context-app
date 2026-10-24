@@ -5,6 +5,7 @@ export { default as PageShell } from './components/PageShell.svelte';
 export { default as ScrollArea } from './components/ScrollArea.svelte';
 export { default as SearchCreate } from './components/SearchCreate.svelte';
 export { default as ListRow } from './components/ListRow.svelte';
+export { default as RowActions } from './components/RowActions.svelte';
 export { default as EntityList } from './components/EntityList.svelte';
 export { default as MetaList } from './components/MetaList.svelte';
 export type { MetaItem } from './components/MetaList.svelte';
