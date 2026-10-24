@@ -107,7 +107,8 @@
   <button
     type="button"
     class="flex shrink-0 cursor-pointer items-center gap-2 rounded-[var(--radius)] px-3 py-1.5 text-[var(--foreground)] transition-colors [font:inherit]"
-    class:bg-[var(--primary-soft)]={item.active}
+    class:bg-[var(--primary)]={item.active}
+    class:text-[var(--primary-foreground)]={item.active}
     class:hover:bg-[var(--surface-hover)]={!item.active}
     aria-pressed={item.active}
     aria-label={item.label}
@@ -133,7 +134,8 @@
   <button
     type="button"
     class="relative flex min-h-[var(--touch-target)] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius)] px-1 py-1 text-[var(--foreground)] transition-colors [font:inherit]"
-    class:bg-[var(--primary-soft)]={item.active}
+    class:bg-[var(--primary)]={item.active}
+    class:text-[var(--primary-foreground)]={item.active}
     class:hover:bg-[var(--surface-hover)]={!item.active}
     aria-pressed={item.active}
     aria-label={item.ariaLabel}

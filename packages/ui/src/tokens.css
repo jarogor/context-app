@@ -197,10 +197,12 @@
   --popover-foreground: #0f1622;
   /* Цвет всплывающего слоя в тон этой палитры. */
   --overlay-surface: #ffffff;
-  /* Акцент приглушён: прежний насыщенный синий (#1d47a8) выглядел в интерфейсе
-   * слишком ярко, поэтому его хрома снижена при той же светлоте и тоне —
-   * палитра остаётся синей, но спокойнее. */
-  --primary: #2c4c91;
+  /* Акцент приглушён и одновременно углублён: прежний #1d47a8 был слишком
+   * ярким, а ослабленный #2c4c91 — слишком бледным и «грязным» под тёмным
+   * текстом. Здесь цвет темнее (L 0.41) и насыщеннее (C 0.135) при том же тоне:
+   * на светлой подложке он читается глубоким синим, а светлый текст поверх
+   * заливки даёт контраст 8.5. */
+  --primary: #204592;
   --primary-foreground: #f7f9fc;
   --secondary: #d7e0f0;
   --secondary-foreground: #0f1622;
@@ -210,15 +212,15 @@
   --destructive-foreground: #ffffff;
   --border: color-mix(in oklab, var(--foreground) 16%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 22%, var(--background));
-  --ring: #2c4c91;
+  --ring: #204592;
   --sidebar: #e2e9f6;
   --sidebar-foreground: #0f1622;
-  --sidebar-primary: #2c4c91;
+  --sidebar-primary: #204592;
   --sidebar-primary-foreground: #f7f9fc;
   --sidebar-accent: #cfd9ee;
   --sidebar-accent-foreground: #0f1622;
   --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
-  --sidebar-ring: #2c4c91;
+  --sidebar-ring: #204592;
   --success: #2f7d4f;
   --warning: #8f6415;
 }
@@ -235,7 +237,7 @@
   --popover-foreground: #e4e9f4;
   /* Цвет всплывающего слоя в тон этой палитры. */
   --overlay-surface: #1f2c4a;
-  --primary: #7095dd;
+  --primary: #608fed;
   --primary-foreground: #0a101c;
   --secondary: #1b2740;
   --secondary-foreground: #e4e9f4;
@@ -245,15 +247,15 @@
   --destructive-foreground: #0c1526;
   --border: color-mix(in oklab, var(--foreground) 13%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 19%, var(--background));
-  --ring: #7095dd;
+  --ring: #608fed;
   --sidebar: #101a2e;
   --sidebar-foreground: #e4e9f4;
-  --sidebar-primary: #7095dd;
+  --sidebar-primary: #608fed;
   --sidebar-primary-foreground: #0a101c;
   --sidebar-accent: #1f2c4a;
   --sidebar-accent-foreground: #e4e9f4;
   --sidebar-border: color-mix(in oklab, var(--foreground) 12%, var(--background));
-  --sidebar-ring: #7095dd;
+  --sidebar-ring: #608fed;
   --success: #78b98a;
   --warning: #dcae62;
 }
@@ -269,7 +271,7 @@
   --popover-foreground: #3c3836;
   /* Цвет всплывающего слоя в тон этой палитры. */
   --overlay-surface: #fffbe8;
-  --primary: #076678;
+  --primary: #005d74;
   --primary-foreground: #fbf1c7;
   --secondary: #ebdbb2;
   --secondary-foreground: #3c3836;
@@ -279,15 +281,15 @@
   --destructive-foreground: #fbf1c7;
   --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
-  --ring: #076678;
+  --ring: #005d74;
   --sidebar: #f9f5d7;
   --sidebar-foreground: #3c3836;
-  --sidebar-primary: #076678;
+  --sidebar-primary: #005d74;
   --sidebar-primary-foreground: #fbf1c7;
   --sidebar-accent: #ebdbb2;
   --sidebar-accent-foreground: #3c3836;
   --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
-  --sidebar-ring: #076678;
+  --sidebar-ring: #005d74;
   --success: #427b58;
   --warning: #b57614;
 }
@@ -304,7 +306,7 @@
   --popover-foreground: #ebdbb2;
   /* Цвет всплывающего слоя в тон этой палитры. */
   --overlay-surface: #403d3a;
-  --primary: #83a598;
+  --primary: #62a590;
   --primary-foreground: #282828;
   --secondary: #3c3836;
   --secondary-foreground: #ebdbb2;
@@ -314,15 +316,15 @@
   --destructive-foreground: #282828;
   --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
-  --ring: #83a598;
+  --ring: #62a590;
   --sidebar: #32302f;
   --sidebar-foreground: #ebdbb2;
-  --sidebar-primary: #83a598;
+  --sidebar-primary: #62a590;
   --sidebar-primary-foreground: #282828;
   --sidebar-accent: #3c3836;
   --sidebar-accent-foreground: #ebdbb2;
   --sidebar-border: color-mix(in oklab, var(--foreground) 13%, var(--background));
-  --sidebar-ring: #83a598;
+  --sidebar-ring: #62a590;
   --success: #8ec07c;
   --warning: #fabd2f;
 }
@@ -443,7 +445,7 @@
   --reader-background: #fbf1c7;
   --reader-foreground: #3c3836;
   --reader-muted-foreground: #7c6f64;
-  --reader-link: #076678;
+  --reader-link: #005d74;
   --reader-selection: rgba(96, 140, 180, 0.35);
   --reader-note-mark: #f2cd52;
 }
@@ -452,7 +454,7 @@
   --reader-background: #282828;
   --reader-foreground: #ebdbb2;
   --reader-muted-foreground: #a89984;
-  --reader-link: #83a598;
+  --reader-link: #62a590;
   --reader-selection: rgba(120, 160, 195, 0.33);
   --reader-note-mark: rgba(214, 158, 46, 0.75);
 }
