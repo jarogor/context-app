@@ -82,8 +82,24 @@ export function reportState(): void {
   post({ type: 'progress', value: scrollProgress() });
 }
 
+/** Пикселей родного растра страницы на CSS-пиксель её отображения.
+ *
+ * Ровно в этой плотности движок рисует страницу один к одному: растр не
+ * растягивается и не сжимается. Любое расхождение с плотностью канваса
+ * заставляет пересэмплировать весь кадр — в WebKit это стоит около секунды.
+ */
+function nativePixelsPerCss(page: DjVuPage, viewport: { width: number; height: number }): number {
+  const stored = Math.max(1, page.dpi() || 300);
+  const width = page.width_at(Math.round(stored));
+  return viewport.width > 0 ? width / viewport.width : 1;
+}
+
 /** Подготовка канваса страницы: окно и плотность. */
-function setupCanvas(pageEl: HTMLElement, viewport: { width: number; height: number }): {
+function setupCanvas(
+  pageEl: HTMLElement,
+  viewport: { width: number; height: number },
+  nativeRatio: number,
+): {
   /** Готовый канвас (вне документа). */
   canvas: HTMLCanvasElement;
   /** Геометрия окна. */
@@ -99,7 +115,12 @@ function setupCanvas(pageEl: HTMLElement, viewport: { width: number; height: num
     viewport,
     window.devicePixelRatio || 1,
   );
-  const ratio = boundedRatio(base.width, base.height, window.devicePixelRatio || 1);
+  // Плотность канваса не выше родной плотности растра: выше — лишние пиксели,
+  // которые потом сжимаются обратно (дорого и без выигрыша в детали).
+  const ratio = Math.max(
+    0.25,
+    Math.min(boundedRatio(base.width, base.height, window.devicePixelRatio || 1), nativeRatio),
+  );
   const absX0 = snapToDevice(rect.left + base.x0, ratio);
   const absY0 = snapToDevice(rect.top + base.y0, ratio);
   const absRight = snapToDevice(rect.left + base.x0 + base.width, ratio);
@@ -229,63 +250,33 @@ function effectiveDpi(page: DjVuPage): number {
   return stored >= 24 && stored <= 1200 ? stored : 300;
 }
 
-/** Целевой DPI отрисовки страницы в системе координат файла.
- *
- * Размер страницы переведён в CSS по её разрешению, поэтому растр нужен по
- * CSS-пикселям: `96 × масштаб × плотность окна`. Если DPI файла признан
- * неверным, целевой DPI приводится к тому же разрешению, по которому посчитан
- * размер.
- */
-function targetDpi(page: DjVuPage, info: CanvasInfo, quality: number): number {
-  const stored = page.dpi() || 300;
-  const dpi = effectiveDpi(page);
-  const scale = (state.zoom / 100) * CSS_DPI * (stored / dpi) * quality;
-  return Math.max(1, Math.round(scale * info.ratio));
-}
-
-/** Запас детализации растра над пикселями канваса. */
-const RASTER_QUALITY = 1.5;
-/** Предельная площадь растровой страницы (пиксели) с запасом детализации. */
-const RASTER_AREA = 26 * 1024 * 1024;
-/** Нижний предел разрешения отрисовки, dpi. */
-const MIN_RASTER_DPI = 144;
-
 /**
- * Запас детализации растра.
+ * Целевой DPI отрисовки страницы в системе координат файла.
  *
- * Разрешение отрисовки задаётся масштабом: на 40 % это около 40 dpi, и штрихи
- * букв тоньше пикселя — мелкий масштаб выходит пиксельным. Поэтому растр
- * рисуется не ниже родного разрешения файла (`page.dpi()`): JB2 хранит буквы в
- * родном разрешении, и при отрисовке мельче движок пересэмплирует двухцветный
- * слой без сглаживания — буквы становятся ступенчатыми. Рисование в родном
- * разрешении и однократное сжатие до канваса даёт гладкие штрихи.
+ * Считается от РАЗМЕРА КАНВАСА, а не от идеального масштаба: тогда растр
+ * совпадает с канвасом в пикселях, и раскладка пикселей — простое копирование.
+ * Идеальный расчёт расходился с фактом (предел площади понижал dpi, канвас
+ * оставался крупнее), и каждый кадр растягивался — в WebKit это стоило около
+ * половины секунды на страницу.
  *
- * Выравнивание текстового слоя читает пиксели КАНВАСА (после сжатия), поэтому
- * запас не меняет его геометрию: рамки слов остаются на буквах при любом
- * масштабе.
+ * Ниже родного разрешения файла dpi не опускается: JB2 хранит буквы в родном
+ * разрешении, и при отрисовке мельче движок сводит двухцветный слой без
+ * сглаживания — буквы сливаются, и выравнивание текстового слоя перестаёт
+ * находить границы слов. На мелком масштабе растр приходит крупнее канваса и
+ * сжимается — это и даёт гладкие штрихи.
  */
-function rasterQuality(page: DjVuPage, info: CanvasInfo): number {
-  const stored = page.dpi() || 300;
-  const dpi = effectiveDpi(page);
-  // Разрешение отрисовки без запаса, dpi.
-  const base = (state.zoom / 100) * CSS_DPI * (stored / dpi) * info.ratio;
-  let quality = RASTER_QUALITY;
-  if (base > 0) {
-    // Ниже родного разрешения файла растр не опускается: иначе движок
-    // пересэмплирует JB2 и штрихи выходят ступенчатыми.
-    const wanted = Math.max(MIN_RASTER_DPI, stored);
-    if (base < wanted) {
-      quality = Math.max(quality, wanted / base);
-    }
+function rasterDpi(page: DjVuPage, canvas: HTMLCanvasElement): number {
+  // Родное разрешение файла: в нём движок рисует один к одному и не сводит JB2.
+  const native = Math.max(1, Math.round(page.dpi() || 300));
+  const nativeWidth = page.width_at(native);
+  if (!(nativeWidth > 0) || !(canvas.width > 0)) {
+    return native;
   }
-  // Предел площади: запас снимается только если растр не влезает в допустимый
-  // размер. Ниже 1 не опускаемся — растр мельче канваса браузер растягивает.
-  const cssArea = info.width * info.height * info.ratio * info.ratio;
-  if (cssArea > 0) {
-    const limit = Math.sqrt(RASTER_AREA / cssArea);
-    quality = Math.min(quality, limit);
-  }
-  return Math.max(1, quality);
+  // DPI, при котором ширина растра равна ширине канваса. Ниже родного не
+  // опускается: тогда растр приходит крупнее канваса и сжимается — это и даёт
+  // гладкость на мелком масштабе.
+  const fromCanvas = Math.round((native * canvas.width) / nativeWidth);
+  return Math.max(native, Math.max(1, fromCanvas));
 }
 
 /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок.
@@ -332,7 +323,7 @@ export function renderPage(
   pageEl.style.width = viewport.width + 'px';
   pageEl.style.height = viewport.height + 'px';
 
-  const setup = setupCanvas(pageEl, viewport);
+  const setup = setupCanvas(pageEl, viewport, nativePixelsPerCss(page, viewport));
   const canvas = setup.canvas;
   const info = setup.info;
   // Канвас читается пикселями (`alignTextLayerToRaster`, перекраска темы),
@@ -351,7 +342,7 @@ export function renderPage(
   const entry: RenderedEntry = { canvas, textLayer: textLayerEl, info, paint: state.paintKey };
 
   try {
-    const dpi = targetDpi(page, info, rasterQuality(page, info));
+    const dpi = rasterDpi(page, canvas);
     // Пикселей растра на CSS-пиксель страницы: для файла с неверным DPI не
     // совпадает с плотностью окна, для обычного — совпадает.
     const pixelsPerCss = page.width_at(dpi) / Math.max(1, viewport.width);
@@ -513,7 +504,6 @@ function enqueue(pageEl: HTMLElement, preserve: RenderedEntry | null = null): vo
 function runRenderQueue(): void {
   renderTimer = null;
   const token = state.renderToken;
-  const started = performance.now();
   while (renderQueue.length > 0) {
     if (token !== state.renderToken) {
       renderQueue = [];
@@ -528,9 +518,10 @@ function runRenderQueue(): void {
       continue;
     }
     renderPage(item.pageEl, item.preserve, token);
-    if (performance.now() - started > 12) {
-      break;
-    }
+    // Одна страница за заход: следующая — в отдельном кадре. Отрисовка страницы
+    // в WebKit занимает сотни миллисекунд, и несколько подряд заморозили бы
+    // интерфейс на всё это время.
+    break;
   }
   if (renderQueue.length > 0) {
     renderTimer = setTimeout(runRenderQueue, 16);

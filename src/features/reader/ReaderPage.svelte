@@ -138,6 +138,10 @@
   let unavailable = $state(false);
   /** Масштаб текста в процентах (начальное значение берётся один раз). */
   let zoom = $state(untrack(() => initialZoom));
+  /** Масштаб плагина уже принят (или пользователь задал свой): повторно не
+   * принимается. Иначе при серии нажатий плагин присылал прежний масштаб, и
+   * шкала возвращалась на шаг назад — масштаб «прыгал» дважды. */
+  let pluginZoomTaken = $state(false);
   /** Прогресс чтения в процентах. */
   let progress = $state(untrack(() => initialPosition));
   /** Поддерживает ли плагин рабочего места изменение масштаба. */
@@ -352,6 +356,8 @@
    * шкалы (`nextZoom`), поэтому шкала обратима и не ломается у нижней границы.
    */
   function changeZoom(direction: ZoomDirection) {
+    // Пользователь задал масштаб сам: значение плагина больше не принимается.
+    pluginZoomTaken = true;
     zoom = nextZoom(zoom, direction, minZoom, maxZoom);
     reportState();
   }
@@ -510,15 +516,14 @@
               progress = pageProgress(value.page, value.pages);
             }
             // Плагин сам выбирает удобный масштаб (например, подгонку по ширине
-            // при открытии): приложение принимает его, пока пользователь не
-            // задал масштаб явно.
-            if (
-              typeof value.zoom === 'number' &&
-              value.zoom > 0 &&
-              value.zoom !== zoom &&
-              zoom === untrack(() => initialZoom)
-            ) {
-              zoom = value.zoom;
+            // при открытии): приложение принимает его ОДИН раз, пока
+            // пользователь не задал масштаб. Повторный приём возвращал шкалу на
+            // шаг назад после каждого нажатия — масштаб менялся дважды.
+            if (!pluginZoomTaken && typeof value.zoom === 'number' && value.zoom > 0) {
+              pluginZoomTaken = true;
+              if (value.zoom !== zoom) {
+                zoom = value.zoom;
+              }
             }
             reportState();
           }}

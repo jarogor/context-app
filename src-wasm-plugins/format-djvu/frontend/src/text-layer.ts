@@ -544,16 +544,13 @@ export function alignTextLayerToRaster(
       }
       continue;
     }
-    // Границы слов ищутся ЛОКАЛЬНО: у каждой пары соседних зон известен стык
-    // (правый край предыдущей, левый край следующей), и разрыв ищется только в
-    // узком окне вокруг него. Глобальный выбор «N самых широких разрывов» не
-    // годится: у плотного шрифта межсловный разрыв бывает уже межбуквенного, и
-    // тогда границы уезжают на буквы внутри слов — полоса режется, и рамка
-    // съезжает на соседа.
-    // Окно ограничено серединами соседних зон: дальше начинается чужое слово, и
-    // разрыв там уже не граница. Запас в 0,6 высоты строки покрывает смещение
-    // зоны от букв.
-    const delta = Math.max(4, Math.round(lineHeightPx * 0.6));
+    // Границы слов ищутся ЛОКАЛЬНО: у каждой пары соседних зон известен
+    // интервал между их серединами, и разрыв ищется только в нём. Глобальный
+    // выбор «N самых широких разрывов» не годится: у плотного шрифта межсловный
+    // разрыв бывает уже межбуквенного, и тогда границы уезжают на буквы внутри
+    // слов — полоса режется, и рамка съезжает на соседа. Привязка к стыку зон
+    // тоже не годится: стык смещён от букв, и это смещение растёт с масштабом
+    // неравномерно — на 140 % настоящий разрыв между словами оставался за окном.
     /** Для слова `i`: участок чернил, с которого оно начинается. */
     const startsAt = new Array<number>(bucket.length).fill(-1);
     startsAt[0] = 0;
@@ -565,10 +562,14 @@ export function alignTextLayerToRaster(
       const current = bucket[index];
       const previousCenter = (previous.zoneLeft + previous.zoneRight) / 2;
       const currentCenter = (current.zoneLeft + current.zoneRight) / 2;
-      const seamLow = Math.min(previous.zoneRight, current.zoneLeft);
-      const seamHigh = Math.max(previous.zoneRight, current.zoneLeft);
-      const low = Math.max(seamLow - delta, previousCenter + 1);
-      const high = Math.min(seamHigh + delta, currentCenter - 1);
+      // Окно поиска — между ЦЕНТРАМИ соседних зон: граница двух слов не может
+      // лежать левее середины предыдущего или правее середины следующего. От
+      // стыка зон окно брать нельзя: стык смещён от букв, и его смещение растёт
+      // с масштабом неравномерно. На 140 % стык зон давал просвет 21 px, а
+      // фактический просвет между буквами был 88 px — настоящий разрыв оставался
+      // за окном, и рамка обрывалась на 44 px раньше конца слова.
+      const low = previousCenter + 1;
+      const high = currentCenter - 1;
       let best = -1;
       let bestWidth = -1;
       let nearest = -1;
@@ -619,11 +620,12 @@ export function alignTextLayerToRaster(
         to = startsAt[index + 1] - 1;
       } else {
         // У последнего слова справа границы от соседа нет: конец берётся по его
-        // зоне с запасом. Иначе рамка тянулась бы до конца полосы — на колонцифру
-        // или номер страницы.
+        // зоне с запасом в высоту строки. Иначе рамка тянулась бы до конца
+        // полосы — на колонцифру или номер страницы.
+        const extra = Math.max(4, Math.round(lineHeightPx * 1.5));
         to = from;
         for (let run = from; run < runs.length; run += 1) {
-          if (runs[run].left > bucket[index].zoneRight + delta) {
+          if (runs[run].left > bucket[index].zoneRight + extra) {
             break;
           }
           to = run;
