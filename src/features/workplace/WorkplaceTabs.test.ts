@@ -216,7 +216,10 @@ describe('панель вкладок: оформление вкладки', () 
             },
         });
         const [active, inactive] = screen.getAllByTestId('workplace-tab-item');
-        expect(active.className).toContain('bg-[var(--background)]');
+        // Активная — как активный пункт раздела в шапке: мягкий акцент и обычный
+        // текст. Неактивная — общий фон, отличный от полосы.
+        expect(active.className).toContain('bg-[var(--primary-soft)]');
+        expect(active.className).toContain('text-[var(--foreground)]');
         expect(inactive.className).toContain('bg-[var(--tab-idle-surface)]');
     });
 
