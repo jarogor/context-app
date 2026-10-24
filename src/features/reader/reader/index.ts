@@ -14,6 +14,13 @@ export type { BookChapter, BookContent } from './types';
 /** Форматы, поддерживаемые встроенным чтением (текстовые). */
 export const BUILTIN_FORMATS = ['epub', 'fb2'];
 
+/** Форматы текучего чтения: текст течёт по колонке и масштабируется.
+ *
+ * У постраничных форматов (PDF, DjVu) текст — часть растра, поэтому выбор
+ * гарнитуры и ширина колонки к ним не применяются.
+ */
+export const FLOWING_FORMATS: readonly string[] = BUILTIN_FORMATS;
+
 /** Форматы, поддерживаемые встроенным чтением. */
 const SUPPORTED_FORMATS: readonly string[] = BUILTIN_FORMATS;
 
@@ -57,6 +64,14 @@ export async function loadBookContent(
   }
   const response = await backend.invoke('reader_content', { path });
   return normalizeContent(response);
+}
+
+/** Открытие внешней ссылки книги системным приложением. */
+export async function openBookLink(
+  href: string,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<void> {
+  await backend.invoke('reader_open_link', { href });
 }
 
 /** Открытие файла книги. */

@@ -52,6 +52,7 @@
     rangeHandleRect,
   } from './reader/geometry';
   import { applyZoom, captureAnchor, restoreAnchor } from './reader/zoom-anchor';
+  import { anchorTarget, parseBookLink } from './reader/book-link';
   import { clearSelectionLayer, renderSelectionLayer } from './reader/selection';
 
   interface Props {
@@ -87,6 +88,8 @@
     onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
     /** Запрос правки текста заметки типа `text` (окно открывает оболочка). */
     onEditText?: (noteId: string) => void;
+    /** Открытие внешней ссылки книги системным приложением. */
+    onOpenLink?: (href: string) => void;
   }
 
   let {
@@ -106,6 +109,7 @@
     onSelectNote,
     onPlaceNote,
     onEditText,
+    onOpenLink,
   }: Props = $props();
 
   /** Доступные типы заметок текучего чтения: только цитата. */
@@ -121,6 +125,21 @@
   const startPosition = untrack(() => initialPosition);
   /** Опорная строка для удержания места при перестройке: диапазон и его отступ. */
   let zoomAnchor = captureAnchor(null);
+
+  /** Разметка книги для восстановления области, ушедшей с содержимого.
+   *
+   * Область живёт в `srcdoc`; если браузер всё же перешёл по ссылке (например,
+   * из книги с нестандартной разметкой), документ книги подменялся документом
+   * приложения, и вкладка ломалась. Здесь хранится та же разметка, чтобы
+   * вернуть книгу на место.
+   */
+  let bookHtml = '';
+
+  /** Последняя позиция чтения в процентах: восстанавливается после возврата. */
+  let lastProgress = 0;
+
+  /** Идёт ли возврат книги после ухода области; защита от цикла возвратов. */
+  let restoring = false;
 
   /** Незавершённое выделение для создания заметки. */
   let pendingAnchor: QuoteAnchor | null = $state(null);
@@ -1091,6 +1110,12 @@
 
   /** Обработка клика по подсветке или наложению: выбор заметки и меню действий. */
   function handleClick(event: MouseEvent): void {
+    // Ссылка книги перехватывается всегда: документ живёт в `srcdoc`, и
+    // браузер разрешает относительные ссылки от документа родителя — клик по
+    // сноске уводил область на само приложение и ломал вкладку.
+    if (handleBookLink(event)) {
+      return;
+    }
     if (suppressClick) {
       suppressClick = false;
       return;
@@ -1109,6 +1134,39 @@
       onSelectNote?.(noteId);
       openNoteMenu(noteId, element);
     }
+  }
+
+  /** Переход по ссылке книги; `true` — клик был ссылкой и обработан здесь.
+   *
+   * Внутренний якорь прокручивает к цели, внешняя ссылка открывается системным
+   * приложением, относительный путь внутри книги игнорируется. Нативное
+   * поведение браузера отменяется всегда, иначе область ушла бы с содержимого
+   * книги на документ родителя.
+   */
+  function handleBookLink(event: MouseEvent): boolean {
+    const target = event.target as Element | null;
+    const link = target?.closest?.('a[href]') as HTMLAnchorElement | null;
+    if (!link) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const parsed = parseBookLink(link.getAttribute('href'));
+    if (parsed.kind === 'anchor' && parsed.anchor) {
+      const value = doc ?? document();
+      const goal = value ? anchorTarget(value, parsed.anchor) : null;
+      if (goal) {
+        goal.scrollIntoView({ block: 'start' });
+        captureAnchorNow();
+        handleScroll();
+      }
+      return true;
+    }
+    if (parsed.kind === 'external') {
+      onOpenLink?.(parsed.href);
+      return true;
+    }
+    return true;
   }
 
   /** Отмена меню и правки при начале нового взаимодействия с текстом. */
@@ -1198,7 +1256,9 @@
       return;
     }
     const max = root.scrollHeight - root.clientHeight;
-    onProgress?.(max > 0 ? (root.scrollTop / max) * 100 : 0);
+    const percent = max > 0 ? (root.scrollTop / max) * 100 : 0;
+    lastProgress = percent;
+    onProgress?.(percent);
   }
 
   /** Переход к заметке извне (панель заметок). */
@@ -1213,9 +1273,65 @@
     gotoAnchor(note);
   }
 
+  /** Признак того, что загруженный документ — книга, а не чужой документ.
+   *
+   * Книга всегда содержит разделы глав. Если их нет, область ушла на другой
+   * адрес: тогда содержимое возвращается, а пользователь не теряет состояние
+   * чтения.
+   */
+  function isBookDocument(value: Document | null): boolean {
+    if (!value) {
+      return false;
+    }
+    if (!value.querySelector(`.${CHAPTER_CLASS}`)) {
+      return false;
+    }
+    return true;
+  }
+
+  /** Возврат документа книги на прежнее место после ухода области.
+   *
+   * Разметка книги ставится заново, а прокрутка восстанавливается по последней
+   * позиции чтения. Ошибка возврата не роняет вкладку: область остаётся как
+   * есть, и книга открывается заново из неё же.
+   */
+  function restoreBook(): void {
+    // Повторный сбой возврата не зацикливает загрузку: книга остаётся как
+    // есть, а пользователь не теряет вкладку и может открыть её заново.
+    if (!frame || !bookHtml || restoring) {
+      return;
+    }
+    restoring = true;
+    const percent = lastProgress;
+    frame.srcdoc = bookHtml;
+    frame.addEventListener(
+      'load',
+      () => {
+        restoring = false;
+        if (!isBookDocument(document())) {
+          return;
+        }
+        handleLoad();
+        if (percent > 0) {
+          gotoPercent(percent);
+        }
+      },
+      { once: true },
+    );
+  }
+
   /** Первичная настройка документа после загрузки области. */
   function handleLoad(): void {
     const value = document();
+    if (!isBookDocument(value)) {
+      // Область ушла с содержимого книги: возвращаем книгу, а не оставляем
+      // сломанную вкладку, которую можно починить только повторным открытием.
+      // Книга без глав (пустая разметка) возврату не подлежит.
+      if (bookHtml.includes(CHAPTER_CLASS)) {
+        restoreBook();
+      }
+      return;
+    }
     doc = value;
     if (!value) {
       return;
@@ -1252,6 +1368,7 @@
   let html = $state('');
   onMount(() => {
     html = buildDocument(content, { palette, readerTheme, readerFont });
+    bookHtml = html;
     /** Завершение протяжки фигуры при отпускании кнопки вне области чтения.
      *
      * `mouseup` внутри документа книги не приходит, если курсор вышел за пределы

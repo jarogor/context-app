@@ -231,3 +231,69 @@ test('текст книги не прижимается к левому краю
     const right = layout.viewport - (layout.left + layout.width);
     expect(Math.abs(layout.left - right)).toBeLessThanOrEqual(2);
 });
+
+// Кнопка шрифта относится к текучему тексту: у постраничных форматов (PDF,
+// DjVu) текст — часть растра, и выбор гарнитуры там ничего не меняет.
+test('кнопка шрифта есть у EPUB и стоит слева, в группе инструментов', async ({ page }) => {
+    await openBook(page);
+    const toolbar = page.getByTestId('note-toolbar');
+    const toggle = page.getByTestId('reader-font-toggle');
+    await expect(toggle).toBeVisible();
+
+    const layout = await toolbar.evaluate((element) => {
+        const toggleEl = element.querySelector('[data-testid="reader-font-toggle"]') as HTMLElement;
+        const footer = element.querySelector('[data-testid="reader-footer"]') as HTMLElement;
+        return {
+            toggleLeft: toggleEl.getBoundingClientRect().left,
+            footerLeft: footer.getBoundingClientRect().left,
+            toolbarLeft: element.getBoundingClientRect().left,
+        };
+    });
+    // Кнопка — в левой части панели, до правой группы управления чтением.
+    expect(layout.toggleLeft).toBeGreaterThanOrEqual(layout.toolbarLeft);
+    expect(layout.toggleLeft).toBeLessThan(layout.footerLeft);
+    // Свой блок с фоном, как у типов заметок и масштаба: единая система панели.
+    await expect(toggle).toHaveAttribute('role', 'group');
+    const background = await toggle.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+    );
+    const zoomGroup = await page
+        .getByTestId('reader-zoom-group')
+        .evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(background).toBe(zoomGroup);
+});
+
+// При увеличении масштаба ширина колонки растёт вместе с кеглем: иначе крупный
+// текст оказывался на узкой полоске посреди окна и плохо читался.
+test('ширина колонки книги растёт вместе с масштабом', async ({ page }) => {
+    await openBook(page);
+    const frame = content(page);
+    await expect(frame.locator('h1')).toBeVisible();
+
+    const metrics = () =>
+        frame.locator('body').evaluate((body) => {
+            const style = getComputedStyle(body);
+            return {
+                fontSize: Number.parseFloat(style.fontSize),
+                maxWidth: Number.parseFloat(style.maxWidth),
+            };
+        });
+
+    const before = await metrics();
+    // Масштаб применяется в документ книги через склеенную серию: ждём, пока
+    // кегль в книге действительно изменится.
+    const bigger = page.getByRole('button', { name: 'Увеличить масштаб' });
+    await bigger.click();
+    await bigger.click();
+    await expect
+        .poll(async () => (await metrics()).fontSize)
+        .toBeGreaterThan(before.fontSize);
+
+    const after = await metrics();
+    // Кегль вырос, и ширина колонки — пропорционально (она задана в `rem`).
+    expect(after.maxWidth).toBeGreaterThan(before.maxWidth);
+    const textRatio = after.fontSize / before.fontSize;
+    const widthRatio = after.maxWidth / before.maxWidth;
+    expect(Math.abs(widthRatio - textRatio)).toBeLessThan(0.05);
+});

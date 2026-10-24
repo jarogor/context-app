@@ -9,6 +9,7 @@
     isSupportedFormat,
     loadBookContent,
     openBookFile,
+    openBookLink,
     selectWorkplacePlugin,
     type BookContent,
     type WorkplaceSelection,
@@ -643,6 +644,7 @@
           onSelectNote={(noteId) => onNoteClick?.(noteId)}
           onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
           onEditText={startEditNoteTextInReader}
+          onOpenLink={(href) => void openBookLink(href).catch(() => undefined)}
           onProgress={(value) => {
             progress = value;
             reportState();

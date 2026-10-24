@@ -52,6 +52,8 @@
     onChangeReaderTheme?: (theme: ReaderThemeId) => void;
     /** Показывать ли инструменты создания заметок (книга открыта). */
     notesMode?: boolean;
+    /** Книга текучего формата (EPUB, FB2): текст течёт и масштабируется. */
+    flowing?: boolean;
     /** Читается ли книга плагином рабочего места. */
     workplace?: boolean;
     /** Поддерживает ли плагин страницы. */
@@ -82,6 +84,7 @@
     onChangeReaderTheme,
     onChangeReaderFont,
     notesMode = false,
+    flowing = false,
     workplace = false,
     workplacePages = false,
     workplacePage = null,
@@ -222,6 +225,41 @@
     </div>
   {/if}
 
+  <!--
+    Гарнитура книги живёт рядом с типами заметок и только у текучих форматов
+    (EPUB, FB2): у постраничных форматов шрифт задаёт сам файл, и кнопка там
+    ничего не меняла бы. Как и у типов заметок, у масштаба и у навигации,
+    кнопка стоит в собственном блоке с фоном — единый вид управляющих групп
+    панели; блок готов принять и другие действия оформления текста. Знак —
+    «Аа» той гарнитуры, на которую кнопка переключает, поэтому действие видно
+    без чтения подсказки.
+  -->
+  {#if flowing && onChangeReaderFont}
+    <div
+      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+      role="group"
+      aria-label="Шрифт книги"
+      data-testid="reader-font-toggle"
+    >
+      <Button
+        size="icon"
+        variant="ghost"
+        title={fontTitle}
+        ariaLabel={fontLabel}
+        class="size-8"
+        onclick={toggleReaderFont}
+      >
+        <span
+          class="text-[0.95rem] leading-none"
+          style="font-family: {readerFont === 'serif'
+            ? "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            : "Georgia, 'Times New Roman', serif"}"
+          aria-hidden="true">Аа</span
+        >
+      </Button>
+    </div>
+  {/if}
+
   {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
     <div class="flex items-center" data-testid="note-tool-shape">
       <Select
@@ -344,31 +382,6 @@
         class="inline-block w-[3.25rem] text-center text-sm"
         data-testid="reader-zoom">{zoom}%</span
       >
-    </div>
-  {/if}
-  {#if onChangeReaderFont}
-    <!--
-      Гарнитура книги: одна кнопка переключает шрифт с засечками и без.
-      Знак — «Аа» той гарнитуры, на которую кнопка переключает, поэтому
-      действие видно без чтения подсказки.
-    -->
-    <div class="flex shrink-0 items-center gap-1" data-testid="reader-font-toggle">
-      <Button
-        size="icon"
-        variant="ghost"
-        title={fontTitle}
-        ariaLabel={fontLabel}
-        class="size-8"
-        onclick={toggleReaderFont}
-      >
-        <span
-          class="text-[0.95rem] leading-none"
-          style="font-family: {readerFont === 'serif'
-            ? "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-            : "Georgia, 'Times New Roman', serif"}"
-          aria-hidden="true">Аа</span
-        >
-      </Button>
     </div>
   {/if}
   <div class="flex shrink-0 items-center gap-1" data-testid="reader-theme-toggle">

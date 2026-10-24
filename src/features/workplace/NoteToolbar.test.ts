@@ -17,6 +17,7 @@ function props(overrides: Record<string, unknown> = {}) {
         onChangeReaderTheme: vi.fn(),
         onChangeReaderFont: vi.fn(),
         notesMode: true,
+        flowing: true,
         progress: 0,
         ...overrides,
     };
@@ -443,5 +444,40 @@ describe('панель чтения: переключатель шрифта к�
         render(NoteToolbar, { props: props({ onChangeReaderFont: undefined }) });
 
         expect(screen.queryByTestId('reader-font-toggle')).toBeNull();
+    });
+
+    it('у постраничных форматов кнопки шрифта нет', () => {
+        // У PDF и DjVu текст — часть растра: выбор гарнитуры ничего не меняет.
+        render(NoteToolbar, { props: props({ flowing: false }) });
+
+        expect(screen.queryByTestId('reader-font-toggle')).toBeNull();
+    });
+
+    it('кнопка шрифта стоит в собственном блоке с фоном, как другие группы', () => {
+        render(NoteToolbar, { props: props() });
+
+        const toggle = screen.getByTestId('reader-font-toggle');
+        // Единый вид управляющих групп панели: блок с фоном и скруглением,
+        // внутри — кнопка. Блок готов принять и другие действия оформления.
+        expect(toggle.className).toContain('bg-[var(--panel)]');
+        expect(toggle.className).toContain('rounded-[var(--radius)]');
+        expect(toggle.getAttribute('role')).toBe('group');
+        expect(toggle.getAttribute('aria-label')).toBe('Шрифт книги');
+        expect(toggle.querySelector('button')).toBeTruthy();
+
+        // Так же оформлены типы заметок и масштаб.
+        const types = screen.getByRole('group', { name: 'Тип заметки' });
+        expect(types.className).toContain('bg-[var(--panel)]');
+    });
+
+    it('кнопка шрифта стоит слева, в группе инструментов', () => {
+        render(NoteToolbar, { props: props() });
+
+        const toolbar = screen.getByTestId('note-toolbar');
+        const toggle = screen.getByTestId('reader-font-toggle');
+        const footer = screen.getByTestId('reader-footer');
+        // Кнопка в левой части панели, до правой группы управления чтением.
+        expect(toolbar.contains(toggle)).toBe(true);
+        expect(footer.contains(toggle)).toBe(false);
     });
 });

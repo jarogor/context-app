@@ -112,9 +112,12 @@ describe('документ книги', () => {
         const html = documentFor();
         // Издательский CSS книги снимал поля `body`, и текст прижимался к левому
         // краю области чтения. Каркас документа объявлен с `!important`.
-        expect(html).toContain('body{margin:0 auto !important;max-width:760px !important;');
-        expect(html).toContain('padding:24px 32px !important;');
+        expect(html).toContain('body{margin:0 auto !important;width:100% !important;');
+        expect(html).toContain('max-width:48rem !important;padding:1.5rem 2rem !important;');
         expect(html).toContain('box-sizing:border-box;');
+        // Ширина колонки в `rem`: растёт вместе с масштабом чтения. Пиксельная
+        // ширина оставляла крупный текст на узкой полоске посреди окна.
+        expect(html).not.toContain('max-width:760px');
     });
 
     it('проставляет гарнитуру книги на корень и выбирает её атрибутом', () => {

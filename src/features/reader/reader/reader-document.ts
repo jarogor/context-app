@@ -106,8 +106,12 @@ function buildStyle(): string {
     // переносе текста из EPUB в несжатом виде издательский CSS снимал их, и
     // текст прижимался к левому краю области. `!important` защищает каркас от
     // правил книги, которые всё же доходят до `body`.
-    'body{margin:0 auto !important;max-width:760px !important;',
-    'padding:24px 32px !important;box-sizing:border-box;}',
+    //
+    // Ширина колонки задана в `rem`, а не в пикселях: кегль задаётся на корне
+    // документа, поэтому `rem` растёт вместе с масштабом чтения. Пиксельная
+    // ширина оставляла крупный текст на узкой полоске посреди окна.
+    'body{margin:0 auto !important;width:100% !important;',
+    'max-width:48rem !important;padding:1.5rem 2rem !important;box-sizing:border-box;}',
     'body{background:var(--rt-background);color:var(--rt-foreground);line-height:1.6;}',
     // Гарнитура книги выбирается атрибутом на корне документа: смена шрифта не
     // пересобирает содержимое, позиция чтения и заметки сохраняются. Семейства

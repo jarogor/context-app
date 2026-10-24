@@ -9,6 +9,7 @@
 import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import { EmptyState } from '@texture/ui';
   import { activeTab } from './workplace';
+  import { FLOWING_FORMATS, formatFromPath } from '../reader/reader';
   import type { TabAppearancePatch } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
   import type { Note, NoteListItem, NoteSetSummary, NoteTool, NoteType, ShapeKind } from '../notes/notes';
@@ -202,6 +203,15 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   /** Заметки книги активной вкладки для подсветки. */
   const tabNotes = $derived(tabItems.map((item) => item.note));
 
+  /** Открытая книга текучего формата: текст течёт и масштабируется.
+   *
+   * У постраничных форматов (PDF, DjVu) текст — часть растра, и выбор гарнитуры
+   * ничего не меняет; кнопка шрифта показывается только у текучих книг.
+   */
+  const flowingBook = $derived(
+    tab !== null && FLOWING_FORMATS.includes(formatFromPath(tab.path)),
+  );
+
   /** Заметки каждой открытой книги рабочего места по идентификатору вкладки. */
   const notesByTab = $derived.by(() => {
     const currentId = tab?.id ?? null;
@@ -347,6 +357,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
         {readerFont}
         onChangeReaderFont={onChangeReaderFont}
         notesMode={true}
+        flowing={flowingBook}
         workplace={activeFooter?.workplace ?? false}
         workplacePages={activeFooter?.workplacePages ?? false}
         workplacePage={activeFooter?.page ?? null}
