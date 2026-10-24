@@ -24,7 +24,7 @@
     type WorkspaceTab,
   } from './workplace';
   import { NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES } from '../notes/notes';
-  import { tabColorFill, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabAccent, tabColorFill, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -138,23 +138,36 @@
     return items;
   }
 
-  /** Стиль пункта: переменные мягкого тона пользовательского цвета; пусто, если цвета нет. */
+  /** Стиль пункта: фон и обводка пользовательским цветом.
+   *
+   * Пункт повторяет вид строки заметок: у неактивного фон карточки, у выбранного
+   * — тон выбора. Если у вкладки задан цвет, он подмешивается в этот фон, а
+   * обводка выбранного пункта рисуется самим цветом вкладки — той же краской, что
+   * и у заметки с цветом.
+   */
   function itemFill(tab: WorkspaceTab): string {
     const base = tabColorFill(tab.color, 'var(--card)', false);
     const active = tabColorFill(tab.color, 'var(--card)', true);
-    return base && active ? `--item-fill: ${base}; --item-fill-active: ${active}` : '';
+    const edge = tabAccent(tab.color);
+    const fill = base && active ? ` --item-fill: ${base}; --item-fill-active: ${active};` : '';
+    return `${fill} --item-edge: ${edge ?? 'var(--primary-border)'};`;
   }
 
-  /** Классы фона пункта с учётом пользовательского цвета и активности. */
+  /** Классы пункта с учётом пользовательского цвета и активности.
+   *
+   * Как в списке заметок: у пункта нет обводки, неактивный стоит на фоне
+   * карточки и подсвечивается наведением, выбранный — фоном выбора и обводкой.
+   * Обводка выбранного берёт цвет вкладки, если он задан, иначе общий акцентный.
+   */
   function itemFillClass(tab: WorkspaceTab): string {
-    if (tab.color) {
-      return tab.id === activeTabId
-        ? 'bg-[var(--item-fill-active)] border-[var(--primary-border)]'
-        : 'bg-[var(--item-fill)] hover:bg-[var(--surface-hover)]';
+    if (tab.id === activeTabId) {
+      return tab.color
+        ? 'bg-[var(--item-fill-active)] border-[var(--item-edge)]'
+        : 'bg-[var(--surface-selected)] border-[var(--item-edge)]';
     }
-    return tab.id === activeTabId
-      ? 'bg-[var(--primary-soft)] border-[var(--primary-border)]'
-      : 'hover:bg-[var(--surface-hover)]';
+    return tab.color
+      ? 'bg-[var(--item-fill)] border-transparent hover:bg-[var(--surface-hover)]'
+      : 'bg-[var(--card)] border-transparent hover:bg-[var(--surface-hover)]';
   }
 
   /** Начало правки текстового свойства вкладки. */
@@ -232,14 +245,14 @@
   <ul class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2">
     {#each visible as tab (tab.id)}
       <li
-        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] transition-colors {itemFillClass(
+        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border transition-colors {itemFillClass(
           tab,
         )}"
         style={itemFill(tab)}
         data-testid="open-books-item"
         data-active={tab.id === activeTabId ? 'true' : 'false'}
       >
-        <div class="flex items-stretch gap-1">
+        <div class="flex items-stretch gap-1 pr-2">
           <button
             type="button"
             class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate px-2.5 py-2 text-left role-body [font:inherit]"

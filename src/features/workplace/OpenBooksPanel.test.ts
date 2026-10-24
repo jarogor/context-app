@@ -32,14 +32,23 @@ describe('панель открытых книг: оформление', () => {
     it('показывает имя, иконку, цвет и описание', () => {
         render(OpenBooksPanel, {
             props: {
-                tabs: [tab('t1', { name: 'Черновик', description: 'сравнение глав', icon: 'star', color: 'blue' })],
+                tabs: [
+                    tab('t1', {
+                        name: 'Черновик',
+                        description: 'сравнение глав',
+                        icon: 'star',
+                        color: 'blue',
+                    }),
+                ],
                 activeTabId: 't1',
                 ...handlers(),
             },
         });
 
         expect(screen.getByText('Черновик')).toBeTruthy();
-        expect(screen.getByTestId('open-books-item-description').textContent).toContain('сравнение глав');
+        expect(screen.getByTestId('open-books-item-description').textContent).toContain(
+            'сравнение глав',
+        );
         expect(screen.getByTestId('open-books-item').getAttribute('style')).toContain('#2563eb');
         expect(screen.getByText('Черновик').closest('button')?.querySelector('svg')).toBeTruthy();
     });
@@ -95,6 +104,39 @@ describe('панель открытых книг: оформление', () => {
         expect(items[1].getAttribute('data-active')).toBe('true');
         // Отдельная кнопка закрытия убрана: закрытие — пункт меню оформления.
         expect(screen.queryByLabelText('Закрыть вкладку')).toBeNull();
+    });
+
+    it('оформляет пункт как строку заметок: без обводки у невыбранных', () => {
+        // Дефект: у каждого пункта была своя обводка, из-за чего список читался
+        // набором рамок, а не единым листом, как в заметках.
+        render(OpenBooksPanel, {
+            props: { tabs: [tab('t1'), tab('t2')], activeTabId: 't2', ...handlers() },
+        });
+
+        const items = screen.getAllByTestId('open-books-item');
+        // Невыбранный пункт — на фоне карточки и без видимой обводки.
+        expect(items[0].className).toContain('bg-[var(--card)]');
+        expect(items[0].className).toContain('border-transparent');
+        // Выбранный — фон выбора и обводка.
+        expect(items[1].className).toContain('bg-[var(--surface-selected)]');
+        expect(items[1].className).toContain('border-[var(--item-edge)]');
+    });
+
+    it('рисует обводку выбранного пункта цветом вкладки, если он задан', () => {
+        // Если цвет задан — обводка им; если нет — общим акцентным, как в заметках.
+        render(OpenBooksPanel, {
+            props: {
+                tabs: [tab('t1', { color: 'blue' }), tab('t2')],
+                activeTabId: 't1',
+                ...handlers(),
+            },
+        });
+
+        const items = screen.getAllByTestId('open-books-item');
+        expect(items[0].getAttribute('style')).toContain('--item-edge: #2563eb');
+        // У невыбранного пункта обводки нет, поэтому цвет обводки не важен —
+        // подставляется общий.
+        expect(items[1].getAttribute('style')).toContain('--item-edge: var(--primary-border)');
     });
 });
 
@@ -205,7 +247,9 @@ describe('панель открытых книг: правка оформлен�
 
         await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
         await fireEvent.click(await screen.findByRole('menuitem', { name: 'Название' }));
-        await fireEvent.input(screen.getByLabelText('Название вкладки'), { target: { value: 'X' } });
+        await fireEvent.input(screen.getByLabelText('Название вкладки'), {
+            target: { value: 'X' },
+        });
         await fireEvent.click(screen.getByLabelText('Отмена'));
         expect(base.onEditAppearance).not.toHaveBeenCalled();
 
@@ -231,7 +275,14 @@ describe('панель открытых книг: правка оформлен�
         const base = handlers();
         render(OpenBooksPanel, {
             props: {
-                tabs: [tab('t1', { name: 'Имя', description: 'Описание', icon: 'star', color: 'blue' })],
+                tabs: [
+                    tab('t1', {
+                        name: 'Имя',
+                        description: 'Описание',
+                        icon: 'star',
+                        color: 'blue',
+                    }),
+                ],
                 activeTabId: 't1',
                 ...base,
             },
@@ -290,7 +341,12 @@ describe('панель открытых книг: лимит открытых в
 
     it('делает пункт дублирования недоступным при достижении лимита', async () => {
         render(OpenBooksPanel, {
-            props: { ...handlers(), tabs: [tab('t1'), tab('t2')], activeTabId: 't1', openTabsLimit: 2 },
+            props: {
+                ...handlers(),
+                tabs: [tab('t1'), tab('t2')],
+                activeTabId: 't1',
+                openTabsLimit: 2,
+            },
         });
 
         await fireEvent.click(screen.getAllByLabelText('Оформление вкладки')[0]);
@@ -301,7 +357,12 @@ describe('панель открытых книг: лимит открытых в
 
     it('подсвечивает триггер меню при превышении лимита и снимает подсветку в пределе', async () => {
         const { rerender } = render(OpenBooksPanel, {
-            props: { ...handlers(), tabs: [tab('t1'), tab('t2'), tab('t3')], activeTabId: 't1', openTabsLimit: 3 },
+            props: {
+                ...handlers(),
+                tabs: [tab('t1'), tab('t2'), tab('t3')],
+                activeTabId: 't1',
+                openTabsLimit: 3,
+            },
         });
 
         expect(screen.getAllByLabelText('Оформление вкладки')[0].className).not.toContain(

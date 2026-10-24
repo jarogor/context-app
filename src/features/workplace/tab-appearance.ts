@@ -39,6 +39,15 @@ export function tabLabel(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
     return tab.name?.trim() || tab.title;
 }
 
+/** Чистый цвет вкладки (свот палитры заметок); отсутствует, если цвет не задан.
+ *
+ * Нужен там, где цвет показывается без приглушения — например, обводкой
+ * выбранного пункта в списке вкладок.
+ */
+export function tabAccent(color: TabColor | undefined): string | undefined {
+    return color ? NOTE_COLOR_SWATCHES[color] : undefined;
+}
+
 /** CSS-фон заливки вкладки; отсутствует, если цвет не задан.
  *
  * Цвет вкладки показывается заливкой всей вкладки приглушённым оттенком, а не
