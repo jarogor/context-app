@@ -75,6 +75,34 @@ function applyZoom(value: number): void {
   if (next === state.zoom) {
     return;
   }
+  // Серия нажатий склеивается: пока пользователь быстро нажимает, применяется
+  // только последнее значение. Иначе каждый клик пересчитывал раскладку книги
+  // и запускал отрисовку — переход с 300 % на 200 % обрабатывал все десять
+  // нажатий подряд.
+  state.pendingZoom = next;
+  if (zoomTimer !== null) {
+    clearTimeout(zoomTimer);
+  }
+  zoomTimer = setTimeout(commitZoom, ZOOM_SETTLE_DELAY);
+}
+
+/** Пауза склейки серии нажатий масштаба, мс.
+ *
+ * Достаточно мала, чтобы одиночное нажатие отзывалось сразу, и достаточно
+ * велика, чтобы попасть в неё при нажатии подряд (доля секунды между кликами). */
+const ZOOM_SETTLE_DELAY = 110;
+
+/** Таймер склейки серии нажатий масштаба. */
+let zoomTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Применение накопленного масштаба после окончания серии нажатий. */
+function commitZoom(): void {
+  zoomTimer = null;
+  const next = state.pendingZoom;
+  state.pendingZoom = 0;
+  if (!state.doc || !(next > 0) || next === state.zoom) {
+    return;
+  }
   const anchorPage = state.currentPage;
   const offsetBefore = offsetOfPage(anchorPage) - viewer.scrollTop;
   state.zoom = next;
