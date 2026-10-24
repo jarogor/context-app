@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import { Button, Icon } from '@texture/ui';
   import {
+    applyReaderPalette,
     applyReaderTheme,
     DEFAULT_PALETTE,
     DEFAULT_READER_THEME,
@@ -1223,6 +1224,7 @@
     value.addEventListener('mouseup', handleGestureEnd);
     value.defaultView?.addEventListener('resize', handleResize);
     applyReaderTheme(readerTheme, value.documentElement);
+    applyReaderPalette(palette, value.documentElement);
     applyZoom(value, zoom);
     applyTool();
     if (startPosition > 0) {
@@ -1277,16 +1279,19 @@
     }
   });
 
-  /** Применение темы области чтения к документу книги.
+  /** Применение темы и палитры области чтения к документу книги.
    *
-   * Сторона темы ставится атрибутом на корне документа и не требует пересборки
-   * содержимого: позиция чтения и разметка заметок сохраняются. Переменные
-   * обеих сторон заданы в стиле документа (см. `reader-document.ts`).
+   * Сторона темы и палитра ставятся атрибутами на корне документа и не требуют
+   * пересборки содержимого: позиция чтения и разметка заметок сохраняются.
+   * Переменные всех палитр и обеих сторон заданы в стиле документа
+   * (см. `reader-document.ts`).
    */
   $effect(() => {
     const value = readerTheme;
+    const paletteValue = palette;
     if (doc) {
       applyReaderTheme(value, doc.documentElement);
+      applyReaderPalette(paletteValue, doc.documentElement);
     }
   });
 

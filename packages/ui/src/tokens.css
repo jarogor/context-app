@@ -57,10 +57,12 @@
   --panel-foreground: var(--foreground);
 
   /* Фон неактивной вкладки. Вкладки стоят на полосе `--muted`; чтобы неактивную
-   * плашку было видно, её фон чуть отделён от полосы — на 5% чернил. Отличие
-   * намеренно лёгкое: вкладка читается как плашка, но не спорит ни с полосой,
-   * ни с активной вкладкой, которая залита фоном содержимого. */
-  --tab-idle-surface: color-mix(in oklab, var(--foreground) 5%, var(--muted));
+   * плашку было видно, её фон чуть отделён от полосы. Отличие намеренно лёгкое:
+   * вкладка читается как плашка, но не спорит ни с полосой, ни с активной
+   * вкладкой, которая залита фоном содержимого. Значение общее для обеих сторон
+   * темы: доля считается от чернил наборов, поэтому в тёмных наборах плашка
+   * светлее полосы, в светлых — чуть темнее. */
+  --tab-idle-surface: color-mix(in oklab, var(--foreground) 3%, var(--muted));
 
   /* Всплывающий слой (меню, диалог, список выбора) отделяется от подложки
    * **разными механизмами по стороне темы** — одним «тупым» приёмом не выходит:
@@ -195,7 +197,10 @@
   --popover-foreground: #0f1622;
   /* Цвет всплывающего слоя в тон этой палитры. */
   --overlay-surface: #ffffff;
-  --primary: #1d47a8;
+  /* Акцент приглушён: прежний насыщенный синий (#1d47a8) выглядел в интерфейсе
+   * слишком ярко, поэтому его хрома снижена при той же светлоте и тоне —
+   * палитра остаётся синей, но спокойнее. */
+  --primary: #2c4c91;
   --primary-foreground: #f7f9fc;
   --secondary: #d7e0f0;
   --secondary-foreground: #0f1622;
@@ -205,15 +210,15 @@
   --destructive-foreground: #ffffff;
   --border: color-mix(in oklab, var(--foreground) 16%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 22%, var(--background));
-  --ring: #1d47a8;
+  --ring: #2c4c91;
   --sidebar: #e2e9f6;
   --sidebar-foreground: #0f1622;
-  --sidebar-primary: #1d47a8;
+  --sidebar-primary: #2c4c91;
   --sidebar-primary-foreground: #f7f9fc;
   --sidebar-accent: #cfd9ee;
   --sidebar-accent-foreground: #0f1622;
   --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
-  --sidebar-ring: #1d47a8;
+  --sidebar-ring: #2c4c91;
   --success: #2f7d4f;
   --warning: #8f6415;
 }
@@ -230,7 +235,7 @@
   --popover-foreground: #e4e9f4;
   /* Цвет всплывающего слоя в тон этой палитры. */
   --overlay-surface: #1f2c4a;
-  --primary: #6f9bf0;
+  --primary: #7095dd;
   --primary-foreground: #0a101c;
   --secondary: #1b2740;
   --secondary-foreground: #e4e9f4;
@@ -240,15 +245,15 @@
   --destructive-foreground: #0c1526;
   --border: color-mix(in oklab, var(--foreground) 13%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 19%, var(--background));
-  --ring: #6f9bf0;
+  --ring: #7095dd;
   --sidebar: #101a2e;
   --sidebar-foreground: #e4e9f4;
-  --sidebar-primary: #6f9bf0;
+  --sidebar-primary: #7095dd;
   --sidebar-primary-foreground: #0a101c;
   --sidebar-accent: #1f2c4a;
   --sidebar-accent-foreground: #e4e9f4;
   --sidebar-border: color-mix(in oklab, var(--foreground) 12%, var(--background));
-  --sidebar-ring: #6f9bf0;
+  --sidebar-ring: #7095dd;
   --success: #78b98a;
   --warning: #dcae62;
 }

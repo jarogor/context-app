@@ -59,6 +59,7 @@ export {
   type PaletteId,
 } from './palettes';
 export {
+  applyReaderPalette,
   applyReaderTheme,
   blendNoteToneOverBackground,
   DEFAULT_READER_THEME,

@@ -13,9 +13,13 @@
  */
 
 import {
+  DEFAULT_PALETTE,
+  DEFAULT_READER_THEME,
   normalizePaletteId,
   normalizeReaderThemeId,
+  PALETTES,
   READER_NOTE_COLOR_IDS,
+  READER_THEMES,
   readerThemeNoteTones,
   readerThemeTokens,
   solidNoteTones,
@@ -69,17 +73,28 @@ function themeVariables(palette: PaletteId, id: ReaderThemeId): string {
   ].join('');
 }
 
-/** Стиль документа книги: общая вёрстка и оформление по стороне темы. */
-function buildStyle(palette: PaletteId): string {
-  const light = themeVariables(palette, 'light');
-  const dark = themeVariables(palette, 'dark');
+/** Стиль документа книги: общая вёрстка и оформление по палитре и стороне темы.
+ *
+ * Переменные каждой палитры и стороны встроены в документ сразу и выбираются
+ * атрибутами на его корне: `data-reader-palette` — палитра, `data-reader-theme` —
+ * сторона. Так смена палитры или темы не пересобирает содержимое книги: позиция
+ * чтения и разметка заметок сохраняются.
+ */
+function buildStyle(): string {
+  const rules: string[] = [];
+  for (const palette of PALETTES) {
+    for (const theme of READER_THEMES) {
+      rules.push(
+        `html[data-reader-palette='${palette.id}'][data-reader-theme='${theme}']{${themeVariables(palette.id, theme)}}`,
+      );
+    }
+  }
   return [
     'html{font-size:100%;position:relative;}',
-    // Светлая сторона — база; сторона выбирается атрибутом на корне и меняется
-    // без пересборки документа.
-    `html{${light}}`,
-    `html[data-reader-theme='light']{${light}}`,
-    `html[data-reader-theme='dark']{${dark}}`,
+    // База — палитра по умолчанию, светлая сторона: правило действует, пока
+    // атрибуты не выставлены (первый кадр документа).
+    `html{${themeVariables(DEFAULT_PALETTE, DEFAULT_READER_THEME)}}`,
+    ...rules,
     'body{margin:0 auto;max-width:760px;padding:24px 32px;background:var(--rt-background);',
     "color:var(--rt-foreground);font-family:Georgia,'Times New Roman',serif;line-height:1.6;}",
     'img{max-width:100%;height:auto;}',
@@ -203,12 +218,12 @@ function buildStyle(palette: PaletteId): string {
 export function buildDocument(value: BookContent, options: ReaderDocumentOptions = {}): string {
   const palette = normalizePaletteId(options.palette);
   const readerTheme = normalizeReaderThemeId(options.readerTheme);
-  const style = buildStyle(palette);
+  const style = buildStyle();
   const body = value.chapters
     .map(
       (chapter, index) =>
         `<section class="${CHAPTER_CLASS}" data-chapter="${index}">${chapter.html}</section>`,
     )
     .join('\n');
-  return `<!doctype html><html lang="ru" data-reader-theme="${readerTheme}"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}</body></html>`;
+  return `<!doctype html><html lang="ru" data-reader-palette="${palette}" data-reader-theme="${readerTheme}"><head><meta charset="utf-8"><style>${style}</style></head><body>${body}</body></html>`;
 }
