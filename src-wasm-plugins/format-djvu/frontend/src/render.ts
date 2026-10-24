@@ -577,16 +577,16 @@ function renderWindow(): void {
     }
     visible.push(pageEl);
   }
-  // Видимая нерисованная страница рисуется сразу: она перед глазами, и ждать
-  // кадра очереди незачем. Остальные дорисуются из очереди по кадрам.
+  // Все страницы рисуются из очереди, по одной за кадр. Синхронная отрисовка
+  // первой страницы блокировала главный поток на сотни миллисекунд: клики
+  // масштаба, сделанные в это время, копились в очереди событий и потом
+  // обрабатывались по одному с паузами больше склейки — серия переставала
+  // склеиваться, и масштаб прорисовывал каждый промежуточный шаг. Прежний
+  // растр держит картинку до готовности нового (см. `preserveOldRaster`),
+  // поэтому пустоты от этого не возникает.
   renderQueue = [];
-  for (let index = 0; index < rerender.length; index += 1) {
-    const [pageEl, preserve] = rerender[index];
-    if (index === 0) {
-      renderPage(pageEl, preserve, state.renderToken);
-    } else {
-      enqueue(pageEl, preserve);
-    }
+  for (const [pageEl, preserve] of rerender) {
+    enqueue(pageEl, preserve);
   }
   for (const pageEl of visible) {
     if (!state.rendered.has(pageEl)) {

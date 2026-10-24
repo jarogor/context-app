@@ -66,41 +66,18 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
   }
 }
 
-/** Применение масштаба с удержанием опорной страницы на месте. */
+/** Применение масштаба с удержанием опорной страницы на месте.
+ *
+ * Склейки серии нажатий здесь нет: её делает общий слой чтения
+ * (`ReaderPage`), потому что кнопки масштаба общие для всех форматов. Плагин
+ * получает уже окончательное значение серии.
+ */
 function applyZoom(value: number): void {
   if (!state.doc) {
     return;
   }
   const next = Number(value) || 100;
   if (next === state.zoom) {
-    return;
-  }
-  // Серия нажатий склеивается: пока пользователь быстро нажимает, применяется
-  // только последнее значение. Иначе каждый клик пересчитывал раскладку книги
-  // и запускал отрисовку — переход с 300 % на 200 % обрабатывал все десять
-  // нажатий подряд.
-  state.pendingZoom = next;
-  if (zoomTimer !== null) {
-    clearTimeout(zoomTimer);
-  }
-  zoomTimer = setTimeout(commitZoom, ZOOM_SETTLE_DELAY);
-}
-
-/** Пауза склейки серии нажатий масштаба, мс.
- *
- * Достаточно мала, чтобы одиночное нажатие отзывалось сразу, и достаточно
- * велика, чтобы попасть в неё при нажатии подряд (доля секунды между кликами). */
-const ZOOM_SETTLE_DELAY = 110;
-
-/** Таймер склейки серии нажатий масштаба. */
-let zoomTimer: ReturnType<typeof setTimeout> | null = null;
-
-/** Применение накопленного масштаба после окончания серии нажатий. */
-function commitZoom(): void {
-  zoomTimer = null;
-  const next = state.pendingZoom;
-  state.pendingZoom = 0;
-  if (!state.doc || !(next > 0) || next === state.zoom) {
     return;
   }
   const anchorPage = state.currentPage;

@@ -51,8 +51,6 @@ export interface ViewerState {
   pageCount: number;
   /** Текущий масштаб в процентах. */
   zoom: number;
-  /** Накопленный масштаб серии нажатий; 0 — серии нет. */
-  pendingZoom: number;
   /** Начальный масштаб вкладки. */
   initialZoom: number;
   /** Заметки книги. */
@@ -109,7 +107,6 @@ export const state: ViewerState = {
   doc: null,
   pageCount: 0,
   zoom: 100,
-  pendingZoom: 0,
   initialZoom: 100,
   notes: [],
   tool: { type: 'quote', shape: 'line', color: 'yellow' },

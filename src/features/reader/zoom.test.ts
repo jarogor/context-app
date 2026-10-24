@@ -1,48 +1,118 @@
-import { describe, expect, it } from 'vitest';
-import { nextZoom, ZOOM_LEVELS } from './zoom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-describe('прогрессивная шкала масштаба', () => {
-  it('идёт по общей лестнице уровней вверх и вниз', () => {
-    expect(nextZoom(100, 1, 5, 1000)).toBe(110);
-    expect(nextZoom(110, 1, 5, 1000)).toBe(120);
-    expect(nextZoom(110, -1, 5, 1000)).toBe(100);
-    expect(nextZoom(100, -1, 5, 1000)).toBe(90);
-  });
+import { createZoomCoalescer, nextZoom, ZOOM_IDLE_DELAY, ZOOM_MAX_DELAY } from './zoom';
 
-  it('обратима: шаг вверх и вниз возвращает к прежнему уровню', () => {
-    for (const level of ZOOM_LEVELS) {
-      if (level <= 5 || level >= 1000) {
-        continue;
-      }
-      const up = nextZoom(level, 1, 5, 1000);
-      const back = nextZoom(up, -1, 5, 1000);
-      expect(back).toBe(level);
-    }
-  });
+describe('nextZoom', () => {
+    it('переходит к соседнему уровню и остаётся обратимым', () => {
+        expect(nextZoom(100, 1, 5, 1000)).toBe(110);
+        expect(nextZoom(110, -1, 5, 1000)).toBe(100);
+    });
 
-  it('прогрессивна: шаг растёт вместе с масштабом', () => {
-    const smallStep = nextZoom(100, 1, 5, 1000) - 100;
-    const largeStep = nextZoom(800, 1, 5, 1000) - 800;
-    expect(largeStep).toBeGreaterThan(smallStep);
-  });
+    it('учитывает границы диапазона', () => {
+        expect(nextZoom(60, -1, 60, 220)).toBe(60);
+        expect(nextZoom(220, 1, 60, 220)).toBe(220);
+    });
+});
 
-  it('не застревает на нижней границе: минимум становится обычным уровнем', () => {
-    // Прежняя беда: от 5 % увеличение давало 15, 25, … — сетка рвалась.
-    expect(nextZoom(5, 1, 5, 1000)).toBe(10);
-    expect(nextZoom(10, -1, 5, 1000)).toBe(5);
-    expect(nextZoom(15, -1, 5, 1000)).toBe(10);
-  });
+describe('createZoomCoalescer', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
 
-  it('уважает границы диапазона', () => {
-    expect(nextZoom(5, -1, 5, 1000)).toBe(5);
-    expect(nextZoom(1000, 1, 5, 1000)).toBe(1000);
-    // Тесный диапазон текстовых книг: уровни вне границ не берутся.
-    expect(nextZoom(60, -1, 60, 220)).toBe(60);
-    expect(nextZoom(210, 1, 60, 220)).toBe(220);
-  });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
 
-  it('берёт ближайший уровень, если текущее значение не из лестницы', () => {
-    expect(nextZoom(105, 1, 5, 1000)).toBe(110);
-    expect(nextZoom(105, -1, 5, 1000)).toBe(100);
-  });
+    it('применяет одиночный запрос после паузы', () => {
+        const applied: number[] = [];
+        const zoom = createZoomCoalescer((value) => applied.push(value));
+        zoom.request(110);
+        expect(applied).toEqual([]);
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY);
+        expect(applied).toEqual([110]);
+    });
+
+    it('склеивает короткую серию в одно применение — последнее значение', () => {
+        // Ровно тот дефект, ради которого склейка: нажатия подряд
+        // перерисовывали каждый промежуточный масштаб.
+        const applied: number[] = [];
+        const zoom = createZoomCoalescer((value) => applied.push(value));
+        // Три клика по 180 мс: серия короче предела ожидания.
+        for (const value of [290, 280, 270]) {
+            zoom.request(value);
+            vi.advanceTimersByTime(180);
+        }
+        expect(applied).toEqual([]);
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY);
+        expect(applied).toEqual([270]);
+    });
+
+    it('долгую серию применяет по пределу, не дожидаясь конца', () => {
+        // Десять кликов — это дольше предела: масштаб обязан применяться по
+        // ходу, иначе интерфейс выглядел бы зависшим.
+        const applied: number[] = [];
+        const zoom = createZoomCoalescer((value) => applied.push(value));
+        for (const value of [290, 280, 270, 260, 250, 240, 230, 220, 210, 200]) {
+            zoom.request(value);
+            vi.advanceTimersByTime(180);
+        }
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY);
+        // Применений меньше, чем кликов: промежуточные пропущены.
+        expect(applied.length).toBeGreaterThan(0);
+        expect(applied.length).toBeLessThan(10);
+        expect(applied[applied.length - 1]).toBe(200);
+    });
+
+    it('склеивает смену направления так же, как движение в одну сторону', () => {
+        const applied: number[] = [];
+        const zoom = createZoomCoalescer((value) => applied.push(value));
+        zoom.request(90);
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY - 10);
+        zoom.request(80);
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY - 10);
+        zoom.request(100);
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY);
+        expect(applied).toEqual([100]);
+    });
+
+    it('применяет накопленное по пределу ожидания', () => {
+        const applied: number[] = [];
+        const zoom = createZoomCoalescer((value) => applied.push(value));
+        // Нажатия идут непрерывно дольше предела (зажатая кнопка): масштаб всё
+        // равно применяется, иначе он откладывался бы бесконечно.
+        const clicks = Math.ceil(ZOOM_MAX_DELAY / 60) + 10;
+        for (let index = 0; index < clicks; index += 1) {
+            zoom.request(200 - (index % 100));
+            vi.advanceTimersByTime(60);
+        }
+        expect(applied.length).toBeGreaterThan(0);
+    });
+
+    it('новая серия после паузы дольше предела считается отдельной', () => {
+        // Дефект: `startedAt` оставался от прошлой серии, и первый клик новой
+        // применялся мгновенно — серия распадалась на шаги.
+        const applied: number[] = [];
+        const zoom = createZoomCoalescer((value) => applied.push(value));
+        zoom.request(200);
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY);
+        expect(applied).toEqual([200]);
+
+        // Пауза заметно больше предела: следующая серия начинается заново и
+        // тоже ждёт затишья, а не применяется мгновенно.
+        vi.advanceTimersByTime(1000);
+        zoom.request(180);
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY - 10);
+        zoom.request(170);
+        vi.advanceTimersByTime(ZOOM_IDLE_DELAY);
+        expect(applied).toEqual([200, 170]);
+    });
+
+    it('немедленно применяет накопленное по требованию', () => {
+        const applied: number[] = [];
+        const zoom = createZoomCoalescer((value) => applied.push(value));
+        zoom.request(120);
+        zoom.request(130);
+        zoom.flush();
+        expect(applied).toEqual([130]);
+    });
 });

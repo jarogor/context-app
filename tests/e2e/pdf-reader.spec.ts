@@ -351,6 +351,37 @@ async function setZoom(page: Page, target: number) {
             .not.toBe(before);
         current = await readZoom();
     }
+    // Подпись масштаба меняется сразу, а содержимое получает масштаб склеенной
+    // серией (см. `createZoomCoalescer`): ждём, пока страница отрисуется в новом
+    // масштабе, иначе дальнейшие замеры попадут в промежуточное состояние.
+    await waitForZoomRendered(page);
+}
+
+/** Ожидание отрисовки страниц в применённом масштабе. */
+async function waitForZoomRendered(page: Page) {
+    await content(page)
+        .locator('#viewer')
+        .evaluate(
+            () =>
+                new Promise<void>((resolve) => {
+                    // Два кадра подряд с неизменной шириной страницы: отрисовка
+                    // завершена и размер стабилен.
+                    let previous = -1;
+                    let stable = 0;
+                    const step = () => {
+                        const pageEl = document.querySelector('.page') as HTMLElement | null;
+                        const width = pageEl ? Math.round(pageEl.getBoundingClientRect().width) : -1;
+                        stable = width === previous && width > 0 ? stable + 1 : 0;
+                        previous = width;
+                        if (stable >= 3) {
+                            resolve();
+                            return;
+                        }
+                        requestAnimationFrame(step);
+                    };
+                    requestAnimationFrame(step);
+                }),
+        );
 }
 
 /** Отклонение канваса страницы от пиксельной сетки устройства. */
@@ -1868,4 +1899,95 @@ test('страница шире области чтения доступна о�
     // страницы не обрезан.
     expect(metrics.overflowX).toBe(true);
     expect(metrics.leftGap).toBe(0);
+});
+
+test('серия нажатий масштаба даёт один переход', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await openPdf(page, 3);
+    await setZoom(page, 200);
+    // Резкость до серии: растр должен быть плотнее CSS-пикселей.
+    const density = () =>
+        content(page)
+            .locator('.page canvas')
+            .first()
+            .evaluate((canvas: HTMLCanvasElement) => ({
+                px: canvas.width,
+                css: Math.round(canvas.getBoundingClientRect().width),
+            }));
+    const before = await density();
+
+    const widths: number[] = [];
+    for (let index = 0; index < 8; index += 1) {
+        await page.getByRole('button', { name: 'Уменьшить масштаб' }).click();
+        await page.waitForTimeout(250);
+    }
+    const until = Date.now() + 12000;
+    let last = -1;
+    while (Date.now() < until) {
+        const value = await density();
+        if (value.px !== last) {
+            widths.push(value.px);
+            last = value.px;
+        }
+        await page.waitForTimeout(70);
+    }
+    // Один переход на серию: промежуточные масштабы не отрисовываются.
+    expect(new Set(widths).size, JSON.stringify(widths)).toBe(1);
+    // Растр после серии той же плотности: масштаб не «прорисован» по шагам.
+    const after = await density();
+    expect(after.px / after.css).toBeCloseTo(before.px / before.css, 1);
+});
+
+test.describe('плотность растра на экране высокой плотности', () => {
+    test.use({ deviceScaleFactor: 2 });
+
+    test('растр PDF плотнее CSS-пикселей', async ({ page }) => {
+        await page.setViewportSize({ width: 1400, height: 900 });
+        await openPdf(page, 2);
+        const info = await content(page)
+            .locator('.page canvas')
+            .first()
+            .evaluate((canvas: HTMLCanvasElement) => ({
+                px: canvas.width,
+                css: Math.round(canvas.getBoundingClientRect().width),
+                dpr: window.devicePixelRatio,
+            }));
+        // Растр страницы должен быть плотнее одного пикселя на CSS-пиксель,
+        // иначе текст выглядит ступенчатым на экране высокой плотности.
+        expect(info.dpr).toBeGreaterThan(1);
+        expect(info.px / info.css).toBeGreaterThan(1);
+    });
+});
+
+test('быстрая серия кликов PDF не рисует промежуточные масштабы', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await openPdf(page, 3);
+    await setZoom(page, 300);
+    // Считаем отрисовки страницы: каждая даёт новую ширину канваса.
+    const widths: number[] = [];
+    const until = Date.now() + 15000;
+    let stop = false;
+    const watch = (async () => {
+        let last = -1;
+        while (!stop && Date.now() < until) {
+            const px = await content(page)
+                .locator('.page canvas')
+                .first()
+                .evaluate((canvas: HTMLCanvasElement) => canvas.width);
+            if (px !== last) {
+                widths.push(px);
+                last = px;
+            }
+            await page.waitForTimeout(40);
+        }
+    })();
+    // Клики без паузы: пользователь жмёт подряд.
+    for (let index = 0; index < 8; index += 1) {
+        await page.getByRole('button', { name: 'Уменьшить масштаб' }).click();
+    }
+    await page.waitForTimeout(9000);
+    stop = true;
+    await watch;
+    // Серия — один переход: промежуточные масштабы не отрисовываются.
+    expect(widths.length, JSON.stringify(widths)).toBeLessThanOrEqual(2);
 });

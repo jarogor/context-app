@@ -21,7 +21,7 @@
   import NoteTextEditor from './NoteTextEditor.svelte';
   import type { QuoteAnchor } from './reader/anchor';
   import { canStepPage, clampPage, pageProgress } from './reader/page-state';
-  import { nextZoom, type ZoomDirection } from './zoom';
+  import { createZoomCoalescer, nextZoom, type ZoomDirection } from './zoom';
 
   interface Props {
     /** Путь к файлу открытой книги (вложение вкладки). */
@@ -42,7 +42,6 @@
     readerTheme?: ReaderThemeId;
     /** Палитра оформления: общий реестр дизайн-системы. */
     palette?: PaletteId;
-    /** Сообщение об изменении состояния чтения вкладки. */
     onStateChange?: (state: { zoom: number; position: number }) => void;
     /** Снимок состояния нижней панели чтения для рабочего места. */
     onFooter?: (snapshot: FooterSnapshot) => void;
@@ -136,8 +135,14 @@
   let unsupported = $state(false);
   /** Книга недоступна: файл не читается или не найден. */
   let unavailable = $state(false);
-  /** Масштаб текста в процентах (начальное значение берётся один раз). */
+  /** Масштаб текста в процентах (начальное значение берётся один раз).
+   *
+   * Это НАМЕРЕНИЕ пользователя: подпись кнопок меняется сразу на каждом
+   * нажатии. В содержимое уходит `appliedZoom`, и уходит склеенной серией —
+   * см. `zoomApply`. */
   let zoom = $state(untrack(() => initialZoom));
+  /** Масштаб, реально применённый к содержимому после затишья серии. */
+  let appliedZoom = $state(untrack(() => initialZoom));
   /** Масштаб плагина уже принят (или пользователь задал свой): повторно не
    * принимается. Иначе при серии нажатий плагин присылал прежний масштаб, и
    * шкала возвращалась на шаг назад — масштаб «прыгал» дважды. */
@@ -206,6 +211,20 @@
         : preferred;
     return `left: ${x}px; top: ${y}px;`;
   }
+
+  /**
+   * Применение масштаба к содержимому со склейкой серии нажатий.
+   *
+   * Кнопки масштаба и подпись общие для всех форматов, поэтому и склейка живёт
+   * здесь, а не в плагине формата: иначе каждый плагин повторял бы её сам.
+   *
+   * Подпись и состояние вкладки меняются сразу на нажатии (это намерение
+   * пользователя), а содержимое получает масштаб склеенной серией — несколько
+   * нажатий подряд дают одну перестройку страницы.
+   */
+  const zoomApply = createZoomCoalescer((value) => {
+    appliedZoom = value;
+  });
 
   /** Сообщение об изменении состояния чтения вкладки. */
   function reportState() {
@@ -359,7 +378,9 @@
     // Пользователь задал масштаб сам: значение плагина больше не принимается.
     pluginZoomTaken = true;
     zoom = nextZoom(zoom, direction, minZoom, maxZoom);
+    // Подпись и состояние вкладки — сразу, содержимое — склеенной серией.
     reportState();
+    zoomApply.request(zoom);
   }
 
   /** Открытие файла книги. */
@@ -497,7 +518,7 @@
           pluginId={workplace.pluginId}
           {path}
           {title}
-          {zoom}
+          zoom={appliedZoom}
           initialPosition={initialPosition}
           {notes}
           {tool}
@@ -523,6 +544,8 @@
               pluginZoomTaken = true;
               if (value.zoom !== zoom) {
                 zoom = value.zoom;
+                // Плагин уже применил этот масштаб: повторно его не шлём.
+                appliedZoom = value.zoom;
               }
             }
             reportState();
@@ -596,7 +619,7 @@
         <BookReader
           bind:this={reader}
           {content}
-          {zoom}
+          zoom={appliedZoom}
           {initialPosition}
           {notes}
           {visible}
