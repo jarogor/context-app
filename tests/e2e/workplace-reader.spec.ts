@@ -129,6 +129,19 @@ test('сосредоточенное чтение скрывает хром и �
         page.frameLocator('iframe[title="Содержимое книги"]').getByText('Получено'),
     ).toBeVisible();
 
+    // Панели вкладок и заметок продолжают работать в режиме: их кнопки
+    // остаются на полосе, и нажатие показывает саму панель, а не только
+    // отмечает кнопку нажатой.
+    await expect(page.getByTestId('workplace-tabs')).toBeVisible();
+    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await expect(page.getByTestId('open-books-panel')).toBeVisible();
+    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await expect(page.getByTestId('notes-panel')).toBeVisible();
+    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await expect(page.getByTestId('notes-panel')).toHaveCount(0);
+
     // Выход возвращает раскладку, а состояние чтения не изменяется.
     await page.getByRole('button', { name: 'Выйти из сосредоточенного чтения' }).click();
     await expect(page.getByTestId('section-nav')).toBeVisible();

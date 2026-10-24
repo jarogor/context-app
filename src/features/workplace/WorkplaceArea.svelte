@@ -398,7 +398,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
           {/each}
         {/if}
       </div>
-      {#if notesOpen && !focusMode}
+      {#if notesOpen}
         <NotesPanel
           items={tabItems}
           sets={noteSets}
@@ -419,7 +419,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
           onClose={onCloseNotes}
         />
       {/if}
-      {#if booksOpen && !focusMode}
+      {#if booksOpen}
         <OpenBooksPanel
           tabs={workspace.tabs}
           activeTabId={workspace.activeTabId}
