@@ -1,7 +1,7 @@
 {
   "$schema": "https://schemas.tauri.app/config/2",
   "identifier": "default",
-  "description": "Default capabilities for Texture",
+  "description": "Default capabilities for Context",
   "windows": ["main"],
   "permissions": [
     "core:default",

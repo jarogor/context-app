@@ -7,7 +7,7 @@
   import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
 import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
-  import { EmptyState } from '@texture/ui';
+  import { EmptyState } from '@context/ui';
   import { activeTab } from './workplace';
   import { FLOWING_FORMATS, formatFromPath } from '../reader/reader';
   import type { TabAppearancePatch } from './workplace';
@@ -23,7 +23,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     type PaletteId,
     type ReaderFontId,
     type ReaderThemeId,
-  } from '@texture/ui';
+  } from '@context/ui';
 
   interface Props {
     /** Текущее рабочее место или null, когда его нет. */

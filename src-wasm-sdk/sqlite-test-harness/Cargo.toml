@@ -1,7 +1,7 @@
 [package]
 name = "sqlite-test-harness"
 version = "0.1.0"
-description = "Нативный SQL-движок для тестов source-плагинов «Текстуры»"
+description = "Нативный SQL-движок для тестов source-плагинов «Контекста»"
 edition = "2021"
 
 [lib]

@@ -16,7 +16,7 @@
     type MenuColor,
     type MenuIcon,
     type MetaItem,
-  } from '@texture/ui';
+  } from '@context/ui';
   import {
     openAvailability,
     TAB_COLORS,

@@ -7,11 +7,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <title>Текстура</title>
+    <title>Контекст</title>
     <script>
       /* Оформление экрана загрузки до бандла.
        *
-       * Значения берутся из `localStorage` (ключ `texture.appearance`): там
+       * Значения берутся из `localStorage` (ключ `context.appearance`): там
        * оболочка держит зеркало сохранённой темы и палитры, потому что до
        * загрузки бандла ядро недоступно. Если зеркала ещё нет, экран следует
        * системной теме и палитре по умолчанию. Так экран загрузки сразу
@@ -19,7 +19,7 @@
       (function () {
         var appearance = null;
         try {
-          appearance = JSON.parse(localStorage.getItem('texture.appearance') || 'null');
+          appearance = JSON.parse(localStorage.getItem('context.appearance') || 'null');
         } catch (error) {
           appearance = null;
         }

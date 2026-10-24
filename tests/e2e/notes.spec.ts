@@ -241,13 +241,13 @@ test('активное выделение показывает метки тол
             paragraphs[0].dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
         });
 
-    const layer = bookDocument(page).locator('.texture-selection-layer');
+    const layer = bookDocument(page).locator('.context-selection-layer');
     await expect(layer).toHaveCount(1);
     // Полосок несколько (по строке), но метки — только у первой и последней.
-    const bands = bookDocument(page).locator('.texture-selection-band');
+    const bands = bookDocument(page).locator('.context-selection-band');
     expect(await bands.count()).toBeGreaterThanOrEqual(3);
     const edges = await bookDocument(page)
-        .locator('.texture-selection-band')
+        .locator('.context-selection-band')
         .evaluateAll((elements) =>
             elements.map((element) => (element as HTMLElement).dataset.edge),
         );
@@ -259,7 +259,7 @@ test('активное выделение показывает метки тол
     // Метка сдвинута наружу от полосы на свою ширину: тогда она попадает в
     // промежуток между буквами, а не ложится на глиф — как в плагине PDF.
     const left = await bookDocument(page)
-        .locator('.texture-selection-band')
+        .locator('.context-selection-band')
         .first()
         .evaluate((element) => {
             const edge = getComputedStyle(element, '::before');
@@ -271,7 +271,7 @@ test('активное выделение показывает метки тол
     // Заливка и метки — один элемент слоя, поэтому их высоты совпадают
     // (нативное `::selection` прозрачно: движки красят его по-разному).
     const fill = await bookDocument(page)
-        .locator('.texture-selection-band')
+        .locator('.context-selection-band')
         .first()
         .evaluate((element) => {
             const band = getComputedStyle(element);
@@ -295,7 +295,7 @@ test('активное выделение показывает метки тол
 
     // Снятие выделения убирает слой и метки.
     await page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' }).click();
-    await expect(bookDocument(page).locator('.texture-selection-layer')).toHaveCount(0);
+    await expect(bookDocument(page).locator('.context-selection-layer')).toHaveCount(0);
 });
 
 test('панель заметок показывает пустое состояние без книги', async ({ page }) => {
@@ -314,7 +314,7 @@ test('подсветка заметки-абзаца видна в тексте'
     await highlightParagraph(page, 'Первый абзац книги.');
 
     const background = await bookDocument(page)
-        .locator('mark.texture-note')
+        .locator('mark.context-note')
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
     expect(background).toBe('rgb(242, 205, 82)');
@@ -322,7 +322,7 @@ test('подсветка заметки-абзаца видна в тексте'
     // Фон подсветки расширен до высоты строки: иначе между строками заметки
     // остаются щели, которых нет в PDF (там полосы строк уже включают интервал).
     const sizes = await bookDocument(page)
-        .locator('mark.texture-note')
+        .locator('mark.context-note')
         .first()
         .evaluate((element) => ({
             markHeight: element.getClientRects()[0]?.height ?? 0,
@@ -344,7 +344,7 @@ test('в тёмной теме фон подсветки непрозрачны�
     await expect(bookDocument(page).locator('html[data-reader-theme="dark"]')).toHaveCount(1);
 
     const background = await bookDocument(page)
-        .locator('mark.texture-note')
+        .locator('mark.context-note')
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
     // Непрозрачный цвет: перенесённые куски подсветки перекрываются на доли
@@ -386,7 +386,7 @@ test('создание заметки с выбранным цветом и см
 
     await expect(page.getByTestId('notes-item')).toHaveAttribute('data-color', 'blue');
     const blueBackground = await bookDocument(page)
-        .locator('mark.texture-note')
+        .locator('mark.context-note')
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
     expect(blueBackground).toBe('rgb(132, 173, 240)');
@@ -397,7 +397,7 @@ test('создание заметки с выбранным цветом и см
 
     await expect(page.getByTestId('notes-item')).toHaveAttribute('data-color', 'green');
     const greenBackground = await bookDocument(page)
-        .locator('mark.texture-note')
+        .locator('mark.context-note')
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
     expect(greenBackground).toBe('rgb(130, 217, 145)');
@@ -423,7 +423,7 @@ test('подсветка заметок разных цветов видна о�
     await expect(page.getByTestId('notes-item')).toHaveCount(2);
 
     const colors = await bookDocument(page)
-        .locator('mark.texture-note')
+        .locator('mark.context-note')
         .evaluateAll((marks) => marks.map((mark) => mark.getAttribute('data-color')));
     expect(colors).toContain('yellow');
     expect(colors).toContain('purple');
@@ -847,15 +847,15 @@ test('границы цитаты в EPUB применяются по отпус
 
     // Меню заметки (общий компонент) открывает правку границ.
     const frame = page.frameLocator('iframe[title="Чтение книги"]');
-    await frame.locator('mark.texture-note').first().click();
+    await frame.locator('mark.context-note').first().click();
     await expect(page.getByTestId('note-menu')).toBeVisible();
     await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить выделение' }).click();
 
     // Плашки с подтверждением нет: правка завершается по отпусканию кнопки.
     await expect(page.getByTestId('note-editing-hint')).toHaveCount(0);
-    await expect(frame.locator('.texture-note-handle')).toHaveCount(2);
+    await expect(frame.locator('.context-note-handle')).toHaveCount(2);
 
-    const handle = frame.locator('.texture-note-handle[data-note-handle="end"]').first();
+    const handle = frame.locator('.context-note-handle[data-note-handle="end"]').first();
     const box = await handle.boundingBox();
     expect(box).not.toBeNull();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
@@ -864,8 +864,8 @@ test('границы цитаты в EPUB применяются по отпус
     await page.mouse.up();
 
     // После отпускания маркеры и правка снимаются, цитата остаётся подсвеченной.
-    await expect(frame.locator('.texture-note-handle')).toHaveCount(0);
-    await expect(frame.locator('mark.texture-note').first()).toBeVisible();
+    await expect(frame.locator('.context-note-handle')).toHaveCount(0);
+    await expect(frame.locator('mark.context-note').first()).toBeVisible();
 });
 
 /** Создание заметки в наборе книги и возврат к реестру. */
@@ -961,7 +961,7 @@ test('реестр заметок сообщает о книге набора б
     // Набор без файла-книги: переход из реестра должен сообщить о недоступности.
     await page.addInitScript(() => {
         window.localStorage.setItem(
-            'texture-notes',
+            'context-notes',
             JSON.stringify([
                 {
                     id: 'ns-missing',

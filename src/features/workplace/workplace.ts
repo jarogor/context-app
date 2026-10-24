@@ -13,7 +13,7 @@
  * отбрасываются при загрузке.
  */
 
-import { TAB_ICON_NAMES } from '@texture/ui';
+import { TAB_ICON_NAMES } from '@context/ui';
 import { NOTE_COLORS, type NoteColor } from '../notes/model';
 
 /** Допустимая вкладке иконка: подмножество набора иконок дизайн-системы. */

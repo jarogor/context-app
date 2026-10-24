@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Icon } from '@texture/ui';
+  import { Button, Icon } from '@context/ui';
 
   interface Props {
     /** Сообщение об ошибке загрузки. */

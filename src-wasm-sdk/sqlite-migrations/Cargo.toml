@@ -1,7 +1,7 @@
 [package]
 name = "sqlite-migrations"
 version = "0.1.0"
-description = "Версионированные миграции схемы SQLite-хранилища плагинов «Текстуры»"
+description = "Версионированные миграции схемы SQLite-хранилища плагинов «Контекста»"
 edition = "2021"
 
 [lib]

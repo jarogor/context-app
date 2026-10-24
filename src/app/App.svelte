@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, Icon, Menu, MenuItem } from '@texture/ui';
+  import { Button, Icon, Menu, MenuItem } from '@context/ui';
   import AppBar from './AppBar.svelte';
   import NotificationsPanel from '../features/notifications/NotificationsPanel.svelte';
   import SectionNav from './SectionNav.svelte';
@@ -83,7 +83,7 @@
     type ReaderFontId,
     type ReaderThemeId,
     type ThemePreference,
-  } from '@texture/ui';
+  } from '@context/ui';
 
   interface Props {
     /** Реестр рабочих мест, загруженный до первого рендера. */

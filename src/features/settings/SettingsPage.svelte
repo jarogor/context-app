@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, ErrorToast, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@texture/ui';
-  import type { UiIntent, UiNode, UiSpaceDeclaration } from '@texture/ui-schema';
+  import { Button, ErrorToast, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@context/ui';
+  import type { UiIntent, UiNode, UiSpaceDeclaration } from '@context/ui-schema';
   import { listenEvent } from '../../shared/app-bridge';
   import {
     loadSettingsUi,

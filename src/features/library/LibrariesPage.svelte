@@ -11,7 +11,7 @@
     Spinner,
     type MenuAction,
     type MetaItem,
-  } from '@texture/ui';
+  } from '@context/ui';
   import { invokeCommand, listenEvent, openDialog } from '../../shared/app-bridge';
   import { formatDateTime } from '../../shared/format';
   import { lastSegment } from '../../shared/path';

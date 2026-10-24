@@ -18,7 +18,7 @@
     type WorkplaceNoteMenu,
     type WorkplaceState,
   } from './workplace-protocol';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, readerThemeTokens, type PaletteId, type ReaderThemeId } from '@texture/ui';
+  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, readerThemeTokens, type PaletteId, type ReaderThemeId } from '@context/ui';
 
   interface Props {
     /** Идентификатор плагина рабочего места. */

@@ -80,7 +80,7 @@ async function expectBookIntact(page: Page) {
                 ),
         )
         .toBe('about:srcdoc');
-    await expect(content(page).locator('.texture-chapter')).not.toHaveCount(0);
+    await expect(content(page).locator('.context-chapter')).not.toHaveCount(0);
     await expect(content(page).getByText('Текст первой сноски.')).toBeAttached();
     await expect(page.getByTestId('reader-unavailable')).toHaveCount(0);
     await expect(page.getByTestId('reader-error')).toHaveCount(0);

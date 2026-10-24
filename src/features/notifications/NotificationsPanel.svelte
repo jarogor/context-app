@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Checkbox, EmptyState, ErrorToast, SidePanel, createAsyncState } from '@texture/ui';
+  import { Badge, Button, Checkbox, EmptyState, ErrorToast, SidePanel, createAsyncState } from '@context/ui';
   import { formatTime } from '../../shared/format';
   import {
     clearNotifications,

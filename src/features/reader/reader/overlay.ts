@@ -10,11 +10,11 @@ import { parseAnchor } from './anchor';
 import type { Note } from '../../notes/notes';
 
 /** Класс всех наложений заметок. */
-export const NOTE_OVERLAY_CLASS = 'texture-overlay';
+export const NOTE_OVERLAY_CLASS = 'context-overlay';
 /** Класс текстовой карточки. */
-export const NOTE_CARD_CLASS = 'texture-note-card';
+export const NOTE_CARD_CLASS = 'context-note-card';
 /** Класс SVG-слоя фигуры. */
-export const NOTE_SHAPE_CLASS = 'texture-note-shape';
+export const NOTE_SHAPE_CLASS = 'context-note-shape';
 
 /** Геометрия фигуры: две точки (концы линии либо противоположные углы области). */
 export interface ShapeGeometry {

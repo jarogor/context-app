@@ -6,7 +6,7 @@ import {
   parseViewerMessage,
   WORKPLACE_CHANNEL,
 } from './workplace-protocol';
-import { readerPageColors, readerThemeNoteTones, readerThemeTokens } from '@texture/ui';
+import { readerPageColors, readerThemeNoteTones, readerThemeTokens } from '@context/ui';
 
 /** Активный инструмент страничного формата для значений по умолчанию. */
 const TOOL: NoteTool = { ...DEFAULT_NOTE_TOOL, type: 'shape', shape: 'ellipse', color: 'blue' };

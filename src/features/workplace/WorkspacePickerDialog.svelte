@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Dialog, Icon, SearchCreate } from '@texture/ui';
+  import { Dialog, Icon, SearchCreate } from '@context/ui';
 
   /** Рабочее место в диалоге выбора. */
   interface WorkspaceItem {

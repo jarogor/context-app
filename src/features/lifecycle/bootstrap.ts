@@ -36,7 +36,7 @@ import {
   type ReaderFontId,
   type ReaderThemeId,
   type ThemePreference,
-} from '@texture/ui';
+} from '@context/ui';
 import {
   listNotifications,
   loadTechnicalVisibleDefault,

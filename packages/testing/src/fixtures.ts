@@ -376,9 +376,9 @@ interface MockNoteSet {
 }
 
 /** Ключ мок-хранилища заметок в localStorage. */
-const NOTES_STORAGE_KEY = 'texture-notes';
+const NOTES_STORAGE_KEY = 'context-notes';
 /** Ключ мок-хранилища активного набора по книгам. */
-const NOTES_ACTIVE_STORAGE_KEY = 'texture-notes-active';
+const NOTES_ACTIVE_STORAGE_KEY = 'context-notes-active';
 
 /** Все наборы заметок мок-хранилища. */
 function loadMockNotes(): MockNoteSet[] {
@@ -695,13 +695,13 @@ export function defaultMockConfig(): MockBridgeConfig {
             window_open_tabs_limit: () => SETTINGS_VALUES['app.general']['window.open_tabs_limit'],
             show_window: () => null,
             app_info: () => ({
-                name: 'Текстура',
+                name: 'Контекст',
                 version: '0.1.0',
                 paths: [
                     {
                         key: 'app_state',
                         title: 'Состояние приложения',
-                        path: '/home/user/.texture/app-state',
+                        path: '/home/user/.context/app-state',
                         note: 'Настройки, плагины, кеш и данные интерфейса',
                     },
                 ],

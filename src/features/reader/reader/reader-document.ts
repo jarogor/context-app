@@ -6,7 +6,7 @@
  * занимался поведением, а не вёрсткой документа.
  *
  * Оформление области чтения задаётся **темой области чтения**: единый
- * набор значений дизайн-системы (`@texture/ui`), общий для встроенного чтения и
+ * набор значений дизайн-системы (`@context/ui`), общий для встроенного чтения и
  * плагина рабочего места. Документ изолирован и не наследует CSS оболочки,
  * поэтому значения встраиваются сюда, а их сторона выбирается атрибутом
  * `data-reader-theme` на корне документа (переключается без пересборки).
@@ -30,22 +30,22 @@ import {
   type PaletteId,
   type ReaderFontId,
   type ReaderThemeId,
-} from '@texture/ui';
+} from '@context/ui';
 
 import type { BookContent } from './types';
 
 /** Класс подсветки заметки-цитаты. */
-export const NOTE_CLASS = 'texture-note';
+export const NOTE_CLASS = 'context-note';
 /** Класс временной вспышки подсветки при переходе к заметке. */
-export const FLASH_CLASS = 'texture-note-flash';
+export const FLASH_CLASS = 'context-note-flash';
 /** Класс превью подсветки при правке границ цитаты. */
-export const NOTE_PREVIEW_CLASS = 'texture-resize-preview';
+export const NOTE_PREVIEW_CLASS = 'context-resize-preview';
 /** Класс слоя активного выделения текста. */
-export const SELECTION_LAYER_CLASS = 'texture-selection-layer';
+export const SELECTION_LAYER_CLASS = 'context-selection-layer';
 /** Класс полосы активного выделения. */
-export const SELECTION_BAND_CLASS = 'texture-selection-band';
+export const SELECTION_BAND_CLASS = 'context-selection-band';
 /** Класс раздела главы книги. */
-export const CHAPTER_CLASS = 'texture-chapter';
+export const CHAPTER_CLASS = 'context-chapter';
 /** Отступ сверху до опорной строки при масштабировании, в пикселях. */
 export const ZOOM_ANCHOR_MARGIN = 18;
 
@@ -157,9 +157,9 @@ function buildStyle(): string {
     // поставить: клик открывает меню уже имеющейся заметки. Заметка при этом
     // кликабельна, и курсор это показывает — указатель вместо прицела (как в
     // плагине PDF); правило сильнее общего `crosshair`.
-    'body[data-tool="text"] .texture-note-card,body[data-tool="shape"] .texture-note-card,',
-    'body[data-tool="text"] mark.texture-note,body[data-tool="shape"] mark.texture-note,',
-    'body[data-tool="text"] .texture-note-shape path,body[data-tool="shape"] .texture-note-shape path',
+    'body[data-tool="text"] .context-note-card,body[data-tool="shape"] .context-note-card,',
+    'body[data-tool="text"] mark.context-note,body[data-tool="shape"] mark.context-note,',
+    'body[data-tool="text"] .context-note-shape path,body[data-tool="shape"] .context-note-shape path',
     '{cursor:pointer !important;}',
     // Заливку выделения рисует собственный слой (как в PDF), а не браузер:
     // разные движки красят `::selection` по-разному (по высоте строки или по
@@ -205,55 +205,55 @@ function buildStyle(): string {
     `.${CHAPTER_CLASS}{position:relative;}`,
     // Карточка окрашена тем же мягким тоном, что цитата и фигура: цвет заметки
     // одинаков на всех областях, без тени и тёмной полосы.
-    '.texture-note-card{position:absolute;max-width:220px;padding:6px 8px;border-radius:6px;',
+    '.context-note-card{position:absolute;max-width:220px;padding:6px 8px;border-radius:6px;',
     'font-size:13px;line-height:1.4;white-space:pre-wrap;cursor:pointer;z-index:2;}',
-    '.texture-note-card[data-color="yellow"]{background:var(--note-yellow);}',
-    '.texture-note-card[data-color="green"]{background:var(--note-green);}',
-    '.texture-note-card[data-color="blue"]{background:var(--note-blue);}',
-    '.texture-note-card[data-color="red"]{background:var(--note-red);}',
-    '.texture-note-card[data-color="purple"]{background:var(--note-purple);}',
+    '.context-note-card[data-color="yellow"]{background:var(--note-yellow);}',
+    '.context-note-card[data-color="green"]{background:var(--note-green);}',
+    '.context-note-card[data-color="blue"]{background:var(--note-blue);}',
+    '.context-note-card[data-color="red"]{background:var(--note-red);}',
+    '.context-note-card[data-color="purple"]{background:var(--note-purple);}',
     // Слой фигуры позиционируется по рамке самой фигуры (инлайн-стили из
     // `renderShape`), а не растягивается на всю главу: у высоких глав WebKit
     // не рисует слишком большой композитный слой. Умножение задано здесь:
     // на дочерних SVG-элементах оно в WebKit не применяется.
-    '.texture-note-shape{position:absolute;pointer-events:none;overflow:visible;',
+    '.context-note-shape{position:absolute;pointer-events:none;overflow:visible;',
     'mix-blend-mode:multiply;}',
     // Фигура — полупрозрачная заливка цветом заметки, как подсветка цитаты,
     // без обводки: прямоугольник и эллипс залиты, линия — толстый штрих. Цвет
     // мягкий, чтобы заметка была видна, но не затмевала текст.
-    '.texture-note-shape rect,.texture-note-shape ellipse{stroke:none;fill-opacity:0.5;',
+    '.context-note-shape rect,.context-note-shape ellipse{stroke:none;fill-opacity:0.5;',
     'vector-effect:non-scaling-stroke;pointer-events:none;}',
-    '.texture-note-shape line{fill:none;stroke-width:4;stroke-opacity:0.6;',
+    '.context-note-shape line{fill:none;stroke-width:4;stroke-opacity:0.6;',
     'vector-effect:non-scaling-stroke;pointer-events:none;}',
-    '.texture-note-shape path{fill:transparent;stroke:transparent;stroke-width:16;',
+    '.context-note-shape path{fill:transparent;stroke:transparent;stroke-width:16;',
     'vector-effect:non-scaling-stroke;pointer-events:all;cursor:pointer;}',
     // Рамка будущей фигуры во время протяжки: без неё рисование было «слепым»
     // (в PDF такая рамка есть). Пунктир и осевые линии показывают, где встанет
     // фигура ещё до отпускания кнопки.
-    '.texture-note-preview{position:absolute;z-index:3;pointer-events:none;',
+    '.context-note-preview{position:absolute;z-index:3;pointer-events:none;',
     'border:1px dashed #2563eb;box-sizing:border-box;}',
-    '.texture-note-preview::before{content:"";position:absolute;left:0;right:0;top:50%;',
+    '.context-note-preview::before{content:"";position:absolute;left:0;right:0;top:50%;',
     'height:1px;background:#2563eb;opacity:0.6;}',
-    '.texture-note-preview::after{content:"";position:absolute;top:0;bottom:0;left:50%;',
+    '.context-note-preview::after{content:"";position:absolute;top:0;bottom:0;left:50%;',
     'width:1px;background:#2563eb;opacity:0.6;}',
-    '.texture-note-shape[data-color="yellow"] rect,.texture-note-shape[data-color="yellow"] ellipse{fill:var(--note-yellow);}',
-    '.texture-note-shape[data-color="yellow"] line{stroke:var(--note-yellow);}',
-    '.texture-note-shape[data-color="green"] rect,.texture-note-shape[data-color="green"] ellipse{fill:var(--note-green);}',
-    '.texture-note-shape[data-color="green"] line{stroke:var(--note-green);}',
-    '.texture-note-shape[data-color="blue"] rect,.texture-note-shape[data-color="blue"] ellipse{fill:var(--note-blue);}',
-    '.texture-note-shape[data-color="blue"] line{stroke:var(--note-blue);}',
-    '.texture-note-shape[data-color="red"] rect,.texture-note-shape[data-color="red"] ellipse{fill:var(--note-red);}',
-    '.texture-note-shape[data-color="red"] line{stroke:var(--note-red);}',
-    '.texture-note-shape[data-color="purple"] rect,.texture-note-shape[data-color="purple"] ellipse{fill:var(--note-purple);}',
-    '.texture-note-shape[data-color="purple"] line{stroke:var(--note-purple);}',
+    '.context-note-shape[data-color="yellow"] rect,.context-note-shape[data-color="yellow"] ellipse{fill:var(--note-yellow);}',
+    '.context-note-shape[data-color="yellow"] line{stroke:var(--note-yellow);}',
+    '.context-note-shape[data-color="green"] rect,.context-note-shape[data-color="green"] ellipse{fill:var(--note-green);}',
+    '.context-note-shape[data-color="green"] line{stroke:var(--note-green);}',
+    '.context-note-shape[data-color="blue"] rect,.context-note-shape[data-color="blue"] ellipse{fill:var(--note-blue);}',
+    '.context-note-shape[data-color="blue"] line{stroke:var(--note-blue);}',
+    '.context-note-shape[data-color="red"] rect,.context-note-shape[data-color="red"] ellipse{fill:var(--note-red);}',
+    '.context-note-shape[data-color="red"] line{stroke:var(--note-red);}',
+    '.context-note-shape[data-color="purple"] rect,.context-note-shape[data-color="purple"] ellipse{fill:var(--note-purple);}',
+    '.context-note-shape[data-color="purple"] line{stroke:var(--note-purple);}',
     // Вспышка при переходе к заметке: оранжевая, различима на обеих сторонах.
     `.${NOTE_CLASS}.${FLASH_CLASS}{background:#f59e0b;}`,
-    `.texture-overlay.${FLASH_CLASS}{opacity:0.4;}`,
+    `.context-overlay.${FLASH_CLASS}{opacity:0.4;}`,
     // Правка заметки: перемещение показывается хваткой, границы цитаты — маркерами.
     'body[data-editing="move"]{cursor:move;}',
-    'body[data-editing="move"] .texture-overlay{cursor:move;}',
+    'body[data-editing="move"] .context-overlay{cursor:move;}',
     'body[data-editing="resize"],body[data-editing="resize"] *{cursor:ew-resize;}',
-    '.texture-note-handle{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;',
+    '.context-note-handle{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;',
     'border-radius:50%;background:#1d4ed8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);',
     'cursor:ew-resize;z-index:5;}',
     // Превью подсветки при правке границ цитаты: прямоугольники поверх текста,

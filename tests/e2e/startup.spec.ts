@@ -11,7 +11,7 @@ test('сервер отдаёт статичный экран загрузки �
     expect(html).toContain('id="boot"');
     expect(html).toContain('boot-spinner');
     // Оформление экрана выбирается по сохранённой теме до загрузки бандла.
-    expect(html).toContain('texture.appearance');
+    expect(html).toContain('context.appearance');
     expect(html).toContain('data-theme');
 });
 
@@ -19,7 +19,7 @@ test('статичный экран загрузки следует сохран
     await page.addInitScript(() => {
         // Зеркало оформления, которое оболочка оставила от прошлого запуска.
         window.localStorage.setItem(
-            'texture.appearance',
+            'context.appearance',
             JSON.stringify({ theme: 'dark', palette: 'cobalt' }),
         );
     });

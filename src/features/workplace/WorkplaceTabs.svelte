@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@texture/ui';
+  import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { publishUserNotification } from '../notifications/notifications';

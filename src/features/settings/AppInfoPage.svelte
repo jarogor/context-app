@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Card, ErrorState, ScrollArea, Skeleton } from '@texture/ui';
+  import { Card, ErrorState, ScrollArea, Skeleton } from '@context/ui';
   import { invokeCommand } from '../../shared/app-bridge';
 
   /** Служебное расположение в сведениях о приложении. */

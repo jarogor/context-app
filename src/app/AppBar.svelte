@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { Icon, type IconName } from '@texture/ui';
+  import { Icon, type IconName } from '@context/ui';
   import SectionNav from './SectionNav.svelte';
+  import AppLogo from './AppLogo.svelte';
 
   /**
    * Верхняя панель приложения — постоянный «корешок» оболочки.
@@ -84,15 +85,19 @@
   data-testid="app-bar"
 >
   <!--
-    Название приложения — надпись, а не кнопка. Рядом — навигационный текст: где
-    находится пользователь и что выбрано. Отдельной панели раздела под шапкой нет:
-    она дублировала этот текст и меняла высоту при смене раздела.
+    Знак приложения вместо надписи: логотип сам содержит название «con/text»,
+    поэтому текст рядом дублировал бы его. Настоящее имя остаётся доступным
+    именем элемента — его читают экранные дикторы, и оно попадает в подсказку.
+    Цвет знака берётся из темы (`currentColor`).
   -->
   <span
-    class="shrink-0 role-heading tracking-tight text-[var(--foreground)]"
+    class="flex shrink-0 items-center text-[var(--foreground)]"
     data-testid="app-name"
+    role="img"
+    aria-label="Контекст"
+    title="Контекст"
   >
-    Текстура
+    <AppLogo height="2.2em" />
   </span>
   <span class="hidden h-6 w-px shrink-0 bg-[var(--border)] md:block" aria-hidden="true"></span>
   <span
@@ -103,7 +108,7 @@
     {context}
   </span>
 
-  <div class="ml-auto flex min-w-0 shrink items-center gap-2 md:gap-4">
+  <div class="ml-auto flex min-w-0 items-center gap-2 md:gap-4">
     {#if !mobile}
       <SectionNav
         {workspaceActive}

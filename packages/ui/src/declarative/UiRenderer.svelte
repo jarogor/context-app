@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { UiIntent, UiSpaceDeclaration } from '@texture/ui-schema';
+  import type { UiIntent, UiSpaceDeclaration } from '@context/ui-schema';
   import { untrack } from 'svelte';
   import UiNodeView from './UiNodeView.svelte';
   import { collectValues } from './values';

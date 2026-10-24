@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { Button, ColorPicker, Textarea, type ColorSwatch } from '@texture/ui';
+  import { Button, ColorPicker, Textarea, type ColorSwatch } from '@context/ui';
   import {
     DEFAULT_NOTE_COLOR,
     NOTE_COLORS,

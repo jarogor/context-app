@@ -6,18 +6,18 @@
  * сама песочница: blob, созданный родительским документом, в песочнице с
  * `allow-scripts` не загружается.
  *
- * Модуль получает вспомогательные файлы функциями `textureViewerFile(path)` и
- * `textureViewerFiles()`; прелюдия выполняется до собственных скриптов модуля.
+ * Модуль получает вспомогательные файлы функциями `contextViewerFile(path)` и
+ * `contextViewerFiles()`; прелюдия выполняется до собственных скриптов модуля.
  */
 
 import type { ViewerFileContent } from './reader';
 
 /** Функция модуля для чтения файла по относительному пути. */
-export const VIEWER_FILE_GLOBAL = 'textureViewerFile';
+export const VIEWER_FILE_GLOBAL = 'contextViewerFile';
 /** Функция модуля для списка всех файлов. */
-export const VIEWER_FILES_GLOBAL = 'textureViewerFiles';
+export const VIEWER_FILES_GLOBAL = 'contextViewerFiles';
 /** Функция модуля для blob-адреса файла (движок, worker, ресурсы). */
-export const VIEWER_URL_GLOBAL = 'textureViewerUrl';
+export const VIEWER_URL_GLOBAL = 'contextViewerUrl';
 
 /** Безопасная замена последовательностей, закрывающих script-блок. */
 function escapeInline(value: string): string {
@@ -72,7 +72,7 @@ export function buildViewerDocument(entry: string, files: ViewerFileContent[]): 
   if (files.length === 0) {
     return entry;
   }
-  const script = `<script data-texture-viewer="1">${escapeInline(prelude(files))}</script>`;
+  const script = `<script data-context-viewer="1">${escapeInline(prelude(files))}</script>`;
   const head = /<head(\s[^>]*)?>/i.exec(entry);
   if (head) {
     const at = head.index + head[0].length;

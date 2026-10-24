@@ -1,5 +1,5 @@
 {
-  "name": "jarogor-texture",
+  "name": "jarogor-context",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -17,7 +17,7 @@
     "check:artifacts": "node scripts/plugin-artifacts.mjs check",
     "preview": "vite preview",
     "test": "npm run test:unit",
-    "test:unit": "vitest run && npm test -w @texture/ui && npm test -w @texture/ui-schema && npm test -w format-pdf-viewer && npm test -w format-djvu-viewer",
+    "test:unit": "vitest run && npm test -w @context/ui && npm test -w @context/ui-schema && npm test -w format-pdf-viewer && npm test -w format-djvu-viewer",
     "test:e2e": "npm run check:artifacts && playwright test",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json && npm run check -w format-pdf-viewer && npm run check -w format-djvu-viewer",
     "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",
@@ -29,7 +29,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.12.1",
     "@testing-library/svelte": "^5.4.2",
-    "@texture/testing": "*",
+    "@context/testing": "*",
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^24.13.3",
     "jsdom": "^29.1.1",
@@ -44,7 +44,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",
     "@tauri-apps/plugin-dialog": "^2.8.1",
-    "@texture/ui": "*",
+    "@context/ui": "*",
     "pdfjs-dist": "4.10.38"
   }
 }

@@ -1,12 +1,12 @@
 [package]
-name = "jarogor-texture"
+name = "jarogor-context"
 version = "0.1.0"
-description = "Текстура: персональная библиотека книг с портируемым хранением"
+description = "Контекст: персональная библиотека книг с портируемым хранением"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "jarogor_texture_lib"
+name = "jarogor_context_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

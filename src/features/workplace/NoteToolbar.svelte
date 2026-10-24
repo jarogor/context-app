@@ -10,7 +10,7 @@
     type ColorSwatch,
     type ReaderFontId,
     type ReaderThemeId,
-  } from '@texture/ui';
+  } from '@context/ui';
   import {
     NOTE_COLORS,
     NOTE_COLOR_LABELS,

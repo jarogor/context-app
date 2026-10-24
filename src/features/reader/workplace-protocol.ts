@@ -16,10 +16,10 @@ import {
   type ReaderPageColors,
   type ReaderThemeId,
   type ReaderThemeTokens,
-} from '@texture/ui';
+} from '@context/ui';
 
 /** Канал сообщений между областью содержимого и модулем рисования. */
-export const WORKPLACE_CHANNEL = 'texture-workplace';
+export const WORKPLACE_CHANNEL = 'context-workplace';
 
 /** Тема области чтения, передаваемая модулю рисования.
  *

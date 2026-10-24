@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 pub const PLUGINS_DIR_NAME: &str = "plugins";
 
 /// Отображаемое название приложения.
-pub const APP_DISPLAY_NAME: &str = "Текстура";
+pub const APP_DISPLAY_NAME: &str = "Контекст";
 
 /// Имя папки с базовыми плагинами каркаса приложения.
 pub const BASE_PLUGINS_DIR_NAME: &str = "base-plugins";

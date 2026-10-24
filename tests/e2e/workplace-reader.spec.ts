@@ -6,7 +6,7 @@ const VIEWER_HTML = `<!doctype html><html lang="ru"><body>
   <div id="out">Ожидание книги</div>
   <script>
     (function () {
-      var C = 'texture-workplace';
+      var C = 'context-workplace';
       function post(message) { message.channel = C; parent.postMessage(message, '*'); }
       addEventListener('message', function (event) {
         var message = event.data;

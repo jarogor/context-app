@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ColorPicker, type ColorSwatch } from '@texture/ui';
+  import { ColorPicker, type ColorSwatch } from '@context/ui';
   import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type NoteColor } from './notes';
 
   interface Props {

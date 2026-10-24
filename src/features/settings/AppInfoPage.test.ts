@@ -17,7 +17,7 @@ beforeEach(() => {
 /** Снимок сведений о приложении. */
 function infoResponse() {
   return {
-    name: 'Текстура',
+    name: 'Контекст',
     version: '0.1.0',
     paths: [
       {

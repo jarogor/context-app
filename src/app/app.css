@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import '@texture/ui/tokens.css';
+@import '@context/ui/tokens.css';
 
 /* Классы компонентов дизайн-системы должны попадать в сборку оболочки. */
 @source '../../packages/ui/src';

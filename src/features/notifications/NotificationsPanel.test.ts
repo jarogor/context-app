@@ -3,11 +3,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import NotificationsPanel from './NotificationsPanel.svelte';
 import { invokeCommand } from '../../shared/app-bridge';
-import { emitMockEvent } from '@texture/testing';
+import { emitMockEvent } from '@context/testing';
 import type { NotificationEntry } from './notifications';
 
 vi.mock('../../shared/app-bridge', async () => {
-    const { mockListen } = await import('@texture/testing');
+    const { mockListen } = await import('@context/testing');
     return {
         invokeCommand: vi.fn(),
         // Регистрация обработчика события в моке моста синхронна вызову.

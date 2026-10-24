@@ -1,7 +1,7 @@
 /** Оформление оболочки: чтение предпочтения и применение к документу.
  *
  * Логика оформления (тип предпочтения, разрешение в светлую/тёмную и реестр
- * палитр) принадлежит дизайн-системе `@texture/ui`. Оболочка лишь читает
+ * палитр) принадлежит дизайн-системе `@context/ui`. Оболочка лишь читает
  * сохранённые значения из ядра, применяет их и реагирует на изменение настроек.
  * Модуль чист от Svelte и пригоден для тестов.
  */
@@ -20,7 +20,7 @@ import {
   type ReaderThemeId,
   type ThemePreference,
   type UnsubscribeTheme,
-} from '@texture/ui';
+} from '@context/ui';
 import { invokeCommand } from '../../shared/app-bridge';
 
 /** Секция настроек приложения, изменение которой может сменить оформление. */
@@ -83,7 +83,7 @@ export async function loadReaderFont(): Promise<ReaderFontId> {
  * ни токенов, поэтому цвета и сторону темы берут из этого ключа, чтобы экран
  * загрузки сразу совпал с выбранным оформлением, а не показывал чужой набор.
  */
-export const BOOT_APPEARANCE_KEY = 'texture.appearance';
+export const BOOT_APPEARANCE_KEY = 'context.appearance';
 
 /** Оформление, пригодное для экрана загрузки до бандла. */
 export interface BootAppearance {

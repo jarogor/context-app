@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Icon, type IconName } from '@texture/ui';
+  import { Icon, type IconName } from '@context/ui';
 
   /**
    * Навигация по разделам приложения — единственный источник переходов.
@@ -106,7 +106,7 @@
 {#snippet desktopTab(item: { id: string; label: string; icon: IconName; active: boolean })}
   <button
     type="button"
-    class="flex shrink-0 cursor-pointer items-center gap-2 rounded-[var(--radius)] px-3 py-1.5 text-[var(--foreground)] transition-colors [font:inherit]"
+    class="flex min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-[var(--foreground)] transition-colors [font:inherit] md:px-3"
     class:bg-[var(--primary)]={item.active}
     class:text-[var(--primary-foreground)]={item.active}
     class:hover:bg-[var(--surface-hover)]={!item.active}
@@ -213,7 +213,7 @@
   </nav>
 {:else}
   <nav
-    class="flex min-w-0 items-center gap-1 {className}"
+    class="flex min-w-0 items-center gap-0.5 overflow-hidden {className} md:gap-1"
     aria-label="Разделы приложения"
     data-testid="section-nav"
     data-mobile="false"

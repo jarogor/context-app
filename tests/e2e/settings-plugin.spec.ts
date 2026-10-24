@@ -129,7 +129,7 @@ test('раздел «Информация» показывает версию и
   await expect(page.getByText('версия 0.1.0')).toBeVisible();
   const info = page.getByTestId('app-info-page');
   await expect(info.getByRole('heading', { name: 'Файлы приложения' })).toBeVisible();
-  await expect(info.getByText('/home/user/.texture/app-state', { exact: true })).toBeVisible();
+  await expect(info.getByText('/home/user/.context/app-state', { exact: true })).toBeVisible();
   // Одно расположение состояния; деления плагинов и жаргона нет.
   await expect(info.locator('li', { hasText: 'Состояние приложения' }).first()).toBeVisible();
   await expect(info.getByText(/в поставке/)).toHaveCount(0);

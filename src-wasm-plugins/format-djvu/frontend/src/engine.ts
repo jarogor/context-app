@@ -43,7 +43,7 @@ export function loadEngine(): Promise<DjVuModule> {
   if (!engine) {
     engine = (async () => {
       const fileName = djvu.wasmSimd128Supported() ? 'djvu_simd128.wasm' : 'djvu_scalar.wasm';
-      const bytes = textureViewerFile(fileName);
+      const bytes = contextViewerFile(fileName);
       if (!bytes) {
         throw new Error('не найден модуль движка DjVu: ' + fileName);
       }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, Icon, IconButton, Input, Textarea } from '@texture/ui';
+  import { Button, Icon, IconButton, Input, Textarea } from '@context/ui';
 
   interface Props {
     /** Идентификатор редактируемой заметки. */

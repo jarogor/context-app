@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ActionMenu, Button, Input, Select, type MenuAction } from '@texture/ui';
+  import { ActionMenu, Button, Input, Select, type MenuAction } from '@context/ui';
   import type { NoteSetSummary } from './notes';
 
   /**

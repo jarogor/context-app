@@ -12,7 +12,7 @@
     Select,
     ScrollArea,
     createAsyncState,
-  } from '@texture/ui';
+  } from '@context/ui';
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import {
     addStore as addStoreEntry,

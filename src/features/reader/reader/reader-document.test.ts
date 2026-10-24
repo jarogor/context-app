@@ -38,8 +38,8 @@ describe('документ книги', () => {
 
     it('содержит стили карточек, фигур и подсветки', () => {
         const html = documentFor();
-        expect(html).toContain('.texture-note-card');
-        expect(html).toContain('.texture-note-shape');
+        expect(html).toContain('.context-note-card');
+        expect(html).toContain('.context-note-shape');
         expect(html).toContain(`.${CHAPTER_CLASS}{position:relative;}`);
         expect(html).toContain(`.${NOTE_CLASS}.${FLASH_CLASS}`);
     });
@@ -50,7 +50,7 @@ describe('документ книги', () => {
         // её меню, но сама заметка кликабельна — курсор это показывает (как в
         // плагине PDF).
         expect(html).toContain(
-            'body[data-tool="text"] .texture-note-card,body[data-tool="shape"] .texture-note-card,',
+            'body[data-tool="text"] .context-note-card,body[data-tool="shape"] .context-note-card,',
         );
         expect(html).toContain('cursor:pointer !important;');
     });
@@ -69,7 +69,7 @@ describe('документ книги', () => {
         // прозрачно: движки красят `::selection` по-разному.
         expect(html).toContain('::selection{background:transparent;}');
         expect(html).toContain(
-            '.texture-selection-band{position:absolute;border-radius:2px;background:var(--rt-selection);}',
+            '.context-selection-band{position:absolute;border-radius:2px;background:var(--rt-selection);}',
         );
         expect(html).toContain('--rt-selection:');
     });

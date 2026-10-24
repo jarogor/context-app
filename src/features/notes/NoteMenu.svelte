@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Icon } from '@texture/ui';
+  import { Button, Icon } from '@context/ui';
   import type { NoteType } from './notes';
 
   /** Контекстное меню заметки, общее для всех режимов чтения.

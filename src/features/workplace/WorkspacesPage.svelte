@@ -10,7 +10,7 @@
     Input,
     PageShell,
     type MenuAction,
-  } from '@texture/ui';
+  } from '@context/ui';
   import { formatDateTime } from '../../shared/format';
   import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
 

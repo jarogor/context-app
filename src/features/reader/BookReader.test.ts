@@ -27,9 +27,9 @@ describe('BookReader: документ книги', () => {
 
     it('содержит стили карточек и фигур', async () => {
         const html = await builtDocument();
-        expect(html).toContain('.texture-note-card');
-        expect(html).toContain('.texture-note-shape');
-        expect(html).toContain('.texture-chapter{position:relative;}');
+        expect(html).toContain('.context-note-card');
+        expect(html).toContain('.context-note-shape');
+        expect(html).toContain('.context-chapter{position:relative;}');
     });
 
     it('по умолчанию оформляет область чтения светлой темой', async () => {
@@ -45,16 +45,16 @@ describe('BookReader: документ книги', () => {
 
     it('содержит слой активного выделения с метками по краям', async () => {
         const html = await builtDocument();
-        expect(html).toContain('.texture-selection-layer');
-        expect(html).toContain('.texture-selection-band');
+        expect(html).toContain('.context-selection-layer');
+        expect(html).toContain('.context-selection-band');
         // Метки привязаны именно к полосе выделения, а не к подсветке заметки,
         // и стоят только у краёв всего выделения.
-        expect(html).toContain('.texture-selection-band[data-edge="start"]::before');
-        expect(html).toContain('.texture-selection-band[data-edge="end"]::after');
+        expect(html).toContain('.context-selection-band[data-edge="start"]::before');
+        expect(html).toContain('.context-selection-band[data-edge="end"]::after');
         // Метка центрируется на границе полосы (на полширины внутрь и наружу):
         // середина метки совпадает с краем выделения.
         expect(html).toContain('left:calc(-0.5 * var(--rt-selection-edge-width,1px))');
         expect(html).toContain('right:calc(-0.5 * var(--rt-selection-edge-width,1px))');
-        expect(html).not.toContain('.texture-note::before');
+        expect(html).not.toContain('.context-note::before');
     });
 });

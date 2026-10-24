@@ -10,7 +10,7 @@ import {
   UI_SCHEMA_VERSION,
   type UiIntent,
   type UiSpaceDeclaration,
-} from '@texture/ui-schema';
+} from '@context/ui-schema';
 import { basePluginOperation } from '../../shared/base-plugin';
 
 /** Capability базового плагина настроек. */

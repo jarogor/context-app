@@ -9,12 +9,12 @@
     Skeleton,
     type MenuAction,
     type MetaItem,
-  } from '@texture/ui';
+  } from '@context/ui';
   import { formatDateTime } from '../../shared/format';
   import NoteEntry from '../notes/NoteEntry.svelte';
   import type { NoteSet, Note } from '../notes/notes';
   import { librarySets, noteCountLabel } from './notes-library';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
+  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@context/ui';
 
   /** Реестр наборов заметок всех книг.
    *

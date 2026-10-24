@@ -1,7 +1,7 @@
 [package]
 name = "books-source-calibre"
 version = "0.1.0"
-description = "Плагин источника книг Calibre для приложения «Текстура»"
+description = "Плагин источника книг Calibre для приложения «Контекст»"
 edition = "2021"
 
 [lib]

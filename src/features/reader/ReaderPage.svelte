@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, EmptyState, ErrorState, Icon, Progress, Spinner } from '@texture/ui';
+  import { Button, EmptyState, ErrorState, Icon, Progress, Spinner } from '@context/ui';
   import BookReader from './BookReader.svelte';
   import WorkplaceContent from './WorkplaceContent.svelte';
   import {
@@ -21,7 +21,7 @@
     type PaletteId,
     type ReaderFontId,
     type ReaderThemeId,
-  } from '@texture/ui';
+  } from '@context/ui';
   import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';

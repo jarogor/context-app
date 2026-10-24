@@ -2187,7 +2187,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jarogor-texture"
+name = "jarogor-context"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",

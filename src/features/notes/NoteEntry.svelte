@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { Badge, RowActions } from '@texture/ui';
+  import { Badge, RowActions } from '@context/ui';
   import type { Snippet } from 'svelte';
   import { formatDateTime } from '../../shared/format';
   import { noteMarkerColor, NOTE_TYPE_LABELS, type NoteListItem } from './notes';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
+  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@context/ui';
 
   /** Общая карточка заметки в списке: цветовая полоса, тип, место, дата и содержимое.
    *

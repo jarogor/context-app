@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { UiElement } from '@texture/ui-schema';
+  import type { UiElement } from '@context/ui-schema';
   import { cn } from '../utils';
   import Button from '../components/Button.svelte';
   import Card from '../components/Card.svelte';

@@ -1,7 +1,7 @@
 import { render, waitFor } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import WorkplaceContent from './WorkplaceContent.svelte';
-import { readerThemeNoteTones, readerThemeTokens } from '@texture/ui';
+import { readerThemeNoteTones, readerThemeTokens } from '@context/ui';
 
 vi.mock('./reader', () => ({
     loadWorkplaceBundle: vi.fn(async () => ({ entry: '<html></html>', files: [] })),
@@ -41,7 +41,7 @@ describe('WorkplaceContent: тема области чтения', () => {
         window.dispatchEvent(
             new MessageEvent('message', {
                 source: contentWindow,
-                data: { channel: 'texture-workplace', type: 'ready' },
+                data: { channel: 'context-workplace', type: 'ready' },
             }),
         );
 
@@ -81,7 +81,7 @@ describe('WorkplaceContent: тема области чтения', () => {
         window.dispatchEvent(
             new MessageEvent('message', {
                 source: contentWindow,
-                data: { channel: 'texture-workplace', type: 'ready' },
+                data: { channel: 'context-workplace', type: 'ready' },
             }),
         );
         await waitFor(() => {

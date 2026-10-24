@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 
 import UiRenderer from './UiRenderer.svelte';
-import type { UiSpaceDeclaration } from '@texture/ui-schema';
+import type { UiSpaceDeclaration } from '@context/ui-schema';
 
 /** Декларация секции настроек с флажком. */
 function declaration(): UiSpaceDeclaration {

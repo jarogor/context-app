@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Badge, BookCover, Button, ErrorState, Icon } from '@texture/ui';
+  import { Badge, BookCover, Button, ErrorState, Icon } from '@context/ui';
   import type { BookFormatInfo, BookWithCover } from './library';
 
   interface Props {

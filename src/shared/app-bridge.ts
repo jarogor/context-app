@@ -1,7 +1,7 @@
 /** Мост оболочки к приложению.
  *
  * В обычном режиме вызывает Tauri, а в браузерных тестах
- * (`VITE_MOCK_BRIDGE=1`) подставляет мок из `@texture/testing`.
+ * (`VITE_MOCK_BRIDGE=1`) подставляет мок из `@context/testing`.
  */
 
 const useMock = import.meta.env.VITE_MOCK_BRIDGE === '1';
@@ -10,7 +10,7 @@ let mockConfigured = false;
 
 /** Ленивая загрузка и настройка мока. */
 async function mock() {
-  const testing = await import('@texture/testing');
+  const testing = await import('@context/testing');
   if (!mockConfigured) {
     const globals = window as unknown as {
       __TEXTURE_MOCK_CONFIG__?: Parameters<typeof testing.configureMockBridge>[0];

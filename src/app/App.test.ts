@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/sve
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App.svelte';
-import { DEFAULT_PALETTE } from '@texture/ui';
+import { DEFAULT_PALETTE } from '@context/ui';
 import {
     emptyRegistry,
     createWorkspace,

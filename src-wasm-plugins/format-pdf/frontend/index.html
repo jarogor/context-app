@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Читалка PDF</title>
-    <!--texture-viewer-style-->
+    <!--context-viewer-style-->
   </head>
   <body>
     <div id="viewer"><div id="pages"></div></div>
@@ -16,13 +16,13 @@
     -->
     <script>
       (function () {
-        window.__texturePdfEngine = textureViewerUrl('./pdf.mjs');
-        window.__texturePdfWorker = textureViewerUrl('./pdf.worker.mjs');
+        window.__contextPdfEngine = contextViewerUrl('./pdf.mjs');
+        window.__contextPdfWorker = contextViewerUrl('./pdf.worker.mjs');
       })();
     </script>
 
     <script type="module">
-      import(textureViewerUrl('./viewer.js'));
+      import(contextViewerUrl('./viewer.js'));
     </script>
   </body>
 </html>

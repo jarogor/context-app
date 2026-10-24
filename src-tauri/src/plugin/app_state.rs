@@ -71,7 +71,7 @@ impl AppHostConfig {
         if host.welcome_notification_enabled() {
             host.notify_user(
                 Severity::Info,
-                "Добро пожаловать в «Текстуру»",
+                "Добро пожаловать в «Контекст»",
                 "app",
                 serde_json::json!({}),
             );

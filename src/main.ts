@@ -3,7 +3,7 @@ import './app/app.css';
 import Root from './app/Root.svelte';
 import { applyAppPalette, applyAppTheme, readBootAppearance } from './features/appearance/theme';
 import { showAppWindow } from './shared/window';
-import { DEFAULT_PALETTE } from '@texture/ui';
+import { DEFAULT_PALETTE } from '@context/ui';
 
 // До первого кадра применяется сохранённое оформление (зеркало из
 // `localStorage`) или системная тема и палитра по умолчанию: экран загрузки не

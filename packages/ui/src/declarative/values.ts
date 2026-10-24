@@ -5,8 +5,8 @@
  * и значения пересобираются из неё. Модуль чист от Svelte и пригоден для тестов.
  */
 
-import type { UiElement, UiNode } from '@texture/ui-schema';
-import { isUiText } from '@texture/ui-schema';
+import type { UiElement, UiNode } from '@context/ui-schema';
+import { isUiText } from '@context/ui-schema';
 
 /** Ключ контрола в карте значений: имя, объявленное свойством `name`. */
 function controlName(node: UiElement): string | null {

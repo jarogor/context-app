@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, Icon } from '@texture/ui';
+  import { Button, Icon } from '@context/ui';
   import {
     applyReaderFont,
     applyReaderPalette,
@@ -12,7 +12,7 @@
     type PaletteId,
     type ReaderFontId,
     type ReaderThemeId,
-  } from '@texture/ui';
+  } from '@context/ui';
   import type { BookContent } from './reader';
   import type { Note, NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_COLOR, DEFAULT_NOTE_TOOL, FLOWING_NOTE_TYPES, NOTE_COLOR_HIGHLIGHTS } from '../notes/notes';
@@ -591,7 +591,7 @@
   /** Снятие маркеров границ цитаты из документа книги. */
   function clearResizeHandles(): void {
     const value = document();
-    for (const handle of Array.from(value?.querySelectorAll('.texture-note-handle') ?? [])) {
+    for (const handle of Array.from(value?.querySelectorAll('.context-note-handle') ?? [])) {
       handle.remove();
     }
   }
@@ -623,7 +623,7 @@
       ['end', endRect],
     ] as const) {
       const handle = section.ownerDocument.createElement('div');
-      handle.className = 'texture-note-handle';
+      handle.className = 'context-note-handle';
       handle.dataset.noteHandle = edge;
       handle.style.left = `${rect.x + (edge === 'start' ? 0 : rect.width)}px`;
       handle.style.top = `${rect.y + rect.height / 2}px`;
@@ -698,7 +698,7 @@
     }
     const element = (node: Node) =>
       node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
-    if (element(range.startContainer)?.closest('.texture-chapter') !== section) {
+    if (element(range.startContainer)?.closest('.context-chapter') !== section) {
       return null;
     }
     return charOffset(section, range.startContainer, range.startOffset);
@@ -929,7 +929,7 @@
   function createDragPreview(section: Element): HTMLElement {
     const doc = section.ownerDocument;
     const preview = doc.createElement('div');
-    preview.className = 'texture-note-preview';
+    preview.className = 'context-note-preview';
     section.appendChild(preview);
     return preview;
   }
@@ -1057,8 +1057,8 @@
     const range = selection.getRangeAt(0);
     const element = (node: Node) =>
       node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
-    const start = element(range.startContainer)?.closest('.texture-chapter');
-    const end = element(range.endContainer)?.closest('.texture-chapter');
+    const start = element(range.startContainer)?.closest('.context-chapter');
+    const end = element(range.endContainer)?.closest('.context-chapter');
     if (!start || start !== end) {
       pendingAnchor = null;
       menuPosition = null;

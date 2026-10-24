@@ -10,7 +10,7 @@
     ScrollArea,
     Select,
     Skeleton,
-  } from '@texture/ui';
+  } from '@context/ui';
   import BookPage from './BookPage.svelte';
   import { listenEvent } from '../../shared/app-bridge';
   import {

@@ -1,7 +1,7 @@
 [package]
 name = "format-parsers"
 version = "0.1.0"
-description = "Разбор книжных форматов (EPUB, XML) для source-плагинов «Текстуры»"
+description = "Разбор книжных форматов (EPUB, XML) для source-плагинов «Контекста»"
 edition = "2021"
 
 [lib]

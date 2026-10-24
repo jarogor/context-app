@@ -1,7 +1,7 @@
 [package]
 name = "source-index"
 version = "0.1.0"
-description = "Каркас версионированного SQL-индекса source-плагинов «Текстуры»"
+description = "Каркас версионированного SQL-индекса source-плагинов «Контекста»"
 edition = "2021"
 
 [lib]

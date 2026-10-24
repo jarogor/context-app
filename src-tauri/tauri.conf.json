@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Texture",
+  "productName": "Context",
   "version": "0.1.0",
-  "identifier": "ru.jarogor.texture",
+  "identifier": "ru.jarogor.context",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

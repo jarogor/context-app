@@ -3,7 +3,7 @@
   import ReaderPage, { type FooterSnapshot } from '../reader/ReaderPage.svelte';
   import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
-  import type { PaletteId, ReaderFontId, ReaderThemeId } from '@texture/ui';
+  import type { PaletteId, ReaderFontId, ReaderThemeId } from '@context/ui';
 
   /** Читалка вкладки для перехода к заметке и управления нижней панелью. */
   export interface TabReader {

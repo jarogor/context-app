@@ -53,10 +53,10 @@ describe('подсветка диапазона текста', () => {
         const chapter = root('<p>Слово <em>выделенное</em> и ещё <strong>жирное</strong> слово.</p>');
 
         // Диапазон начинается в тексте до <em> и заканчивается в тексте после </p>.
-        const applied = highlightTextRange(chapter, 6, 44, 'texture-note', 'n1');
+        const applied = highlightTextRange(chapter, 6, 44, 'context-note', 'n1');
 
         expect(applied).toBe(true);
-        const marks = chapter.querySelectorAll('mark.texture-note');
+        const marks = chapter.querySelectorAll('mark.context-note');
         expect(marks.length).toBeGreaterThan(1);
         expect(chapter.textContent).toBe('Слово выделенное и ещё жирное слово.');
         expect(Array.from(marks).map((mark) => mark.textContent).join('')).toBe(
@@ -77,12 +77,12 @@ describe('подсветка диапазона текста', () => {
 
     it('снимает подсветку, возвращая исходный текст', () => {
         const chapter = root('<p>Слово <em>выделенное</em> слово.</p>');
-        highlightTextRange(chapter, 6, 22, 'texture-note', 'n3');
-        expect(chapter.querySelectorAll('mark.texture-note').length).toBeGreaterThan(0);
+        highlightTextRange(chapter, 6, 22, 'context-note', 'n3');
+        expect(chapter.querySelectorAll('mark.context-note').length).toBeGreaterThan(0);
 
-        clearNoteMarks(chapter, 'mark.texture-note');
+        clearNoteMarks(chapter, 'mark.context-note');
 
-        expect(chapter.querySelectorAll('mark.texture-note').length).toBe(0);
+        expect(chapter.querySelectorAll('mark.context-note').length).toBe(0);
         expect(chapter.innerHTML).toBe('<p>Слово <em>выделенное</em> слово.</p>');
     });
 
@@ -94,9 +94,9 @@ describe('подсветка диапазона текста', () => {
 
     it('наносит цвет заметки на подсветку', () => {
         const chapter = root('<p>Цветной текст.</p>');
-        highlightTextRange(chapter, 0, 6, 'texture-note', 'n5', 'purple');
+        highlightTextRange(chapter, 0, 6, 'context-note', 'n5', 'purple');
 
-        const marks = chapter.querySelectorAll('mark.texture-note');
+        const marks = chapter.querySelectorAll('mark.context-note');
         expect(marks.length).toBeGreaterThan(0);
         for (const mark of Array.from(marks)) {
             expect((mark as HTMLElement).dataset.color).toBe('purple');
@@ -105,14 +105,14 @@ describe('подсветка диапазона текста', () => {
 
     it('без цвета использует цвет по умолчанию', () => {
         const chapter = root('<p>Текст.</p>');
-        highlightTextRange(chapter, 0, 5, 'texture-note', 'n6');
+        highlightTextRange(chapter, 0, 5, 'context-note', 'n6');
         expect((chapter.querySelector('mark') as HTMLElement).dataset.color).toBe('yellow');
     });
 
     it('расширяет фон подсветки до высоты строки', () => {
         mockGlyphRect(10);
         const chapter = root('<p style="line-height:20px;font-size:10px">Текст.</p>');
-        highlightTextRange(chapter, 0, 5, 'texture-note', 'n7');
+        highlightTextRange(chapter, 0, 5, 'context-note', 'n7');
 
         // Полулидинг = (20 − 10) / 2 = 5px плюс перекрытие соседних кусков
         // 0.25px — итого 5.25px = 0.525em при кегле 10px.
@@ -124,7 +124,7 @@ describe('подсветка диапазона текста', () => {
     it('не трогает подсветку, если строка не выше глифов', () => {
         mockGlyphRect(20);
         const chapter = root('<p style="line-height:20px;font-size:10px">Текст.</p>');
-        highlightTextRange(chapter, 0, 5, 'texture-note', 'n8');
+        highlightTextRange(chapter, 0, 5, 'context-note', 'n8');
 
         const mark = chapter.querySelector('mark') as HTMLElement;
         expect(mark.style.paddingTop).toBe('');

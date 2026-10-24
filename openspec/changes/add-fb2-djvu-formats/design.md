@@ -61,7 +61,7 @@ windows-1251, koi8-r, iso-8859-5); для декодирования добав�
 `djvu-rs` (MIT, Rust→WASM) даёт `WasmDocument.from_bytes`, `page_count`,
 `width_at/height_at`, `render`/`render_request` и `text_zones_json` (зоны слов
 `{t,x,y,w,h}`). Быстрые сборки SIMD и scalar кладутся в `bundle-assets` и
-передаются в `init` байтами через `textureViewerFile` — сеть и относительные
+передаются в `init` байтами через `contextViewerFile` — сеть и относительные
 адреса в песочнице не нужны.
 
 ### Страницы и координаты

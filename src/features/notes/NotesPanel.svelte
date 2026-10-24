@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { ActionMenu, EmptyState, Input, SidePanel, Skeleton, type MenuAction, type MenuColor } from '@texture/ui';
+  import { ActionMenu, EmptyState, Input, SidePanel, Skeleton, type MenuAction, type MenuColor } from '@context/ui';
   import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
   import NoteEntry from './NoteEntry.svelte';
   import NoteSetsControl from './NoteSetsControl.svelte';
   import NoteEditor from './NoteEditor.svelte';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@texture/ui';
+  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@context/ui';
   interface Props {
     /** Элементы списка заметок активного набора. */
     items: NoteListItem[];

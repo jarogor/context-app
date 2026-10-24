@@ -11,7 +11,7 @@ import {
     readerThemeNoteTones,
     type PaletteId,
     type ReaderThemeId,
-} from '@texture/ui';
+} from '@context/ui';
 
 /** Идентификатор активной библиотеки в ключе книги. */
 const NO_LIBRARY = 'no-library';
@@ -62,7 +62,7 @@ export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
  * Тот же тон используется и как цвет карточки, и как метка в списке, поэтому
  * жёлтая заметка выглядит жёлтой одинаково везде — и в книге, и в списке.
  *
- * Значения заданы дизайн-системой (`@texture/ui`) по палитре и стороне темы
+ * Значения заданы дизайн-системой (`@context/ui`) по палитре и стороне темы
  * области чтения: цвет заметки следует выбранной теме, как и оформление чтения книги.
  */
 export function noteHighlights(
