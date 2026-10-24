@@ -180,7 +180,7 @@
 >
   {#if notesMode && typeOptions.length > 1}
     <div
-      class="flex items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-0.5"
+      class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
       role="group"
       aria-label="Тип заметки"
     >
@@ -230,7 +230,7 @@
   -->
   {#if workplace && workplacePages && workplacePage !== null}
     <div
-      class="flex shrink-0 items-center gap-1.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-0.5"
+      class="flex shrink-0 items-center gap-1.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
       data-testid="reader-pages"
     >
       <button
@@ -296,7 +296,7 @@
   -->
   {#if showZoom}
     <div
-      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-0.5"
+      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
       data-testid="reader-zoom-group"
     >
       <Button

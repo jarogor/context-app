@@ -300,14 +300,15 @@ describe('панель чтения: единый вид групп управл
             }),
         });
 
-        // Все три области — с рамкой, фоном и внутренним отступом блока типов.
+        // Все три области — с фоном шапки и внутренним отступом блока типов,
+        // без собственной обводки: она выбивалась из системы цветов.
         const types = screen.getByRole('group', { name: 'Тип заметки' });
         const pages = screen.getByTestId('reader-pages');
         const zoom = screen.getByTestId('reader-zoom-group');
         for (const group of [types, pages, zoom]) {
-            expect(group.className).toContain('border-[var(--border)]');
-            expect(group.className).toContain('bg-[var(--background)]');
+            expect(group.className).toContain('bg-[var(--panel)]');
             expect(group.className).toContain('p-0.5');
+            expect(group.className).not.toContain('border-[var(--border)]');
         }
     });
 
