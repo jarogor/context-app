@@ -125,3 +125,48 @@ test('меню в строке вкладки стоит так же, как м�
     expect(Math.abs(tabMenu!.top - noteMenu!.top)).toBeLessThanOrEqual(1);
     expect(Math.abs(tabMenu!.bottom - noteMenu!.bottom)).toBeLessThanOrEqual(1);
 });
+
+test('содержимое пункта вкладки начинается у края, как у заметки', async ({ page }) => {
+    // Дефект: отступы строки переехали на сам пункт, а описание и мета сохранили
+    // свои внутренние отступы — они складывались, и содержимое съезжало вправо.
+    await openBook(page);
+    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await expect(page.getByTestId('open-books-panel')).toBeVisible();
+
+    // Правка описания открывает под названием дополнительные строки пункта.
+    await page.getByLabel('Оформление вкладки').first().click();
+    await page.getByRole('menuitem', { name: 'Описание' }).click();
+    const editor = page.getByTestId('open-books-item-editor');
+    await expect(editor).toBeVisible();
+    await editor.getByLabel('Описание вкладки').fill('Пояснение');
+    await editor.getByLabel('Сохранить').click();
+
+    const offsets = await page.evaluate(() => {
+        const row = document.querySelector('[data-testid="open-books-item"]');
+        if (!row) return null;
+        const rowBox = row.getBoundingClientRect();
+        const left = (selector: string) => {
+            const element = row.querySelector(selector);
+            if (!element) return null;
+            return Math.round(element.getBoundingClientRect().left - rowBox.left);
+        };
+        const bottom = (selector: string) => {
+            const element = row.querySelector(selector);
+            if (!element) return null;
+            return Math.round(rowBox.bottom - element.getBoundingClientRect().bottom);
+        };
+        return {
+            description: left('[data-testid="open-books-item-description"]'),
+            meta: left('[data-testid="open-books-item-meta"]'),
+            title: left('[aria-pressed]'),
+            bottom: bottom('[data-testid="open-books-item-meta"]'),
+        };
+    });
+    expect(offsets).not.toBeNull();
+    // Содержимое стоит на том же левом отступе, что и название: отступ задан
+    // строкой один раз и не складывается с внутренним.
+    expect(offsets!.description).toBe(offsets!.title);
+    expect(offsets!.meta).toBe(offsets!.title);
+    // И снизу остаётся тот же отступ строки, без лишнего внутреннего.
+    expect(offsets!.bottom).toBeLessThanOrEqual(12);
+});

@@ -284,19 +284,19 @@
         </div>
         {#if tab.description}
           <p
-            class="truncate px-2.5 pb-1.5 role-caption text-[var(--muted-foreground)]"
+            class="truncate pb-1.5 role-caption text-[var(--muted-foreground)]"
             data-testid="open-books-item-description"
           >
             {tab.description}
           </p>
         {/if}
         {#if metaItems(tab).length > 0}
-          <div class="px-2.5 pb-1.5" data-testid="open-books-item-meta">
+          <div class="pb-1.5" data-testid="open-books-item-meta">
             <MetaList items={metaItems(tab)} />
           </div>
         {/if}
         {#if editingTabId === tab.id && editingField}
-          <div class="flex flex-col gap-2 px-2 pb-2" data-testid="open-books-item-editor">
+          <div class="flex flex-col gap-2 pb-2" data-testid="open-books-item-editor">
             {#if editingField === 'name'}
               <Input bind:value={draft} placeholder="Название" ariaLabel="Название вкладки" />
             {:else}
