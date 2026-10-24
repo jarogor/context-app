@@ -1991,3 +1991,99 @@ test('быстрая серия кликов PDF не рисует промеж�
     // Серия — один переход: промежуточные масштабы не отрисовываются.
     expect(widths.length, JSON.stringify(widths)).toBeLessThanOrEqual(2);
 });
+
+/** Протяжка мышью внутри области содержимого от точки к точке. */
+async function dragInContent(
+    page: Page,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+) {
+    const iframe = await page.locator('iframe[title="Содержимое книги"]').boundingBox();
+    if (!iframe) {
+        throw new Error('область содержимого не найдена');
+    }
+    await page.mouse.move(iframe.x + from.x, iframe.y + from.y);
+    await page.mouse.down();
+    await page.mouse.move(iframe.x + to.x, iframe.y + to.y, { steps: 8 });
+    await page.mouse.up();
+}
+
+/** Текущее выделение в области содержимого. */
+async function selectedText(page: Page): Promise<string> {
+    return content(page)
+        .locator('#viewer')
+        .evaluate((element) => element.ownerDocument.getSelection()?.toString() ?? '');
+}
+
+/** Геометрия первой страницы, её первого слова и видимой области. */
+async function pageGeometry(page: Page) {
+    return content(page)
+        .locator('.page')
+        .first()
+        .evaluate((element) => {
+            const pageBox = element.getBoundingClientRect();
+            const viewerBox = (
+                element.ownerDocument.getElementById('viewer') as HTMLElement
+            ).getBoundingClientRect();
+            const span = element.querySelector('.textLayer span') as HTMLElement | null;
+            if (!span) {
+                return null;
+            }
+            const box = span.getBoundingClientRect();
+            return {
+                page: { x: pageBox.x, y: pageBox.y, right: pageBox.right, bottom: pageBox.bottom },
+                viewer: { top: viewerBox.top, bottom: viewerBox.bottom },
+                word: { x: box.x, y: box.y, right: box.right, middle: box.y + box.height / 2 },
+            };
+        });
+}
+
+// Браузер достраивает выделение от ближайшего текста до указателя. Поэтому
+// протяжка, начатая в поле страницы (мимо слова), выделяла не текст, а область
+// всего документа. Выделение должно начинаться только на слове текстового слоя.
+test('протяжка с поля страницы не выделяет текст PDF', async ({ page }) => {
+    await openPdf(page, 3);
+    const geometry = await pageGeometry(page);
+    expect(geometry).not.toBeNull();
+    // Начало — в поле страницы ниже слов, конец — на слове первой строки.
+    await dragInContent(
+        page,
+        { x: geometry!.page.x + 30, y: geometry!.viewer.bottom - 40 },
+        { x: geometry!.word.x + 30, y: geometry!.word.middle },
+    );
+    expect(await selectedText(page)).toBe('');
+});
+
+// Протяжка, уведённая за текст, раньше продолжала выделение по всем следующим
+// страницам документа, и выделение становилось областью, а не текстом.
+test('протяжка за пределы текста не захватывает соседнюю страницу PDF', async ({ page }) => {
+    await openPdf(page, 3);
+    const geometry = await pageGeometry(page);
+    expect(geometry).not.toBeNull();
+    await dragInContent(
+        page,
+        { x: geometry!.word.x + 2, y: geometry!.word.middle },
+        { x: geometry!.word.x + 30, y: geometry!.viewer.bottom - 10 },
+    );
+    const text = await selectedText(page);
+    expect(text).toContain('Page 1');
+    expect(text).not.toContain('Page 2');
+});
+
+// Ограничение действует только на время протяжки: после неё нативное выделение
+// возвращается, и обычные способы выделить текст работают как прежде.
+test('после протяжки Ctrl+A выделяет весь документ PDF', async ({ page }) => {
+    await openPdf(page, 2);
+    const geometry = await pageGeometry(page);
+    expect(geometry).not.toBeNull();
+    await dragInContent(
+        page,
+        { x: geometry!.word.x + 2, y: geometry!.word.middle },
+        { x: geometry!.word.right - 2, y: geometry!.word.middle },
+    );
+    expect(await selectedText(page)).toContain('Page 1');
+    await page.keyboard.press('Control+a');
+    const text = await selectedText(page);
+    expect(text).toContain('Page 1');
+    expect(text).toContain('Page 2');
+});

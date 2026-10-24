@@ -277,6 +277,20 @@ body[data-editing='move'] .overlay [data-note-id] {
 .textLayer ::selection {
   background: transparent;
 }
+/* Во время протяжки выделения нативное выделение выключено: браузер достраивает
+   диапазон до указателя и заходил бы в чужие слои — на соседние страницы и за
+   страницу. Разрешено оно только слою, на котором протяжка начата; слой-мишень
+   получает признак `data-selecting` (см. `text-selection`). */
+html[data-text-selecting] .textLayer,
+html[data-text-selecting] .textLayer span {
+  user-select: none;
+  -webkit-user-select: none;
+}
+html[data-text-selecting] .textLayer[data-selecting],
+html[data-text-selecting] .textLayer[data-selecting] span {
+  user-select: text;
+  -webkit-user-select: text;
+}
 /* Слой выделения: заливка по строкам и вертикальные метки по краям всего
    выделения. Заливка — один элемент во всю страницу, обрезанный по
    прямоугольникам диапазона (как в официальном просмотрщике pdf.js): сырые

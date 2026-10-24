@@ -20,6 +20,7 @@ import { noteById } from './notes';
 import { post } from './protocol';
 import { fractionRect, renderSelection, selectionQuote } from './selection';
 import { state } from './state';
+import { beginTextSelection } from './text-selection';
 import type { NoteAnchor, Rect } from './types';
 
 /** Доли точки внутри страницы по координатам указателя. */
@@ -341,13 +342,22 @@ export function finishGesture(event: PointerEvent): void {
   }
 }
 
-/** Инструмент не «цитата»: выделение текста не начинается. */export function handlePointerDown(event: PointerEvent): void {
+/** Нажатие указателя: выделение текста и отмена нативного выделения.
+ *
+ * Под инструментом «цитата» выделение начинается только на слове текстового
+ * слоя: протяжка по полю страницы или по растру выключает нативное выделение,
+ * иначе браузер достроил бы его до всего документа. Остальные инструменты
+ * выделение не начинают вовсе.
+ */
+export function handlePointerDown(event: PointerEvent): void {
   if (editor.editing) {
     return;
   }
   if (state.tool.type !== 'quote') {
     event.preventDefault();
+    return;
   }
+  beginTextSelection(event);
 }
 
 /** Отправка текущего выделения приложению под инструментом «цитата». */

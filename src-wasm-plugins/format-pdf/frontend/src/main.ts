@@ -31,6 +31,7 @@ import {
 import { gotoNote, gotoPage, handleScroll, pageAtTop, pageToEdge, scrollToFraction } from './navigation';
 import { applyReaderTheme } from './theme';
 import { state } from './state';
+import { clampTextSelection, endTextSelection } from './text-selection';
 
 /** Открытие книги: загрузка движка, документа и построение каркаса страниц. */
 async function openBook(data: string, position: number, zoomValue: number): Promise<void> {
@@ -222,6 +223,12 @@ function bindEvents(): void {
   pagesEl.addEventListener('pointermove', handlePointerMove);
   pagesEl.addEventListener('pointerup', finishGesture);
   pagesEl.addEventListener('pointercancel', finishGesture);
+  // Протяжка выделения заканчивается вместе с нажатием: ограничение слоя
+  // снимается, иначе следующее нативное выделение (Ctrl+A, меню) обрезалось бы.
+  pagesEl.addEventListener('pointerup', endTextSelection);
+  pagesEl.addEventListener('pointercancel', endTextSelection);
+  viewer.addEventListener('mouseup', endTextSelection);
+  document.addEventListener('selectionchange', clampTextSelection);
   document.addEventListener('selectionchange', handleSelectionChange);
   /* Клик по заметке: приложение выбирает её, а вьюер показывает меню действий. */
   pagesEl.addEventListener('click', handlePagesClick);
