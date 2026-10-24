@@ -15,22 +15,22 @@ export type NotificationSeverity = 'error' | 'warn' | 'info' | 'debug' | 'trace'
 
 /** Запись журнала уведомлений. */
 export interface NotificationEntry {
-  /** Идентификатор записи. */
-  id: number;
-  /** Время записи в миллисекундах Unix. */
-  timestamp: number;
-  /** Уровень записи. */
-  level: NotificationLevel;
-  /** Степень серьёзности. */
-  severity: NotificationSeverity;
-  /** Текст сообщения. */
-  message: string;
-  /** Источник события. */
-  source: string;
-  /** Дополнительные детали события. */
-  details: Record<string, unknown>;
-  /** Прочитана ли запись. */
-  read: boolean;
+    /** Идентификатор записи. */
+    id: number;
+    /** Время записи в миллисекундах Unix. */
+    timestamp: number;
+    /** Уровень записи. */
+    level: NotificationLevel;
+    /** Степень серьёзности. */
+    severity: NotificationSeverity;
+    /** Текст сообщения. */
+    message: string;
+    /** Источник события. */
+    source: string;
+    /** Дополнительные детали события. */
+    details: Record<string, unknown>;
+    /** Прочитана ли запись. */
+    read: boolean;
 }
 
 /** Capability базового плагина журнала уведомлений. */
@@ -40,33 +40,32 @@ const JOURNAL_CAPABILITY = 'notifications.journal@1';
 const SETTINGS_CAPABILITY = 'settings.store@1';
 
 /** Локальный идентификатор секции настроек плагина уведомлений. */
-const SETTINGS_SECTION_LOCAL_ID = 'notifications';
+export const NOTIFICATIONS_SECTION_LOCAL_ID = 'notifications';
+
+/** Локальный идентификатор секции настроек плагина уведомлений. */
+const SETTINGS_SECTION_LOCAL_ID = NOTIFICATIONS_SECTION_LOCAL_ID;
 
 /** Вызов непрозрачной операции базового плагина. */
-async function operation<T>(
-  capability: string,
-  action: string,
-  payload: unknown = {},
-): Promise<T> {
-  const result = await invokeCommand('invoke_base_plugin_operation', {
-    capability,
-    operation: action,
-    payload,
-  });
-  return result as T;
+async function operation<T>(capability: string, action: string, payload: unknown = {}): Promise<T> {
+    const result = await invokeCommand('invoke_base_plugin_operation', {
+        capability,
+        operation: action,
+        payload,
+    });
+    return result as T;
 }
 
 /** Загрузка записей журнала уведомлений. */
 export async function listNotifications(): Promise<NotificationEntry[]> {
-  const data = await operation<{ entries: NotificationEntry[] }>(JOURNAL_CAPABILITY, 'list', {
-    level: null,
-  });
-  return data.entries;
+    const data = await operation<{ entries: NotificationEntry[] }>(JOURNAL_CAPABILITY, 'list', {
+        level: null,
+    });
+    return data.entries;
 }
 
 /** Пометка всех записей журнала прочитанными. */
 export async function markAllNotificationsRead(): Promise<void> {
-  await operation(JOURNAL_CAPABILITY, 'mark_all_read', {});
+    await operation(JOURNAL_CAPABILITY, 'mark_all_read', {});
 }
 
 /** Публикация пользовательского уведомления в журнал.
@@ -75,27 +74,27 @@ export async function markAllNotificationsRead(): Promise<void> {
  * дедупликацию, чтобы не публиковать одно и то же повторно.
  */
 export async function publishUserNotification(payload: {
-  /** Текст сообщения. */
-  message: string;
-  /** Степень серьёзности записи. */
-  severity?: NotificationSeverity;
-  /** Источник события. */
-  source?: string;
-  /** Дополнительные подробности события. */
-  details?: Record<string, unknown>;
+    /** Текст сообщения. */
+    message: string;
+    /** Степень серьёзности записи. */
+    severity?: NotificationSeverity;
+    /** Источник события. */
+    source?: string;
+    /** Дополнительные подробности события. */
+    details?: Record<string, unknown>;
 }): Promise<void> {
-  await operation(JOURNAL_CAPABILITY, 'publish', {
-    level: 'user',
-    severity: payload.severity ?? 'info',
-    message: payload.message,
-    source: payload.source ?? 'core',
-    details: payload.details ?? {},
-  });
+    await operation(JOURNAL_CAPABILITY, 'publish', {
+        level: 'user',
+        severity: payload.severity ?? 'info',
+        message: payload.message,
+        source: payload.source ?? 'core',
+        details: payload.details ?? {},
+    });
 }
 
 /** Полная очистка журнала уведомлений. */
 export async function clearNotifications(): Promise<void> {
-  await operation(JOURNAL_CAPABILITY, 'clear', {});
+    await operation(JOURNAL_CAPABILITY, 'clear', {});
 }
 
 /** Начальное состояние технического уровня из настроек плагина уведомлений.
@@ -104,13 +103,13 @@ export async function clearNotifications(): Promise<void> {
  * настройки не мешает панели уведомлений.
  */
 export async function loadTechnicalVisibleDefault(): Promise<boolean | null> {
-  const data = await operation<{
-    sections?: { id: string; values?: { technical_visible_default?: unknown } }[];
-  }>(SETTINGS_CAPABILITY, 'list', {});
-  const section = data.sections?.find(
-    (item) => item.id.split('.').pop() === SETTINGS_SECTION_LOCAL_ID,
-  );
-  return typeof section?.values?.technical_visible_default === 'boolean'
-    ? section.values.technical_visible_default
-    : null;
+    const data = await operation<{
+        sections?: { id: string; values?: { technical_visible_default?: unknown } }[];
+    }>(SETTINGS_CAPABILITY, 'list', {});
+    const section = data.sections?.find(
+        (item) => item.id.split('.').pop() === SETTINGS_SECTION_LOCAL_ID,
+    );
+    return typeof section?.values?.technical_visible_default === 'boolean'
+        ? section.values.technical_visible_default
+        : null;
 }

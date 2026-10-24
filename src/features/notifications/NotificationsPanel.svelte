@@ -7,6 +7,7 @@
     listNotifications,
     loadTechnicalVisibleDefault,
     markAllNotificationsRead,
+    NOTIFICATIONS_SECTION_LOCAL_ID,
     type NotificationEntry,
   } from './notifications';
   import { listenEvent } from '../../shared/app-bridge';
@@ -95,7 +96,15 @@
       unlistenAdded = await listenEvent('notifications:added', (value) => {
         entries = [...entries, value as NotificationEntry];
       });
-      unlistenSettings = await listenEvent('settings:changed', () => {
+      // Панель слушает только свою настройку: событие приходит по каждой
+      // сохранённой секции, и загрузка настроек журнала на чужое изменение
+      // задерживала отклик интерфейса (панель смонтирована всегда).
+      unlistenSettings = await listenEvent('settings:changed', (value) => {
+        const section = (value as { section?: unknown } | null)?.section;
+        const localId = typeof section === 'string' ? section.split('.').pop() : null;
+        if (localId !== NOTIFICATIONS_SECTION_LOCAL_ID) {
+          return;
+        }
         void loadSettings();
       });
       // Данные уже загружены на бутстрапе; без них (в изоляции) грузим сами.
