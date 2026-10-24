@@ -47,6 +47,9 @@ pub const CAPABILITY_NOTIFICATIONS: &str = "notifications.journal@1";
 /// Capability реестра и хранилища настроек, предоставляемая базовым плагином.
 pub const CAPABILITY_SETTINGS: &str = "settings.store@1";
 
+/// Capability стора плагинов: управление активностью и установкой плагинов.
+pub const CAPABILITY_PLUGIN_STORE: &str = "plugin-store@1";
+
 /// Capability наборов заметок, предоставляемая базовым плагином.
 pub const CAPABILITY_NOTES: &str = "notes.store@1";
 

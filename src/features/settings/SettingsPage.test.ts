@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import SettingsPage from './SettingsPage.svelte';
-import { invokeCommand } from '../../shared/app-bridge';
+import { invokeCommand, listenEvent } from '../../shared/app-bridge';
 
 vi.mock('../../shared/app-bridge', () => ({
   invokeCommand: vi.fn(),
@@ -10,6 +10,21 @@ vi.mock('../../shared/app-bridge', () => ({
 }));
 
 const invoke = vi.mocked(invokeCommand);
+const listen = vi.mocked(listenEvent);
+
+/** Обработчик события `settings:changed`, подписанный страницей. */
+let onSettingsChanged: ((payload: unknown) => void) | undefined;
+
+/** Публикация события `settings:changed` для подписанной страницы. */
+async function emitSettingsChanged(section: string): Promise<void> {
+  await waitFor(() => {
+    expect(onSettingsChanged).toBeTypeOf('function');
+  });
+  onSettingsChanged?.({ section, values: {} });
+  // Даём странице завершить реакцию на событие.
+  await Promise.resolve();
+  await Promise.resolve();
+}
 
 /** Ответ плагина настроек с одной секцией. */
 function uiResponse(nodes: unknown[]) {
@@ -29,6 +44,13 @@ function uiResponse(nodes: unknown[]) {
 
 beforeEach(() => {
   invoke.mockReset();
+  onSettingsChanged = undefined;
+  listen.mockImplementation(async (event, handler) => {
+    if (event === 'settings:changed') {
+      onSettingsChanged = handler as (payload: unknown) => void;
+    }
+    return () => {};
+  });
 });
 
 describe('страница настроек из декларации', () => {
@@ -201,5 +223,43 @@ describe('страница настроек из декларации', () => {
         true,
       );
     });
+  });
+
+  it('не перезагружает декларации по событию своего сохранения', async () => {
+    // Дефект: после сохранения страница получала событие settings:changed и
+    // заново загружала весь интерфейс настроек, хотя ответ на сохранение уже
+    // содержал актуальные декларации. Повторная загрузка задерживала отклик,
+    // и закрытие раздела срабатывало с запозданием.
+    const declaration = {
+      space: 'settings.section',
+      id: 'app.general',
+      title: 'Общие',
+      nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: false } }],
+    };
+    invoke.mockResolvedValue({
+      version: 1,
+      spaces: [{ ...declaration, nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } }] }],
+    });
+
+    render(SettingsPage, {
+      initialDeclarations: [{ declaration, diagnostics: [] }],
+      initialError: '',
+    });
+
+    await fireEvent.click(screen.getByRole('checkbox'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith(
+        'invoke_base_plugin_operation',
+        expect.objectContaining({ operation: 'save' }),
+      );
+    });
+    const afterSave = invoke.mock.calls.length;
+
+    // Событие о той же секции, что только что сохранена, не должно тянуть за
+    // собой повторную загрузку интерфейса.
+    await emitSettingsChanged('app.general');
+    expect(invoke.mock.calls.length).toBe(afterSave);
   });
 });

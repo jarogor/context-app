@@ -30,6 +30,14 @@
   /** Состояние загрузки и ошибок страницы настроек. */
   const asyncState = createAsyncState();
 
+  /** Секции, изменение которых страница инициировала сама.
+   *
+   * Своё сохранение возвращает те же декларации, что и событие
+   * `settings:changed`, поэтому повторная загрузка по событию для этих секций
+   * только задерживала отклик. Набор очищается после применения события.
+   */
+  let ignoreChanged = new Set<string>();
+
   // Ошибка, переданная с бутстрапа, показывается сразу при монтировании.
   asyncState.error = untrack(() => initialError);
 
@@ -95,6 +103,10 @@
     if (sections.length === 0) {
       return;
     }
+    // Своё сохранение уже возвращает актуальные декларации, поэтому ответ на
+    // событие `settings:changed` для этих секций не нужен: повторная загрузка
+    // всего интерфейса настроек задерживала отклик на закрытие раздела.
+    ignoreChanged = new Set(sections.map((item) => item.section));
     const result = await asyncState.run(() => saveSettingsSections(sections));
     if (result) {
       declarations = result.declarations;
@@ -113,7 +125,15 @@
   onMount(() => {
     let unlisten: (() => void) | undefined;
     void (async () => {
-      unlisten = await listenEvent('settings:changed', () => {
+      unlisten = await listenEvent('settings:changed', (value) => {
+        // Событие о собственных сохранённых секциях повторной загрузки не
+        // требует: декларации уже пришли ответом на сохранение. Чужие секции
+        // (например, изменённые плагином) применяются как прежде.
+        const section = (value as { section?: unknown } | null)?.section;
+        if (typeof section === 'string' && ignoreChanged.has(section)) {
+          ignoreChanged.delete(section);
+          return;
+        }
         void load();
       });
       // Декларации уже загружены на бутстрапе; без них (в изоляции) грузим сами.
