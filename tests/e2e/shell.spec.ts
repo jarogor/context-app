@@ -11,13 +11,15 @@ test('знак приложения — буква названия на пла�
     const name = page.getByTestId('app-name');
     await expect(name).toBeVisible();
 
-    // Знак — плашка основного цвета с буквой цветом фона, буква шрифтом.
+    // Знак — плашка акцента темы с буквой цветом текста на акценте, буква шрифтом.
     const mark = name.locator('span').first();
     const box = await mark.boundingBox();
     expect(box).not.toBeNull();
     expect(Math.abs(box!.width - box!.height)).toBeLessThanOrEqual(1);
     await expect(mark).toHaveClass(/rounded-\[var\(--radius-sm\)\]/);
-    await expect(mark).toHaveClass(/bg-\[var\(--foreground\)\]/);
+    // Плашка в акценте темы: знак согласован с выделением раздела и счётчиком.
+    await expect(mark).toHaveClass(/bg-\[var\(--primary\)\]/);
+    await expect(mark).toHaveClass(/text-\[var\(--primary-foreground\)\]/);
     await expect(mark).toHaveText('К');
     // Настоящее имя остаётся доступным именем для экранных дикторов.
     await expect(name).toHaveAttribute('aria-label', 'Контекст');

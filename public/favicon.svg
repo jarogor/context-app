@@ -6,14 +6,14 @@
     полужирным шрифтом и посажена по центру плашки. Тот же знак, что в шапке
     приложения: буква шрифтом, а не контуром.
   -->
-  <rect width="1024" height="1024" rx="164" fill="#1f1d1a" />
+  <rect width="1024" height="1024" rx="164" fill="#2e5c52" />
   <text
     x="512"
     y="512"
     font-family="DejaVu Sans, Verdana, sans-serif"
     font-size="640"
     font-weight="bold"
-    fill="#f1ece1"
+    fill="#f4f1e9"
     text-anchor="middle"
     dominant-baseline="central"
   >К</text>

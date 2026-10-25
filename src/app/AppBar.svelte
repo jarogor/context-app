@@ -107,10 +107,12 @@
     <!--
       Буква набрана шрифтом и центрирована: плашка — flex-контейнер, буква
       стоит по её центру. `line-height` равен высоте плашки, поэтому строка
-      занимает её целиком и вертикальное выравнивание идёт по центру.
+      занимает её целиком и вертикальное выравнивание идёт по центру. Цвета —
+      акцент активной палитры и текст на акценте: знак согласован с выделением
+      раздела и счётчиком уведомлений, а не выбивается из темы.
     -->
     <span
-      class="flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--foreground)] font-black text-[var(--background)] select-none"
+      class="flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] font-black text-[var(--primary-foreground)] select-none"
       style="width: 1.75rem; height: 1.75rem; font-size: 1.25rem; line-height: 1.75rem; letter-spacing: -0.01em;"
       aria-hidden="true">К</span
     >
