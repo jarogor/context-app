@@ -174,6 +174,14 @@
       : tabs.slice(safeStart, safeStart + capacity),
   );
 
+  /** Номер вкладки в составе рабочего места (с единицы) по её идентификатору.
+   *
+   * Нумерация одна на полосу и на панель списка: номер — это место вкладки в
+   * составе места, а не в видимом срезе полосы. Поэтому при листании и поиске
+   * номера не «переезжают», и вкладку в полосе можно найти по номеру из списка.
+   */
+  const tabNumbers = $derived(new Map(tabs.map((tab, index) => [tab.id, index + 1])));
+
   /** Номер первой видимой вкладки (с единицы). */
   const rangeFrom = $derived(safeStart + 1);
 
@@ -390,10 +398,20 @@
           style="width: {TAB_WIDTH_REM}rem; height: {TAB_ROW_REM}rem;{tabFill(tab)}"
           data-testid="workplace-tab-item"
         >
+          <!--
+            Номер вкладки — её место в составе рабочего места, тот же, что в
+            панели списка. Стоит перед кнопкой, чтобы не попадать в её подпись:
+            подпись вкладки — только название.
+          -->
+          <span
+            class="shrink-0 pl-2 text-[0.7em] tabular-nums opacity-60"
+            data-testid="workplace-tab-number"
+            >{tabNumbers.get(tab.id) ?? ''}</span
+          >
           <button
             type="button"
             data-testid="workplace-tab"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 truncate py-[0.25rem] pl-2.5 text-left role-caption [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 truncate py-[0.25rem] pl-1.5 text-left role-caption [font:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => selectTab(tab.id)}

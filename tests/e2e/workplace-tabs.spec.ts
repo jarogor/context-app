@@ -410,6 +410,29 @@ test('уменьшение лимита сохраняет вкладки, по�
     );
 });
 
+test('номера вкладок совпадают с полосой и списком и не меняются при поиске', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await duplicateActive(page, 2);
+
+    // Номера в полосе — это места вкладок в составе места.
+    const strip = page.getByTestId('workplace-tab-number');
+    await expect(strip).toHaveText(['1', '2', '3']);
+
+    // В панели списка ровно те же номера.
+    await openBooks(page);
+    const panel = page.getByTestId('open-books-item-number');
+    await expect(panel).toHaveText(['1', '2', '3']);
+
+    // Поиск фильтрует список, но номера остаются местами в составе, а не
+    // порядковыми номерами отфильтрованных строк.
+    await page.getByTestId('open-books-panel').getByLabel('Поиск по вкладкам').fill('Демо');
+    await expect(panel.first()).toHaveText('1');
+});
+
 /** Открытие панели открытых книг. */
 async function openBooks(page: import('@playwright/test').Page) {
     await page.getByRole('button', { name: 'Вкладки', exact: true }).click();

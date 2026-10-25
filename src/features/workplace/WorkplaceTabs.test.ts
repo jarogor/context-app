@@ -99,9 +99,11 @@ describe('панель вкладок: окно и навигация', () => {
         await fireEvent.click(screen.getByLabelText('Следующие вкладки'));
 
         expect(screen.getByTestId('workplace-tabs-counter').textContent).toContain('2–4 из 5');
+        // Номер вкладки — её место в составе места, а не порядок в окне: при
+        // листании номера не «переезжают».
         expect(
             screen.getAllByTestId('workplace-tab-item').map((el) => el.textContent?.trim()),
-        ).toEqual(['Книга 2', 'Книга 3', 'Книга 4']);
+        ).toEqual(['2  Книга 2', '3  Книга 3', '4  Книга 4']);
     });
 
     it('навигация не меняет состав вкладок и активную вкладку', async () => {

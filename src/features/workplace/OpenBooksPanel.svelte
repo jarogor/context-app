@@ -92,6 +92,15 @@
     );
   });
 
+  /** Номер вкладки в составе рабочего места (с единицы).
+   *
+   * Нумерация берётся из полного состава, а не из отфильтрованного списка: иначе
+   * при поиске номера «переезжали» бы и перестали совпадать с полосой вкладок.
+   */
+  function tabNumber(id: string): number {
+    return tabs.findIndex((tab) => tab.id === id) + 1;
+  }
+
   /** Пункты меню оформления вкладки: каждое свойство меняется отдельно. */
   const appearanceActions = $derived<MenuAction[]>([
     { id: 'rename', label: 'Название' },
@@ -254,6 +263,16 @@
         data-active={tab.id === activeTabId ? 'true' : 'false'}
       >
         <div class="flex items-start gap-2">
+          <!--
+            Номер — место вкладки в составе рабочего места, тот же, что в полосе
+            вкладок: по нему вкладку находят в обоих местах. При поиске нумерация
+            не меняется. Стоит перед кнопкой, чтобы не попадать в её подпись.
+          -->
+          <span
+            class="shrink-0 tabular-nums opacity-60 role-caption"
+            data-testid="open-books-item-number"
+            >{tabNumber(tab.id)}</span
+          >
           <button
             type="button"
             class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate text-left role-body [font:inherit]"
