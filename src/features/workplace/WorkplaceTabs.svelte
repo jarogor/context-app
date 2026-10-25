@@ -432,8 +432,9 @@
   <Button
     variant={notesOpen ? 'primary' : 'ghost'}
     size="icon"
-    title="Панель заметок"
-    ariaLabel="Панель заметок"
+    title="Заметки"
+    ariaLabel="Заметки"
+    testId="workplace-notes-toggle"
     ariaPressed={notesOpen}
     onclick={onToggleNotes}
   >

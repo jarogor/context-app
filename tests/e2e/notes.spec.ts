@@ -66,7 +66,7 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
 
 /** Открытие панели заметок в рабочем месте. */
 async function openNotes(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
 }
 
@@ -500,7 +500,7 @@ test('клик по подсветке открывает панель заме�
     await highlightParagraph(page, 'Первый абзац книги.');
 
     // Панель закрыта, книга видна.
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     await expect(page.getByTestId('notes-panel')).toHaveCount(0);
 
     await bookDocument(page).locator('mark').first().click();
@@ -657,7 +657,7 @@ test('активный набор книги сохраняется при пе�
 
     await page.getByTestId('workplace-tab').first().click();
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Панель заметок' }).click();
+        await page.getByTestId('workplace-notes-toggle').click();
     }
 
     await expect(noteSetSelect(page)).toContainText('Черновик');
@@ -675,7 +675,7 @@ test('наборы одной книги не появляются у друго
     await addBook(page, 'Третья книга');
     await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Панель заметок' }).click();
+        await page.getByTestId('workplace-notes-toggle').click();
     }
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await expect(noteSetSelect(page)).toContainText('Наборов нет');
@@ -686,7 +686,7 @@ test('наборы одной книги не появляются у друго
 
     await page.getByTestId('workplace-tab').first().click();
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Панель заметок' }).click();
+        await page.getByTestId('workplace-notes-toggle').click();
     }
     await expectNoteSetOptions(page, ['Конспект'], ['Вторая книга']);
 });
@@ -705,7 +705,7 @@ test('активный набор книги сохраняется после �
     await page.reload();
     await openWorkspace(page);
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Панель заметок' }).click();
+        await page.getByTestId('workplace-notes-toggle').click();
     }
 
     await expect(noteSetSelect(page)).toContainText('Черновик');
@@ -887,7 +887,7 @@ async function noteInBook(
 ) {
     await addBook(page, book);
     if (!(await page.getByTestId('notes-panel').isVisible().catch(() => false))) {
-        await page.getByRole('button', { name: 'Панель заметок' }).click();
+        await page.getByTestId('workplace-notes-toggle').click();
     }
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await highlightParagraph(page, text);

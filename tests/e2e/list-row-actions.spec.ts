@@ -79,7 +79,7 @@ test('меню в строке вкладки стоит так же, как м�
 
     // Строка списка заметок: заметка создаётся выделением абзаца книги.
     await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     const frame = page
         .locator('[data-testid="workplace-tab-page"][data-active="true"]')

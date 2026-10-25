@@ -364,6 +364,23 @@ describe('панель вкладок: подтверждение закрыти
         expect(screen.getByTestId('workplace-tab-close')).toBeTruthy();
     });
 
+    it('подпись кнопки панели заметок — «Заметки»', () => {
+        mockWidth(320);
+        render(WorkplaceTabs, {
+            props: {
+                tabs: tabs(1),
+                activeTabId: 't1',
+                booksOpen: false,
+                notesOpen: false,
+                ...handlers(),
+            },
+        });
+
+        expect(screen.getByTestId('workplace-notes-toggle').getAttribute('aria-label')).toBe(
+            'Заметки',
+        );
+    });
+
     it('подпись кнопки панели списка — «Вкладки»', () => {
         mockWidth(320);
         render(WorkplaceTabs, {

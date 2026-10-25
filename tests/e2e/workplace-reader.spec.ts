@@ -137,9 +137,9 @@ test('сосредоточенное чтение скрывает хром и �
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
     await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     await expect(page.getByTestId('notes-panel')).toHaveCount(0);
 
     // Выход возвращает раскладку, а состояние чтения не изменяется.

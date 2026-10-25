@@ -114,7 +114,7 @@ test('панель заметок на телефоне закрывается �
     }
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     const panel = page.getByTestId('notes-panel');
     await expect(panel).toBeVisible();
 

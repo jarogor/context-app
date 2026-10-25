@@ -523,7 +523,7 @@ test('панели заметок и открытых книг взаимоис�
     await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
 
@@ -533,7 +533,7 @@ test('панели заметок и открытых книг взаимоис�
 
     // Панели одной ширины: тот же токен, что у панели заметок.
     const books = await page.getByTestId('open-books-panel').boundingBox();
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     const notes = await page.getByTestId('notes-panel').boundingBox();
     expect(books).not.toBeNull();
     expect(notes).not.toBeNull();

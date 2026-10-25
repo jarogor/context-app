@@ -125,7 +125,7 @@ test('открытие панели заметок не сбивает чита�
     const before = await body.evaluate(snapshot);
     const widthBefore = await frame.evaluate((element) => element.clientWidth);
 
-    await page.getByRole('button', { name: 'Панель заметок' }).click();
+    await page.getByTestId('workplace-notes-toggle').click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     // Дожидаемся перестройки текста под новую ширину области чтения.
     await expect
