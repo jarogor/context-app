@@ -43,18 +43,6 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           ]
         },
         {
-          "key": "appearance.theme",
-          "title": "Тема оформления",
-          "type": "select",
-          "description": "Светлая, тёмная или как в операционной системе",
-          "default": "system",
-          "options": [
-            { "value": "light", "title": "Светлая" },
-            { "value": "dark", "title": "Тёмная" },
-            { "value": "system", "title": "Как в системе" }
-          ]
-        },
-        {
           "key": "appearance.palette",
           "title": "Палитра оформления",
           "type": "select",

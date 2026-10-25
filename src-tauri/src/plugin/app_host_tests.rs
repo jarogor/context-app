@@ -199,41 +199,6 @@ fn refresh_registry_includes_session_sources() {
     cleanup(&storage);
 }
 
-/// Проверка, что поле выбора темы зарегистрировано в секции приложения.
-#[test]
-fn refresh_registry_includes_theme_field() {
-    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join("base-plugins");
-    let storage = test_util::test_root("app-host-theme-field");
-    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
-        .expect("загрузка базовых плагинов");
-    host.refresh_settings_registry(&[]).expect("регистрация");
-
-    let output = host
-        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
-        .expect("список секций");
-    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
-    let app_section = parsed["sections"]
-        .as_array()
-        .expect("массив секций")
-        .iter()
-        .find(|section| section["id"] == "app.general")
-        .expect("секция приложения");
-    let theme_field = app_section["fields"]
-        .as_array()
-        .expect("поля секции")
-        .iter()
-        .find(|field| field["key"] == "appearance.theme")
-        .expect("поле темы");
-    assert_eq!(theme_field["type"], "select", "тип поля темы");
-    assert_eq!(
-        app_section["values"]["appearance.theme"], "system",
-        "значение по умолчанию для темы"
-    );
-    cleanup(&storage);
-}
-
 /// Проверка, что поле выбора палитры зарегистрировано в секции приложения.
 #[test]
 fn refresh_registry_includes_palette_field() {
@@ -697,11 +662,12 @@ fn registry_skips_fields_switched_by_reader_buttons() {
         !keys.contains(&"reader.theme"),
         "тема области чтения переключается кнопкой в панели чтения"
     );
-    // Настройки интерфейса остаются: у них нет кнопки в панели чтения.
+    // Тема интерфейса переключается кнопкой в шапке — поля в настройках нет.
     assert!(
-        keys.contains(&"appearance.theme"),
-        "тема интерфейса в настройках"
+        !keys.contains(&"appearance.theme"),
+        "тема интерфейса переключается кнопкой в шапке"
     );
+    // Палитра кнопки не имеет: она остаётся настройкой.
     assert!(
         keys.contains(&"appearance.palette"),
         "палитра интерфейса в настройках"

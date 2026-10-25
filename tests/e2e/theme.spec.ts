@@ -38,15 +38,22 @@ test('кнопка в шапке циклически переключает т�
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
-test('выбор тёмной темы в настройках переключает оформление', async ({ page }) => {
-  await openSettings(page);
+test('тема интерфейса переключается кнопкой в шапке, а не в настройках', async ({ page }) => {
+  const settings = await openSettings(page);
 
+  // Тема интерфейса переключается кнопкой в шапке; поля в настройках нет —
+  // второй путь к тому же значению не нужен.
+  await expect(settings.getByRole('button', { name: 'Тема оформления' })).toHaveCount(0);
+
+  await page.getByLabel('Закрыть настройки').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   const background = await page
     .locator('body')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
-  await chooseAndSave(page, 'Тема оформления', 'Тёмная');
+  // Светлая → тёмная.
+  await page.getByLabel('Переключить тему', { exact: true }).click();
+  await page.getByLabel('Переключить тему', { exact: true }).click();
 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect
@@ -82,7 +89,8 @@ test('то, что переключается кнопкой в чтении, в
     // чтения; дублировать их полями настроек — лишний путь к тому же значению.
     await expect(settings.getByRole('button', { name: 'Шрифт книги' })).toHaveCount(0);
     await expect(settings.getByRole('button', { name: 'Тема области чтения' })).toHaveCount(0);
-    // Настройки интерфейса остаются: у них кнопки в шапке нет.
-    await expect(settings.getByRole('button', { name: 'Тема оформления' })).toBeVisible();
+    // Тема интерфейса тоже переключается кнопкой в шапке — в настройках её нет.
+    await expect(settings.getByRole('button', { name: 'Тема оформления' })).toHaveCount(0);
+    // Палитра кнопки не имеет — остаётся настройкой.
     await expect(settings.getByRole('button', { name: 'Палитра оформления' })).toBeVisible();
 });

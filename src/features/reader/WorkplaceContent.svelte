@@ -102,6 +102,15 @@
   let html = $state('');
   /** Готов ли плагин принимать содержимое книги. */
   let ready = $state(false);
+  /** Отправлено ли содержимое книги плагину.
+   *
+   * Скрытая вкладка не загружает книгу: при открытии рабочего места вкладки
+   * монтируются все сразу, и если каждая начинает читать свою книгу, главный
+   * поток занят ими всеми одновременно — интерфейс перестаёт отвечать, хотя
+   * книги грузятся «в свои области». Поэтому книга читается при первом показе
+   * вкладки и только один раз.
+   */
+  let bookSent = $state(false);
   /** Ошибка загрузки модуля или содержимого. */
   let error = $state<string | null>(null);
   /** Область содержимого книги. */
@@ -112,6 +121,15 @@
   /** Отправка сообщения модулю рисования. */
   function post(message: Record<string, unknown>) {
     frame?.contentWindow?.postMessage({ channel: CHANNEL, ...message }, '*');
+  }
+
+  /** Отправка книги, когда вкладка впервые становится видимой. */
+  function sendBookWhenVisible() {
+    if (!ready || !visible || bookSent) {
+      return;
+    }
+    bookSent = true;
+    void sendBook();
   }
 
   /** Передача содержимого книги модулю рисования. */
@@ -185,8 +203,8 @@
       case 'ready':
         ready = true;
         sendReaderTheme();
-        void sendBook();
         sendTool();
+        sendBookWhenVisible();
         break;
       case 'capabilities':
         onCapabilities?.(message.value);
@@ -285,6 +303,9 @@
   $effect(() => {
     if (visible && ready) {
       post({ type: 'show' });
+      // Первый показ вкладки запускает чтение её книги. Скрытые вкладки книг не
+      // читают: иначе открытие рабочего места грузило бы все книги разом.
+      sendBookWhenVisible();
     }
   });
 

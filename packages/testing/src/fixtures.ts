@@ -42,17 +42,6 @@ const SETTINGS_FIELDS: Record<
             ],
         },
         {
-            key: 'appearance.theme',
-            title: 'Тема оформления',
-            type: 'select',
-            default: 'system',
-            options: [
-                { value: 'light', title: 'Светлая' },
-                { value: 'dark', title: 'Тёмная' },
-                { value: 'system', title: 'Как в системе' },
-            ],
-        },
-        {
             key: 'appearance.palette',
             title: 'Палитра оформления',
             type: 'select',

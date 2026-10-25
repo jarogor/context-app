@@ -13,9 +13,10 @@ test('снимок тёмной темы совпадает с эталоном'
 
   const settings = page.locator('main');
   await expect(settings.getByTestId('settings-group-heading').first()).toBeVisible();
-  await settings.getByRole('button', { name: 'Тема оформления' }).click();
-  await page.getByRole('option', { name: 'Тёмная' }).click();
-  await page.getByTestId('settings-page').getByRole('button', { name: 'Сохранить' }).click();
+  await page.getByLabel('Закрыть настройки').click();
+  // Тема переключается кнопкой в шапке: светлая → тёмная (второй клик) .
+  await page.getByLabel('Переключить тему', { exact: true }).click();
+  await page.getByLabel('Переключить тему', { exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
   await expect(page).toHaveScreenshot('shell-dark.png');
