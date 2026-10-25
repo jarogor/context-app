@@ -456,6 +456,33 @@ describe('полноэкранный раздел настроек', () => {
         expect(chromeHidden()).toBe(false);
     });
 
+    it('гасит повторный клик по кнопке настроек сразу после закрытия', async () => {
+        render(App, { props: appProps() });
+        await fireEvent.click(screen.getByTestId('nav-settings'));
+        await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
+        expect(chromeHidden()).toBe(false);
+
+        // Второй клик «на всякий случай» попадает в ту же точку, где была
+        // кнопка закрытия, — в кнопку настроек. Раздел не должен открыться
+        // снова: пользователь уже видел закрытие.
+        await fireEvent.click(screen.getByTestId('nav-settings'));
+        expect(chromeHidden()).toBe(false);
+        expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
+    });
+
+    it('открывается снова, когда пауза после закрытия истекла', async () => {
+        const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+        render(App, { props: appProps() });
+        await fireEvent.click(screen.getByTestId('nav-settings'));
+        await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
+
+        // Намеренное открытие позже паузы работает как обычно.
+        now.mockReturnValue(1000);
+        await fireEvent.click(screen.getByTestId('nav-settings'));
+        expect(chromeHidden()).toBe(true);
+        now.mockRestore();
+    });
+
     it('закрывается клавишей Escape', async () => {
         render(App, { props: appProps() });
         await fireEvent.click(screen.getByTestId('nav-settings'));

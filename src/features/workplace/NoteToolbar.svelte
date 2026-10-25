@@ -421,7 +421,7 @@
           onclick={() => onChangeZoom?.(1)}>+</Button
         >
         <span
-          class="inline-block w-[3.25rem] text-center text-sm max-lg:w-[2.5rem] max-lg:text-xs"
+          class="inline-block w-[3.25rem] text-center text-sm max-lg:w-[3.25rem] max-lg:text-xs"
           data-testid="reader-zoom">{zoom}%</span
         >
       </div>

@@ -61,13 +61,10 @@
 {#snippet sectionTab(item: { id: string; label: string; icon: IconName; active: boolean })}
   <button
     type="button"
-    class="flex min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] {mobile
+    class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] {mobile
       ? 'h-9 w-9 justify-center'
       : 'px-2 py-1.5 md:px-3'}"
-    class:bg-[var(--primary)]={item.active}
-    class:text-[var(--primary-foreground)]={item.active}
-    class:text-[var(--foreground)]={!item.active}
-    class:hover:bg-[var(--surface-hover)]={!item.active}
+    class:bg-[var(--primary-soft)]={item.active}
     aria-pressed={item.active}
     aria-label={item.label}
     title={item.label}

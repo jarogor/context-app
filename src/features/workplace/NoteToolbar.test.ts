@@ -251,6 +251,17 @@ describe('панель чтения: масштаб', () => {
         expect(screen.queryByRole('button', { name: 'Увеличить масштаб' })).toBeNull();
     });
 
+    it('держит ширину масштаба под четыре разряда: «1000%» не липнет к краям', () => {
+        render(NoteToolbar, { props: props({ zoom: 1000, maxZoom: 1000 }) });
+
+        // На узком окне ширина поля та же, что на широком: «1000%» в 12 px
+        // требует ~50 px, а поле — 52 px, плюс центрирование внутри.
+        const zoom = screen.getByTestId('reader-zoom');
+        expect(zoom.className).toContain('w-[3.25rem]');
+        expect(zoom.className).toContain('text-center');
+        expect(zoom.textContent).toBe('1000%');
+    });
+
     it('держит ширину масштаба и прогресса фиксированной независимо от числа цифр', () => {
         const { unmount } = render(NoteToolbar, { props: props({ zoom: 60, progress: 5 }) });
         expect(screen.getByTestId('reader-progress').className).toContain('w-[2.75rem]');

@@ -61,6 +61,23 @@ describe('SectionNav', () => {
     expect(screen.queryByTestId('nav-settings')).toBeNull();
   });
 
+  it('красит разделы так же, как служебные кнопки шапки', () => {
+    render(SectionNav, { props: props({ workspaceActive: true }) });
+
+    const workspace = screen.getByTestId('nav-workspace');
+    const library = screen.getByTestId('nav-library');
+
+    // Один тон у всех пунктов меню: тот же, что у кнопок уведомлений и настроек
+    // в шапке, — активный выделяется мягким фоном, а не сплошной заливкой.
+    expect(workspace.className).toContain('text-muted-foreground');
+    expect(library.className).toContain('text-muted-foreground');
+    expect(workspace.className).toContain('bg-[var(--primary-soft)]');
+    expect(library.className).not.toContain('bg-[var(--primary-soft)]');
+    // Сплошной акцентной заливки, как у главных кнопок, нет.
+    expect(workspace.className).not.toContain('bg-[var(--primary)]');
+    expect(workspace.className).not.toContain('text-[var(--primary-foreground)]');
+  });
+
   it('на узком окне показывает те же разделы кнопками-иконками без подписей', () => {
     render(SectionNav, { props: props({ mobile: true, libraryActive: true }) });
 

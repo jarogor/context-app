@@ -356,6 +356,115 @@ describe('область рабочего места: список и вклад
         matchMedia.mockRestore();
     });
 
+    it('на узком окне выбор вкладки в панели закрывает панель вкладок', async () => {
+        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+            matches: true,
+            media: '(max-width: 899px)',
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            dispatchEvent: () => false,
+        } as unknown as MediaQueryList);
+        const base = handlers();
+        render(WorkplaceArea, {
+            props: {
+                workspace: {
+                    id: 'ws-1',
+                    name: 'Первое',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/book-1.epub',
+                            title: 'Книга',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                        {
+                            id: 't2',
+                            path: '/lib/book-2.epub',
+                            title: 'Вторая',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+                workspaces: [],
+                currentWorkspaceId: 'ws-1',
+                listMode: false,
+                booksOpen: true,
+                visible: true,
+                ...panels(),
+                ...base,
+            },
+        });
+
+        // Вкладка — кнопка с названием внутри пункта панели.
+        const items = screen.getAllByTestId('open-books-item');
+        const target = items.find((item) => item.textContent?.includes('Вторая'));
+        expect(target).toBeTruthy();
+        await fireEvent.click(target!.querySelector('button')!);
+
+        expect(base.onSelectTab).toHaveBeenCalledWith('t2');
+        expect(base.onToggleBooks).toHaveBeenCalled();
+        matchMedia.mockRestore();
+    });
+
+    it('на широком окне выбор вкладки в панели оставляет панель открытой', async () => {
+        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+            matches: false,
+            media: '(max-width: 899px)',
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            dispatchEvent: () => false,
+        } as unknown as MediaQueryList);
+        const base = handlers();
+        render(WorkplaceArea, {
+            props: {
+                workspace: {
+                    id: 'ws-1',
+                    name: 'Первое',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/book-1.epub',
+                            title: 'Книга',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+                workspaces: [],
+                currentWorkspaceId: 'ws-1',
+                listMode: false,
+                booksOpen: true,
+                visible: true,
+                ...panels(),
+                ...base,
+            },
+        });
+
+        await fireEvent.click(screen.getByTestId('open-books-item').querySelector('button')!);
+
+        expect(base.onSelectTab).toHaveBeenCalledWith('t1');
+        expect(base.onToggleBooks).not.toHaveBeenCalled();
+        matchMedia.mockRestore();
+    });
+
     it('передаёт правку оформления вкладки из панели открытых книг', async () => {
         const base = handlers();
         render(WorkplaceArea, {

@@ -322,10 +322,17 @@ async function openSettings(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('settings-page')).toBeVisible();
 }
 
-/** Закрытие раздела настроек кнопкой в углу страницы настроек. */
+/**
+ * Закрытие раздела настроек кнопкой в углу страницы настроек.
+ *
+ * После закрытия выдерживается пауза: приложение гасит «догоняющий» клик по
+ * кнопке настроек в той же точке экрана (защита от двойного нажатия), и
+ * намеренное переоткрытие делается уже после неё.
+ */
 async function closeSettings(page: import('@playwright/test').Page) {
     await page.getByLabel('Закрыть настройки').click();
     await expect(page.getByTestId('settings-page')).toBeHidden();
+    await page.waitForTimeout(450);
 }
 
 /**

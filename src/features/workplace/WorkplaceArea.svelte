@@ -295,6 +295,20 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       onCloseNotes();
     }
   }
+
+  /** Выбор вкладки в панели: переход к ней, на узком окне — автозакрытие панели.
+   *
+   * На узком окне панель занимает всю область: выбрав вкладку, пользователь
+   * иначе остался бы в списке и не увидел бы результат выбора. На широком окне
+   * панель стоит рядом с книгой и остаётся открытой — её показывает и скрывает
+   * кнопка панели.
+   */
+  function selectTabInPanel(id: string) {
+    onSelectTab(id);
+    if (isNarrowWindow()) {
+      onToggleBooks();
+    }
+  }
 </script>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-area">
@@ -456,7 +470,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
           tabs={workspace.tabs}
           activeTabId={workspace.activeTabId}
           {openTabsLimit}
-          onSelect={onSelectTab}
+          onSelect={selectTabInPanel}
           onClose={onCloseTab}
           onDuplicate={onDuplicateTab}
           onEditAppearance={onEditTabAppearance}

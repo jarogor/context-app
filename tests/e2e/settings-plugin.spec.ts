@@ -179,6 +179,9 @@ test('кнопка закрытия и Escape возвращают прежню�
   await page.getByLabel('Закрыть настройки').click();
   await expect(page.getByTestId('section-nav')).toBeVisible();
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
+  // Намеренное переоткрытие — после паузы: короткий «догоняющий» клик по той же
+  // точке экрана приложение гасит.
+  await page.waitForTimeout(450);
 
   // Escape закрывает раздел тем же действием.
   await page.getByTestId('nav-settings').click();
