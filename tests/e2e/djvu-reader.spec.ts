@@ -97,7 +97,10 @@ async function installDjvuMock(page: Page, data = djvuBase64()) {
                         const request = (input ?? {}) as { offset?: number; length?: number };
                         const bytes = atob(payload.data);
                         const offset = request.offset ?? 0;
-                        const length = Math.min(request.length ?? 64 * 1024, 64 * 1024);
+                        // Как и ядро, порция выравнивается по трём байтам: тогда
+                        // её base64 без паддинга и содержимое собирается склейкой.
+                        const requested = Math.min(request.length ?? 64 * 1024, 64 * 1024);
+                        const length = requested - (requested % 3) || requested;
                         const slice = bytes.slice(offset, offset + length);
                         const next = offset + slice.length;
                         return {

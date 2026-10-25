@@ -266,8 +266,10 @@ async function installPdfMock(page: Page, pageCount: number, twoLines = false, d
                         const request = (input ?? {}) as { offset?: number; length?: number };
                         const bytes = atob(payload.data);
                         const offset = request.offset ?? 0;
-                        // Порция нарезается независимо: каждая кодируется своим base64.
-                        const length = Math.min(request.length ?? 5, 5);
+                        // Как и ядро, порция выравнивается по трём байтам: тогда
+                        // её base64 без паддинга и содержимое собирается склейкой.
+                        const requested = Math.min(request.length ?? 5, 5);
+                        const length = requested - (requested % 3) || requested;
                         const slice = bytes.slice(offset, offset + length);
                         const next = offset + slice.length;
                         return {

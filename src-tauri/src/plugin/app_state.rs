@@ -537,10 +537,19 @@ impl AppState {
 /// Выполняется **вне общего замка состояния**: чтение файла и кодирование могут
 /// занимать секунды на медленном носителе, и держать на это время замок нельзя.
 /// Ядро не интерпретирует байты.
+///
+/// Длина порции всегда кратна трём байтам (кроме последней): тогда её base64 не
+/// содержит паддинга `=`, и интерфейс собирает книгу простой склейкой строк. Иначе
+/// ему пришлось бы декодировать и заново кодировать всю книгу на главном потоке —
+/// это замораживало интерфейс на время загрузки, хотя книга грузится «в свою
+/// область».
 pub fn book_chunk_of(bytes: &[u8], offset: usize, length: usize) -> serde_json::Value {
     let total = bytes.len();
     let start = offset.min(total);
-    let end = start.saturating_add(length).min(total);
+    // Кратность трём нужна промежуточной порции; последняя может быть любой.
+    let aligned = length - length % 3;
+    let step = if aligned == 0 { length } else { aligned };
+    let end = start.saturating_add(step).min(total);
     let encoded = base64::Engine::encode(
         &base64::engine::general_purpose::STANDARD,
         &bytes[start..end],

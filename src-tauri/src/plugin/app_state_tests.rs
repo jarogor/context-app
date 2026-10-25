@@ -148,3 +148,33 @@ fn light_state_access_is_not_blocked_by_background_build() {
 
     cleanup(&base_root);
 }
+
+/// Промежуточная порция книги выровнена по base64: без паддинга `=`.
+///
+/// Благодаря этому интерфейс собирает книгу склейкой строк и не декодирует её
+/// целиком на главном потоке (это замораживало интерфейс при загрузке книги).
+#[test]
+fn book_chunk_is_aligned_for_string_concatenation() {
+    use crate::plugin::app_state::book_chunk_of;
+
+    let bytes: Vec<u8> = (0..1000u32).map(|value| (value % 251) as u8).collect();
+    let first = book_chunk_of(&bytes, 0, 300);
+    let second = book_chunk_of(&bytes, first["next"].as_u64().unwrap() as usize, 300);
+
+    let first_chunk = first["chunk"].as_str().expect("первая порция");
+    let second_chunk = second["chunk"].as_str().expect("вторая порция");
+    assert!(
+        !first_chunk.contains('='),
+        "промежуточная порция без паддинга"
+    );
+    assert!(
+        !second_chunk.contains('='),
+        "промежуточная порция без паддинга"
+    );
+
+    // Склейка строк даёт те же байты, что и прямое кодирование диапазона.
+    let joined = format!("{first_chunk}{second_chunk}");
+    let expected =
+        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes[0..600]);
+    assert_eq!(joined, expected);
+}

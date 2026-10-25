@@ -166,23 +166,47 @@ describe('loadWorkplaceBundle', () => {
 });
 
 describe('readWorkplaceBook', () => {
-  it('собирает содержимое из независимо закодированных порций', async () => {
-    // Каждая порция — самостоятельный base64 байтового среза: склейка строк
-    // base64 недопустима, иначе граница попадёт в середину тройки байтов.
+  it('собирает книгу склейкой порций и не перекодирует её', async () => {
+    // Порции выровнены по base64 и приходят без паддинга: содержимое собирается
+    // конкатенацией строк. Прежняя реализация декодировала каждую порцию
+    // (`atob`) и кодировала всю книгу обратно (`btoa`) на главном потоке — на
+    // большой книге это замораживало интерфейс.
     const first = btoa(String.fromCharCode(0, 1, 2));
-    const second = btoa(String.fromCharCode(3, 4));
+    const second = btoa(String.fromCharCode(3, 4, 5));
+    const last = btoa(String.fromCharCode(6, 7));
+    const chunks = [first, second, last];
     let call = 0;
     const backend: ReaderBackend = {
       invoke: async () => {
+        const chunk = chunks[call];
         call += 1;
-        if (call === 1) {
-          return { chunk: first, next: 3, total: 5, done: false };
-        }
-        return { chunk: second, next: 5, total: 5, done: true };
+        const done = call === chunks.length;
+        return {
+          chunk,
+          next: call * 3,
+          total: 8,
+          done,
+        };
       },
     };
     const data = await readWorkplaceBook('/lib/book.demo', backend);
-    expect(atob(data)).toBe(String.fromCharCode(0, 1, 2, 3, 4));
-    expect(call).toBe(2);
+    // Склейка ровно тех строк, что пришли: без промежуточного декодирования.
+    expect(data).toBe(first + second + last);
+    expect(atob(data)).toBe(String.fromCharCode(0, 1, 2, 3, 4, 5, 6, 7));
+    expect(call).toBe(3);
+  });
+
+  it('просит порции, выровненные по границе base64', async () => {
+    const lengths: number[] = [];
+    const backend: ReaderBackend = {
+      invoke: async (_command, payload) => {
+        const request = payload as { length: number };
+        lengths.push(request.length);
+        return { chunk: '', next: 1, total: 1, done: true };
+      },
+    };
+    await readWorkplaceBook('/lib/book.demo', backend);
+    // Длина кратна трём: промежуточные порции выходят без паддинга.
+    expect(lengths[0] % 3).toBe(0);
   });
 });

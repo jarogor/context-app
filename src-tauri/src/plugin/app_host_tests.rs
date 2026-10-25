@@ -698,7 +698,10 @@ fn registry_skips_fields_switched_by_reader_buttons() {
         "тема области чтения переключается кнопкой в панели чтения"
     );
     // Настройки интерфейса остаются: у них нет кнопки в панели чтения.
-    assert!(keys.contains(&"appearance.theme"), "тема интерфейса в настройках");
+    assert!(
+        keys.contains(&"appearance.theme"),
+        "тема интерфейса в настройках"
+    );
     assert!(
         keys.contains(&"appearance.palette"),
         "палитра интерфейса в настройках"
