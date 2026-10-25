@@ -345,16 +345,17 @@
    *
    * Раздел показывается сам по себе, а конкретный выбор — его именем: открытое
    * рабочее место или открытая библиотека (как «Рабочее место · имя»). Шапка —
-   * единственное место, где это видно.
+   * единственное место, где это видно. Имя выборки отделяется от раздела, чтобы
+   * шапка рисовала его начертанием, а не сливала с названием раздела.
    */
   const appContext = $derived.by(() => {
     if (workspaceVisible && !workspaceListMode && workspace) {
-      return `${sectionTitle} · ${workspace.name}`;
+      return { section: sectionTitle, selection: workspace.name };
     }
     if (librariesVisible && activeLibrary?.path) {
-      return `${sectionTitle} · ${lastSegment(activeLibrary.path)}`;
+      return { section: sectionTitle, selection: lastSegment(activeLibrary.path) };
     }
-    return sectionTitle;
+    return { section: sectionTitle, selection: null };
   });
 
   /** Название текущей страницы настроек для их шапки. */
@@ -1038,7 +1039,8 @@
   -->
   {#if !focusMode && !settingsOpen}
     <AppBar
-      context={appContext}
+      section={appContext.section}
+      selection={appContext.selection}
       workspaceActive={workspaceListVisible}
       libraryActive={librariesVisible}
       notesActive={notesLibraryVisible}

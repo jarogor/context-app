@@ -14,8 +14,10 @@
    * разделы переезжают в нижнюю навигацию.
    */
   interface Props {
-    /** Навигационный текст: где находится пользователь и что выбрано. */
-    context: string;
+    /** Название раздела: где находится пользователь. */
+    section: string;
+    /** Имя выбранного объекта раздела (рабочее место, библиотека), либо `null`. */
+    selection: string | null;
     /** Открыт ли список рабочих мест. */
     workspaceActive: boolean;
     /** Открыт ли раздел «Библиотеки». */
@@ -53,7 +55,8 @@
   }
 
   let {
-    context,
+    section,
+    selection,
     workspaceActive,
     libraryActive,
     notesActive,
@@ -103,9 +106,9 @@
   <span
     class="min-w-0 truncate role-caption text-[var(--muted-foreground)]"
     data-testid="app-context"
-    title={context}
+    title={selection ? `${section} · ${selection}` : section}
   >
-    {context}
+    {section}{#if selection}{' · '}<span class="font-semibold">{selection}</span>{/if}
   </span>
 
   <div class="ml-auto flex min-w-0 items-center gap-2 md:gap-4">
