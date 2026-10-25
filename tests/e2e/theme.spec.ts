@@ -75,11 +75,14 @@ test('выбор палитры в настройках меняет цвета 
     .not.toBe(background);
 });
 
-test('выбор шрифта книги в настройках применяется к области чтения', async ({ page }) => {
-    await openSettings(page);
+test('то, что переключается кнопкой в чтении, в настройках не дублируется', async ({ page }) => {
+    const settings = await openSettings(page);
 
-    await expect(page.locator('html')).toHaveAttribute('data-reader-font', 'serif');
-    await chooseAndSave(page, 'Шрифт книги', 'Без засечек');
-
-    await expect(page.locator('html')).toHaveAttribute('data-reader-font', 'sans');
+    // Гарнитура книги и тема области чтения переключаются кнопками в панели
+    // чтения; дублировать их полями настроек — лишний путь к тому же значению.
+    await expect(settings.getByRole('button', { name: 'Шрифт книги' })).toHaveCount(0);
+    await expect(settings.getByRole('button', { name: 'Тема области чтения' })).toHaveCount(0);
+    // Настройки интерфейса остаются: у них кнопки в шапке нет.
+    await expect(settings.getByRole('button', { name: 'Тема оформления' })).toBeVisible();
+    await expect(settings.getByRole('button', { name: 'Палитра оформления' })).toBeVisible();
 });

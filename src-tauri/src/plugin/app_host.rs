@@ -68,28 +68,6 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           ]
         },
         {
-          "key": "reader.theme",
-          "title": "Тема области чтения",
-          "type": "select",
-          "description": "Светлое или тёмное оформление чтения книги; не связано с темой интерфейса",
-          "default": "light",
-          "options": [
-            { "value": "light", "title": "Светлая" },
-            { "value": "dark", "title": "Тёмная" }
-          ]
-        },
-        {
-          "key": "reader.font",
-          "title": "Шрифт книги",
-          "type": "select",
-          "description": "Гарнитура текста книги: с засечками или без",
-          "default": "serif",
-          "options": [
-            { "value": "serif", "title": "С засечками" },
-            { "value": "sans", "title": "Без засечек" }
-          ]
-        },
-        {
           "key": "window.open_tabs_limit",
           "title": "Лимит открытых вкладок",
           "type": "number",

@@ -4,7 +4,13 @@
  * (`VITE_MOCK_BRIDGE=1`) подставляет мок из `@context/testing`.
  */
 
+import { exposeBridgeTimings, recordTiming } from './bridge-timings';
+
 const useMock = import.meta.env.VITE_MOCK_BRIDGE === '1';
+
+// Диагностика отзывчивости: в консоли webview доступны `contextBridgeTimings()`
+// и `contextSlowestBridgeTimings()`.
+exposeBridgeTimings();
 
 let mockConfigured = false;
 
@@ -38,14 +44,23 @@ async function mock() {
   return testing;
 }
 
-/** Вызов команды приложения. */
+/** Вызов команды приложения.
+ *
+ * Время вызова записывается в диагностику (`bridgeTimings`): по ней видно, какая
+ * команда задерживает отклик интерфейса.
+ */
 export async function invokeCommand(command: string, payload: unknown): Promise<unknown> {
-  if (useMock) {
-    const testing = await mock();
-    return testing.mockInvoke(command, payload);
+  const startedAt = performance.now();
+  try {
+    if (useMock) {
+      const testing = await mock();
+      return await testing.mockInvoke(command, payload);
+    }
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke(command, payload as Record<string, unknown>);
+  } finally {
+    recordTiming(command, startedAt);
   }
-  const { invoke } = await import('@tauri-apps/api/core');
-  return invoke(command, payload as Record<string, unknown>);
 }
 
 /** Открытие файлового диалога. */

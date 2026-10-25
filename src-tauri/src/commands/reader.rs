@@ -191,6 +191,12 @@ pub async fn reader_open_external(
 }
 
 /// Порция содержимого книги по пути.
+///
+/// Чтение файла с диска и кодирование base64 идут **вне общего замка состояния**:
+/// на медленном носителе (например, библиотеке на USB) порция читается секундами,
+/// и замок на это время замораживал весь интерфейс — сохранение настроек и любой
+/// клик ждали окончания чтения. Замок берётся только на проверку кэша и запись в
+/// него.
 #[tauri::command]
 pub async fn reader_book_chunk(
     state: State<'_, Mutex<AppState>>,
@@ -198,8 +204,13 @@ pub async fn reader_book_chunk(
     offset: usize,
     length: usize,
 ) -> Result<Value, String> {
-    let mut state = crate::commands::lock_state(state.inner())?;
-    state.workplace_chunk(&path, offset, length)
+    let bytes = {
+        let mut state = crate::commands::lock_state(state.inner())?;
+        state.workplace_book_bytes(&path)
+    }?;
+    Ok(crate::plugin::app_state::book_chunk_of(
+        &bytes, offset, length,
+    ))
 }
 
 /// Сброс кэша содержимого книги по пути (после переуказания файла).

@@ -516,32 +516,42 @@ impl AppState {
         self.workplace_files.remove(path);
     }
 
-    /// Порция содержимого файла вложения в base64 по пути.
+    /// Копия содержимого файла вложения по пути.
     ///
-    /// Содержимое передаётся частями, чтобы интерфейс не получал весь файл
-    /// одним сообщением. Ядро не интерпретирует байты.
-    pub fn workplace_chunk(
-        &mut self,
-        path: &str,
-        offset: usize,
-        length: usize,
-    ) -> Result<serde_json::Value, String> {
-        let bytes = self.workplace_file(path)?;
-        let total = bytes.len();
-        let start = offset.min(total);
-        let end = start.saturating_add(length).min(total);
-        let encoded = base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            &bytes[start..end],
-        );
-        Ok(serde_json::json!({
-            "chunk": encoded,
-            "offset": start,
-            "next": end,
-            "total": total,
-            "done": end >= total,
-        }))
+    /// Файл читается **до** кэширования: чтение с диска (библиотека может лежать
+    /// на медленном носителе) идёт без общего замка состояния, иначе на время
+    /// чтения замирал весь интерфейс — сохранение настроек и любой клик ждали
+    /// замок. Уже прочитанные байты отдаются из кэша без копирования.
+    pub fn workplace_book_bytes(&mut self, path: &str) -> Result<Vec<u8>, String> {
+        if let Some(bytes) = self.workplace_files.get(path) {
+            return Ok(bytes.clone());
+        }
+        let bytes = std::fs::read(path).map_err(|_| "файл книги не читается".to_string())?;
+        self.workplace_files.insert(path.to_string(), bytes.clone());
+        Ok(bytes)
     }
+}
+
+/// Порция содержимого книги в base64.
+///
+/// Выполняется **вне общего замка состояния**: чтение файла и кодирование могут
+/// занимать секунды на медленном носителе, и держать на это время замок нельзя.
+/// Ядро не интерпретирует байты.
+pub fn book_chunk_of(bytes: &[u8], offset: usize, length: usize) -> serde_json::Value {
+    let total = bytes.len();
+    let start = offset.min(total);
+    let end = start.saturating_add(length).min(total);
+    let encoded = base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        &bytes[start..end],
+    );
+    serde_json::json!({
+        "chunk": encoded,
+        "offset": start,
+        "next": end,
+        "total": total,
+        "done": end >= total,
+    })
 }
 
 #[cfg(test)]

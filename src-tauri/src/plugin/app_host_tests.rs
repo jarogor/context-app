@@ -234,44 +234,6 @@ fn refresh_registry_includes_theme_field() {
     cleanup(&storage);
 }
 
-/// Проверка, что поле выбора темы области чтения зарегистрировано.
-#[test]
-fn refresh_registry_includes_reader_theme_field() {
-    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join("base-plugins");
-    let storage = test_util::test_root("app-host-reader-theme-field");
-    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
-        .expect("загрузка базовых плагинов");
-    host.refresh_settings_registry(&[]).expect("регистрация");
-
-    let output = host
-        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
-        .expect("список секций");
-    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
-    let app_section = parsed["sections"]
-        .as_array()
-        .expect("массив секций")
-        .iter()
-        .find(|section| section["id"] == "app.general")
-        .expect("секция приложения");
-    let reader_field = app_section["fields"]
-        .as_array()
-        .expect("поля секции")
-        .iter()
-        .find(|field| field["key"] == "reader.theme")
-        .expect("поле темы области чтения");
-    assert_eq!(
-        reader_field["type"], "select",
-        "тип поля темы области чтения"
-    );
-    assert_eq!(
-        app_section["values"]["reader.theme"], "light",
-        "значение по умолчанию для темы области чтения"
-    );
-    cleanup(&storage);
-}
-
 /// Проверка, что поле выбора палитры зарегистрировано в секции приложения.
 #[test]
 fn refresh_registry_includes_palette_field() {
@@ -695,13 +657,17 @@ fn reader_theme_reads_setting() {
     cleanup(&storage);
 }
 
-/// Проверка, что поле выбора гарнитуры книги зарегистрировано.
+/// Полей, которые переключаются кнопками в панели чтения, в настройках нет.
+///
+/// Гарнитура книги и тема области чтения переключаются кнопками панели чтения:
+/// значение всё равно сохраняется в настройках, но дублировать его полем на
+/// странице настроек — лишний путь к тому же значению.
 #[test]
-fn refresh_registry_includes_reader_font_field() {
+fn registry_skips_fields_switched_by_reader_buttons() {
     let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
         .join("base-plugins");
-    let storage = test_util::test_root("app-host-reader-font-field");
+    let storage = test_util::test_root("app-host-reader-toggle-fields");
     let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
         .expect("загрузка базовых плагинов");
     host.refresh_settings_registry(&[]).expect("регистрация");
@@ -716,16 +682,26 @@ fn refresh_registry_includes_reader_font_field() {
         .iter()
         .find(|section| section["id"] == "app.general")
         .expect("секция приложения");
-    let font_field = app_section["fields"]
+    let keys: Vec<&str> = app_section["fields"]
         .as_array()
         .expect("поля секции")
         .iter()
-        .find(|field| field["key"] == "reader.font")
-        .expect("поле гарнитуры книги");
-    assert_eq!(font_field["type"], "select", "тип поля гарнитуры");
-    assert_eq!(
-        app_section["values"]["reader.font"], "serif",
-        "значение по умолчанию для гарнитуры"
+        .filter_map(|field| field["key"].as_str())
+        .collect();
+
+    assert!(
+        !keys.contains(&"reader.font"),
+        "гарнитура книги переключается кнопкой в панели чтения"
+    );
+    assert!(
+        !keys.contains(&"reader.theme"),
+        "тема области чтения переключается кнопкой в панели чтения"
+    );
+    // Настройки интерфейса остаются: у них нет кнопки в панели чтения.
+    assert!(keys.contains(&"appearance.theme"), "тема интерфейса в настройках");
+    assert!(
+        keys.contains(&"appearance.palette"),
+        "палитра интерфейса в настройках"
     );
     cleanup(&storage);
 }
