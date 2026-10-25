@@ -107,7 +107,8 @@ export type ViewerMessage =
   | { type: 'note-menu-close' }
   | { type: 'place-note'; noteId: string; anchor: QuoteAnchor; geometry: string | undefined }
   | { type: 'error'; message: string }
-  | { type: 'open-external' };
+  | { type: 'open-external' }
+  | { type: 'open-link'; href: string };
 
 /** Проверка источника и канала сообщения области содержимого. */
 export function isWorkplaceMessage(
@@ -241,6 +242,10 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
       return { type: 'error', message: String(message.message ?? 'не удалось отобразить книгу') };
     case 'open-external':
       return { type: 'open-external' };
+    case 'open-link': {
+      const href = String((message.value as { href?: unknown } | null)?.href ?? '').trim();
+      return href ? { type: 'open-link', href } : null;
+    }
     default:
       return null;
   }

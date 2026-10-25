@@ -7,6 +7,7 @@
  */
 import { engine, type PdfJsModule, type PdfPage, type PdfTextContent } from './engine';
 import { OVERLAY_CLASS, TEXT_LAYER_CLASS, overlayOf, pagesEl, scrollProgress, viewer } from './dom';
+import { clearLinkLayer, renderLinks } from './links';
 import { drawNotes } from './notes';
 import { post } from './protocol';
 import { renderSelection } from './selection';
@@ -149,6 +150,7 @@ export function releasePage(pageEl: HTMLElement): void {
   }
   entry.canvas.remove();
   entry.textLayer.remove();
+  clearLinkLayer(pageEl);
   state.rendered.delete(pageEl);
 }
 
@@ -331,6 +333,9 @@ export async function renderPage(
     // шрифта. Возможно только после вставки в документ: у откреплённых узлов нет
     // геометрии.
     await alignWhenRasterReady(pageEl, textLayerEl, canvas);
+    // Ссылки страницы (оглавление, сноски) — аннотации PDF: растр и текстовый
+    // слой их не содержат, поэтому слой строится отдельно.
+    await renderLinks(doc, page, pageEl, viewport);
     drawNotes(pageEl, state.notes);
     // Слой выделения строится по положению текста: после отрисовки он
     // восстанавливается, если выделение ещё живо.

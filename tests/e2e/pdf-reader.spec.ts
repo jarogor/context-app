@@ -2135,3 +2135,51 @@ test('после протяжки Ctrl+A выделяет весь докуме�
     expect(text).toContain('Page 1');
     expect(text).toContain('Page 2');
 });
+
+/**
+ * PDF из двух страниц с аннотацией-ссылкой на второй странице.
+ *
+ * Так выглядит оглавление в настоящих книгах: пункт содержания — не текст, а
+ * аннотация `Link` с прямоугольником и целью перехода.
+ */
+function buildPdfWithLink(): string {
+    const objects: string[] = [];
+    objects.push('1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj');
+    objects.push('2 0 obj<</Type/Pages/Kids[3 0 R 5 0 R]/Count 2>>endobj');
+    objects.push(
+        '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 7 0 R>>>>/Annots[8 0 R]>>endobj',
+    );
+    const first = 'BT /F1 24 Tf 72 700 Td (Go to page 2) Tj ET';
+    objects.push(`4 0 obj<</Length ${first.length}>>stream\n${first}\nendstream endobj`);
+    objects.push(
+        '5 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 6 0 R/Resources<</Font<</F1 7 0 R>>>>>>endobj',
+    );
+    const second = 'BT /F1 24 Tf 72 700 Td (Page 2) Tj ET';
+    objects.push(`6 0 obj<</Length ${second.length}>>stream\n${second}\nendstream endobj`);
+    objects.push('7 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj');
+    objects.push(
+        '8 0 obj<</Type/Annot/Subtype/Link/Rect[70 695 320 732]/Border[0 0 0]/Dest[5 0 R/XYZ null null null]>>endobj',
+    );
+    return `%PDF-1.4\n${objects.join('\n')}\ntrailer<</Root 1 0 R>>\n%%EOF`;
+}
+
+test('ссылка оглавления в PDF переводит на нужную страницу', async ({ page }) => {
+    const data = Buffer.from(buildPdfWithLink(), 'binary').toString('base64');
+    await openPdf(page, 2, false, data);
+
+    // Аннотация превращена в нажимаемый прямоугольник поверх страницы.
+    const link = content(page).locator('.page-link');
+    await expect(link).toHaveCount(1);
+    await link.click();
+
+    // Переход выполнен: страница 2 у верха области чтения.
+    await expect(page.getByTestId('reader-page-count')).toBeVisible();
+    await expect
+        .poll(async () =>
+            content(page)
+                .locator('.page')
+                .first()
+                .evaluate((element) => element.getBoundingClientRect().bottom < 0),
+        )
+        .toBe(true);
+});

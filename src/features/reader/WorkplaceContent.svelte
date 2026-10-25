@@ -3,6 +3,7 @@
   import {
     loadWorkplaceBundle,
     openBookFile,
+    openBookLink,
     readWorkplaceBook,
   } from './reader';
   import { buildViewerDocument } from './viewer-bundle';
@@ -245,6 +246,11 @@
         break;
       case 'open-external':
         void openBookFile(path);
+        break;
+      case 'open-link':
+        // Внешняя ссылка книги из песочницы: открывает приложение системным
+        // браузером, сама область этого сделать не может.
+        void openBookLink(message.href).catch(() => undefined);
         break;
     }
   }

@@ -44,6 +44,12 @@ describe('протокол рабочего места: разбор сообщ�
       type: 'note-menu-close',
     });
     expect(parseViewerMessage(message('open-external'), TOOL)).toEqual({ type: 'open-external' });
+    // Внешняя ссылка из книги (оглавление PDF): адрес проверяется и передаётся
+    // дальше, пустой адрес отбрасывается.
+    expect(parseViewerMessage(message('open-link', { href: 'https://example.org' }), TOOL)).toEqual(
+      { type: 'open-link', href: 'https://example.org' },
+    );
+    expect(parseViewerMessage(message('open-link', { href: '  ' }), TOOL)).toBeNull();
   });
 
   it('нормализует состояние позиции: нечисловые значения дают null', () => {

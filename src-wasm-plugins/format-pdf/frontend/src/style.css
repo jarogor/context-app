@@ -56,6 +56,26 @@ body {
   position: absolute;
   display: block;
 }
+/* Слой ссылок страницы: прямоугольники аннотаций-ссылок (оглавление, сноски).
+   Сам слой событий не ловит — их принимают только ссылки, иначе перекрывалось
+   бы выделение текста. Ссылки лежат выше текстового слоя, но ниже наложения
+   заметок: подсветка и карточки остаются нажимаемыми. */
+.link-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.page-link {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius: 2px;
+  background: transparent;
+}
+.page-link:hover {
+  background: var(--reader-link, #2563eb);
+  opacity: 0.14;
+}
 .overlay {
   position: absolute;
   inset: 0;
