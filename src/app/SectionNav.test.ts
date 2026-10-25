@@ -61,21 +61,19 @@ describe('SectionNav', () => {
     expect(screen.queryByTestId('nav-settings')).toBeNull();
   });
 
-  it('красит разделы тем же тоном, что служебные кнопки шапки', () => {
+  it('выделяет активный раздел той же заливкой, что активную вкладку', () => {
     render(SectionNav, { props: props({ workspaceActive: true }) });
 
     const workspace = screen.getByTestId('nav-workspace');
     const library = screen.getByTestId('nav-library');
 
-    // Все кнопки верхнего меню одного тона: приглушённый цвет текста, как у
-    // уведомлений, темы и настроек.
+    // В покое все кнопки шапки одного тона: приглушённый цвет текста.
     expect(library.className).toContain('text-muted-foreground');
-    // Активный раздел — мягкий фон и основной цвет текста.
-    expect(workspace.className).toContain('bg-[var(--primary-soft)]');
-    expect(workspace.className).toContain('text-[var(--foreground)]');
-    expect(library.className).not.toContain('bg-[var(--primary-soft)]');
-    // Плотной акцентной заливки нет: она выделяла разделы из общего ряда.
-    expect(workspace.className).not.toContain('bg-[var(--primary)]');
+    // Активный раздел выделен плотной акцентной заливкой — так же, как
+    // активная вкладка книги: одно выделение на всё приложение.
+    expect(workspace.className).toContain('bg-[var(--primary)]');
+    expect(workspace.className).toContain('text-[var(--primary-foreground)]');
+    expect(library.className).not.toContain('bg-[var(--primary)]');
   });
 
   it('на узком окне показывает те же разделы кнопками-иконками без подписей', () => {

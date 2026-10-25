@@ -60,15 +60,16 @@
 
 {#snippet sectionTab(item: { id: string; label: string; icon: IconName; active: boolean })}
   <!--
-    Все кнопки верхнего меню — одного цвета: разделы, уведомления, тема и
+    Все кнопки верхнего меню — одного цвета в покое: разделы, уведомления, тема и
     настройки берут один приглушённый тон, поэтому шапка читается единым рядом
-    действий. Активный раздел выделяется мягким фоном и основным цветом текста —
-    так же, как активная кнопка панели уведомлений или настроек.
+    действий. Активный раздел выделяется **той же плотной акцентной заливкой**,
+    что и активная вкладка книги: одно выделение на всё приложение, без второго
+    «своего» цвета у меню.
   -->
   <button
     type="button"
     class="flex min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] {item.active
-      ? 'bg-[var(--primary-soft)] text-[var(--foreground)]'
+      ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
       : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} {mobile
       ? 'h-9 w-9 justify-center'
       : 'px-2 py-1.5 md:px-3'}"
