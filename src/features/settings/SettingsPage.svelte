@@ -123,6 +123,13 @@
    *
    * Отдельно от `save`, чтобы отклик интерфейса не зависел от времени записи в
    * хранилище плагина.
+   *
+   * Дерево деклараций после сохранения **не подменяется**: состав полей при
+   * записи значений не меняется, а замена дерева заставляла `UiRenderer`
+   * пересобрать все контролы и вернуть черновик — страница перерисовывалась
+   * целиком в тот момент, когда пользователь закрывает раздел, и это давало
+   * заметную паузу при большом числе настроек. Обновляется только база
+   * сохранённых значений и только у записанных секций.
    */
   async function writeSections(
     sections: SettingsSectionValues[],
@@ -134,12 +141,20 @@
       draft = pending;
       return;
     }
-    declarations = result.declarations;
-    syncSaved(result.declarations);
     asyncState.error = result.error;
     if (result.error) {
       draft = pending;
+      return;
     }
+    const savedIds = new Set(sections.map((item) => item.section));
+    const nextSaved = { ...saved };
+    for (const item of result.declarations) {
+      const declaration = item.declaration;
+      if (declaration && savedIds.has(declaration.id)) {
+        nextSaved[declaration.id] = valuesFromNodes(declaration.nodes);
+      }
+    }
+    saved = nextSaved;
   }
 
   /** Обновление черновика секции из контролов. */

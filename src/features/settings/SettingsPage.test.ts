@@ -262,4 +262,52 @@ describe('страница настроек из декларации', () => {
     await emitSettingsChanged('app.general');
     expect(invoke.mock.calls.length).toBe(afterSave);
   });
+
+  it('не откатывает правку к ответу сохранения и не перерисовывает дерево', async () => {
+    // Дефект: ответ на сохранение подменял декларации целиком, и `UiRenderer`
+    // пересобирал контролы из ответа — страница перерисовывалась в момент, когда
+    // пользователь закрывает раздел (при большом числе настроек это заметная
+    // пауза), а значение контрола возвращалось к тому, что пришло в ответе.
+    const declaration = {
+      space: 'settings.section',
+      id: 'app.general',
+      title: 'Общие',
+      nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: false } }],
+    };
+    // Ответ приходит со **старым** значением: правка пользователя не должна
+    // откатиться, а дерево — пересобраться.
+    invoke.mockResolvedValue({
+      version: 1,
+      spaces: [
+        {
+          ...declaration,
+          nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: false } }],
+        },
+      ],
+    });
+
+    render(SettingsPage, {
+      initialDeclarations: [{ declaration, diagnostics: [] }],
+      initialError: '',
+    });
+
+    await fireEvent.click(screen.getByRole('checkbox'));
+    const save = screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(false);
+    await fireEvent.click(save);
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith(
+        'invoke_base_plugin_operation',
+        expect.objectContaining({ operation: 'save' }),
+      );
+    });
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
+    // Правка на месте: ответ сохранения не переписал контрол.
+    expect(screen.getByRole('checkbox').getAttribute('aria-checked')).toBe('true');
+  });
 });
