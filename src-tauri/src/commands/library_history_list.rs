@@ -15,10 +15,17 @@ use crate::plugin::AppState;
 /// подвисает интерфейс.
 #[tauri::command]
 pub async fn library_history_list(state: State<'_, Mutex<AppState>>) -> Result<Value, String> {
-    let state = crate::commands::lock_state(state.inner())?;
-    let providers = state.session.available_source_plugins();
-    let disabled = state.disabled_plugins();
-    let entries = library_history::list(state.app_state_root(), &providers, &disabled)
-        .map_err(|error| error.to_string())?;
+    let providers = crate::commands::plugin_operation::with_session(state.inner(), |session| {
+        session.available_source_plugins()
+    })?;
+    let (root, disabled) = {
+        let state = crate::commands::lock_state(state.inner())?;
+        (
+            state.app_state_root().to_path_buf(),
+            state.disabled_plugins(),
+        )
+    };
+    let entries =
+        library_history::list(&root, &providers, &disabled).map_err(|error| error.to_string())?;
     Ok(serde_json::json!({ "entries": entries }))
 }

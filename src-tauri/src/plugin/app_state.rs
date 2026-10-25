@@ -3,7 +3,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use super::shared_runtime::SharedRuntime;
 use crate::plugin::{AppInfo, AppPluginHost, PluginRuntime, PluginScope, PluginSession, Severity};
@@ -106,7 +106,13 @@ fn sandbox_for(path: &str) -> Result<(PathBuf, String), String> {
 /// runtime чтения книг по вложению вкладки.
 pub struct AppState {
     /// Сессия активного source-плагина библиотеки.
-    pub session: PluginSession,
+    ///
+    /// Под собственным замком: операции источника (сканирование, открытие
+    /// библиотеки, чтение) могут идти долго, и держать на это время общий замок
+    /// состояния нельзя — иначе весь интерфейс (настройки, шапка, заметки)
+    /// ждёт окончания сканирования книг. Короткие действия состоянии берут
+    /// дескриптор сессии и отпускают общий замок.
+    pub session: Arc<Mutex<PluginSession>>,
     /// Корень служебного состояния приложения.
     pub app_state_root: PathBuf,
     /// Сведения о приложении для страницы «Информация».
@@ -146,7 +152,7 @@ impl AppState {
         app_host_config: AppHostConfig,
     ) -> Self {
         Self {
-            session,
+            session: Arc::new(Mutex::new(session)),
             app_state_root,
             app_info,
             reader_config,
@@ -245,7 +251,10 @@ impl AppState {
     /// настроек активных плагинов передаются базовому плагину настроек, а стор
     /// получает событие об изменении применённого состояния.
     pub fn after_session_reload(&mut self) {
-        let sources = self.session.settings_sources();
+        let sources = match self.session.lock() {
+            Ok(session) => session.settings_sources(),
+            Err(_) => Vec::new(),
+        };
         let _ = self.with_app_host(|host| host.refresh_settings_registry(&sources));
         crate::plugin::relay::emit(
             "plugin-store:changed",

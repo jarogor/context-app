@@ -14,6 +14,8 @@ use crate::plugin::AppState;
 /// подвисает интерфейс.
 #[tauri::command]
 pub async fn plugin_activation_pending(state: State<'_, Mutex<AppState>>) -> Result<Value, String> {
-    let state = crate::commands::lock_state(state.inner())?;
-    Ok(serde_json::json!({ "pending": state.session.activation_pending() }))
+    let pending = crate::commands::plugin_operation::with_session(state.inner(), |session| {
+        session.activation_pending()
+    })?;
+    Ok(serde_json::json!({ "pending": pending }))
 }

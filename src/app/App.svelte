@@ -393,58 +393,13 @@
   });
 
 
-  /** Сколько после закрытия настроек не открывать их повторно, мс. */
-  const SETTINGS_REOPEN_GUARD_MS = 1200;
-
-  /** Насколько близко должен повториться клик, чтобы считаться тем же нажатием. */
-  const SETTINGS_REOPEN_POINT_PX = 12;
-
-  /** Момент закрытия настроек и точка, в которой закрытие нажали.
-   *
-   * Кнопка настроек в шапке стоит ровно там же, где кнопка закрытия раздела
-   * (это сделано намеренно: открытие и закрытие в одной точке). Пока интерфейс
-   * занят записью сохранения, лишние нажатия пользователя попадают в ту же
-   * точку и после разблокировки приходят пачкой. Без защиты первое закрывает
-   * раздел, а следующие тут же открывают его снова — снаружи это выглядит как
-   * «само открылось».
-   *
-   * Защита учитывает **и время, и точку**: повторным считается нажатие в том же
-   * месте вскоре после закрытия. Намеренное открытие — после паузы или сдвига
-   * указателя — работает как обычно. Отсчёт от точки не даёт зависеть от того,
-   * сколько именно длилась запись: пачка нажатий приходит в ту же точку.
-   */
-  let settingsClosedAt = 0;
-  let settingsClosedPoint: { x: number; y: number } | null = null;
-
   /** Переключение раздела настроек как модального окна.
    *
    * Настройки не меняют базовую область: при закрытии пользователь
    * возвращается туда, откуда открыл их.
    */
-  function toggleSettings(event?: MouseEvent) {
-    if (!settingsOpen && isSettingsReopenRepeat(event)) {
-      return;
-    }
+  function toggleSettings() {
     settingsOpen = !settingsOpen;
-  }
-
-  /** Повторное ли это нажатие по кнопке настроек после только что закрытого раздела.
-   *
-   * @param event Событие нажатия; без координат (например, синтетическое) считается
-   *   намеренным открытием.
-   * @returns `true`, если нажатие — «догоняющее» и его нужно проглотить.
-   */
-  function isSettingsReopenRepeat(event?: MouseEvent): boolean {
-    if (settingsClosedAt === 0 || performance.now() - settingsClosedAt > SETTINGS_REOPEN_GUARD_MS) {
-      return false;
-    }
-    const point = settingsClosedPoint;
-    if (!point || !event || (event.clientX === 0 && event.clientY === 0)) {
-      return true;
-    }
-    const dx = event.clientX - point.x;
-    const dy = event.clientY - point.y;
-    return Math.hypot(dx, dy) <= SETTINGS_REOPEN_POINT_PX;
   }
 
   /** Закрытие полноэкранного раздела настроек.
@@ -452,13 +407,8 @@
    * Базовая область не сбрасывается: закрытие возвращает пользователя к
    * той области, из которой настройки были открыты.
    */
-  function closeSettings(event?: MouseEvent) {
+  function closeSettings() {
     settingsOpen = false;
-    settingsClosedAt = performance.now();
-    settingsClosedPoint =
-      event && (event.clientX !== 0 || event.clientY !== 0)
-        ? { x: event.clientX, y: event.clientY }
-        : null;
   }
 
   /** Обработка Escape: полноэкранный раздел настроек закрывается клавишей. */

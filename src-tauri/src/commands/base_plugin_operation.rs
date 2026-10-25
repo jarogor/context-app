@@ -46,7 +46,9 @@ pub async fn invoke_base_plugin_operation(
     let mut state = crate::commands::lock_state(state.inner())?;
     if capability_changes_activation(&capability, &operation) {
         let disabled = state.disabled_plugins();
-        state.session.set_disabled_plugins(disabled);
+        if let Ok(mut session) = state.session.lock() {
+            session.set_disabled_plugins(disabled);
+        }
     }
     if log_level_changed {
         let _ = state.with_app_host(|host| host.refresh_log_level());

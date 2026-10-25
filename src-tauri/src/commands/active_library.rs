@@ -14,8 +14,10 @@ use crate::plugin::AppState;
 /// подвисает интерфейс.
 #[tauri::command]
 pub async fn active_library(state: State<'_, Mutex<AppState>>) -> Result<Value, String> {
-    let state = crate::commands::lock_state(state.inner())?;
-    match state.session.active_library() {
+    let active = crate::commands::plugin_operation::with_session(state.inner(), |session| {
+        session.active_library()
+    })?;
+    match active {
         Some((path, provider, provider_name)) => Ok(serde_json::json!({
             "path": path,
             "provider": provider,

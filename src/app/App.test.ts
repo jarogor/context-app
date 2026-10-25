@@ -456,48 +456,6 @@ describe('полноэкранный раздел настроек', () => {
         expect(chromeHidden()).toBe(false);
     });
 
-    it('гасит повторный клик по кнопке настроек сразу после закрытия', async () => {
-        render(App, { props: appProps() });
-        await fireEvent.click(screen.getByTestId('nav-settings'));
-        await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
-        expect(chromeHidden()).toBe(false);
-
-        // Второй клик «на всякий случай» попадает в ту же точку, где была
-        // кнопка закрытия, — в кнопку настроек. Раздел не должен открыться
-        // снова: пользователь уже видел закрытие.
-        await fireEvent.click(screen.getByTestId('nav-settings'));
-        expect(chromeHidden()).toBe(false);
-        expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
-    });
-
-    it('пропускает повторные клики в точку закрытия, но не намеренное открытие', async () => {
-        render(App, { props: appProps() });
-        await fireEvent.click(screen.getByTestId('nav-settings'));
-
-        // Закрытие мышью в конкретной точке.
-        await fireEvent.click(screen.getByLabelText('Закрыть настройки'), {
-            clientX: 1240,
-            clientY: 28,
-        });
-        expect(chromeHidden()).toBe(false);
-
-        // Пачка «догоняющих» нажатий в ту же точку — раздел остаётся закрытым.
-        for (let index = 0; index < 3; index += 1) {
-            await fireEvent.click(screen.getByTestId('nav-settings'), {
-                clientX: 1240,
-                clientY: 28,
-            });
-        }
-        expect(chromeHidden()).toBe(false);
-
-        // Нажатие в стороне — осознанное решение пользователя.
-        await fireEvent.click(screen.getByTestId('nav-settings'), {
-            clientX: 900,
-            clientY: 400,
-        });
-        expect(chromeHidden()).toBe(true);
-    });
-
     it('закрывается клавишей Escape', async () => {
         render(App, { props: appProps() });
         await fireEvent.click(screen.getByTestId('nav-settings'));
