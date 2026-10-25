@@ -344,33 +344,39 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       onToggleNotes={onToggleNotes}
       onBackToList={onBackToList}
     />
-    {#if workspace.tabs.length > 0}
-      <NoteToolbar
-        {tool}
-        allowedTypes={allowedNoteTypes}
-        onChange={onToolChange}
-        zoom={activeFooter?.zoom ?? 100}
-        minZoom={activeFooter?.minZoom ?? 60}
-        maxZoom={activeFooter?.maxZoom ?? 220}
-        showZoom={activeFooter?.workplaceZoom ?? true}
-        {readerTheme}
-        {readerFont}
-        onChangeReaderFont={onChangeReaderFont}
-        notesMode={true}
-        flowing={flowingBook}
-        workplace={activeFooter?.workplace ?? false}
-        workplacePages={activeFooter?.workplacePages ?? false}
-        workplacePage={activeFooter?.page ?? null}
-        workplacePageCount={activeFooter?.pageCount ?? null}
-        progress={activeFooter?.progress ?? 0}
-        onChangeZoom={changeZoom}
-        onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
-        onStepPage={stepPage}
-        onGoToPage={goToPage}
-      />
-    {/if}
     <div class="relative flex min-h-0 flex-1">
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <!--
+        Область чтения: панель инструментов сверху, книга под ней. Верхняя
+        панель принадлежит книге, а не всему рабочему месту, поэтому рядом с
+        областью чтения панели заметок и открытых вкладок идут от её верха до
+        низа, а не начинаются ниже панели.
+      -->
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-reading">
+        {#if workspace.tabs.length > 0}
+          <NoteToolbar
+            {tool}
+            allowedTypes={allowedNoteTypes}
+            onChange={onToolChange}
+            zoom={activeFooter?.zoom ?? 100}
+            minZoom={activeFooter?.minZoom ?? 60}
+            maxZoom={activeFooter?.maxZoom ?? 220}
+            showZoom={activeFooter?.workplaceZoom ?? true}
+            {readerTheme}
+            {readerFont}
+            onChangeReaderFont={onChangeReaderFont}
+            notesMode={true}
+            flowing={flowingBook}
+            workplace={activeFooter?.workplace ?? false}
+            workplacePages={activeFooter?.workplacePages ?? false}
+            workplacePage={activeFooter?.page ?? null}
+            workplacePageCount={activeFooter?.pageCount ?? null}
+            progress={activeFooter?.progress ?? 0}
+            onChangeZoom={changeZoom}
+            onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
+            onStepPage={stepPage}
+            onGoToPage={goToPage}
+          />
+        {/if}
         {#if workspace.tabs.length === 0}
           <div class="flex h-full items-center justify-center p-6" data-testid="workplace-empty">
             <EmptyState

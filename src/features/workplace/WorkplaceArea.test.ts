@@ -261,6 +261,49 @@ describe('область рабочего места: список и вклад
         expect(screen.getByTestId('reader-progress')).toBeTruthy();
     });
 
+    it('держит панель чтения внутри области чтения, а панели — рядом с ней', () => {
+        render(WorkplaceArea, {
+            props: {
+                workspace: {
+                    id: 'ws-1',
+                    name: 'Первое',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/book-1.epub',
+                            title: 'Книга',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+                workspaces: [],
+                currentWorkspaceId: 'ws-1',
+                listMode: false,
+                booksOpen: true,
+                visible: true,
+                ...panels(),
+                notesOpen: true,
+                ...handlers(),
+            },
+        });
+
+        // Панель чтения принадлежит области чтения, а не рабочему месту целиком.
+        const reading = screen.getByTestId('workplace-reading');
+        expect(reading.contains(screen.getByTestId('note-toolbar'))).toBe(true);
+        // Панели заметок и открытых вкладок стоят рядом с областью чтения, а не
+        // внутри неё: они идут от её верха до низа.
+        for (const panelId of ['notes-panel', 'open-books-panel']) {
+            const panel = screen.getByTestId(panelId);
+            expect(reading.contains(panel)).toBe(false);
+            expect(panel.parentElement?.contains(reading)).toBe(true);
+        }
+    });
+
     it('на узком окне переход к заметке закрывает панель заметок', async () => {        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
             matches: true,
             media: '(max-width: 899px)',

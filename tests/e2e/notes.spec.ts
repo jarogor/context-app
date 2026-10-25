@@ -520,25 +520,36 @@ test('клик по заметке ведёт к выделению в книг�
     await expect(bookDocument(page).locator('mark').first()).toHaveText('Второй абзац книги.');
 });
 
-test('единая панель чтения — на всю ширину над областью чтения', async ({ page }) => {
+test('панель чтения — верх области чтения, панели открываются сбоку на всю высоту', async ({
+    page,
+}) => {
     await page.setViewportSize({ width: 1400, height: 800 });
     await page.goto('/');
     await addBook(page, 'Демо-книга');
     await openNotes(page);
 
     const area = await page.getByTestId('workplace-area').boundingBox();
+    const reading = await page.getByTestId('workplace-reading').boundingBox();
     const toolbar = await page.getByTestId('note-toolbar').boundingBox();
     const notes = await page.getByTestId('notes-panel').boundingBox();
     const tabs = await page.getByTestId('workplace-tabs').boundingBox();
     expect(area).not.toBeNull();
+    expect(reading).not.toBeNull();
     expect(toolbar).not.toBeNull();
     expect(notes).not.toBeNull();
     expect(tabs).not.toBeNull();
 
-    // Единая панель чтения совпадает по ширине с областью рабочего места.
-    expect(Math.abs(toolbar!.width - area!.width)).toBeLessThanOrEqual(1);
-    // Она расположена сверху, над областью чтения и панелью заметок.
-    expect(toolbar!.y + toolbar!.height).toBeLessThanOrEqual(notes!.y + 1);
+    // Панель чтения принадлежит области чтения: она уже рабочего места, потому
+    // что рядом стоит панель заметок.
+    expect(Math.abs(toolbar!.width - reading!.width)).toBeLessThanOrEqual(1);
+    expect(toolbar!.width).toBeLessThan(area!.width);
+    // Она стоит сверху области чтения, а панель заметок — сбоку от неё и во всю
+    // её высоту, а не ниже панели.
+    expect(Math.abs(toolbar!.y - reading!.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(notes!.y - reading!.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(notes!.height - reading!.height)).toBeLessThanOrEqual(1);
+    expect(notes!.x).toBeGreaterThanOrEqual(toolbar!.x + toolbar!.width - 1);
+    // Полоса вкладок остаётся над областью чтения во всю ширину рабочего места.
     expect(Math.abs(tabs!.width - area!.width)).toBeLessThanOrEqual(1);
     expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(toolbar!.y + 1);
 });
