@@ -380,8 +380,8 @@ describe('активность кнопки рабочего места', () => 
         await fireEvent.click(screen.getByTestId('workspace-open'));
         expect(workspacePressed()).toBe('false');
 
-        // Возврат к списку кнопкой в панели вкладок: кнопка снова нажата.
-        await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
+        // Возврат к списку кнопкой раздела в шапке: она снова нажата.
+        await fireEvent.click(screen.getByTestId('nav-workspace'));
         expect(workspacePressed()).toBe('true');
     });
 
@@ -620,12 +620,12 @@ describe('текущее рабочее место остаётся загруж
         await waitFor(() => expect(contentReads()).toBe(1));
 
         // Возврат к списку, повторное открытие текущего места — без нового чтения.
-        await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
+        await fireEvent.click(screen.getByTestId('nav-workspace'));
         await fireEvent.click(within(item('Текущее')).getByTestId('workspace-open'));
         expect(contentReads()).toBe(1);
 
         // Открытие другого места читает его книгу: другие места не держатся загруженными.
-        await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
+        await fireEvent.click(screen.getByTestId('nav-workspace'));
         await fireEvent.click(within(item('Другое')).getByTestId('workspace-open'));
         await waitFor(() => expect(contentReads()).toBe(2));
     });

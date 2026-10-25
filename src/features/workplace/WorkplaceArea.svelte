@@ -116,8 +116,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     onTabState: (id: string, state: { zoom: number; position: number }) => void;
     /** Просьба переуказать файл недоступной книги вкладки. */
     onRepointTab: (id: string) => void;
-    /** Возврат к списку рабочих мест. */
-    onBackToList: () => void;
     /** Гарнитура книги: с засечками или без. */
     readerFont?: ReaderFontId;
     /** Переключение гарнитуры книги. */
@@ -184,7 +182,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     onRemoveSet,
     onTabState,
     onRepointTab,
-    onBackToList,
     focusMode = false,
     onToggleFocus,
     onCreateWorkspace,
@@ -356,7 +353,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       onAddFile={onAddFile}
       onToggleBooks={onToggleBooks}
       onToggleNotes={onToggleNotes}
-      onBackToList={onBackToList}
     />
     <div class="relative flex min-h-0 flex-1">
       <!--

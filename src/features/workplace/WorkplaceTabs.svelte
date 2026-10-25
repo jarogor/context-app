@@ -33,8 +33,6 @@
     onToggleBooks: () => void;
     /** Переключение панели заметок. */
     onToggleNotes: () => void;
-    /** Возврат к списку рабочих мест. */
-    onBackToList: () => void;
     /** Режим сосредоточенного чтения. */
     focusMode?: boolean;
     /** Переключение режима сосредоточенного чтения. */
@@ -54,7 +52,6 @@
     onAddFile,
     onToggleBooks,
     onToggleNotes,
-    onBackToList,
     focusMode = false,
     onToggleFocus,
   }: Props = $props();
@@ -337,15 +334,10 @@
   class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--muted)] px-2 py-1.5"
   data-testid="workplace-tabs"
 >
-  <Button
-    size="icon"
-    variant="ghost"
-    title="К списку рабочих мест"
-    ariaLabel="К списку рабочих мест"
-    onclick={onBackToList}
-  >
-    <Icon name="chevron-left" />
-  </Button>
+  <!--
+    Кнопки «К списку рабочих мест» здесь нет: к списку возвращает кнопка раздела
+    в верхней панели, и вторая точка входа только дублировала бы её.
+  -->
   <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
        выталкивает их за пределы панели. -->
   <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-actions">

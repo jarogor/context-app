@@ -32,9 +32,9 @@ async function createWorkspace(page: import('@playwright/test').Page, name: stri
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
 }
 
-/** Возврат к списку рабочих мест. */
+/** Возврат к списку рабочих мест кнопкой раздела в шапке. */
 async function backToList(page: import('@playwright/test').Page) {
-    await page.getByLabel('К списку рабочих мест').click();
+    await page.getByTestId('nav-workspace').click();
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
 }
 

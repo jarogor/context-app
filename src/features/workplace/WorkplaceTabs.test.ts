@@ -37,7 +37,6 @@ function handlers() {
         onAddFile: vi.fn(),
         onToggleBooks: vi.fn(),
         onToggleNotes: vi.fn(),
-        onBackToList: vi.fn(),
     };
 }
 

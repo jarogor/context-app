@@ -713,10 +713,6 @@
   });
 
   /** Возврат к списку рабочих мест. */
-  function backToList() {
-    workspaceListMode = true;
-  }
-
   /** Создание рабочего места. */
   function createNewWorkspace(name: string) {
     registry = createWorkspace(registry, name);
@@ -1154,7 +1150,6 @@
           onRemoveSet={notesController.removeSet}
           onTabState={handleTabState}
           onRepointTab={requestRepoint}
-          onBackToList={backToList}
           onCreateWorkspace={createNewWorkspace}
           onOpenWorkspace={openWorkspace}
           onRenameWorkspace={renameExistingWorkspace}

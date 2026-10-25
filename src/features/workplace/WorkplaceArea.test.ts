@@ -39,7 +39,6 @@ function handlers() {
         onRemoveSet: vi.fn(),
         onTabState: vi.fn(),
         onRepointTab: vi.fn(),
-        onBackToList: vi.fn(),
         onCreateWorkspace: vi.fn(),
         onOpenWorkspace: vi.fn(),
         onRenameWorkspace: vi.fn(),
@@ -194,32 +193,6 @@ describe('область рабочего места: список и вклад
         expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('true');
         // Вкладка осталась той же самой: состав и активная вкладка не изменились.
         expect(screen.getByTestId('workplace-tab-page').getAttribute('data-active')).toBe('true');
-    });
-
-    it('передаёт возврат к списку из панели вкладок', async () => {
-        const base = handlers();
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Исследование',
-                    createdAtMillis: 0,
-                    tabs: [],
-                    activeTabId: null,
-                },
-                workspaces: [],
-                currentWorkspaceId: 'ws-1',
-                listMode: false,
-                booksOpen: false,
-                visible: true,
-                ...panels(),
-                ...base,
-            },
-        });
-
-        await fireEvent.click(screen.getByLabelText('К списку рабочих мест'));
-
-        expect(base.onBackToList).toHaveBeenCalled();
     });
 
     it('показывает общую нижнюю панель при открытой вкладке', () => {
