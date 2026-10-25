@@ -443,8 +443,8 @@
     <Button
       variant={booksOpen ? 'primary' : 'ghost'}
       size="icon"
-      title="Открытые вкладки книг"
-      ariaLabel="Открытые вкладки книг"
+      title="Вкладки"
+      ariaLabel="Вкладки"
       ariaPressed={booksOpen}
       onclick={onToggleBooks}
     >

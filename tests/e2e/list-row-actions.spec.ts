@@ -55,7 +55,7 @@ test('меню в строке вкладки стоит так же, как м�
     await openBook(page);
 
     // Строка списка вкладок.
-    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
     const tabMenu = await page.evaluate(
         ({ row, label }) => {
@@ -78,7 +78,7 @@ test('меню в строке вкладки стоит так же, как м�
     expect(tabMenu).not.toBeNull();
 
     // Строка списка заметок: заметка создаётся выделением абзаца книги.
-    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await page.getByRole('button', { name: 'Панель заметок' }).click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     const frame = page
@@ -130,7 +130,7 @@ test('содержимое пункта вкладки начинается у �
     // Дефект: отступы строки переехали на сам пункт, а описание и мета сохранили
     // свои внутренние отступы — они складывались, и содержимое съезжало вправо.
     await openBook(page);
-    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
 
     // Правка описания открывает под названием дополнительные строки пункта.

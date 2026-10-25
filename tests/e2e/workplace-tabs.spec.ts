@@ -150,7 +150,7 @@ test('дублирование вкладки доступно пунктом м
     await page.goto('/');
     await addBook(page, 'Демо-книга');
 
-    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     const panel = page.getByTestId('open-books-panel');
 
     await panel.getByLabel('Оформление вкладки').click();
@@ -175,7 +175,7 @@ test('панель открытых вкладок выбирает и закр�
     await addBook(page, 'Демо-книга');
     await addBook(page, 'Третья книга');
 
-    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     const panel = page.getByTestId('open-books-panel');
     await expect(panel).toBeVisible();
 
@@ -409,7 +409,7 @@ test('уменьшение лимита сохраняет вкладки, по�
 
 /** Открытие панели открытых книг. */
 async function openBooks(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
 }
 
@@ -520,14 +520,14 @@ test('панели заметок и открытых книг взаимоис�
     await addBook(page, 'Демо-книга');
 
     // Открытие панели открытых книг закрывает панель заметок и наоборот.
-    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
 
     await page.getByRole('button', { name: 'Панель заметок' }).click();
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Открытые вкладки книг' }).click();
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
     await expect(page.getByTestId('notes-panel')).toHaveCount(0);
 

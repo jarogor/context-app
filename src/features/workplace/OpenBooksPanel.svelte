@@ -224,7 +224,7 @@
 </script>
 
 <SidePanel
-  title="Открытые вкладки книг"
+  title="Вкладки"
   testId="open-books-panel"
   class="w-[var(--notes-panel-width)]"
   onClose={onClosePanel}

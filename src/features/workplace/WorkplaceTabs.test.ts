@@ -364,7 +364,7 @@ describe('панель вкладок: подтверждение закрыти
         expect(screen.getByTestId('workplace-tab-close')).toBeTruthy();
     });
 
-    it('подпись кнопки панели списка — «Открытые вкладки книг»', () => {
+    it('подпись кнопки панели списка — «Вкладки»', () => {
         mockWidth(320);
         render(WorkplaceTabs, {
             props: {
@@ -376,7 +376,7 @@ describe('панель вкладок: подтверждение закрыти
             },
         });
 
-        expect(screen.getByLabelText('Открытые вкладки книг')).toBeTruthy();
+        expect(screen.getByLabelText('Вкладки')).toBeTruthy();
     });
 });
 
