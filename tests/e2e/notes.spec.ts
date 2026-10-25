@@ -563,26 +563,24 @@ test('на узком окне панель чтения уходит вниз �
 
     const area = await page.getByTestId('workplace-area').boundingBox();
     const toolbar = await page.getByTestId('note-toolbar').boundingBox();
-    const tools = await page.getByTestId('note-toolbar-tools').boundingBox();
-    const footer = await page.getByTestId('reader-footer').boundingBox();
+    const zoom = await page.getByTestId('reader-zoom-group').boundingBox();
+    const theme = await page.getByTestId('reader-theme-toggle').boundingBox();
     expect(area).not.toBeNull();
     expect(toolbar).not.toBeNull();
-    expect(tools).not.toBeNull();
-    expect(footer).not.toBeNull();
+    expect(zoom).not.toBeNull();
+    expect(theme).not.toBeNull();
 
     // Панель прижата к низу области рабочего места, а не висит сверху.
     expect(Math.abs(toolbar!.y + toolbar!.height - (area!.y + area!.height))).toBeLessThanOrEqual(
         1,
     );
-    // Две строки: инструменты сверху, навигация и масштаб под ними.
-    expect(tools!.y + tools!.height).toBeLessThanOrEqual(footer!.y + 1);
-    expect(toolbar!.height).toBeGreaterThan(tools!.height + footer!.height);
+    // Управление чтением — в нижней строке панели, под инструментами заметок.
+    expect(zoom!.y).toBeGreaterThan(toolbar!.y + toolbar!.height / 2);
 
     // Всё управление чтением на месте и не выходит за пределы панели.
     for (const name of ['Увеличить масштаб', 'Уменьшить масштаб', 'Тёмная тема области чтения']) {
         await expect(page.getByRole('button', { name })).toBeVisible();
     }
-    const zoom = await page.getByTestId('reader-zoom').boundingBox();
     expect(zoom!.x + zoom!.width).toBeLessThanOrEqual(toolbar!.x + toolbar!.width + 1);
     expect(zoom!.y + zoom!.height).toBeLessThanOrEqual(toolbar!.y + toolbar!.height + 1);
 });

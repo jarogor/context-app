@@ -24,6 +24,8 @@
     ariaLabel?: string;
     /** Префикс идентификаторов для проверок. */
     testIdPrefix?: string;
+    /** Размер: базовый — как у кнопок и полей, компактный — для тесных панелей. */
+    size?: 'md' | 'sm';
     /** Дополнительные классы контейнера. */
     class?: string;
   }
@@ -33,6 +35,7 @@
     onpick,
     ariaLabel = 'Цвет',
     testIdPrefix = 'color',
+    size = 'md',
     class: className = '',
   }: Props = $props();
 
@@ -48,13 +51,18 @@
   /** Рамка и внутренние отступы блока по обеим сторонам в пикселях. */
   const PICKER_CHROME = 12;
 
+  /** Компактные значения тех же величин: палитра для тесных панелей. */
+  const COMPACT_SWATCH_WIDTH = 12;
+  const COMPACT_SWATCH_GAP = 2;
+  const COMPACT_PICKER_CHROME = 8;
+
   /** Ширина блока палитры: при наведении плашки перераспределяются внутри неё,
    * а сам блок не меняет размер и не сдвигает соседний интерфейс. */
   const pickerWidth = $derived(
     Math.round(
-      SWATCH_WIDTH * (colors.length - 1 + SELECTED_GROW) +
-        Math.max(0, colors.length - 1) * SWATCH_GAP +
-        PICKER_CHROME,
+      (size === 'sm' ? COMPACT_SWATCH_WIDTH : SWATCH_WIDTH) * (colors.length - 1 + SELECTED_GROW) +
+        Math.max(0, colors.length - 1) * (size === 'sm' ? COMPACT_SWATCH_GAP : SWATCH_GAP) +
+        (size === 'sm' ? COMPACT_PICKER_CHROME : PICKER_CHROME),
     ),
   );
 </script>
@@ -70,6 +78,7 @@
 <div
   class={cn(
     'bg-card inline-flex h-9 items-center gap-[0.1875rem] rounded-[var(--radius)] border border-[var(--input)] p-1',
+    size === 'sm' && 'h-8 gap-[0.125rem] p-[0.1875rem]',
     className,
   )}
   style="width: {pickerWidth}px"
@@ -81,8 +90,12 @@
     <button
       type="button"
       class="min-w-0 flex-1 basis-0 cursor-pointer rounded-[0.25rem] transition-all duration-100 focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {color.selected
-        ? 'h-6 grow-[1.8]'
-        : 'h-5 grow hover:h-6 hover:grow-[1.8]'}"
+        ? size === 'sm'
+          ? 'h-5 grow-[1.8]'
+          : 'h-6 grow-[1.8]'
+        : size === 'sm'
+          ? 'h-4 grow hover:h-5 hover:grow-[1.8]'
+          : 'h-5 grow hover:h-6 hover:grow-[1.8]'}"
       style="background: {color.value}"
       title={color.label}
       aria-label={color.label}

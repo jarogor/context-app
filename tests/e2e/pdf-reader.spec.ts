@@ -1450,6 +1450,54 @@ test('фигура рисуется протяжкой по странице', a
     expect(blend).toBe('multiply');
 });
 
+test('на узком окне панель инструментов — две строки слева направо без переносов', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await openPdf(page, 3);
+
+    // Фигура добавляет в панель выбор вида и цвет: самая широкая раскладка.
+    await selectTool(page, 'Фигура');
+
+    const toolbar = await page.getByTestId('note-toolbar').boundingBox();
+    const tools = [
+        page.getByRole('group', { name: 'Тип заметки' }),
+        page.getByTestId('note-tool-shape'),
+        page.getByTestId('note-tool-color-picker'),
+        page.getByTestId('reader-zoom-group'),
+        page.getByTestId('reader-pages'),
+        page.getByTestId('reader-theme-toggle'),
+    ];
+    const boxes = [];
+    for (const locator of tools) {
+        const box = await locator.boundingBox();
+        expect(box).not.toBeNull();
+        boxes.push(box!);
+        // Каждый инструмент целиком внутри панели: ничего не обрезано и не
+        // вынесено за её пределы.
+        expect(box!.x).toBeGreaterThanOrEqual(toolbar!.x - 1);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(toolbar!.x + toolbar!.width + 1);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(toolbar!.y + toolbar!.height + 1);
+    }
+
+    // Ровно две строки: инструменты заметок сверху, управление чтением снизу.
+    // Строка определяется по вертикальному центру: элементы разной высоты стоят
+    // по центру своей строки, поэтому сравнивать надо центры, а не верх.
+    const rows = new Set(boxes.map((box) => Math.round(box.y + box.height / 2)));
+    expect(rows.size).toBeLessThanOrEqual(2);
+    const toolsCenter = boxes[0].y + boxes[0].height / 2;
+    const readingCenter = boxes[3].y + boxes[3].height / 2;
+    expect(toolsCenter).toBeLessThan(readingCenter);
+
+    // Обе строки выровнены по левому краю и идут одним порядком слева направо.
+    for (const box of boxes) {
+        expect(box.x).toBeGreaterThanOrEqual(toolbar!.x);
+    }
+    // Нижняя строка начинается с цвета — самого левого её инструмента.
+    const readingLeft = boxes[2].x;
+    expect(Math.abs(readingLeft - Math.round(toolbar!.x + 8))).toBeLessThanOrEqual(8);
+});
+
 test('фигура-эллипс рисуется и переживает смену масштаба', async ({ page }) => {
     await openPdf(page, 3);
     await page.getByTestId('workplace-notes-toggle').click();

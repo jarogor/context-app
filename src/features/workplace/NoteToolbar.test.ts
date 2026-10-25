@@ -159,6 +159,57 @@ describe('панель инструментов заметок', () => {
         expect(order.indexOf(quote)).toBeLessThan(order.indexOf(zoom));
         expect(footer.className).toContain('ml-auto');
     });
+
+    it('на узком окне ставит цвет в нижнюю строку первым, до масштаба и навигации', () => {
+        render(NoteToolbar, {
+            props: props({
+                tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' },
+                workplace: true,
+                workplacePages: true,
+                workplacePage: 3,
+                workplacePageCount: 12,
+            }),
+        });
+
+        const toolbar = screen.getByTestId('note-toolbar');
+        const order = Array.from(toolbar.querySelectorAll('*'));
+        const color = screen.getByTestId('note-tool-color-picker');
+        const zoom = screen.getByTestId('reader-zoom-group');
+        const pages = screen.getByTestId('reader-pages');
+        const theme = screen.getByTestId('reader-theme-toggle');
+
+        // Порядок строки: цвет → масштаб → навигация → тема.
+        expect(order.indexOf(color)).toBeLessThan(order.indexOf(zoom));
+        expect(order.indexOf(zoom)).toBeLessThan(order.indexOf(pages));
+        expect(order.indexOf(pages)).toBeLessThan(order.indexOf(theme));
+        // Общий порядок задаётся явно: нижняя строка идёт пятой и далее.
+        expect(color.className).toContain('max-lg:order-5');
+        expect(zoom.className).toContain('max-lg:order-6');
+        expect(theme.className).toContain('max-lg:order-9');
+    });
+
+    it('на узком окне начинает нижнюю строку с левого края, а не с правого', () => {
+        render(NoteToolbar, { props: props() });
+
+        // Выталкивание вправо — только на широком окне (`lg:ml-auto`): на узком
+        // строка идёт слева, иначе строки «смотрят» в разные стороны.
+        const footer = screen.getByTestId('reader-footer');
+        expect(footer.className).toContain('lg:ml-auto');
+        expect(footer.className).not.toContain(' max-lg:justify-end');
+        expect(footer.className).toContain('max-lg:contents');
+    });
+
+    it('держит выбор вида фигуры компактным: длинное название не растягивает список', () => {
+        render(NoteToolbar, {
+            props: props({ tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' } }),
+        });
+
+        // «Рамка» вместо «Прямоугольника» и узкий триггер: список вида фигуры
+        // равен ширине самого длинного варианта и не вытесняет соседей.
+        expect(screen.getByRole('button', { name: 'Вид фигуры' }).className).toContain('w-[6.25rem]');
+        const shape = screen.getByTestId('note-tool-shape');
+        expect(shape).toBeTruthy();
+    });
 });
 
 describe('панель чтения: масштаб', () => {
