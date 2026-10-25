@@ -6,6 +6,23 @@ async function showLibrary(page: import('@playwright/test').Page) {
     await showLibraryBookList(page);
 }
 
+test('знак приложения — буква названия на плашке', async ({ page }) => {
+    await page.goto('/');
+    const name = page.getByTestId('app-name');
+    await expect(name).toBeVisible();
+
+    // Знак — плашка основного цвета с буквой цветом фона, буква шрифтом.
+    const mark = name.locator('span').first();
+    const box = await mark.boundingBox();
+    expect(box).not.toBeNull();
+    expect(Math.abs(box!.width - box!.height)).toBeLessThanOrEqual(1);
+    await expect(mark).toHaveClass(/rounded-\[var\(--radius-sm\)\]/);
+    await expect(mark).toHaveClass(/bg-\[var\(--foreground\)\]/);
+    await expect(mark).toHaveText('К');
+    // Настоящее имя остаётся доступным именем для экранных дикторов.
+    await expect(name).toHaveAttribute('aria-label', 'Контекст');
+});
+
 test('оболочка показывает панель и переключает настройки', async ({ page }) => {
     await page.goto('/');
 
@@ -318,4 +335,42 @@ test('панель разделов держит вкладки и действ�
         ['Рабочее место', 'Библиотека', 'Заметки'].includes(label),
     );
     expect(sections).toEqual(['Рабочее место', 'Библиотека', 'Заметки']);
+});
+
+test('на узком окне шапка показывает только имя выбранного, без раздела', async ({ page }) => {
+    // Планшетная ширина: меню разделов уже иконками, а название раздела в тексте
+    // шапки дублировало бы его и занимало место.
+    await page.setViewportSize({ width: 800, height: 800 });
+    await page.addInitScript(() => {
+        (
+            window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }
+        ).__TEXTURE_MOCK_OVERRIDES__ = {
+            handlers: {
+                active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
+            },
+        };
+    });
+    await page.goto('/');
+    await showLibraryBookList(page);
+
+    // Открыта библиотека: в шапке только имя библиотеки, без названия раздела.
+    const context = page.getByTestId('app-context');
+    await expect(context).toHaveText('demo-library');
+    await expect(context).not.toContainText('Библиотека');
+    // Полный путь остаётся в подсказке.
+    await expect(context).toHaveAttribute('title', 'Библиотека · demo-library');
+
+    // Открыто рабочее место: то же правило.
+    const library = page.locator('main');
+    await library.getByRole('button', { name: /Демо-книга/ }).click();
+    await library.getByRole('button', { name: /Читать/ }).click();
+    const picker = page.getByTestId('workspace-picker-item');
+    if (await picker.count()) {
+        await picker.first().click();
+    }
+    await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+    // Имя рабочего места здесь совпадает с названием раздела, поэтому проверяется
+    // отсутствие разделителя: показывается только выбор, без «раздел · имя».
+    await expect(context).not.toContainText('·');
+    await expect(context).toHaveAttribute('title', /Рабочее место · /);
 });

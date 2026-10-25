@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Icon, type IconName } from '@context/ui';
   import SectionNav from './SectionNav.svelte';
-  import AppLogo from './AppLogo.svelte';
 
   /**
    * Верхняя панель приложения — постоянный «корешок» оболочки.
@@ -76,6 +75,9 @@
     onTheme,
   }: Props = $props();
 
+  /** Подсказка навигационного текста: полный путь к выбранному объекту. */
+  const contextTitle = $derived(selection ? `${section} · ${selection}` : section);
+
   /** Иконка переключателя темы по предпочтению. */
   const themeIcon: IconName = $derived(
     themeTitle === 'Светлая' ? 'sun' : themeTitle === 'Тёмная' ? 'moon' : 'monitor',
@@ -88,27 +90,48 @@
   data-testid="app-bar"
 >
   <!--
-    Знак приложения вместо надписи: логотип сам содержит название «con/text»,
-    поэтому текст рядом дублировал бы его. Настоящее имя остаётся доступным
-    именем элемента — его читают экранные дикторы, и оно попадает в подсказку.
-    Цвет знака берётся из темы (`currentColor`).
+    Знак приложения — квадрат основного цвета с буквой названия цветом фона:
+    знак читается как печать на переплёте, а не как надпись рядом с разделами.
+    Скругление взято из токена системы, поэтому знак согласован с кнопками и
+    карточками. Размер задан в `em` и следует за кеглем шапки. Отдельной надписи
+    рядом нет, а настоящее имя остаётся доступным именем элемента — его читают
+    экранные дикторы, и оно попадает в подсказку.
   -->
   <span
-    class="flex shrink-0 items-center text-[var(--foreground)]"
+    class="flex shrink-0 items-center"
     data-testid="app-name"
     role="img"
     aria-label="Контекст"
     title="Контекст"
   >
-    <AppLogo height="2.2em" />
+    <!--
+      Буква набрана шрифтом и центрирована: плашка — flex-контейнер, буква
+      стоит по её центру. `line-height` равен высоте плашки, поэтому строка
+      занимает её целиком и вертикальное выравнивание идёт по центру.
+    -->
+    <span
+      class="flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--foreground)] font-black text-[var(--background)] select-none"
+      style="width: 1.75rem; height: 1.75rem; font-size: 1.25rem; line-height: 1.75rem; letter-spacing: -0.01em;"
+      aria-hidden="true">К</span
+    >
   </span>
   <span class="hidden h-6 w-px shrink-0 bg-[var(--border)] md:block" aria-hidden="true"></span>
+  <!--
+    Навигационный текст. На узком окне (телефон, планшет) остаётся только имя
+    выбранного объекта: название раздела уже показано меню-иконками, и «Рабочее
+    место · foo» занимало бы место без пользы. На широком окне показывается и
+    раздел, и выбор — шапка остаётся единственным местом, где это видно.
+  -->
   <span
     class="min-w-0 truncate role-caption text-[var(--muted-foreground)]"
     data-testid="app-context"
-    title={selection ? `${section} · ${selection}` : section}
+    title={contextTitle}
   >
-    {section}{#if selection}{' · '}<span class="font-semibold">{selection}</span>{/if}
+    {#if mobile && selection}
+      <span class="font-semibold">{selection}</span>
+    {:else}
+      {section}{#if selection}{' · '}<span class="font-semibold">{selection}</span>{/if}
+    {/if}
   </span>
 
   <div class="ml-auto flex min-w-0 items-center gap-2 md:gap-4">
