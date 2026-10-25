@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+    import { untrack } from 'svelte';
   import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { publishUserNotification } from '../notifications/notifications';
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
   import { tabColorFill, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
+  import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -119,6 +120,23 @@
   /** Начало видимого окна вкладок. */
   let windowStart = $state(0);
 
+  /** Узкое окно (телефон, планшет): показывается одна активная вкладка. */
+  let compactTabs = $state(false);
+
+  /** Слежение за телефонной шириной: на ней полоса вкладок не листается. */
+  $effect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const query = window.matchMedia(NARROW_MAX_WIDTH);
+    compactTabs = query.matches;
+    const onChange = (event: MediaQueryListEvent) => {
+      compactTabs = event.matches;
+    };
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  });
+
   /** Элемент списка вкладок для измерения ширины. */
   let listEl: HTMLDivElement | undefined = $state();
 
@@ -132,17 +150,32 @@
     return TAB_WIDTH_REM * base;
   }
 
-  /** Ёмкость окна: сколько вкладок целиком видно в ширине списка. */
-  const capacity = $derived(visibleTabCount(listWidth, tabWidthPx + TAB_GAP_PX));
+  /** Ёмкость окна: сколько вкладок целиком видно в ширине списка.
+   *
+   * На узком окне окно вмещает одну вкладку — активную: остальные доступны в
+   * панели вкладок, а не листанием полосы.
+   */
+  const capacity = $derived(compactTabs ? 1 : visibleTabCount(listWidth, tabWidthPx + TAB_GAP_PX));
 
-  /** Помещаются ли все вкладки; иначе показываются навигация и счётчик. */
-  const overflowing = $derived(tabs.length > capacity);
+  /** Помещаются ли все вкладки; иначе показываются навигация и счётчик.
+   *
+   * На узком окне навигация по вкладкам не нужна: видна одна активная вкладка.
+   */
+  const overflowing = $derived(!compactTabs && tabs.length > capacity);
 
   /** Начало окна, удержанное в допустимых границах. */
   const safeStart = $derived(clampWindowStart(windowStart, capacity, tabs.length));
 
-  /** Видимый срез вкладок. */
-  const windowTabs = $derived(tabs.slice(safeStart, safeStart + capacity));
+  /** Видимый срез вкладок.
+   *
+   * На узком окне показывается только активная вкладка: состав места целиком
+   * живёт в панели вкладок, а полоса не прокручивается и не считает диапазон.
+   */
+  const windowTabs = $derived(
+    compactTabs
+      ? tabs.filter((tab) => tab.id === activeTabId).slice(0, 1)
+      : tabs.slice(safeStart, safeStart + capacity),
+  );
 
   /** Номер первой видимой вкладки (с единицы). */
   const rangeFrom = $derived(safeStart + 1);
@@ -440,17 +473,17 @@
   >
     <Icon name="note" />
   </Button>
+  <Button
+    variant={booksOpen ? 'primary' : 'ghost'}
+    size="icon"
+    title="Вкладки"
+    ariaLabel="Вкладки"
+    ariaPressed={booksOpen}
+    onclick={onToggleBooks}
+  >
+    <Icon name="tabs" />
+  </Button>
   <span class="hidden md:flex md:items-center md:gap-1">
-    <Button
-      variant={booksOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title="Вкладки"
-      ariaLabel="Вкладки"
-      ariaPressed={booksOpen}
-      onclick={onToggleBooks}
-    >
-      <Icon name="tabs" />
-    </Button>
     {#if onToggleFocus}
       <Button
         variant={focusMode ? 'primary' : 'ghost'}

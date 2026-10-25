@@ -3,7 +3,6 @@
   import { Button, Icon, Menu, MenuItem } from '@context/ui';
   import AppBar from './AppBar.svelte';
   import NotificationsPanel from '../features/notifications/NotificationsPanel.svelte';
-  import SectionNav from './SectionNav.svelte';
   import SettingsPage from '../features/settings/SettingsPage.svelte';
   import StorePage from '../features/store/StorePage.svelte';
   import LibraryPage from '../features/library/LibraryPage.svelte';
@@ -1263,32 +1262,4 @@
     }}
   />
   </div>
-
-  <!--
-    Нижняя навигация телефона: те же разделы и служебные пункты, что и во
-    вкладках верхней панели, но прижатые к нижнему краю и удобные пальцу.
-    Показывается только на телефонной ширине и не дублирует вкладки: активна
-    ровно одна компоновка.
-  -->
-  {#if !settingsOpen && !focusMode && mobileWindow}
-    <SectionNav
-      workspaceActive={workspaceListVisible}
-      libraryActive={librariesVisible}
-      notesActive={notesLibraryVisible}
-      {notificationsOpen}
-      {settingsOpen}
-      {unreadCount}
-      alertCount={headerAlerts.length}
-      alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
-      alertError={headerAlerts.some((alert) => !alert.warning)}
-      themeTitle={themeTitles[themePreference]}
-      mobile
-      onWorkspace={toggleWorkspace}
-      onLibrary={toggleLibraries}
-      onNotes={toggleNotesLibrary}
-      onNotifications={toggleNotifications}
-      onSettings={toggleSettings}
-      onTheme={cycleTheme}
-    />
-  {/if}
 </div>

@@ -61,21 +61,19 @@ describe('SectionNav', () => {
     expect(screen.queryByTestId('nav-settings')).toBeNull();
   });
 
-  it('на телефоне показывает нижнюю навигацию с теми же разделами и служебными пунктами', () => {
-    render(SectionNav, { props: props({ mobile: true, libraryActive: true, unreadCount: 3 }) });
+  it('на узком окне показывает те же разделы кнопками-иконками без подписей', () => {
+    render(SectionNav, { props: props({ mobile: true, libraryActive: true }) });
 
     const nav = screen.getByTestId('section-nav');
     expect(nav.getAttribute('data-mobile')).toBe('true');
 
-    // Разделы и служебные пункты доступны и на телефоне.
+    // Разделы доступны и на телефоне: те же кнопки с доступными именами.
     expect(screen.getByLabelText('Рабочее место')).toBeTruthy();
     expect(screen.getByLabelText('Заметки')).toBeTruthy();
-    expect(screen.getByLabelText('Уведомления')).toBeTruthy();
-    expect(screen.getByLabelText('Настройки')).toBeTruthy();
+    // Подпись внутри кнопки скрыта — остаётся иконка.
+    expect(screen.getByTestId('nav-library').textContent?.trim()).toBe('');
     // Активный раздел выделен.
     expect(screen.getByTestId('nav-library').getAttribute('aria-pressed')).toBe('true');
-    // Счётчик непрочитанных показан на телефоне.
-    expect(screen.getByTestId('nav-notifications').textContent).toContain('3');
   });
 
   it('на телефоне показывает разметку активного раздела как и на широком окне', () => {
@@ -83,14 +81,5 @@ describe('SectionNav', () => {
 
     expect(screen.getByTestId('nav-workspace').getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('nav-notes').getAttribute('aria-pressed')).toBe('false');
-  });
-
-  it('на телефоне показывает индикатор замечаний одним значком', () => {
-    render(SectionNav, {
-      props: props({ mobile: true, alertCount: 2, alertTitles: 'a\nb', alertError: true }),
-    });
-
-    const alert = screen.getByTestId('header-alerts');
-    expect(alert.textContent?.trim().replace(/\s+/g, ' ')).toContain('2');
   });
 });

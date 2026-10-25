@@ -24,19 +24,25 @@ async function hasHorizontalScroll(page: import('@playwright/test').Page): Promi
 /** Контрольные ширины: очень узкий телефон, компактный, распространённый, планшет. */
 const WIDTHS = [320, 360, 390, 414, 768];
 
-test('на телефоне навигация уходит в нижнюю полосу, а разделы остаются доступны', async ({
-    page,
-}) => {
+test('на узком окне разделы остаются в верхней панели кнопками-иконками', async ({ page }) => {
     for (const width of WIDTHS) {
         await page.setViewportSize({ width, height: 800 });
         await page.goto('/');
 
         const nav = page.getByTestId('section-nav');
         await expect(nav).toBeVisible();
-        // Нижняя полоса на телефоне, колонка слева — на планшете и шире.
+        // Меню разделов живёт в верхней панели на любой ширине; на узком окне —
+        // без подписей, одними иконками.
+        const bar = page.getByTestId('app-bar');
+        const navBox = await nav.boundingBox();
+        const barBox = await bar.boundingBox();
+        expect(navBox).not.toBeNull();
+        expect(barBox).not.toBeNull();
+        expect(navBox!.y).toBeGreaterThanOrEqual(barBox!.y);
+        expect(navBox!.y + navBox!.height).toBeLessThanOrEqual(barBox!.y + barBox!.height + 1);
         await expect(nav).toHaveAttribute('data-mobile', width < 768 ? 'true' : 'false');
 
-        // Разделы и служебные пункты доступны на любой ширине.
+        // Разделы и служебные действия доступны на любой ширине.
         for (const label of [
             'Рабочее место',
             'Библиотека',
@@ -55,7 +61,7 @@ test('на телефоне рабочее место занимает всю ш
 
     const area = await page.getByTestId('workplace-area').boundingBox();
     expect(area).not.toBeNull();
-    // Нижняя полоса не делит ширину с содержимым: оно на всю ширину окна.
+    // Верхняя панель не делит ширину с содержимым: оно на всю ширину окна.
     expect(Math.abs(area!.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(area!.width - 320)).toBeLessThanOrEqual(1);
 });

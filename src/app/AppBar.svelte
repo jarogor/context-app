@@ -38,7 +38,7 @@
     alertError: boolean;
     /** Предпочтение темы для подачи кнопки. */
     themeTitle: string;
-    /** Телефонная компоновка: разделы уходят в нижнюю навигацию. */
+    /** Узкое окно: разделы показываются кнопками-иконками без подписей. */
     mobile: boolean;
     /** Выбор раздела «Рабочие места». */
     onWorkspace: () => void;
@@ -112,27 +112,15 @@
   </span>
 
   <div class="ml-auto flex min-w-0 items-center gap-2 md:gap-4">
-    {#if !mobile}
-      <SectionNav
-        {workspaceActive}
-        {libraryActive}
-        {notesActive}
-        {notificationsOpen}
-        {settingsOpen}
-        {unreadCount}
-        {alertCount}
-        {alertTitles}
-        {alertError}
-        {themeTitle}
-        mobile={false}
-        {onWorkspace}
-        {onLibrary}
-        {onNotes}
-        {onNotifications}
-        {onSettings}
-        {onTheme}
-      />
-    {/if}
+    <SectionNav
+      {workspaceActive}
+      {libraryActive}
+      {notesActive}
+      {mobile}
+      {onWorkspace}
+      {onLibrary}
+      {onNotes}
+    />
 
     <div class="flex shrink-0 items-center gap-1">
       {#if alertCount > 0}
@@ -149,55 +137,53 @@
         </span>
       {/if}
 
-      {#if !mobile}
-        <span class="relative flex">
-          <button
-            type="button"
-            class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
-            class:bg-[var(--primary-soft)]={notificationsOpen}
-            title="Уведомления"
-            aria-label="Уведомления"
-            aria-pressed={notificationsOpen}
-            data-testid="nav-notifications"
-            onclick={onNotifications}
+      <span class="relative flex">
+        <button
+          type="button"
+          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+          class:bg-[var(--primary-soft)]={notificationsOpen}
+          title="Уведомления"
+          aria-label="Уведомления"
+          aria-pressed={notificationsOpen}
+          data-testid="nav-notifications"
+          onclick={onNotifications}
+        >
+          <Icon name="bell" class="h-[1.15rem] w-[1.15rem]" />
+        </button>
+        {#if unreadCount > 0}
+          <span
+            class="pointer-events-none absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none text-[var(--primary-foreground)]"
+            style:background="var(--success)"
+            aria-hidden="true"
           >
-            <Icon name="bell" class="h-[1.15rem] w-[1.15rem]" />
-          </button>
-          {#if unreadCount > 0}
-            <span
-              class="pointer-events-none absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none text-[var(--primary-foreground)]"
-              style:background="var(--success)"
-              aria-hidden="true"
-            >
-              {unreadCount}
-            </span>
-          {/if}
-        </span>
+            {unreadCount}
+          </span>
+        {/if}
+      </span>
 
-        <button
-          type="button"
-          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
-          title={`Тема: ${themeTitle}`}
-          aria-label="Переключить тему"
-          data-testid="nav-theme"
-          onclick={onTheme}
-        >
-          <Icon name={themeIcon} class="h-[1.15rem] w-[1.15rem]" />
-        </button>
+      <button
+        type="button"
+        class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11 max-md:hidden"
+        title={`Тема: ${themeTitle}`}
+        aria-label="Переключить тему"
+        data-testid="nav-theme"
+        onclick={onTheme}
+      >
+        <Icon name={themeIcon} class="h-[1.15rem] w-[1.15rem]" />
+      </button>
 
-        <button
-          type="button"
-          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
-          class:bg-[var(--primary-soft)]={settingsOpen}
-          title="Настройки"
-          aria-label="Настройки"
-          aria-pressed={settingsOpen}
-          data-testid="nav-settings"
-          onclick={onSettings}
-        >
-          <Icon name="menu" class="h-[1.15rem] w-[1.15rem]" />
-        </button>
-      {/if}
+      <button
+        type="button"
+        class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+        class:bg-[var(--primary-soft)]={settingsOpen}
+        title="Настройки"
+        aria-label="Настройки"
+        aria-pressed={settingsOpen}
+        data-testid="nav-settings"
+        onclick={onSettings}
+      >
+        <Icon name="menu" class="h-[1.15rem] w-[1.15rem]" />
+      </button>
     </div>
   </div>
 </header>

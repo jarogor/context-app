@@ -199,202 +199,213 @@
   по страницам, прогресс, масштаб и переключатель темы. Числовые элементы не
   меняют ширину при смене числа цифр (табличные цифры и фиксированные слоты),
   поэтому панель не «прыгает».
+  На узком окне панель переезжает вниз области чтения и раскладывается на две
+  строки: сверху — инструменты заметок и шрифт книги, снизу — навигация,
+  масштаб и тема. Иначе в одну строку всё не влезает и часть кнопок пропадает.
 -->
 <div
-  class="flex h-11 flex-wrap items-center gap-1.5 border-b border-[var(--border)] bg-[var(--card)] px-3 text-sm [font-variant-numeric:tabular-nums]"
+  class="flex shrink-0 flex-col gap-1 border-[var(--border)] bg-[var(--card)] px-2 py-1.5 text-sm [font-variant-numeric:tabular-nums] max-lg:order-last max-lg:border-t lg:h-11 lg:flex-row lg:items-center lg:gap-1.5 lg:border-b lg:border-t-0 lg:px-3 lg:py-0"
   data-testid="note-toolbar"
 >
-  {#if notesMode && typeOptions.length > 1}
-    <div
-      class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
-      role="group"
-      aria-label="Тип заметки"
-    >
-      {#each typeOptions as type (type)}
-        <Button
-          variant={tool.type === type ? 'primary' : 'ghost'}
-          size="sm"
-          title={NOTE_TYPE_TITLES[type]}
-          ariaLabel={NOTE_TYPE_LABELS[type]}
-          ariaPressed={tool.type === type}
-          onclick={() => selectType(type)}
-        >
-          {NOTE_TYPE_LABELS[type]}
-        </Button>
-      {/each}
-    </div>
-  {/if}
+  <div
+    class="flex min-w-0 flex-wrap items-center gap-1.5"
+    data-testid="note-toolbar-tools"
+  >
+    {#if notesMode && typeOptions.length > 1}
+      <div
+        class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+        role="group"
+        aria-label="Тип заметки"
+      >
+        {#each typeOptions as type (type)}
+          <Button
+            variant={tool.type === type ? 'primary' : 'ghost'}
+            size="sm"
+            title={NOTE_TYPE_TITLES[type]}
+            ariaLabel={NOTE_TYPE_LABELS[type]}
+            ariaPressed={tool.type === type}
+            onclick={() => selectType(type)}
+          >
+            {NOTE_TYPE_LABELS[type]}
+          </Button>
+        {/each}
+      </div>
+    {/if}
 
-  <!--
-    Гарнитура книги живёт рядом с типами заметок и только у текучих форматов
-    (EPUB, FB2): у постраничных форматов шрифт задаёт сам файл, и кнопка там
-    ничего не меняла бы. Как и у типов заметок, у масштаба и у навигации,
-    кнопка стоит в собственном блоке с фоном — единый вид управляющих групп
-    панели; блок готов принять и другие действия оформления текста. Знак —
-    «Аа» той гарнитуры, на которую кнопка переключает, поэтому действие видно
-    без чтения подсказки.
-  -->
-  {#if flowing && onChangeReaderFont}
-    <div
-      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
-      role="group"
-      aria-label="Шрифт книги"
-      data-testid="reader-font-toggle"
-    >
+    <!--
+      Гарнитура книги живёт рядом с типами заметок и только у текучих форматов
+      (EPUB, FB2): у постраничных форматов шрифт задаёт сам файл, и кнопка там
+      ничего не меняла бы. Как и у типов заметок, у масштаба и у навигации,
+      кнопка стоит в собственном блоке с фоном — единый вид управляющих групп
+      панели; блок готов принять и другие действия оформления текста. Знак —
+      «Аа» той гарнитуры, на которую кнопка переключает, поэтому действие видно
+      без чтения подсказки.
+    -->
+    {#if flowing && onChangeReaderFont}
+      <div
+        class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+        role="group"
+        aria-label="Шрифт книги"
+        data-testid="reader-font-toggle"
+      >
+        <Button
+          size="icon"
+          variant="ghost"
+          title={fontTitle}
+          ariaLabel={fontLabel}
+          class="size-8"
+          onclick={toggleReaderFont}
+        >
+          <span
+            class="text-[0.95rem] leading-none"
+            style="font-family: {readerFont === 'serif'
+              ? "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+              : "Georgia, 'Times New Roman', serif"}"
+            aria-hidden="true">Аа</span
+          >
+        </Button>
+      </div>
+    {/if}
+
+    {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
+      <div class="flex items-center" data-testid="note-tool-shape">
+        <Select
+          value={tool.shape}
+          items={shapeOptions}
+          class="h-8 w-[9.375rem] text-sm"
+          ariaLabel="Вид фигуры"
+          onchange={selectShape}
+        />
+      </div>
+    {/if}
+
+    {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
+      <ColorPicker
+        colors={colorSwatches}
+        onpick={(id) => selectColor(id as NoteColor)}
+        ariaLabel="Цвет заметки"
+        testIdPrefix="note-tool-color"
+        class="h-8"
+      />
+    {/if}
+  </div>
+
+  <div
+    class="flex min-w-0 flex-wrap items-center gap-1.5 max-lg:justify-end lg:ml-auto"
+    data-testid="reader-footer"
+  >
+    <!--
+      Постраничная навигация: кнопки стоят **в ряд** и идут слева направо —
+      «Следующая страница» (вниз), «Предыдущая страница» (вверх), затем поле номера
+      и число страниц. Прогресса чтения у постраничных форматов нет: он дублировал
+      бы место в книге.
+    -->
+    {#if workplace && workplacePages && workplacePage !== null}
+      <div
+        class="flex shrink-0 items-center gap-1.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+        data-testid="reader-pages"
+      >
+        <button
+          type="button"
+          title="Следующая страница"
+          aria-label="Следующая страница"
+          disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
+          class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+          onclick={() => onStepPage?.(1)}
+        >
+          <Icon name="chevron-down" class="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          title="Предыдущая страница"
+          aria-label="Предыдущая страница"
+          disabled={workplacePage <= 1}
+          class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+          onclick={() => onStepPage?.(-1)}
+        >
+          <Icon name="chevron-up" class="h-4 w-4" />
+        </button>
+        <!--
+          Поле номера и число страниц — фиксированной ширины по максимуму
+          разрядности счётчика: смена «9 → 10» не сдвигает ни кнопки, ни соседние
+          блоки, поэтому вся полоса стоит на месте.
+        -->
+        <Input
+          class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm"
+          ariaLabel="Текущая страница"
+          value={pageValue}
+          oninput={(event) => (pageDraft = event.currentTarget.value)}
+          onkeydown={(event) => {
+            if (event.key === 'Enter') {
+              commitPage();
+            }
+          }}
+          onblur={commitPage}
+        />
+        <span
+          class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm"
+          data-testid="reader-page-count"
+          >/ {workplacePageCount ?? '?'}</span
+        >
+      </div>
+    {/if}
+    <!--
+      Прогресс чтения остаётся только у текучих (текстовых) книг: у постраничных он
+      дублировал бы место в книге и загромождал полосу. Цифра фиксированной ширины,
+      поэтому не «прыгает».
+    -->
+    {#if !(workplace && workplacePages)}
+      <span
+        class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
+        data-testid="reader-progress"
+        >{Math.round(progress)}%</span
+      >
+    {/if}
+    <!--
+      Масштаб: кнопки «меньше/больше» стоят рядом друг с другом **слева** от
+      цифры, а сама цифра — фиксированной ширины, поэтому кнопки и переключатель
+      темы не «прыгают» при смене числа разрядов.
+    -->
+    {#if showZoom}
+      <div
+        class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+        data-testid="reader-zoom-group"
+      >
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Уменьшить масштаб"
+          ariaLabel="Уменьшить масштаб"
+          class="size-8"
+          disabled={zoom <= minZoom}
+          onclick={() => onChangeZoom?.(-1)}>−</Button
+        >
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Увеличить масштаб"
+          ariaLabel="Увеличить масштаб"
+          class="size-8"
+          disabled={zoom >= maxZoom}
+          onclick={() => onChangeZoom?.(1)}>+</Button
+        >
+        <span
+          class="inline-block w-[3.25rem] text-center text-sm"
+          data-testid="reader-zoom">{zoom}%</span
+        >
+      </div>
+    {/if}
+    <div class="flex shrink-0 items-center gap-1" data-testid="reader-theme-toggle">
       <Button
         size="icon"
         variant="ghost"
-        title={fontTitle}
-        ariaLabel={fontLabel}
+        title={themeTitle}
+        ariaLabel={themeLabel}
         class="size-8"
-        onclick={toggleReaderFont}
+        onclick={toggleReaderTheme}
       >
-        <span
-          class="text-[0.95rem] leading-none"
-          style="font-family: {readerFont === 'serif'
-            ? "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-            : "Georgia, 'Times New Roman', serif"}"
-          aria-hidden="true">Аа</span
-        >
+        <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
       </Button>
     </div>
-  {/if}
-
-  {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
-    <div class="flex items-center" data-testid="note-tool-shape">
-      <Select
-        value={tool.shape}
-        items={shapeOptions}
-        class="h-8 w-[9.375rem] text-sm"
-        ariaLabel="Вид фигуры"
-        onchange={selectShape}
-      />
-    </div>
-  {/if}
-
-  {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
-    <ColorPicker
-      colors={colorSwatches}
-      onpick={(id) => selectColor(id as NoteColor)}
-      ariaLabel="Цвет заметки"
-      testIdPrefix="note-tool-color"
-      class="h-8"
-    />
-  {/if}
-
-  <div class="ml-auto flex items-center gap-1.5" data-testid="reader-footer">
-  <!--
-    Постраничная навигация: кнопки стоят **в ряд** и идут слева направо —
-    «Следующая страница» (вниз), «Предыдущая страница» (вверх), затем поле номера
-    и число страниц. Прогресса чтения у постраничных форматов нет: он дублировал
-    бы место в книге.
-  -->
-  {#if workplace && workplacePages && workplacePage !== null}
-    <div
-      class="flex shrink-0 items-center gap-1.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
-      data-testid="reader-pages"
-    >
-      <button
-        type="button"
-        title="Следующая страница"
-        aria-label="Следующая страница"
-        disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
-        class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
-        onclick={() => onStepPage?.(1)}
-      >
-        <Icon name="chevron-down" class="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        title="Предыдущая страница"
-        aria-label="Предыдущая страница"
-        disabled={workplacePage <= 1}
-        class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
-        onclick={() => onStepPage?.(-1)}
-      >
-        <Icon name="chevron-up" class="h-4 w-4" />
-      </button>
-      <!--
-        Поле номера и число страниц — фиксированной ширины по максимуму
-        разрядности счётчика: смена «9 → 10» не сдвигает ни кнопки, ни соседние
-        блоки, поэтому вся полоса стоит на месте.
-      -->
-      <Input
-        class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm"
-        ariaLabel="Текущая страница"
-        value={pageValue}
-        oninput={(event) => (pageDraft = event.currentTarget.value)}
-        onkeydown={(event) => {
-          if (event.key === 'Enter') {
-            commitPage();
-          }
-        }}
-        onblur={commitPage}
-      />
-      <span
-        class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm"
-        data-testid="reader-page-count"
-        >/ {workplacePageCount ?? '?'}</span
-      >
-    </div>
-  {/if}
-  <!--
-    Прогресс чтения остаётся только у текучих (текстовых) книг: у постраничных он
-    дублировал бы место в книге и загромождал полосу. Цифра фиксированной ширины,
-    поэтому не «прыгает».
-  -->
-  {#if !(workplace && workplacePages)}
-    <span
-      class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
-      data-testid="reader-progress"
-      >{Math.round(progress)}%</span
-    >
-  {/if}
-  <!--
-    Масштаб: кнопки «меньше/больше» стоят рядом друг с другом **слева** от
-    цифры, а сама цифра — фиксированной ширины, поэтому кнопки и переключатель
-    темы не «прыгают» при смене числа разрядов.
-  -->
-  {#if showZoom}
-    <div
-      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
-      data-testid="reader-zoom-group"
-    >
-      <Button
-        size="icon"
-        variant="ghost"
-        title="Уменьшить масштаб"
-        ariaLabel="Уменьшить масштаб"
-        class="size-8"
-        disabled={zoom <= minZoom}
-        onclick={() => onChangeZoom?.(-1)}>−</Button
-      >
-      <Button
-        size="icon"
-        variant="ghost"
-        title="Увеличить масштаб"
-        ariaLabel="Увеличить масштаб"
-        class="size-8"
-        disabled={zoom >= maxZoom}
-        onclick={() => onChangeZoom?.(1)}>+</Button
-      >
-      <span
-        class="inline-block w-[3.25rem] text-center text-sm"
-        data-testid="reader-zoom">{zoom}%</span
-      >
-    </div>
-  {/if}
-  <div class="flex shrink-0 items-center gap-1" data-testid="reader-theme-toggle">
-    <Button
-      size="icon"
-      variant="ghost"
-      title={themeTitle}
-      ariaLabel={themeLabel}
-      class="size-8"
-      onclick={toggleReaderTheme}
-    >
-      <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
-    </Button>
-  </div>
   </div>
 </div>

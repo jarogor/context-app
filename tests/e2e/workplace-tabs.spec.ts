@@ -263,7 +263,8 @@ async function duplicateActive(page: import('@playwright/test').Page, times: num
 test('при переполнении вкладки ограничены по ширине, доступны навигация и счётчик', async ({
     page,
 }) => {
-    await page.setViewportSize({ width: 700, height: 800 });
+    // Широкое окно: на узком полоса вкладок показывает одну активную вкладку.
+    await page.setViewportSize({ width: 920, height: 800 });
     await page.goto('/');
     await addBook(page, 'Демо-книга');
     await duplicateActive(page, 4);
@@ -292,19 +293,21 @@ test('при переполнении вкладки ограничены по �
 test('навигация по вкладкам сдвигает видимый диапазон, не меняя активную вкладку', async ({
     page,
 }) => {
-    await page.setViewportSize({ width: 700, height: 800 });
+    await page.setViewportSize({ width: 920, height: 800 });
     await page.goto('/');
     await addBook(page, 'Демо-книга');
-    await duplicateActive(page, 4);
+    // Вкладок заметно больше ёмкости полосы: тогда число видимых не зависит от
+    // того, показан ли счётчик (он сам занимает место в полосе).
+    await duplicateActive(page, 6);
 
     const counter = page.getByTestId('workplace-tabs-counter');
     const atEnd = (await counter.textContent())?.trim() ?? '';
-    expect(atEnd).toContain('из 5');
+    expect(atEnd).toContain('из 7');
 
     await page.getByLabel('Предыдущие вкладки').click();
     const shifted = (await counter.textContent())?.trim() ?? '';
     expect(shifted).not.toBe(atEnd);
-    expect(shifted).toContain('–4 из 5');
+    expect(shifted).toContain('–6 из 7');
 
     await page.getByLabel('Следующие вкладки').click();
     await expect(counter).toHaveText(atEnd);

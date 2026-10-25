@@ -554,6 +554,66 @@ test('панель чтения — верх области чтения, пан
     expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(toolbar!.y + 1);
 });
 
+test('на узком окне панель чтения уходит вниз и раскладывается на две строки', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    const area = await page.getByTestId('workplace-area').boundingBox();
+    const toolbar = await page.getByTestId('note-toolbar').boundingBox();
+    const tools = await page.getByTestId('note-toolbar-tools').boundingBox();
+    const footer = await page.getByTestId('reader-footer').boundingBox();
+    expect(area).not.toBeNull();
+    expect(toolbar).not.toBeNull();
+    expect(tools).not.toBeNull();
+    expect(footer).not.toBeNull();
+
+    // Панель прижата к низу области рабочего места, а не висит сверху.
+    expect(Math.abs(toolbar!.y + toolbar!.height - (area!.y + area!.height))).toBeLessThanOrEqual(
+        1,
+    );
+    // Две строки: инструменты сверху, навигация и масштаб под ними.
+    expect(tools!.y + tools!.height).toBeLessThanOrEqual(footer!.y + 1);
+    expect(toolbar!.height).toBeGreaterThan(tools!.height + footer!.height);
+
+    // Всё управление чтением на месте и не выходит за пределы панели.
+    for (const name of ['Увеличить масштаб', 'Уменьшить масштаб', 'Тёмная тема области чтения']) {
+        await expect(page.getByRole('button', { name })).toBeVisible();
+    }
+    const zoom = await page.getByTestId('reader-zoom').boundingBox();
+    expect(zoom!.x + zoom!.width).toBeLessThanOrEqual(toolbar!.x + toolbar!.width + 1);
+    expect(zoom!.y + zoom!.height).toBeLessThanOrEqual(toolbar!.y + toolbar!.height + 1);
+});
+
+test('на узком окне полоса вкладок показывает одну активную вкладку без навигации', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    for (let index = 0; index < 3; index += 1) {
+        await page
+            .locator('[data-testid="workplace-tab-item"]:has([aria-pressed="true"])')
+            .getByLabel('Дублировать вкладку')
+            .first()
+            .click();
+    }
+
+    // Видна одна вкладка — активная; навигации по диапазону и счётчика нет.
+    await expect(page.getByTestId('workplace-tab-item')).toHaveCount(1);
+    await expect(page.getByLabel('Предыдущие вкладки')).toHaveCount(0);
+    await expect(page.getByLabel('Следующие вкладки')).toHaveCount(0);
+    await expect(page.getByTestId('workplace-tabs-counter')).toHaveCount(0);
+
+    // Остальные вкладки доступны в панели вкладок.
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+    await expect(page.getByTestId('open-books-panel').getByTestId('open-books-item')).toHaveCount(
+        4,
+    );
+});
+
 test('на узком окне панель заметок — на всю ширину, а выбор заметки закрывает её', async ({
     page,
 }) => {
