@@ -393,29 +393,58 @@
   });
 
 
-  /** Сколько после закрытия настроек не реагировать на кнопку их открытия, мс.
+  /** Сколько после закрытия настроек не открывать их повторно, мс. */
+  const SETTINGS_REOPEN_GUARD_MS = 1200;
+
+  /** Насколько близко должен повториться клик, чтобы считаться тем же нажатием. */
+  const SETTINGS_REOPEN_POINT_PX = 12;
+
+  /** Момент закрытия настроек и точка, в которой закрытие нажали.
    *
    * Кнопка настроек в шапке стоит ровно там же, где кнопка закрытия раздела
-   * (это сделано намеренно: открытие и закрытие в одной точке). Поэтому второй
-   * клик пользователя — тот, что он делает «на всякий случай», не увидев
-   * закрытия, — попадает уже в кнопку настроек и открывает раздел заново.
-   * Короткая пауза после закрытия гасит такой «догоняющий» клик.
+   * (это сделано намеренно: открытие и закрытие в одной точке). Пока интерфейс
+   * занят записью сохранения, лишние нажатия пользователя попадают в ту же
+   * точку и после разблокировки приходят пачкой. Без защиты первое закрывает
+   * раздел, а следующие тут же открывают его снова — снаружи это выглядит как
+   * «само открылось».
+   *
+   * Защита учитывает **и время, и точку**: повторным считается нажатие в том же
+   * месте вскоре после закрытия. Намеренное открытие — после паузы или сдвига
+   * указателя — работает как обычно. Отсчёт от точки не даёт зависеть от того,
+   * сколько именно длилась запись: пачка нажатий приходит в ту же точку.
    */
-  const SETTINGS_REOPEN_GUARD_MS = 400;
-
-  /** Момент закрытия настроек: пока не истекла пауза, повторное открытие гасится. */
   let settingsClosedAt = 0;
+  let settingsClosedPoint: { x: number; y: number } | null = null;
 
   /** Переключение раздела настроек как модального окна.
    *
    * Настройки не меняют базовую область: при закрытии пользователь
    * возвращается туда, откуда открыл их.
    */
-  function toggleSettings() {
-    if (!settingsOpen && performance.now() - settingsClosedAt < SETTINGS_REOPEN_GUARD_MS) {
+  function toggleSettings(event?: MouseEvent) {
+    if (!settingsOpen && isSettingsReopenRepeat(event)) {
       return;
     }
     settingsOpen = !settingsOpen;
+  }
+
+  /** Повторное ли это нажатие по кнопке настроек после только что закрытого раздела.
+   *
+   * @param event Событие нажатия; без координат (например, синтетическое) считается
+   *   намеренным открытием.
+   * @returns `true`, если нажатие — «догоняющее» и его нужно проглотить.
+   */
+  function isSettingsReopenRepeat(event?: MouseEvent): boolean {
+    if (settingsClosedAt === 0 || performance.now() - settingsClosedAt > SETTINGS_REOPEN_GUARD_MS) {
+      return false;
+    }
+    const point = settingsClosedPoint;
+    if (!point || !event || (event.clientX === 0 && event.clientY === 0)) {
+      return true;
+    }
+    const dx = event.clientX - point.x;
+    const dy = event.clientY - point.y;
+    return Math.hypot(dx, dy) <= SETTINGS_REOPEN_POINT_PX;
   }
 
   /** Закрытие полноэкранного раздела настроек.
@@ -423,9 +452,13 @@
    * Базовая область не сбрасывается: закрытие возвращает пользователя к
    * той области, из которой настройки были открыты.
    */
-  function closeSettings() {
+  function closeSettings(event?: MouseEvent) {
     settingsOpen = false;
     settingsClosedAt = performance.now();
+    settingsClosedPoint =
+      event && (event.clientX !== 0 || event.clientY !== 0)
+        ? { x: event.clientX, y: event.clientY }
+        : null;
   }
 
   /** Обработка Escape: полноэкранный раздел настроек закрывается клавишей. */
@@ -969,14 +1002,18 @@
         notesController.markChanged();
       });
       unlistenSettings = await listenEvent('settings:changed', (value) => {
+        // Применяется только то, что действительно изменилось: событие приходит
+        // по каждой сохранённой секции и содержит все её значения. Повторное
+        // применение темы — это полная перерисовка документа, и на сохранении
+        // любого поля (например, лимита вкладок) она давала заметную паузу.
         const theme = themeFromSettingsEvent(value);
-        if (theme !== null) {
+        if (theme !== null && theme !== themePreference) {
           themePreference = theme;
           applyAppThemeTracked(theme);
         }
         // Палитра меняется в настройках; здесь достаточно применить её.
         const nextPalette = paletteFromSettingsEvent(value);
-        if (nextPalette !== null) {
+        if (nextPalette !== null && nextPalette !== palette) {
           palette = nextPalette;
           applyAppPalette(nextPalette);
         }
@@ -991,20 +1028,20 @@
         // Тема области чтения меняется как из нижней панели читалки, так и из
         // настроек; применяется ко всем вкладкам сразу.
         const nextReaderTheme = readerThemeFromSettingsEvent(value);
-        if (nextReaderTheme !== null) {
+        if (nextReaderTheme !== null && nextReaderTheme !== readerTheme) {
           readerTheme = nextReaderTheme;
           applyAppReaderTheme(nextReaderTheme);
         }
         // Гарнитура книги меняется в настройках; переключатель в панели чтения
         // пишет то же значение, поэтому источник не важен.
         const nextReaderFont = readerFontFromSettingsEvent(value);
-        if (nextReaderFont !== null) {
+        if (nextReaderFont !== null && nextReaderFont !== readerFont) {
           readerFont = nextReaderFont;
           applyAppReaderFont(nextReaderFont);
         }
         // Лимит открытых вкладок меняется в настройках; применяется сразу.
         const nextOpenTabsLimit = openTabsLimitFromSettingsEvent(value);
-        if (nextOpenTabsLimit !== null) {
+        if (nextOpenTabsLimit !== null && nextOpenTabsLimit !== openTabsLimit) {
           openTabsLimit = nextOpenTabsLimit;
         }
       });

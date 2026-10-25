@@ -332,7 +332,7 @@ async function openSettings(page: import('@playwright/test').Page) {
 async function closeSettings(page: import('@playwright/test').Page) {
     await page.getByLabel('Закрыть настройки').click();
     await expect(page.getByTestId('settings-page')).toBeHidden();
-    await page.waitForTimeout(450);
+    await page.waitForTimeout(1300);
 }
 
 /**

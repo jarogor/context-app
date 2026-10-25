@@ -470,17 +470,32 @@ describe('полноэкранный раздел настроек', () => {
         expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
     });
 
-    it('открывается снова, когда пауза после закрытия истекла', async () => {
-        const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+    it('пропускает повторные клики в точку закрытия, но не намеренное открытие', async () => {
         render(App, { props: appProps() });
         await fireEvent.click(screen.getByTestId('nav-settings'));
-        await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
 
-        // Намеренное открытие позже паузы работает как обычно.
-        now.mockReturnValue(1000);
-        await fireEvent.click(screen.getByTestId('nav-settings'));
+        // Закрытие мышью в конкретной точке.
+        await fireEvent.click(screen.getByLabelText('Закрыть настройки'), {
+            clientX: 1240,
+            clientY: 28,
+        });
+        expect(chromeHidden()).toBe(false);
+
+        // Пачка «догоняющих» нажатий в ту же точку — раздел остаётся закрытым.
+        for (let index = 0; index < 3; index += 1) {
+            await fireEvent.click(screen.getByTestId('nav-settings'), {
+                clientX: 1240,
+                clientY: 28,
+            });
+        }
+        expect(chromeHidden()).toBe(false);
+
+        // Нажатие в стороне — осознанное решение пользователя.
+        await fireEvent.click(screen.getByTestId('nav-settings'), {
+            clientX: 900,
+            clientY: 400,
+        });
         expect(chromeHidden()).toBe(true);
-        now.mockRestore();
     });
 
     it('закрывается клавишей Escape', async () => {

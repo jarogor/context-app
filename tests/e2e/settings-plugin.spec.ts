@@ -172,6 +172,34 @@ test('настройки открываются отдельной страни�
   await expect(page.getByTestId('notifications-panel')).toBeVisible();
 });
 
+test('повторные клики в точку закрытия не открывают настройки заново', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByTestId('nav-settings').click();
+  const settings = page.getByTestId('settings-page');
+  await expect(settings).toBeVisible();
+
+  // Смена темы, сохранение и сразу закрытие: пока запись идёт, пользователь
+  // повторяет нажатие в ту же точку (кнопки закрытия и настроек совмещены).
+  await page.getByRole('button', { name: 'Тема оформления' }).click();
+  await page.getByRole('option', { name: 'Тёмная' }).click();
+  await settings.getByRole('button', { name: 'Сохранить' }).click();
+
+  const close = page.getByLabel('Закрыть настройки');
+  const box = await close.boundingBox();
+  const x = box!.x + box!.width / 2;
+  const y = box!.y + box!.height / 2;
+  await page.mouse.click(x, y);
+  await page.waitForTimeout(30);
+  await page.mouse.click(x, y);
+  await page.waitForTimeout(30);
+  await page.mouse.click(x, y);
+
+  // Раздел закрыт и не открылся от «догоняющих» нажатий.
+  await expect(settings).toBeHidden();
+  await expect(page.getByTestId('workspaces-page')).toBeVisible();
+});
+
 test('кнопка закрытия доступна с любой страницы настроек', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
@@ -197,9 +225,9 @@ test('кнопка закрытия и Escape возвращают прежню�
   await page.getByLabel('Закрыть настройки').click();
   await expect(page.getByTestId('section-nav')).toBeVisible();
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
-  // Намеренное переоткрытие — после паузы: короткий «догоняющий» клик по той же
-  // точке экрана приложение гасит.
-  await page.waitForTimeout(450);
+  // Намеренное переоткрытие — после паузы: короткие «догоняющие» клики в ту же
+  // точку экрана (кнопки закрытия и настроек совмещены) приложение гасит.
+  await page.waitForTimeout(1300);
 
   // Escape закрывает раздел тем же действием.
   await page.getByTestId('nav-settings').click();
