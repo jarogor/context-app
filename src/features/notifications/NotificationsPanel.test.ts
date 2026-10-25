@@ -57,6 +57,22 @@ describe('панель уведомлений', () => {
         expect(invoke).not.toHaveBeenCalled();
     });
 
+    it('красит счётчик непрочитанного акцентом темы, а не отдельным зелёным', () => {
+        // Счётчик — метка действия: её цвет берётся из акцента активной палитры
+        // (`--counter`), поэтому в каждой теме он свой и согласован с выделением.
+        // Отдельный «успешный» зелёный одинаков во всех палитрах и резал глаз.
+        render(NotificationsPanel, {
+            initialEntries: [entry({ id: 1, level: 'User', read: false })],
+            initialTechnicalVisible: false,
+            onUnreadChange: vi.fn(),
+        });
+
+        const badge = screen.getByLabelText('Непрочитанных: 1');
+        expect(badge.style.background).toContain('var(--counter)');
+        expect(badge.className).toContain('text-[var(--counter-foreground)]');
+        expect(badge.className).not.toContain('var(--success)');
+    });
+
     it('показывает технические записи, когда они включены на бутстрапе', () => {
         render(NotificationsPanel, {
             initialEntries: [entry({ id: 2, level: 'Technical', message: 'Плагин пропущен' })],

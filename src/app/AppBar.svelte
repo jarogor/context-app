@@ -175,8 +175,8 @@
         </button>
         {#if unreadCount > 0}
           <span
-            class="pointer-events-none absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none text-[var(--primary-foreground)]"
-            style:background="var(--success)"
+            class="pointer-events-none absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none text-[var(--counter-foreground)]"
+            style:background="var(--counter)"
             aria-hidden="true"
           >
             {unreadCount}

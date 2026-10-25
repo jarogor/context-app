@@ -152,8 +152,8 @@
   {#snippet badge()}
     {#if unreadUser > 0}
       <span
-        class="flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-[0.6875rem] px-1.5 role-caption text-[var(--primary-foreground)]"
-        style:background="var(--success)"
+        class="flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-[0.6875rem] px-1.5 role-caption text-[var(--counter-foreground)]"
+        style:background="var(--counter)"
         aria-label={`Непрочитанных: ${unreadUser}`}
       >
         {unreadUser}
