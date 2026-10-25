@@ -48,7 +48,7 @@ const SETTINGS_FIELDS: Record<
             default: 'linen',
             options: [
                 { value: 'linen', title: 'Лён' },
-                { value: 'cobalt', title: 'Кобальт' },
+                { value: 'cobalt', title: 'Индиго' },
             ],
         },
         {
