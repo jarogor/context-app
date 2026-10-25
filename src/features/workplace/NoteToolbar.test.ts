@@ -160,7 +160,7 @@ describe('панель инструментов заметок', () => {
         expect(footer.className).toContain('ml-auto');
     });
 
-    it('на узком окне держит цвет фигуры в строке инструментов, справа', () => {
+    it('ставит цвет сразу за списком вида фигуры, в той же строке', () => {
         render(NoteToolbar, {
             props: props({
                 tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' },
@@ -171,20 +171,19 @@ describe('панель инструментов заметок', () => {
             }),
         });
 
+        const toolbar = screen.getByTestId('note-toolbar');
+        const order = Array.from(toolbar.querySelectorAll('*'));
+        const shape = screen.getByTestId('note-tool-shape');
         const color = screen.getByTestId('note-tool-color-picker');
-        const zoom = screen.getByTestId('reader-zoom-group');
         const theme = screen.getByTestId('reader-theme-toggle');
 
-        // Цвет принадлежит инструментам заметок: он стоит до разрыва строки и
-        // прижат к правому краю своей строки, а не уходит в управление чтением.
+        // Цвет идёт сразу за списком вида фигуры и до разрыва строки.
+        expect(order.indexOf(shape)).toBeLessThan(order.indexOf(color));
         expect(color.className).toContain('max-lg:order-4');
-        expect(color.className).toContain('max-lg:ml-auto');
-        expect(zoom.className).toContain('max-lg:order-7');
-
-        // Нижняя строка начинается с переключателя темы.
+        // В управление чтением цвет не попадает: его строка начинается с темы.
         expect(theme.className).toContain('max-lg:order-6');
-        expect(Number(theme.className.match(/max-lg:order-(\d+)/)![1])).toBeLessThan(
-            Number(zoom.className.match(/max-lg:order-(\d+)/)![1]),
+        expect(Number(theme.className.match(/max-lg:order-(\d+)/)![1])).toBeGreaterThan(
+            Number(color.className.match(/max-lg:order-(\d+)/)![1]),
         );
     });
 

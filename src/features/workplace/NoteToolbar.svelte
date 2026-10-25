@@ -11,6 +11,7 @@
     type ReaderFontId,
     type ReaderThemeId,
   } from '@context/ui';
+  import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import {
     NOTE_COLORS,
     NOTE_COLOR_LABELS,
@@ -143,6 +144,28 @@
   function toggleReaderFont() {
     onChangeReaderFont?.(readerFont === 'serif' ? 'sans' : 'serif');
   }
+
+  /** Узкое окно: панель внизу, инструменты компактные.
+   *
+   * Ширина палитры цвета задаётся числом, поэтому компактный размер выбирается
+   * не классом, а этим признаком: на узком окне цвет должен стоять сразу за
+   * списком вида фигуры в той же строке.
+   */
+  let compact = $state(false);
+
+  /** Слежение за шириной окна для компактной панели. */
+  $effect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const query = window.matchMedia(NARROW_MAX_WIDTH);
+    compact = query.matches;
+    const onChange = (event: MediaQueryListEvent) => {
+      compact = event.matches;
+    };
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  });
 
   /** Черновик правки поля текущей страницы; `null` — поле показывает снимок. */
   let pageDraft = $state<string | null>(null);
@@ -281,19 +304,14 @@
     </div>
   {/if}
 
-  <!--
-    Цвет фигуры принадлежит инструментам заметок: на узком окне он прижат к
-    правому краю их строки (`max-lg:ml-auto`), а не уходит в строку управления
-    чтением.
-  -->
   {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
     <ColorPicker
       colors={colorSwatches}
       onpick={(id) => selectColor(id as NoteColor)}
       ariaLabel="Цвет заметки"
       testIdPrefix="note-tool-color"
-      size="sm"
-      class="max-lg:order-4 max-lg:ml-auto max-lg:shrink"
+      size={compact ? 'sm' : 'md'}
+      class="h-8 max-lg:order-4"
     />
   {/if}
 
@@ -344,7 +362,7 @@
           блоки, поэтому вся полоса стоит на месте.
         -->
         <Input
-          class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm max-lg:w-[2.25rem] max-lg:px-0.5"
+          class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm max-lg:w-[2.75rem] max-lg:px-1 max-lg:text-xs"
           ariaLabel="Текущая страница"
           value={pageValue}
           oninput={(event) => (pageDraft = event.currentTarget.value)}
@@ -356,7 +374,7 @@
           onblur={commitPage}
         />
         <span
-          class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm max-lg:min-w-[1.5rem] max-lg:pr-0.5"
+          class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm max-lg:min-w-[1.75rem] max-lg:pr-1 max-lg:text-xs"
           data-testid="reader-page-count"
           >/ {workplacePageCount ?? '?'}</span
         >
@@ -369,7 +387,7 @@
     -->
     {#if !(workplace && workplacePages)}
       <span
-        class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)] max-lg:order-9"
+        class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)] max-lg:order-9 max-lg:text-xs"
         data-testid="reader-progress"
         >{Math.round(progress)}%</span
       >
@@ -403,7 +421,7 @@
           onclick={() => onChangeZoom?.(1)}>+</Button
         >
         <span
-          class="inline-block w-[3.25rem] text-center text-sm max-lg:w-[2.25rem]"
+          class="inline-block w-[3.25rem] text-center text-sm max-lg:w-[2.5rem] max-lg:text-xs"
           data-testid="reader-zoom">{zoom}%</span
         >
       </div>
