@@ -201,9 +201,11 @@
   поэтому панель не «прыгает».
 
   На узком окне панель переезжает вниз области чтения и раскладывается на две
-  строки по разрыву (`note-toolbar-break`): сверху — типы заметок, шрифт и вид
-  фигуры, снизу — цвет, масштаб и навигация. Обе строки идут слева направо, чтобы
-  глаз читал панель как один список, а не перескакивал с края на край.
+  строки по разрыву: сверху — инструменты заметок (типы, шрифт, вид фигуры и цвет
+  справа), снизу — управление чтением: тема, масштаб и навигация. Обе строки идут
+  слева направо, чтобы глаз читал панель как один список, а не перескакивал с края
+  на край. Кнопки типов на узком окне — иконками: подписи не влезают, и панель
+  выталкивала бы цвет фигуры на новую строку.
 -->
 <div
   class="flex flex-wrap items-center gap-1.5 border-[var(--border)] bg-[var(--card)] px-2 py-1.5 text-sm [font-variant-numeric:tabular-nums] max-lg:order-last max-lg:gap-1 max-lg:border-t lg:h-11 lg:border-b lg:border-t-0 lg:px-3 lg:py-0"
@@ -225,7 +227,8 @@
           class="max-lg:px-2"
           onclick={() => selectType(type)}
         >
-          {NOTE_TYPE_LABELS[type]}
+          <Icon name={type} class="hidden max-lg:block" />
+          <span class="max-lg:hidden">{NOTE_TYPE_LABELS[type]}</span>
         </Button>
       {/each}
     </div>
@@ -271,16 +274,18 @@
       <Select
         value={tool.shape}
         items={shapeOptions}
-        class="h-8 w-[6.25rem] text-sm max-lg:w-[7rem]"
+        class="h-8 w-[6.25rem] text-sm max-lg:w-[5.75rem]"
         ariaLabel="Вид фигуры"
         onchange={selectShape}
       />
     </div>
   {/if}
 
-  <!-- Разрыв строки на узком окне: выше — инструменты, ниже — управление чтением. -->
-  <span class="hidden max-lg:order-4 max-lg:block max-lg:basis-full" aria-hidden="true"></span>
-
+  <!--
+    Цвет фигуры принадлежит инструментам заметок: на узком окне он прижат к
+    правому краю их строки (`max-lg:ml-auto`), а не уходит в строку управления
+    чтением.
+  -->
   {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
     <ColorPicker
       colors={colorSwatches}
@@ -288,63 +293,20 @@
       ariaLabel="Цвет заметки"
       testIdPrefix="note-tool-color"
       size="sm"
-      class="max-lg:order-5"
+      class="max-lg:order-4 max-lg:ml-auto max-lg:shrink"
     />
   {/if}
+
+  <!-- Разрыв строки на узком окне: выше — инструменты, ниже — управление чтением. -->
+  <span class="hidden max-lg:order-5 max-lg:block max-lg:basis-full" aria-hidden="true"></span>
 
   <!--
     Управление чтением: на широком окне — группа справа от инструментов заметок
     (`ml-auto`), на узком — её блоки встают в общий перенос панели
     (`max-lg:contents`) и получают место в нижней строке порядком `order`:
-    масштаб, прогресс или страницы, тема.
+    переключатель темы, масштаб, навигация по страницам, прогресс.
   -->
   <div class="flex items-center gap-1.5 max-lg:contents lg:ml-auto" data-testid="reader-footer">
-    <!--
-      Прогресс чтения остаётся только у текучих (текстовых) книг: у постраничных он
-      дублировал бы место в книге и загромождал полосу. Цифра фиксированной ширины,
-      поэтому не «прыгает».
-    -->
-    {#if !(workplace && workplacePages)}
-      <span
-        class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)] max-lg:order-7"
-        data-testid="reader-progress"
-        >{Math.round(progress)}%</span
-      >
-    {/if}
-    <!--
-      Масштаб: кнопки «меньше/больше» стоят рядом друг с другом **слева** от
-      цифры, а сама цифра — фиксированной ширины, поэтому кнопки и переключатель
-      темы не «прыгают» при смене числа разрядов.
-    -->
-    {#if showZoom}
-      <div
-        class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-lg:order-6 max-lg:gap-0"
-        data-testid="reader-zoom-group"
-      >
-        <Button
-          size="icon"
-          variant="ghost"
-          title="Уменьшить масштаб"
-          ariaLabel="Уменьшить масштаб"
-          class="size-8"
-          disabled={zoom <= minZoom}
-          onclick={() => onChangeZoom?.(-1)}>−</Button
-        >
-        <Button
-          size="icon"
-          variant="ghost"
-          title="Увеличить масштаб"
-          ariaLabel="Увеличить масштаб"
-          class="size-8"
-          disabled={zoom >= maxZoom}
-          onclick={() => onChangeZoom?.(1)}>+</Button
-        >
-        <span
-          class="inline-block w-[3.25rem] text-center text-sm max-lg:w-[2.25rem]"
-          data-testid="reader-zoom">{zoom}%</span
-        >
-      </div>
-    {/if}
     <!--
       Постраничная навигация: кнопки стоят **в ряд** и идут слева направо —
       «Следующая страница» (вниз), «Предыдущая страница» (вверх), затем поле номера
@@ -400,8 +362,54 @@
         >
       </div>
     {/if}
+    <!--
+      Прогресс чтения остаётся только у текучих (текстовых) книг: у постраничных он
+      дублировал бы место в книге и загромождал полосу. Цифра фиксированной ширины,
+      поэтому не «прыгает».
+    -->
+    {#if !(workplace && workplacePages)}
+      <span
+        class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)] max-lg:order-9"
+        data-testid="reader-progress"
+        >{Math.round(progress)}%</span
+      >
+    {/if}
+    <!--
+      Масштаб: кнопки «меньше/больше» стоят рядом друг с другом **слева** от
+      цифры, а сама цифра — фиксированной ширины, поэтому кнопки и переключатель
+      темы не «прыгают» при смене числа разрядов.
+    -->
+    {#if showZoom}
+      <div
+        class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-lg:order-7 max-lg:gap-0"
+        data-testid="reader-zoom-group"
+      >
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Уменьшить масштаб"
+          ariaLabel="Уменьшить масштаб"
+          class="size-8"
+          disabled={zoom <= minZoom}
+          onclick={() => onChangeZoom?.(-1)}>−</Button
+        >
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Увеличить масштаб"
+          ariaLabel="Увеличить масштаб"
+          class="size-8"
+          disabled={zoom >= maxZoom}
+          onclick={() => onChangeZoom?.(1)}>+</Button
+        >
+        <span
+          class="inline-block w-[3.25rem] text-center text-sm max-lg:w-[2.25rem]"
+          data-testid="reader-zoom">{zoom}%</span
+        >
+      </div>
+    {/if}
     <div
-      class="flex shrink-0 items-center gap-1 max-lg:order-9"
+      class="flex shrink-0 items-center gap-1 max-lg:order-6"
       data-testid="reader-theme-toggle"
     >
       <Button

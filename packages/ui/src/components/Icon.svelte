@@ -23,6 +23,9 @@
     | 'lightbulb'
     | 'compass'
     | 'note'
+    | 'quote'
+    | 'text'
+    | 'shape'
     | 'layers'
     | 'circle'
     | 'gear'
@@ -133,6 +136,14 @@
   {:else if name === 'note'}
     <rect x="4" y="3" width="16" height="18" rx="2" />
     <path d="M8 8h8M8 12h8M8 16h5" />
+  {:else if name === 'quote'}
+    <path d="M9 7H5.5A1.5 1.5 0 0 0 4 8.5v3A1.5 1.5 0 0 0 5.5 13H7v1.5a2 2 0 0 1-2 2" />
+    <path d="M19 7h-3.5A1.5 1.5 0 0 0 14 8.5v3a1.5 1.5 0 0 0 1.5 1.5H17v1.5a2 2 0 0 1-2 2" />
+  {:else if name === 'text'}
+    <path d="M5 6V4.5h14V6M12 4.5V20M9 20h6" />
+  {:else if name === 'shape'}
+    <rect x="4" y="6" width="11" height="9" rx="1.5" />
+    <circle cx="16.5" cy="15.5" r="4.5" />
   {:else if name === 'layers'}
     <path d="M12 3l9 5-9 5-9-5z" />
     <path d="M3 13l9 5 9-5M3 16.5l9 5 9-5" />

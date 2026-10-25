@@ -160,7 +160,7 @@ describe('панель инструментов заметок', () => {
         expect(footer.className).toContain('ml-auto');
     });
 
-    it('на узком окне ставит цвет в нижнюю строку первым, до масштаба и навигации', () => {
+    it('на узком окне держит цвет фигуры в строке инструментов, справа', () => {
         render(NoteToolbar, {
             props: props({
                 tool: { ...DEFAULT_NOTE_TOOL, type: 'shape' },
@@ -171,21 +171,21 @@ describe('панель инструментов заметок', () => {
             }),
         });
 
-        const toolbar = screen.getByTestId('note-toolbar');
-        const order = Array.from(toolbar.querySelectorAll('*'));
         const color = screen.getByTestId('note-tool-color-picker');
         const zoom = screen.getByTestId('reader-zoom-group');
-        const pages = screen.getByTestId('reader-pages');
         const theme = screen.getByTestId('reader-theme-toggle');
 
-        // Порядок строки: цвет → масштаб → навигация → тема.
-        expect(order.indexOf(color)).toBeLessThan(order.indexOf(zoom));
-        expect(order.indexOf(zoom)).toBeLessThan(order.indexOf(pages));
-        expect(order.indexOf(pages)).toBeLessThan(order.indexOf(theme));
-        // Общий порядок задаётся явно: нижняя строка идёт пятой и далее.
-        expect(color.className).toContain('max-lg:order-5');
-        expect(zoom.className).toContain('max-lg:order-6');
-        expect(theme.className).toContain('max-lg:order-9');
+        // Цвет принадлежит инструментам заметок: он стоит до разрыва строки и
+        // прижат к правому краю своей строки, а не уходит в управление чтением.
+        expect(color.className).toContain('max-lg:order-4');
+        expect(color.className).toContain('max-lg:ml-auto');
+        expect(zoom.className).toContain('max-lg:order-7');
+
+        // Нижняя строка начинается с переключателя темы.
+        expect(theme.className).toContain('max-lg:order-6');
+        expect(Number(theme.className.match(/max-lg:order-(\d+)/)![1])).toBeLessThan(
+            Number(zoom.className.match(/max-lg:order-(\d+)/)![1]),
+        );
     });
 
     it('на узком окне начинает нижнюю строку с левого края, а не с правого', () => {
