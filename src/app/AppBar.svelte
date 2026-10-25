@@ -123,7 +123,7 @@
     раздел, и выбор — шапка остаётся единственным местом, где это видно.
   -->
   <span
-    class="min-w-0 truncate role-caption text-[var(--muted-foreground)]"
+    class="min-w-0 truncate role-caption text-[var(--muted-foreground)] max-md:ml-4"
     data-testid="app-context"
     title={contextTitle}
   >
