@@ -51,7 +51,7 @@
   import { normalizeOpenTabsLimit } from '../features/workplace/workplace';
   import { openTabsLimitFromSettingsEvent } from '../features/workplace/open-tabs-limit';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
-  import { MOBILE_MAX_WIDTH } from '../shared/breakpoints';
+  import { NARROW_MAX_WIDTH } from '../shared/breakpoints';
   import { activeLibrary as fetchActiveLibrary } from '../shared/base-plugin';
   import { lastSegment } from '../shared/path';
   import {
@@ -161,8 +161,8 @@
   /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
   let notificationsOpen = $state(false);
 
-  /** Телефонная ширина: навигация переезжает в нижнюю полосу. Точка совпадает
-   * с токеном `--breakpoint-mobile`. */
+  /** Узкое окно (телефон и планшет): меню разделов показывается иконками без
+   * подписей. Точка совпадает с токеном `--breakpoint-narrow`. */
   let mobileWindow = $state(false);
 
   /** Число непрочитанных уведомлений, полученное от области уведомлений. */
@@ -949,7 +949,7 @@
     let unlistenSettings: (() => void) | undefined;
     // Отслеживание ширины окна: на телефонной ширине вкладки разделов уходят из
     // верхней панели в нижнюю полосу.
-    const mobileQuery = window.matchMedia(MOBILE_MAX_WIDTH);
+    const mobileQuery = window.matchMedia(NARROW_MAX_WIDTH);
     mobileWindow = mobileQuery.matches;
     const onMobileChange = (event: MediaQueryListEvent) => {
       mobileWindow = event.matches;
@@ -1087,7 +1087,7 @@
   -->
   <div
     class="flex min-w-0 flex-none max-lg:absolute max-lg:inset-0 max-lg:z-[var(--layer-panel)] max-lg:w-auto max-lg:order-none lg:order-last lg:w-[var(--notifications-panel-width)]"
-    class:hidden={!notificationsOpen || focusMode}
+    class:hidden={!notificationsOpen || settingsOpen || focusMode}
     data-testid="notifications-slot"
   >
     <NotificationsPanel

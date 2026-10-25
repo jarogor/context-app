@@ -59,12 +59,19 @@
 </script>
 
 {#snippet sectionTab(item: { id: string; label: string; icon: IconName; active: boolean })}
+  <!--
+    Все кнопки верхнего меню — одного цвета: разделы, уведомления, тема и
+    настройки берут один приглушённый тон, поэтому шапка читается единым рядом
+    действий. Активный раздел выделяется мягким фоном и основным цветом текста —
+    так же, как активная кнопка панели уведомлений или настроек.
+  -->
   <button
     type="button"
-    class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] {mobile
+    class="flex min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] {item.active
+      ? 'bg-[var(--primary-soft)] text-[var(--foreground)]'
+      : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} {mobile
       ? 'h-9 w-9 justify-center'
       : 'px-2 py-1.5 md:px-3'}"
-    class:bg-[var(--primary-soft)]={item.active}
     aria-pressed={item.active}
     aria-label={item.label}
     title={item.label}

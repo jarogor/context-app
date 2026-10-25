@@ -32,17 +32,14 @@ describe('панель инструментов заметок', () => {
         expect(screen.getByRole('button', { name: 'Фигура' })).toBeTruthy();
     });
 
-    it('не дублирует подпись кнопки в подсказке: подсказка объясняет назначение', () => {
+    it('называет тип во всплывающей подсказке кнопки', () => {
         render(NoteToolbar, { props: props() });
 
-        const quote = screen.getByRole('button', { name: 'Цитата' });
-        const quoteTitle = quote.getAttribute('title') ?? '';
-        // Подсказка не равна подписи и объясняет, что делает кнопка.
-        expect(quoteTitle).not.toBe('Цитата');
-        expect(quoteTitle.toLowerCase()).toContain('цитат');
-
-        const shape = screen.getByRole('button', { name: 'Фигура' });
-        expect(shape.getAttribute('title') ?? '').not.toBe('Фигура');
+        // Подсказка — короткое название типа: на узком окне сама кнопка
+        // показывает только иконку, и подсказка объясняет, что это за тип.
+        for (const label of ['Цитата', 'Текст', 'Фигура']) {
+            expect(screen.getByRole('button', { name: label }).getAttribute('title')).toBe(label);
+        }
     });
 
     it('не показывает служебный надзаголовок «Заметка»', () => {

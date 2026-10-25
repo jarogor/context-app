@@ -31,8 +31,8 @@ test('на узком окне разделы остаются в верхней
 
         const nav = page.getByTestId('section-nav');
         await expect(nav).toBeVisible();
-        // Меню разделов живёт в верхней панели на любой ширине; на узком окне —
-        // без подписей, одними иконками.
+        // Меню разделов живёт в верхней панели на любой ширине; на узком окне
+        // (телефон и планшет, до `--breakpoint-narrow`) — без подписей, иконками.
         const bar = page.getByTestId('app-bar');
         const navBox = await nav.boundingBox();
         const barBox = await bar.boundingBox();
@@ -40,7 +40,7 @@ test('на узком окне разделы остаются в верхней
         expect(barBox).not.toBeNull();
         expect(navBox!.y).toBeGreaterThanOrEqual(barBox!.y);
         expect(navBox!.y + navBox!.height).toBeLessThanOrEqual(barBox!.y + barBox!.height + 1);
-        await expect(nav).toHaveAttribute('data-mobile', width < 768 ? 'true' : 'false');
+        await expect(nav).toHaveAttribute('data-mobile', width < 900 ? 'true' : 'false');
 
         // Разделы и служебные действия доступны на любой ширине.
         for (const label of [
