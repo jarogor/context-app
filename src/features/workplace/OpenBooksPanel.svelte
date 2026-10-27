@@ -25,7 +25,7 @@
     type WorkspaceTab,
   } from './workplace';
   import { NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES } from '../notes/notes';
-  import { tabAccent, tabColorFill, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabAccent, tabColorFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -129,7 +129,9 @@
    *
    * Название книги показывается, только если вкладка переименована: иначе оно
    * уже стоит подписью пункта. Путь показывается всегда — по нему видно, что это
-   * за файл, даже когда вкладки одной книги открыты несколько раз.
+   * за файл, даже когда вкладки одной книги открыты несколько раз. Вместо иконки
+   * каталога перед путём стоит метка формата книги: она и различает одинаково
+   * названные вкладки разных форматов.
    */
   function metaItems(tab: WorkspaceTab): MetaItem[] {
     const items: MetaItem[] = [];
@@ -139,7 +141,7 @@
     }
     if (tab.path) {
       items.push({
-        icon: 'folder',
+        badge: tabFormatLabel(tab),
         value: tab.path,
         title: tab.path,
         testId: 'open-books-item-path',

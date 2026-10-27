@@ -39,6 +39,17 @@ export function tabLabel(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
     return tab.name?.trim() || tab.title;
 }
 
+/** Короткая метка формата книги: `EPUB`, `FB2`, `PDF`, `DJVU`.
+ *
+ * Формат показывается так же, как на странице книги — заглавными буквами.
+ * Пустой или отсутствующий формат даёт `undefined`: пустая метка не должна
+ * занимать место в строке.
+ */
+export function tabFormatLabel(tab: { format?: string }): string | undefined {
+    const format = tab.format?.trim();
+    return format ? format.toUpperCase() : undefined;
+}
+
 /** Чистый цвет вкладки (свот палитры заметок); отсутствует, если цвет не задан.
  *
  * Нужен там, где цвет показывается без приглушения — например, обводкой

@@ -5,6 +5,8 @@
   export interface MetaItem {
     /** Иконка перед значением; заменяет подпись, когда дата одна. */
     icon?: IconName;
+    /** Короткая метка перед значением вместо иконки (например, формат файла). */
+    badge?: string;
     /** Подпись-контекст (например, «Изменён»); нужна, когда дат несколько. */
     label?: string;
     /** Значение метаинформации. */
@@ -46,6 +48,15 @@
     >
       {#if item.icon}
         <Icon name={item.icon} class="h-3.5 w-3.5" />
+      {/if}
+      {#if item.badge}
+        <!-- Метка вместо иконки: короткое служебное значение (формат файла). -->
+        <span
+          class="shrink-0 rounded-[calc(var(--radius)*0.5)] border border-[var(--border)] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide"
+          data-testid={`${item.testId ?? 'meta'}-badge`}
+        >
+          {item.badge}
+        </span>
       {/if}
       {#if item.label}
         <span class="shrink-0">{item.label}</span>

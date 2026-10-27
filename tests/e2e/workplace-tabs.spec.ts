@@ -565,3 +565,15 @@ test('панели заметок и открытых книг взаимоис�
     expect(notes).not.toBeNull();
     expect(Math.abs(books!.width - notes!.width)).toBeLessThanOrEqual(1);
 });
+
+// В списке вкладок у строки была иконка каталога перед путём к файлу: по ней
+// формат книги не виден. Метка формата занимает её место.
+test('в списке вкладок формат книги виден вместо иконки каталога', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+    const item = page.getByTestId('open-books-item').first();
+    await expect(item.getByTestId('open-books-item-path-badge')).toHaveText('EPUB');
+    await expect(item.getByTestId('open-books-item-path')).toContainText('/');
+});

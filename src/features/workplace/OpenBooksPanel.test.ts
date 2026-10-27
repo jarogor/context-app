@@ -53,7 +53,7 @@ describe('панель открытых книг: оформление', () => {
         expect(screen.getByText('Черновик').closest('button')?.querySelector('svg')).toBeTruthy();
     });
 
-    it('показывает путь к файлу книги иконкой', () => {
+    it('показывает путь к файлу книги', () => {
         render(OpenBooksPanel, {
             props: { tabs: [tab('t1')], activeTabId: 't1', ...handlers() },
         });
@@ -61,6 +61,29 @@ describe('панель открытых книг: оформление', () => {
         const path = screen.getByTestId('open-books-item-path');
         expect(path.textContent).toContain('/lib/t1.epub');
         expect(path.closest('[title]')?.getAttribute('title')).toBe('/lib/t1.epub');
+    });
+
+    it('показывает формат книги вместо иконки каталога у пути', () => {
+        render(OpenBooksPanel, {
+            props: {
+                tabs: [tab('t1'), tab('t2', { format: 'fb2' }), tab('t3', { format: 'pdf' })],
+                activeTabId: 't1',
+                ...handlers(),
+            },
+        });
+
+        const badges = screen
+            .getAllByTestId('open-books-item-path-badge')
+            .map((element) => element.textContent?.trim());
+        expect(badges).toEqual(['EPUB', 'FB2', 'PDF']);
+    });
+
+    it('не показывает метку у вкладки без формата', () => {
+        render(OpenBooksPanel, {
+            props: { tabs: [tab('t1', { format: '' })], activeTabId: 't1', ...handlers() },
+        });
+
+        expect(screen.queryByTestId('open-books-item-path-badge')).toBeNull();
     });
 
     it('называет книгу отдельно, если вкладка переименована', () => {
