@@ -253,6 +253,58 @@ export function solidNoteTones(tones: ReaderNoteTones, background: string): Read
     return solid;
 }
 
+/** Токены всплывающего слоя поверх области чтения.
+ *
+ * Меню поверх книги живёт в документе оболочки, но относится к чтению: его
+ * фон, текст и обводка обязаны совпадать со стороной темы области чтения, а не
+ * с темой интерфейса. Слой поднимается над текстом тем же приёмом, что и тема
+ * интерфейса: в светлой стороне — лёгким затемнением бумаги, в тёмной —
+ * осветлением; обводка — тон чернил поверх фона.
+ */
+export interface ReaderOverlayTokens {
+    /** Фон всплывающего слоя. */
+    surface: string;
+    /** Цвет текста слоя. */
+    text: string;
+    /** Цвет вторичного текста слоя. */
+    muted: string;
+    /** Обводка слоя. */
+    border: string;
+    /** Цвет ссылок слоя. */
+    link: string;
+    /** Подсветка наведения внутри слоя. */
+    hover: string;
+}
+
+/** Смешение двух цветов в заданной доле переднего плана. */
+function mixColors(back: string, front: string, ratio: number): string {
+    const backdrop = parseColorChannels(back);
+    const foreground = parseColorChannels(front);
+    if (!backdrop || !foreground) {
+        return back;
+    }
+    const mix = (first: number, second: number): number =>
+        Math.round(second * ratio + first * (1 - ratio));
+    return `rgb(${mix(backdrop.red, foreground.red)}, ${mix(backdrop.green, foreground.green)}, ${mix(backdrop.blue, foreground.blue)})`;
+}
+
+/** Токены всплывающего слоя для палитры и стороны темы области чтения. */
+export function readerOverlayTokens(palette: PaletteId, id: ReaderThemeId): ReaderOverlayTokens {
+    const tokens = readerThemeTokens(normalizePaletteId(palette), normalizeReaderThemeId(id));
+    return {
+        // Слой отделяется от страницы тем же приёмом, что и в теме интерфейса:
+        // на светлой бумаге — затемнением, на тёмной — осветлением.
+        surface: mixColors(tokens.background, tokens.text, id === 'dark' ? 0.08 : 0.04),
+        text: tokens.text,
+        muted: tokens.muted,
+        border: mixColors(tokens.background, tokens.text, id === 'dark' ? 0.18 : 0.16),
+        link: tokens.link,
+        // Полупрозрачный тон акцента поверх слоя: наведение заметно на любой
+        // стороне темы, как в списках оболочки.
+        hover: id === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+    };
+}
+
 /** Цвета перекраски страницы книги в тёмной теме.
  *
  * PDF — изображение листа: чтобы он не оставался белым, растр перекрашивается
@@ -421,9 +473,6 @@ export function readerFontFamily(id: unknown): string {
  * Документ книги выбирает семейство правилом по этому атрибуту, поэтому смена
  * шрифта не пересобирает содержимое: позиция чтения и заметки сохраняются.
  */
-export function applyReaderFont(
-    id: unknown,
-    root: HTMLElement = document.documentElement,
-): void {
+export function applyReaderFont(id: unknown, root: HTMLElement = document.documentElement): void {
     root.dataset.readerFont = normalizeReaderFontId(id);
 }

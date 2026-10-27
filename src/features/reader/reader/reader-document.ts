@@ -33,11 +33,14 @@ import {
 } from '@context/ui';
 
 import type { BookContent } from './types';
+import { FOOTNOTE_BACK_CLASS } from './footnote';
 
 /** Класс подсветки заметки-цитаты. */
 export const NOTE_CLASS = 'context-note';
 /** Класс временной вспышки подсветки при переходе к заметке. */
 export const FLASH_CLASS = 'context-note-flash';
+/** Класс временной подсветки маркера сноски при возврате к месту чтения. */
+export const FOOTNOTE_FLASH_CLASS = 'context-footnote-flash';
 /** Класс превью подсветки при правке границ цитаты. */
 export const NOTE_PREVIEW_CLASS = 'context-resize-preview';
 /** Класс слоя активного выделения текста. */
@@ -249,6 +252,14 @@ function buildStyle(): string {
     // Вспышка при переходе к заметке: оранжевая, различима на обеих сторонах.
     `.${NOTE_CLASS}.${FLASH_CLASS}{background:#f59e0b;}`,
     `.context-overlay.${FLASH_CLASS}{opacity:0.4;}`,
+    // Вспышка маркера сноски при возврате к месту чтения: подсвечивает саму
+    // ссылку-маркер, чтобы читатель увидел, откуда пришёл.
+    `.${FOOTNOTE_FLASH_CLASS}{background:#f59e0b;border-radius:2px;}`,
+    // Ссылка возврата к месту сноски: маленькая метка в конце текста сноски,
+    // не спорит с текстом книги и не занимает отдельной строки.
+    `.${FOOTNOTE_BACK_CLASS}{font-size:0.85em;margin-left:0.35em;text-decoration:none;`,
+    `vertical-align:super;line-height:0;opacity:0.65;}`,
+    `.${FOOTNOTE_BACK_CLASS}:hover{opacity:1;}`,,
     // Правка заметки: перемещение показывается хваткой, границы цитаты — маркерами.
     'body[data-editing="move"]{cursor:move;}',
     'body[data-editing="move"] .context-overlay{cursor:move;}',

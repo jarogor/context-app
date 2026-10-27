@@ -18,6 +18,7 @@
   import { DEFAULT_NOTE_COLOR, DEFAULT_NOTE_TOOL, FLOWING_NOTE_TYPES, NOTE_COLOR_HIGHLIGHTS } from '../notes/notes';
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
   import NoteMenu from '../notes/NoteMenu.svelte';
+  import FootnoteMenu from '../notes/FootnoteMenu.svelte';
   import {
     createAnchor,
     offsetsFromRange,
@@ -41,6 +42,7 @@
     buildDocument,
     CHAPTER_CLASS,
     FLASH_CLASS,
+    FOOTNOTE_FLASH_CLASS,
     NOTE_CLASS,
     NOTE_PREVIEW_CLASS,
   } from './reader/reader-document';
@@ -53,6 +55,7 @@
   } from './reader/geometry';
   import { applyZoom, captureAnchor, restoreAnchor } from './reader/zoom-anchor';
   import { anchorTarget, parseBookLink } from './reader/book-link';
+  import { bookFootnote, footnoteContentHtml, installFootnoteReturns, FOOTNOTE_BACK_CLASS } from './reader/footnote';
   import { clearSelectionLayer, renderSelectionLayer } from './reader/selection';
 
   interface Props {
@@ -162,6 +165,15 @@
   let dragPreview: HTMLElement | null = null;
   /** Контекстное меню заметки на странице: заметка и её экранная позиция. */
   let noteMenu: { noteId: string; x: number; y: number; type: NoteType } | null = $state(null);
+  /** Открытое меню сноски: содержимое цели, маркер-источник и его позиция. */
+  let footnoteMenu: {
+    anchor: string;
+    html: string;
+    source: HTMLAnchorElement;
+    x: number;
+    y: number;
+    bottom: number;
+  } | null = $state(null);
   /** Режим правки заметки: перемещение карточки/фигуры или границы цитаты. */
   let editing: { noteId: string; mode: 'move' | 'resize' } | null = $state(null);
   /** Тяга перемещения наложения: исходное место и точка захвата. */
@@ -1139,9 +1151,12 @@
   /** Переход по ссылке книги; `true` — клик был ссылкой и обработан здесь.
    *
    * Внутренний якорь прокручивает к цели, внешняя ссылка открывается системным
-   * приложением, относительный путь внутри книги игнорируется. Нативное
-   * поведение браузера отменяется всегда, иначе область ушла бы с содержимого
-   * книги на документ родителя.
+   * приложением, относительный путь внутри книги игнорируется. Сноска вместо
+   * немедленного перехода открывает меню: короткий текст читается рядом с
+   * местом чтения, а переход остаётся отдельным действием. Ссылка возврата «↩»
+   * внутри сноски ведёт назад к её маркеру. Нативное поведение браузера
+   * отменяется всегда, иначе область ушла бы с содержимого книги на документ
+   * родителя.
    */
   function handleBookLink(event: MouseEvent): boolean {
     const target = event.target as Element | null;
@@ -1151,9 +1166,33 @@
     }
     event.preventDefault();
     event.stopPropagation();
+    // Ссылка возврата добавлена читалкой: она ведёт к маркеру сноски.
+    if (link.classList.contains(FOOTNOTE_BACK_CLASS)) {
+      const value = doc ?? document();
+      const id = (link.getAttribute('href') ?? '').replace(/^#/, '');
+      const source = value && id ? anchorTarget(value, id) : null;
+      if (source) {
+        source.scrollIntoView({ block: 'center' });
+        source.classList.add(FOOTNOTE_FLASH_CLASS);
+        setTimeout(() => source.classList.remove(FOOTNOTE_FLASH_CLASS), 600);
+        captureAnchorNow();
+        handleScroll();
+      }
+      return true;
+    }
     const parsed = parseBookLink(link.getAttribute('href'));
     if (parsed.kind === 'anchor' && parsed.anchor) {
       const value = doc ?? document();
+      const footnote = value ? bookFootnote(link, value) : null;
+      if (footnote && value) {
+        // Повторный клик по тому же маркеру закрывает меню.
+        if (footnoteMenu && footnoteMenu.source === link) {
+          footnoteMenu = null;
+        } else {
+          openFootnoteMenu(link, footnote.target, footnote.anchor);
+        }
+        return true;
+      }
       const goal = value ? anchorTarget(value, parsed.anchor) : null;
       if (goal) {
         goal.scrollIntoView({ block: 'start' });
@@ -1169,6 +1208,41 @@
     return true;
   }
 
+  /** Открытие меню сноски у её маркера. */
+  function openFootnoteMenu(link: HTMLAnchorElement, target: HTMLElement, anchor: string): void {
+    const rect = link.getBoundingClientRect();
+    footnoteMenu = {
+      anchor,
+      html: footnoteContentHtml(target),
+      source: link,
+      x: rect.left,
+      y: rect.top,
+      bottom: rect.bottom,
+    };
+  }
+
+  /** Закрытие меню сноски. */
+  function closeFootnoteMenu(): void {
+    footnoteMenu = null;
+  }
+
+  /** Переход к сноске из меню: книга встаёт на текст, меню закрывается. */
+  function gotoFootnote(): void {
+    const menu = footnoteMenu;
+    const value = document();
+    footnoteMenu = null;
+    if (!menu || !value) {
+      return;
+    }
+    const target = anchorTarget(value, menu.anchor);
+    if (!target) {
+      return;
+    }
+    target.scrollIntoView({ block: 'start' });
+    captureAnchorNow();
+    handleScroll();
+  }
+
   /** Отмена меню и правки при начале нового взаимодействия с текстом. */
   function handleMouseDown(event: MouseEvent): void {
     if (pendingAnchor) {
@@ -1177,6 +1251,15 @@
     }
     if (noteMenu) {
       noteMenu = null;
+    }
+    if (footnoteMenu) {
+      // Нажатие по маркеру открытой сноски меню не снимает: клик по нему
+      // переключает меню (см. `openFootnoteMenu`).
+      const target = event.target as Element | null;
+      const link = target?.closest?.('a[href]');
+      if (!link || link !== footnoteMenu.source) {
+        footnoteMenu = null;
+      }
     }
     if (editing && editing.mode === 'resize') {
       const target = event.target as Element | null;
@@ -1204,6 +1287,10 @@
         ? selection.getRangeAt(0)
         : null;
     renderSelectionLayer(value, range);
+    // Новое выделение — новое взаимодействие: меню сноски снимается.
+    if (range && footnoteMenu) {
+      footnoteMenu = null;
+    }
     if (!pendingAnchor) {
       return;
     }
@@ -1233,6 +1320,9 @@
     if (pendingAnchor) {
       pendingAnchor = null;
       menuPosition = null;
+    }
+    if (footnoteMenu) {
+      footnoteMenu = null;
     }
     handleScroll();
     captureAnchorNow();
@@ -1336,6 +1426,9 @@
     if (!value) {
       return;
     }
+    // Новая загрузка документа — новая книга: прежнее меню сноски не должно
+    // оставаться от прошлой разметки.
+    footnoteMenu = null;
     value.addEventListener('mouseup', handleMouseUp);
     value.addEventListener('mousedown', handleMouseDown);
     value.addEventListener('click', handleClick);
@@ -1354,6 +1447,9 @@
     }
     clearSelectionLayer(value);
     drawNotes();
+    // К каждой сноске книги добавляется ссылка возврата к её маркеру: возврат
+    // есть у всех сносок, а не только у последней нажатой.
+    installFootnoteReturns(value);
     handleScroll();
     captureAnchorNow();
   }
@@ -1503,13 +1599,16 @@
    * случайное нажатие не попадает в уже ненужное меню.
    */
   $effect(() => {
-    if (!noteMenu && !editing) {
+    if (!noteMenu && !editing && !footnoteMenu) {
       return;
     }
     /** Закрытие меню и завершение правки. */
     const dismiss = () => {
       if (noteMenu) {
         noteMenu = null;
+      }
+      if (footnoteMenu) {
+        footnoteMenu = null;
       }
       if (editing) {
         cancelEditing();
@@ -1519,6 +1618,9 @@
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
       if (target?.closest?.('[data-testid="note-menu"]')) {
+        return;
+      }
+      if (target?.closest?.('[data-testid="footnote-menu"]')) {
         return;
       }
       dismiss();
@@ -1544,6 +1646,9 @@
     }
     if (noteMenu) {
       noteMenu = null;
+    }
+    if (footnoteMenu) {
+      footnoteMenu = null;
     }
     if (editing) {
       cancelEditing();
@@ -1592,6 +1697,18 @@
     srcdoc={html}
     onload={handleLoad}
   ></iframe>
+
+  {#if footnoteMenu}
+    <FootnoteMenu
+      html={footnoteMenu.html}
+      at={{ left: footnoteMenu.x, top: footnoteMenu.y, bottom: footnoteMenu.bottom }}
+      area={{ width: readerAreaWidth, height: readerAreaHeight }}
+      {palette}
+      {readerTheme}
+      onGoto={gotoFootnote}
+      onClose={closeFootnoteMenu}
+    />
+  {/if}
 
   {#if menuPosition && pendingAnchor}
     <div

@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openWorkspaceArea } from './workplace-area';
 
-/** Глава с внутренней сноской, внешней ссылкой и ссылкой на другой файл. */
+/** Глава со внутренней сноской, внешней ссылкой и ссылкой на другой файл.
+ *
+ * Разметка сносок повторяет то, что даёт разбор FB2: тело сносок отдельной
+ * главой в `div.fb2-notes`, маркеры — ссылки с классом `fb2-note`.
+ */
 const CHAPTERS = [
     {
         title: 'Глава 1',
@@ -9,7 +13,7 @@ const CHAPTERS = [
     },
     {
         title: 'Сноски',
-        html: '<section id="note1"><p>[1] Текст первой сноски.</p></section><section id="note2"><p>[2] Текст второй сноски.</p></section>',
+        html: '<div class="fb2-notes"><section id="note1"><p>[1] Текст первой сноски.</p></section><section id="note2"><p>[2] Текст второй сноски.</p></section></div>',
     },
 ];
 
@@ -94,7 +98,7 @@ test.beforeEach(async ({ page }) => {
 // Документ книги живёт в `srcdoc`, поэтому браузер разрешал относительные
 // ссылки от документа приложения: клик по сноске загружал в область само
 // приложение, и вкладка книги ломалась без возможности вернуться.
-test('клик по сноске FB2 прокручивает к сноске и не ломает книгу', async ({ page }) => {
+test('клик по сноске FB2 открывает меню сноски и не ломает книгу', async ({ page }) => {
     await openBook(page);
 
     const scrollBefore = await content(page)
@@ -105,7 +109,29 @@ test('клик по сноске FB2 прокручивает к сноске и
     await content(page).locator('a.fb2-note').first().click();
     await expectBookIntact(page);
 
-    // Внутренний якорь прокручивает книгу к сноске, а не уводит область.
+    // Сноска сначала читается на месте: меню показывает её текст, а не уводит
+    // читателя в конец книги.
+    const menu = page.getByTestId('footnote-menu');
+    await expect(menu).toBeVisible();
+    await expect(menu.getByTestId('footnote-text')).toContainText('Текст первой сноски.');
+    const scrollAfter = await content(page)
+        .locator('body')
+        .evaluate((body) => body.ownerDocument.scrollingElement?.scrollTop ?? 0);
+    expect(scrollAfter).toBe(scrollBefore);
+
+    // Повторный клик по тому же маркеру закрывает меню.
+    await content(page).locator('a.fb2-note').first().click();
+    await expect(menu).toHaveCount(0);
+});
+
+test('переход к сноске из меню и возврат к месту ссылки внутри сноски', async ({ page }) => {
+    await openBook(page);
+
+    const source = content(page).locator('a.fb2-note').first();
+    await source.click();
+    await page.getByTestId('footnote-menu').getByTestId('footnote-goto').click();
+
+    // Переход встаёт на текст сноски, меню закрывается.
     await expect
         .poll(async () =>
             content(page)
@@ -115,15 +141,37 @@ test('клик по сноске FB2 прокручивает к сноске и
                     if (!goal) {
                         return -1;
                     }
-                    const box = goal.getBoundingClientRect();
-                    return Math.round(box.top);
+                    return Math.round(goal.getBoundingClientRect().top);
                 }),
         )
         .toBeLessThan(200);
-    const scrollAfter = await content(page)
+    await expect(page.getByTestId('footnote-menu')).toHaveCount(0);
+
+    // Возврат — ссылка в самой сноске, поэтому есть у каждой сноски книги.
+    await expect(content(page).locator('.context-footnote-back')).toHaveCount(2);
+
+    // Прокрутка вперёд не отменяет возврат: ссылка ведёт к живому маркеру.
+    await content(page)
         .locator('body')
-        .evaluate((body) => body.ownerDocument.scrollingElement?.scrollTop ?? 0);
-    expect(scrollAfter).toBeGreaterThanOrEqual(scrollBefore);
+        .evaluate((body) => {
+            const root = body.ownerDocument.scrollingElement;
+            if (root) {
+                root.scrollTop = root.scrollHeight;
+            }
+        });
+    await page.waitForTimeout(200);
+
+    await content(page).locator('.context-footnote-back').first().click();
+    // Возврат встаёт на маркер сноски, а не на прежнее число пикселей.
+    await expect
+        .poll(async () =>
+            content(page)
+                .locator('a.fb2-note')
+                .first()
+                .evaluate((element) => Math.abs(Math.round(element.getBoundingClientRect().top))),
+        )
+        .toBeLessThan(400);
+    await expectBookIntact(page);
 });
 
 test('клик по ссылке на другой файл книги не уводит область', async ({ page }) => {
