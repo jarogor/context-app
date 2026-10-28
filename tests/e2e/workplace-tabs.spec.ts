@@ -439,6 +439,37 @@ async function openBooks(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
 }
 
+test('длинное описание вкладки видно полностью', async ({ page }) => {
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openBooks(page);
+
+    const panel = page.getByTestId('open-books-panel');
+    const long =
+        'Сравнение глав первой и второй части, заметки о развитии аргумента, ' +
+        'переклички с источниками и предварительные выводы по всему тексту книги.';
+
+    await panel.getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Описание' }).click();
+    await page.getByLabel('Описание вкладки').fill(long);
+    await page.getByLabel('Сохранить').click();
+
+    const description = panel.getByTestId('open-books-item-description');
+    await expect(description).toHaveText(long);
+
+    // Описание не обрезается ни по ширине, ни по высоте: оно переносится
+    // на несколько строк и целиком помещается в свою область.
+    const metrics = await description.evaluate((element) => ({
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+    }));
+    expect(metrics.clientHeight).toBeGreaterThan(20);
+    expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight + 1);
+    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+});
+
 test('правка оформления вкладки видна и в панели, и на панели вкладок', async ({ page }) => {
     await page.goto('/');
     await addBook(page, 'Демо-книга');

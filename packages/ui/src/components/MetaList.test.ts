@@ -24,4 +24,16 @@ describe('MetaList', () => {
 
     expect(screen.getByText('Автор')).toBeTruthy();
   });
+
+  it('обводит метку приглушённым цветом текста', () => {
+    render(MetaList, {
+      props: {
+        items: [{ badge: 'PDF', value: 'книга.pdf' }],
+      },
+    });
+
+    const badge = screen.getByTestId('meta-badge');
+    expect(badge.textContent).toBe('PDF');
+    expect(badge.className).toContain('border-current/40');
+  });
 });

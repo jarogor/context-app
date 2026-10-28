@@ -257,7 +257,7 @@
   <ul class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2">
     {#each visible as tab (tab.id)}
       <li
-        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border py-2.5 pr-2 pl-4 transition-colors {itemFillClass(
+        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border py-2.5 pr-2 pl-3 transition-colors {itemFillClass(
           tab,
         )}"
         style={itemFill(tab)}
@@ -305,7 +305,7 @@
         </div>
         {#if tab.description}
           <p
-            class="truncate pb-1.5 role-caption text-[var(--muted-foreground)]"
+            class="whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
             data-testid="open-books-item-description"
           >
             {tab.description}

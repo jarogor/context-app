@@ -55,7 +55,10 @@ async function installTwoBooks(page: Page) {
                             : payload.first;
                         const bytes = atob(raw);
                         const offset = request.offset ?? 0;
-                        const length = Math.min(request.length ?? 262144, 262144);
+                        // Порции выровнены по границе base64: иначе паддинг
+                        // промежуточной порции ломает склейку и `atob`.
+                        const requested = request.length ?? 262144;
+                        const length = Math.max(3, requested - (requested % 3));
                         const slice = bytes.slice(offset, offset + length);
                         const next = offset + slice.length;
                         return {

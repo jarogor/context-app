@@ -118,7 +118,7 @@ test('меню в строке вкладки стоит так же, как м�
     );
     expect(noteMenu).not.toBeNull();
 
-    // Одинаковый вид меню: одни и те же расстояния и размер кнопки в обоих списках.
+    // Одинаковый вид меню: те же размеры и отступы, что в списке заметок.
     expect(tabMenu!.height).toBe(noteMenu!.height);
     expect(tabMenu!.width).toBe(noteMenu!.width);
     expect(Math.abs(tabMenu!.right - noteMenu!.right)).toBeLessThanOrEqual(1);
@@ -126,9 +126,9 @@ test('меню в строке вкладки стоит так же, как м�
     expect(Math.abs(tabMenu!.bottom - noteMenu!.bottom)).toBeLessThanOrEqual(1);
 });
 
-test('содержимое пункта вкладки начинается у края, как у заметки', async ({ page }) => {
-    // Дефект: отступы строки переехали на сам пункт, а описание и мета сохранили
-    // свои внутренние отступы — они складывались, и содержимое съезжало вправо.
+test('номер, описание и мета пункта вкладки начинаются у края строки', async ({ page }) => {
+    // Строка задаёт отступ один раз: номер, описание и мета начинаются у её
+    // края, а название сдвинуто вправо колонкой номера.
     await openBook(page);
     await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
     await expect(page.getByTestId('open-books-panel')).toBeVisible();
@@ -156,6 +156,7 @@ test('содержимое пункта вкладки начинается у �
             return Math.round(rowBox.bottom - element.getBoundingClientRect().bottom);
         };
         return {
+            number: left('[data-testid="open-books-item-number"]'),
             description: left('[data-testid="open-books-item-description"]'),
             meta: left('[data-testid="open-books-item-meta"]'),
             title: left('[aria-pressed]'),
@@ -163,10 +164,11 @@ test('содержимое пункта вкладки начинается у �
         };
     });
     expect(offsets).not.toBeNull();
-    // Содержимое стоит на том же левом отступе, что и название: отступ задан
-    // строкой один раз и не складывается с внутренним.
-    expect(offsets!.description).toBe(offsets!.title);
-    expect(offsets!.meta).toBe(offsets!.title);
+    // Номер, описание и мета стоят на левом отступе строки.
+    expect(offsets!.description).toBe(offsets!.number);
+    expect(offsets!.meta).toBe(offsets!.number);
+    // Название идёт после колонки номера, а не с края строки.
+    expect(offsets!.title).toBeGreaterThan(offsets!.number);
     // И снизу остаётся тот же отступ строки, без лишнего внутреннего.
     expect(offsets!.bottom).toBeLessThanOrEqual(12);
 });
