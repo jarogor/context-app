@@ -21,24 +21,23 @@ function infoResponse() {
     version: '0.1.0',
     paths: [
       {
-        key: 'app_state',
-        title: 'Состояние приложения',
-        path: '/data/app-state',
-        note: 'Настройки, плагины, кеш и данные интерфейса',
+        key: 'app_data',
+        title: 'Данные приложения',
+        path: '/data/context',
+        note: 'Настройки, плагины, кеш и обновления',
       },
     ],
   };
 }
 
-describe('страница «Информация»', () => {
+describe('сведения о приложении', () => {
   it('показывает одно расположение без жаргона и деления плагинов', async () => {
     invoke.mockResolvedValue(infoResponse());
 
     render(AppInfoPage);
 
-    await waitFor(() => expect(screen.getByText('Файлы приложения')).toBeTruthy());
-    expect(screen.getByText('Состояние приложения')).toBeTruthy();
-    expect(screen.getByText('/data/app-state')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Расположение данных')).toBeTruthy());
+    expect(screen.getByText('/data/context')).toBeTruthy();
     // Деления плагинов и уровней в интерфейсе нет.
     expect(screen.queryByText('Плагины')).toBeNull();
     expect(screen.queryByText('Кэш плагинов')).toBeNull();

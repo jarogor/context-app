@@ -5,6 +5,7 @@
   "id": "f7c8b139-887f-4a2f-84e8-fdcc89635a79",
   "name": "books-source-calibre",
   "description": "Плагин библиотеки Calibre (раскладка автор/книга)",
+  "version": "0.1.0",
   "module": "books_source_calibre.wasm",
   "export": "invoke",
   "host_functions": [

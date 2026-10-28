@@ -7,8 +7,22 @@
   import StorePage from '../features/store/StorePage.svelte';
   import LibraryPage from '../features/library/LibraryPage.svelte';
   import LibrariesPage from '../features/library/LibrariesPage.svelte';
-  import AppInfoPage from '../features/settings/AppInfoPage.svelte';
   import NotesLibraryPage from '../features/notes-library/NotesLibraryPage.svelte';
+  import UpdateDialog from '../features/update/UpdateDialog.svelte';
+  import {
+    applyCoreUpdate,
+    checkCoreUpdate,
+    quitForCoreUpdate,
+    restartApplication,
+    skipCoreUpdate,
+    type AvailableCore,
+    type UpdateBootstrap,
+  } from '../features/update/update';
+  import {
+    listPluginUpdates,
+    updatePluginFromStore,
+    type PluginUpdate,
+  } from '../features/store/plugin-store';
   import { bookTitleOf } from '../features/notes-library/notes-library';
   import WorkplaceArea from '../features/workplace/WorkplaceArea.svelte';
   import WorkspacePickerDialog from '../features/workplace/WorkspacePickerDialog.svelte';
@@ -99,6 +113,8 @@
     initialStore: StoreBootstrap;
     /** Лимит открытых вкладок рабочего места, загруженный до первого рендера. */
     initialOpenTabsLimit: number;
+    /** Состояние обновлений, загруженное до первого рендера. */
+    initialUpdate?: UpdateBootstrap;
   }
 
   let {
@@ -109,10 +125,11 @@
     initialNotifications,
     initialStore,
     initialOpenTabsLimit,
+    initialUpdate = { status: null, error: '' },
   }: Props = $props();
 
   /** Страница раздела настроек. */
-  type SettingsSection = 'general' | 'plugins' | 'about';
+  type SettingsSection = 'general' | 'updates';
 
   /** Открыт ли раздел настроек; состояние принадлежит оболочке. */
   let settingsOpen = $state(false);
@@ -174,6 +191,33 @@
 
   /** Есть ли неприменённые изменения активности плагинов. */
   let activationPending = $state(untrack(() => initialStore.activationPending));
+
+  /** Открыт ли диалог доступных обновлений. */
+  let updateDialogOpen = $state(false);
+
+  /** Доступное обновление ядра. */
+  let updateCore: AvailableCore | null = $state(null);
+
+  /** Доступные обновления прикладных плагинов. */
+  let updatePlugins: PluginUpdate[] = $state([]);
+
+  /** Текущая версия приложения для показа в диалоге. */
+  let updateCurrentVersion = $state(untrack(() => initialUpdate.status?.current_version ?? ''));
+
+  /** Идёт ли установка обновлений. */
+  let updateBusy = $state(false);
+
+  /** Ошибка проверки или установки обновлений. */
+  let updateError = $state('');
+
+  /** Обновления установлены и ждут перезапуска. */
+  let updateDone = $state(false);
+
+  /** Было ли установлено обновление ядра: перезапуск выполняет помощник. */
+  let updateCoreApplied = $state(false);
+
+  /** Выполнена ли автоматическая проверка при запуске. */
+  let updateStartupChecked = false;
 
   /** Активная библиотека для шапки. */
   let activeLibrary: ActiveLibrary | null = $state(untrack(() => initialLibrary));
@@ -327,11 +371,9 @@
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
     settingsOpen
-      ? settingsSection === 'plugins'
-        ? 'Плагины'
-        : settingsSection === 'about'
-          ? 'Информация'
-          : 'Настройки'
+      ? settingsSection === 'updates'
+        ? 'Обновления'
+        : 'Настройки'
       : librariesOpen
         ? 'Библиотека'
         : notesLibraryOpen
@@ -359,11 +401,7 @@
 
   /** Название текущей страницы настроек для их шапки. */
   const settingsSectionTitle = $derived(
-    settingsSection === 'plugins'
-      ? 'Плагины'
-      : settingsSection === 'about'
-        ? 'Информация'
-        : 'Общие',
+    settingsSection === 'updates' ? 'Обновления' : 'Общие',
   );
 
   /** Замечания, показываемые в шапке одним индикатором.
@@ -912,6 +950,105 @@
     pendingBook = null;
   }
 
+  /** Проверка обновлений ядра и прикладных плагинов. */
+  async function checkUpdates(manual: boolean) {
+    try {
+      const [core, plugins] = await Promise.all([
+        checkCoreUpdate(),
+        listPluginUpdates().catch(() => [] as PluginUpdate[]),
+      ]);
+      updateCore = core.core;
+      updatePlugins = plugins;
+      updateCurrentVersion = core.core?.current_version ?? updateCurrentVersion;
+      updateError = core.errors.join('\n');
+      if (updateCore || updatePlugins.length > 0) {
+        updateDialogOpen = true;
+      } else if (manual) {
+        updateError = 'Обновлений нет.';
+      }
+    } catch (error) {
+      updateError = String(error);
+      if (manual) {
+        updateDialogOpen = true;
+      }
+    }
+  }
+
+  /** Автоматическая проверка обновлений при запуске. */
+  async function checkUpdatesOnStartup() {
+    if (updateStartupChecked) {
+      return;
+    }
+    updateStartupChecked = true;
+    const config = initialUpdate.status?.config;
+    if (!config?.check_on_startup || !config.source) {
+      return;
+    }
+    await checkUpdates(false);
+  }
+
+  /** Установка доступных обновлений: сначала плагины, затем ядро. */
+  async function applyUpdates() {
+    updateBusy = true;
+    updateError = '';
+    try {
+      for (const item of updatePlugins) {
+        await updatePluginFromStore(item.store, item.package.name || item.name);
+      }
+      if (updateCore) {
+        await applyCoreUpdate();
+        updateCoreApplied = true;
+      }
+      updateDone = true;
+      updatePlugins = [];
+      updateCore = null;
+    } catch (error) {
+      updateError = String(error);
+    } finally {
+      updateBusy = false;
+    }
+  }
+
+  /** Закрытие диалога обновлений без установки. */
+  function closeUpdateDialog() {
+    if (updateCoreApplied) {
+      void restartAfterUpdates();
+      return;
+    }
+    updateDialogOpen = false;
+    updateDone = false;
+    updateError = '';
+  }
+
+  /** Отказ от предлагаемой версии ядра. */
+  async function skipUpdateVersion() {
+    if (!updateCore) {
+      closeUpdateDialog();
+      return;
+    }
+    try {
+      await skipCoreUpdate(updateCore.version);
+      closeUpdateDialog();
+    } catch (error) {
+      updateError = String(error);
+    }
+  }
+
+  /** Перезапуск после установки обновлений. */
+  async function restartAfterUpdates() {
+    updateDialogOpen = false;
+    try {
+      if (updateCoreApplied) {
+        await quitForCoreUpdate();
+      } else {
+        await restartApplication();
+      }
+    } catch (error) {
+      updateError = String(error);
+      updateDialogOpen = true;
+    }
+  }
+
   /** Обновление сведений об активной библиотеке из ядра. */
   async function refreshActiveLibrary() {
     try {
@@ -934,6 +1071,7 @@
       mobileWindow = event.matches;
     };
     mobileQuery.addEventListener('change', onMobileChange);
+    void checkUpdatesOnStartup();
     void (async () => {
       unlisten = await listenEvent('source-catalog-changed', (value) => {
         const payload = value as ActiveLibrary | null;
@@ -1214,11 +1352,8 @@
             <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
               Общие
             </MenuItem>
-            <MenuItem active={settingsSection === 'plugins'} onclick={() => selectSettingsSection('plugins')}>
-              Плагины
-            </MenuItem>
-            <MenuItem active={settingsSection === 'about'} onclick={() => selectSettingsSection('about')}>
-              Информация
+            <MenuItem active={settingsSection === 'updates'} onclick={() => selectSettingsSection('updates')}>
+              Обновления
             </MenuItem>
           </Menu>
           <div class="flex min-h-0 min-w-0 flex-1">
@@ -1228,19 +1363,16 @@
                 initialError={initialSettings.error}
               />
             </div>
-            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'plugins'}>
+            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'updates'}>
               <StorePage
                 initialPlugins={initialStore.plugins}
                 initialStores={initialStore.stores}
                 initialPending={initialStore.activationPending}
                 initialError={initialStore.error}
+                initialUpdate={initialUpdate.status}
+                initialPluginUpdates={updatePlugins}
                 onPendingChange={(pending) => (activationPending = pending)}
               />
-            </div>
-            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'about'}>
-              {#if settingsSection === 'about'}
-                <AppInfoPage />
-              {/if}
             </div>
           </div>
         </div>
@@ -1259,6 +1391,20 @@
         closeWorkspacePicker();
       }
     }}
+  />
+
+  <UpdateDialog
+    bind:open={updateDialogOpen}
+    core={updateCore}
+    plugins={updatePlugins}
+    currentVersion={updateCurrentVersion}
+    busy={updateBusy}
+    error={updateError}
+    done={updateDone}
+    onApply={applyUpdates}
+    onLater={closeUpdateDialog}
+    onSkip={skipUpdateVersion}
+    onRestart={restartAfterUpdates}
   />
   </div>
 </div>

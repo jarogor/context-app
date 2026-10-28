@@ -41,6 +41,7 @@ impl FakeHost {
         self.plugins.borrow_mut().push(PluginEntry {
             id: id.to_string(),
             name: name.to_string(),
+            version: "0.1.0".to_string(),
             kind: "source".to_string(),
             description: "тест".to_string(),
             enabled,
@@ -60,6 +61,7 @@ impl FakeHost {
         Installed {
             id: SAMPLE_ID.to_string(),
             name,
+            version: "0.1.0".to_string(),
             kind: "extension".to_string(),
             contract_version: 1,
             description: String::new(),
@@ -121,6 +123,28 @@ impl Host for FakeHost {
         };
         entry.enabled = enabled;
         Ok(())
+    }
+
+    fn store_read(&self, kind: &str, location: &str, relative: &str) -> Result<String, String> {
+        let path = if kind == "network" {
+            format!("network:{}/{}", location.trim_end_matches('/'), relative)
+        } else {
+            format!("{}/{}", location.trim_end_matches('/'), relative)
+        };
+        self.read_file_text(&path)
+    }
+
+    fn store_fetch(
+        &self,
+        kind: &str,
+        location: &str,
+        relative: &str,
+        _sha256: Option<&str>,
+    ) -> Result<String, String> {
+        if kind == "network" {
+            return Ok(format!("/downloaded/{relative}"));
+        }
+        Ok(format!("{}/{}", location.trim_end_matches('/'), relative))
     }
 
     fn read_file_text(&self, path: &str) -> Result<String, String> {
@@ -257,8 +281,17 @@ fn available_file_reads_index() {
 }
 
 #[test]
-fn available_network_is_unsupported() {
-    let host = FakeHost::new(vec![]);
+fn available_network_reads_index() {
+    let index = json!({
+        "packages": [
+            { "id": SAMPLE_ID, "name": "sample", "version": "1.0.0", "location": "sample.zip", "sha256": "abc" }
+        ]
+    })
+    .to_string();
+    let host = FakeHost::new(vec![(
+        "network:https://example.com/store-index.json",
+        &index,
+    )]);
     call(
         &host,
         "stores_add",
@@ -266,7 +299,8 @@ fn available_network_is_unsupported() {
     );
 
     let response = call(&host, "available", json!({ "id": "remote" }));
-    assert_eq!(response["supported"], false, "сетевой провайдер — заглушка");
+    assert_eq!(response["supported"], true);
+    assert_eq!(response["packages"][0]["name"], "sample");
 }
 
 #[test]
@@ -297,23 +331,74 @@ fn install_from_store_file_uses_joined_path() {
 }
 
 #[test]
-fn install_from_store_network_is_rejected() {
-    let host = FakeHost::new(vec![]);
+fn install_from_store_network_fetches_package() {
+    let index = json!({
+        "packages": [
+            { "id": SAMPLE_ID, "name": "sample", "version": "1.0.0", "location": "packages/sample.zip", "sha256": "abc" }
+        ]
+    })
+    .to_string();
+    let host = FakeHost::new(vec![(
+        "network:https://example.com/store-index.json",
+        &index,
+    )]);
     call(
         &host,
         "stores_add",
         json!({ "store": { "id": "remote", "kind": "network", "title": "R", "location": "https://example.com" } }),
     );
 
-    let input = json!({
-        "action": "install_from_store",
-        "payload": { "id": "remote", "name": "sample" }
+    let response = call(
+        &host,
+        "install_from_store",
+        json!({ "id": "remote", "name": "sample" }),
+    );
+    assert_eq!(response["plugin"]["name"], "sample");
+    assert_eq!(
+        host.installed_paths.borrow().as_slice(),
+        ["/downloaded/packages/sample.zip"]
+    );
+}
+
+#[test]
+fn updates_lists_newer_packages() {
+    let index = json!({
+        "packages": [
+            { "id": SAMPLE_ID, "name": "sample", "version": "1.1.0", "location": "sample.zip" }
+        ]
     })
     .to_string();
-    assert!(
-        handle(&host, &input).is_err(),
-        "сетевая установка не поддерживается"
+    let host = FakeHost::new(vec![("/store/store-index.json", &index)])
+        .with_plugin(SAMPLE_ID, "sample", true, true);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "local", "kind": "file", "title": "L", "location": "/store" } }),
     );
+
+    let response = call(&host, "updates", json!({}));
+    assert_eq!(response["updates"][0]["name"], "sample");
+    assert_eq!(response["updates"][0]["current_version"], "0.1.0");
+}
+
+#[test]
+fn updates_ignores_same_version() {
+    let index = json!({
+        "packages": [
+            { "id": SAMPLE_ID, "name": "sample", "version": "0.1.0", "location": "sample.zip" }
+        ]
+    })
+    .to_string();
+    let host = FakeHost::new(vec![("/store/store-index.json", &index)])
+        .with_plugin(SAMPLE_ID, "sample", true, true);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "local", "kind": "file", "title": "L", "location": "/store" } }),
+    );
+
+    let response = call(&host, "updates", json!({}));
+    assert!(response["updates"].as_array().map(Vec::len) == Some(0));
 }
 
 #[test]

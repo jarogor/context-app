@@ -19,6 +19,24 @@ pub const USER_PLUGINS_DIR_NAME: &str = "app-plugins";
 /// Имя каталога служебного состояния приложения.
 pub const APP_STATE_DIR_NAME: &str = "app-state";
 
+/// Разрешение корня данных приложения.
+///
+/// В debug-сборке это `dev_data` в корне проекта; в release — каталог данных
+/// приложения, внутри которого лежат состояние, пользовательские плагины и
+/// другие файлы.
+#[cfg(debug_assertions)]
+pub fn resolve_app_data_root(_app_data_dir: Option<&Path>) -> PathBuf {
+    crate::paths::dev_data_dir()
+}
+
+/// Разрешение корня данных приложения в release.
+#[cfg(not(debug_assertions))]
+pub fn resolve_app_data_root(app_data_dir: Option<&Path>) -> PathBuf {
+    app_data_dir
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
 /// Имя подкаталога данных движка webview внутри каталога состояния.
 ///
 /// Здесь живёт раскладка движка (кеш, локальное хранилище, cookies, HSTS,

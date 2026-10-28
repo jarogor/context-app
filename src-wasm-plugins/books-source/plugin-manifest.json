@@ -5,6 +5,7 @@
   "id": "a692624f-1fa0-49a2-9015-9cb7361f9d47",
   "name": "books-source",
   "description": "Плагин каталога, импорта и чтения библиотеки",
+  "version": "0.1.0",
   "module": "books_source.wasm",
   "export": "invoke",
   "host_functions": [

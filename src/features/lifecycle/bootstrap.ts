@@ -43,6 +43,7 @@ import {
   type NotificationEntry,
 } from '../notifications/notifications';
 import {
+  addStore as addStoreEntry,
   loadActivationPending,
   loadStoreCatalog,
   type PluginEntry,
@@ -51,6 +52,7 @@ import {
 import { DEFAULT_OPEN_TABS_LIMIT } from '../workplace/workplace';
 import { loadOpenTabsLimit } from '../workplace/open-tabs-limit';
 import { loadCovers } from '../library/covers';
+import { loadUpdateStatus, type UpdateBootstrap } from '../update/update';
 import { invokeCommand } from '../../shared/app-bridge';
 import { activeLibrary } from '../../shared/base-plugin';
 
@@ -78,6 +80,8 @@ export interface BootstrapState {
     store: StoreBootstrap;
     /** Лимит числа открытых вкладок рабочего места (значение по умолчанию при ошибке). */
     openTabsLimit: number;
+    /** Состояние обновлений, прочитанное до первого рендера. */
+    update: UpdateBootstrap;
 }
 
 /** Оформление, прочитанное и применённое на бутстрапе. */
@@ -135,7 +139,7 @@ export interface StoreBootstrap {
  * кадру. Их загружают области при соответствующем действии пользователя.
  */
 export async function loadBootstrap(): Promise<BootstrapState> {
-    const [registry, library, appearance, settings, notifications, store, openTabsLimit] =
+    const [registry, library, appearance, settings, notifications, store, openTabsLimit, update] =
         await Promise.all([
             invokeCommand('get_workspaces', {}),
             loadActiveLibrary(),
@@ -144,11 +148,13 @@ export async function loadBootstrap(): Promise<BootstrapState> {
             loadNotificationsBootstrap(),
             loadStoreBootstrap(),
             loadOpenTabsLimit().catch(() => DEFAULT_OPEN_TABS_LIMIT),
+            loadUpdateBootstrap(),
         ]);
     // Обложки книг рабочих мест готовятся до первого кадра: список рисуется с
     // ними сразу и не дорисовывает их по одной. Извлечение кэшируется в ядре,
     // поэтому повторный запуск читает готовые обложки.
     await loadWorkspaceCovers(registry).catch(() => {});
+    await ensureUpdatePlace(store, update).catch(() => {});
     return {
         registry,
         activeLibrary: library,
@@ -157,6 +163,7 @@ export async function loadBootstrap(): Promise<BootstrapState> {
         notifications,
         store,
         openTabsLimit,
+        update,
     };
 }
 
@@ -183,6 +190,37 @@ function workspaceBookPaths(registry: unknown): string[] {
 /** Загрузка обложек книг рабочих мест в кэш оболочки до первого рендера. */
 async function loadWorkspaceCovers(registry: unknown): Promise<void> {
     await loadCovers(workspaceBookPaths(registry));
+}
+
+/** Регистрация встроенного адреса обновлений среди мест обновления. */
+async function ensureUpdatePlace(
+    store: StoreBootstrap,
+    update: UpdateBootstrap,
+): Promise<void> {
+    const source = update.status?.config.source;
+    if (!source) {
+        return;
+    }
+    if (store.stores.some((item) => item.kind === source.kind && item.location === source.location)) {
+        return;
+    }
+    const title =
+        source.kind === 'network'
+            ? (() => {
+                  try {
+                      return new URL(source.location).host;
+                  } catch {
+                      return 'Обновления';
+                  }
+              })()
+            : source.location.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || 'Обновления';
+    await addStoreEntry({
+        id: `updates-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}-${source.location.length}`,
+        kind: source.kind,
+        title,
+        location: source.location,
+    });
+    store.stores = (await loadStoreCatalog()).stores;
 }
 
 /** Чтение и применение оформления до первого кадра.
@@ -265,5 +303,14 @@ async function loadActiveLibrary(): Promise<ActiveLibrary | null> {
         return result as ActiveLibrary | null;
     } catch {
         return null;
+    }
+}
+
+/** Загрузка состояния обновлений; ошибка не мешает входу в приложение. */
+async function loadUpdateBootstrap(): Promise<UpdateBootstrap> {
+    try {
+        return { status: await loadUpdateStatus(), error: '' };
+    } catch (cause) {
+        return { status: null, error: String(cause) };
     }
 }

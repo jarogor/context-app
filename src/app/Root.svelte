@@ -10,6 +10,7 @@
     type SettingsBootstrap,
     type StoreBootstrap,
   } from '../features/lifecycle/bootstrap';
+  import type { UpdateBootstrap } from '../features/update/update';
   import { normalizeRegistry } from '../features/workplace/workspace-registry';
   import { DEFAULT_OPEN_TABS_LIMIT } from '../features/workplace/workplace';
   import { DEFAULT_PALETTE, DEFAULT_READER_FONT, DEFAULT_READER_THEME } from '@context/ui';
@@ -58,6 +59,9 @@
   /** Лимит открытых вкладок рабочего места, загруженный до первого рендера. */
   let initialOpenTabsLimit = $state(DEFAULT_OPEN_TABS_LIMIT);
 
+  /** Состояние обновлений, загруженное до первого рендера. */
+  let initialUpdate: UpdateBootstrap = $state({ status: null, error: '' });
+
   /** Счётчик повторных попыток: перезапускает эффект загрузки. */
   let attempt = $state(0);
 
@@ -90,6 +94,7 @@
         initialNotifications = state.notifications;
         initialStore = state.store;
         initialOpenTabsLimit = state.openTabsLimit;
+        initialUpdate = state.update;
         phase = 'ready';
       } catch (error) {
         if (!active) {
@@ -117,6 +122,7 @@
     initialNotifications={initialNotifications}
     initialStore={initialStore}
     initialOpenTabsLimit={initialOpenTabsLimit}
+    initialUpdate={initialUpdate}
   />
 {:else if phase === 'error'}
   <BootstrapError error={bootstrapError} onRetry={retry} />

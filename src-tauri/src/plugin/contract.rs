@@ -93,6 +93,12 @@ pub const HOST_STORE_PLUGINS: &str = "store_plugins";
 /// Имя привилегированной host-функции переключения активности плагина.
 pub const HOST_STORE_SET_ENABLED: &str = "store_set_enabled";
 
+/// Имя привилегированной host-функции чтения текста из стора.
+pub const HOST_STORE_READ: &str = "store_read";
+
+/// Имя привилегированной host-функции загрузки пакета из стора.
+pub const HOST_STORE_FETCH: &str = "store_fetch";
+
 /// Список привилегированных host-функций стора плагинов.
 ///
 /// Функции выдаются только плагинам, объявившим их в `host_functions`.
@@ -103,6 +109,8 @@ pub const STORE_HOST_FUNCTIONS: &[&str] = &[
     HOST_STORE_INSTALLED,
     HOST_STORE_PLUGINS,
     HOST_STORE_SET_ENABLED,
+    HOST_STORE_READ,
+    HOST_STORE_FETCH,
 ];
 
 /// Набор прав — host-функций, известных каркасу.
@@ -133,6 +141,8 @@ pub const KNOWN_HOST_FUNCTIONS: &[&str] = &[
     HOST_STORE_INSTALLED,
     HOST_STORE_PLUGINS,
     HOST_STORE_SET_ENABLED,
+    HOST_STORE_READ,
+    HOST_STORE_FETCH,
 ];
 
 /// Признак, что host-функция известна каркасу как право плагина.

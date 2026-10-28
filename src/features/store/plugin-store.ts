@@ -17,6 +17,8 @@ export interface PluginEntry {
   id: string;
   /** Человекочитаемое имя плагина. */
   name: string;
+  /** Версия плагина. */
+  version?: string;
   /** Категория плагина. */
   kind: string;
   /** Описание плагина. */
@@ -51,8 +53,24 @@ export interface StorePackage {
   kind?: string;
   /** Описание пакета. */
   description?: string;
+  /** Идентификатор плагина. */
+  id?: string;
+  /** Контрольная сумма пакета. */
+  sha256?: string;
   /** Путь к zip-пакету. */
   location: string;
+}
+
+/** Доступное обновление прикладного плагина. */
+export interface PluginUpdate {
+  /** Идентификатор стора. */
+  store: string;
+  /** Имя пакета. */
+  name: string;
+  /** Пакет из индекса стора. */
+  package: StorePackage;
+  /** Установленная версия. */
+  current_version: string;
 }
 
 /** Перечень плагинов и реестр подключённых сторов. */
@@ -120,4 +138,15 @@ export async function listStorePackages(
     id,
   });
   return { supported: result.supported, packages: result.packages ?? [] };
+}
+
+/** Доступные обновления прикладных плагинов во всех подключённых сторах. */
+export async function listPluginUpdates(): Promise<PluginUpdate[]> {
+  const result = await operation<{ updates?: PluginUpdate[] }>('updates', {});
+  return result.updates ?? [];
+}
+
+/** Установка или обновление плагина из стора. */
+export async function updatePluginFromStore(store: string, name: string): Promise<void> {
+  await operation('install_from_store', { id: store, name });
 }

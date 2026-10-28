@@ -16,7 +16,7 @@ beforeEach(() => {
   invoke.mockReset();
 });
 
-describe('страница плагинов и сторов', () => {
+describe('страница обновлений', () => {
   it('рисует каталог, загруженный на бутстрапе, без обращения к плагину', () => {
     const onPendingChange = vi.fn();
 
@@ -48,9 +48,12 @@ describe('страница плагинов и сторов', () => {
 
     expect(screen.getByText('books-source-calibre')).toBeTruthy();
     expect(screen.getByText('installed-plugin')).toBeTruthy();
-    expect(screen.getByText('Локальный стор')).toBeTruthy();
+    expect(screen.getByText('/stores/main')).toBeTruthy();
     expect(onPendingChange).toHaveBeenCalledWith(true);
-    expect(invoke).not.toHaveBeenCalled();
+    // Каталог передан бутстрапом: обращения к плагину за ним нет.
+    expect(
+      invoke.mock.calls.some(([command]) => command === 'invoke_base_plugin_operation'),
+    ).toBe(false);
   });
 
   it('показывает все плагины одним списком, без деления на виды', () => {
@@ -98,6 +101,8 @@ describe('страница плагинов и сторов', () => {
     render(StorePage, { initialPlugins: [], initialStores: [], initialPending: false });
 
     expect(screen.getByText('Нет плагинов')).toBeTruthy();
-    expect(screen.getByText('Сторы не подключены')).toBeTruthy();
+    // Пустого сообщения об отсутствии мест обновления нет: место по умолчанию
+    // подставляется настройками обновлений.
+    expect(screen.queryByText(/Пока не добавлено/)).toBeNull();
   });
 });

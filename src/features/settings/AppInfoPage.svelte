@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Card, ErrorState, ScrollArea, Skeleton } from '@context/ui';
+  import { Card, ErrorState, Skeleton } from '@context/ui';
   import { invokeCommand } from '../../shared/app-bridge';
 
   /** Служебное расположение в сведениях о приложении. */
@@ -17,10 +17,6 @@
 
   /** Сведения о приложении. */
   interface AppInfo {
-    /** Отображаемое название. */
-    name: string;
-    /** Версия приложения. */
-    version: string;
     /** Служебные каталоги и файлы. */
     paths: AppPath[];
   }
@@ -43,34 +39,24 @@
   });
 </script>
 
-<ScrollArea testId="app-info-page" class="p-4 md:p-6">
-  <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-5">
-    {#if error}
-      <ErrorState message={error} />
-    {:else if !info}
-      <Skeleton rows={3} rowClass="h-20" />
-    {:else}
-      <Card class="p-5">
-        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span class="role-heading">{info.name}</span>
-          <span class="role-mono text-[var(--muted-foreground)]">версия {info.version}</span>
-        </div>
-      </Card>
-
-      <Card class="p-5">
-        <h2 class="mb-3 role-heading">Файлы приложения</h2>
-        <ul class="flex list-none flex-col gap-2 p-0">
-          {#each info.paths as path (path.key)}
-            <li
-              class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-3"
-            >
-              <span class="role-title">{path.title}</span>
-              <code class="break-all role-mono text-[var(--foreground)]">{path.path}</code>
-              <span class="role-caption text-[var(--muted-foreground)]">{path.note}</span>
-            </li>
-          {/each}
-        </ul>
-      </Card>
-    {/if}
-  </div>
-</ScrollArea>
+{#if error}
+  <ErrorState message={error} />
+{:else if !info}
+  <Card class="p-5">
+    <Skeleton rows={2} rowClass="h-16" />
+  </Card>
+{:else}
+  <Card class="p-5">
+    <h2 class="mb-3 role-heading">Расположение данных</h2>
+    <ul class="flex list-none flex-col gap-2 p-0">
+      {#each info.paths as path (path.key)}
+        <li
+          class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-3"
+        >
+          <code class="break-all role-mono text-[var(--foreground)]">{path.path}</code>
+          <span class="role-caption text-[var(--muted-foreground)]">{path.note}</span>
+        </li>
+      {/each}
+    </ul>
+  </Card>
+{/if}

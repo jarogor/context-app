@@ -1,12 +1,23 @@
 //! Host-функции стора плагинов.
 
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use extism::{CurrentPlugin, UserData, Val};
 
 use crate::plugin::{activation, discovery, package};
+use crate::update::{package as update_package, source, UpdateSource};
 
 use super::super::host_state::HostState;
+
+/// Максимальный размер индекса стора.
+const MAX_INDEX_BYTES: usize = 2 * 1024 * 1024;
+
+/// Максимальный размер скачиваемого пакета плагина.
+const MAX_PACKAGE_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Имя служебного каталога загрузок внутри каталога стора.
+const DOWNLOADS_DIR_NAME: &str = ".downloads";
 
 /// Получение корня пользовательского каталога плагинов для host-функций стора.
 pub(crate) fn store_root(state: &HostState) -> Result<PathBuf, extism::Error> {
@@ -170,4 +181,84 @@ pub(super) fn host_store_set_enabled(
     plugin
         .memory_set_val(&mut returns[0], "ok")
         .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `store_read`: чтение текстового файла стора.
+///
+/// Файловый вид читает файл из каталога стора, сетевой — запрашивает адрес.
+/// Источник описывается теми же полями, что и подключённый стор.
+pub(super) fn host_store_read(
+    plugin: &mut CurrentPlugin,
+    args: &[Val],
+    returns: &mut [Val],
+    _user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let kind: String = plugin.memory_get_val(&args[0])?;
+    let location: String = plugin.memory_get_val(&args[1])?;
+    let relative: String = plugin.memory_get_val(&args[2])?;
+    let source = UpdateSource { kind, location };
+    let text =
+        source::read_text(&source, &relative, MAX_INDEX_BYTES).map_err(extism::Error::msg)?;
+    plugin
+        .memory_set_val(&mut returns[0], &text)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция `store_fetch`: загрузка пакета плагина из стора.
+///
+/// Файл попадает в служебный каталог загрузок и проверяется по контрольной
+/// сумме. Для сетевого стора сумма обязательна. Возвращается абсолютный путь,
+/// который затем передаётся в `store_install`.
+pub(super) fn host_store_fetch(
+    plugin: &mut CurrentPlugin,
+    args: &[Val],
+    returns: &mut [Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let kind: String = plugin.memory_get_val(&args[0])?;
+    let location: String = plugin.memory_get_val(&args[1])?;
+    let relative: String = plugin.memory_get_val(&args[2])?;
+    let sha256: String = plugin.memory_get_val(&args[3])?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let root = store_root(&state)?;
+    drop(state);
+    let downloads = root.join(DOWNLOADS_DIR_NAME);
+    fs::create_dir_all(&downloads)
+        .map_err(|_| extism::Error::msg("каталог загрузок недоступен"))?;
+    let name = sanitize_file_name(&relative);
+    let destination = downloads.join(name);
+    let source = UpdateSource {
+        kind: kind.clone(),
+        location,
+    };
+    source::download(&source, &relative, &destination, MAX_PACKAGE_BYTES)
+        .map_err(extism::Error::msg)?;
+    let expected = sha256.trim();
+    update_package::verify_sha256(
+        &destination,
+        (!expected.is_empty()).then_some(expected),
+        kind == "network",
+    )
+    .map_err(extism::Error::msg)?;
+    let path = destination.to_string_lossy().into_owned();
+    plugin
+        .memory_set_val(&mut returns[0], &path)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Безопасное имя файла загрузки из относительного пути пакета.
+fn sanitize_file_name(relative: &str) -> String {
+    relative
+        .chars()
+        .map(|value| {
+            if value.is_ascii_alphanumeric() || matches!(value, '.' | '-' | '_') {
+                value
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }

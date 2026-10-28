@@ -142,17 +142,27 @@ fn installs_and_lists_package() {
 }
 
 #[test]
-fn rejects_duplicate_install() {
-    let dir = test_util::test_root("plugin-package-duplicate");
+fn reinstalls_plugin_replacing_previous_version() {
+    let dir = test_util::test_root("plugin-package-upgrade");
     let archive = dir.join("pkg.zip");
     let root = dir.join("app-plugins");
     valid_package(&archive, SAMPLE_ID, "sample");
     install_package(&archive, &root).expect("первая установка");
+    fs::write(root.join(SAMPLE_ID).join("old.txt"), b"old").expect("старый файл");
 
-    let result = install_package(&archive, &root);
+    let updated = install_package(&archive, &root).expect("повторная установка");
+    assert_eq!(updated.id, SAMPLE_ID);
     assert!(
-        matches!(result, Err(PluginError::Package { .. })),
-        "повторная установка отклоняется"
+        !root.join(SAMPLE_ID).join("old.txt").exists(),
+        "старая версия заменена целиком"
+    );
+    assert!(
+        !root
+            .read_dir()
+            .expect("каталог плагинов")
+            .flatten()
+            .any(|entry| entry.file_name().to_string_lossy().starts_with(".backup-")),
+        "резервная копия не осталась"
     );
     test_util::cleanup(&dir);
 }

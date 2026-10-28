@@ -119,19 +119,20 @@ test('дискретное поле сохраняется по кнопке, а
   await expect(settings.getByRole('button', { name: 'Сохранить' })).toBeDisabled();
 });
 
-test('раздел «Информация» показывает версию и расположение конфигов', async ({ page }) => {
+test('раздел «Обновления» показывает версию и расположение конфигов', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
-  await menu.getByRole('button', { name: 'Информация' }).click();
+  await menu.getByRole('button', { name: 'Обновления' }).click();
 
-  await expect(page.getByText('версия 0.1.0')).toBeVisible();
+  await expect(page.getByText('Приложение', { exact: true })).toBeVisible();
+  await expect(page.locator('main').getByText('0.1.0', { exact: true }).first()).toBeVisible();
   const info = page.getByTestId('app-info-page');
-  await expect(info.getByRole('heading', { name: 'Файлы приложения' })).toBeVisible();
-  await expect(info.getByText('/home/user/.context/app-state', { exact: true })).toBeVisible();
-  // Одно расположение состояния; деления плагинов и жаргона нет.
-  await expect(info.locator('li', { hasText: 'Состояние приложения' }).first()).toBeVisible();
+  await expect(info.getByRole('heading', { name: 'Расположение данных' })).toBeVisible();
+  await expect(info.getByText('/home/user/.context', { exact: true })).toBeVisible();
+  // Одно расположение данных; деления плагинов и жаргона нет.
+  await expect(info.getByText('Настройки, плагины, кеш и обновления')).toBeVisible();
   await expect(info.getByText(/в поставке/)).toHaveCount(0);
   await expect(info.getByText('Каркас')).toHaveCount(0);
   await expect(info.getByText('Кэш плагинов')).toHaveCount(0);
@@ -177,11 +178,11 @@ test('кнопка закрытия доступна с любой страни�
   await page.getByTestId('nav-settings').click();
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
-  // Закрытие есть и на «Плагинах», и на «Информации», а не только на «Общих».
-  await menu.getByRole('button', { name: 'Плагины' }).click();
+  // Закрытие есть на любой странице настроек, а не только на «Общих».
+  await menu.getByRole('button', { name: 'Обновления' }).click();
   await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
 
-  await menu.getByRole('button', { name: 'Информация' }).click();
+  await menu.getByRole('button', { name: 'Общие' }).click();
   await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
 
   await page.getByLabel('Закрыть настройки').click();

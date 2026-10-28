@@ -28,6 +28,8 @@ pub struct InstalledPlugin {
     pub id: String,
     /// Человекочитаемое имя плагина.
     pub name: String,
+    /// Версия плагина в формате SemVer.
+    pub version: String,
     /// Уровень плагина: каркас или приложение.
     pub level: String,
     /// Назначение плагина.
@@ -44,6 +46,7 @@ impl From<&PluginManifest> for InstalledPlugin {
         Self {
             id: manifest.id.clone(),
             name: manifest.name.clone(),
+            version: manifest.version_or_zero(),
             level: manifest.level.to_string(),
             kind: manifest.kind.to_string(),
             contract_version: manifest.contract_version,
@@ -68,8 +71,10 @@ pub fn inspect_package(archive: &Path) -> Result<PluginManifest, PluginError> {
 /// Установка пакета в пользовательский каталог плагинов.
 ///
 /// Пакет распаковывается в промежуточный каталог рядом с целью, проверяется и
-/// только затем атомарно переносится под идентификатором плагина. Установка
-/// базового плагина и конфликт идентификатора отклоняются.
+/// только затем атомарно переносится под идентификатором плагина. Если плагин с
+/// таким идентификатором уже установлен, предыдущая версия заменяется новой:
+/// старая папка сначала отводится в резерв и восстанавливается при неудаче.
+/// Установка плагина каркаса отклоняется.
 pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, PluginError> {
     fs::create_dir_all(root).map_err(package_error)?;
     let staging = tempfile::Builder::new()
@@ -109,17 +114,30 @@ pub fn install_package(archive: &Path, root: &Path) -> Result<InstalledPlugin, P
         }
     }
     let target = root.join(&manifest.id);
-    if target.exists() {
-        return Err(PluginError::Package {
-            reason: format!("плагин {} уже установлен", manifest.id),
-        });
-    }
+    let backup = if target.exists() {
+        let backup = root.join(format!(".backup-{}-{}", manifest.id, std::process::id()));
+        if backup.exists() {
+            fs::remove_dir_all(&backup).map_err(package_error)?;
+        }
+        fs::rename(&target, &backup).map_err(package_error)?;
+        Some(backup)
+    } else {
+        None
+    };
 
     let staged = staging.keep();
-    fs::rename(&staged, &target).map_err(|error| {
+    if let Err(error) = fs::rename(&staged, &target) {
         let _ = fs::remove_dir_all(&staged);
-        plugin_error(format!("не удалось установить плагин: {error}"))
-    })?;
+        if let Some(backup) = &backup {
+            let _ = fs::rename(backup, &target);
+        }
+        return Err(plugin_error(format!(
+            "не удалось установить плагин: {error}"
+        )));
+    }
+    if let Some(backup) = backup {
+        let _ = fs::remove_dir_all(&backup);
+    }
     Ok(InstalledPlugin::from(&manifest))
 }
 
@@ -159,7 +177,7 @@ pub fn installed_plugins(root: &Path) -> Result<Vec<InstalledPlugin>, PluginErro
         if dir
             .file_name()
             .and_then(|name| name.to_str())
-            .map(|name| name.starts_with(".staging-"))
+            .map(|name| name.starts_with('.'))
             .unwrap_or(false)
         {
             continue;

@@ -249,6 +249,7 @@ function baseOperation(payload: unknown): unknown {
                 {
                     id: CALIBRE_ID,
                     name: 'books-source-calibre',
+                    version: '0.1.0',
                     kind: 'books',
                     description: 'Плагин источника книг Calibre',
                     enabled: true,
@@ -257,6 +258,7 @@ function baseOperation(payload: unknown): unknown {
                 {
                     id: INSTALLED_ID,
                     name: 'installed-plugin',
+                    version: '0.1.0',
                     kind: 'extension',
                     description: 'Установленный пользователем плагин',
                     enabled: false,
@@ -265,6 +267,7 @@ function baseOperation(payload: unknown): unknown {
                 {
                     id: 'b1f2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5e',
                     name: 'demo',
+                    version: '0.1.0',
                     kind: 'extension',
                     description: 'Образец: минимальный extension-плагин',
                     enabled: true,
@@ -274,6 +277,7 @@ function baseOperation(payload: unknown): unknown {
                 {
                     id: 'c1a7e0d4-2b3f-4c5a-9d6e-7f8a9b0c1d2e',
                     name: 'format-demo',
+                    version: '0.1.0',
                     kind: 'format',
                     description: 'Образец плагина формата чтения',
                     enabled: true,
@@ -291,6 +295,15 @@ function baseOperation(payload: unknown): unknown {
     }
     if (message.capability === 'plugin-store@1' && message.operation === 'stores_add') {
         return { stores: [] };
+    }
+    if (message.capability === 'plugin-store@1' && message.operation === 'available') {
+        return { supported: true, packages: [] };
+    }
+    if (message.capability === 'plugin-store@1' && message.operation === 'updates') {
+        return { updates: [] };
+    }
+    if (message.capability === 'plugin-store@1' && message.operation === 'install_from_store') {
+        return { plugin: { id: INSTALLED_ID, name: 'installed-plugin', version: '0.1.0' } };
     }
     if (message.capability === 'notifications.journal@1' && message.operation === 'list') {
         return { entries: mockJournalEntries() };
@@ -668,14 +681,52 @@ export function defaultMockConfig(): MockBridgeConfig {
                 version: '0.1.0',
                 paths: [
                     {
-                        key: 'app_state',
-                        title: 'Состояние приложения',
-                        path: '/home/user/.context/app-state',
-                        note: 'Настройки, плагины, кеш и данные интерфейса',
+                        key: 'app_data',
+                        title: 'Данные приложения',
+                        path: '/home/user/.context',
+                        note: 'Настройки, плагины, кеш и обновления',
                     },
                 ],
             }),
             plugin_activation_pending: () => ({ pending: false }),
+            update_status: () => ({
+                current_version: '0.1.0',
+                config: {
+                    source: null,
+                    check_on_startup: true,
+                    skipped_version: null,
+                },
+                last_check: null,
+            }),
+            update_check: () => ({
+                source: null,
+                core: null,
+                checked_at_millis: 0,
+                errors: [],
+            }),
+            update_source_set: () => ({
+                source: null,
+                check_on_startup: true,
+                skipped_version: null,
+            }),
+            update_source_clear: () => ({
+                source: null,
+                check_on_startup: true,
+                skipped_version: null,
+            }),
+            update_check_on_startup_set: () => ({
+                source: null,
+                check_on_startup: true,
+                skipped_version: null,
+            }),
+            update_apply: () => ({ version: '0.1.0', restart_required: false, log_path: '' }),
+            update_skip: () => ({
+                source: null,
+                check_on_startup: true,
+                skipped_version: null,
+            }),
+            update_restart: () => null,
+            update_quit: () => null,
             get_workspaces: () => ({
                 workspaces: [
                     {

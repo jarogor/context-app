@@ -8,6 +8,7 @@ pub mod library_history;
 pub mod paths;
 pub mod plugin;
 pub mod startup;
+pub mod update;
 pub mod workspace_state;
 
 use std::path::{Path, PathBuf};
@@ -16,8 +17,8 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 use crate::constants::{
-    resolve_app_state_root, resolve_user_plugins_root, resolve_webview_root, APP_DISPLAY_NAME,
-    BASE_PLUGINS_DIR_NAME, PLUGINS_DIR_NAME,
+    resolve_app_data_root, resolve_app_state_root, resolve_user_plugins_root, resolve_webview_root,
+    APP_DISPLAY_NAME, BASE_PLUGINS_DIR_NAME, PLUGINS_DIR_NAME,
 };
 use crate::plugin::{AppHostConfig, AppInfo, AppState, PluginSession, ReaderConfig};
 
@@ -35,6 +36,7 @@ pub fn run() {
             let app_data_dir = app.path().app_data_dir().ok();
             let user_plugins_dir = resolve_user_plugins_root(app_data_dir.as_deref());
             let app_state_root = resolve_app_state_root(app_data_dir.as_deref());
+            let app_data_root = resolve_app_data_root(app_data_dir.as_deref());
 
             let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
             let bundled_base = resource_dir.join(BASE_PLUGINS_DIR_NAME);
@@ -93,7 +95,7 @@ pub fn run() {
             let app_info = AppInfo::build(
                 APP_DISPLAY_NAME,
                 app.package_info().version.to_string(),
-                &app_state_root,
+                &app_data_root,
             );
 
             app.manage(Mutex::new(AppState::new(
@@ -164,6 +166,15 @@ pub fn run() {
             commands::reader_open_external,
             commands::reader_book_chunk,
             commands::reader_forget_book,
+            commands::update_status,
+            commands::update_source_set,
+            commands::update_source_clear,
+            commands::update_check_on_startup_set,
+            commands::update_check,
+            commands::update_apply,
+            commands::update_skip,
+            commands::update_restart,
+            commands::update_quit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

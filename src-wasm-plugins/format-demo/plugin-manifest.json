@@ -5,6 +5,7 @@
   "id": "c1a7e0d4-2b3f-4c5a-9d6e-7f8a9b0c1d2e",
   "name": "format-demo",
   "description": "Образец плагина формата чтения: простейшая читалка формата demo",
+  "version": "0.1.0",
   "formats": [
     "demo"
   ],

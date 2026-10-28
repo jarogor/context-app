@@ -9,6 +9,8 @@ pub struct Installed {
     pub id: String,
     /// Человекочитаемое имя плагина.
     pub name: String,
+    /// Версия плагина.
+    pub version: String,
     /// Категория плагина.
     pub kind: String,
     /// Версия контракта плагина.
@@ -45,6 +47,9 @@ pub struct Package {
     /// Описание пакета.
     #[serde(default)]
     pub description: String,
+    /// Идентификатор плагина (если известен).
+    #[serde(default)]
+    pub id: String,
     /// Путь к zip-пакету относительно расположения стора.
     pub location: String,
     /// Контрольная сумма пакета (задел на проверку целостности).
@@ -59,6 +64,8 @@ pub struct PluginEntry {
     pub id: String,
     /// Человекочитаемое имя плагина.
     pub name: String,
+    /// Версия плагина.
+    pub version: String,
     /// Категория плагина.
     pub kind: String,
     /// Описание плагина.

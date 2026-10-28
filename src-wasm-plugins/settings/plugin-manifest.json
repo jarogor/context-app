@@ -5,6 +5,7 @@
   "id": "69b39e5d-0c25-4cdb-8c3e-d3ba89147c24",
   "name": "settings",
   "description": "Базовый плагин настроек приложения и плагинов",
+  "version": "0.1.0",
   "module": "settings.wasm",
   "export": "invoke",
   "host_functions": [

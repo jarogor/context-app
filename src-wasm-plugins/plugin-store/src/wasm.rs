@@ -28,6 +28,10 @@ extern "ExtismHost" {
     fn store_plugins() -> String;
     /// Переключение активности плагина.
     fn store_set_enabled(id: String, enabled: String) -> String;
+    /// Чтение текстового файла стора.
+    fn store_read(kind: String, location: String, relative: String) -> String;
+    /// Загрузка пакета из стора.
+    fn store_fetch(kind: String, location: String, relative: String, sha256: String) -> String;
 }
 
 /// Реализация `Host` поверх host-функций приложения.
@@ -87,6 +91,29 @@ impl Host for StoreHostEnv {
         unsafe { store_set_enabled(id.to_string(), enabled.to_string()) }
             .map(|_| ())
             .map_err(|error| error.to_string())
+    }
+
+    fn store_read(&self, kind: &str, location: &str, relative: &str) -> Result<String, String> {
+        unsafe { store_read(kind.to_string(), location.to_string(), relative.to_string()) }
+            .map_err(|error| error.to_string())
+    }
+
+    fn store_fetch(
+        &self,
+        kind: &str,
+        location: &str,
+        relative: &str,
+        sha256: Option<&str>,
+    ) -> Result<String, String> {
+        unsafe {
+            store_fetch(
+                kind.to_string(),
+                location.to_string(),
+                relative.to_string(),
+                sha256.unwrap_or_default().to_string(),
+            )
+        }
+        .map_err(|error| error.to_string())
     }
 
     fn read_file_text(&self, path: &str) -> Result<String, String> {

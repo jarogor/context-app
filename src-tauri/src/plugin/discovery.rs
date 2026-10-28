@@ -60,6 +60,8 @@ pub struct PluginEntry {
     pub id: String,
     /// Человекочитаемое имя плагина.
     pub name: String,
+    /// Версия плагина.
+    pub version: String,
     /// Уровень плагина: каркас или приложение.
     pub level: String,
     /// Назначение плагина: его предметная роль.
@@ -120,6 +122,7 @@ pub fn list_disableable(
             entries.push(PluginEntry {
                 id: manifest.id.clone(),
                 name: manifest.name.clone(),
+                version: manifest.version_or_zero(),
                 level: manifest.level.to_string(),
                 kind: manifest.kind.to_string(),
                 description: manifest.description.clone(),

@@ -22,6 +22,16 @@ pub trait Host: BaseHost {
     fn store_plugins(&self) -> Result<Vec<PluginEntry>, String>;
     /// Переключение активности плагина по идентификатору.
     fn store_set_enabled(&self, id: &str, enabled: bool) -> Result<(), String>;
+    /// Чтение текстового файла стора (индекс пакетов).
+    fn store_read(&self, kind: &str, location: &str, relative: &str) -> Result<String, String>;
+    /// Загрузка пакета из стора; возвращает локальный путь для установки.
+    fn store_fetch(
+        &self,
+        kind: &str,
+        location: &str,
+        relative: &str,
+        sha256: Option<&str>,
+    ) -> Result<String, String>;
     /// Чтение текстового файла по пути.
     fn read_file_text(&self, path: &str) -> Result<String, String>;
 }

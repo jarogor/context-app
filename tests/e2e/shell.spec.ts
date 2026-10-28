@@ -37,10 +37,10 @@ test('оболочка показывает панель и переключае
 
     const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
     await expect(menu.getByRole('button', { name: 'Общие' })).toBeVisible();
-    await expect(menu.getByRole('button', { name: 'Плагины' })).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Обновления' })).toBeVisible();
 
-    await menu.getByRole('button', { name: 'Плагины' }).click();
-    await expect(page.locator('main').getByRole('heading', { name: 'Плагины' })).toBeVisible();
+    await menu.getByRole('button', { name: 'Обновления' }).click();
+    await expect(page.locator('main').getByRole('heading', { name: 'Обновления' })).toBeVisible();
 });
 
 test('разделы меню показывают активный раздел', async ({ page }) => {

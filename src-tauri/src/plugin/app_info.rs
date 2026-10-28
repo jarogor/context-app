@@ -1,4 +1,4 @@
-//! Сведения о приложении для страницы «Информация».
+//! Сведения о приложении для страницы «Обновления».
 //!
 //! Ядро владеет фактическими расположениями служебных каталогов и кешей и
 //! отдаёт их интерфейсу одним снимком: без этого непонятно, где лежат плагины,
@@ -35,28 +35,19 @@ pub struct AppInfo {
     pub paths: Vec<AppPath>,
 }
 
-/// Имя подкаталога состояния с файлами настроек плагинов.
-const PLUGIN_STATE_DIR_NAME: &str = "base-plugins";
-/// Имя каталога кеша скомпилированных плагинов.
-const WASM_CACHE_DIR_NAME: &str = "wasm-cache";
-/// Имя файла конфигурации кеша плагинов.
-const WASM_CACHE_CONFIG_FILE_NAME: &str = "wasm-cache.toml";
-
 impl AppInfo {
-    /// Сборка сведений из версии пакета и корня состояния приложения.
+    /// Сборка сведений из версии пакета и корня данных приложения.
     ///
-    /// Пользователю показывается одно расположение — каталог состояния, где
-    /// лежат настройки, плагины, кеш и данные интерфейса. Внутреннее деление и
+    /// Пользователю показывается одно расположение — каталог данных, где
+    /// лежат настройки, плагины, кеш и обновления. Внутреннее деление и
     /// жаргон («каркас», «уровень приложения», «в поставке») наружу не выносятся.
-    pub fn build(name: impl Into<String>, version: impl Into<String>, state_root: &Path) -> Self {
+    pub fn build(name: impl Into<String>, version: impl Into<String>, data_root: &Path) -> Self {
         let path_of = |path: &Path| path.to_string_lossy().into_owned();
         let paths = vec![AppPath {
-            key: "app_state".to_string(),
-            title: "Состояние приложения".to_string(),
-            path: path_of(state_root),
-            note: format!(
-                "Настройки, плагины, кеш ({WASM_CACHE_CONFIG_FILE_NAME}, {WASM_CACHE_DIR_NAME}, {PLUGIN_STATE_DIR_NAME}) и данные интерфейса"
-            ),
+            key: "app_data".to_string(),
+            title: "Данные приложения".to_string(),
+            path: path_of(data_root),
+            note: "Настройки, плагины, кеш и обновления".to_string(),
         }];
         Self {
             name: name.into(),

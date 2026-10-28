@@ -37,6 +37,12 @@ pub struct PluginManifest {
     pub name: String,
     /// Краткое описание назначения плагина.
     pub description: String,
+    /// Версия плагина в формате SemVer.
+    ///
+    /// Используется стором для сравнения установленной и предлагаемой версий.
+    /// Пустое значение допустимо для старых пакетов и трактуется как `0.0.0`.
+    #[serde(default)]
+    pub version: String,
     /// Имя файла WASM-модуля плагина внутри папки плагина.
     ///
     /// Для плагина формата чтения поле необязательно: такой плагин может
@@ -116,6 +122,16 @@ impl PluginManifest {
         PluginScope::Session
     }
 
+    /// Версия плагина для сравнения: пустое значение считается `0.0.0`.
+    pub fn version_or_zero(&self) -> String {
+        let value = self.version.trim();
+        if value.is_empty() {
+            "0.0.0".to_string()
+        } else {
+            value.to_string()
+        }
+    }
+
     /// Проверка соответствия манифеста контракту приложения.
     ///
     /// `dir` — директория плагина, включается в текст ошибки.
@@ -130,6 +146,12 @@ impl PluginManifest {
             return Err(PluginError::InvalidManifest {
                 dir: dir.to_path_buf(),
                 reason: "имя плагина не может быть пустым".to_string(),
+            });
+        }
+        if !self.version.trim().is_empty() && semver::Version::parse(self.version.trim()).is_err() {
+            return Err(PluginError::InvalidManifest {
+                dir: dir.to_path_buf(),
+                reason: format!("версия плагина не является SemVer: {}", self.version),
             });
         }
         if uuid::Uuid::parse_str(&self.id).is_err() {

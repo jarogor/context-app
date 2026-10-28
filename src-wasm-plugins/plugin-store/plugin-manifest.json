@@ -4,7 +4,8 @@
   "kind": "framework",
   "id": "4c5e7783-1393-404c-8e3f-24df56d6bb18",
   "name": "plugin-store",
-  "description": "Базовый плагин файлового стора плагинов",
+  "description": "Базовый плагин стора плагинов",
+  "version": "0.1.0",
   "module": "plugin_store.wasm",
   "export": "invoke",
   "host_functions": [
@@ -17,7 +18,9 @@
     "store_uninstall",
     "store_installed",
     "store_plugins",
-    "store_set_enabled"
+    "store_set_enabled",
+    "store_read",
+    "store_fetch"
   ],
   "provides": [
     "plugin-store@1"

@@ -1,8 +1,8 @@
-//! Базовый плагин файлового стора плагинов приложения «Контекст».
+//! Базовый плагин стора плагинов приложения «Контекст».
 //!
-//! Управляет установкой и удалением пакетов плагинов через привилегированные
-//! host-функции ядра, владеет реестром подключённых сторов и предоставляет
-//! контракт поставщика с файловым провайдером и заглушкой сетевого.
+//! Управляет установкой, обновлением и удалением пакетов плагинов через
+//! привилегированные host-функции ядра, владеет реестром подключённых сторов и
+//! предоставляет контракт поставщика с файловым и сетевым провайдерами.
 
 pub mod host;
 pub mod models;
@@ -16,7 +16,7 @@ use host_sdk::state;
 use host_sdk::Request;
 
 use crate::host::Host;
-use crate::models::{Installed, Store, StoreIndex, StoreState};
+use crate::models::{Installed, Package, Store, StoreIndex, StoreState};
 
 /// Ключ служебного состояния с реестром сторов.
 const STATE_KEY: &str = "stores.json";
@@ -42,6 +42,7 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
         "stores_remove" => stores_remove(host, &request.payload),
         "available" => available(host, &request.payload),
         "install_from_store" => install_from_store(host, &request.payload),
+        "updates" => updates(host),
         other => Err(format!("неизвестное действие плагина стора: {other}")),
     }
 }
@@ -141,14 +142,8 @@ fn stores_remove(host: &impl Host, payload: &serde_json::Value) -> Result<String
 fn available(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
     let id = required_str(payload, "id")?;
     let store = find_store(host, &id)?;
-    match store.kind.as_str() {
-        "network" => Ok(json!({ "supported": false }).to_string()),
-        "file" => {
-            let index = load_index(host, &store)?;
-            Ok(json!({ "supported": true, "packages": index.packages }).to_string())
-        }
-        other => Err(format!("неизвестный вид провайдера: {other}")),
-    }
+    let index = load_index(host, &store)?;
+    Ok(json!({ "supported": true, "packages": index.packages }).to_string())
 }
 
 /// Установка пакета, предлагаемого стором.
@@ -156,22 +151,77 @@ fn install_from_store(host: &impl Host, payload: &serde_json::Value) -> Result<S
     let id = required_str(payload, "id")?;
     let name = required_str(payload, "name")?;
     let store = find_store(host, &id)?;
-    if store.kind == "network" {
-        return Err("сетевой стор не поддерживается".to_string());
-    }
-    if store.kind != "file" {
-        return Err(format!("неизвестный вид провайдера: {}", store.kind));
-    }
     let index = load_index(host, &store)?;
     let package = index
         .packages
         .iter()
         .find(|package| package.name == name)
         .ok_or_else(|| format!("пакет {name} не найден в сторе {id}"))?;
-    let path = join_path(&store.location, &package.location);
+    let path = host.store_fetch(
+        &store.kind,
+        &store.location,
+        &package.location,
+        package.sha256.as_deref(),
+    )?;
     let plugin = host.store_install(&path)?;
     emit_changed(host, &plugin)?;
     Ok(json!({ "plugin": plugin }).to_string())
+}
+
+/// Список доступных обновлений установленных прикладных плагинов.
+fn updates(host: &impl Host) -> Result<String, String> {
+    let installed = host.store_plugins()?;
+    let mut updates = Vec::new();
+    let mut errors = Vec::new();
+    for store in load_state(host)?.stores {
+        let index = match load_index(host, &store) {
+            Ok(index) => index,
+            Err(error) => {
+                errors.push(format!("стор {}: {error}", store.id));
+                continue;
+            }
+        };
+        for package in index.packages {
+            let Some(current) = installed
+                .iter()
+                .find(|plugin| package_matches(&package, &plugin.id, &plugin.name))
+            else {
+                continue;
+            };
+            if package.version.trim().is_empty() {
+                continue;
+            }
+            if !is_newer(&current.version, &package.version) {
+                continue;
+            }
+            updates.push(json!({
+                "store": store.id,
+                "name": package.name,
+                "package": package,
+                "current_version": current.version,
+            }));
+        }
+    }
+    Ok(json!({ "updates": updates, "errors": errors }).to_string())
+}
+
+/// Признак соответствия пакета установленному плагину.
+fn package_matches(package: &Package, id: &str, name: &str) -> bool {
+    if !package.id.trim().is_empty() {
+        return package.id == id;
+    }
+    package.name == name
+}
+
+/// Проверка, что версия пакета новее установленной.
+fn is_newer(current: &str, candidate: &str) -> bool {
+    let Ok(current) = semver::Version::parse(current.trim_start_matches('v')) else {
+        return false;
+    };
+    let Ok(candidate) = semver::Version::parse(candidate.trim_start_matches('v')) else {
+        return false;
+    };
+    candidate > current
 }
 
 /// Публикация события об изменении состава установленных плагинов.
@@ -188,10 +238,9 @@ fn find_store(host: &impl Host, id: &str) -> Result<Store, String> {
         .ok_or_else(|| format!("стор {id} не найден"))
 }
 
-/// Загрузка индекса пакетов файлового стора.
+/// Загрузка индекса пакетов стора.
 fn load_index(host: &impl Host, store: &Store) -> Result<StoreIndex, String> {
-    let path = join_path(&store.location, "store-index.json");
-    let text = host.read_file_text(&path)?;
+    let text = host.store_read(&store.kind, &store.location, "store-index.json")?;
     serde_json::from_str(&text).map_err(|error| format!("некорректный индекс стора: {error}"))
 }
 
@@ -213,17 +262,6 @@ fn required_str(payload: &serde_json::Value, key: &str) -> Result<String, String
         .map(str::to_string)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| format!("не указано поле {key}"))
-}
-
-/// Соединение расположения стора и относительного пути пакета.
-fn join_path(base: &str, relative: &str) -> String {
-    let base = base.trim_end_matches(['/', '\\']);
-    let relative = relative.trim_start_matches(['/', '\\']);
-    if base.is_empty() {
-        relative.to_string()
-    } else {
-        format!("{base}/{relative}")
-    }
 }
 
 #[cfg(test)]
