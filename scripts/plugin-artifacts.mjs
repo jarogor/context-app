@@ -250,6 +250,35 @@ function check(plugin) {
     } else if (readFileSync(hashPath, 'utf8') !== expectedHash) {
         problems.push(`${HASH_FILE}: устарел`);
     }
+    problems.push(...checkMirrors(plugin.name, outDir, expected));
+    return problems;
+}
+
+/** Проверка копий плагина в каталогах сборки приложения.
+ *
+ * Запущенное приложение читает плагины не из `resources`, а из каталога сборки
+ * (`target/debug/plugins` и `target/release/plugins`), куда Tauri копирует
+ * ресурсы своим шагом сборки. Без сверки этих копий правка исходника при
+ * актуальных ресурсах оставалась бы незамеченной в запущенном приложении.
+ */
+function checkMirrors(pluginName, outDir, expected) {
+    const problems = [];
+    for (const buildDir of buildOutputDirs()) {
+        const destination = join(buildDir, pluginName);
+        const deployed = deployedFiles(destination);
+        if (!deployed) {
+            problems.push(`${destination}: копия плагина отсутствует`);
+            continue;
+        }
+        for (const [relative, data] of expected) {
+            const found = deployed.get(relative);
+            if (!found) {
+                problems.push(`${destination}/${relative}: отсутствует`);
+            } else if (!found.equals(data)) {
+                problems.push(`${destination}/${relative}: устарел`);
+            }
+        }
+    }
     return problems;
 }
 

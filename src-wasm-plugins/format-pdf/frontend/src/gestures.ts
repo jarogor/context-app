@@ -20,7 +20,7 @@ import { noteById } from './notes';
 import { post } from './protocol';
 import { fractionRect, renderSelection, selectionQuote } from './selection';
 import { state } from './state';
-import { beginTextSelection } from './text-selection';
+import { beginTextSelection, moveTextSelection } from './text-selection';
 import type { NoteAnchor, Rect } from './types';
 
 /** Доли точки внутри страницы по координатам указателя. */
@@ -409,6 +409,7 @@ export function handleSelectionChange(): void {
 
 /** Обработка движения указателя: тяга заметки, границы или протяжка фигуры. */
 export function handlePointerMove(event: PointerEvent): void {
+  moveTextSelection(event);
   if (editor.moveDrag) {
     moveNoteDrag(event);
   } else if (editor.resizeDrag) {

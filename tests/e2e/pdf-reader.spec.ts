@@ -99,6 +99,34 @@ function pdfBase64TwoLines(pageCount: number): string {
     return Buffer.from(buildPdfWithLines(pageCount, true), 'binary').toString('base64');
 }
 
+/** PDF-абзац из четырёх строк по несколько слов (для выделения двойным кликом).
+ *
+ * Слова разделены пробелами внутри одной строки текстового слоя: в слое pdf.js
+ * строка — один инлайн-кусок, поэтому выбор блока движком тянется от её начала.
+ */
+function pdfBase64Paragraph(): string {
+    const lines = [
+        'The quick brown fox jumps over',
+        'the lazy dog while another line',
+        'of text follows here to make a',
+        'paragraph of several lines long',
+    ];
+    let stream = 'BT /F1 18 Tf 60 700 Td 22 TL\n';
+    lines.forEach((line, index) => {
+        stream += index === 0 ? `(${line}) Tj\n` : `T* (${line}) Tj\n`;
+    });
+    stream += 'ET';
+    const objects = [
+        '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj',
+        '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj',
+        '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj',
+        `4 0 obj<</Length ${stream.length}>>stream\n${stream}\nendstream endobj`,
+        '5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj',
+    ];
+    const raw = `%PDF-1.4\n${objects.join('\n')}\ntrailer<</Root 1 0 R>>\n%%EOF`;
+    return Buffer.from(raw, 'binary').toString('base64');
+}
+
 /** PDF из одной страницы заданного размера (в пунктах) с текстом у левого края. */
 function pdfBase64Sized(width: number, height: number): string {
     const objects: string[] = [];
@@ -1268,6 +1296,152 @@ test('выделение текста ложится ровными полоса
     const afterRight = Number.parseFloat(last.afterRight);
     expect(afterRight).toBeLessThan(0);
     expect(Math.abs(afterRight + afterWidth / 2)).toBeLessThanOrEqual(0.5);
+});
+
+/** Строки текстового слоя страницы с их местом в окне.
+ *
+ * В слое pdf.js строка — один `span`, а не отдельные слова: поэтому «выбором
+ * блока» для движка становится вся строка.
+ */
+async function textLayerLines(page: Page) {
+    const spans = content(page).locator('.page').first().locator('.textLayer span');
+    const lines: Array<{ text: string; left: number; top: number; width: number; height: number }> =
+        [];
+    for (let index = 0; index < (await spans.count()); index += 1) {
+        const text = (await spans.nth(index).textContent()) ?? '';
+        const box = await spans.nth(index).boundingBox();
+        if (box && text.trim().length > 0) {
+            lines.push({
+                text,
+                left: box.x,
+                top: box.y,
+                width: box.width,
+                height: box.height,
+            });
+        }
+    }
+    return lines;
+}
+
+/** Двойной клик по заданному символу строки, затем нажатие с протяжкой. */
+async function doubleClickThenDrag(
+    page: Page,
+    start: { left: number; top: number; width: number; height: number; text: string },
+    charIndex: number,
+    target: { x: number; y: number },
+) {
+    const startX = start.left + (start.width / start.text.length) * charIndex + 1;
+    const startY = start.top + start.height / 2;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down({ clickCount: 1 });
+    await page.mouse.up({ clickCount: 1 });
+    await page.mouse.down({ clickCount: 2 });
+    await page.mouse.up({ clickCount: 2 });
+    // Третье нажатие подряд движок трактует как выбор блока: тянем дальше сами.
+    await page.mouse.down({ clickCount: 3 });
+    await page.mouse.move(target.x, target.y, { steps: 8 });
+}
+
+/** Текст текущего выделения во вьюере. */
+async function currentSelection(page: Page) {
+    return content(page)
+        .locator('#viewer')
+        .evaluate(() => window.getSelection()?.toString() ?? '');
+}
+
+test('выделение двойным кликом с протяжкой начинается со слова', async ({ page }) => {
+    await openPdf(page, 1, false, pdfBase64Paragraph());
+    const lines = await textLayerLines(page);
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    const end = lines[1];
+
+    await doubleClickThenDrag(page, lines[0], 10, {
+        x: end.left + end.width * 0.5,
+        y: end.top + end.height / 2,
+    });
+
+    const selection = await currentSelection(page);
+    // Начало — выделенное слово, а не первая строка целиком.
+    expect(selection.startsWith('brown')).toBe(true);
+    expect(selection).not.toContain('The quick');
+
+    /* Полосы выделения начинаются со слова: левый край первой полосы правее
+       начала строки. */
+    const bands = await content(page)
+        .locator('.page')
+        .first()
+        .locator('.selection-band')
+        .evaluateAll((elements) =>
+            elements.map((element) => {
+                const style = (element as HTMLElement).style;
+                return {
+                    top: Number.parseFloat(style.top),
+                    left: Number.parseFloat(style.left),
+                };
+            }),
+        );
+    expect(bands.length).toBeGreaterThanOrEqual(2);
+    const firstBand = bands.reduce((top, band) => (band.top < top.top ? band : top));
+    expect(firstBand.left).toBeGreaterThan(10);
+
+    await page.mouse.up({ clickCount: 3 });
+});
+
+test('протяжка от двойного клика вверх кончается началом слова', async ({ page }) => {
+    await openPdf(page, 1, false, pdfBase64Paragraph());
+    const lines = await textLayerLines(page);
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    const first = lines[0];
+
+    // Двойной клик по слову во второй строке и протяжка вверх, к каретке.
+    await doubleClickThenDrag(page, lines[1], 10, {
+        x: first.left + first.width * 0.4,
+        y: first.top + first.height / 2,
+    });
+
+    const selection = await currentSelection(page);
+    // Конец выделения — начало слова-якоря: выше него выделение не поднимается.
+    expect(selection.endsWith('lazy ')).toBe(true);
+    expect(selection.startsWith('own fox jumps')).toBe(true);
+
+    await page.mouse.up({ clickCount: 3 });
+});
+
+test('протяжка от двойного клика через несколько строк доходит до каретки', async ({ page }) => {
+    await openPdf(page, 1, false, pdfBase64Paragraph());
+    const lines = await textLayerLines(page);
+    expect(lines.length).toBeGreaterThanOrEqual(4);
+    const last = lines[3];
+
+    await doubleClickThenDrag(page, lines[0], 10, {
+        x: last.left + last.width * 0.5,
+        y: last.top + last.height / 2,
+    });
+
+    const selection = await currentSelection(page);
+    // Начало — слово, конец — каретка на четвёртой строке: промежуточные строки целы.
+    expect(selection.startsWith('brown')).toBe(true);
+    expect(selection).toContain('of text follows here to make a');
+    expect(selection).toContain('paragraph of se');
+
+    await page.mouse.up({ clickCount: 3 });
+});
+
+test('простой тройной клик без протяжки выделяет строку', async ({ page }) => {
+    await openPdf(page, 1, false, pdfBase64Paragraph());
+    const lines = await textLayerLines(page);
+    const line = lines[0];
+    const x = line.left + (line.width / line.text.length) * 10 + 1;
+    const y = line.top + line.height / 2;
+
+    await page.mouse.move(x, y);
+    for (const clickCount of [1, 2, 3]) {
+        await page.mouse.down({ clickCount });
+        await page.mouse.up({ clickCount });
+    }
+
+    // Без сдвига указателя поведение движка сохраняется: выделяется вся строка.
+    expect(await currentSelection(page)).toBe(line.text);
 });
 
 test('меню заметки закрывается при снятии выделения', async ({ page }) => {

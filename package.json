@@ -18,7 +18,7 @@
     "preview": "vite preview",
     "test": "npm run test:unit",
     "test:unit": "vitest run && npm test -w @context/ui && npm test -w @context/ui-schema && npm test -w format-pdf-viewer && npm test -w format-djvu-viewer",
-    "test:e2e": "npm run check:artifacts && playwright test",
+    "test:e2e": "npm run build:plugins && npm run check:artifacts && playwright test",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json && npm run check -w format-pdf-viewer && npm run check -w format-djvu-viewer",
     "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",
     "check:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --check"
