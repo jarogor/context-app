@@ -69,6 +69,10 @@
     onStepPage?: (delta: number) => void;
     /** Переход к введённому номеру страницы. */
     onGoToPage?: (page: number) => void;
+    /** Переключение панели поиска по книге. */
+    onToggleSearch?: () => void;
+    /** Открыта ли панель поиска по книге. */
+    searchOpen?: boolean;
   }
 
   let {
@@ -93,6 +97,8 @@
     progress = 0,
     onStepPage,
     onGoToPage,
+    onToggleSearch,
+    searchOpen = false,
   }: Props = $props();
 
   /** Варианты видов фигур для выпадающего списка. */
@@ -424,6 +430,26 @@
           class="inline-block w-[3.25rem] text-center text-sm max-lg:w-[3.25rem] max-lg:text-xs"
           data-testid="reader-zoom">{zoom}%</span
         >
+      </div>
+    {/if}
+    <!--
+      Поиск по книге стоит справа от масштаба: это действие над текстом книги,
+      поэтому оно рядом с управлением чтением, а не в левой группе инструментов
+      заметок. Панель поиска открывается поверх области содержимого.
+    -->
+    {#if onToggleSearch}
+      <div class="flex shrink-0 items-center gap-1 max-lg:order-10" data-testid="reader-search-toggle">
+        <Button
+          size="icon"
+          variant={searchOpen ? 'primary' : 'ghost'}
+          title="Поиск по книге"
+          ariaLabel="Поиск по книге"
+          ariaPressed={searchOpen}
+          class="size-8"
+          onclick={() => onToggleSearch?.()}
+        >
+          <Icon name="search" />
+        </Button>
       </div>
     {/if}
     <div

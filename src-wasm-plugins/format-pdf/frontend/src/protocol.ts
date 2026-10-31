@@ -80,8 +80,7 @@ export interface ToolMessage {
 }
 
 /** Тема области чтения. */
-export interface ReaderThemeMessage {
-  /** Тип сообщения. */
+export interface ReaderThemeMessage {  /** Тип сообщения. */
   type: 'reader-theme';
   /** Значение темы (сторона, токены, тона заметок, цвета страницы). */
   value: ReaderThemeValue | null;
@@ -105,6 +104,28 @@ export interface ShowMessage {
   type: 'show';
 }
 
+/** Запрос поиска по содержимому книги. */
+export interface SearchMessage {
+  /** Тип сообщения. */
+  type: 'search';
+  /** Параметры поиска. */
+  value: {
+    /** Запрос поиска; пустой запрос снимает результат. */
+    query?: string;
+  };
+}
+
+/** Переход к соседнему вхождению поиска. */
+export interface SearchStepMessage {
+  /** Тип сообщения. */
+  type: 'search-step';
+  /** Параметры перехода. */
+  value: {
+    /** Направление: `1` — следующее вхождение, `-1` — предыдущее. */
+    delta?: number;
+  };
+}
+
 /** Разобранное входящее сообщение. */
 export type IncomingMessage =
   | OpenMessage
@@ -114,7 +135,9 @@ export type IncomingMessage =
   | NotesMessage
   | ToolMessage
   | ReaderThemeMessage
-  | ShowMessage;
+  | ShowMessage
+  | SearchMessage
+  | SearchStepMessage;
 
 /** Нормализация инструмента создания заметок значениями по умолчанию. */
 export function normalizeTool(value: unknown): ViewerTool {
@@ -174,6 +197,14 @@ export function parseIncoming(data: unknown): IncomingMessage | null {
       };
     case 'show':
       return { type: 'show' };
+    case 'search': {
+      const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as SearchMessage['value'];
+      return { type: 'search', value: { query: String(value.query ?? '') } };
+    }
+    case 'search-step': {
+      const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as SearchStepMessage['value'];
+      return { type: 'search-step', value: { delta: Number(value.delta) || 1 } };
+    }
     default:
       return null;
   }

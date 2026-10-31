@@ -13,6 +13,7 @@ import { post } from './protocol';
 import { renderSelection } from './selection';
 import { state, type CanvasInfo, type RenderedEntry } from './state';
 import { alignTextLayer, isInvisibleScan, textContentWithPageFonts, waitForPageFonts, waitForRasterInk } from './text-layer';
+import { markPage } from './search';
 import { recolorCanvas } from './theme';
 import {
   boundedRatio,
@@ -337,6 +338,9 @@ export async function renderPage(
     // слой их не содержат, поэтому слой строится отдельно.
     await renderLinks(doc, page, pageEl, viewport);
     drawNotes(pageEl, state.notes);
+    // Найденное поиском отмечается на каждой отрисованной странице: поиск
+    // может идти по книге параллельно с чтением.
+    markPage(pageEl);
     // Слой выделения строится по положению текста: после отрисовки он
     // восстанавливается, если выделение ещё живо.
     renderSelection();

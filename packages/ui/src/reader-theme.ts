@@ -56,6 +56,10 @@ export interface ReaderThemeTokens {
     selectionEdge: string;
     /** Толщина вертикальных меток выделения, в пикселях. */
     selectionEdgeWidth: number;
+    /** Тон подсветки найденного поиском. */
+    search: string;
+    /** Тон подсветки вхождения, к которому ведёт переход. */
+    searchActive: string;
 }
 
 /** Идентификаторы цветов заметок, общие для всех областей. */
@@ -105,7 +109,13 @@ export function applyReaderPalette(
 
 /** Токены области чтения для палитры и стороны. */
 export function readerThemeTokens(palette: PaletteId, id: ReaderThemeId): ReaderThemeTokens {
-    return id === 'dark' ? DARK_READER_TOKENS[palette] : LIGHT_READER_TOKENS[palette];
+    const base = id === 'dark' ? DARK_READER_TOKENS[palette] : LIGHT_READER_TOKENS[palette];
+    // Тон найденного поиском — не цвет заметки: жёлтый признак поиска общий для
+    // всех палитр и сторон, как признак «найдено» в любой программе. На тёмной
+    // стороне он приглушён, чтобы не вспыхивать на тёмной бумаге.
+    return id === 'dark'
+        ? { ...base, search: 'rgba(214, 158, 46, 0.38)', searchActive: 'rgba(245, 158, 11, 0.75)' }
+        : { ...base, search: 'rgba(242, 205, 82, 0.55)', searchActive: 'rgba(245, 158, 11, 0.9)' };
 }
 
 /** Светлые тона заметок: насыщенные, но среднесветлые оттенки.
@@ -359,8 +369,11 @@ export function readerPageColors(palette: PaletteId): ReaderPageColors {
     return LINEN_DARK_PAGE;
 }
 
+/** Токены области чтения без тонов поиска: основа по палитре и стороне. */
+type ReaderBaseTokens = Omit<ReaderThemeTokens, 'search' | 'searchActive'>;
+
 /** Светлые токены области чтения по палитрам. */
-const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
+const LIGHT_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     linen: {
         background: '#fbf8f1',
         text: '#1f1d1a',
@@ -406,7 +419,7 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
 };
 
 /** Тёмные токены области чтения по палитрам. */
-const DARK_READER_TOKENS: Record<PaletteId, ReaderThemeTokens> = {
+const DARK_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     linen: {
         background: '#17191a',
         text: '#e7e2d7',

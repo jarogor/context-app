@@ -27,6 +27,15 @@
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
   import NoteMenu from '../notes/NoteMenu.svelte';
   import NoteTextEditor from './NoteTextEditor.svelte';
+  import ReaderSearchBar from './ReaderSearchBar.svelte';
+  import {
+    EMPTY_SEARCH_STATE,
+    stepSearchIndex,
+    withSearchIndex,
+    type SearchState,
+  } from './search-state';
+  import { createSearchScheduler, SEARCH_MIN_LENGTH } from './search-scheduler';
+  import type { WorkplaceSearchResult } from './workplace-protocol';
   import type { QuoteAnchor } from './reader/anchor';
   import { canStepPage, clampPage, pageProgress } from './reader/page-state';
   import { createZoomCoalescer, nextZoom, type ZoomDirection } from './zoom';
@@ -98,6 +107,8 @@
     maxZoom: number;
     /** Прогресс чтения в процентах. */
     progress: number;
+    /** Открыта ли панель поиска по книге. */
+    searchOpen: boolean;
   }
 
   let {
@@ -174,13 +185,22 @@
   /** Общее число страниц плагина рабочего места. */
   let workplacePageCount = $state<number | null>(null);
   /** Читалка текстовой книги для перехода к заметке. */
-  let reader: { goto: (note: Note) => void } | undefined = $state();
+  let reader:
+    | {
+        goto: (note: Note) => void;
+        search: (query: string) => { hits: unknown[]; truncated: boolean };
+        goToSearchHit: (index: number) => void;
+        clearSearch: () => void;
+      }
+    | undefined = $state();
   /** Область содержимого плагина для перехода к странице и заметке. */
   let workplaceContent:
     | {
         gotoPage: (page: number) => void;
         gotoAnchor: (anchor: string, noteId?: string) => void;
         noteMenuAction: (noteId: string, action: 'move' | 'resize') => void;
+        search: (query: string) => void;
+        stepSearch: (delta: 1 | -1) => void;
       }
     | undefined = $state();
   /** Незавершённый якорь выделения для создания заметки. */
@@ -203,6 +223,16 @@
   let readerAreaWidth = $state(0);
   /** Высота области содержимого: по ней меню переносится выше выделения. */
   let readerAreaHeight = $state(0);
+  /** Открыта ли панель поиска по книге. */
+  let searchOpen = $state(false);
+  /** Текущий запрос поиска. */
+  let searchQuery = $state('');
+  /** Состояние поиска: сколько найдено и к какому вхождению ведёт переход. */
+  let searchState: SearchState = $state(EMPTY_SEARCH_STATE);
+  /** Идёт ли поиск, выполняемый плагином формата. */
+  let searchBusy = $state(false);
+  /** Ошибка поиска. */
+  let searchError: string | null = $state(null);
 
   /** Позиция меню создания заметки внутри области содержимого.
    *
@@ -253,6 +283,134 @@
       workplaceContent?.gotoPage(workplacePage + delta);
     }
   }
+
+  /** Переключение панели поиска по книге.
+   *
+   * Закрытие поиска снимает подсветку найденного: она рабочий слой, а не
+   * заметка, и без панели читалась бы как случайная разметка книги.
+   */
+  function toggleSearch() {
+    searchOpen = !searchOpen;
+    if (!searchOpen) {
+      resetSearch();
+    }
+  }
+
+  /** Планировщик поиска: набор запроса не запускает поиск на каждую букву.
+   *
+   * Поиск по всему тексту книги — заметная работа, поэтому он идёт после
+   * затишья набора, а запрос короче двух символов не ищется вовсе.
+   */
+  const searchScheduler = createSearchScheduler({
+    run: (needle) => applySearch(needle),
+    onReset: () => clearSearchResults(),
+  });
+
+  /** Снятие результата поиска во всех видах содержимого. */
+  function clearSearchResults() {
+    searchState = EMPTY_SEARCH_STATE;
+    searchBusy = false;
+    reader?.clearSearch();
+    workplaceContent?.search('');
+  }
+
+  /** Снятие поиска во всех видах содержимого. */
+  function resetSearch() {
+    searchScheduler.cancel();
+    searchQuery = '';
+    searchError = null;
+    clearSearchResults();
+  }
+
+  /** Изменение запроса поиска: поиск запускается после затишья набора. */
+  function changeSearch(query: string) {
+    searchQuery = query;
+    searchError = null;
+    searchScheduler.change(query);
+  }
+
+  /** Выполнение поиска по готовому запросу в области чтения формата. */
+  function applySearch(needle: string) {
+    if (reader) {
+      const result = reader.search(needle);
+      searchState = {
+        total: result.hits.length,
+        index: result.hits.length > 0 ? 0 : null,
+        truncated: result.truncated,
+      };
+      // Первое вхождение показывается сразу: иначе поиск находил бы места, но
+      // не показывал ни одного, и пользователь не видел результата.
+      if (result.hits.length > 0) {
+        reader.goToSearchHit(0);
+      }
+      return;
+    }
+    if (workplaceContent) {
+      // Плагин формата ищет по текстовому слою страниц и отвечает событием
+      // `search`: ответ несёт запрос, поэтому устаревший ответ не применяется.
+      searchBusy = true;
+      searchState = EMPTY_SEARCH_STATE;
+      workplaceContent.search(needle);
+      return;
+    }
+    // Область чтения ещё не готова: запрос применится, когда она появится.
+    searchBusy = true;
+  }
+
+  /** Переход к соседнему вхождению поиска по кругу. */
+  function stepSearch(delta: 1 | -1) {
+    // Отложенный поиск ещё не выполнен (Enter сразу после набора): сначала
+    // применяется запрос, а переход делает уже следующий Enter.
+    if (searchScheduler.flush()) {
+      return;
+    }
+    const next = stepSearchIndex(searchState, delta);
+    if (next === null) {
+      return;
+    }
+    searchState = withSearchIndex(searchState, next);
+    if (reader) {
+      reader.goToSearchHit(next);
+    } else {
+      workplaceContent?.stepSearch(delta);
+    }
+  }
+
+  /** Результат поиска, сообщённый плагином формата. */
+  function handleWorkplaceSearch(result: WorkplaceSearchResult) {
+    // Ответ на прежний запрос (пользователь уже дописал слово) не применяется.
+    if (result.query.trim() !== searchQuery.trim()) {
+      return;
+    }
+    searchBusy = false;
+    searchState = {
+      total: result.total,
+      index: result.index,
+      truncated: result.truncated === true,
+    };
+  }
+
+  /** Применение текущего запроса, когда область чтения стала готова.
+   *
+   * Поиск можно открыть и набирать, пока книга ещё грузится: тогда запрос
+   * сохраняется и применяется сразу после появления области чтения, а не
+   * теряется. Реагирует только на появление области — набор в поле запроса
+   * ищет сам, эффект повторного запроса не вызывает.
+   */
+  let searchAreaReady = $state(false);
+  $effect(() => {
+    const ready = reader !== undefined || workplaceContent !== undefined;
+    if (!ready || searchAreaReady) {
+      return;
+    }
+    untrack(() => {
+      searchAreaReady = true;
+      if (searchQuery.trim().length < SEARCH_MIN_LENGTH) {
+        return;
+      }
+      applySearch(searchQuery.trim());
+    });
+  });
 
   /** Создание заметки-цитаты по выделению на странице заданным цветом. */
   function confirmWorkplaceQuote(color: NoteColor) {
@@ -420,6 +578,7 @@
       minZoom,
       maxZoom,
       progress,
+      searchOpen,
     };
   }
 
@@ -436,6 +595,11 @@
   /** Переход к заданному номеру страницы из нижней панели рабочего места. */
   export function gotoFooterPage(page: number) {
     goToPage(page);
+  }
+
+  /** Переключение панели поиска из нижней панели рабочего места. */
+  export function toggleFooterSearch() {
+    toggleSearch();
   }
 
   /**
@@ -524,6 +688,17 @@
             <Progress value={loadProgress} />
           </div>
         {/if}
+        {#if searchOpen}
+          <ReaderSearchBar
+            query={searchQuery}
+            state={searchState}
+            busy={searchBusy}
+            error={searchError}
+            onQuery={changeSearch}
+            onStep={stepSearch}
+            onClose={toggleSearch}
+          />
+        {/if}
         <WorkplaceContent
           bind:this={workplaceContent}
           pluginId={workplace.pluginId}
@@ -578,6 +753,7 @@
           onNoteMenuClose={closeNoteMenu}
           onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
           onError={(value) => (error = value)}
+          onSearch={handleWorkplaceSearch}
         />
         {#if noteMenu}
           <NoteMenu
@@ -649,7 +825,27 @@
             progress = value;
             reportState();
           }}
-        />
+          onSearchResult={(result) => {
+            // Документ книги построился после запроса: подсветка на месте, а
+            // счётчик обновляется итогом отложенного поиска.
+            searchState = {
+              total: result.hits.length,
+              index: result.hits.length > 0 ? 0 : null,
+              truncated: result.truncated,
+            };
+            searchBusy = false;
+          }}
+        />        {#if searchOpen}
+          <ReaderSearchBar
+            query={searchQuery}
+            state={searchState}
+            busy={searchBusy}
+            error={searchError}
+            onQuery={changeSearch}
+            onStep={stepSearch}
+            onClose={toggleSearch}
+          />
+        {/if}
         {#if pendingTextAnchor}
           <NoteTextEditor
             initialColor={tool.color}

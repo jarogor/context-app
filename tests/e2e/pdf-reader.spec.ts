@@ -446,6 +446,42 @@ test('PDF открывается плагином рабочего места с
     await expect(page.getByTestId('reader-page-count')).toHaveText('/ 3');
 });
 
+test('поиск по книге находит текст на страницах PDF', async ({ page }) => {
+    await openPdf(page, 3);
+
+    await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
+    const search = page.getByTestId('reader-search');
+    await search.getByRole('textbox', { name: 'Поиск по книге' }).fill('Page');
+
+    // Счётчик приходит от плагина: поиск выполняет модуль рисования.
+    await expect(search.getByTestId('reader-search-counter')).toHaveText('1 из 3');
+    // Переход к следующему вхождению переводит на следующую страницу.
+    await search.getByRole('button', { name: 'Следующее вхождение' }).click();
+    await expect.poll(async () => page.getByLabel('Текущая страница').inputValue()).toBe('2');
+});
+
+test('поиск по большой книге PDF идёт быстро и не подвешивает чтение', async ({ page }) => {
+    await openPdf(page, 120);
+
+    await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
+    const search = page.getByTestId('reader-search');
+    const started = Date.now();
+    await search.getByRole('textbox', { name: 'Поиск по книге' }).fill('Page 9');
+
+    // Книга на 120 страниц разбирается быстро: поиск готов за пару секунд.
+    await expect(search.getByTestId('reader-search-counter')).toHaveText(/\d/, {
+        timeout: 15000,
+    });
+    const elapsed = Date.now() - started;
+    expect(elapsed).toBeLessThan(10000);
+
+    // Интерфейс живой: масштаб отвечает сразу после поиска.
+    const zoom = page.getByTestId('reader-zoom');
+    const before = await zoom.textContent();
+    await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
+    await expect.poll(async () => zoom.textContent()).not.toBe(before);
+});
+
 test('масштаб идёт по обратимой шкале уровней', async ({ page }) => {
     await openPdf(page, 3);
     const zoom = page.getByTestId('reader-zoom');

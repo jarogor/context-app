@@ -17,6 +17,26 @@ vi.mock('./reader', () => ({
 }));
 
 describe('ReaderPage как содержимое вкладки', () => {
+    it('открывает поиск по книге по команде панели чтения и снимает его при закрытии', async () => {
+        const onFooter = vi.fn();
+        const component = render(ReaderPage, {
+            props: { path: '/lib/book.epub', title: 'Книга', onFooter },
+        });
+
+        await screen.findByTestId('reader-loading');
+        component.component.toggleFooterSearch();
+        await tick();
+
+        expect(screen.getByTestId('reader-search')).toBeTruthy();
+        expect(onFooter).toHaveBeenLastCalledWith(expect.objectContaining({ searchOpen: true }));
+
+        component.component.toggleFooterSearch();
+        await tick();
+
+        expect(screen.queryByTestId('reader-search')).toBeNull();
+        expect(onFooter).toHaveBeenLastCalledWith(expect.objectContaining({ searchOpen: false }));
+    });
+
     it('принимает начальные масштаб и позицию вкладки', async () => {
         const onFooter = vi.fn();
         render(ReaderPage, {
@@ -70,8 +90,7 @@ describe('ReaderPage как содержимое вкладки', () => {
         expect(screen.getByText('Указать файл')).toBeTruthy();
     });
 
-    it('публикует снимок нижней панели для рабочего места', async () => {
-        const onFooter = vi.fn();
+    it('публикует снимок нижней панели для рабочего места', async () => {        const onFooter = vi.fn();
         render(ReaderPage, {
             props: {
                 path: '/lib/book.epub',

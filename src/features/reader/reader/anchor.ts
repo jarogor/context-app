@@ -226,6 +226,15 @@ function quotePattern(quote: string): RegExp | null {
     return new RegExp(tokens.join('\\s+'));
 }
 
+/** Непрерывный текст главы (по кэшу, если глава не менялась).
+ *
+ * Смещения символов этого текста — те же, что у якорей заметок и у поиска по
+ * книге, поэтому поиск и подсветка обходятся без повторного обхода документа.
+ */
+export function chapterTextOf(root: Element): string | null {
+    return chapterText(root)?.raw ?? null;
+}
+
 /** Текст главы (по кэшу, если глава не менялась). */
 function chapterText(root: Element): ChapterText | null {
     const document = root.ownerDocument;

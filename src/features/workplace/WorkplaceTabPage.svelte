@@ -17,6 +17,8 @@
     stepFooterPage: (delta: number) => void;
     /** Переход к заданному номеру страницы из нижней панели рабочего места. */
     gotoFooterPage: (page: number) => void;
+    /** Переключение панели поиска по книге. */
+    toggleFooterSearch: () => void;
   }
 
   interface Props {

@@ -184,6 +184,65 @@ test('переключатель меняет тему области чтени
     await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
 });
 
+test('поиск по книге находит вхождение и показывает его в тексте', async ({ page }) => {
+    await openWorkplace(page);
+
+    const reader = page.frameLocator('iframe[title="Чтение книги"]');
+    const toolbar = page.getByTestId('note-toolbar');
+
+    await toolbar.getByRole('button', { name: 'Поиск по книге' }).click();
+    const search = page.getByTestId('reader-search');
+    await expect(search).toBeVisible();
+
+    await search.getByRole('textbox', { name: 'Поиск по книге' }).fill('Глава');
+
+    // Счётчик вхождений и подсветка найденного в документе книги.
+    await expect(search.getByTestId('reader-search-counter')).not.toHaveText('');
+    await expect(reader.locator('mark.context-search-hit').first()).toBeVisible();
+    await expect(reader.locator('mark.context-search-hit-active')).toHaveCount(1);
+
+    // Закрытие поиска снимает подсветку: она рабочий слой, а не заметка.
+    await search.getByRole('button', { name: 'Закрыть поиск' }).click();
+    await expect(page.getByTestId('reader-search')).toBeHidden();
+    await expect(reader.locator('mark.context-search-hit')).toHaveCount(0);
+});
+
+test('набор буквы не запускает поиск и не подвешивает интерфейс', async ({ page }) => {
+    await openWorkplace(page);
+    await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
+    const search = page.getByTestId('reader-search');
+    const field = search.getByRole('textbox', { name: 'Поиск по книге' });
+
+    // Одна буква — не запрос: поиск не начинается, подсветки нет.
+    await field.fill('т');
+    await expect(
+        page.frameLocator('iframe[title="Чтение книги"]').locator('mark.context-search-hit'),
+    ).toHaveCount(0);
+
+    // Интерфейс отвечает на ввод сразу после набора: поиск не замораживает
+    // главный поток, поэтому следующий символ вводится без ожидания.
+    const started = Date.now();
+    await field.type('ек', { delay: 20 });
+    await expect(search.getByTestId('reader-search-counter')).not.toHaveText('');
+    expect(Date.now() - started).toBeLessThan(5000);
+    // Проверка живости интерфейса: клик по панели сразу после набора проходит.
+    await search.getByRole('button', { name: 'Следующее вхождение' }).click();
+});
+
+test('поле поиска занимает всю ширину панели', async ({ page }) => {
+    await openWorkplace(page);
+    await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
+    const search = page.getByTestId('reader-search');
+    const field = await search.getByRole('textbox', { name: 'Поиск по книге' }).boundingBox();
+    const counter = await search.getByTestId('reader-search-counter').boundingBox();
+    if (!field || !counter) {
+        throw new Error('панель поиска не найдена');
+    }
+    // Поле забирает всё свободное место строки: между ним и счётчиком нет
+    // пустого отступа, который раньше оставлял поле коротким.
+    expect(counter.x - (field.x + field.width)).toBeLessThanOrEqual(16);
+});
+
 test('возврат к библиотеке сохраняет состояние', async ({ page }) => {
     await openWorkplace(page);
 

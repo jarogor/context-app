@@ -190,6 +190,20 @@ pub async fn reader_open_external(
     Ok(serde_json::json!({ "opened": true }))
 }
 
+/// Порция книги из состояния и ответ интерфейсу.
+///
+/// Вынесено из команды, чтобы весь путь чтения книги (границы порции и ответ)
+/// проверялся тестом целиком: ошибка в ответе зацикливает чтение в интерфейсе, и
+/// по одной лишь функции порции её не видно.
+fn book_chunk_response(
+    state: &mut AppState,
+    path: &str,
+    offset: usize,
+    length: usize,
+) -> Result<Value, String> {
+    state.book_chunk_response(path, offset, length)
+}
+
 /// Порция содержимого книги по пути.
 ///
 /// Чтение файла с диска и кодирование base64 идут **вне общего замка состояния**:
@@ -204,13 +218,8 @@ pub async fn reader_book_chunk(
     offset: usize,
     length: usize,
 ) -> Result<Value, String> {
-    let bytes = {
-        let mut state = crate::commands::lock_state(state.inner())?;
-        state.workplace_book_bytes(&path)
-    }?;
-    Ok(crate::plugin::app_state::book_chunk_of(
-        &bytes, offset, length,
-    ))
+    let mut state = crate::commands::lock_state(state.inner())?;
+    book_chunk_response(&mut state, &path, offset, length)
 }
 
 /// Сброс кэша содержимого книги по пути (после переуказания файла).

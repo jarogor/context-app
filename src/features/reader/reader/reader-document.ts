@@ -34,6 +34,7 @@ import {
 
 import type { BookContent } from './types';
 import { FOOTNOTE_BACK_CLASS } from './footnote';
+import { SEARCH_ACTIVE_CLASS, SEARCH_CLASS } from './search-mark';
 
 /** Класс подсветки заметки-цитаты. */
 export const NOTE_CLASS = 'context-note';
@@ -75,6 +76,8 @@ function themeVariables(palette: PaletteId, id: ReaderThemeId): string {
     `--rt-selection:${tokens.selection};`,
     `--rt-selection-edge:${tokens.selectionEdge};`,
     `--rt-selection-edge-width:${tokens.selectionEdgeWidth}px;`,
+    `--rt-search:${tokens.search};`,
+    `--rt-search-active:${tokens.searchActive};`,
     ...READER_NOTE_COLOR_IDS.map((color) => `--note-${color}:${tones[color]};`),
     // Непрозрачный эквивалент тона для подсветки цитаты: её фон рисуется
     // перенесёнными кусками, которые при дробном масштабе перекрываются, и
@@ -251,6 +254,12 @@ function buildStyle(): string {
     '.context-note-shape[data-color="purple"] line{stroke:var(--note-purple);}',
     // Вспышка при переходе к заметке: оранжевая, различима на обеих сторонах.
     `.${NOTE_CLASS}.${FLASH_CLASS}{background:#f59e0b;}`,
+    // Найденное поиском: тот же приём, что у подсветки заметки, но свой тон —
+    // подсветка поиска не должна читаться как заметка. Переход к вхождению
+    // выделяет его плотнее, чтобы место было видно сразу.
+    `.${SEARCH_CLASS}{border-radius:2px;background:var(--rt-search);`,
+    `color:inherit;box-decoration-break:clone;-webkit-box-decoration-break:clone;}`,
+    `.${SEARCH_CLASS}.${SEARCH_ACTIVE_CLASS}{background:var(--rt-search-active);}`,
     `.context-overlay.${FLASH_CLASS}{opacity:0.4;}`,
     // Вспышка маркера сноски при возврате к месту чтения: подсвечивает саму
     // ссылку-маркер, чтобы читатель увидел, откуда пришёл.

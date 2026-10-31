@@ -149,32 +149,64 @@ fn light_state_access_is_not_blocked_by_background_build() {
     cleanup(&base_root);
 }
 
-/// Промежуточная порция книги выровнена по base64: без паддинга `=`.
+/// Сквозное чтение книги порциями через ответ состояния.
 ///
-/// Благодаря этому интерфейс собирает книгу склейкой строк и не декодирует её
-/// целиком на главном потоке (это замораживало интерфейс при загрузке книги).
+/// Проверяется весь путь, по которому интерфейс собирает файл: границы порций,
+/// продолжение чтения по `next`, выравнивание base64 и полный размер для
+/// прогресса. Здесь ловятся сразу три поломки, каждая из которых ломает открытие
+/// книги: копирование файла целиком вместо порции (медленное открытие), длина
+/// вместо смещения в `next` (зацикливание чтения) и паддинг `=` на стыке порций
+/// (невалидная склейка строк).
 #[test]
-fn book_chunk_is_aligned_for_string_concatenation() {
-    use crate::plugin::app_state::book_chunk_of;
+fn book_chunks_rebuild_the_whole_file() {
+    let dir = test_util::test_root("app-state-book-chunk");
+    fs::create_dir_all(&dir).expect("каталог книги");
+    let path = dir.join("book.pdf");
+    let bytes: Vec<u8> = (0..5000u32).map(|value| (value % 251) as u8).collect();
+    fs::write(&path, &bytes).expect("файл книги");
 
-    let bytes: Vec<u8> = (0..1000u32).map(|value| (value % 251) as u8).collect();
-    let first = book_chunk_of(&bytes, 0, 300);
-    let second = book_chunk_of(&bytes, first["next"].as_u64().unwrap() as usize, 300);
+    let mut state = state_with_base("book-chunk", dir.join("base"));
+    let mut offset = 0;
+    let mut parts = String::new();
+    loop {
+        let chunk = state
+            .book_chunk_response(path.to_str().unwrap(), offset, 300)
+            .expect("порция книги");
+        let encoded = chunk["chunk"].as_str().expect("порция").to_string();
+        let total = chunk["total"].as_u64().expect("полный размер") as usize;
+        let next = chunk["next"].as_u64().expect("смещение конца") as usize;
+        let done = chunk["done"].as_bool().expect("признак конца");
 
-    let first_chunk = first["chunk"].as_str().expect("первая порция");
-    let second_chunk = second["chunk"].as_str().expect("вторая порция");
-    assert!(
-        !first_chunk.contains('='),
-        "промежуточная порция без паддинга"
+        assert_eq!(total, bytes.len(), "полный размер файла для прогресса");
+        assert_eq!(
+            &encoded,
+            &base64::Engine::encode(
+                &base64::engine::general_purpose::STANDARD,
+                &bytes[offset..next],
+            ),
+            "порция содержит ровно свои байты"
+        );
+        // Порция никогда не больше запрошенной: иначе ядро отдаёт файл целиком
+        // и открытие книги упирается в копирование, а не в чтение.
+        assert!(next - offset <= 300, "порция не больше запрошенной длины");
+        if !done {
+            assert_eq!(next - offset, 300, "порция ровно запрошенной длины");
+            assert!(!encoded.contains('='), "промежуточная порция без паддинга");
+        }
+        parts.push_str(&encoded);
+        offset = next;
+        if done {
+            break;
+        }
+        assert!(offset < bytes.len(), "чтение не зацикливается");
+    }
+
+    // Собранное совпадает с книгой: ни порции не потеряны, ни повторены.
+    assert_eq!(offset, bytes.len());
+    assert_eq!(
+        parts,
+        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes,)
     );
-    assert!(
-        !second_chunk.contains('='),
-        "промежуточная порция без паддинга"
-    );
 
-    // Склейка строк даёт те же байты, что и прямое кодирование диапазона.
-    let joined = format!("{first_chunk}{second_chunk}");
-    let expected =
-        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes[0..600]);
-    assert_eq!(joined, expected);
+    cleanup(&dir);
 }

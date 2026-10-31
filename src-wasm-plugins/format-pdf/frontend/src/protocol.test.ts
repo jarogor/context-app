@@ -54,6 +54,26 @@ describe('parseIncoming', () => {
     expect(normalizeTool(undefined)).toEqual({ type: 'quote', shape: 'line', color: 'yellow' });
   });
 
+  it('разбирает запрос поиска и переход к вхождению', () => {
+    expect(parseIncoming({ channel: CHANNEL, type: 'search', value: { query: 'слово' } })).toEqual({
+      type: 'search',
+      value: { query: 'слово' },
+    });
+    expect(parseIncoming({ channel: CHANNEL, type: 'search' })).toEqual({
+      type: 'search',
+      value: { query: '' },
+    });
+    expect(parseIncoming({ channel: CHANNEL, type: 'search-step', value: { delta: -1 } })).toEqual({
+      type: 'search-step',
+      value: { delta: -1 },
+    });
+    // Некорректное направление трактуется как «следующее вхождение».
+    expect(parseIncoming({ channel: CHANNEL, type: 'search-step' })).toEqual({
+      type: 'search-step',
+      value: { delta: 1 },
+    });
+  });
+
   it('разбирает тему и сигнал видимости', () => {
     expect(
       parseIncoming({ channel: CHANNEL, type: 'reader-theme', value: { id: 'dark' } }),

@@ -78,6 +78,27 @@ export interface WorkplaceState {
   zoom?: number | null;
 }
 
+/** Результат поиска по содержимому книги, сообщённый модулем рисования.
+ *
+ * Поиск выполняет модуль: он владеет текстом книги (текстовым слоем страниц), а
+ * приложение не знает о формате. Оболочке достаточно числа вхождений и номера
+ * текущего, чтобы показать счётчик и запросить переход.
+ */
+export interface WorkplaceSearch {
+  /** Сколько вхождений найдено. */
+  total: number;
+  /** Номер вхождения, к которому ведёт переход; `null` — перехода нет. */
+  index: number | null;
+  /** Найдено больше вхождений, чем модуль готов показать. */
+  truncated?: boolean;
+}
+
+/** Поиск, о котором сообщил модуль рисования. */
+export interface WorkplaceSearchResult extends WorkplaceSearch {
+  /** Запрос, по которому построен результат: ответ на прежний запрос не применяется. */
+  query: string;
+}
+
 /** Контекстное меню заметки: прямоугольник в координатах области содержимого. */
 export interface WorkplaceNoteMenu {
   /** Идентификатор заметки. */
@@ -108,7 +129,8 @@ export type ViewerMessage =
   | { type: 'place-note'; noteId: string; anchor: QuoteAnchor; geometry: string | undefined }
   | { type: 'error'; message: string }
   | { type: 'open-external' }
-  | { type: 'open-link'; href: string };
+  | { type: 'open-link'; href: string }
+  | { type: 'search'; value: WorkplaceSearchResult };
 
 /** Проверка источника и канала сообщения области содержимого. */
 export function isWorkplaceMessage(
@@ -245,6 +267,29 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
     case 'open-link': {
       const href = String((message.value as { href?: unknown } | null)?.href ?? '').trim();
       return href ? { type: 'open-link', href } : null;
+    }
+    case 'search': {
+      const value =
+        (message.value as {
+          query?: unknown;
+          total?: unknown;
+          index?: unknown;
+          truncated?: unknown;
+        }) ?? {};
+      const total = Number(value.total);
+      if (!Number.isFinite(total) || total < 0) {
+        return null;
+      }
+      const index = Number(value.index);
+      return {
+        type: 'search',
+        value: {
+          query: String(value.query ?? ''),
+          total: Math.trunc(total),
+          index: Number.isFinite(index) ? Math.trunc(index) : null,
+          truncated: value.truncated === true,
+        },
+      };
     }
     default:
       return null;

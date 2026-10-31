@@ -32,6 +32,7 @@ import { gotoNote, gotoPage, handleScroll, pageAtTop, pageToEdge, scrollToFracti
 import { applyReaderTheme } from './theme';
 import { state } from './state';
 import { clampTextSelection, endTextSelection } from './text-selection';
+import { resetSearchTexts, searchBook, stepSearch } from './search';
 
 /** Открытие книги: загрузка движка, документа и построение каркаса страниц. */
 async function openBook(data: string, position: number, zoomValue: number): Promise<void> {
@@ -42,6 +43,7 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
   state.rendered.clear();
   state.pending.clear();
   state.renderEpoch += 1;
+  resetSearchTexts();
   try {
     const lib = await loadEngine();
     state.doc = await lib.getDocument({ data: decodeBase64(data) }).promise;
@@ -211,9 +213,14 @@ async function handleMessage(event: MessageEvent): Promise<void> {
       wakeViewerScroll();
       repaintDirtyPages();
       break;
+    case 'search':
+      await searchBook(message.value.query ?? '');
+      break;
+    case 'search-step':
+      stepSearch(message.value.delta === -1 ? -1 : 1);
+      break;
   }
 }
-
 /** Навешивание обработчиков указателя, прокрутки, выделения и размера. */
 function bindEvents(): void {
   viewer.addEventListener('scroll', handleScroll, { passive: true });

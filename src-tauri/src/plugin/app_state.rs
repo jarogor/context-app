@@ -516,44 +516,70 @@ impl AppState {
         self.workplace_files.remove(path);
     }
 
-    /// Копия содержимого файла вложения по пути.
+    /// Порция содержимого файла вложения по пути и полный размер файла.
     ///
     /// Файл читается **до** кэширования: чтение с диска (библиотека может лежать
     /// на медленном носителе) идёт без общего замка состояния, иначе на время
     /// чтения замирал весь интерфейс — сохранение настроек и любой клик ждали
-    /// замок. Уже прочитанные байты отдаются из кэша без копирования.
-    pub fn workplace_book_bytes(&mut self, path: &str) -> Result<Vec<u8>, String> {
-        if let Some(bytes) = self.workplace_files.get(path) {
-            return Ok(bytes.clone());
-        }
-        let bytes = std::fs::read(path).map_err(|_| "файл книги не читается".to_string())?;
-        self.workplace_files.insert(path.to_string(), bytes.clone());
-        Ok(bytes)
+    /// замок. Из кэша отдаётся только запрошенная порция: прежняя реализация
+    /// копировала весь файл на каждый вызов, и чтение книги порциями на файле в
+    /// сотни мегабайт упиралось в копирование, а не в чтение.
+    pub fn workplace_book_chunk(
+        &mut self,
+        path: &str,
+        start: usize,
+        end: usize,
+    ) -> Result<(Vec<u8>, usize), String> {
+        let bytes = match self.workplace_files.entry(path.to_string()) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => {
+                let bytes =
+                    std::fs::read(path).map_err(|_| "файл книги не читается".to_string())?;
+                entry.insert(bytes)
+            }
+        };
+        let total = bytes.len();
+        let start = start.min(total);
+        let end = end.min(total);
+        Ok((bytes[start..end].to_vec(), total))
+    }
+
+    /// Ответ интерфейсу на запрос порции содержимого книги.
+    ///
+    /// В ответе `next` — абсолютное смещение конца порции: интерфейс подставляет
+    /// его в следующий запрос. Длина порции вместо смещения зацикливала чтение
+    /// книги, поэтому сборка ответа живёт рядом с порцией и проверяется тем же
+    /// тестом, что и само чтение.
+    pub fn book_chunk_response(
+        &mut self,
+        path: &str,
+        offset: usize,
+        length: usize,
+    ) -> Result<serde_json::Value, String> {
+        let (chunk, total) =
+            self.workplace_book_chunk(path, offset, offset.saturating_add(length))?;
+        Ok(crate::plugin::app_state::book_chunk_bounds(
+            &chunk,
+            offset,
+            offset.saturating_add(chunk.len()),
+            total,
+        ))
     }
 }
 
-/// Порция содержимого книги в base64.
+/// Ответ интерфейсу на порцию книги: порция уже вырезана, `start`/`end` — её
+/// абсолютные границы в файле.
 ///
-/// Выполняется **вне общего замка состояния**: чтение файла и кодирование могут
-/// занимать секунды на медленном носителе, и держать на это время замок нельзя.
-/// Ядро не интерпретирует байты.
-///
-/// Длина порции всегда кратна трём байтам (кроме последней): тогда её base64 не
-/// содержит паддинга `=`, и интерфейс собирает книгу простой склейкой строк. Иначе
-/// ему пришлось бы декодировать и заново кодировать всю книгу на главном потоке —
-/// это замораживало интерфейс на время загрузки, хотя книга грузится «в свою
-/// область».
-pub fn book_chunk_of(bytes: &[u8], offset: usize, length: usize) -> serde_json::Value {
-    let total = bytes.len();
-    let start = offset.min(total);
-    // Кратность трём нужна промежуточной порции; последняя может быть любой.
-    let aligned = length - length % 3;
-    let step = if aligned == 0 { length } else { aligned };
-    let end = start.saturating_add(step).min(total);
-    let encoded = base64::Engine::encode(
-        &base64::engine::general_purpose::STANDARD,
-        &bytes[start..end],
-    );
+/// `next` — абсолютное смещение конца порции, а не её длина: интерфейс читает
+/// книгу, подставляя `next` в следующий запрос. Если вернуть длину, он получал
+/// бы первый кусок заново и чтение книги зацикливалось.
+pub fn book_chunk_bounds(
+    chunk: &[u8],
+    start: usize,
+    end: usize,
+    total: usize,
+) -> serde_json::Value {
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, chunk);
     serde_json::json!({
         "chunk": encoded,
         "offset": start,
@@ -561,6 +587,22 @@ pub fn book_chunk_of(bytes: &[u8], offset: usize, length: usize) -> serde_json::
         "total": total,
         "done": end >= total,
     })
+}
+
+/// Границы порции по смещению и длине: начало и конец, кратные трём байтам.
+pub fn chunk_bounds(total: usize, offset: usize, length: usize) -> (usize, usize) {
+    let start = offset.min(total);
+    // Кратность трём нужна промежуточной порции; последняя может быть любой.
+    let aligned = length - length % 3;
+    let step = if aligned == 0 { length } else { aligned };
+    (start, start.saturating_add(step).min(total))
+}
+
+/// Порция содержимого книги в base64 по смещению и длине.
+pub fn book_chunk_of(bytes: &[u8], offset: usize, length: usize) -> serde_json::Value {
+    let total = bytes.len();
+    let (start, end) = chunk_bounds(total, offset, length);
+    book_chunk_bounds(&bytes[start..end], start, end, total)
 }
 
 #[cfg(test)]

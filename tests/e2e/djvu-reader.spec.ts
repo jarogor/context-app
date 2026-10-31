@@ -174,6 +174,27 @@ test('DjVu открывается плагином страницами с те�
     await expect(page.getByTestId('reader-page-count')).toHaveText('/ 1');
 });
 
+test('поиск по книге находит текст на странице DjVu', async ({ page }) => {
+    await openDjvu(page);
+
+    await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
+    const search = page.getByTestId('reader-search');
+    // Запрос короче двух букв не ищется, поэтому берётся слово из текстового
+    // слоя страницы, которого достаточно для поиска.
+    const spans = await content(page).locator('.textLayer span').allTextContents();
+    const word =
+        spans
+            .flatMap((text) => text.trim().split(/\s+/))
+            .find((part) => part.length >= 3)
+            ?.slice(0, 4) ?? '';
+    expect(word.length).toBeGreaterThanOrEqual(2);
+    await search.getByRole('textbox', { name: 'Поиск по книге' }).fill(word);
+
+    // Счётчик приходит от плагина: поиск выполняет модуль рисования.
+    await expect(search.getByTestId('reader-search-counter')).not.toHaveText('');
+    await expect(content(page).locator('mark.search-hit').first()).toBeAttached();
+});
+
 test('масштаб меняет размер страницы DjVu, не сбрасывая номер', async ({ page }) => {
     await openDjvu(page);
     const pageEl = content(page).locator('.page').first();

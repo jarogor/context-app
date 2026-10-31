@@ -21,6 +21,7 @@ import { renderSelection } from './selection';
 import { state, type CanvasInfo, type RenderedEntry } from './state';
 import { alignTextLayerToRaster, buildTextLayer, fitTextLayer } from './text-layer';
 import { recolorCanvas } from './theme';
+import { markPage } from './search';
 import { boundedRatio, desiredWindow, snapToDevice, type WindowBox } from './viewport';
 
 /** Порядковый номер страницы элемента (1-based). */
@@ -455,6 +456,9 @@ export function renderPage(
     state.rendered.set(pageEl, entry);
     pageEl.dataset.rendered = '1';
     drawNotes(pageEl, state.notes);
+    // Найденное поиском отмечается на каждой отрисованной странице: поиск
+    // может идти по книге параллельно с чтением.
+    markPage(pageEl);
     // Слой выделения строится по положению текста: после отрисовки он
     // восстанавливается, если выделение ещё живо.
     renderSelection();

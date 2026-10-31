@@ -17,6 +17,7 @@
     parseViewerMessage,
     type WorkplaceCapabilities,
     type WorkplaceNoteMenu,
+    type WorkplaceSearchResult,
     type WorkplaceState,
   } from './workplace-protocol';
   import { DEFAULT_PALETTE, DEFAULT_READER_THEME, readerThemeTokens, type PaletteId, type ReaderThemeId } from '@context/ui';
@@ -68,6 +69,8 @@
     onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
     /** Ошибка отображения содержимого. */
     onError?: (message: string) => void;
+    /** Результат поиска по содержимому книги. */
+    onSearch?: (result: WorkplaceSearchResult) => void;
   }
 
   let {
@@ -94,6 +97,7 @@
     onNoteMenuClose,
     onPlaceNote,
     onError,
+    onSearch,
   }: Props = $props();
 
   /** Канал сообщений между областью содержимого и приложением. */
@@ -114,6 +118,8 @@
   let bookSent = $state(false);
   /** Ошибка загрузки модуля или содержимого. */
   let error = $state<string | null>(null);
+  /** Последний запрос поиска: при готовности модуля он отправляется заново. */
+  let pendingSearch = '';
   /** Область содержимого книги. */
   let frame: HTMLIFrameElement | undefined = $state();
   /** Фон области чтения: убирает белую вспышку до отрисовки содержимого. */
@@ -206,6 +212,11 @@
         sendReaderTheme();
         sendTool();
         sendBookWhenVisible();
+        // Поиск, запрошенный до готовности модуля, отправляется теперь: иначе
+        // запрос, набранный во время загрузки книги, терялся.
+        if (pendingSearch) {
+          post({ type: 'search', value: { query: pendingSearch } });
+        }
         break;
       case 'capabilities':
         onCapabilities?.(message.value);
@@ -251,6 +262,9 @@
         // Внешняя ссылка книги из песочницы: открывает приложение системным
         // браузером, сама область этого сделать не может.
         void openBookLink(message.href).catch(() => undefined);
+        break;
+      case 'search':
+        onSearch?.(message.value);
         break;
     }
   }
@@ -329,7 +343,23 @@
   export function noteMenuAction(noteId: string, action: 'move' | 'resize') {
     post({ type: 'note-menu-action', value: { noteId, action } });
   }
-</script>
+
+  /** Запрос поиска по содержимому книги у модуля рисования. */
+  export function search(query: string) {
+    pendingSearch = query;
+    if (!ready) {
+      return;
+    }
+    post({ type: 'search', value: { query } });
+  }
+
+  /** Переход к соседнему вхождению поиска по кругу. */
+  export function stepSearch(delta: 1 | -1) {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'search-step', value: { delta } });
+  }</script>
 
 <div class="h-full w-full" data-testid="workplace-content">
   {#if error}

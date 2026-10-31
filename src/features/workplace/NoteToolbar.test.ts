@@ -56,6 +56,24 @@ describe('панель инструментов заметок', () => {
         expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_NOTE_TOOL, type: 'text' });
     });
 
+    it('открывает поиск по книге из панели чтения', async () => {
+        const onToggleSearch = vi.fn();
+        const { rerender } = render(
+            NoteToolbar,
+            { props: props({ onToggleSearch, searchOpen: false }) },
+        );
+
+        const button = screen.getByRole('button', { name: 'Поиск по книге' });
+        expect(button.getAttribute('aria-pressed')).toBe('false');
+        await fireEvent.click(button);
+        expect(onToggleSearch).toHaveBeenCalledTimes(1);
+
+        await rerender({ onToggleSearch, searchOpen: true });
+        expect(
+            screen.getByRole('button', { name: 'Поиск по книге' }).getAttribute('aria-pressed'),
+        ).toBe('true');
+    });
+
     it('показывает вид фигуры только для инструмента фигуры', async () => {
         const { rerender } = render(NoteToolbar, { props: props() });
         expect(screen.queryByTestId('note-tool-shape')).toBeNull();

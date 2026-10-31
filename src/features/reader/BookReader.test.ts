@@ -43,6 +43,17 @@ describe('BookReader: документ книги', () => {
         expect(html).toContain('data-reader-theme="dark"');
     });
 
+    it('содержит стили подсветки поиска и её токены темы', async () => {
+        const html = await builtDocument();
+        expect(html).toContain('.context-search-hit{');
+        expect(html).toContain('.context-search-hit.context-search-hit-active{');
+        // Тон поиска приходит из темы области чтения: он отличается от тонов
+        // заметок и меняется вместе со стороной темы.
+        expect(html).toContain('--rt-search:');
+        expect(html).toContain('--rt-search-active:');
+        expect(html).toContain("html[data-reader-theme='dark']");
+    });
+
     it('содержит слой активного выделения с метками по краям', async () => {
         const html = await builtDocument();
         expect(html).toContain('.context-selection-layer');

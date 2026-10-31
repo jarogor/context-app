@@ -290,6 +290,23 @@ body[data-editing='move'] .overlay [data-note-id] {
 .textLayer ::selection {
   background: transparent;
 }
+/* Найденное поиском: текст подсветки невидим (слой прозрачен), поэтому цвет
+   заливки виден на странице. Тон — как подсветка поиска в EPUB: он отличается
+   от подсветки заметки и читается как «найдено». Активное вхождение плотнее. */
+.textLayer mark.search-hit {
+  color: transparent;
+  background: rgba(242, 205, 82, 0.55);
+  border-radius: 2px;
+}
+.textLayer mark.search-hit.search-hit-active {
+  background: rgba(245, 158, 11, 0.9);
+}
+html[data-reader-theme='dark'] .textLayer mark.search-hit {
+  background: rgba(214, 158, 46, 0.38);
+}
+html[data-reader-theme='dark'] .textLayer mark.search-hit.search-hit-active {
+  background: rgba(245, 158, 11, 0.75);
+}
 /* Во время протяжки выделения нативное выделение выключено: браузер достраивает
    диапазон до указателя и заходил бы в чужие слои — на соседние страницы и за
    страницу. Разрешено оно только слою, на котором протяжка начата; слой-мишень

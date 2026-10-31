@@ -21,6 +21,7 @@
   import FootnoteMenu from '../notes/FootnoteMenu.svelte';
   import {
     createAnchor,
+    chapterTextOf,
     offsetsFromRange,
     parseAnchor,
     rangeFromOffsets,
@@ -58,6 +59,13 @@
   import { anchorTarget, parseBookLink } from './reader/book-link';
   import { bookFootnote, footnoteContentHtml, installFootnoteReturns, FOOTNOTE_BACK_CLASS } from './reader/footnote';
   import { clearSelectionLayer, renderSelectionLayer } from './reader/selection';
+  import {
+    clearSearchHighlights,
+    highlightSearchHits,
+    SEARCH_ACTIVE_CLASS,
+    SEARCH_CLASS,
+  } from './reader/search-mark';
+  import { searchBook, type SearchHit, type SearchResult } from './reader/search';
 
   interface Props {
     /** Содержимое книги главами. */
@@ -94,6 +102,8 @@
     onEditText?: (noteId: string) => void;
     /** Открытие внешней ссылки книги системным приложением. */
     onOpenLink?: (href: string) => void;
+    /** Итог поиска после применения отложенного запроса (книга ещё грузилась). */
+    onSearchResult?: (result: SearchResult) => void;
   }
 
   let {
@@ -114,6 +124,7 @@
     onPlaceNote,
     onEditText,
     onOpenLink,
+    onSearchResult,
   }: Props = $props();
 
   /** Доступные типы заметок текучего чтения: только цитата. */
@@ -205,6 +216,12 @@
   let moveDraft: { noteId: string; anchor: QuoteAnchor; geometry: string | null } | null = null;
   /** Подавление выбора заметки сразу после завершения правки. */
   let suppressClick = false;
+  /** Вхождения текущего запроса поиска в порядке чтения. */
+  let searchHits: SearchHit[] = $state([]);
+  /** Индекс вхождения, к которому ведёт переход; `null` — перехода нет. */
+  let searchActive: number | null = $state(null);
+  /** Запрос, по которому построена подсветка: повтор того же запроса не ищет заново. */
+  let searchQuery = '';
 
   /** Ограничение позиции меню внутри области чтения. */
   function menuStyle(): string {
@@ -451,7 +468,11 @@
     win.scrollTo({ top, behavior: distance > height * 1.5 ? 'auto' : 'smooth' });
   }
 
-  /** Переход к якорю заметки с показом выделения. */
+  /** Переход к якорю заметки с показом выделения.
+   *
+   * Место разрешается тем же способом, что и подсветка: сохранённые смещения
+   * могут не совпасть с текстом, тогда его даёт сама цитата.
+   */
   function gotoAnchor(note: Note): void {
     const value = document();
     if (!value) {
@@ -508,6 +529,101 @@
     }
   }
 
+  /** Подсветка всех найденных вхождений в документе книги.
+   *
+   * Подсветка ставится отдельным от заметок слоем (см. `search-mark.ts`), поэтому
+   * поиск не снимает и не перестраивает разметку заметок.
+   */
+  function highlightSearch(): void {
+    const value = document();
+    if (!value) {
+      return;
+    }
+    clearSearchHighlights(value);
+    const active = searchActive === null ? null : searchHits[searchActive];
+    for (const section of chapterSections()) {
+      const chapter = Number((section as HTMLElement).dataset.chapter ?? '0');
+      const chapterHits = searchHits.filter((hit) => hit.chapter === chapter);
+      if (chapterHits.length === 0) {
+        continue;
+      }
+      highlightSearchHits(
+        section,
+        chapterHits,
+        active && active.chapter === chapter ? active.start : null,
+      );
+    }
+  }
+
+  /** Поиск по книге: найденные вхождения и их подсветка.
+   *
+   * Возвращает вхождения вызывающей стороне (панель поиска показывает счётчик и
+   * фрагменты), а подсветку ставит в документе книги. Повторный поиск того же
+   * запроса не пересобирает подсветку: места уже отмечены.
+   */
+  export function search(query: string): SearchResult {
+    searchQuery = query.trim();
+    const value = document();
+    if (!value) {
+      // Документ книги ещё не загружен: запрос сохраняется и применяется после
+      // загрузки (см. `handleLoad`), а не теряется.
+      return { hits: [], truncated: false };
+    }
+    if (!searchQuery) {
+      searchHits = [];
+      searchActive = null;
+      clearSearchHighlights(value);
+      return { hits: [], truncated: false };
+    }
+    const result = searchBook(chapterSections(), searchQuery, chapterTextOf);
+    searchHits = result.hits;
+    searchActive = result.hits.length > 0 ? 0 : null;
+    highlightSearch();
+    return result;
+  }
+
+  /** Переход к вхождению поиска по его номеру: подсветка и прокрутка к месту. */
+  export function goToSearchHit(index: number): void {
+    if (searchHits.length === 0) {
+      return;
+    }
+    const target = Math.max(0, Math.min(searchHits.length - 1, index));
+    searchActive = target;
+    const value = document();
+    if (!value) {
+      return;
+    }
+    const hit = searchHits[target];
+    const section = chapterSection(hit.chapter);
+    if (section) {
+      // Активное вхождение ищется в главе вхождения: смещение уникально внутри
+      // главы, а не в книге.
+      for (const mark of Array.from(section.querySelectorAll<HTMLElement>(`mark.${SEARCH_CLASS}`))) {
+        mark.classList.toggle(SEARCH_ACTIVE_CLASS, mark.dataset.start === String(hit.start));
+      }
+    }
+    const active = value.querySelector(`mark.${SEARCH_ACTIVE_CLASS}`) ?? null;
+    const win = value.defaultView;
+    const root = value.scrollingElement ?? value.documentElement;
+    if (active && win && root) {
+      // Место вхождения ставится на строку ниже верха области: над ним
+      // остаётся контекст соседних строк, и найденное не прижато к краю.
+      const rect = active.getBoundingClientRect();
+      scrollReaderTo(win, root, rect.top, 120);
+    }
+    captureAnchorNow();
+  }
+
+  /** Снятие поиска: подсветка убирается, места вхождений забываются. */
+  export function clearSearch(): void {
+    searchQuery = '';
+    searchHits = [];
+    searchActive = null;
+    const value = document();
+    if (value) {
+      clearSearchHighlights(value);
+    }
+  }
   /** Скрытие контекстного меню выделения и снятие выделения. */
   function dismissMenu(): void {
     pendingAnchor = null;
@@ -1511,6 +1627,13 @@
     }
     clearSelectionLayer(value);
     drawNotes();
+    // Поиск переживает перезагрузку документа книги (возврат области после
+    // ухода): прежний запрос применяется к новой разметке заново.
+    if (searchQuery) {
+      // После пересборки документа подсветка строится заново: прежняя разметка
+      // ушла вместе со старым документом.
+      onSearchResult?.(search(searchQuery));
+    }
     // К каждой сноске книги добавляется ссылка возврата к её маркеру: возврат
     // есть у всех сносок, а не только у последней нажатой.
     installFootnoteReturns(value);

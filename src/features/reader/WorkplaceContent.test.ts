@@ -164,4 +164,63 @@ describe('WorkplaceContent: тема области чтения', () => {
             ).toBe(true);
         });
     });
+
+    it('отправляет плагину запрос поиска и передаёт результат наружу', async () => {
+        const onSearch = vi.fn();
+        const result = render(WorkplaceContent, {
+            props: {
+                pluginId: 'pdf',
+                path: '/lib/book.pdf',
+                title: 'Книга',
+                zoom: 100,
+                readerTheme: 'dark' as const,
+                palette: 'linen' as const,
+                visible: true,
+                onSearch,
+            },
+        });
+        const frame = document.querySelector('iframe') as HTMLIFrameElement;
+        const contentWindow = frame.contentWindow;
+        if (!contentWindow) {
+            return;
+        }
+        const post = vi.spyOn(contentWindow, 'postMessage');
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                source: contentWindow,
+                data: { channel: 'context-workplace', type: 'ready' },
+            }),
+        );
+        await waitFor(() => {
+            expect(post).toHaveBeenCalled();
+        });
+
+        result.component.search('слово');
+        expect(
+            post.mock.calls.some((call) => (call[0] as { type?: string })?.type === 'search'),
+        ).toBe(true);
+
+        result.component.stepSearch(1);
+        const step = post.mock.calls.find(
+            (call) => (call[0] as { type?: string })?.type === 'search-step',
+        );
+        expect((step?.[0] as { value?: { delta?: number } })?.value?.delta).toBe(1);
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                source: contentWindow,
+                data: {
+                    channel: 'context-workplace',
+                    type: 'search',
+                    value: { query: 'слово', total: 3, index: 0 },
+                },
+            }),
+        );
+        expect(onSearch).toHaveBeenCalledWith({
+            query: 'слово',
+            total: 3,
+            index: 0,
+            truncated: false,
+        });
+    });
 });

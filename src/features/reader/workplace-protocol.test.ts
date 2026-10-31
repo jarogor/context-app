@@ -148,6 +148,24 @@ describe('протокол рабочего места: разбор сообщ�
       message: 'не удалось отобразить книгу',
     });
   });
+
+  it('передаёт результат поиска по содержимому книги', () => {
+    expect(
+      parseViewerMessage(message('search', { query: 'слово', total: '17', index: '2' }), TOOL),
+    ).toEqual({
+      type: 'search',
+      value: { query: 'слово', total: 17, index: 2, truncated: false },
+    });
+    // Обрезанный список и отсутствие перехода сохраняются как есть.
+    expect(
+      parseViewerMessage(message('search', { query: 'слово', total: 500, truncated: true }), TOOL),
+    ).toEqual({
+      type: 'search',
+      value: { query: 'слово', total: 500, index: null, truncated: true },
+    });
+    // Без числа вхождений сообщение бессмысленно и отбрасывается.
+    expect(parseViewerMessage(message('search', { query: 'слово' }), TOOL)).toBeNull();
+  });
 });
 
 describe('протокол рабочего места: тема области чтения', () => {

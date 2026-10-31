@@ -32,6 +32,7 @@ import {
 import { centerHorizontally, gotoNote, gotoPage, handleScroll, pageAtTop, pageToEdge, scrollToFraction } from './navigation';import { applyReaderTheme } from './theme';
 import { state } from './state';
 import { clampTextSelection, endTextSelection } from './text-selection';
+import { resetSearchTexts, searchBook, stepSearch } from './search';
 
 /** Открытие книги: загрузка движка, документа и построение каркаса страниц. */
 async function openBook(data: string, position: number, zoomValue: number): Promise<void> {
@@ -41,6 +42,7 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
   // Предыдущая книга: освобождаем её холсты, иначе карта держала бы их.
   state.rendered.clear();
   state.pending.clear();
+  resetSearchTexts();
   try {
     state.module = await loadEngine();
     state.doc = openDocument(state.module, decodeBase64(data));
@@ -202,6 +204,12 @@ async function handleMessage(event: MessageEvent): Promise<void> {
       // Область чтения снова видима: довести отрисовку под текущую раскраску.
       wakeViewerScroll();
       repaintDirtyPages();
+      break;
+    case 'search':
+      await searchBook(message.value.query ?? '');
+      break;
+    case 'search-step':
+      stepSearch(message.value.delta === -1 ? -1 : 1);
       break;
   }
 }

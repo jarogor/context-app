@@ -274,6 +274,13 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     }
   }
 
+  /** Переключение панели поиска по книге активной вкладки. */
+  function toggleSearch() {
+    if (tab) {
+      readers.get(tab.id)?.toggleFooterSearch();
+    }
+  }
+
   /** Переход к заметке в читалке активной вкладки. */
   export function goto(note: Note) {
     if (tab) {
@@ -419,6 +426,8 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
             onChangeReaderTheme={(theme) => onChangeReaderTheme?.(theme)}
             onStepPage={stepPage}
             onGoToPage={goToPage}
+            onToggleSearch={toggleSearch}
+            searchOpen={activeFooter?.searchOpen ?? false}
           />
         {/if}
         {#if workspace.tabs.length === 0}
