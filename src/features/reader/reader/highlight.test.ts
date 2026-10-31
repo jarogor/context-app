@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { clearNoteMarks, highlightTextRange } from './highlight';
+import { createAnchor, resolveAnchorRange } from './anchor';
 
 /** Восстановители моков, снятые после каждого теста. */
 const mocks: Array<() => void> = [];
@@ -129,5 +130,50 @@ describe('подсветка диапазона текста', () => {
         const mark = chapter.querySelector('mark') as HTMLElement;
         expect(mark.style.paddingTop).toBe('');
         expect(mark.style.paddingBottom).toBe('');
+    });
+
+    it('подсвечивает место, найденное по тексту цитаты', () => {
+        // Заметка найдена по тексту: подсветка ставится по смещениям из
+        // разрешения, а не по устаревшим смещениям якоря.
+        const chapter = root('<p>Привет</p><p>мир</p>');
+        const anchor = createAnchor({ chapter: 0, start: 0, end: 3, quote: 'мир' });
+        const resolved = resolveAnchorRange(chapter, anchor);
+
+        expect(resolved).not.toBeNull();
+        expect(
+            highlightTextRange(chapter, resolved!.start, resolved!.end, 'context-note', 'n9'),
+        ).toBe(true);
+        expect(chapter.querySelector('mark.context-note')!.textContent).toBe('мир');
+        expect(chapter.textContent).toBe('Приветмир');
+    });
+
+    it('подсвечивает место цитаты поверх вложенной разметки', () => {
+        const chapter = root('<p>Слово <em>выделенное</em> и ещё жирное.</p>');
+        const anchor = createAnchor({ chapter: 0, start: 6, end: 22, quote: 'выделенное и ещё' });
+        const resolved = resolveAnchorRange(chapter, anchor);
+
+        expect(resolved).not.toBeNull();
+        expect(
+            highlightTextRange(chapter, resolved!.start, resolved!.end, 'context-note', 'n10'),
+        ).toBe(true);
+        expect(Array.from(chapter.querySelectorAll('mark')).map((mark) => mark.textContent)).toEqual([
+            'выделенное',
+            ' и ещё',
+        ]);
+    });
+
+    it('повторная подсветка того же места не сдвигает смещения поиска', () => {
+        // После подсветки текст главы остаётся прежним, поэтому поиск по
+        // тексту цитаты находит то же место и под второй заметкой.
+        const chapter = root('<p>Привет</p><p>мир</p>');
+        const first = resolveAnchorRange(chapter, createAnchor({ chapter: 0, start: 0, end: 6, quote: 'Привет' }));
+        expect(first).not.toBeNull();
+        highlightTextRange(chapter, first!.start, first!.end, 'context-note', 'a');
+
+        const second = resolveAnchorRange(chapter, createAnchor({ chapter: 0, start: 0, end: 3, quote: 'мир' }));
+
+        expect(second).not.toBeNull();
+        expect(second!.byText).toBe(true);
+        expect(chapter.textContent).toBe('Приветмир');
     });
 });

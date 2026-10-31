@@ -8,6 +8,7 @@ import {
     offsetsFromRange,
     parseAnchor,
     rangeFromOffsets,
+    resolveAnchorRange,
     serializeAnchor,
 } from './anchor';
 
@@ -84,6 +85,96 @@ describe('смещения выделения', () => {
     it('смещения вне главы отклоняются', () => {
         const root = chapterRoot('<p>Привет</p>');
         expect(rangeFromOffsets(root, 10, 20)).toBeNull();
+    });
+});
+
+describe('разрешение якоря в тексте главы', () => {
+    it('берёт сохранённые смещения, когда текст под ними совпадает с цитатой', () => {
+        const root = chapterRoot('<p>Привет</p><p>мир</p>');
+        const anchor = createAnchor({ chapter: 0, start: 3, end: 8, quote: 'ветми' });
+
+        const resolved = resolveAnchorRange(root, anchor);
+
+        expect(resolved).not.toBeNull();
+        expect(resolved!.byText).toBe(false);
+        expect(resolved!.range.toString()).toBe('ветми');
+    });
+
+    it('находит место по тексту цитаты, когда смещения указывают мимо', () => {
+        // Книга разобрана иначе: сохранённые смещения не совпадают с текстом,
+        // а сама цитата в главе есть.
+        const root = chapterRoot('<p>Привет</p><p>мир</p>');
+        const anchor = createAnchor({ chapter: 0, start: 0, end: 3, quote: 'мир' });
+
+        const resolved = resolveAnchorRange(root, anchor);
+
+        expect(resolved).not.toBeNull();
+        expect(resolved!.byText).toBe(true);
+        expect(resolved!.range.toString()).toBe('мир');
+    });
+
+    it('находит цитату, разбитую разметкой на части', () => {
+        const root = chapterRoot('<p>Слово <em>выделенное</em> и ещё жирное.</p>');
+        const anchor = createAnchor({ chapter: 0, start: 0, end: 0, quote: 'Слово выделенное и' });
+
+        const resolved = resolveAnchorRange(root, anchor);
+
+        expect(resolved).not.toBeNull();
+        expect(resolved!.byText).toBe(true);
+        expect(resolved!.range.toString()).toBe('Слово выделенное и');
+    });
+
+    it('считает пробельные серии одним пробелом', () => {
+        const root = chapterRoot('<p>Привет\n   мир</p>');
+        const anchor = createAnchor({ chapter: 0, start: 0, end: 0, quote: 'Привет мир' });
+
+        expect(resolveAnchorRange(root, anchor)?.byText).toBe(true);
+    });
+
+    it('возвращает null, если цитаты в главе нет', () => {
+        const root = chapterRoot('<p>Привет</p>');
+        const anchor = createAnchor({ chapter: 0, start: 0, end: 0, quote: 'чужая цитата' });
+
+        expect(resolveAnchorRange(root, anchor)).toBeNull();
+    });
+
+    it('находит место в большой главе за один проход по кэшу', () => {
+        // Реалистичный объём: сотни тысяч символов. Поиск не должен перебирать
+        // символы построчно на каждую заметку — иначе книга открывается долго.
+        const paragraphs = Array.from(
+            { length: 6000 },
+            (_, index) => `<p>Абзац ${index + 1}. Текст для проверки прокрутки книги.</p>`,
+        ).join('');
+        const root = chapterRoot(paragraphs);
+        const quote = 'Абзац 5900. Текст для проверки прокрутки книги.';
+        const anchor = createAnchor({ chapter: 0, start: 0, end: 0, quote });
+
+        const first = resolveAnchorRange(root, anchor);
+        expect(first).not.toBeNull();
+        expect(first!.range.toString()).toBe(quote);
+
+        // Повторное разрешение берёт готовый текст главы из кэша.
+        const second = resolveAnchorRange(root, anchor);
+        expect(second).not.toBeNull();
+        expect(second!.range.toString()).toBe(quote);
+    });
+
+    it('находит место после того, как глава уже подсвечена', () => {
+        // Подсветка заворачивает текст в `<mark>`: текст главы не меняется, и
+        // поиск по цитате продолжает работать.
+        const root = chapterRoot('<p>Привет</p><p>мир</p>');
+        const first = resolveAnchorRange(root, createAnchor({ chapter: 0, start: 0, end: 6, quote: 'Привет' }));
+        expect(first).not.toBeNull();
+        const range = first!.range;
+        const mark = document.createElement('mark');
+        range.surroundContents(mark);
+
+        const anchor = createAnchor({ chapter: 0, start: 0, end: 3, quote: 'мир' });
+        const resolved = resolveAnchorRange(root, anchor);
+
+        expect(resolved).not.toBeNull();
+        expect(resolved!.byText).toBe(true);
+        expect(resolved!.range.toString()).toBe('мир');
     });
 });
 

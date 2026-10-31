@@ -1072,3 +1072,202 @@ test('реестр заметок адаптивен к ширине окна', 
     );
     expect(narrow).toBe(true);
 });
+
+test('заметки находят место по тексту цитаты, когда якорь устарел', async ({ page }) => {
+    // Заметки сохранены от прежней разборки книги: номер главы и смещения
+    // чужие, а текст цитаты совпадает. Подсветка должна стоять на цитате,
+    // переход — вести к ней, а повторный клик — не сдвигать текст.
+    const quotes = [
+        'Абзац 5. Текст для проверки прокрутки книги.',
+        'Абзац 40. Текст для проверки прокрутки книги.',
+        'Абзац 55. Текст для проверки прокрутки книги.',
+    ];
+    await page.addInitScript(
+        ({ text, bookKey }) => {
+            window.localStorage.setItem(
+                'context-notes',
+                JSON.stringify([
+                    {
+                        id: 'ns-1',
+                        bookKey,
+                        bookTitle: 'Демо-книга',
+                        name: 'Основные',
+                        notes: text.map((quote, index) => ({
+                            id: `note-${index}`,
+                            type: 'quote',
+                            anchor: JSON.stringify({
+                                v: 1,
+                                chapter: 9,
+                                start: 900_000 + index,
+                                end: 900_400 + index,
+                                quote,
+                                percent: 10 + index * 20,
+                                page: null,
+                            }),
+                            quote,
+                            chapter: '9',
+                            title: '',
+                            comment: '',
+                            color: 'yellow',
+                            percent: 10 + index * 20,
+                            page: null,
+                            text: '',
+                            shape: 'line',
+                            geometry: '',
+                            created_at_millis: 1_700_000_000_000 + index,
+                            updated_at_millis: 1_700_000_000_000 + index,
+                        })),
+                    },
+                ]),
+            );
+            window.localStorage.setItem(
+                'context-notes-active',
+                JSON.stringify({ [bookKey]: 'ns-1' }),
+            );
+        },
+        { text: quotes, bookKey: '/demo-library/demo-1.epub' },
+    );
+
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    // Все три заметки подсвечены на своих цитатах, хотя смещения якоря в них
+    // не попадают.
+    const marks = bookDocument(page).locator('mark.context-note');
+    await expect(marks).toHaveCount(quotes.length);
+    expect(await marks.evaluateAll((items) => items.map((item) => item.textContent))).toEqual(quotes);
+
+    const scrollTop = () =>
+        bookDocument(page)
+            .locator('html')
+            .evaluate((element) => {
+                const doc = element.ownerDocument;
+                const root = doc.scrollingElement ?? doc.documentElement;
+                return Math.round(root.scrollTop);
+            });
+    const scrollToTop = () =>
+        bookDocument(page)
+            .locator('html')
+            .evaluate((element) => {
+                const doc = element.ownerDocument;
+                const root = doc.scrollingElement ?? doc.documentElement;
+                root.scrollTop = 0;
+            });
+
+    // Переход к нижней заметке из начала книги.
+    await scrollToTop();
+    await page.getByTestId('notes-item-link').last().click();
+    await expect(marks.last()).toBeInViewport();
+    const reached = await scrollTop();
+    expect(reached).toBeGreaterThan(0);
+
+    // Повторный клик не сдвигает текст: место уже видно.
+    await page.getByTestId('notes-item-link').last().click();
+    expect(await scrollTop()).toBe(reached);
+});
+
+test('большая книга с устаревшими якорями открывается без зависания', async ({ page }) => {
+    // Объём, близкий к реальным книгам: сотни тысяч символов в одной главе и
+    // десятки заметок. Поиск места по тексту не должен выполняться на каждую
+    // заметку заново — иначе открытие рабочего места зависает.
+    await page.addInitScript((active) => {
+        const paragraphs = Array.from(
+            { length: 8000 },
+            (_, index) =>
+                `<p>Абзац ${index + 1}. Текст для проверки прокрутки книги, длинная строка набора.</p>`,
+        ).join('');
+        const quotes = Array.from(
+            { length: 10 },
+            (_, index) =>
+                `Абзац ${400 + index * 700}. Текст для проверки прокрутки книги, длинная строка набора.`,
+        );
+        window.localStorage.setItem(
+            'context-notes',
+            JSON.stringify([
+                {
+                    id: 'ns-big',
+                    bookKey: '/demo-library/demo-1.epub',
+                    bookTitle: 'Демо-книга',
+                    name: 'Основные',
+                    notes: quotes.map((quote, index) => ({
+                        id: `note-big-${index}`,
+                        type: 'quote',
+                        anchor: JSON.stringify({
+                            v: 1,
+                            chapter: 9,
+                            start: 900_000 + index,
+                            end: 900_400 + index,
+                            quote,
+                            percent: 5 + index * 9,
+                            page: null,
+                        }),
+                        quote,
+                        chapter: '9',
+                        title: '',
+                        comment: '',
+                        color: 'yellow',
+                        percent: 5 + index * 9,
+                        page: null,
+                        text: '',
+                        shape: 'line',
+                        geometry: '',
+                        created_at_millis: 1_700_000_000_000 + index,
+                        updated_at_millis: 1_700_000_000_000 + index,
+                    })),
+                },
+            ]),
+        );
+        window.localStorage.setItem(
+            'context-notes-active',
+            JSON.stringify({ '/demo-library/demo-1.epub': 'ns-big' }),
+        );
+        (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
+            handlers: {
+                active_library: () => active,
+                get_workspaces: () => {
+                    const raw = window.localStorage.getItem('workspaces');
+                    return raw
+                        ? JSON.parse(raw)
+                        : {
+                              workspaces: [
+                                  {
+                                      id: 'ws-1',
+                                      name: 'Рабочее место',
+                                      created_at_millis: 1_700_000_000_000,
+                                      tabs: [],
+                                      active_tab_id: null,
+                                  },
+                              ],
+                              active_workspace_id: 'ws-1',
+                          };
+                },
+                save_workspaces: (payload: unknown) => {
+                    const registry = (payload as { workspaces?: unknown })?.workspaces;
+                    window.localStorage.setItem('workspaces', JSON.stringify(registry));
+                    return { ok: true };
+                },
+                reader_content: () => ({
+                    title: 'Демо-книга',
+                    authors: ['Тестовый автор'],
+                    chapters: [
+                        { title: 'Глава 1', html: '<h1>Глава 1</h1><p>Первый абзац книги.</p>' },
+                        { title: 'Глава 2', html: `<h2>Глава 2</h2>${paragraphs}` },
+                    ],
+                }),
+            },
+        };
+    }, ACTIVE_LIBRARY);
+
+    const started = Date.now();
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+    await openNotes(page);
+
+    // Все заметки найдены по тексту и подсвечены.
+    const marks = bookDocument(page).locator('mark.context-note');
+    await expect(marks).toHaveCount(10, { timeout: 15000 });
+
+    // Открытие укладывается в разумное время, а не зависает.
+    expect(Date.now() - started).toBeLessThan(30000);
+});

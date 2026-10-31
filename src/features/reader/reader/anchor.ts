@@ -180,6 +180,141 @@ export function offsetsFromRange(root: Node, range: Range): SelectionOffsets | n
     return { start, end };
 }
 
+/** Разрешённое место цитаты в тексте главы. */
+export interface ResolvedAnchor {
+    /** Диапазон места цитаты. */
+    range: Range;
+    /** Смещение начала в символах внутри главы. */
+    start: number;
+    /** Смещение конца в символах внутри главы. */
+    end: number;
+    /** Найдено ли место по тексту цитаты, а не по сохранённым смещениям. */
+    byText: boolean;
+}
+
+/** Текст главы для поиска цитаты и признак его свежести. */
+interface ChapterText {
+    /** Непрерывный текст главы. */
+    raw: string;
+    /** Длина текста: по ней проверяется, что глава не изменилась. */
+    length: number;
+}
+
+/** Кэш текста глав: поиск цитаты не пересобирает текст на каждую заметку.
+ *
+ * Ключ — сам раздел главы, поэтому кэш живёт вместе с документом книги и не
+ * удерживает его после смены книги. Подсветка заворачивает текст в `<mark>`, но
+ * текста не меняет, поэтому длина остаётся прежней и кэш не пересобирается.
+ */
+const chapterTextCache = new WeakMap<Element, ChapterText>();
+
+/** Экранирование спецсимволов регулярного выражения. */
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Шаблон поиска цитаты, устойчивый к пробельным сериям в тексте главы. */
+function quotePattern(quote: string): RegExp | null {
+    const tokens = quote
+        .trim()
+        .split(/\s+/)
+        .filter((token) => token.length > 0)
+        .map(escapeRegExp);
+    if (tokens.length === 0) {
+        return null;
+    }
+    return new RegExp(tokens.join('\\s+'));
+}
+
+/** Текст главы (по кэшу, если глава не менялась). */
+function chapterText(root: Element): ChapterText | null {
+    const document = root.ownerDocument;
+    if (!document) {
+        return null;
+    }
+    const length = root.textContent?.length ?? 0;
+    const cached = chapterTextCache.get(root);
+    if (cached && cached.length === length) {
+        return cached;
+    }
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const parts: string[] = [];
+    let node = walker.nextNode();
+    while (node) {
+        parts.push(node.nodeValue ?? '');
+        node = walker.nextNode();
+    }
+    const raw = parts.join('');
+    const value: ChapterText = { raw, length: raw.length };
+    chapterTextCache.set(root, value);
+    return value;
+}
+
+/** Приведение текста к сравнимому виду: пробельные серии — один пробел. */
+function normalizeText(value: string): string {
+    return value.replace(/\s+/g, ' ').trim();
+}
+
+/** Поиск места цитаты в тексте главы по самому тексту.
+ *
+ * Сохранённые смещения перестают совпадать с текстом, если книга разобрана
+ * иначе, чем при создании заметки (например, конвертированный TXT попал в
+ * EPUB). Тогда заметка не находила диапазон: подсветки не было, а переход к
+ * ней промахивался мимо места. Текст цитаты устойчивее смещений, поэтому он
+ * служит запасным способом.
+ *
+ * Поиск идёт по готовому тексту главы из кэша, а не перебором символов: на
+ * книге в сотни тысяч символов построчный обход на каждую заметку задерживал
+ * открытие рабочего места.
+ */
+function rangeFromQuote(root: Element, quote: string): ResolvedAnchor | null {
+    const pattern = quotePattern(quote);
+    if (!pattern) {
+        return null;
+    }
+    const text = chapterText(root);
+    if (!text) {
+        return null;
+    }
+    const match = pattern.exec(text.raw);
+    if (!match || match[0].length === 0) {
+        return null;
+    }
+    const start = match.index;
+    const end = start + match[0].length;
+    const range = rangeFromOffsets(root, start, end);
+    if (!range) {
+        return null;
+    }
+    return { range, start, end, byText: true };
+}
+
+/** Разрешение якоря заметки в диапазон внутри главы.
+ *
+ * Сначала проверяются сохранённые смещения: если текст под ними совпадает с
+ * цитатой, они точны. Иначе место ищется по тексту цитаты — так заметка
+ * остаётся рабочей в книге, чья разметка перестала совпадать со смещениями.
+ */
+export function resolveAnchorRange(root: Element, anchor: QuoteAnchor): ResolvedAnchor | null {
+    if (anchor.kind !== 'text') {
+        return null;
+    }
+    const exact = rangeFromOffsets(root, anchor.start, anchor.end);
+    const needle = normalizeText(anchor.quote);
+    if (exact && !exact.collapsed) {
+        const text = normalizeText(exact.toString());
+        // Пустой текст под смещениями ничего не подтверждает: он лишь совпал с
+        // началом любой цитаты, а не с её местом.
+        if (
+            text.length > 0 &&
+            (text === needle || text.startsWith(needle) || needle.startsWith(text))
+        ) {
+            return { range: exact, start: anchor.start, end: anchor.end, byText: false };
+        }
+    }
+    return rangeFromQuote(root, anchor.quote);
+}
+
 /** Разрешение смещений символов в диапазон DOM внутри главы. */
 export function rangeFromOffsets(root: Node, start: number, end: number): Range | null {
     const document = root.ownerDocument;

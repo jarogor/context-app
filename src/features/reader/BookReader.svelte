@@ -24,6 +24,7 @@
     offsetsFromRange,
     parseAnchor,
     rangeFromOffsets,
+    resolveAnchorRange,
     type QuoteAnchor,
   } from './reader/anchor';
   import { clearNoteMarks, highlightTextRange } from './reader/highlight';
@@ -231,6 +232,48 @@
     return document()?.querySelector(`.${CHAPTER_CLASS}[data-chapter="${index}"]`) ?? null;
   }
 
+  /** Разделы глав книги по порядку. */
+  function chapterSections(): Element[] {
+    return Array.from(document()?.querySelectorAll(`.${CHAPTER_CLASS}`) ?? []);
+  }
+
+  /** Место заметки-цитаты в книге: глава, диапазон и его смещения.
+   *
+   * Глава берётся по номеру из якоря. Если места в ней нет (книга разобрана
+   * иначе, чем при создании заметки), глава ищется по тексту цитаты. Смещения
+   * возвращаются вместе с диапазоном: подсветка и переход не пересчитывают
+   * якорь повторно.
+   */
+  function resolveQuotePlace(
+    anchor: QuoteAnchor,
+  ): { section: Element; range: Range; start: number; end: number } | null {
+    if (anchor.kind !== 'text') {
+      return null;
+    }
+    const section = chapterSection(anchor.chapter);
+    if (section) {
+      const resolved = resolveAnchorRange(section, anchor);
+      if (resolved) {
+        return { section, range: resolved.range, start: resolved.start, end: resolved.end };
+      }
+    }
+    for (const candidate of chapterSections()) {
+      if (candidate === section) {
+        continue;
+      }
+      const resolved = resolveAnchorRange(candidate, anchor);
+      if (resolved) {
+        return {
+          section: candidate,
+          range: resolved.range,
+          start: resolved.start,
+          end: resolved.end,
+        };
+      }
+    }
+    return null;
+  }
+
   /** Применение активного инструмента к документу книги (курсор и выделение). */
   function applyTool(): void {
     const body = document()?.body as HTMLElement | null;
@@ -287,11 +330,13 @@
     if (!value || !anchor || note.type !== 'quote') {
       return;
     }
-    const section = chapterSection(anchor.chapter);
-    if (!section) {
+    // Место разрешается по сохранённым смещениям, а при их несовпадении — по
+    // тексту цитаты: заметка не пропадает в книге, разобранной иначе.
+    const place = resolveQuotePlace(anchor);
+    if (!place) {
       return;
     }
-    highlightTextRange(section, anchor.start, anchor.end, NOTE_CLASS, note.id, note.color);
+    highlightTextRange(place.section, place.start, place.end, NOTE_CLASS, note.id, note.color);
   }
 
   /** Наложение одной текстовой карточки или фигуры.
@@ -388,6 +433,24 @@
     }
   }
 
+  /** Прокрутка к экранной координате цели с отступом.
+   *
+   * Уже видимое место не прокручивается вовсе: иначе повторный клик по заметке
+   * каждый раз чуть сдвигал весь текст. Дальний переход выполняется сразу, а не
+   * плавно: плавная прокрутка на десятки тысяч пикселей идёт долго и при
+   * повторном клике начинается заново, поэтому до заметки было не добраться.
+   */
+  function scrollReaderTo(win: Window, root: Element, target: number, margin: number): void {
+    const height = root.clientHeight;
+    // Цель уже в поле зрения: прокрутка только сдвинула бы текст.
+    if (target >= 0 && target <= height - margin) {
+      return;
+    }
+    const top = root.scrollTop + target - margin;
+    const distance = Math.abs(top - root.scrollTop);
+    win.scrollTo({ top, behavior: distance > height * 1.5 ? 'auto' : 'smooth' });
+  }
+
   /** Переход к якорю заметки с показом выделения. */
   function gotoAnchor(note: Note): void {
     const value = document();
@@ -397,20 +460,21 @@
     const root = value.scrollingElement ?? value.documentElement;
     const win = value.defaultView;
     const anchor = parseAnchor(note.anchor);
-    const section = anchor ? chapterSection(anchor.chapter) : null;
+    const quote = anchor ? resolveQuotePlace(anchor) : null;
+    const section = quote?.section ?? (anchor ? chapterSection(anchor.chapter) : null);
     if (anchor?.kind === 'point' && section) {
       // Точка: прокручиваем к её доле внутри раздела главы.
       const rect = section.getBoundingClientRect();
       const target = rect.top + rect.height * Math.max(0, Math.min(1, anchor.y ?? 0));
       if (win && root) {
-        win.scrollTo({ top: root.scrollTop + target - 120, behavior: 'smooth' });
+        scrollReaderTo(win, root, target, 120);
       }
     } else {
-      const range = anchor && section ? rangeFromOffsets(section, anchor.start, anchor.end) : null;
-      const target = range ?? (section ? section : null);
+      // Место цитаты разрешается тем же способом, что и подсветка: сохранённые
+      // смещения могут не совпасть с текстом, тогда его даёт сама цитата.
+      const target = quote?.range ?? (section ? section : null);
       if (target && win && root) {
-        const rect = target.getBoundingClientRect();
-        win.scrollTo({ top: root.scrollTop + rect.top - 80, behavior: 'smooth' });
+        scrollReaderTo(win, root, target.getBoundingClientRect().top, 80);
       } else if (anchor && anchor.percent > 0) {
         gotoPercent(anchor.percent);
       }
