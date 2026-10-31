@@ -295,6 +295,9 @@ export function markPage(pageEl: HTMLElement): void {
   if (!needle || !layer) {
     return;
   }
+  // Прежняя подсветка снимается перед новой: вложенные `<mark>` складывали
+  // прозрачность слоёв, и текст под ними мутнел.
+  clearPageMarks(pageEl);
   const nodes = layerNodes(layer).filter((item) => item.text.trim().length > 0);
   if (nodes.length === 0) {
     return;
@@ -378,6 +381,20 @@ export function markPage(pageEl: HTMLElement): void {
       replacement.append(value.slice(position));
     }
     node.replaceWith(replacement);
+  }
+}
+
+/** Снятие подсветки поиска со страницы без удаления текста. */
+function clearPageMarks(pageEl: HTMLElement): void {
+  for (const mark of Array.from(pageEl.querySelectorAll(`mark.${SEARCH_HIT_CLASS}`))) {
+    const parent = mark.parentNode;
+    if (!parent) {
+      continue;
+    }
+    while (mark.firstChild) {
+      parent.insertBefore(mark.firstChild, mark);
+    }
+    parent.removeChild(mark);
   }
 }
 

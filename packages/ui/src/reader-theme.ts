@@ -111,11 +111,12 @@ export function applyReaderPalette(
 export function readerThemeTokens(palette: PaletteId, id: ReaderThemeId): ReaderThemeTokens {
     const base = id === 'dark' ? DARK_READER_TOKENS[palette] : LIGHT_READER_TOKENS[palette];
     // Тон найденного поиском — не цвет заметки: жёлтый признак поиска общий для
-    // всех палитр и сторон, как признак «найдено» в любой программе. На тёмной
-    // стороне он приглушён, чтобы не вспыхивать на тёмной бумаге.
+    // всех палитр и сторон, как признак «найдено» в любой программе. Остальные
+    // вхождения намеренно бледные, а текущее — плотное: на тёмной стороне
+    // прозрачности различались плохо, и места поиска сливались между собой.
     return id === 'dark'
-        ? { ...base, search: 'rgba(214, 158, 46, 0.38)', searchActive: 'rgba(245, 158, 11, 0.75)' }
-        : { ...base, search: 'rgba(242, 205, 82, 0.55)', searchActive: 'rgba(245, 158, 11, 0.9)' };
+        ? { ...base, search: 'rgba(214, 158, 46, 0.2)', searchActive: 'rgba(245, 158, 11, 0.62)' }
+        : { ...base, search: 'rgba(242, 205, 82, 0.38)', searchActive: 'rgba(245, 158, 11, 0.85)' };
 }
 
 /** Светлые тона заметок: насыщенные, но среднесветлые оттенки.

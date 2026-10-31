@@ -27,6 +27,8 @@
     style?: string;
     /** Показывать ли кнопку очистки, когда поле не пусто. */
     clearable?: boolean;
+    /** Ссылка на сам элемент поля (для фокуса и выделения). */
+    element?: HTMLInputElement;
     /** Обработчик ввода. */
     oninput?: (event: Event & { currentTarget: HTMLInputElement }) => void;
     /** Обработчик нажатия клавиши. */
@@ -46,6 +48,7 @@
     class: className = '',
     style,
     clearable = false,
+    element = $bindable(),
     oninput,
     onkeydown,
     onblur,
@@ -75,6 +78,7 @@
       class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
     />
     <input
+      bind:this={element}
       {id}
       {type}
       {placeholder}
@@ -102,6 +106,7 @@
 {:else}
   <div class="relative">
     <input
+      bind:this={element}
       {id}
       {type}
       {placeholder}

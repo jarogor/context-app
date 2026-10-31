@@ -463,6 +463,18 @@ test('поиск по книге PDF: находит текст, переход�
     expect(Date.now() - started).toBeLessThan(5000);
     await expect.poll(async () => page.getByLabel('Текущая страница').inputValue()).toBe('90');
     await expect(content(page).locator('mark.search-hit').first()).toBeAttached();
+    // Подсветка не вкладывается сама в себя: вложенные прозрачные слои
+    // складывались и делали текст под ними мутным.
+    const nested = await content(page)
+        .locator('mark.search-hit mark.search-hit')
+        .count();
+    expect(nested).toBe(0);
+    // Найденное ложится на растр умножением, а не плёнкой поверх текста.
+    const blend = await content(page)
+        .locator('mark.search-hit')
+        .first()
+        .evaluate((el) => getComputedStyle(el as HTMLElement).mixBlendMode);
+    expect(blend).toBe('multiply');
 
     // Интерфейс живой после поиска: масштаб отвечает сразу.
     const zoom = page.getByTestId('reader-zoom');

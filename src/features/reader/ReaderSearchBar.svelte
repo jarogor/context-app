@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { Button, Icon, Input } from '@context/ui';
   import type { SearchState } from './search-state';
 
@@ -32,7 +33,9 @@
 
   let {
     query = '',
-    state,
+    // Внутри компонента проп называется `search`: имя `state` конфликтует с
+    // руной Svelte `$state`.
+    state: search,
     busy = false,
     error = null,
     onQuery,
@@ -41,14 +44,14 @@
   }: Props = $props();
 
   /** Есть ли вхождения для перехода. */
-  const canStep = $derived(state.total > 0);
+  const canStep = $derived(search.total > 0);
 
   /** Подпись счётчика: «2 из 17» или пусто, пока нечего показывать. */
   const counter = $derived(
-    state.total > 0 && state.index !== null
-      ? `${state.index + 1} из ${state.total}`
-      : state.total > 0
-        ? String(state.total)
+    search.total > 0 && search.index !== null
+      ? `${search.index + 1} из ${search.total}`
+      : search.total > 0
+        ? String(search.total)
         : '',
   );
 
@@ -58,12 +61,21 @@
       ? error
       : busy
         ? 'Поиск…'
-        : state.total === 0 && query.trim()
+        : search.total === 0 && query.trim()
           ? 'Не найдено'
-          : state.truncated
-            ? `Найдено больше ${state.total} — показаны первые`
+          : search.truncated
+            ? `Найдено больше ${search.total} — показаны первые`
             : '',
   );
+
+  /** Поле ввода: при открытии поиска курсор сразу в нём. */
+  let searchField = $state<HTMLInputElement | undefined>();
+
+  onMount(() => {
+    // Панель открывается по кнопке поиска: печатать запрос нужно сразу, без
+    // лишнего клика в поле.
+    searchField?.focus();
+  });
 </script>
 
 <div
@@ -80,6 +92,7 @@
   <div class="flex items-center gap-1">
     <div class="min-w-0 flex-1">
       <Input
+        bind:element={searchField}
         value={query}
         placeholder="Поиск по книге"
         ariaLabel="Поиск по книге"
