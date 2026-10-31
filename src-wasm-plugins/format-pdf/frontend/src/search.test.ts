@@ -6,9 +6,9 @@ import {
   markPage,
   normalizeSearchText,
   resetSearchTexts,
-  searchBook,
   SEARCH_ACTIVE_CLASS,
   SEARCH_HIT_CLASS,
+  searchBook,
   searchSession,
   stepSearch,
 } from './search';
@@ -44,51 +44,100 @@ function fakeDocument(pages: string[][]): void {
   } as never;
 }
 
+/** Страницы, текст которых запрашивался у документа, в порядке запроса. */
+let fetched: number[] = [];
+
+/** Документ, запоминающий порядок разбора страниц. */
+function trackedDocument(pages: string[][]): void {
+  state.pageCount = pages.length;
+  state.doc = {
+    numPages: pages.length,
+    getPage: async (number: number) => {
+      fetched.push(number);
+      return {
+        getTextContent: async () => ({
+          items: pages[number - 1].map((str) => ({ str })),
+        }),
+      };
+    },
+  } as never;
+}
+
+/** Сообщения поиска, отправленные приложению, с числом разобранных страниц. */
+async function runAndCollect(query: string): Promise<Array<{ total: number; index: number | null; fetched: number }>> {
+  const reported: Array<{ total: number; index: number | null; fetched: number }> = [];
+  const listener = (event: MessageEvent) => {
+    const data = event.data as { type?: string; value?: { total?: number; index?: number | null } };
+    if (data?.type === 'search') {
+      reported.push({
+        total: Number(data.value?.total ?? 0),
+        index: data.value?.index ?? null,
+        fetched: fetched.length,
+      });
+    }
+  };
+  window.addEventListener('message', listener);
+  try {
+    await searchBook(query);
+  } finally {
+    window.removeEventListener('message', listener);
+  }
+  return reported;
+}
+
 beforeEach(() => {
   pagesEl.replaceChildren();
   resetSearchTexts();
   state.doc = null;
   state.pageCount = 0;
+  state.currentPage = 1;
+  fetched = [];
 });
 
 describe('поиск в модуле рисования PDF', () => {
-  it('приводит текст к виду сравнения', () => {
-    expect(normalizeSearchText('  Искомое \n Слово ')).toBe('искомое слово');
-  });
+  it('ищет от текущей страницы, сообщает найденное до конца разбора и переходит', async () => {
+    // Читатель стоит на 20-й странице, где слово и есть. Разбор обязан начаться
+    // с неё: иначе первое найденное приходит только после разбора всей книги.
+    const pages = Array.from({ length: 60 }, (_, index) =>
+      index === 19 ? ['искомое'] : ['прочее'],
+    );
+    trackedDocument(pages);
+    state.currentPage = 20;
 
-  it('находит вхождения по всем страницам и начинает с первого', async () => {
-    fakeDocument([['Слово', 'в', 'тексте'], ['и', 'слово', 'ещё']]);
+    const reported = await runAndCollect('искомое');
 
-    await searchBook('слово');
-
-    expect(searchSession.hits).toEqual([
-      { page: 1, ordinal: 0 },
-      { page: 2, ordinal: 0 },
-    ]);
+    expect(fetched[0]).toBe(20);
+    expect(fetched.indexOf(1)).toBeGreaterThan(pages.length - 20);
+    expect(searchSession.hits).toEqual([{ page: 20, ordinal: 0 }]);
     expect(searchSession.index).toBe(0);
-    expect(searchSession.truncated).toBe(false);
+    // Найденное сообщено приложению до конца разбора книги.
+    const firstFound = reported.find((item) => item.total > 0 && item.index === 0);
+    expect(firstFound).toBeDefined();
+    expect(firstFound!.fetched).toBeLessThan(pages.length);
   });
 
-  it('не зависит от регистра и лишних пробелов в запросе', async () => {
-    fakeDocument([['ИСКОМОЕ', 'СЛОВО']]);
+  it('ищет по всем страницам, не зависит от регистра и пробелов, отдаёт порядок книги', async () => {
+    fakeDocument([
+      ['Слово', 'на', 'первой'],
+      ['и', 'СЛОВО', 'на', 'второй'],
+      ['слово', 'на', 'третьей'],
+    ]);
+    state.currentPage = 3;
 
-    await searchBook('  искомое   слово ');
+    // Регистр и лишние пробелы в запросе не важны; страницы — в порядке книги,
+    // хотя разбор начат с текущей.
+    expect(searchSession.hits).toHaveLength(0);
+    await runAndCollect('  слово ');
+    expect(searchSession.hits.map((hit) => hit.page)).toEqual([1, 2, 3]);
+    expect(searchSession.index).toBe(0);
 
-    expect(searchSession.hits).toHaveLength(1);
-  });
-
-  it('пустой запрос снимает результат', async () => {
-    fakeDocument([['слово']]);
-    await searchBook('слово');
-    expect(searchSession.hits).toHaveLength(1);
-
-    await searchBook('   ');
-
+    // Пустой запрос снимает результат.
+    await runAndCollect('   ');
     expect(searchSession.hits).toHaveLength(0);
     expect(searchSession.index).toBeNull();
   });
 
-  it('переходит по кругу и отмечает активное вхождение', () => {
+  it('подсвечивает найденное на странице и переходит по кругу', () => {
     page(1, ['слово', 'и', 'слово']);
     searchSession.query = 'слово';
     markPage(pagesEl.children[0] as HTMLElement);
@@ -100,33 +149,24 @@ describe('поиск в модуле рисования PDF', () => {
 
     stepSearch(1);
     expect(searchSession.index).toBe(1);
+    expect(document.querySelectorAll(`mark.${SEARCH_HIT_CLASS}`)).toHaveLength(2);
+    expect(document.querySelectorAll(`.${SEARCH_ACTIVE_CLASS}`)).toHaveLength(1);
 
     stepSearch(1);
     expect(searchSession.index).toBe(0);
     stepSearch(-1);
     expect(searchSession.index).toBe(1);
-    expect(document.querySelectorAll(`.${SEARCH_ACTIVE_CLASS}`).length).toBe(1);
-  });
 
-  it('подсвечивает все вхождения страницы и снимает подсветку без следа', () => {
-    page(1, ['слово', 'и', 'слово']);
-    searchSession.query = 'слово';
-
-    markPage(pagesEl.children[0] as HTMLElement);
-    expect(document.querySelectorAll(`mark.${SEARCH_HIT_CLASS}`)).toHaveLength(2);
-
+    // Снятие подсветки не трогает текст страницы.
     clearSearchMarks();
     expect(document.querySelector(`.${SEARCH_HIT_CLASS}`)).toBeNull();
     expect(pagesEl.textContent).toBe('словоислово');
-  });
 
-  it('без вхождений переход ничего не делает', () => {
+    // Без вхождений переход ничего не делает.
     searchSession.hits = [];
     searchSession.index = null;
-
     stepSearch(1);
-
     expect(searchSession.index).toBeNull();
-    expect(document.querySelector(`.${SEARCH_ACTIVE_CLASS}`)).toBeNull();
+    expect(normalizeSearchText(' Искомое \n Слово ')).toBe('искомое слово');
   });
 });

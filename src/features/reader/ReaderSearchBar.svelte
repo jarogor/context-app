@@ -73,9 +73,9 @@
   aria-label="Поиск по книге"
 >
   <!--
-    Поле занимает всё доступное место строки до кнопок: справа от него пустого
-    места нет. Класс ширины у `Input` без иконки применяется к самому полю,
-    поэтому растягивается обёртка.
+    Поле занимает всё доступное место строки до кнопок. Счётчик стоит в подсказке
+    под полем и только когда он есть: в строке он занимал бы место даже без
+    результата и оставлял пустоту справа от поля.
   -->
   <div class="flex items-center gap-1">
     <div class="min-w-0 flex-1">
@@ -94,11 +94,6 @@
         }}
       />
     </div>
-    <span
-      class="inline-block min-w-[3.5rem] shrink-0 text-right text-xs [font-variant-numeric:tabular-nums] text-[var(--muted-foreground)]"
-      data-testid="reader-search-counter"
-      >{counter}</span
-    >
     <Button
       variant="ghost"
       size="icon"
@@ -134,9 +129,18 @@
       <Icon name="close" />
     </Button>
   </div>
-  {#if hint}
-    <p class="m-0 px-1 text-xs text-[var(--muted-foreground)]" data-testid="reader-search-hint">
-      {hint}
-    </p>
+  {#if counter || hint}
+    <div class="flex items-center gap-2 px-1 text-xs text-[var(--muted-foreground)]">
+      {#if counter}
+        <span
+          class="shrink-0 whitespace-nowrap [font-variant-numeric:tabular-nums]"
+          data-testid="reader-search-counter"
+          >{counter}</span
+        >
+      {/if}
+      {#if hint}
+        <span class="min-w-0" data-testid="reader-search-hint">{hint}</span>
+      {/if}
+    </div>
   {/if}
 </div>

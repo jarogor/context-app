@@ -174,13 +174,12 @@ test('DjVu открывается плагином страницами с те�
     await expect(page.getByTestId('reader-page-count')).toHaveText('/ 1');
 });
 
-test('поиск по книге находит текст на странице DjVu', async ({ page }) => {
+test('поиск по книге DjVu: находит текст и показывает найденное на странице', async ({ page }) => {
     await openDjvu(page);
 
     await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
     const search = page.getByTestId('reader-search');
-    // Запрос короче двух букв не ищется, поэтому берётся слово из текстового
-    // слоя страницы, которого достаточно для поиска.
+    // Запрос короче двух букв не ищется, поэтому берётся слово из текстового слоя.
     const spans = await content(page).locator('.textLayer span').allTextContents();
     const word =
         spans
@@ -188,10 +187,11 @@ test('поиск по книге находит текст на странице
             .find((part) => part.length >= 3)
             ?.slice(0, 4) ?? '';
     expect(word.length).toBeGreaterThanOrEqual(2);
+
     await search.getByRole('textbox', { name: 'Поиск по книге' }).fill(word);
 
-    // Счётчик приходит от плагина: поиск выполняет модуль рисования.
-    await expect(search.getByTestId('reader-search-counter')).not.toHaveText('');
+    // Счётчик приходит от плагина, найденное подсвечено на странице.
+    await expect(search.getByTestId('reader-search-counter')).toHaveText(/\d/);
     await expect(content(page).locator('mark.search-hit').first()).toBeAttached();
 });
 

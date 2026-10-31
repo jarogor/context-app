@@ -30,7 +30,7 @@ export const SEARCH_LIMIT = 500;
  * небольшими порциями параллельно: главный поток занят короткими рывками, а
  * книга просматривается в несколько раз быстрее.
  */
-const SEARCH_CONCURRENCY = 4;
+const SEARCH_CONCURRENCY = 8;
 
 /** Вхождение запроса: страница и порядковый номер вхождения на ней. */
 export interface SearchHit {
@@ -171,10 +171,11 @@ function reportSearch(): void {
  * счётчик по ходу разбора и итог в конце. Ответ несёт запрос, поэтому
  * результат прежнего поиска не применяется к новому.
  *
- * Страницы читаются параллельными порциями: у pdf.js разбор текста страницы —
- * основная стоимость поиска, и последовательный обход большой книги шёл
- * заметно дольше. Вхождения страниц складываются по порядку, поэтому нумерация
- * переходов остаётся прежней.
+ * Разбор начинается с текущей страницы и идёт вперёд, затем замыкается на
+ * начало книги. Читатель чаще ищет рядом с местом чтения, и первый результат
+ * приходит почти сразу, а не после разбора всей книги с первой страницы.
+ * Собранные вхождения к концу поиска упорядочиваются по книге, чтобы переходы
+ * шли в порядке чтения.
  */
 export async function searchBook(query: string): Promise<void> {
   const needle = normalizeSearchText(query);
@@ -189,37 +190,48 @@ export async function searchBook(query: string): Promise<void> {
   if (!needle || !state.doc) {
     return;
   }
-  // Полезная нагрузка вхождений попадает в итог после каждой порции: найденное
-  // видно сразу, а не только по концу разбора всей книги.
-  let reportedAt = 0;
-  for (let start = 1; start <= state.pageCount; start += SEARCH_CONCURRENCY) {
-    const pages: number[] = [];
-    for (let page = start; page < start + SEARCH_CONCURRENCY && page <= state.pageCount; page += 1) {
-      pages.push(page);
-    }
+  const start = Math.max(1, Math.min(state.pageCount, state.currentPage || 1));
+  const order: number[] = [];
+  for (let page = start; page <= state.pageCount; page += 1) {
+    order.push(page);
+  }
+  for (let page = 1; page < start; page += 1) {
+    order.push(page);
+  }
+  for (let from = 0; from < order.length; from += SEARCH_CONCURRENCY) {
+    const pages = order.slice(from, from + SEARCH_CONCURRENCY);
     const texts = await Promise.all(pages.map((page) => pageText(page)));
     if (epoch !== searchSession.epoch) {
       return;
     }
+    const found: SearchHit[] = [];
     for (let offset = 0; offset < pages.length; offset += 1) {
       const page = pages[offset];
-      for (let ordinal = 0; ordinal < countHits(texts[offset], needle); ordinal += 1) {
-        if (searchSession.hits.length >= SEARCH_LIMIT) {
+      const count = countHits(texts[offset], needle);
+      for (let ordinal = 0; ordinal < count; ordinal += 1) {
+        if (searchSession.hits.length + found.length >= SEARCH_LIMIT) {
           searchSession.truncated = true;
           break;
         }
-        searchSession.hits.push({ page, ordinal });
+        found.push({ page, ordinal });
       }
       if (searchSession.truncated) {
         break;
       }
     }
+    searchSession.hits.push(...found);
+    // Первое найденное показывается сразу: читатель видит место, не дожидаясь,
+    // пока разберётся вся книга.
+    if (searchSession.hits.length > 0 && searchSession.index === null) {
+      searchSession.index = 0;
+      markRenderedPages();
+      reportSearch();
+      goToHit(searchSession.hits[0]);
+    } else if (found.length > 0) {
+      reportSearch();
+    }
     if (searchSession.truncated) {
       break;
-    }
-    if (searchSession.hits.length > 0 && searchSession.hits.length !== reportedAt) {
-      reportedAt = searchSession.hits.length;
-      reportSearch();
     }
     // Между порциями управление отдаётся браузеру: отрисовка страниц и ввод в
     // поле поиска не ждут конца разбора всей книги.
@@ -231,6 +243,8 @@ export async function searchBook(query: string): Promise<void> {
   if (epoch !== searchSession.epoch) {
     return;
   }
+  // Вхождения — в порядке чтения, а не в порядке разбора от текущей страницы.
+  searchSession.hits.sort((first, second) => first.page - second.page || first.ordinal - second.ordinal);
   searchSession.index = searchSession.hits.length > 0 ? 0 : null;
   markRenderedPages();
   reportSearch();
@@ -259,8 +273,9 @@ export function stepSearch(delta: 1 | -1): void {
 
 /** Прокрутка к странице вхождения и показ его подсветки.
  *
- * Страница может быть ещё не отрисована: тогда прокрутка запускает её
- * отрисовку, а подсветка встаёт после появления текстового слоя.
+ * Страница может быть ещё не отрисована: тогда прокрутка к ней запускает её
+ * отрисовку, а подсветка встаёт после появления текстового слоя. Без прокрутки
+ * найденное на невидимой странице не подсвечивается, и переход молча пропадал.
  */
 function goToHit(hit: SearchHit, attempt = 0): void {
   const pageEl = pagesEl.querySelector(`.${PAGE_CLASS}[data-page="${hit.page}"]`) as
@@ -275,8 +290,11 @@ function goToHit(hit: SearchHit, attempt = 0): void {
   }
   const marks = pageEl.querySelectorAll(`mark[data-ordinal="${hit.ordinal}"]`);
   if (marks.length === 0) {
+    if (attempt === 0) {
+      // Прокрутка к странице запускает её отрисовку: без неё подсветки не будет.
+      gotoPage(hit.page);
+    }
     if (attempt < 40) {
-      // Страница отрисовывается: ждём её текстовый слой.
       setTimeout(() => goToHit(hit, attempt + 1), 50);
     }
     return;

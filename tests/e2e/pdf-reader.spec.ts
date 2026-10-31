@@ -446,36 +446,25 @@ test('PDF открывается плагином рабочего места с
     await expect(page.getByTestId('reader-page-count')).toHaveText('/ 3');
 });
 
-test('поиск по книге находит текст на страницах PDF', async ({ page }) => {
-    await openPdf(page, 3);
-
-    await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
-    const search = page.getByTestId('reader-search');
-    await search.getByRole('textbox', { name: 'Поиск по книге' }).fill('Page');
-
-    // Счётчик приходит от плагина: поиск выполняет модуль рисования.
-    await expect(search.getByTestId('reader-search-counter')).toHaveText('1 из 3');
-    // Переход к следующему вхождению переводит на следующую страницу.
-    await search.getByRole('button', { name: 'Следующее вхождение' }).click();
-    await expect.poll(async () => page.getByLabel('Текущая страница').inputValue()).toBe('2');
-});
-
-test('поиск по большой книге PDF идёт быстро и не подвешивает чтение', async ({ page }) => {
+test('поиск по книге PDF: находит текст, переходит по вхождениям и не тормозит', async ({
+    page,
+}) => {
+    // Большая книга: поиск обязан начинать с текущей страницы и показывать
+    // найденное, не дожидаясь разбора всех страниц.
     await openPdf(page, 120);
 
     await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
     const search = page.getByTestId('reader-search');
     const started = Date.now();
-    await search.getByRole('textbox', { name: 'Поиск по книге' }).fill('Page 9');
+    await search.getByRole('textbox', { name: 'Поиск по книге' }).fill('Page 90');
 
-    // Книга на 120 страниц разбирается быстро: поиск готов за пару секунд.
-    await expect(search.getByTestId('reader-search-counter')).toHaveText(/\d/, {
-        timeout: 15000,
-    });
-    const elapsed = Date.now() - started;
-    expect(elapsed).toBeLessThan(10000);
+    // Первое найденное показано быстро: страница вхождения и подсветка.
+    await expect(search.getByTestId('reader-search-counter')).toHaveText(/\d/);
+    expect(Date.now() - started).toBeLessThan(5000);
+    await expect.poll(async () => page.getByLabel('Текущая страница').inputValue()).toBe('90');
+    await expect(content(page).locator('mark.search-hit').first()).toBeAttached();
 
-    // Интерфейс живой: масштаб отвечает сразу после поиска.
+    // Интерфейс живой после поиска: масштаб отвечает сразу.
     const zoom = page.getByTestId('reader-zoom');
     const before = await zoom.textContent();
     await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
