@@ -106,6 +106,32 @@ describe('readerThemeTokens', () => {
     /** Каналы цвета в порядке красный, зелёный, синий. */
     const channels = (value: string): number[] =>
       (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+    /** Каналы цвета и прозрачность из `#rrggbb` или `rgba()`. */
+    const parse = (value: string): number[] => {
+      const hex = /^#([0-9a-f]{6})$/i.exec(value.trim());
+      if (hex) {
+        const number = Number.parseInt(hex[1], 16);
+        return [(number >> 16) & 255, (number >> 8) & 255, number & 255, 1];
+      }
+      const match = value.match(/[\d.]+/g) ?? [];
+      return [Number(match[0]), Number(match[1]), Number(match[2]), Number(match[3] ?? 1)];
+    };
+    /** Видимый на бумаге цвет: полупрозрачный тон, положенный на фон. */
+    const overBackground = (tone: string, background: string): number[] => {
+      const front = parse(tone);
+      const back = parse(background);
+      return [0, 1, 2].map((index) =>
+        Math.round(front[3] * front[index] + (1 - front[3]) * back[index]),
+      );
+    };
+    /** Заметность цвета на фоне: модуль разницы яркостей. */
+    const visibility = (tone: string, background: string): number => {
+      const color = overBackground(tone, background);
+      const back = parse(background);
+      const backLuma = 0.299 * back[0] + 0.587 * back[1] + 0.114 * back[2];
+      const luma = 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2];
+      return Math.abs(luma - backLuma);
+    };
 
     for (const palette of PALETTES) {
       const light = readerThemeTokens(palette.id, 'light');
@@ -117,9 +143,21 @@ describe('readerThemeTokens', () => {
       // отличается не яркостью, а оттенком.
       const darkChannels = channels(dark.search);
       expect(darkChannels[2]).toBeGreaterThan(darkChannels[0]);
-      // Текущее вхождение на обеих сторонах отличается от остальных.
-      expect(light.searchActive).not.toBe(light.search);
-      expect(dark.searchActive).not.toBe(dark.search);
+
+      // Остальные вхождения видно на бумаге: бледный жёлтый (заметность около
+      // 15–20 единиц яркости) терялся, и находилось только текущее вхождение.
+      // Порог взят между ним и рабочим тоном (около 35–50).
+      expect(visibility(light.search, light.background)).toBeGreaterThan(30);
+      expect(visibility(dark.search, dark.background)).toBeGreaterThan(30);
+
+      // Текущее вхождение отличимо от остальных не только плотностью, но и
+      // цветом: на светлой бумаге плотный жёлтый и янтарный почти неразличимы.
+      const normal = overBackground(light.search, light.background);
+      const active = overBackground(light.searchActive, light.background);
+      const distance = Math.sqrt(
+        (normal[0] - active[0]) ** 2 + (normal[1] - active[1]) ** 2 + (normal[2] - active[2]) ** 2,
+      );
+      expect(distance).toBeGreaterThan(60);
     }
   });
 });

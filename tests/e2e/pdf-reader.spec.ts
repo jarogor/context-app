@@ -474,8 +474,17 @@ test('поиск по книге PDF: находит текст, переход�
         .first()
         .evaluate((el) => getComputedStyle(el as HTMLElement).mixBlendMode);
     expect(blend).toBe('multiply');
-    // Активное вхождение отличается от остальных.
+    // Активное вхождение отличается от остальных цветом, а не только
+    // плотностью: на светлой бумаге плотный жёлтый и янтарный неразличимы.
     await expect(layer.locator('.search-hit-active').first()).toBeAttached();
+    const activeColor = await layer
+        .locator('.search-hit-active')
+        .first()
+        .evaluate((el) => getComputedStyle(el as HTMLElement).backgroundColor);
+    // Подсветка достаточно плотная, чтобы её было видно на бумаге: бледный тон
+    // терялся, и находилось только текущее вхождение.
+    const alpha = Number((activeColor.match(/[\d.]+/g) ?? [])[3] ?? 1);
+    expect(alpha).toBeGreaterThan(0.7);
 
     // В тёмной теме подсветка другого оттенка и наложения: жёлтая сливалась с
     // цветом текста по светлоте.
