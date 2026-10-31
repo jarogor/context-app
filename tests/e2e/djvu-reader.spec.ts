@@ -192,7 +192,9 @@ test('поиск по книге DjVu: находит текст и показы
 
     // Счётчик приходит от плагина, найденное подсвечено на странице.
     await expect(search.getByTestId('reader-search-counter')).toHaveText(/\d/);
-    await expect(content(page).locator('mark.search-hit').first()).toBeAttached();
+    // Найденное — отдельный слой полос над растром, а не разметка в прозрачном
+    // текстовом слое: заливка в нём ложилась плёнкой поверх букв.
+    await expect(content(page).locator('.search-layer .search-hit').first()).toBeAttached();
 });
 
 test('масштаб меняет размер страницы DjVu, не сбрасывая номер', async ({ page }) => {

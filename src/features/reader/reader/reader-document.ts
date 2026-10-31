@@ -24,6 +24,7 @@ import {
   READER_FONTS,
   READER_NOTE_COLOR_IDS,
   READER_THEMES,
+  blendNoteToneOverBackground,
   readerThemeNoteTones,
   readerThemeTokens,
   solidNoteTones,
@@ -76,8 +77,11 @@ function themeVariables(palette: PaletteId, id: ReaderThemeId): string {
     `--rt-selection:${tokens.selection};`,
     `--rt-selection-edge:${tokens.selectionEdge};`,
     `--rt-selection-edge-width:${tokens.selectionEdgeWidth}px;`,
-    `--rt-search:${tokens.search};`,
-    `--rt-search-active:${tokens.searchActive};`,
+    // Найденное поиском берёт непрозрачный эквивалент тона, как подсветка
+    // заметки: полупрозрачный фон `mark` смешивается с глифами текста, и буквы
+    // под ним мутнеют. Непрозрачный тон ложится под текст и не трогает буквы.
+    `--rt-search:${blendNoteToneOverBackground(tokens.search, tokens.background)};`,
+    `--rt-search-active:${blendNoteToneOverBackground(tokens.searchActive, tokens.background)};`,
     ...READER_NOTE_COLOR_IDS.map((color) => `--note-${color}:${tones[color]};`),
     // Непрозрачный эквивалент тона для подсветки цитаты: её фон рисуется
     // перенесёнными кусками, которые при дробном масштабе перекрываются, и

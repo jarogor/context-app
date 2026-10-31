@@ -290,28 +290,36 @@ body[data-editing='move'] .overlay [data-note-id] {
 .textLayer ::selection {
   background: transparent;
 }
-/* Найденное поиском. Текст подсветки невидим (слой прозрачен), поэтому цвет
-   заливки виден на странице. Подсветка ложится умножением, как заметка: цвет
-   смешивается с растром, а не лежит поверх него мутной плёнкой, и буквы
-   остаются чёткими. На тёмной стороне умножение дало бы невидимую тёмную
-   подложку, поэтому там подсветка осветляет. */
-.textLayer mark.search-hit {
-  color: transparent;
-  background: rgba(242, 205, 82, 0.55);
-  mix-blend-mode: multiply;
+/* Слой подсветки найденного поиском: полосы строк над растром страницы.
+   Отдельный слой, а не разметка внутри прозрачного текстового слоя: там заливка
+   ложилась плёнкой поверх букв и делала текст мутным. Полосы смешиваются с
+   растром наложением и текст не закрывают — как подсветка заметки. */
+.search-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.search-layer .search-hit {
+  position: absolute;
   border-radius: 2px;
+  /* Фон подсветки непрозрачен, а мягкость даёт наложение: полупрозрачная
+     заливка, положенная слоем, темнила бы текст под собой. */
+  background: #f2cd52;
+  mix-blend-mode: multiply;
 }
-/* Текущее вхождение выделено плотнее остальных: в светлой теме разница видна
-   и без перекрытия текста, в тёмной — осветлением. */
-.textLayer mark.search-hit.search-hit-active {
-  background: rgba(245, 158, 11, 0.9);
+/* Текущее вхождение отличается плотнее и ярче остальных: место, к которому
+   ведёт переход, видно сразу. */
+.search-layer .search-hit.search-hit-active {
+  background: #f59e0b;
 }
-html[data-reader-theme='dark'] .textLayer mark.search-hit {
-  background: rgba(214, 158, 46, 0.38);
+/* Тёмная страница: умножение на тёмном фоне дало бы невидимую тёмную подложку,
+   поэтому подсветка осветляет. */
+html[data-reader-theme='dark'] .search-layer .search-hit {
+  background: #6b5320;
   mix-blend-mode: screen;
 }
-html[data-reader-theme='dark'] .textLayer mark.search-hit.search-hit-active {
-  background: rgba(245, 158, 11, 0.5);
+html[data-reader-theme='dark'] .search-layer .search-hit.search-hit-active {
+  background: #f59e0b;
 }
 /* Во время протяжки выделения нативное выделение выключено: браузер достраивает
    диапазон до указателя и заходил бы в чужие слои — на соседние страницы и за

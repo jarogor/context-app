@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { pagesEl } from './dom';
+import { pagesEl, TEXT_LAYER_CLASS } from './dom';
 import {
   clearSearchMarks,
   markPage,
@@ -8,6 +8,7 @@ import {
   resetSearchTexts,
   SEARCH_ACTIVE_CLASS,
   SEARCH_HIT_CLASS,
+  SEARCH_LAYER_CLASS,
   searchBook,
   searchSession,
   stepSearch,
@@ -26,8 +27,19 @@ function page(number: number, words: string[]): HTMLElement {
     span.textContent = word;
     layer.append(span);
   }
-  pageEl.append(layer);
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  pageEl.append(layer, overlay);
   pagesEl.append(pageEl);
+  // jsdom не считает геометрию: строка текста объявляется измеряемой, иначе
+  // подсветке нечего ставить на страницу.
+  (layer.firstElementChild as HTMLElement).getBoundingClientRect = () =>
+    ({ x: 0, y: 0, width: 40, height: 16, top: 0, left: 0, right: 40, bottom: 16 }) as DOMRect;
+  pageEl.getBoundingClientRect = () =>
+    ({ x: 0, y: 0, width: 400, height: 600, top: 0, left: 0, right: 400, bottom: 600 }) as DOMRect;
+  Range.prototype.getClientRects = () =>
+    [{ x: 0, y: 0, width: 40, height: 16, top: 0, left: 0, right: 40, bottom: 16 } as DOMRect] as unknown as DOMRectList;
+  pageEl.scrollIntoView = () => undefined;
   return pageEl;
 }
 
@@ -137,29 +149,34 @@ describe('поиск в модуле рисования PDF', () => {
     expect(searchSession.index).toBeNull();
   });
 
-  it('подсвечивает найденное на странице и переходит по кругу', () => {
-    page(1, ['слово', 'и', 'слово']);
+  it('подсвечивает найденное слоем над растром и переходит по кругу', () => {
+    const pageEl = page(1, ['слово', 'и', 'слово']);
     searchSession.query = 'слово';
-    markPage(pagesEl.children[0] as HTMLElement);
+    markPage(pageEl);
     searchSession.hits = [
       { page: 1, ordinal: 0 },
       { page: 1, ordinal: 1 },
     ];
     searchSession.index = 0;
 
+    // Подсветка — отдельный слой над растром, а не разметка в прозрачном
+    // текстовом слое: иначе заливка ложилась плёнкой поверх букв и мутила текст.
+    expect(pageEl.querySelector(`.${SEARCH_LAYER_CLASS}`)).toBeTruthy();
+    expect(pageEl.querySelector(`.${TEXT_LAYER_CLASS} mark`)).toBeNull();
+    expect(pageEl.querySelectorAll(`.${SEARCH_HIT_CLASS}`).length).toBeGreaterThan(0);
+
     stepSearch(1);
     expect(searchSession.index).toBe(1);
-    expect(document.querySelectorAll(`mark.${SEARCH_HIT_CLASS}`)).toHaveLength(2);
-    expect(document.querySelectorAll(`.${SEARCH_ACTIVE_CLASS}`)).toHaveLength(1);
+    expect(pageEl.querySelectorAll(`.${SEARCH_ACTIVE_CLASS}`)).toHaveLength(1);
 
     stepSearch(1);
     expect(searchSession.index).toBe(0);
     stepSearch(-1);
     expect(searchSession.index).toBe(1);
 
-    // Снятие подсветки не трогает текст страницы.
+    // Снятие подсветки убирает слой и не трогает текст страницы.
     clearSearchMarks();
-    expect(document.querySelector(`.${SEARCH_HIT_CLASS}`)).toBeNull();
+    expect(document.querySelector(`.${SEARCH_LAYER_CLASS}`)).toBeNull();
     expect(pagesEl.textContent).toBe('словоислово');
 
     // Без вхождений переход ничего не делает.

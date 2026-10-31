@@ -9,13 +9,18 @@
  * Вхождения считаются по тому же непрерывному тексту, по которому ставится
  * подсветка слоя, поэтому счётчик и подсветка не расходятся.
  */
-import { TEXT_LAYER_CLASS, pagesEl, viewer } from './dom';
+import { TEXT_LAYER_CLASS, overlayOf, pagesEl, viewer } from './dom';
+import { tileByLine } from './lines';
+import { fractionRect } from './selection';
+import type { Rect } from './types';
 import { gotoPage } from './navigation';
 import { post } from './protocol';
 import { parseTextZones } from './text-layer';
 import { state } from './state';
 
-/** Класс подсветки найденного поиском. */
+/** Класс слоя подсветки поиска на странице. */
+export const SEARCH_LAYER_CLASS = 'search-layer';
+/** Класс полосы найденного поиском. */
 export const SEARCH_HIT_CLASS = 'search-hit';
 /** Класс подсветки вхождения, к которому ведёт переход. */
 export const SEARCH_ACTIVE_CLASS = 'search-hit-active';
@@ -216,6 +221,8 @@ export function stepSearch(delta: 1 | -1): void {
   const current = searchSession.index;
   const next = current === null ? (delta > 0 ? 0 : total - 1) : (current + delta + total) % total;
   searchSession.index = next;
+  // Подсветка перерисовывается: активная полоса должна перейти на новое место.
+  markRenderedPages();
   reportSearch();
   goToHit(searchSession.hits[next]);
 }
@@ -255,15 +262,8 @@ function goToHit(hit: SearchHit, attempt = 0): void {
 
 /** Снятие подсветки поиска во всём документе. */
 export function clearSearchMarks(): void {
-  for (const mark of Array.from(document.querySelectorAll(`mark.${SEARCH_HIT_CLASS}`))) {
-    const parent = mark.parentNode;
-    if (!parent) {
-      continue;
-    }
-    while (mark.firstChild) {
-      parent.insertBefore(mark.firstChild, mark);
-    }
-    parent.removeChild(mark);
+  for (const layer of Array.from(document.querySelectorAll(`.${SEARCH_LAYER_CLASS}`))) {
+    layer.remove();
   }
 }
 
@@ -282,25 +282,24 @@ function layerNodes(root: Element | null): Array<{ node: Text; text: string }> {
   return nodes;
 }
 
-/** Подсветка всех вхождений запроса в текстовом слое страницы.
+/** Прямоугольники вхождений на странице: номер вхождения и его полосы строк.
  *
- * Зоны DjVu — отдельные слова в собственных `span`, поэтому вхождение ищется в
- * непрерывном тексте слоя и раскладывается обратно по узлам: каждое затронутое
- * слово подсвечивается со своим номером вхождения. Вхождения ставятся от конца
- * к началу: вставка разметки сдвигает смещения последующих узлов.
+ * Подсветка строится по прямоугольникам диапазона текстового слоя, а не по
+ * разметке внутри слоя: слой прозрачен, и заливка в нём ложилась бы плёнкой
+ * поверх текста, делая его мутным. Полосы ставятся отдельным слоем над растром
+ * с наложением — текст под ними остаётся чётким, как под подсветкой заметки.
  */
-export function markPage(pageEl: HTMLElement): void {
-  const needle = normalizeSearchText(searchSession.query);
+function pageHitRects(
+  pageEl: HTMLElement,
+  needle: string,
+): Array<{ ordinal: number; rects: Rect[] }> {
   const layer = pageEl.querySelector(`.${TEXT_LAYER_CLASS}`);
-  if (!needle || !layer) {
-    return;
+  if (!layer) {
+    return [];
   }
-  // Прежняя подсветка снимается перед новой: вложенные `<mark>` складывали
-  // прозрачность слоёв, и текст под ними мутнел.
-  clearPageMarks(pageEl);
   const nodes = layerNodes(layer).filter((item) => item.text.trim().length > 0);
   if (nodes.length === 0) {
-    return;
+    return [];
   }
   // Непрерывный текст и карта его символов по узлам: пробел между словами в узел
   // не входит.
@@ -334,68 +333,85 @@ export function markPage(pageEl: HTMLElement): void {
     starts.push(at);
     from = at + Math.max(1, needle.length);
   }
-  // Куски подсветки по узлам: узел → границы кусков и номер вхождения.
-  const fragments = new Map<Text, Array<{ from: number; to: number; ordinal: number }>>();
+  const pageBounds = pageEl.getBoundingClientRect();
+  const document = pageEl.ownerDocument;
+  const result: Array<{ ordinal: number; rects: Rect[] }> = [];
   for (let ordinal = 0; ordinal < starts.length; ordinal += 1) {
     const start = starts[ordinal];
     const end = Math.min(start + needle.length, map.length);
+    // Вхождение может пересекать несколько узлов: диапазон собирается от
+    // первого до последнего затронутого символа.
+    let first: { node: Text; offset: number } | null = null;
+    let last: { node: Text; offset: number } | null = null;
     for (let index = start; index < end; index += 1) {
       const entry = map[index];
       if (!entry) {
         continue;
       }
-      const spans = fragments.get(entry.node);
-      const span = spans?.[spans.length - 1];
-      // Соседние символы одного узла — один кусок подсветки.
-      if (span && span.ordinal === ordinal && span.to === entry.offset) {
-        span.to = entry.offset + 1;
-        continue;
-      }
-      if (spans) {
-        spans.push({ from: entry.offset, to: entry.offset + 1, ordinal });
-      } else {
-        fragments.set(entry.node, [{ from: entry.offset, to: entry.offset + 1, ordinal }]);
-      }
+      first ??= entry;
+      last = entry;
     }
-  }
-  // Куски одного узла собираются в новое содержимое узла за один раз: вставка
-  // `<mark>` по одному перестраивала весь текст узла на каждое вхождение.
-  for (const [node, spans] of fragments) {
-    const value = node.nodeValue ?? '';
-    const replacement = document.createDocumentFragment();
-    let position = 0;
-    for (const span of spans) {
-      if (span.from > position) {
-        replacement.append(value.slice(position, span.from));
-      }
-      if (span.to > span.from) {
-        const mark = document.createElement('mark');
-        mark.className = SEARCH_HIT_CLASS;
-        mark.dataset.ordinal = String(span.ordinal);
-        mark.textContent = value.slice(span.from, span.to);
-        replacement.append(mark);
-      }
-      position = Math.max(position, span.to);
-    }
-    if (position < value.length) {
-      replacement.append(value.slice(position));
-    }
-    node.replaceWith(replacement);
-  }
-}
-
-/** Снятие подсветки поиска со страницы без удаления текста. */
-function clearPageMarks(pageEl: HTMLElement): void {
-  for (const mark of Array.from(pageEl.querySelectorAll(`mark.${SEARCH_HIT_CLASS}`))) {
-    const parent = mark.parentNode;
-    if (!parent) {
+    if (!first || !last) {
       continue;
     }
-    while (mark.firstChild) {
-      parent.insertBefore(mark.firstChild, mark);
+    const range = document.createRange();
+    range.setStart(first.node, first.offset);
+    range.setEnd(last.node, last.offset + 1);
+    const rects: Rect[] = [];
+    for (const bounds of Array.from(range.getClientRects())) {
+      if (bounds.width > 0 && bounds.height > 0) {
+        rects.push(fractionRect(bounds, pageBounds));
+      }
     }
-    parent.removeChild(mark);
+    if (rects.length > 0) {
+      result.push({ ordinal, rects });
+    }
   }
+  return result;
+}
+
+/** Подсветка всех вхождений запроса на странице отдельным слоем над растром. */
+export function markPage(pageEl: HTMLElement): void {
+  const needle = normalizeSearchText(searchSession.query);
+  if (!needle) {
+    return;
+  }
+  // Прежняя подсветка снимается: иначе слои складывались бы и затемняли текст.
+  for (const stale of Array.from(pageEl.querySelectorAll(`.${SEARCH_LAYER_CLASS}`))) {
+    stale.remove();
+  }
+  const overlay = overlayOf(pageEl);
+  if (!overlay) {
+    return;
+  }
+  const hits = pageHitRects(pageEl, needle);
+  if (hits.length === 0) {
+    return;
+  }
+  const layer = document.createElement('div');
+  layer.className = SEARCH_LAYER_CLASS;
+  const activeHit =
+    searchSession.index === null ? null : searchSession.hits[searchSession.index] ?? null;
+  const pageNumber = Number(pageEl.dataset.page);
+  for (const hit of hits) {
+    // Полосы приводятся к межстрочному шагу, как у заметки: полоса идёт по
+    // всей строке, а не по рамке глифов, и щелей между строками нет.
+    for (const rect of tileByLine(hit.rects).merged) {
+      const band = document.createElement('div');
+      band.className =
+        activeHit && activeHit.page === pageNumber && activeHit.ordinal === hit.ordinal
+          ? `${SEARCH_HIT_CLASS} ${SEARCH_ACTIVE_CLASS}`
+          : SEARCH_HIT_CLASS;
+      band.dataset.ordinal = String(hit.ordinal);
+      band.style.left = rect.x * 100 + '%';
+      band.style.top = rect.y * 100 + '%';
+      band.style.width = rect.width * 100 + '%';
+      band.style.height = rect.height * 100 + '%';
+      layer.append(band);
+    }
+  }
+  // Слой лежит под наложением заметок, но над растром и текстовым слоем.
+  overlay.before(layer);
 }
 
 /** Подсветка поиска на всех отрисованных страницах. */
