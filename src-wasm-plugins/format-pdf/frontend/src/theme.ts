@@ -40,6 +40,10 @@ export interface ReaderThemeTokens {
   selectionEdge?: string;
   /** Толщина меток выделения в пикселях. */
   selectionEdgeWidth?: number;
+  /** Тон подсветки найденного поиском. */
+  search?: string;
+  /** Тон подсветки текущего вхождения поиска. */
+  searchActive?: string;
 }
 
 /** Значение темы области чтения, присланное приложением. */
@@ -97,6 +101,13 @@ export function applyReaderTheme(value: ReaderThemeInput | null | undefined): Ap
   rootStyle.setProperty(
     '--reader-selection-edge-width',
     String(tokens.selectionEdgeWidth || 2) + 'px',
+  );
+  // Тон найденного поиском приходит из темы: в светлой и тёмной стороне он
+  // разный, поэтому цвет не задаётся в оформлении модуля.
+  rootStyle.setProperty('--reader-search', tokens.search || 'rgba(242, 205, 82, 0.38)');
+  rootStyle.setProperty(
+    '--reader-search-active',
+    tokens.searchActive || 'rgba(245, 158, 11, 0.85)',
   );
   // Фон неотрисованной страницы совпадает с перекрашенной бумагой, иначе при
   // перерисовке мелькал бы светлый прямоугольник.

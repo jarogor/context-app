@@ -101,6 +101,27 @@ describe('readerThemeTokens', () => {
       expect(dark.selectionEdge).not.toBe(light.selectionEdge);
     }
   });
+
+  it('подсветка найденного различима на обеих сторонах и отличается оттенком', () => {
+    /** Каналы цвета в порядке красный, зелёный, синий. */
+    const channels = (value: string): number[] =>
+      (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+
+    for (const palette of PALETTES) {
+      const light = readerThemeTokens(palette.id, 'light');
+      const dark = readerThemeTokens(palette.id, 'dark');
+      // В светлой теме подсветка жёлтая (красный и зелёный выше синего).
+      const lightChannels = channels(light.search);
+      expect(lightChannels[0]).toBeGreaterThan(lightChannels[2]);
+      // В тёмной — синяя: жёлтая сливалась по светлоте с цветом текста, поэтому
+      // отличается не яркостью, а оттенком.
+      const darkChannels = channels(dark.search);
+      expect(darkChannels[2]).toBeGreaterThan(darkChannels[0]);
+      // Текущее вхождение на обеих сторонах отличается от остальных.
+      expect(light.searchActive).not.toBe(light.search);
+      expect(dark.searchActive).not.toBe(dark.search);
+    }
+  });
 });
 
 describe('readerPageColors', () => {

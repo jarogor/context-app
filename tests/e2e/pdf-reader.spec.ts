@@ -477,6 +477,23 @@ test('поиск по книге PDF: находит текст, переход�
     // Активное вхождение отличается от остальных.
     await expect(layer.locator('.search-hit-active').first()).toBeAttached();
 
+    // В тёмной теме подсветка другого оттенка и наложения: жёлтая сливалась с
+    // цветом текста по светлоте.
+    await page.getByTestId('note-toolbar').getByRole('button', { name: 'Тёмная тема области чтения' }).click();
+    await expect
+        .poll(async () =>
+            layer.locator('.search-hit').first().evaluate((el) => getComputedStyle(el as HTMLElement).mixBlendMode),
+        )
+        .toBe('screen');
+    // В тёмной теме тон — синий: синий канал выше красного, в отличие от
+    // жёлтого в светлой.
+    const darkColor = await layer
+        .locator('.search-hit')
+        .first()
+        .evaluate((el) => getComputedStyle(el as HTMLElement).backgroundColor);
+    const channels = (darkColor.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+    expect(channels[2]).toBeGreaterThan(channels[0]);
+
     // Интерфейс живой после поиска: масштаб отвечает сразу.
     const zoom = page.getByTestId('reader-zoom');
     const before = await zoom.textContent();
