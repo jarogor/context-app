@@ -356,11 +356,45 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     />
     <div class="relative flex min-h-0 flex-1">
       <!--
-        Область чтения: панель инструментов сверху, книга под ней. Верхняя
-        панель принадлежит книге, а не всему рабочему месту, поэтому рядом с
-        областью чтения панели заметок и открытых вкладок идут от её верха до
-        низа, а не начинаются ниже панели.
+        Панели заметок и открытых вкладок стоят слева от области чтения: их
+        открывают кнопками в левой группе полосы вкладок. Они идут от верха
+        области до низа, а не начинаются ниже панели инструментов: та
+        принадлежит книге, а не всему рабочему месту. На узком окне панели
+        перекрывают содержимое и закрываются явной кнопкой.
       -->
+      {#if notesOpen}
+        <NotesPanel
+          items={tabItems}
+          sets={noteSets}
+          activeSetId={activeSetId}
+          {readerTheme}
+          {palette}
+          loading={notesLoading}
+          {hasBook}
+          selectedId={selectedNoteId}
+          onGoToNote={selectNoteInPanel}
+          onDeleteNote={onDeleteNote}
+          onChangeColor={onChangeNoteColor}
+          onEditNote={onEditNote}
+          onSelectSet={onSelectSet}
+          onCreateSet={onCreateSet}
+          onRenameSet={onRenameSet}
+          onRemoveSet={onRemoveSet}
+          onClose={onCloseNotes}
+        />
+      {/if}
+      {#if booksOpen}
+        <OpenBooksPanel
+          tabs={workspace.tabs}
+          activeTabId={workspace.activeTabId}
+          {openTabsLimit}
+          onSelect={selectTabInPanel}
+          onClose={onCloseTab}
+          onDuplicate={onDuplicateTab}
+          onEditAppearance={onEditTabAppearance}
+          onClosePanel={onToggleBooks}
+        />
+      {/if}
       <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-reading">
         {#if workspace.tabs.length > 0}
           <NoteToolbar
@@ -440,39 +474,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
           {/each}
         {/if}
       </div>
-      {#if notesOpen}
-        <NotesPanel
-          items={tabItems}
-          sets={noteSets}
-          activeSetId={activeSetId}
-          {readerTheme}
-          {palette}
-          loading={notesLoading}
-          {hasBook}
-          selectedId={selectedNoteId}
-          onGoToNote={selectNoteInPanel}
-          onDeleteNote={onDeleteNote}
-          onChangeColor={onChangeNoteColor}
-          onEditNote={onEditNote}
-          onSelectSet={onSelectSet}
-          onCreateSet={onCreateSet}
-          onRenameSet={onRenameSet}
-          onRemoveSet={onRemoveSet}
-          onClose={onCloseNotes}
-        />
-      {/if}
-      {#if booksOpen}
-        <OpenBooksPanel
-          tabs={workspace.tabs}
-          activeTabId={workspace.activeTabId}
-          {openTabsLimit}
-          onSelect={selectTabInPanel}
-          onClose={onCloseTab}
-          onDuplicate={onDuplicateTab}
-          onEditAppearance={onEditTabAppearance}
-          onClosePanel={onToggleBooks}
-        />
-      {/if}
     </div>
     </div>
   {/if}

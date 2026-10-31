@@ -237,6 +237,7 @@
 <SidePanel
   title="Вкладки"
   testId="open-books-panel"
+  side="left"
   class="w-[var(--notes-panel-width)]"
   onClose={onClosePanel}
 >

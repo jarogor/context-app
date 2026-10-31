@@ -136,6 +136,7 @@
 <SidePanel
   title="Заметки"
   testId="notes-panel"
+  side="left"
   showSearch={hasBook}
   class="w-[var(--notes-panel-width)]"
   {onClose}

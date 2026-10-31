@@ -28,6 +28,8 @@
     onClose?: () => void;
     /** Метка для тестов. */
     testId?: string;
+    /** Сторона панели относительно содержимого: справа (по умолчанию) или слева. */
+    side?: 'left' | 'right';
     /** Дополнительные классы (ширина панели задаётся здесь). */
     class?: string;
   }
@@ -41,15 +43,25 @@
     children,
     onClose,
     testId,
+    side = 'right',
     class: className = '',
   }: Props = $props();
+
+  /** Классы границы: панель справа отделена слева, панель слева — справа. */
+  const borderClass = $derived(
+    side === 'left'
+      ? 'border-r max-lg:border-r-0'
+      : 'border-l max-lg:border-l-0',
+  );
 </script>
 
 <aside
   class={cn(
-    'flex h-full min-w-0 flex-none flex-col border-l border-[var(--border)] bg-[var(--panel)] max-lg:absolute max-lg:inset-0 max-lg:z-[var(--layer-panel)] max-lg:w-auto max-lg:border-l-0',
+    'flex h-full min-w-0 flex-none flex-col border-[var(--border)] bg-[var(--panel)] max-lg:absolute max-lg:inset-0 max-lg:z-[var(--layer-panel)] max-lg:w-auto',
+    borderClass,
     className,
   )}
+  data-side={side}
   data-testid={testId}
   style="padding-left: var(--safe-left); padding-right: var(--safe-right);"
 >
@@ -66,7 +78,7 @@
           data-testid="side-panel-close"
           onclick={onClose}
         >
-          <Icon name="chevron-left" />
+          <Icon name={side === 'left' ? 'chevron-right' : 'chevron-left'} />
         </button>
       </span>
     {/if}

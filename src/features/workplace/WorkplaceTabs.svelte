@@ -349,6 +349,32 @@
   <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
        выталкивает их за пределы панели. -->
   <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-actions">
+    <!--
+      Панели вкладок и заметок открываются слева, рядом с содержимым места:
+      кнопка списка вкладок, затем заметок, разделитель и действия открытия книги.
+    -->
+    <Button
+      variant={booksOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title="Вкладки"
+      ariaLabel="Вкладки"
+      ariaPressed={booksOpen}
+      onclick={onToggleBooks}
+    >
+      <Icon name="tabs" />
+    </Button>
+    <Button
+      variant={notesOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title="Заметки"
+      ariaLabel="Заметки"
+      testId="workplace-notes-toggle"
+      ariaPressed={notesOpen}
+      onclick={onToggleNotes}
+    >
+      <Icon name="note" />
+    </Button>
+    <span class="mx-[0.25rem] h-4 w-px flex-none bg-[var(--divider)]" aria-hidden="true"></span>
     <span class="flex" title={openButtonTitle('Добавить книгу')}>
       <Button
         size="icon"
@@ -468,31 +494,9 @@
     {/if}
   </div>
   <!--
-    Управление чтением и панелями: на телефоне второстепенные кнопки уходят в
-    контекстное меню, чтобы полоса оставалась свободной и удобной пальцу; на
-    широком окне те же действия стоят кнопками.
+    Справа остаётся только сосредоточенное чтение: на телефоне эта кнопка уходит
+    в контекстное меню, чтобы полоса оставалась свободной и удобной пальцу.
   -->
-  <Button
-    variant={notesOpen ? 'primary' : 'ghost'}
-    size="icon"
-    title="Заметки"
-    ariaLabel="Заметки"
-    testId="workplace-notes-toggle"
-    ariaPressed={notesOpen}
-    onclick={onToggleNotes}
-  >
-    <Icon name="note" />
-  </Button>
-  <Button
-    variant={booksOpen ? 'primary' : 'ghost'}
-    size="icon"
-    title="Вкладки"
-    ariaLabel="Вкладки"
-    ariaPressed={booksOpen}
-    onclick={onToggleBooks}
-  >
-    <Icon name="tabs" />
-  </Button>
   <span class="hidden md:flex md:items-center md:gap-1">
     {#if onToggleFocus}
       <Button

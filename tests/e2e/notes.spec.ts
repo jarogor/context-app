@@ -544,11 +544,11 @@ test('панель чтения — верх области чтения, пан
     expect(Math.abs(toolbar!.width - reading!.width)).toBeLessThanOrEqual(1);
     expect(toolbar!.width).toBeLessThan(area!.width);
     // Она стоит сверху области чтения, а панель заметок — сбоку от неё и во всю
-    // её высоту, а не ниже панели.
+    // её высоту, а не ниже панели. Панели живут слева от области чтения.
     expect(Math.abs(toolbar!.y - reading!.y)).toBeLessThanOrEqual(1);
     expect(Math.abs(notes!.y - reading!.y)).toBeLessThanOrEqual(1);
     expect(Math.abs(notes!.height - reading!.height)).toBeLessThanOrEqual(1);
-    expect(notes!.x).toBeGreaterThanOrEqual(toolbar!.x + toolbar!.width - 1);
+    expect(notes!.x + notes!.width).toBeLessThanOrEqual(toolbar!.x + 1);
     // Полоса вкладок остаётся над областью чтения во всю ширину рабочего места.
     expect(Math.abs(tabs!.width - area!.width)).toBeLessThanOrEqual(1);
     expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(toolbar!.y + 1);
