@@ -56,7 +56,7 @@ function appProps(sets: Array<Record<string, unknown>> = []) {
             locale: 'ru' as const,
         },
         initialSettings: { declarations: [], error: '' },
-        initialNotifications: { entries: [], technicalVisible: false, error: '' },
+        initialNotifications: { entries: [], error: '' },
         initialStore: { plugins: [], stores: [], activationPending: false, error: '' },
         initialOpenTabsLimit: 50,
     };

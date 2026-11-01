@@ -4,7 +4,7 @@
   "kind": "framework",
   "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
   "name": "notifications",
-  "description": "Базовый плагин уведомлений и технических логов",
+  "description": "Базовый плагин журнала пользовательских уведомлений",
   "version": "0.1.0",
   "module": "notifications.wasm",
   "export": "invoke",
@@ -17,24 +17,5 @@
   "provides": [
     "notifications.journal@1"
   ],
-  "requires": [],
-  "settings": {
-    "title": "app.settings.notifications.owner",
-    "sections": [
-      {
-        "id": "notifications",
-        "title": "app.settings.notifications.notifications.title",
-        "description": "app.settings.notifications.notifications.description",
-        "fields": [
-          {
-            "key": "technical_visible_default",
-            "title": "app.settings.notifications.notifications.technical_visible_default.label",
-            "type": "boolean",
-            "description": "app.settings.notifications.notifications.technical_visible_default.description",
-            "default": false
-          }
-        ]
-      }
-    ]
-  }
+  "requires": []
 }

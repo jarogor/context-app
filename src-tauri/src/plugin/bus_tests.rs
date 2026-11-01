@@ -80,15 +80,20 @@ fn threshold_allows_more_severe() {
     assert!(!Severity::Debug.allows(Severity::Info));
 }
 
-/// Технические события ниже порога не публикуются.
+/// Технические события не попадают в ленту уведомлений.
+///
+/// Они пишутся в файл диагностики: пользователю строка «Плагин загружен» ничего
+/// не объясняет, а поддержке нужен весь журнал, а не отдельные записи в ленте.
 #[test]
-fn publish_technical_respects_threshold() {
+fn publish_technical_does_not_reach_user_journal() {
     let bus = EventBus::new();
     set_log_level(Severity::Info);
     bus.publish_technical(Severity::Info, "инфо", "test", serde_json::json!({}));
     bus.publish_technical(Severity::Trace, "трасса", "test", serde_json::json!({}));
-    let messages: Vec<String> = bus.drain().into_iter().map(|event| event.message).collect();
-    assert_eq!(messages, ["инфо"], "трасса отброшена при пороге info");
+    assert!(
+        bus.drain().is_empty(),
+        "технические события не публикуются в ленту"
+    );
     set_log_level(Severity::Info);
 }
 

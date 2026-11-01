@@ -39,25 +39,6 @@ impl Journal {
         self.add(timestamp, Level::User, message, severity, source, details)
     }
 
-    /// Добавление события технического уровня с меткой времени.
-    pub fn add_technical(
-        &mut self,
-        timestamp: i64,
-        message: impl Into<String>,
-        severity: Severity,
-        source: impl Into<String>,
-        details: serde_json::Value,
-    ) -> Entry {
-        self.add(
-            timestamp,
-            Level::Technical,
-            message,
-            severity,
-            source,
-            details,
-        )
-    }
-
     /// Добавление события в журнал с меткой времени.
     fn add(
         &mut self,

@@ -210,3 +210,35 @@ fn book_chunks_rebuild_the_whole_file() {
 
     cleanup(&dir);
 }
+
+#[test]
+fn support_report_contains_everything_needed_to_investigate() {
+    // Отчёт должен отвечать на вопросы поддержки без расспросов пользователя:
+    // что за версия, на чём запущено, какие плагины загружены и что происходило.
+    let info = AppInfo::build("Контекст", "1.2.3", Path::new("/data/context"));
+    let plugins = vec!["books-source".to_string(), "format-pdf".to_string()];
+    let diagnostics = Some("2026-11-01T10:00:00.000Z ERROR [core] вызов упал\n".to_string());
+
+    let report = build_support_report(&info, &plugins, diagnostics);
+
+    assert!(report.contains("Версия: 1.2.3"), "версия в отчёте");
+    assert!(report.contains("Платформа:"), "платформа в отчёте");
+    assert!(report.contains("/data/context"), "расположение данных");
+    assert!(report.contains("books-source"), "плагины в отчёте");
+    assert!(report.contains("format-pdf"), "все плагины");
+    assert!(
+        report.contains("ERROR [core] вызов упал"),
+        "журнал диагностики целиком"
+    );
+}
+
+#[test]
+fn support_report_is_honest_about_an_empty_journal() {
+    // Пустой журнал — не повод для пустого места: поддержка должна видеть, что
+    // записей нет, а не гадать, потерялись они или их не было.
+    let info = AppInfo::build("Контекст", "1.0.0", Path::new("/data"));
+    let report = build_support_report(&info, &[], None);
+
+    assert!(report.contains("журнал пуст или недоступен"), "{report}");
+    assert!(report.contains("ни один плагин не загружен"), "{report}");
+}

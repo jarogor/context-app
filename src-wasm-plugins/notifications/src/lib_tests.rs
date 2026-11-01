@@ -60,22 +60,22 @@ fn publish_user_creates_entry_and_event() {
 }
 
 #[test]
-fn publish_technical_uses_technical_level() {
+fn technical_records_do_not_enter_the_journal() {
     let host = FakeHost::default();
+    // Технические события живут в файле диагностики ядра, а не в ленте
+    // пользователя: даже если кто-то попросит записать техническое, уровень
+    // подменяется пользовательским и в ленту попадает обычная запись.
     let output = handle(
         &host,
         &request(
             "publish",
-            serde_json::json!({ "level": "technical", "message": "шум", "severity": "warn" }),
+            serde_json::json!({ "level": "technical", "message": "запись", "severity": "warn" }),
         ),
     )
     .expect("публикация");
     let entry: serde_json::Value = serde_json::from_str(&output).expect("JSON записи");
-    assert_eq!(entry["level"], "Technical");
-    assert_eq!(
-        entry["severity"], "warn",
-        "техническая запись хранит степень"
-    );
+    assert_eq!(entry["level"], "User");
+    assert_eq!(entry["severity"], "warn", "степень сохраняется");
     assert_eq!(entry["source"], "plugin", "источник по умолчанию");
 }
 
@@ -115,7 +115,7 @@ fn list_returns_persisted_entries() {
         &host,
         &request(
             "publish",
-            serde_json::json!({ "level": "technical", "message": "b" }),
+            serde_json::json!({ "level": "user", "message": "b" }),
         ),
     )
     .expect("публикация");
@@ -130,7 +130,8 @@ fn list_returns_persisted_entries() {
     )
     .expect("список");
     let parsed: serde_json::Value = serde_json::from_str(&filtered).expect("JSON списка");
-    assert_eq!(parsed["entries"].as_array().expect("массив").len(), 1);
+    // Фильтр по уровню оставлен для совместимости: все записи пользовательские.
+    assert_eq!(parsed["entries"].as_array().expect("массив").len(), 2);
 }
 
 #[test]

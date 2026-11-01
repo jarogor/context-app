@@ -36,9 +36,6 @@ describe('загрузка начального состояния', () => {
                         spaces: [{ space: 'settings.section', id: 'app.general', nodes: [] }],
                     };
                 }
-                if (capability === 'settings.store@1' && operation === 'list') {
-                    return { sections: [{ id: 'notifications.notifications', values: { technical_visible_default: true } }] };
-                }
                 if (capability === 'notifications.journal@1' && operation === 'list') {
                     return { entries: [{ id: 1, level: 'User', read: false }] };
                 }
@@ -62,7 +59,6 @@ describe('загрузка начального состояния', () => {
         expect(state.settings.declarations).toHaveLength(1);
         expect(state.settings.error).toBe('');
         expect(state.notifications.entries).toHaveLength(1);
-        expect(state.notifications.technicalVisible).toBe(true);
         expect(state.notifications.error).toBe('');
         expect(state.store.plugins).toHaveLength(1);
         expect(state.store.stores).toHaveLength(1);

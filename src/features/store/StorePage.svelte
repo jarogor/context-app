@@ -16,6 +16,7 @@
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import AppInfoPage from '../settings/AppInfoPage.svelte';
   import SettingsPage from '../settings/SettingsPage.svelte';
+  import SupportReportCard from '../support/SupportReportCard.svelte';
   import type { NormalizedDeclaration } from '../settings/settings';
   import {
     addStore as addStoreEntry,
@@ -560,6 +561,8 @@
         {/if}
       </div>
     </Card>
+
+    <SupportReportCard />
 
     <div data-testid="app-info-page">
       <AppInfoPage />

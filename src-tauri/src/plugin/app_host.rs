@@ -208,7 +208,10 @@ impl AppPluginHost {
         let _ = self.drain_and_deliver();
     }
 
-    /// Публикация технического события и его доставка плагину уведомлений.
+    /// Запись технического события в журнал диагностики.
+    ///
+    /// Доставки плагину уведомлений нет: технические события пользователю не
+    /// адресованы и живут в файле, из которого собирается отчёт.
     #[cfg(test)]
     pub fn notify_technical(
         &mut self,
@@ -218,7 +221,6 @@ impl AppPluginHost {
         details: serde_json::Value,
     ) {
         get_bus().publish_technical(severity, message, source, details);
-        let _ = self.drain_and_deliver();
     }
 
     /// Перерегистрация реестра настроек в базовом плагине настроек.

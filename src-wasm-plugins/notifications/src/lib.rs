@@ -1,8 +1,13 @@
-//! Базовый плагин уведомлений и технических логов приложения «Контекст».
+//! Базовый плагин журнала уведомлений приложения «Контекст».
 //!
-//! Владеет журналом событий, хранит его в служебном состоянии плагина и
-//! публикует событие `notifications:added` при добавлении записи. Экспортирует
-//! функцию `invoke` по контракту приложения.
+//! Плагин ведёт журнал **пользовательских** событий: то, что пользователю
+//! действительно стоит знать (книга не открылась, лимит вкладок превышен).
+//! Техническая диагностика сюда не попадает: она пишется ядром в файл и нужна
+//! поддержке, а не человеку. Так лента не засоряется непонятными ему записями.
+//!
+//! Хранит журнал в служебном состоянии плагина и публикует событие
+//! `notifications:added` при добавлении записи. Экспортирует функцию `invoke`
+//! по контракту приложения.
 
 pub mod journal;
 pub mod models;
@@ -16,7 +21,7 @@ use host_sdk::state;
 use host_sdk::{Host, Request};
 
 use crate::journal::Journal;
-use crate::models::{Level, Severity};
+use crate::models::Severity;
 
 /// Ключ служебного состояния с журналом.
 const STATE_KEY: &str = "journal.json";
@@ -46,10 +51,6 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
 
 /// Добавление записи и публикация события.
 fn publish(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
-    let level = payload
-        .get("level")
-        .and_then(|value| value.as_str())
-        .unwrap_or("user");
     let message = payload
         .get("message")
         .and_then(|value| value.as_str())
@@ -67,11 +68,8 @@ fn publish(host: &impl Host, payload: &serde_json::Value) -> Result<String, Stri
 
     let timestamp = host.now_millis();
     let mut journal = load(host)?;
-    let entry = if level == "user" {
-        journal.add_user(timestamp, message, severity, source, details)
-    } else {
-        journal.add_technical(timestamp, message, severity, source, details)
-    };
+    // Только пользовательский уровень: технический пишет ядро в файл.
+    let entry = journal.add_user(timestamp, message, severity, source, details);
     save(host, &journal)?;
 
     let serialized = serde_json::to_string(&entry).map_err(|error| error.to_string())?;
@@ -81,13 +79,8 @@ fn publish(host: &impl Host, payload: &serde_json::Value) -> Result<String, Stri
 
 /// Список записей с опциональным фильтром уровня.
 fn list(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
-    let level = match payload.get("level").and_then(|value| value.as_str()) {
-        Some("User") => Some(Level::User),
-        Some("Technical") => Some(Level::Technical),
-        _ => None,
-    };
     let journal = load(host)?;
-    let entries = journal.list(level);
+    let entries = journal.list(None);
     serde_json::to_string(&json!({ "entries": entries })).map_err(|error| error.to_string())
 }
 

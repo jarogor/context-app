@@ -101,8 +101,20 @@ const SETTINGS_FIELDS: Record<
                     title: 'app.settings.app.system.diagnostics.log_level.option.error',
                 },
                 {
+                    value: 'warn',
+                    title: 'app.settings.app.system.diagnostics.log_level.option.warn',
+                },
+                {
                     value: 'info',
                     title: 'app.settings.app.system.diagnostics.log_level.option.info',
+                },
+                {
+                    value: 'debug',
+                    title: 'app.settings.app.system.diagnostics.log_level.option.debug',
+                },
+                {
+                    value: 'trace',
+                    title: 'app.settings.app.system.diagnostics.log_level.option.trace',
                 },
             ],
         },
@@ -736,6 +748,11 @@ export function defaultMockConfig(): MockBridgeConfig {
             show_window: () => null,
             app_title_set: () => null,
             app_name_set: () => null,
+            support_report: () => ({
+                file_name: 'context-report-test.txt',
+                content: 'Отчёт «Контекст» для поддержки\n',
+            }),
+            support_report_save: () => '/tmp/context-report-test.txt',
             app_info: () => ({
                 name: 'Контекст',
                 version: '0.1.0',

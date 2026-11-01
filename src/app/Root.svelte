@@ -46,7 +46,6 @@
   /** Журнал уведомлений, загруженный до первого рендера. */
   let initialNotifications: NotificationsBootstrap = $state({
     entries: [],
-    technicalVisible: false,
     error: '',
   });
 

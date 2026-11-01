@@ -37,6 +37,9 @@ pub fn run() {
             let app_data_dir = app.path().app_data_dir().ok();
             let user_plugins_dir = resolve_user_plugins_root(app_data_dir.as_deref());
             let app_state_root = resolve_app_state_root(app_data_dir.as_deref());
+            // Журнал диагностики пишется в файл рядом с состоянием: по нему
+            // поддержка разбирает сбой, а пользователь отдаёт отчёт одним файлом.
+            crate::plugin::diagnostics::init(&app_state_root);
             let app_data_root = resolve_app_data_root(app_data_dir.as_deref());
 
             let bundled_plugins_dir = resource_dir.join(PLUGINS_DIR_NAME);
@@ -143,6 +146,8 @@ pub fn run() {
             commands::invoke_base_plugin_operation,
             commands::app_info,
             commands::app_name_set,
+            commands::support_report,
+            commands::support_report_save,
             commands::select_source_library,
             commands::active_library,
             commands::library_history_list,

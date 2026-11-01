@@ -5,9 +5,6 @@ use crate::test_util::cleanup;
 use std::fs;
 use std::path::PathBuf;
 
-/// Идентификатор базового плагина уведомлений.
-const NOTIFICATIONS_ID: &str = "313fbeb9-8537-48bc-bb5f-5296e7b1c81e";
-
 /// WAT-модуль, экспортирующий функцию `invoke`.
 const WAT_WITH_INVOKE: &str = r#"
     (module
@@ -471,31 +468,15 @@ fn settings_registry_survives_restart() {
         ids.contains(&"app.general".to_string()),
         "секция приложения"
     );
-    let notifications_section = format!("{NOTIFICATIONS_ID}.notifications");
-    assert!(
-        ids.contains(&notifications_section),
-        "секция уведомлений под идентификатором владельца"
-    );
-
-    let defaults = host
-        .invoke_capability(
-            CAPABILITY_SETTINGS,
-            "get",
-            serde_json::json!({ "section": notifications_section }),
-        )
-        .expect("значения секции");
-    let defaults: serde_json::Value = serde_json::from_str(&defaults).expect("JSON значений");
-    assert_eq!(
-        defaults["values"]["technical_visible_default"], false,
-        "значение по умолчанию"
-    );
-
+    // Секции уведомлений больше нет: журнал пользовательский, а техническая
+    // диагностика пишется в файл. Значения секции приложения переживают
+    // перезапуск — на этом же механизме держатся все настройки.
     host.invoke_capability(
         CAPABILITY_SETTINGS,
         "set",
         serde_json::json!({
-            "section": notifications_section,
-            "values": { "technical_visible_default": true }
+            "section": "app.general",
+            "values": { "appearance.theme": "dark" }
         }),
     )
     .expect("сохранение значения");
@@ -505,16 +486,9 @@ fn settings_registry_survives_restart() {
     restarted
         .refresh_settings_registry(&[])
         .expect("регистрация");
-    let restored = restarted
-        .invoke_capability(
-            CAPABILITY_SETTINGS,
-            "get",
-            serde_json::json!({ "section": notifications_section }),
-        )
-        .expect("значения после перезапуска");
-    let restored: serde_json::Value = serde_json::from_str(&restored).expect("JSON значений");
     assert_eq!(
-        restored["values"]["technical_visible_default"], true,
+        restarted.theme_preference(),
+        "dark",
         "значение пережило перезапуск"
     );
     cleanup(&storage);

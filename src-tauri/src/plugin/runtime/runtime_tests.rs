@@ -466,22 +466,22 @@ fn disabled_base_plugin_still_loads() {
 }
 
 #[test]
-fn load_publishes_info_event() {
+fn load_writes_plugin_info_to_diagnostics() {
     let dir = setup_plugins_root("load-event", &compile_wat(WAT_WITH_INVOKE), MANIFEST_JSON);
     let root = dir.clone();
-    let _ = get_bus().drain();
+    let journal = setup_diagnostics(&root);
 
     let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
 
-    let events = get_bus().drain();
-    let event = events
-        .iter()
-        .find(|event| event.details["id"] == TEST_PLUGIN_ID)
-        .expect("событие загрузки плагина");
-    assert_eq!(event.level, "technical");
-    assert_eq!(event.severity, Severity::Info);
-    assert_eq!(event.details["name"], "test-plugin");
-    assert_eq!(event.details["kind"], "extension");
+    // Загрузка плагина — техническая запись: она нужна разбору сбоя и живёт в
+    // файле диагностики, а не в ленте уведомлений пользователя.
+    let content = std::fs::read_to_string(&journal).expect("журнал диагностики");
+    assert!(
+        content.contains("Плагин загружен: test-plugin"),
+        "событие загрузки в журнале: {content}"
+    );
+    assert!(content.contains(TEST_PLUGIN_ID), "идентификатор плагина");
+    assert!(get_bus().drain().is_empty(), "в ленту ничего не попало");
 
     drop(runtime);
     cleanup(&root);
@@ -491,17 +491,15 @@ fn load_publishes_info_event() {
 fn skipped_plugin_publishes_warn() {
     let dir = setup_plugins_root("skip-warn", &compile_wat(WAT_WITHOUT_INVOKE), MANIFEST_JSON);
     let root = dir.clone();
-    let _ = get_bus().drain();
+    let journal = setup_diagnostics(&root);
 
     let runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
 
     assert!(runtime.plugin_names().is_empty(), "плагин отбракован");
-    let events = get_bus().drain();
+    let content = std::fs::read_to_string(&journal).expect("журнал диагностики");
     assert!(
-        events
-            .iter()
-            .any(|event| event.severity == Severity::Warn && event.message.contains("пропущен")),
-        "пропуск плагина даёт предупреждение"
+        content.contains("WARN") && content.contains("пропущен"),
+        "пропуск плагина даёт предупреждение: {content}"
     );
     cleanup(&root);
 }
@@ -511,21 +509,20 @@ fn invoke_publishes_trace_event() {
     let dir = setup_plugins_root("trace", &compile_wat(WAT_WITH_INVOKE), MANIFEST_JSON);
     let root = dir.clone();
     let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    let journal = setup_diagnostics(&root);
     set_log_level(Severity::Trace);
-    let _ = get_bus().drain();
 
     runtime
         .invoke(TEST_PLUGIN_ID, "ping")
         .expect("вызов плагина");
 
-    let events = get_bus().drain();
-    let trace = events
-        .iter()
-        .find(|event| event.severity == Severity::Trace)
-        .expect("трассировочное событие");
-    assert_eq!(trace.details["operation"], "invoke");
-    assert_eq!(trace.details["ok"], true);
-    assert_eq!(trace.details["request"], "ping");
+    let content = std::fs::read_to_string(&journal).expect("журнал диагностики");
+    assert!(content.contains("TRACE"), "трасса в журнале: {content}");
+    assert!(
+        content.contains("\"operation\":\"invoke\""),
+        "операция в трассе"
+    );
+    assert!(content.contains("\"request\":\"ping\""), "запрос в трассе");
     set_log_level(Severity::Info);
     cleanup(&root);
 }
@@ -535,19 +532,28 @@ fn trace_suppressed_at_info_threshold() {
     let dir = setup_plugins_root("trace-off", &compile_wat(WAT_WITH_INVOKE), MANIFEST_JSON);
     let root = dir.clone();
     let mut runtime = PluginRuntime::load(&[dir], root.clone()).expect("загрузка runtime");
+    let journal = setup_diagnostics(&root);
     set_log_level(Severity::Info);
-    let _ = get_bus().drain();
 
     runtime
         .invoke(TEST_PLUGIN_ID, "ping")
         .expect("вызов плагина");
 
-    let events = get_bus().drain();
+    let content = std::fs::read_to_string(&journal).unwrap_or_default();
     assert!(
-        !events.iter().any(|event| event.severity == Severity::Trace),
-        "при пороге info трасса не публикуется"
+        !content.contains("TRACE"),
+        "при пороге info трасса не пишется"
     );
     cleanup(&root);
+}
+
+/// Направление журнала диагностики в каталог теста.
+///
+/// Журнал один на процесс, поэтому каждая проверка перед записи перенаправляет
+/// его в свой каталог и возвращает путь к файлу.
+fn setup_diagnostics(root: &std::path::Path) -> std::path::PathBuf {
+    crate::plugin::diagnostics::init(root);
+    root.join(crate::plugin::diagnostics::DIAGNOSTICS_FILE_NAME)
 }
 
 /// Создание host-состояния для проверок SQL-хранилища.

@@ -73,6 +73,57 @@ impl AppHostConfig {
     }
 }
 
+/// Сборка текста отчёта для поддержки.
+///
+/// Отчёт самодостаточен: по нему видно версию, платформу, набор плагинов и что
+/// происходило в приложении. Пользователю не нужно ничего объяснять — он
+/// прикладывает файл.
+fn build_support_report(
+    app_info: &AppInfo,
+    plugins: &[String],
+    diagnostics: Option<String>,
+) -> String {
+    let mut content = String::new();
+    content.push_str("Отчёт «Контекст» для поддержки\n");
+    content.push_str("================================\n\n");
+
+    content.push_str(&format!("Приложение: {}\n", app_info.name));
+    content.push_str(&format!("Версия: {}\n", app_info.version));
+    content.push_str(&format!(
+        "Платформа: {}-{}\n",
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    ));
+    content.push_str(&format!(
+        "Дата отчёта: {}\n\n",
+        crate::plugin::diagnostics::timestamp_for_report()
+    ));
+
+    content.push_str("Расположения данных\n");
+    content.push_str("------------------\n");
+    for path in &app_info.paths {
+        content.push_str(&format!("{}\n", path.path));
+    }
+    content.push('\n');
+
+    content.push_str("Загруженные плагины\n");
+    content.push_str("-------------------\n");
+    if plugins.is_empty() {
+        content.push_str("(ни один плагин не загружен)\n");
+    } else {
+        for plugin in plugins {
+            content.push_str(&format!("{plugin}\n"));
+        }
+    }
+    content.push('\n');
+
+    content.push_str("Журнал диагностики\n");
+    content.push_str("------------------\n");
+    content.push_str(&diagnostics.unwrap_or_else(|| "(журнал пуст или недоступен)\n".to_string()));
+    content.push('\n');
+    content
+}
+
 /// Путь и имя файла вложения для подмены песочницы на директорию файла.
 ///
 /// Source-плагин читает файл относительно своего песочного корня. Чтобы не
@@ -238,6 +289,24 @@ impl AppState {
     /// Корень служебного состояния приложения.
     pub fn app_state_root(&self) -> &Path {
         &self.app_state_root
+    }
+
+    /// Сборка отчёта для поддержки.
+    ///
+    /// В отчёт входит всё, по чему можно понять сбой, не расспрашивая
+    /// пользователя: версия и платформа, загруженные плагины, расположение
+    /// данных и журнал диагностики. Пользователь прикладывает один файл к
+    /// обращению, а не объясняет, «что не работает».
+    pub fn support_report(&mut self) -> crate::commands::support_report::SupportReport {
+        let plugins = self
+            .with_app_host(|host| host.plugin_names())
+            .unwrap_or_default();
+        let content =
+            build_support_report(&self.app_info, &plugins, crate::plugin::diagnostics::read());
+        crate::commands::support_report::SupportReport {
+            file_name: crate::commands::support_report::report_file_name(),
+            content,
+        }
     }
 
     /// Идентификаторы отключённых плагинов из реестра активности.

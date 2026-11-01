@@ -120,9 +120,15 @@ impl EventBus {
         }
     }
 
-    /// Публикация технического события с учётом порога логирования.
+    /// Запись технического события в журнал диагностики.
     ///
-    /// Событие со степенью ниже текущего порога отбрасывается.
+    /// Технические события не попадают в ленту уведомлений: пользователю они
+    /// не адресованы и ничего ему не объясняют. Они пишутся в файл, из
+    /// которого поддержка собирает отчёт, когда что-то не работает.
+    ///
+    /// В файл пишется всё, что допускает порог: порог задаёт подробность
+    /// (`info` по умолчанию, `trace` — для разбора сложных случаев), но не
+    /// отменяет запись целиком.
     pub fn publish_technical(
         &self,
         severity: Severity,
@@ -133,13 +139,9 @@ impl EventBus {
         if !severity.allows(log_level()) {
             return;
         }
-        self.publish(PluginEvent {
-            level: "technical".to_string(),
-            severity,
-            message: message.into(),
-            source: source.into(),
-            details,
-        });
+        let message = message.into();
+        let source = source.into();
+        crate::plugin::diagnostics::record(severity, &message, &source, &details);
     }
 
     /// Публикация пользовательского события без учёта порога логирования.

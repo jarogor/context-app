@@ -49,7 +49,8 @@
     | 'duplicate'
     | 'more'
     | 'menu'
-    | 'monitor';
+    | 'monitor'
+    | 'download';
 
   /** Иконки, предлагаемые для оформления вкладки рабочего места.
    *
@@ -108,6 +109,9 @@
     <path d="M8 3v12" />
   {:else if name === 'folder'}
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  {:else if name === 'download'}
+    <path d="M12 3v12M7.5 10.5 12 15l4.5-4.5" />
+    <path d="M4 17.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5" />
   {:else if name === 'check'}
     <path d="M20 6 9 17l-5-5" stroke-width="2.4" />
   {:else if name === 'close'}

@@ -1,14 +1,12 @@
 <script lang="ts">
   import { t } from '@context/i18n';
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Checkbox, EmptyState, ErrorToast, SidePanel, createAsyncState } from '@context/ui';
+  import { Badge, Button, EmptyState, ErrorToast, SidePanel, createAsyncState } from '@context/ui';
   import { formatTime } from '../../shared/format';
   import {
     clearNotifications,
     listNotifications,
-    loadTechnicalVisibleDefault,
     markAllNotificationsRead,
-    NOTIFICATIONS_SECTION_LOCAL_ID,
     type NotificationEntry,
   } from './notifications';
   import { listenEvent } from '../../shared/app-bridge';
@@ -18,22 +16,16 @@
     onUnreadChange?: (count: number) => void;
     /** Записи журнала, загруженные на бутстрапе; `undefined` — загрузить самим. */
     initialEntries?: NotificationEntry[];
-    /** Начальное значение показа технических записей с бутстрапа. */
-    initialTechnicalVisible?: boolean;
     /** Ошибка загрузки журнала на бутстрапе. */
     initialError?: string;
     /** Закрытие панели (на узком окне панель перекрывает содержимое). */
     onClose?: () => void;
   }
 
-  let { onUnreadChange, initialEntries, initialTechnicalVisible, initialError, onClose }: Props =
-    $props();
+  let { onUnreadChange, initialEntries, initialError, onClose }: Props = $props();
 
   /** Записи журнала уведомлений. */
   let entries: NotificationEntry[] = $state(untrack(() => initialEntries ?? []));
-
-  /** Показывать ли технические записи. */
-  let technicalVisible = $state(untrack(() => initialTechnicalVisible ?? false));
 
   /** Ошибка загрузки или операции журнала. */
   const asyncState = createAsyncState();
@@ -41,13 +33,17 @@
   // Ошибка, переданная с бутстрапа, показывается сразу при монтировании.
   asyncState.error = untrack(() => initialError ?? '');
 
-  /** Отфильтрованные записи: без технического уровня показываем только User. */
-  let visibleEntries = $derived(
-    technicalVisible ? entries : entries.filter((entry) => entry.level === 'User'),
-  );
+  /**
+   * Записи ленты: только пользовательские.
+   *
+   * Журнал хранит события, адресованные человеку. Техническая диагностика
+   * пишется ядром в файл: пользователю она ничего не объясняет, а поддержке
+   * нужна целиком, а не по одной строке в ленте.
+   */
+  let visibleEntries = $derived(entries.filter((entry) => entry.level === 'User'));
 
   /** Количество непрочитанных пользовательских уведомлений. */
-  let unreadUser = $derived(entries.filter((entry) => entry.level === 'User' && !entry.read).length);
+  let unreadUser = $derived(visibleEntries.filter((entry) => !entry.read).length);
 
   /** Передача счётчика в оболочку для кнопки в верхней панели. */
   $effect(() => {
@@ -59,18 +55,6 @@
     const loaded = await asyncState.run(listNotifications);
     if (loaded) {
       entries = loaded;
-    }
-  }
-
-  /** Загрузка начального технического уровня из настроек. */
-  async function loadSettings() {
-    try {
-      const value = await loadTechnicalVisibleDefault();
-      if (value !== null) {
-        technicalVisible = value;
-      }
-    } catch {
-      // Отсутствие секции настроек не мешает панели уведомлений.
     }
   }
 
@@ -92,31 +76,17 @@
 
   onMount(() => {
     let unlistenAdded: (() => void) | undefined;
-    let unlistenSettings: (() => void) | undefined;
     void (async () => {
       unlistenAdded = await listenEvent('notifications:added', (value) => {
         entries = [...entries, value as NotificationEntry];
       });
-      // Панель слушает только свою настройку: событие приходит по каждой
-      // сохранённой секции, и загрузка настроек журнала на чужое изменение
-      // задерживала отклик интерфейса (панель смонтирована всегда).
-      unlistenSettings = await listenEvent('settings:changed', (value) => {
-        const section = (value as { section?: unknown } | null)?.section;
-        const localId = typeof section === 'string' ? section.split('.').pop() : null;
-        if (localId !== NOTIFICATIONS_SECTION_LOCAL_ID) {
-          return;
-        }
-        void loadSettings();
-      });
       // Данные уже загружены на бутстрапе; без них (в изоляции) грузим сами.
       if (initialEntries === undefined) {
-        await loadSettings();
         await load();
       }
     })();
     return () => {
       unlistenAdded?.();
-      unlistenSettings?.();
     };
   });
 
@@ -163,10 +133,6 @@
   {/snippet}
 
   {#snippet headerActions()}
-    <label class="flex cursor-pointer items-center gap-1 role-caption">
-      <Checkbox bind:checked={technicalVisible} />
-      {t('app.notifications.technical')}
-    </label>
     <Button variant="secondary" size="sm" disabled={unreadUser === 0} onclick={markAllRead}>
       {t('app.notifications.markRead')}
     </Button>

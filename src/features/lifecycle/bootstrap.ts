@@ -39,11 +39,7 @@ import {
   type ReaderThemeId,
   type ThemePreference,
 } from '@context/ui';
-import {
-  listNotifications,
-  loadTechnicalVisibleDefault,
-  type NotificationEntry,
-} from '../notifications/notifications';
+import { listNotifications, type NotificationEntry } from '../notifications/notifications';
 import {
   addStore as addStoreEntry,
   loadActivationPending,
@@ -108,12 +104,10 @@ export interface SettingsBootstrap {
     error: string;
 }
 
-/** Журнал уведомлений и настройки его показа на бутстрапе. */
+/** Журнал уведомлений на бутстрапе. */
 export interface NotificationsBootstrap {
     /** Записи журнала. */
     entries: NotificationEntry[];
-    /** Показывать ли технические записи по умолчанию. */
-    technicalVisible: boolean;
     /** Ошибка загрузки журнала, иначе пустая строка. */
     error: string;
 }
@@ -265,23 +259,11 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
 
 /** Загрузка журнала уведомлений; ошибка даёт пустой журнал с диагностикой. */
 async function loadNotificationsBootstrap(): Promise<NotificationsBootstrap> {
-    let entries: NotificationEntry[] = [];
-    let technicalVisible = false;
-    let error = '';
     try {
-        entries = await listNotifications();
+        return { entries: await listNotifications(), error: '' };
     } catch (cause) {
-        error = String(cause);
+        return { entries: [], error: String(cause) };
     }
-    try {
-        const value = await loadTechnicalVisibleDefault();
-        if (value !== null) {
-            technicalVisible = value;
-        }
-    } catch {
-        // Отсутствие секции настроек не мешает панели уведомлений.
-    }
-    return { entries, technicalVisible, error };
 }
 
 /** Загрузка каталога плагинов и сторов; ошибка даёт пустой каталог с диагностикой. */

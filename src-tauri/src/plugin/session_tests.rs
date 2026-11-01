@@ -94,17 +94,17 @@ fn select_source_warns_on_missing_path() {
     let parent = test_util::test_root("plugin-session-missing-path");
     let missing = parent.join("no-such-library");
     let mut session = PluginSession::idle(PathBuf::from("."), parent.join("plugins"));
-    let _ = crate::plugin::get_bus().drain();
+    // Предупреждение пишется в файл диагностики: это техническая запись, она
+    // нужна разбору сбоя, а не ленте пользователя.
+    crate::plugin::diagnostics::init(&parent);
 
     let result = session.select_source(&missing, false, parent.join("state"));
 
     assert!(result.is_err(), "отсутствующий путь отклоняется");
-    let events = crate::plugin::get_bus().drain();
+    let content = crate::plugin::diagnostics::read().unwrap_or_default();
     assert!(
-        events
-            .iter()
-            .any(|event| event.severity == crate::plugin::Severity::Warn),
-        "недоступная библиотека даёт предупреждение"
+        content.contains("WARN"),
+        "недоступная библиотека даёт предупреждение: {content}"
     );
     test_util::cleanup(&parent);
 }

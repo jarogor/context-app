@@ -7,6 +7,7 @@ pub mod app_state;
 pub mod bus;
 pub mod contract;
 pub mod cover_cache;
+pub mod diagnostics;
 pub mod discovery;
 pub mod error;
 pub mod loaded_plugin;

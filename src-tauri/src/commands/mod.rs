@@ -21,6 +21,7 @@ pub mod reader_theme;
 pub mod save_workspaces;
 pub mod select_source_library;
 pub mod show_window;
+pub mod support_report;
 pub mod theme_palette;
 pub mod theme_preference;
 pub mod update;
@@ -68,6 +69,13 @@ pub use library_history_list::library_history_list;
 pub use select_source_library::__cmd__select_source_library;
 pub use select_source_library::__tauri_command_name_select_source_library;
 pub use select_source_library::select_source_library;
+
+pub use support_report::__cmd__support_report;
+pub use support_report::__cmd__support_report_save;
+pub use support_report::__tauri_command_name_support_report;
+pub use support_report::__tauri_command_name_support_report_save;
+pub use support_report::support_report;
+pub use support_report::support_report_save;
 
 pub use plugin_activation_pending::__cmd__plugin_activation_pending;
 pub use plugin_activation_pending::__tauri_command_name_plugin_activation_pending;

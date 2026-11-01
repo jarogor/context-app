@@ -1315,7 +1315,6 @@
   >
     <NotificationsPanel
       initialEntries={initialNotifications.entries}
-      initialTechnicalVisible={initialNotifications.technicalVisible}
       initialError={initialNotifications.error}
       onUnreadChange={(count) => (unreadCount = count)}
       onClose={toggleNotifications}

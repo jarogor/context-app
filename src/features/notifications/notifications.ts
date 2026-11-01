@@ -36,15 +36,6 @@ export interface NotificationEntry {
 /** Capability базового плагина журнала уведомлений. */
 const JOURNAL_CAPABILITY = 'notifications.journal@1';
 
-/** Capability базового плагина настроек. */
-const SETTINGS_CAPABILITY = 'settings.store@1';
-
-/** Локальный идентификатор секции настроек плагина уведомлений. */
-export const NOTIFICATIONS_SECTION_LOCAL_ID = 'notifications';
-
-/** Локальный идентификатор секции настроек плагина уведомлений. */
-const SETTINGS_SECTION_LOCAL_ID = NOTIFICATIONS_SECTION_LOCAL_ID;
-
 /** Вызов непрозрачной операции базового плагина. */
 async function operation<T>(capability: string, action: string, payload: unknown = {}): Promise<T> {
     const result = await invokeCommand('invoke_base_plugin_operation', {
@@ -97,19 +88,4 @@ export async function clearNotifications(): Promise<void> {
     await operation(JOURNAL_CAPABILITY, 'clear', {});
 }
 
-/** Начальное состояние технического уровня из настроек плагина уведомлений.
- *
- * Возвращает `null`, если секция настроек или значение не найдены: отсутствие
- * настройки не мешает панели уведомлений.
- */
-export async function loadTechnicalVisibleDefault(): Promise<boolean | null> {
-    const data = await operation<{
-        sections?: { id: string; values?: { technical_visible_default?: unknown } }[];
-    }>(SETTINGS_CAPABILITY, 'list', {});
-    const section = data.sections?.find(
-        (item) => item.id.split('.').pop() === SETTINGS_SECTION_LOCAL_ID,
-    );
-    return typeof section?.values?.technical_visible_default === 'boolean'
-        ? section.values.technical_visible_default
-        : null;
-}
+

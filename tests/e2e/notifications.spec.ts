@@ -1,20 +1,16 @@
 import { expect, test } from '@playwright/test';
 
-test('уведомления скрывают технические записи и показывают их по переключателю', async ({
-  page,
-}) => {
+test('лента показывает только события, адресованные пользователю', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Уведомления').click();
 
+  // Лента — про понятные пользователю события: техническая диагностика живёт
+  // в файле для поддержки и в ленту не попадает.
   await expect(page.getByText('Библиотека открыта')).toBeVisible();
   await expect(page.getByText('Плагин пропущен')).toBeHidden();
-
-  await page.getByLabel('Технические').click();
-
-  await expect(page.getByText('Плагин пропущен')).toBeVisible();
-  await expect(page.getByText('Ошибка вызова плагина')).toBeVisible();
-  await expect(page.getByText('WARN')).toBeVisible();
-  await expect(page.getByText('ERROR')).toBeVisible();
+  await expect(page.getByText('Ошибка вызова плагина')).toBeHidden();
+  // Переключателя технических записей больше нет.
+  await expect(page.getByLabel('Технические')).toHaveCount(0);
 });
 
 test('панель уведомлений не выходит за пределы окна', async ({ page }) => {

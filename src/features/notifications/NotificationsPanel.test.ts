@@ -45,16 +45,27 @@ describe('панель уведомлений', () => {
         render(NotificationsPanel, {
             initialEntries: [
                 entry({ id: 1, level: 'User', message: 'Библиотека открыта', read: false }),
-                entry({ id: 2, level: 'Technical', message: 'Плагин пропущен', read: false }),
             ],
-            initialTechnicalVisible: false,
             onUnreadChange,
         });
 
         expect(screen.getByText('Библиотека открыта')).toBeTruthy();
-        expect(screen.queryByText('Плагин пропущен')).toBeNull();
         expect(onUnreadChange).toHaveBeenCalledWith(1);
         expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('не показывает техническую диагностику даже если она попала в журнал', () => {
+        // Технические события живут в файле и поддержке, а не в ленте: человеку
+        // строка «Плагин загружен» ничего не объясняет.
+        render(NotificationsPanel, {
+            initialEntries: [
+                entry({ id: 1, level: 'User', message: 'Библиотека открыта' }),
+                entry({ id: 2, level: 'Technical', message: 'Плагин пропущен' }),
+            ],
+        });
+
+        expect(screen.getByText('Библиотека открыта')).toBeTruthy();
+        expect(screen.queryByText('Плагин пропущен')).toBeNull();
     });
 
     it('красит счётчик непрочитанного акцентом темы, а не отдельным зелёным', () => {
@@ -63,7 +74,6 @@ describe('панель уведомлений', () => {
         // Отдельный «успешный» зелёный одинаков во всех палитрах и резал глаз.
         render(NotificationsPanel, {
             initialEntries: [entry({ id: 1, level: 'User', read: false })],
-            initialTechnicalVisible: false,
             onUnreadChange: vi.fn(),
         });
 
@@ -73,19 +83,9 @@ describe('панель уведомлений', () => {
         expect(badge.className).not.toContain('var(--success)');
     });
 
-    it('показывает технические записи, когда они включены на бутстрапе', () => {
-        render(NotificationsPanel, {
-            initialEntries: [entry({ id: 2, level: 'Technical', message: 'Плагин пропущен' })],
-            initialTechnicalVisible: true,
-        });
-
-        expect(screen.getByText('Плагин пропущен')).toBeTruthy();
-    });
-
     it('добавляет записи, приходящие событием журнала', async () => {
         render(NotificationsPanel, {
             initialEntries: [],
-            initialTechnicalVisible: false,
         });
 
         emitMockEvent(
@@ -96,26 +96,23 @@ describe('панель уведомлений', () => {
         expect(await screen.findByText('Новое событие')).toBeTruthy();
     });
 
-    it('не перезагружает настройки журнала на чужую секцию', async () => {
-        // Дефект: панель смонтирована всегда и на каждое событие settings:changed
-        // заново запрашивала свои настройки — сохранение темы оформления из
-        // настроек задерживало отклик интерфейса.
+    it('не читает настройки на событие другой секции', async () => {
+        // Панель не зависит от настроек: журнал только пользовательский, и
+        // сохранение темы из настроек не должно вызывать запросов журнала.
         invoke.mockResolvedValue({ version: 1, sections: [] });
 
         render(NotificationsPanel, {
             initialEntries: [],
-            initialTechnicalVisible: false,
         });
 
         // Даём панели подписаться на события.
         await new Promise((resolve) => setTimeout(resolve, 10));
+        invoke.mockClear();
 
         emitMockEvent('settings:changed', { section: 'app.general', values: {} });
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        expect(invoke).not.toHaveBeenCalled();
-
-        // Своя секция по-прежнему перечитывается.
         emitMockEvent('settings:changed', { section: 'notifications.notifications', values: {} });
-        await vi.waitFor(() => expect(invoke).toHaveBeenCalled());
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        // Ни одна секция не вызывает запросов: панель живёт без настроек.
+        expect(invoke).not.toHaveBeenCalled();
     });
 });

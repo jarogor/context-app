@@ -40,7 +40,7 @@ test('страница настроек рендерит секции и пол�
   await expect(settings.getByText('Язык интерфейса')).toBeVisible();
   await expect(settings.getByText('Тема оформления')).toBeVisible();
   // Технический порог вынесен в раздел «Система»: в общих настройках его нет.
-  await expect(settings.getByText('Порог технических логов')).toBeHidden();
+  await expect(settings.getByText('Подробность журнала для разбора проблем')).toBeHidden();
 });
 
 test('порядок полей: сперва язык, затем тема, затем остальное', async ({ page }) => {
@@ -55,7 +55,7 @@ test('порядок полей: сперва язык, затем тема, з�
   expect(order[1]).toBe('Тема оформления');
 });
 
-test('технический порог логов живёт в разделе «Система»', async ({ page }) => {
+test('настройка журнала для разбора живёт в разделе «Система»', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
@@ -64,7 +64,7 @@ test('технический порог логов живёт в разделе 
 
   // Раздел не только про обновления: здесь технические настройки, обновления и
   // сведения о приложении.
-  await expect(page.getByText('Порог технических логов')).toBeVisible();
+  await expect(page.getByText('Подробность журнала для разбора проблем')).toBeVisible();
   await expect(page.getByText('Обновления', { exact: true })).toBeVisible();
   await expect(page.getByTestId('app-info-page')).toBeVisible();
 });
