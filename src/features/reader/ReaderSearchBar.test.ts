@@ -42,8 +42,12 @@ describe('панель поиска, планировщик и состояни�
         expect(onStep).toHaveBeenCalledWith(1);
         await fireEvent.keyDown(field, { key: 'Enter', shiftKey: true });
         expect(onStep).toHaveBeenCalledWith(-1);
+
+        // Escape панель сама не ловит: закрытие приходит действием реестра
+        // (`app.dismiss`) через стек слоёв, иначе каждый слой заводил бы свой
+        // обработчик и порядок закрытия решался бы порядком подписки.
         await fireEvent.keyDown(field, { key: 'Escape' });
-        expect(onClose).toHaveBeenCalled();
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it('панель не резервирует место под счётчик без результата', () => {

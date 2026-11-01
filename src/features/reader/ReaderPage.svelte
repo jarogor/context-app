@@ -39,6 +39,8 @@
   import type { QuoteAnchor } from './reader/anchor';
   import { canStepPage, clampPage, pageProgress } from './reader/page-state';
   import { createZoomCoalescer, nextZoom, type ZoomDirection } from './zoom';
+  import { hotkeys } from '../hotkeys';
+  import { pushDismissLayer } from '../hotkeys/dismiss-layer';
 
   interface Props {
     /** Путь к файлу открытой книги (вложение вкладки). */
@@ -191,6 +193,8 @@
         search: (query: string) => { hits: unknown[]; truncated: boolean };
         goToSearchHit: (index: number) => void;
         clearSearch: () => void;
+        scrollScreen: (direction: 1 | -1) => void;
+        scrollToEdge: (edge: 'start' | 'end') => void;
       }
     | undefined = $state();
   /** Область содержимого плагина для перехода к странице и заметке. */
@@ -201,6 +205,7 @@
         noteMenuAction: (noteId: string, action: 'move' | 'resize') => void;
         search: (query: string) => void;
         stepSearch: (delta: 1 | -1) => void;
+        sendCommand: (id: string) => void;
       }
     | undefined = $state();
   /** Незавершённый якорь выделения для создания заметки. */
@@ -295,6 +300,53 @@
       resetSearch();
     }
   }
+
+  /** Регистрация панели поиска слоем закрытия.
+   *
+   * Escape приходит от общего диспетчера действий: панель сообщает о себе, пока
+   * открыта, и закрывается в порядке появления вместе с остальными слоями — без
+   * собственного обработчика клавиши.
+   */
+  $effect(() => {
+    if (!searchOpen) {
+      return;
+    }
+    return pushDismissLayer(() => {
+      searchOpen = false;
+      resetSearch();
+    });
+  });
+
+  /** Регистрация меню создания заметки слоем закрытия. */
+  $effect(() => {
+    if (!pendingAnchor) {
+      return;
+    }
+    return pushDismissLayer(dismissWorkplaceMenu);
+  });
+
+  /** Регистрация контекстного меню заметки слоем закрытия. */
+  $effect(() => {
+    if (!noteMenu) {
+      return;
+    }
+    return pushDismissLayer(closeNoteMenu);
+  });
+
+  /** Регистрация правки текста заметки слоем закрытия. */
+  $effect(() => {
+    if (!pendingTextAnchor && !editingTextNote) {
+      return;
+    }
+    return pushDismissLayer(() => {
+      if (pendingTextAnchor) {
+        pendingTextAnchor = null;
+      }
+      if (editingTextNote) {
+        editingTextNote = null;
+      }
+    });
+  });
 
   /** Планировщик поиска: набор запроса не запускает поиск на каждую букву.
    *
@@ -602,6 +654,121 @@
     toggleSearch();
   }
 
+  /** Есть ли чем выполнять действия чтения (книга открыта и читается). */
+  const readerReady = $derived(reader !== undefined || workplaceContent !== undefined);
+
+  /** Прокрутка содержимого книги по действию клавиатуры.
+   *
+   * У плагина формата прокруткой владеет модуль рисования — ему уходит команда
+   * по протоколу. У встроенного чтения прокручивается документ главы; делается
+   * это здесь, а не обработчиком клавиши, чтобы навигация по книге была одной
+   * точкой и не расходилась между форматами.
+   */
+  function scrollScreen(direction: 1 | -1) {
+    if (workplaceContent) {
+      workplaceContent.sendCommand(direction > 0 ? 'reader.screen.next' : 'reader.screen.prev');
+      return;
+    }
+    reader?.scrollScreen(direction);
+  }
+
+  /** Прокрутка содержимого книги к началу или концу. */
+  function scrollEdge(edge: 'start' | 'end') {
+    if (workplaceContent) {
+      workplaceContent.sendCommand(edge === 'start' ? 'reader.book.start' : 'reader.book.end');
+      return;
+    }
+    reader?.scrollToEdge(edge);
+  }
+
+  /** Действия клавиатуры чтения книги.
+   *
+   * Регистрируются, пока открыта книга: без неё комбинации масштаба, поиска и
+   * прокрутки не перехватываются. Панель поиска и масштаб — те же команды, что и
+   * у кнопок нижней панели, поэтому клавиша и кнопка не расходятся.
+   */
+  const READER_HOTKEYS = {
+    'reader.search': () => {
+      if (!readerReady) {
+        return false;
+      }
+      if (!searchOpen) {
+        toggleSearch();
+      }
+      return true;
+    },
+    'reader.search.next': () => {
+      if (!readerReady) {
+        return false;
+      }
+      if (!searchOpen) {
+        toggleSearch();
+        return true;
+      }
+      stepSearch(1);
+      return true;
+    },
+    'reader.search.prev': () => {
+      if (!readerReady || !searchOpen) {
+        return false;
+      }
+      stepSearch(-1);
+      return true;
+    },
+    'reader.zoom.in': () => {
+      if (!readerReady) {
+        return false;
+      }
+      changeZoom(1);
+      return true;
+    },
+    'reader.zoom.out': () => {
+      if (!readerReady) {
+        return false;
+      }
+      changeZoom(-1);
+      return true;
+    },
+    'reader.screen.next': () => {
+      if (!readerReady) {
+        return false;
+      }
+      scrollScreen(1);
+      return true;
+    },
+    'reader.screen.prev': () => {
+      if (!readerReady) {
+        return false;
+      }
+      scrollScreen(-1);
+      return true;
+    },
+    'reader.book.start': () => {
+      if (!readerReady) {
+        return false;
+      }
+      scrollEdge('start');
+      return true;
+    },
+    'reader.book.end': () => {
+      if (!readerReady) {
+        return false;
+      }
+      scrollEdge('end');
+      return true;
+    },
+  } as const;
+
+  $effect(() => {
+    // Действия чтения доступны, только пока видна сама книга: вкладки остаются
+    // смонтированными, и без этой проверки скрытая книга перехватывала бы
+    // PageDown и Ctrl+F на других разделах.
+    if (!visible) {
+      return;
+    }
+    return hotkeys.register('reader', READER_HOTKEYS);
+  });
+
   /**
    * Публикация снимка нижней панели активной вкладки.
    *
@@ -754,6 +921,7 @@
           onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
           onError={(value) => (error = value)}
           onSearch={handleWorkplaceSearch}
+          onHotkey={(actionId) => hotkeys.handleViewerAction(actionId)}
         />
         {#if noteMenu}
           <NoteMenu

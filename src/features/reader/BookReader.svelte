@@ -66,6 +66,9 @@
     SEARCH_CLASS,
   } from './reader/search-mark';
   import { searchBook, type SearchHit, type SearchResult } from './reader/search';
+  import { comboOfEvent } from '../hotkeys/key-combo';
+  import { hotkeys } from '../hotkeys';
+  import { pushDismissLayer } from '../hotkeys/dismiss-layer';
 
   interface Props {
     /** Содержимое книги главами. */
@@ -239,11 +242,28 @@
     return `left: ${x}px; top: ${y}px;`;
   }
 
+  /** Клавиши внутри документа книги: единственный реестр приложения.
+   *
+   * События клавиатуры из `iframe` не доходят до окна приложения, поэтому книга
+   * пересылает нажатие общему диспетчеру. Собственной навигации по клавишам у
+   * чтения нет: что значит `PageDown` или `Home`, решает реестр, а прокрутку
+   * выполняет документ книги по команде приложения.
+   */
+  function handleReaderKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented) {
+      return;
+    }
+    // Нажатие обрабатывается реестром приложения; собственная прокрутка браузера
+    // для той же клавиши отменяется, иначе страница сдвинулась бы дважды.
+    if (hotkeys.handleViewer(comboOfEvent(event))) {
+      event.preventDefault();
+    }
+  }
+
   /** Документ области отображения или null. */
   function document(): Document | null {
     return frame?.contentDocument ?? null;
   }
-
   /** Раздел главы книги по индексу. */
   function chapterSection(index: number): Element | null {
     return document()?.querySelector(`.${CHAPTER_CLASS}[data-chapter="${index}"]`) ?? null;
@@ -1531,8 +1551,48 @@
     onProgress?.(percent);
   }
 
+  /** Прокрутка книги на экран вверх или вниз (`reader.screen.*`).
+   *
+   * Прокрутка принадлежит документу книги: только он знает высоту области
+   * чтения внутри `iframe`. Клавиша и кнопка передают сюда одно и то же, поэтому
+   * навигация по текстовой книге не расходится.
+   */
+  export function scrollScreen(direction: 1 | -1): void {
+    const value = document();
+    const win = value?.defaultView;
+    if (!win) {
+      return;
+    }
+    win.scrollBy({ top: direction * (win.innerHeight || 0), behavior: 'auto' });
+    if (noteMenu) {
+      noteMenu = null;
+    }
+    if (editing) {
+      cancelEditing();
+    }
+  }
+
+  /** Прокрутка книги к началу или концу (`reader.book.start`/`reader.book.end`). */
+  export function scrollToEdge(edge: 'start' | 'end'): void {
+    const value = document();
+    const win = value?.defaultView;
+    const root = value?.scrollingElement ?? value?.documentElement;
+    if (!win || !root) {
+      return;
+    }
+    const max = Math.max(0, root.scrollHeight - root.clientHeight);
+    win.scrollTo({ top: edge === 'start' ? 0 : max, behavior: 'auto' });
+    if (noteMenu) {
+      noteMenu = null;
+    }
+    if (editing) {
+      cancelEditing();
+    }
+  }
+
   /** Переход к заметке извне (панель заметок). */
   export function goto(note: Note): void {
+
     // Переход к другой заметке — новое взаимодействие: меню и правка снимаются.
     if (noteMenu) {
       noteMenu = null;
@@ -1617,6 +1677,7 @@
     value.addEventListener('mousedown', handleGestureStart);
     value.addEventListener('mousemove', handleGestureMove);
     value.addEventListener('mouseup', handleGestureEnd);
+    value.addEventListener('keydown', handleReaderKeydown);
     value.defaultView?.addEventListener('resize', handleResize);
     applyReaderTheme(readerTheme, value.documentElement);
     applyReaderPalette(palette, value.documentElement);
@@ -1812,17 +1873,14 @@
       }
       dismiss();
     };
-    /** Escape закрывает меню и правку. */
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        dismiss();
-      }
-    };
     window.addEventListener('pointerdown', onPointerDown, true);
-    window.addEventListener('keydown', onKeyDown, true);
+    // Escape приходит от общего диспетчера действий, а не от собственного
+    // обработчика: слой сообщает о себе, пока открыт, и закрывается в порядке
+    // появления — меню заметки уходит раньше поиска, открытого до него.
+    const removeLayer = pushDismissLayer(dismiss);
     return () => {
       window.removeEventListener('pointerdown', onPointerDown, true);
-      window.removeEventListener('keydown', onKeyDown, true);
+      removeLayer();
     };
   });
 

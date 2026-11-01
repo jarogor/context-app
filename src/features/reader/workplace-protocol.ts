@@ -130,6 +130,7 @@ export type ViewerMessage =
   | { type: 'error'; message: string }
   | { type: 'open-external' }
   | { type: 'open-link'; href: string }
+  | { type: 'hotkey'; actionId: string }
   | { type: 'search'; value: WorkplaceSearchResult };
 
 /** Проверка источника и канала сообщения области содержимого. */
@@ -267,6 +268,10 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
     case 'open-link': {
       const href = String((message.value as { href?: unknown } | null)?.href ?? '').trim();
       return href ? { type: 'open-link', href } : null;
+    }
+    case 'hotkey': {
+      const actionId = String((message.value as { id?: unknown } | null)?.id ?? '').trim();
+      return actionId ? { type: 'hotkey', actionId } : null;
     }
     case 'search': {
       const value =

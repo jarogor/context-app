@@ -17,6 +17,7 @@ import {
 import { closeNoteMenu, redrawAllNotes, startMove, startResize, stopEditing } from './note-ops';
 import { noteById } from './notes';
 import { decodeBase64, parseIncoming, post } from './protocol';
+import { isTextEntry, matchBinding, postHotkey } from './hotkeys';
 import {
   layoutPages,
   releasePage,
@@ -219,6 +220,12 @@ async function handleMessage(event: MessageEvent): Promise<void> {
     case 'search-step':
       stepSearch(message.value.delta === -1 ? -1 : 1);
       break;
+    case 'hotkey-bindings':
+      state.bindings = message.value;
+      break;
+    case 'command':
+      runCommand(message.value.id ?? '');
+      break;
   }
 }
 /** Навешивание обработчиков указателя, прокрутки, выделения и размера. */
@@ -250,42 +257,52 @@ function bindEvents(): void {
 }
 
 /**
- * Обработка клавиш навигации по книге.
+ * Пересылка клавиш приложению.
  *
- * `Home`/`End` прокручивают книгу к началу или концу, `PageUp`/`PageDown` —
- * на высоту области чтения (листание экранами). Клавиши сами управляют
- * `scrollTop`, а не полагаются на прокрутку браузера: иначе после ручного
- * перехода к краю следующая клавиша игнорировалась бы. Поля ввода клавиши не
- * перехватывают, чтобы правка номера страницы работала как обычно.
+ * Собственной навигации по клавишам у формата нет: что означает нажатие, решает
+ * единый реестр приложения, поэтому модуль лишь распознаёт привязку по присланным
+ * описаниям и сообщает, какое действие нажато. Поля ввода не перехватываются,
+ * чтобы правка номера страницы работала как обычно.
  */
 function handleKeyDown(event: KeyboardEvent): void {
-  if (!state.doc || event.altKey || event.ctrlKey || event.metaKey) {
+  if (!state.doc || event.defaultPrevented || event.isComposing || isTextEntry(event.target)) {
     return;
   }
-  const target = event.target as HTMLElement | null;
-  if (target && (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName))) {
+  const binding = matchBinding(state.bindings, event);
+  if (!binding) {
     return;
-  }
-  const height = viewer.clientHeight;
-  switch (event.key) {
-    case 'Home':
-      pageToEdge('start');
-      break;
-    case 'End':
-      pageToEdge('end');
-      break;
-    case 'PageUp':
-      viewer.scrollTop = Math.max(0, viewer.scrollTop - height);
-      handleScroll();
-      break;
-    case 'PageDown':
-      viewer.scrollTop = viewer.scrollTop + height;
-      handleScroll();
-      break;
-    default:
-      return;
   }
   event.preventDefault();
+  postHotkey(binding.id);
+}
+
+/** Выполнение команды действия над содержимым книги.
+ *
+ * Приложение уже решило, что нажатие значит; прокрутка принадлежит модулю, потому
+ * что только он знает высоту области чтения и положение страниц. Клавиши сами
+ * управляют `scrollTop`, а не полагаются на прокрутку браузера: иначе после
+ * ручного перехода к краю следующая клавиша игнорировалась бы.
+ */
+function runCommand(id: string): void {
+  if (!state.doc) {
+    return;
+  }
+  switch (id) {
+    case 'reader.screen.next':
+      viewer.scrollTop = viewer.scrollTop + viewer.clientHeight;
+      handleScroll();
+      break;
+    case 'reader.screen.prev':
+      viewer.scrollTop = Math.max(0, viewer.scrollTop - viewer.clientHeight);
+      handleScroll();
+      break;
+    case 'reader.book.start':
+      pageToEdge('start');
+      break;
+    case 'reader.book.end':
+      pageToEdge('end');
+      break;
+  }
 }
 
 /** Начальная загрузка модуля рисования. */

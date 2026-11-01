@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ActionMenu, Button, Input, Select, type MenuAction } from '@context/ui';
   import type { NoteSetSummary } from './notes';
+  import { pushDismissLayer } from '../hotkeys/dismiss-layer';
 
   /**
    * Управление наборами заметок книги.
@@ -37,6 +38,21 @@
 
   /** Черновик имени при переименовании. */
   let renameName = $state('');
+
+  /** Регистрация ввода имени набором закрытия.
+   *
+   * Escape приходит от общего диспетчера действий: ввод сообщает о себе, пока
+   * открыт, и снимается в порядке появления вместе с остальными слоями.
+   */
+  $effect(() => {
+    if (!creating && !renaming) {
+      return;
+    }
+    return pushDismissLayer(() => {
+      creating = false;
+      renaming = false;
+    });
+  });
 
   /** Активный набор среди наборов книги. */
   const activeSet = $derived(sets.find((set) => set.id === activeSetId) ?? null);
@@ -126,9 +142,6 @@
           if (event.key === 'Enter') {
             commitCreate();
           }
-          if (event.key === 'Escape') {
-            creating = false;
-          }
         }}
       />
     </label>
@@ -147,9 +160,6 @@
         onkeydown={(event) => {
           if (event.key === 'Enter') {
             commitRename();
-          }
-          if (event.key === 'Escape') {
-            renaming = false;
           }
         }}
       />

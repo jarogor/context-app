@@ -799,3 +799,22 @@ test('двойной щелчок по слову выделяет слово в
     expect((await selectedText(page)).trim().length).toBeGreaterThan(0);
     await expect(content(page).locator('.selection-layer')).toHaveCount(1);
 });
+
+// Клавиши в книге формата пересылаются в приложение: собственной навигации у
+// плагина нет, распознанная комбинация становится действием единого реестра.
+test('клавиши книги DjVu обрабатывает реестр приложения', async ({ page }) => {
+    await openDjvu(page);
+    await content(page).locator('#viewer').click();
+
+    // Одна страница: прокрутка к концу и к началу не ломает содержимое,
+    // а Ctrl+F открывает общую панель поиска по книге.
+    await page.keyboard.press('End');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Control+f');
+
+    const search = page.getByTestId('reader-search');
+    await expect(search).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(search).toHaveCount(0);
+    await expect(content(page).locator('.page canvas').first()).toBeVisible();
+});

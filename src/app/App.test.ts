@@ -630,3 +630,98 @@ describe('текущее рабочее место остаётся загруж
         await waitFor(() => expect(contentReads()).toBe(2));
     });
 });
+
+describe('комбинации клавиш в оболочке', () => {
+    /** Реестр с одним текущим местом и одной вкладкой книги. */
+    function registryWithTab(): WorkspaceRegistry {
+        return {
+            workspaces: [
+                {
+                    id: 'ws-1',
+                    name: 'Моё место',
+                    createdAtMillis: 0,
+                    tabs: [
+                        {
+                            id: 't1',
+                            path: '/lib/a.epub',
+                            title: 'Книга A',
+                            format: 'epub',
+                            zoom: 100,
+                            position: 0,
+                            mode: 'scroll',
+                        },
+                    ],
+                    activeTabId: 't1',
+                },
+            ],
+            currentWorkspaceId: 'ws-1',
+        };
+    }
+
+    it('Ctrl+2 открывает библиотеку, Ctrl+3 — заметки, Ctrl+1 — рабочее место', async () => {
+        render(App, { props: appProps() });
+
+        await fireEvent.keyDown(window, { key: '2', code: 'Digit2', ctrlKey: true });
+        expect(screen.getByTestId('libraries-page')).toBeTruthy();
+
+        await fireEvent.keyDown(window, { key: '3', code: 'Digit3', ctrlKey: true });
+        expect(screen.getByTestId('notes-library')).toBeTruthy();
+
+        await fireEvent.keyDown(window, { key: '1', code: 'Digit1', ctrlKey: true });
+        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+    });
+
+    it('Ctrl+, открывает настройки, Escape закрывает их', async () => {
+        render(App, { props: appProps() });
+
+        await fireEvent.keyDown(window, { key: ',', code: 'Comma', ctrlKey: true });
+        expect(screen.getByTestId('settings-page')).toBeTruthy();
+
+        await fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+        expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
+    });
+
+    it('комбинация работает на русской раскладке: сравнение идёт по коду клавиши', async () => {
+        render(App, { props: appProps() });
+
+        // Символ «б» на той же физической клавише, что и «,».
+        await fireEvent.keyDown(window, { key: 'б', code: 'Comma', ctrlKey: true });
+        expect(screen.getByTestId('settings-page')).toBeTruthy();
+    });
+
+    it('Escape закрывает настройки и из поля ввода: закрытие слоя разрешено в поле', async () => {
+        render(App, { props: appProps() });
+
+        await fireEvent.click(screen.getByTestId('nav-settings'));
+        const field = document.querySelector('input');
+        expect(field).toBeTruthy();
+        await fireEvent.keyDown(field as HTMLInputElement, { key: 'Escape', code: 'Escape' });
+
+        expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
+    });
+
+    it('Ctrl+B переключает панель открытых книг рабочего места', async () => {
+        render(App, { props: { ...appProps(), initialRegistry: registryWithTab() } });
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        await waitFor(() => expect(screen.getByTestId('workplace-tab-page')).toBeTruthy());
+
+        // Панель закрыта по умолчанию: клавиша открывает её, повторное нажатие — закрывает.
+        expect(screen.queryByTestId('open-books-panel')).toBeNull();
+        await fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true });
+        expect(screen.getByTestId('open-books-panel')).toBeTruthy();
+        await fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true });
+        expect(screen.queryByTestId('open-books-panel')).toBeNull();
+    });
+
+    it('Escape закрывает панель поиска по книге', async () => {
+        render(App, { props: { ...appProps(), initialRegistry: registryWithTab() } });
+        await fireEvent.click(screen.getByTestId('workspace-open'));
+        await waitFor(() => expect(screen.getByTestId('workplace-tab-page')).toBeTruthy());
+
+        await fireEvent.keyDown(window, { key: 'f', code: 'KeyF', ctrlKey: true });
+        expect(screen.getByTestId('reader-search')).toBeTruthy();
+
+        await fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+        expect(screen.queryByTestId('reader-search')).toBeNull();
+    });
+});

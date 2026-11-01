@@ -12,6 +12,7 @@
     type MenuAction,
   } from '@context/ui';
   import { formatDateTime } from '../../shared/format';
+  import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
 
   /** Рабочее место в списке. */
@@ -62,6 +63,19 @@
 
   /** Черновик имени при переименовании. */
   let editingName = $state('');
+
+  /** Регистрация правки имени слоем закрытия: Escape снимает правку, не трогая
+   * раздел. Клавиша приходит от общего диспетчера, поэтому собственного
+   * обработчика `Escape` у поля нет. */
+  $effect(() => {
+    if (editingId === null) {
+      return;
+    }
+    return pushDismissLayer(() => {
+      editingId = null;
+      editingName = '';
+    });
+  });
 
   /** Все пути превью книг рабочих мест. */
   function allPreviewPaths(items: WorkspaceItem[]): string[] {
@@ -311,9 +325,6 @@
                 onkeydown={(event) => {
                   if (event.key === 'Enter') {
                     commitRename();
-                  }
-                  if (event.key === 'Escape') {
-                    editingId = null;
                   }
                 }}
               />

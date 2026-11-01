@@ -7,6 +7,7 @@
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
   import { tabColorFill, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
+  import { hotkeyHint } from '../hotkeys/registry';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -356,7 +357,7 @@
     <Button
       variant={booksOpen ? 'primary' : 'ghost'}
       size="icon"
-      title="Вкладки"
+      title={hotkeyHint('workplace.books', 'Вкладки')}
       ariaLabel="Вкладки"
       ariaPressed={booksOpen}
       onclick={onToggleBooks}
@@ -366,7 +367,7 @@
     <Button
       variant={notesOpen ? 'primary' : 'ghost'}
       size="icon"
-      title="Заметки"
+      title={hotkeyHint('workplace.notes', 'Заметки')}
       ariaLabel="Заметки"
       testId="workplace-notes-toggle"
       ariaPressed={notesOpen}
@@ -386,7 +387,7 @@
         <Icon name="plus" />
       </Button>
     </span>
-    <span class="flex" title={openButtonTitle('Открыть файл с диска')}>
+    <span class="flex" title={openButtonTitle(hotkeyHint('workplace.add.book', 'Открыть файл с диска'))}>
       <Button
         size="icon"
         variant={overLimit ? 'ghost-danger' : 'ghost'}
@@ -502,7 +503,10 @@
       <Button
         variant={focusMode ? 'primary' : 'ghost'}
         size="icon"
-        title={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
+        title={hotkeyHint(
+          'workplace.focus',
+          focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение',
+        )}
         ariaLabel={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
         ariaPressed={focusMode}
         onclick={onToggleFocus}

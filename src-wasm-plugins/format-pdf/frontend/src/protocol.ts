@@ -6,6 +6,7 @@
  * остальных модулей: приложение присылает opaque-данные.
  */
 import type { ViewerNote, ViewerTool } from './types';
+import type { BindingsMessage, CommandMessage } from './hotkeys';
 
 /** Канал сообщений между областью содержимого и модулем рисования. */
 export const CHANNEL = 'context-workplace';
@@ -137,7 +138,9 @@ export type IncomingMessage =
   | ReaderThemeMessage
   | ShowMessage
   | SearchMessage
-  | SearchStepMessage;
+  | SearchStepMessage
+  | BindingsMessage
+  | CommandMessage;
 
 /** Нормализация инструмента создания заметок значениями по умолчанию. */
 export function normalizeTool(value: unknown): ViewerTool {
@@ -204,6 +207,15 @@ export function parseIncoming(data: unknown): IncomingMessage | null {
     case 'search-step': {
       const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as SearchStepMessage['value'];
       return { type: 'search-step', value: { delta: Number(value.delta) || 1 } };
+    }
+    case 'hotkey-bindings':
+      return {
+        type: 'hotkey-bindings',
+        value: Array.isArray(raw.value) ? (raw.value as BindingsMessage['value']) : [],
+      };
+    case 'command': {
+      const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as CommandMessage['value'];
+      return { type: 'command', value: { id: typeof value.id === 'string' ? value.id : '' } };
     }
     default:
       return null;

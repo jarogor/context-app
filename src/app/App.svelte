@@ -65,6 +65,8 @@
   import { normalizeOpenTabsLimit } from '../features/workplace/workplace';
   import { openTabsLimitFromSettingsEvent } from '../features/workplace/open-tabs-limit';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
+  import { hotkeys } from '../features/hotkeys';
+  import { dismissTopLayer } from '../features/hotkeys/dismiss-layer';
   import { NARROW_MAX_WIDTH } from '../shared/breakpoints';
   import { activeLibrary as fetchActiveLibrary } from '../shared/base-plugin';
   import { lastSegment } from '../shared/path';
@@ -449,12 +451,23 @@
     settingsOpen = false;
   }
 
-  /** Обработка Escape: полноэкранный раздел настроек закрывается клавишей. */
-  function handleWindowKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && settingsOpen) {
-      event.preventDefault();
+  /** Закрытие верхнего слоя (действие `Escape`).
+   *
+   * Полноэкранные слои оболочки (настройки, уведомления) закрываются первыми:
+   * они лежат выше всего рабочего места. Остальные слои — поиск, меню заметки,
+   * правка — сообщают о себе стеку закрытия в порядке появления, поэтому
+   * верхним закрывается именно последний открытый.
+   */
+  function dismissTop(): boolean {
+    if (settingsOpen) {
       closeSettings();
+      return true;
     }
+    if (notificationsOpen) {
+      notificationsOpen = false;
+      return true;
+    }
+    return dismissTopLayer();
   }
 
   /** Переключение страницы «Библиотеки».
@@ -1140,7 +1153,6 @@
 
   /** Сообщение об ошибке загрузки или сохранения реестра. */
   let registryError = $state<string | null>(null);
-
   /** Сохранение реестра рабочих мест с небольшой задержкой.
    *
    * Глубокий снимок берётся лениво — уже в момент сохранения, а не на каждое
@@ -1164,9 +1176,55 @@
       registryError = String(error);
     }
   }
-</script>
 
-<svelte:window onkeydown={handleWindowKeydown} />
+  /** Переход к разделу рабочего места клавишей: список мест — точка входа.
+   *
+   * Действие повторяет кнопку раздела в шапке, чтобы клавиша и кнопка не
+   * расходились в поведении.
+   */
+  function hotkeyWorkspaceSection() {
+    toggleWorkspace();
+  }
+
+  /** Смена темы клавишей: тот же цикл, что у кнопки в шапке. */
+  function hotkeyTheme() {
+    cycleTheme();
+  }
+
+  /** Набор обработчиков оболочки для общего диспетчера клавиатуры. */
+  const APP_HOTKEYS = {
+    'app.section.workspace': hotkeyWorkspaceSection,
+    'app.section.library': toggleLibraries,
+    'app.section.notes': toggleNotesLibrary,
+    'app.settings': toggleSettings,
+    'app.notifications': toggleNotifications,
+    'app.theme': hotkeyTheme,
+    'app.dismiss': dismissTop,
+  } as const;
+
+  /** Регистрация клавиш оболочки и единственного слушателя окна.
+   *
+   * Слушатель снимается вместе с оболочкой; обработчики областей рабочего места
+   * и чтения регистрируются там, где живут их действия, — в одном диспетчере.
+   */
+  $effect(() => {
+    const unregister = hotkeys.register('app', APP_HOTKEYS);
+    const onKeyDown = (event: KeyboardEvent) => {
+      hotkeys.handle(event);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      unregister();
+    };
+  });
+
+  /** Модальные окна поверх приложения: пока они открыты, клавиши не меняют то,
+   * что за ними. Настройки и панели слоями не считаются — это разделы. */
+  $effect(() => {
+    hotkeys.setModalOpen(pickerOpen || updateDialogOpen);
+  });
+</script>
 
 <div class="flex h-full flex-col" data-mobile={mobileWindow ? 'true' : 'false'}>
   <!--

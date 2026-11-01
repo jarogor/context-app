@@ -17,6 +17,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
+  import { hotkeys } from '../hotkeys';
   import {
     DEFAULT_READER_FONT,
     DEFAULT_READER_THEME,
@@ -313,6 +314,67 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       onToggleBooks();
     }
   }
+
+  /** Переход к соседней вкладке клавишей: по кругу, как в браузере.
+   *
+   * Замена текущей вкладки — это тот же выбор вкладки, что и щелчком в полосе:
+   * отдельного «горячего» пути к активной вкладке нет, иначе состояние
+   * рабочего места менялось бы двумя способами.
+   */
+  function stepTab(delta: 1 | -1): boolean {
+    const tabs = workspace?.tabs ?? [];
+    if (tabs.length < 2) {
+      return false;
+    }
+    const index = tabs.findIndex((item) => item.id === workspace?.activeTabId);
+    if (index < 0) {
+      return false;
+    }
+    const next = (index + delta + tabs.length) % tabs.length;
+    onSelectTab(tabs[next].id);
+    return true;
+  }
+
+  /** Действия клавиатуры рабочего места, общие для всех вкладок.
+   *
+   * Регистрируются, пока рабочее место смонтировано: пока оно есть в дереве,
+   * его комбинации доступны, и наоборот. Проверка «есть ли сейчас чтение»
+   * остаётся у читалки — она регистрирует свои действия сама.
+   */
+  const WORKPLACE_HOTKEYS = {
+    'workplace.books': () => {
+      if (!tab) {
+        return false;
+      }
+      onToggleBooks();
+    },
+    'workplace.notes': () => {
+      if (!tab) {
+        return false;
+      }
+      onToggleNotes();
+    },
+    'workplace.focus': () => {
+      if (!tab) {
+        return false;
+      }
+      onToggleFocus?.();
+    },
+    'workplace.tab.next': () => stepTab(1),
+    'workplace.tab.prev': () => stepTab(-1),
+    'workplace.add.book': () => {
+      onAddFile();
+    },
+  } as const;
+
+  $effect(() => {
+    // Клавиши рабочего места доступны, только пока показан сам раздел: в
+    // настройках или библиотеке они не должны менять скрытые вкладки.
+    if (!visible) {
+      return;
+    }
+    return hotkeys.register('workplace', WORKPLACE_HOTKEYS);
+  });
 </script>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-area">

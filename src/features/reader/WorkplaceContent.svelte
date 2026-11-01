@@ -21,6 +21,8 @@
     type WorkplaceState,
   } from './workplace-protocol';
   import { DEFAULT_PALETTE, DEFAULT_READER_THEME, readerThemeTokens, type PaletteId, type ReaderThemeId } from '@context/ui';
+  import { viewerBindingsMessage, viewerCommand } from '../hotkeys/viewer-keys';
+  import { hotkeys } from '../hotkeys';
 
   interface Props {
     /** Идентификатор плагина рабочего места. */
@@ -71,6 +73,8 @@
     onError?: (message: string) => void;
     /** Результат поиска по содержимому книги. */
     onSearch?: (result: WorkplaceSearchResult) => void;
+    /** Нажатие привязанной комбинации внутри книги (плагин распознал). */
+    onHotkey?: (actionId: string) => void;
   }
 
   let {
@@ -98,6 +102,7 @@
     onPlaceNote,
     onError,
     onSearch,
+    onHotkey,
   }: Props = $props();
 
   /** Канал сообщений между областью содержимого и приложением. */
@@ -126,7 +131,7 @@
   const readerBackground = $derived(readerThemeTokens(palette, readerTheme).background);
 
   /** Отправка сообщения модулю рисования. */
-  function post(message: Record<string, unknown>) {
+  function post(message: object) {
     frame?.contentWindow?.postMessage({ channel: CHANNEL, ...message }, '*');
   }
 
@@ -197,6 +202,19 @@
     post(buildReaderThemeMessage(palette, readerTheme));
   }
 
+  /** Передача плагину привязок клавиш приложения.
+   *
+   * Плагин живёт в песочнице и не видит реестр приложения, поэтому получает
+   * готовый список сочетаний и только сообщает, какое действие нажато. Правил
+   * сравнения комбинаций у плагина нет — они одни, в приложении.
+   */
+  function sendBindings() {
+    if (!ready) {
+      return;
+    }
+    post(viewerBindingsMessage(hotkeys.viewerBindings()));
+  }
+
   /** Обработка сообщений модуля рисования. */
   function handleMessage(event: MessageEvent) {
     if (!isWorkplaceMessage(event, frame?.contentWindow)) {
@@ -211,6 +229,7 @@
         ready = true;
         sendReaderTheme();
         sendTool();
+        sendBindings();
         sendBookWhenVisible();
         // Поиск, запрошенный до готовности модуля, отправляется теперь: иначе
         // запрос, набранный во время загрузки книги, терялся.
@@ -265,6 +284,9 @@
         break;
       case 'search':
         onSearch?.(message.value);
+        break;
+      case 'hotkey':
+        onHotkey?.(message.actionId);
         break;
     }
   }
@@ -359,6 +381,19 @@
       return;
     }
     post({ type: 'search-step', value: { delta } });
+  }
+
+  /** Команда действия над содержимым книги.
+   *
+   * Прокрутка и переход к краю книги — работа того, кто владеет содержимым: у
+   * страничного формата это модуль рисования. Клавиша и кнопка присылают сюда
+   * одно и то же, поэтому навигация не расходится между форматами.
+   */
+  export function sendCommand(id: string) {
+    if (!ready) {
+      return;
+    }
+    post(viewerCommand(id));
   }</script>
 
 <div class="h-full w-full" data-testid="workplace-content">

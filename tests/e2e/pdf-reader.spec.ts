@@ -2447,3 +2447,40 @@ test('ссылка оглавления в PDF переводит на нужн�
         )
         .toBe(true);
 });
+
+// Клавиши в книге формата пересылаются в приложение: собственной навигации у
+// плагина нет, распознанная комбинация становится действием единого реестра.
+test('клавиши прокрутки страничной книги обрабатывает реестр приложения', async ({ page }) => {
+    await openPdf(page, 6);
+    await expect(page.getByLabel('Текущая страница')).toHaveValue('1');
+
+    // Фокус в книге: событие не доходит до окна приложения и пересылается плагином.
+    await content(page).locator('#viewer').click();
+    await page.keyboard.press('End');
+
+    await expect
+        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), {
+            timeout: 15000,
+        })
+        .toBe('6');
+
+    await page.keyboard.press('Home');
+    await expect
+        .poll(async () => await page.getByLabel('Текущая страница').inputValue(), {
+            timeout: 15000,
+        })
+        .toBe('1');
+});
+
+test('Ctrl+F в страничной книге открывает общую панель поиска', async ({ page }) => {
+    await openPdf(page, 3);
+    await content(page).locator('#viewer').click();
+
+    await page.keyboard.press('Control+f');
+    const search = page.getByTestId('reader-search');
+    await expect(search).toBeVisible();
+    await expect(search.getByRole('textbox')).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(search).toHaveCount(0);
+});

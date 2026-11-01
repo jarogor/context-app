@@ -4,6 +4,7 @@
  * собрано в один объект, чтобы модули могли читать и менять его явно.
  */
 import type { PageColors } from './types';
+import type { ViewerBinding } from './hotkeys';
 import type { PdfDocument } from './engine';
 import { createPageColors } from './theme';
 
@@ -83,6 +84,8 @@ export interface ViewerState {
   lastViewerWidth: number;
   /** Последняя учтённая высота области чтения. */
   lastViewerHeight: number;
+  /** Привязки клавиш, присланные приложением (общий реестр приложения). */
+  bindings: ViewerBinding[];
 }
 
 /** Состояние модуля рисования. */
@@ -107,4 +110,5 @@ export const state: ViewerState = {
   lastRatio: 1,
   lastViewerWidth: 0,
   lastViewerHeight: 0,
+  bindings: [],
 };

@@ -12,6 +12,7 @@
     type ReaderThemeId,
   } from '@context/ui';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
+  import { hotkeyHint } from '../hotkeys/registry';
   import {
     NOTE_COLORS,
     NOTE_COLOR_LABELS,
@@ -411,7 +412,7 @@
         <Button
           size="icon"
           variant="ghost"
-          title="Уменьшить масштаб"
+          title={hotkeyHint('reader.zoom.out', 'Уменьшить масштаб')}
           ariaLabel="Уменьшить масштаб"
           class="size-8"
           disabled={zoom <= minZoom}
@@ -420,7 +421,7 @@
         <Button
           size="icon"
           variant="ghost"
-          title="Увеличить масштаб"
+          title={hotkeyHint('reader.zoom.in', 'Увеличить масштаб')}
           ariaLabel="Увеличить масштаб"
           class="size-8"
           disabled={zoom >= maxZoom}
@@ -442,7 +443,7 @@
         <Button
           size="icon"
           variant={searchOpen ? 'primary' : 'ghost'}
-          title="Поиск по книге"
+          title={hotkeyHint('reader.search', 'Поиск по книге')}
           ariaLabel="Поиск по книге"
           ariaPressed={searchOpen}
           class="size-8"

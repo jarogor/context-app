@@ -101,8 +101,6 @@
         onkeydown={(event) => {
           if (event.key === 'Enter') {
             onStep?.(event.shiftKey ? -1 : 1);
-          } else if (event.key === 'Escape') {
-            onClose?.();
           }
         }}
       />
