@@ -43,12 +43,26 @@ impl AppInfo {
     /// жаргон («каркас», «уровень приложения», «в поставке») наружу не выносятся.
     pub fn build(name: impl Into<String>, version: impl Into<String>, data_root: &Path) -> Self {
         let path_of = |path: &Path| path.to_string_lossy().into_owned();
-        let paths = vec![AppPath {
-            key: "app_data".to_string(),
-            title: "app.settings.appData.title".to_string(),
-            path: path_of(data_root),
-            note: "app.settings.appData.note".to_string(),
-        }];
+        let paths = vec![
+            AppPath {
+                key: "app_data".to_string(),
+                title: "app.settings.appData.title".to_string(),
+                path: path_of(data_root),
+                note: "app.settings.appData.note".to_string(),
+            },
+            // Журнал диагностики — единственный файл, который пользователю
+            // может понадобиться найти самому: он прикладывается к обращению.
+            AppPath {
+                key: "diagnostics".to_string(),
+                title: "app.settings.appData.diagnosticsTitle".to_string(),
+                path: path_of(
+                    &data_root
+                        .join(crate::constants::APP_STATE_DIR_NAME)
+                        .join(crate::plugin::diagnostics::DIAGNOSTICS_FILE_NAME),
+                ),
+                note: "app.settings.appData.diagnosticsNote".to_string(),
+            },
+        ];
         Self {
             name: name.into(),
             version: version.into(),

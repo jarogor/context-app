@@ -5,7 +5,7 @@
 //! действительно могут изменить. Иначе каждое сохранение настроек задерживало
 //! отклик интерфейса.
 
-use super::{capability_changes_activation, payload_changes_log_level};
+use super::capability_changes_activation;
 use crate::plugin::contract::{CAPABILITY_PLUGIN_STORE, CAPABILITY_SETTINGS};
 
 #[test]
@@ -22,31 +22,4 @@ fn активность_перезагружается_только_после_�
     // Настройки активностью не управляют.
     assert!(!capability_changes_activation(CAPABILITY_SETTINGS, "save"));
     assert!(!capability_changes_activation(CAPABILITY_SETTINGS, "set"));
-}
-
-#[test]
-fn порог_логирования_перезапрашивается_только_при_его_изменении() {
-    use serde_json::json;
-
-    // Сохранение темы, палитры или другого поля порог не трогает: перечитывать
-    // его из WASM под общим замком состояния незачем — это задерживало закрытие
-    // раздела настроек.
-    assert!(!payload_changes_log_level(&json!({
-        "sections": [{ "section": "app.general", "values": { "appearance.theme": "dark" } }]
-    })));
-    assert!(!payload_changes_log_level(&json!({
-        "section": "app.general",
-        "values": { "appearance.palette": "cobalt" }
-    })));
-    assert!(!payload_changes_log_level(&json!({ "sections": [] })));
-
-    // Смена порога — перезапрашиваем, иначе новый уровень не применится.
-    assert!(payload_changes_log_level(&json!({
-        "sections": [
-            { "section": "app.general", "values": { "diagnostics.log_level": "trace" } }
-        ]
-    })));
-    assert!(payload_changes_log_level(&json!({
-        "values": { "diagnostics.log_level": "warn" }
-    })));
 }

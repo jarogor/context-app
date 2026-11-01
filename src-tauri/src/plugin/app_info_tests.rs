@@ -10,10 +10,18 @@ fn exposes_single_data_location() {
 
     assert_eq!(info.name, "Контекст");
     assert_eq!(info.version, "0.1.0");
-    // Пользователю показывается одно расположение — каталог данных.
-    assert_eq!(info.paths.len(), 1);
+    // Два расположения: каталог данных и файл журнала, который пользователь
+    // прикладывает к обращению.
+    assert_eq!(info.paths.len(), 2);
     assert_eq!(info.paths[0].key, "app_data");
+    assert_eq!(info.paths[1].key, "diagnostics");
+    assert!(
+        info.paths[1].path.ends_with("diagnostics.log"),
+        "путь журнала ведёт к файлу: {}",
+        info.paths[1].path
+    );
     assert_eq!(info.paths[0].path, "/data/context");
+    assert!(info.paths[1].path.contains("app-state"));
     // Заголовок и пояснение — ключи словаря интерфейса: текст показывается на
     // выбранном языке, а ядро от языка не зависит.
     assert_eq!(info.paths[0].title, "app.settings.appData.title");
@@ -28,8 +36,9 @@ fn name_follows_the_interface_language() {
     info.set_name("Context");
 
     assert_eq!(info.name, "Context");
-    assert_eq!(info.paths.len(), 1);
+    assert_eq!(info.paths.len(), 2);
     assert_eq!(info.paths[0].path, "/data/context");
+    assert!(info.paths[1].path.contains("app-state"));
 }
 
 #[test]

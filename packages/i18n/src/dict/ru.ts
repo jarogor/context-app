@@ -31,7 +31,7 @@ export const ru = {
   'app.settings.updates': 'Система',
 
   'app.notifications': 'Уведомления',
-  'app.notifications.short': 'Лента',
+  'app.notifications.short': 'Уведомления',
   'app.notifications.unread': 'Непрочитанных: {count}',
   'app.notifications.markRead': 'Прочитать',
   'app.notifications.clear': 'Очистить',
@@ -97,6 +97,7 @@ export const ru = {
   'app.settings.spaceNotDeclared': 'пространство не объявлено: {space}',
   'app.settings.schemaVersion': 'Несовместимая версия схемы интерфейса: {version} (поддерживается {supported})',
   'app.settings.dataLocation': 'Расположение данных',
+  'app.settings.openFolder': 'Открыть папку',
   'app.support.title': 'Отчёт для поддержки',
   'app.support.description': 'Если что-то не работает, сохраните отчёт и приложите его к обращению: в нём собрано то, что нужно для разбора — версия, платформа, плагины и журнал событий. Разбираться в отчёте самому не нужно.',
   'app.support.save': 'Сохранить отчёт',
@@ -104,6 +105,8 @@ export const ru = {
   'app.support.saved': 'Отчёт сохранён: {path}',
   'app.settings.appData.title': 'Данные приложения',
   'app.settings.appData.note': 'Настройки, плагины, кеш и обновления',
+  'app.settings.appData.diagnosticsTitle': 'Журнал для разбора проблем',
+  'app.settings.appData.diagnosticsNote': 'Его достаточно приложить к обращению, если что-то не работает',
 
   'app.search.library.placeholder': 'Поиск библиотеки',
   'app.search.books.placeholder': 'Название или автор',

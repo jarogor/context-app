@@ -67,7 +67,6 @@ impl AppHostConfig {
         host.set_catalog_dirs(self.catalog_dirs.clone());
         let _ = host.reset_notifications();
         let _ = host.refresh_settings_registry(&[]);
-        host.refresh_log_level();
         crate::startup::mark("фон: базовые плагины собраны");
         Ok(host)
     }

@@ -139,12 +139,6 @@
   /** Страница раздела настроек. */
   type SettingsSection = 'general' | 'system';
 
-  /**
-   * Секции раздела «Общие»: всё, что задаёт поведение приложения, кроме
-   * технической диагностики. Технические секции собирает раздел «Система»
-   * вместе с обновлениями и сведениями о приложении.
-   */
-  const GENERAL_SECTIONS = ['app.general', 'notifications.notifications'] as const;
 
   /** Открыт ли раздел настроек; состояние принадлежит оболочке. */
   let settingsOpen = $state(false);
@@ -1467,13 +1461,10 @@
               <SettingsPage
                 initialDeclarations={initialSettings.declarations}
                 initialError={initialSettings.error}
-                only={GENERAL_SECTIONS}
               />
             </div>
             <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'system'}>
               <StorePage
-                initialDeclarations={initialSettings.declarations}
-                initialDeclarationsError={initialSettings.error}
                 initialPlugins={initialStore.plugins}
                 initialStores={initialStore.stores}
                 initialPending={initialStore.activationPending}

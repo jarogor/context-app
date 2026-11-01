@@ -31,7 +31,7 @@ export const en: Dictionary = {
   'app.settings.updates': 'System',
 
   'app.notifications': 'Notifications',
-  'app.notifications.short': 'Feed',
+  'app.notifications.short': 'Notifications',
   'app.notifications.unread': 'Unread: {count}',
   'app.notifications.markRead': 'Mark read',
   'app.notifications.clear': 'Clear',
@@ -97,6 +97,7 @@ export const en: Dictionary = {
   'app.settings.spaceNotDeclared': 'space not declared: {space}',
   'app.settings.schemaVersion': 'Incompatible interface schema version: {version} (supported {supported})',
   'app.settings.dataLocation': 'Data location',
+  'app.settings.openFolder': 'Open folder',
   'app.support.title': 'Report for support',
   'app.support.description': 'If something is not working, save a report and attach it to your request: it contains what is needed to investigate — version, platform, plugins and the event log. You do not need to understand the report yourself.',
   'app.support.save': 'Save report',
@@ -104,6 +105,8 @@ export const en: Dictionary = {
   'app.support.saved': 'Report saved: {path}',
   'app.settings.appData.title': 'Application data',
   'app.settings.appData.note': 'Settings, plugins, cache and updates',
+  'app.settings.appData.diagnosticsTitle': 'Log for investigating problems',
+  'app.settings.appData.diagnosticsNote': 'Attach it to your request if something is not working',
 
   'app.search.library.placeholder': 'Library search',
   'app.search.books.placeholder': 'Title or author',

@@ -17,6 +17,18 @@ pub async fn app_info(state: State<'_, Mutex<AppState>>) -> Result<AppInfo, Stri
     Ok(state.app_info())
 }
 
+/// Открытие папки с журналом диагностики системным файловым менеджером.
+///
+/// Пользователю нужно найти файл, чтобы приложить его к обращению; путь в
+/// интерфейсе есть, но набирать его вручную — лишняя работа.
+#[tauri::command]
+pub fn diagnostics_open_folder(state: State<'_, Mutex<AppState>>) -> Result<(), String> {
+    let root = crate::commands::lock_state(state.inner())?
+        .app_state_root()
+        .to_path_buf();
+    open::that(root).map_err(|_| "не удалось открыть папку".to_string())
+}
+
 /// Установка имени приложения на выбранном языке интерфейса.
 ///
 /// Команда асинхронная: она ждёт общий `Mutex<AppState>`, который может быть

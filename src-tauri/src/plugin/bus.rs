@@ -126,9 +126,9 @@ impl EventBus {
     /// не адресованы и ничего ему не объясняют. Они пишутся в файл, из
     /// которого поддержка собирает отчёт, когда что-то не работает.
     ///
-    /// В файл пишется всё, что допускает порог: порог задаёт подробность
-    /// (`info` по умолчанию, `trace` — для разбора сложных случаев), но не
-    /// отменяет запись целиком.
+    /// Записывается всё, что сообщил код: подробность не настраивается, потому
+    /// что решать это — не дело пользователя. Трассу вызовов плагинов пишет
+    /// только явно включённая отладка сборки.
     pub fn publish_technical(
         &self,
         severity: Severity,
@@ -136,9 +136,6 @@ impl EventBus {
         source: impl Into<String>,
         details: serde_json::Value,
     ) {
-        if !severity.allows(log_level()) {
-            return;
-        }
         let message = message.into();
         let source = source.into();
         crate::plugin::diagnostics::record(severity, &message, &source, &details);

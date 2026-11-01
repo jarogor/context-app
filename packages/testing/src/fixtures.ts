@@ -87,38 +87,6 @@ const SETTINGS_FIELDS: Record<
             description: 'app.settings.app.general.window.open_tabs_limit.description',
         },
     ],
-    // Техническая секция приложения: показывается в разделе «Система».
-    'app.system': [
-        {
-            key: 'diagnostics.log_level',
-            title: 'app.settings.app.system.diagnostics.log_level.label',
-            type: 'select',
-            default: 'info',
-            description: 'app.settings.app.system.diagnostics.log_level.description',
-            options: [
-                {
-                    value: 'error',
-                    title: 'app.settings.app.system.diagnostics.log_level.option.error',
-                },
-                {
-                    value: 'warn',
-                    title: 'app.settings.app.system.diagnostics.log_level.option.warn',
-                },
-                {
-                    value: 'info',
-                    title: 'app.settings.app.system.diagnostics.log_level.option.info',
-                },
-                {
-                    value: 'debug',
-                    title: 'app.settings.app.system.diagnostics.log_level.option.debug',
-                },
-                {
-                    value: 'trace',
-                    title: 'app.settings.app.system.diagnostics.log_level.option.trace',
-                },
-            ],
-        },
-    ],
 };
 
 /** Изменяемое состояние настроек в моке: значения переживают интенты. */
@@ -130,9 +98,6 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
         'reader.theme': 'light',
         'reader.font': 'serif',
         'window.open_tabs_limit': 50,
-    },
-    'app.system': {
-        'diagnostics.log_level': 'info',
     },
 };
 
@@ -196,16 +161,8 @@ function settingsSpaces(): unknown[] {
     return Object.entries(SETTINGS_FIELDS).map(([id, fields]) => ({
         space: 'settings.section',
         id,
-        // Заголовок и описание секции — по её идентификатору: техническая
-        // секция показывается в разделе «Система» со своим заголовком.
-        title:
-            id === 'app.system'
-                ? 'app.settings.app.system.title'
-                : 'app.settings.app.general.title',
-        description:
-            id === 'app.system'
-                ? 'app.settings.app.system.description'
-                : 'app.settings.app.general.description',
+        title: 'app.settings.app.general.title',
+        description: 'app.settings.app.general.description',
         nodes: fields.map((field) => {
             const value = SETTINGS_VALUES[id][field.key];
             if (field.type === 'boolean') {
@@ -753,6 +710,7 @@ export function defaultMockConfig(): MockBridgeConfig {
                 content: 'Отчёт «Контекст» для поддержки\n',
             }),
             support_report_save: () => '/tmp/context-report-test.txt',
+            diagnostics_open_folder: () => null,
             app_info: () => ({
                 name: 'Контекст',
                 version: '0.1.0',
@@ -762,6 +720,12 @@ export function defaultMockConfig(): MockBridgeConfig {
                         title: 'app.settings.appData.title',
                         path: '/home/user/.context',
                         note: 'app.settings.appData.note',
+                    },
+                    {
+                        key: 'diagnostics',
+                        title: 'app.settings.appData.diagnosticsTitle',
+                        path: '/home/user/.context/app-state/diagnostics.log',
+                        note: 'app.settings.appData.diagnosticsNote',
                     },
                 ],
             }),

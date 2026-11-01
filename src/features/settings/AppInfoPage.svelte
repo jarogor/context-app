@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Card, ErrorState, Skeleton } from '@context/ui';
+  import { Button, Card, ErrorState, Icon, Skeleton } from '@context/ui';
   import { localize, t } from '@context/i18n';
   import { invokeCommand } from '../../shared/app-bridge';
 
@@ -35,6 +35,15 @@
     }
   }
 
+  /** Открытие папки с журналом диагностики системным файловым менеджером. */
+  async function openDiagnosticsFolder() {
+    try {
+      await invokeCommand('diagnostics_open_folder', {});
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
   onMount(() => {
     void load();
   });
@@ -52,10 +61,25 @@
     <ul class="flex list-none flex-col gap-2 p-0">
       {#each info.paths as path (path.key)}
         <li
-          class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-3"
+          class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] bg-[var(--surface-inset)] p-3"
+          data-testid={`app-path-${path.key}`}
         >
-          <code class="break-all role-mono text-[var(--foreground)]">{path.path}</code>
+          <span class="role-title text-[var(--foreground)]">{localize(path.title)}</span>
+          <code class="break-all role-mono text-[var(--muted-foreground)]">{path.path}</code>
           <span class="role-caption text-[var(--muted-foreground)]">{localize(path.note)}</span>
+          {#if path.key === 'diagnostics'}
+            <!--
+              Журнал — единственный файл, который пользователю нужно найти
+              самому, чтобы приложить к обращению. Путь виден выше, а кнопка
+              избавляет от набора пути вручную.
+            -->
+            <div class="mt-1">
+              <Button variant="secondary" size="sm" onclick={openDiagnosticsFolder}>
+                <Icon name="folder" />
+                {t('app.settings.openFolder')}
+              </Button>
+            </div>
+          {/if}
         </li>
       {/each}
     </ul>

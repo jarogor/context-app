@@ -40,7 +40,7 @@ test('страница настроек рендерит секции и пол�
   await expect(settings.getByText('Язык интерфейса')).toBeVisible();
   await expect(settings.getByText('Тема оформления')).toBeVisible();
   // Технический порог вынесен в раздел «Система»: в общих настройках его нет.
-  await expect(settings.getByText('Подробность журнала для разбора проблем')).toBeHidden();
+  await expect(settings.getByText('Подробность журнала для разбора проблем')).toHaveCount(0);
 });
 
 test('порядок полей: сперва язык, затем тема, затем остальное', async ({ page }) => {
@@ -55,18 +55,32 @@ test('порядок полей: сперва язык, затем тема, з�
   expect(order[1]).toBe('Тема оформления');
 });
 
-test('настройка журнала для разбора живёт в разделе «Система»', async ({ page }) => {
+test('диагностика не имеет настроек в разделе «Система»', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
   await menu.getByRole('button', { name: 'Система' }).click();
 
-  // Раздел не только про обновления: здесь технические настройки, обновления и
-  // сведения о приложении.
-  await expect(page.getByText('Подробность журнала для разбора проблем')).toBeVisible();
+  // Раздел — про обновления и сведения о приложении. Журнал пишется всегда,
+  // поэтому настраивать в нём нечего: решение «что записывать» не для человека.
   await expect(page.getByText('Обновления', { exact: true })).toBeVisible();
   await expect(page.getByTestId('app-info-page')).toBeVisible();
+  await expect(page.getByText('Подробность журнала для разбора проблем')).toHaveCount(0);
+});
+
+test('журнал для разбора находится в сведениях о приложении', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('nav-settings').click();
+  await page.getByRole('navigation', { name: 'Разделы настроек' })
+    .getByRole('button', { name: 'Система' })
+    .click();
+
+  // Пользователю нужно не настраивать журнал, а найти файл, чтобы приложить его
+  // к обращению: путь и кнопка открытия папки стоят в сведениях о приложении.
+  const log = page.getByTestId('app-path-diagnostics');
+  await expect(log).toContainText('diagnostics.log');
+  await expect(log.getByRole('button', { name: 'Открыть папку' })).toBeVisible();
 });
 
 test('секция рисуется группой с линией и отступом содержимого', async ({ page }) => {

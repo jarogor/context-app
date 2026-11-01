@@ -27,20 +27,28 @@ test('отчёт для поддержки собирается и сохран�
   await expect(page.getByTestId('support-report-saved')).toContainText('context-report');
 });
 
-test('в настройках нет технических подробностей, непонятных пользователю', async ({ page }) => {
+test('журнал не настраивается: пользователю нечего в нём решать', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
   await page.getByRole('navigation', { name: 'Разделы настроек' })
     .getByRole('button', { name: 'Система' })
     .click();
 
-  // Настройка называется по смыслу («подробность журнала для разбора проблем»),
-  // а варианты объясняют, когда какой нужен.
-  await expect(page.getByText('Подробность журнала для разбора проблем')).toBeVisible();
-  await expect(page.getByText('Обычный — рекомендуемый')).toBeVisible();
-  // Формулировок «порог», «уровень отладки» и тому подобных больше нет.
+  // Журнал пишется всегда и целиком — настройки подробности нет.
+  await expect(page.getByText('Подробность журнала для разбора проблем')).toHaveCount(0);
   await expect(page.getByText('Порог технических логов')).toHaveCount(0);
   await expect(page.getByText('Отладка и важнее')).toHaveCount(0);
+});
+
+test('в уведомлениях есть только понятные пользователю события', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Уведомления').click();
+
+  // Раздел называется «Уведомления», а не «Лента»: это события приложения,
+  // адресованные человеку.
+  await expect(page.locator('aside').getByText('Уведомления').first()).toBeVisible();
+  await expect(page.getByText('Библиотека открыта')).toBeVisible();
+  await expect(page.getByText('Плагин пропущен')).toHaveCount(0);
 });
 
 test('журнал диагностики не показывается в ленте уведомлений', async ({ page }) => {

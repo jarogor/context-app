@@ -26,6 +26,12 @@ function infoResponse() {
         path: '/data/context',
         note: 'app.settings.appData.note',
       },
+      {
+        key: 'diagnostics',
+        title: 'app.settings.appData.diagnosticsTitle',
+        path: '/data/context/app-state/diagnostics.log',
+        note: 'app.settings.appData.diagnosticsNote',
+      },
     ],
   };
 }

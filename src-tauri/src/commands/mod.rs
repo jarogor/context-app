@@ -33,10 +33,13 @@ pub use active_library::active_library;
 
 pub use app_info::__cmd__app_info;
 pub use app_info::__cmd__app_name_set;
+pub use app_info::__cmd__diagnostics_open_folder;
 pub use app_info::__tauri_command_name_app_info;
 pub use app_info::__tauri_command_name_app_name_set;
+pub use app_info::__tauri_command_name_diagnostics_open_folder;
 pub use app_info::app_info;
 pub use app_info::app_name_set;
+pub use app_info::diagnostics_open_folder;
 
 pub use app_title_set::__cmd__app_title_set;
 pub use app_title_set::__tauri_command_name_app_title_set;

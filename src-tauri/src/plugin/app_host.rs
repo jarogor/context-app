@@ -7,15 +7,12 @@
 use std::path::{Path, PathBuf};
 
 use crate::plugin::contract::{CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS};
-use crate::plugin::{get_bus, set_log_level, PluginError, PluginRuntime, PluginScope, Severity};
+use crate::plugin::{get_bus, PluginError, PluginRuntime, PluginScope, Severity};
 
 /// Декларация собственной секции настроек приложения.
 ///
 /// Схема передаётся базовому плагину настроек как opaque-декларация и не
 /// интерпретируется ядром, кроме собственного ключа приложения.
-/// Полный идентификатор секции технических настроек приложения.
-const APP_SYSTEM_SECTION: &str = "app.system";
-
 const APP_SETTINGS_SCHEMA: &str = r#"{
   "title": "app.settings.app.owner",
   "sections": [
@@ -66,27 +63,6 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "type": "number",
           "description": "app.settings.app.general.window.open_tabs_limit.description",
           "default": 50
-        }
-      ]
-    },
-    {
-      "id": "system",
-      "title": "app.settings.app.system.title",
-      "description": "app.settings.app.system.description",
-      "fields": [
-        {
-          "key": "diagnostics.log_level",
-          "title": "app.settings.app.system.diagnostics.log_level.label",
-          "type": "select",
-          "description": "app.settings.app.system.diagnostics.log_level.description",
-          "default": "info",
-          "options": [
-            { "value": "error", "title": "app.settings.app.system.diagnostics.log_level.option.error" },
-            { "value": "warn", "title": "app.settings.app.system.diagnostics.log_level.option.warn" },
-            { "value": "info", "title": "app.settings.app.system.diagnostics.log_level.option.info" },
-            { "value": "debug", "title": "app.settings.app.system.diagnostics.log_level.option.debug" },
-            { "value": "trace", "title": "app.settings.app.system.diagnostics.log_level.option.trace" }
-          ]
         }
       ]
     }
@@ -288,33 +264,6 @@ impl AppPluginHost {
         self.runtime
             .invoke_capability(CAPABILITY_NOTIFICATIONS, "clear", serde_json::json!({}))?;
         Ok(())
-    }
-
-    /// Порог логирования технических событий из настроек приложения.
-    ///
-    /// При отсутствии провайдера или значения используется `info`.
-    pub fn log_level(&mut self) -> Severity {
-        let Ok(response) = self.runtime.invoke_capability(
-            CAPABILITY_SETTINGS,
-            "get",
-            serde_json::json!({ "section": APP_SYSTEM_SECTION }),
-        ) else {
-            return Severity::Info;
-        };
-        serde_json::from_str::<serde_json::Value>(&response)
-            .ok()
-            .and_then(|value| {
-                value["values"]["diagnostics.log_level"]
-                    .as_str()
-                    .map(str::to_string)
-            })
-            .and_then(|value| Severity::parse(&value))
-            .unwrap_or(Severity::Info)
-    }
-
-    /// Пересчёт текущего порога логирования и его применение к шине событий.
-    pub fn refresh_log_level(&mut self) {
-        set_log_level(self.log_level());
     }
 
     /// Предпочтение темы оформления из настроек приложения.
