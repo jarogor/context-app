@@ -2,6 +2,15 @@
   import type { Snippet } from 'svelte';
   import { cn } from '../utils';
 
+  /**
+   * Пункт бокового меню раздела — та же строка списка, что и `ListRow`.
+   *
+   * Меню навигации не вводит собственного вида: выбранный пункт отмечается
+   * фоном (`--surface-selected`) и акцентным начертанием, наведение — фоном
+   * `--surface-hover`, скругление — общий `--radius`. Контурная полоса слева
+   * раньше выбивалась из остальных списков и делала пункт «квадратным» в
+   * противовес мягким карточкам интерфейса.
+   */
   interface Props {
     /** Выбранный пункт. */
     active?: boolean;
@@ -30,10 +39,10 @@
   aria-current={active ? 'page' : undefined}
   {onclick}
   class={cn(
-    'cursor-pointer border-l-2 px-3 py-2 text-left text-sm transition-colors [font:inherit] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
+    'w-full cursor-pointer rounded-[var(--radius)] px-3 py-2 text-left text-sm transition-colors [font:inherit] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
     active
-      ? 'border-[var(--primary)] bg-[var(--primary-soft)] font-semibold text-[var(--foreground)]'
-      : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',
+      ? 'bg-[var(--surface-selected)] font-semibold text-[var(--foreground)]'
+      : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',
     className,
   )}
 >

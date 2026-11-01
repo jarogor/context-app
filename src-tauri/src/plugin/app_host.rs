@@ -13,6 +13,9 @@ use crate::plugin::{get_bus, set_log_level, PluginError, PluginRuntime, PluginSc
 ///
 /// Схема передаётся базовому плагину настроек как opaque-декларация и не
 /// интерпретируется ядром, кроме собственного ключа приложения.
+/// Полный идентификатор секции технических настроек приложения.
+const APP_SYSTEM_SECTION: &str = "app.system";
+
 const APP_SETTINGS_SCHEMA: &str = r#"{
   "title": "app.settings.app.owner",
   "sections": [
@@ -22,24 +25,14 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
       "description": "app.settings.app.general.description",
       "fields": [
         {
-          "key": "startup.welcome_notification",
-          "title": "app.settings.app.general.startup.welcome_notification.label",
-          "type": "boolean",
-          "description": "app.settings.app.general.startup.welcome_notification.description",
-          "default": true
-        },
-        {
-          "key": "diagnostics.log_level",
-          "title": "app.settings.app.general.diagnostics.log_level.label",
+          "key": "appearance.language",
+          "title": "app.settings.app.general.appearance.language.label",
           "type": "select",
-          "description": "app.settings.app.general.diagnostics.log_level.description",
-          "default": "info",
+          "description": "app.settings.app.general.appearance.language.description",
+          "default": "ru",
           "options": [
-            { "value": "error", "title": "app.settings.app.general.diagnostics.log_level.option.error" },
-            { "value": "warn", "title": "app.settings.app.general.diagnostics.log_level.option.warn" },
-            { "value": "info", "title": "app.settings.app.general.diagnostics.log_level.option.info" },
-            { "value": "debug", "title": "app.settings.app.general.diagnostics.log_level.option.debug" },
-            { "value": "trace", "title": "app.settings.app.general.diagnostics.log_level.option.trace" }
+            { "value": "ru", "title": "app.settings.app.general.appearance.language.option.ru" },
+            { "value": "en", "title": "app.settings.app.general.appearance.language.option.en" }
           ]
         },
         {
@@ -68,22 +61,32 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           ]
         },
         {
-          "key": "appearance.language",
-          "title": "app.settings.app.general.appearance.language.label",
-          "type": "select",
-          "description": "app.settings.app.general.appearance.language.description",
-          "default": "ru",
-          "options": [
-            { "value": "ru", "title": "app.settings.app.general.appearance.language.option.ru" },
-            { "value": "en", "title": "app.settings.app.general.appearance.language.option.en" }
-          ]
-        },
-        {
           "key": "window.open_tabs_limit",
           "title": "app.settings.app.general.window.open_tabs_limit.label",
           "type": "number",
           "description": "app.settings.app.general.window.open_tabs_limit.description",
           "default": 50
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "title": "app.settings.app.system.title",
+      "description": "app.settings.app.system.description",
+      "fields": [
+        {
+          "key": "diagnostics.log_level",
+          "title": "app.settings.app.system.diagnostics.log_level.label",
+          "type": "select",
+          "description": "app.settings.app.system.diagnostics.log_level.description",
+          "default": "info",
+          "options": [
+            { "value": "error", "title": "app.settings.app.system.diagnostics.log_level.option.error" },
+            { "value": "warn", "title": "app.settings.app.system.diagnostics.log_level.option.warn" },
+            { "value": "info", "title": "app.settings.app.system.diagnostics.log_level.option.info" },
+            { "value": "debug", "title": "app.settings.app.system.diagnostics.log_level.option.debug" },
+            { "value": "trace", "title": "app.settings.app.system.diagnostics.log_level.option.trace" }
+          ]
         }
       ]
     }
@@ -285,16 +288,6 @@ impl AppPluginHost {
         Ok(())
     }
 
-    /// Признак необходимости приветственного уведомления при старте.
-    ///
-    /// Значение читается из собственной секции настроек приложения; при
-    /// отсутствии провайдера или значения используется значение по умолчанию
-    /// `true`.
-    pub fn welcome_notification_enabled(&mut self) -> bool {
-        self.app_setting_bool("startup.welcome_notification")
-            .unwrap_or(true)
-    }
-
     /// Порог логирования технических событий из настроек приложения.
     ///
     /// При отсутствии провайдера или значения используется `info`.
@@ -302,7 +295,7 @@ impl AppPluginHost {
         let Ok(response) = self.runtime.invoke_capability(
             CAPABILITY_SETTINGS,
             "get",
-            serde_json::json!({ "section": "app.general" }),
+            serde_json::json!({ "section": APP_SYSTEM_SECTION }),
         ) else {
             return Severity::Info;
         };
@@ -392,12 +385,6 @@ impl AppPluginHost {
             .filter(|value| value.is_finite())
             .map(|value| u32::try_from((value.trunc() as i64).max(1)).unwrap_or(DEFAULT_LIMIT))
             .unwrap_or(DEFAULT_LIMIT)
-    }
-
-    /// Чтение логического значения из секции настроек приложения.
-    fn app_setting_bool(&mut self, key: &str) -> Option<bool> {
-        self.app_setting_value(key)
-            .and_then(|value| value.as_bool())
     }
 
     /// Чтение строкового значения из секции настроек приложения.

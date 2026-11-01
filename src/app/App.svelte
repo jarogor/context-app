@@ -137,7 +137,14 @@
   }: Props = $props();
 
   /** Страница раздела настроек. */
-  type SettingsSection = 'general' | 'updates';
+  type SettingsSection = 'general' | 'system';
+
+  /**
+   * Секции раздела «Общие»: всё, что задаёт поведение приложения, кроме
+   * технической диагностики. Технические секции собирает раздел «Система»
+   * вместе с обновлениями и сведениями о приложении.
+   */
+  const GENERAL_SECTIONS = ['app.general', 'notifications.notifications'] as const;
 
   /** Открыт ли раздел настроек; состояние принадлежит оболочке. */
   let settingsOpen = $state(false);
@@ -392,7 +399,7 @@
   /** Название текущего раздела в верхней панели. */
   const sectionTitle = $derived(
     settingsOpen
-      ? settingsSection === 'updates'
+      ? settingsSection === 'system'
         ? t('app.settings.updates')
         : t('app.settings')
       : librariesOpen
@@ -422,7 +429,7 @@
 
   /** Название текущей страницы настроек для их шапки. */
   const settingsSectionTitle = $derived(
-    settingsSection === 'updates' ? t('app.settings.updates') : t('app.settings.general'),
+    settingsSection === 'system' ? t('app.settings.updates') : t('app.settings.general'),
   );
 
   /** Замечания, показываемые в шапке одним индикатором.
@@ -1440,14 +1447,19 @@
           </Button>
         </header>
         <div class="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
+          <!--
+            Меню разделов — та же карточка, что и секции настроек: мягкое
+            скругление и общий фон, а не контурная полоса сбоку. На узком окне
+            оно становится прокручиваемой строкой сверху.
+          -->
           <Menu
             ariaLabel={t('app.settings.sections')}
-            class="shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--panel)] p-2 max-md:flex-row md:w-[14rem] md:flex-none md:flex-col md:border-r md:border-b-0 md:p-3"
+            class="shrink-0 gap-1 overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 max-md:mx-4 max-md:mt-3 max-md:flex-row md:mx-3 md:my-3 md:w-[13rem] md:flex-none md:flex-col md:self-start"
           >
             <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
               {t('app.settings.general')}
             </MenuItem>
-            <MenuItem active={settingsSection === 'updates'} onclick={() => selectSettingsSection('updates')}>
+            <MenuItem active={settingsSection === 'system'} onclick={() => selectSettingsSection('system')}>
               {t('app.settings.updates')}
             </MenuItem>
           </Menu>
@@ -1456,10 +1468,13 @@
               <SettingsPage
                 initialDeclarations={initialSettings.declarations}
                 initialError={initialSettings.error}
+                only={GENERAL_SECTIONS}
               />
             </div>
-            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'updates'}>
+            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'system'}>
               <StorePage
+                initialDeclarations={initialSettings.declarations}
+                initialDeclarationsError={initialSettings.error}
                 initialPlugins={initialStore.plugins}
                 initialStores={initialStore.stores}
                 initialPending={initialStore.activationPending}

@@ -15,6 +15,8 @@
   } from '@context/ui';
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import AppInfoPage from '../settings/AppInfoPage.svelte';
+  import SettingsPage from '../settings/SettingsPage.svelte';
+  import type { NormalizedDeclaration } from '../settings/settings';
   import {
     addStore as addStoreEntry,
     installPluginFromFile,
@@ -54,6 +56,10 @@
     initialUpdate?: UpdateStatus | null;
     /** Доступные обновления плагинов, найденные оболочкой при проверке. */
     initialPluginUpdates?: PluginUpdate[];
+    /** Декларации настроек, загруженные на бутстрапе (техническая секция). */
+    initialDeclarations?: NormalizedDeclaration[];
+    /** Ошибка загрузки деклараций на бутстрапе. */
+    initialDeclarationsError?: string;
   }
 
   let {
@@ -64,6 +70,8 @@
     initialError,
     initialUpdate = null,
     initialPluginUpdates = [],
+    initialDeclarations = [],
+    initialDeclarationsError = '',
   }: Props = $props();
 
   /** Перечень отключаемых плагинов. */
@@ -390,6 +398,19 @@
 
 <ScrollArea testId="store-page" class="p-4 md:p-6">
   <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-5">
+    <!--
+      Порядок раздела: сперва то, что задаёт поведение системы (технические
+      настройки), затем обновления и в конце — сведения о приложении. Секция
+      технических настроек переиспользует общий рендерер и общее сохранение
+      страницы настроек: своего кода у полей нет.
+    -->
+    <SettingsPage
+      {initialDeclarations}
+      initialError={initialDeclarationsError}
+      only={['app.system']}
+      embedded
+    />
+
     <Card class="p-5">
       <div class="mb-4 flex flex-col gap-0.5">
         <h2 class="role-heading">{t('app.store.title')}</h2>

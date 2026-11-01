@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::shared_runtime::SharedRuntime;
-use crate::plugin::{AppInfo, AppPluginHost, PluginRuntime, PluginScope, PluginSession, Severity};
+use crate::plugin::{AppInfo, AppPluginHost, PluginRuntime, PluginScope, PluginSession};
 
 use super::cover_cache::{CoverCache, CoverData};
 
@@ -68,17 +68,6 @@ impl AppHostConfig {
         let _ = host.reset_notifications();
         let _ = host.refresh_settings_registry(&[]);
         host.refresh_log_level();
-        if host.welcome_notification_enabled() {
-            // Приветствие — пользовательская запись журнала, поэтому её текст
-            // следует выбранному языку интерфейса: ядро читает язык той же
-            // настройкой, что и оболочка.
-            let message = if host.interface_locale() == "en" {
-                "Welcome to «Context»"
-            } else {
-                "Добро пожаловать в «Контекст»"
-            };
-            host.notify_user(Severity::Info, message, "app", serde_json::json!({}));
-        }
         crate::startup::mark("фон: базовые плагины собраны");
         Ok(host)
     }

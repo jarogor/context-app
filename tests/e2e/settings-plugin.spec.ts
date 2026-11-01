@@ -37,8 +37,36 @@ test('страница настроек рендерит секции и пол�
 
   const settings = page.locator('main');
   await expect(settings.getByTestId('settings-group-heading').first()).toBeVisible();
-  await expect(settings.getByText('Приветственное уведомление')).toBeVisible();
-  await expect(settings.getByText('Порог технических логов')).toBeVisible();
+  await expect(settings.getByText('Язык интерфейса')).toBeVisible();
+  await expect(settings.getByText('Тема оформления')).toBeVisible();
+  // Технический порог вынесен в раздел «Система»: в общих настройках его нет.
+  await expect(settings.getByText('Порог технических логов')).toBeHidden();
+});
+
+test('порядок полей: сперва язык, затем тема, затем остальное', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('nav-settings').click();
+
+  // Язык меняет подписи всех остальных полей, поэтому он идёт первым; тема —
+  // второе оформление.
+  const labels = await page.locator('main label:visible').allTextContents();
+  const order = labels.map((text) => text.trim());
+  expect(order[0]).toBe('Язык интерфейса');
+  expect(order[1]).toBe('Тема оформления');
+});
+
+test('технический порог логов живёт в разделе «Система»', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('nav-settings').click();
+
+  const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
+  await menu.getByRole('button', { name: 'Система' }).click();
+
+  // Раздел не только про обновления: здесь технические настройки, обновления и
+  // сведения о приложении.
+  await expect(page.getByText('Порог технических логов')).toBeVisible();
+  await expect(page.getByText('Обновления', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('app-info-page')).toBeVisible();
 });
 
 test('секция рисуется группой с линией и отступом содержимого', async ({ page }) => {
@@ -60,9 +88,13 @@ test('поле раскладывается двумя колонками: на�
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
-  const label = page.locator('main label', { hasText: 'Приветственное уведомление' });
+  const label = page.locator('main label', { hasText: 'Тема оформления' });
   const labelBox = await label.boundingBox();
-  const checkbox = page.locator('main [role="checkbox"]').first();
+  // Контрол поля «Тема оформления» — выпадающий список дизайн-системы.
+  const checkbox = page
+    .locator('main [data-testid="settings-group-body"]')
+    .locator('button')
+    .first();
   const checkboxBox = await checkbox.boundingBox();
   expect(labelBox).not.toBeNull();
   expect(checkboxBox).not.toBeNull();
@@ -88,15 +120,21 @@ test('кнопка сохранения внизу недоступна без �
   await expect(save).toBeDisabled();
 
   // Правка включает кнопку и подсвечивает изменённое поле, возврат — снимает.
-  const checkbox = settings.locator('[role="checkbox"]').first();
-  const label = settings.locator('label[data-changed]').first();
-  await expect(label).toHaveAttribute('data-changed', 'false');
+  const theme = settings
+    .locator('[data-testid="settings-group-body"] button')
+    .nth(1);
+  // Подсветка — у той метки, чьё поле меняется, а не у первой в секции.
+  const label = settings.locator('label[data-changed]', { hasText: 'Тема оформления' });
+  const current = (await theme.textContent())?.trim() ?? '';
+  expect(label).toHaveAttribute('data-changed', 'false');
 
-  await checkbox.click();
+  await theme.click();
+  await page.getByRole('option', { name: current === 'Тёмная' ? 'Светлая' : 'Тёмная' }).click();
   await expect(save).toBeEnabled();
   await expect(label).toHaveAttribute('data-changed', 'true');
 
-  await checkbox.click();
+  await theme.click();
+  await page.getByRole('option', { name: current }).click();
   await expect(save).toBeDisabled();
   await expect(label).toHaveAttribute('data-changed', 'false');
 });
@@ -106,11 +144,9 @@ test('дискретное поле сохраняется по кнопке, а
   await page.getByTestId('nav-settings').click();
 
   const settings = page.getByTestId('settings-page');
-  const checkbox = settings.locator('[role="checkbox"]').first();
-  await expect(checkbox).toBeChecked();
-
-  await checkbox.click();
-  await expect(checkbox).not.toBeChecked();
+  // Поле-список меняется через выбор варианта: только он и сохраняется кнопкой.
+  await settings.locator('[data-testid="settings-group-body"] button').first().click();
+  await page.getByRole('option', { name: 'English' }).click();
 
   // До нажатия сохранения значение ко входу в поле не применяется (кнопка активна).
   await expect(settings.getByRole('button', { name: 'Сохранить' })).toBeEnabled();
@@ -119,12 +155,12 @@ test('дискретное поле сохраняется по кнопке, а
   await expect(settings.getByRole('button', { name: 'Сохранить' })).toBeDisabled();
 });
 
-test('раздел «Обновления» показывает версию и расположение конфигов', async ({ page }) => {
+test('раздел «Система» показывает версию и расположение конфигов', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
-  await menu.getByRole('button', { name: 'Обновления' }).click();
+  await menu.getByRole('button', { name: 'Система' }).click();
 
   await expect(page.getByText('Приложение', { exact: true })).toBeVisible();
   await expect(page.locator('main').getByText('0.1.0', { exact: true }).first()).toBeVisible();
@@ -179,7 +215,7 @@ test('кнопка закрытия доступна с любой страни�
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
   // Закрытие есть на любой странице настроек, а не только на «Общих».
-  await menu.getByRole('button', { name: 'Обновления' }).click();
+  await menu.getByRole('button', { name: 'Система' }).click();
   await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
 
   await menu.getByRole('button', { name: 'Общие' }).click();
@@ -213,11 +249,11 @@ test('поле настроек имеет акцентное название �
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
-  const nameLabel = page.locator('main label', { hasText: 'Приветственное уведомление' });
+  const nameLabel = page.locator('main label', { hasText: 'Тема оформления' });
   const nameFont = await nameLabel.evaluate((el) => getComputedStyle(el).fontSize);
   const nameColor = await nameLabel.evaluate((el) => getComputedStyle(el).color);
 
-  const description = page.locator('main p').filter({ hasText: 'Показывать приветствие' });
+  const description = page.locator('main p').filter({ hasText: 'Светлая или тёмная тема' });
   await expect(description).toBeVisible();
   const descFont = await description.evaluate((el) => getComputedStyle(el).fontSize);
   const descColor = await description.evaluate((el) => getComputedStyle(el).color);

@@ -5,7 +5,7 @@ test('стор показывает перечень плагинов и акт�
   await page.getByLabel('Настройки', { exact: true }).click();
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
-  await menu.getByRole('button', { name: 'Обновления' }).click();
+  await menu.getByRole('button', { name: 'Система' }).click();
 
   const store = page.locator('main');
   await expect(store.getByText('books-source-calibre', { exact: true })).toBeVisible();

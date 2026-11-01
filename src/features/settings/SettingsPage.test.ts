@@ -59,7 +59,7 @@ describe('страница настроек из декларации', () => {
       uiResponse([
         {
           type: 'Checkbox',
-          props: { name: 'flag', label: 'Приветственное уведомление', checked: true },
+          props: { name: 'flag', label: 'Флаг секции', checked: true },
         },
       ]),
     );
@@ -70,7 +70,7 @@ describe('страница настроек из декларации', () => {
       expect(screen.getByText('Общие')).toBeTruthy();
     });
     expect(screen.getByRole('checkbox')).toBeTruthy();
-    expect(screen.getByText('Приветственное уведомление')).toBeTruthy();
+    expect(screen.getByText('Флаг секции')).toBeTruthy();
   });
 
   it('показывает пустое состояние без деклараций', async () => {
@@ -309,5 +309,45 @@ describe('страница настроек из декларации', () => {
     });
     // Правка на месте: ответ сохранения не переписал контрол.
     expect(screen.getByRole('checkbox').getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('показывает только перечисленные секции', async () => {
+    // Раздел «Система» собирает техническую секцию приложения, а «Общие» — все
+    // остальные: фильтр задаёт страница, а не плагин.
+    invoke.mockResolvedValue({
+      version: 1,
+      spaces: [
+        {
+          space: 'settings.section',
+          id: 'app.general',
+          title: 'Общие',
+          nodes: [{ type: 'Text', props: { text: 'общее' } }],
+        },
+        {
+          space: 'settings.section',
+          id: 'app.system',
+          title: 'Система',
+          nodes: [{ type: 'Text', props: { text: 'техническое' } }],
+        },
+      ],
+    });
+
+    render(SettingsPage, { only: ['app.system'] });
+
+    await waitFor(() => expect(screen.getByText('техническое')).toBeTruthy());
+    expect(screen.queryByText('общее')).toBeNull();
+  });
+
+  it('во встроенном режиме не держит постоянную панель сохранения', async () => {
+    invoke.mockResolvedValue(uiResponse([{ type: 'Text', props: { text: 'поле' } }]));
+
+    const { container } = render(SettingsPage, { embedded: true });
+
+    await waitFor(() => expect(screen.getByText('поле')).toBeTruthy());
+    // Внутри чужой страницы панель не висит посреди содержимого: она появляется
+    // только когда есть что сохранять.
+    expect(screen.queryByTestId('settings-footer')).toBeNull();
+    // Собственной прокрутки у встроенного режима нет.
+    expect(container.querySelector('[data-testid="settings-sections"]')).toBeNull();
   });
 });

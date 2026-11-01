@@ -25,26 +25,19 @@ const SETTINGS_FIELDS: Record<
 > = {
     'app.general': [
         {
-            key: 'startup.welcome_notification',
-            title: 'app.settings.app.general.startup.welcome_notification.label',
-            type: 'boolean',
-            default: true,
-            description: 'app.settings.app.general.startup.welcome_notification.description',
-        },
-        {
-            key: 'diagnostics.log_level',
-            title: 'app.settings.app.general.diagnostics.log_level.label',
+            key: 'appearance.language',
+            title: 'app.settings.app.general.appearance.language.label',
             type: 'select',
-            default: 'info',
-            description: 'app.settings.app.general.diagnostics.log_level.description',
+            default: 'ru',
+            description: 'app.settings.app.general.appearance.language.description',
             options: [
                 {
-                    value: 'info',
-                    title: 'app.settings.app.general.diagnostics.log_level.option.info',
+                    value: 'ru',
+                    title: 'app.settings.app.general.appearance.language.option.ru',
                 },
                 {
-                    value: 'trace',
-                    title: 'app.settings.app.general.diagnostics.log_level.option.trace',
+                    value: 'en',
+                    title: 'app.settings.app.general.appearance.language.option.en',
                 },
             ],
         },
@@ -87,23 +80,6 @@ const SETTINGS_FIELDS: Record<
             ],
         },
         {
-            key: 'appearance.language',
-            title: 'app.settings.app.general.appearance.language.label',
-            type: 'select',
-            default: 'ru',
-            description: 'app.settings.app.general.appearance.language.description',
-            options: [
-                {
-                    value: 'ru',
-                    title: 'app.settings.app.general.appearance.language.option.ru',
-                },
-                {
-                    value: 'en',
-                    title: 'app.settings.app.general.appearance.language.option.en',
-                },
-            ],
-        },
-        {
             key: 'window.open_tabs_limit',
             title: 'app.settings.app.general.window.open_tabs_limit.label',
             type: 'number',
@@ -111,19 +87,40 @@ const SETTINGS_FIELDS: Record<
             description: 'app.settings.app.general.window.open_tabs_limit.description',
         },
     ],
+    // Техническая секция приложения: показывается в разделе «Система».
+    'app.system': [
+        {
+            key: 'diagnostics.log_level',
+            title: 'app.settings.app.system.diagnostics.log_level.label',
+            type: 'select',
+            default: 'info',
+            description: 'app.settings.app.system.diagnostics.log_level.description',
+            options: [
+                {
+                    value: 'error',
+                    title: 'app.settings.app.system.diagnostics.log_level.option.error',
+                },
+                {
+                    value: 'info',
+                    title: 'app.settings.app.system.diagnostics.log_level.option.info',
+                },
+            ],
+        },
+    ],
 };
 
 /** Изменяемое состояние настроек в моке: значения переживают интенты. */
 const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
     'app.general': {
-        'startup.welcome_notification': true,
-        'diagnostics.log_level': 'info',
         'appearance.theme': 'system',
         'appearance.palette': 'linen',
         'appearance.language': 'ru',
         'reader.theme': 'light',
         'reader.font': 'serif',
         'window.open_tabs_limit': 50,
+    },
+    'app.system': {
+        'diagnostics.log_level': 'info',
     },
 };
 
@@ -187,8 +184,16 @@ function settingsSpaces(): unknown[] {
     return Object.entries(SETTINGS_FIELDS).map(([id, fields]) => ({
         space: 'settings.section',
         id,
-        title: 'app.settings.app.general.title',
-        description: 'app.settings.app.general.description',
+        // Заголовок и описание секции — по её идентификатору: техническая
+        // секция показывается в разделе «Система» со своим заголовком.
+        title:
+            id === 'app.system'
+                ? 'app.settings.app.system.title'
+                : 'app.settings.app.general.title',
+        description:
+            id === 'app.system'
+                ? 'app.settings.app.system.description'
+                : 'app.settings.app.general.description',
         nodes: fields.map((field) => {
             const value = SETTINGS_VALUES[id][field.key];
             if (field.type === 'boolean') {

@@ -126,10 +126,8 @@ fn refresh_registry_without_provider_is_safe() {
     let mut host =
         AppPluginHost::load(std::slice::from_ref(&dir), dir.join("storage")).expect("загрузка");
     host.refresh_settings_registry(&[]).expect("без провайдера");
-    assert!(
-        host.welcome_notification_enabled(),
-        "приветствие по умолчанию включено"
-    );
+    // Без провайдера настроек порог логов берётся по умолчанию.
+    assert_eq!(host.log_level(), Severity::Info, "порог по умолчанию");
     cleanup(&dir);
 }
 
@@ -614,7 +612,7 @@ fn log_level_reads_setting_and_applies() {
         crate::plugin::contract::CAPABILITY_SETTINGS,
         "set",
         serde_json::json!({
-            "section": "app.general",
+            "section": "app.system",
             "values": { "diagnostics.log_level": "trace" }
         }),
     )
@@ -805,6 +803,91 @@ fn registry_skips_fields_switched_by_reader_buttons() {
         keys.contains(&"appearance.palette"),
         "палитра интерфейса в настройках"
     );
+    // Технический порог логов живёт в собственной секции системы, а не среди
+    // общих параметров: это настройка диагностики, а не поведения приложения.
+    assert!(
+        !keys.contains(&"diagnostics.log_level"),
+        "порог логов вынесен в раздел системы"
+    );
+    cleanup(&storage);
+}
+
+/// Технические настройки живут в отдельной секции `app.system`.
+///
+/// Раздел «Система» собирает всё, что не про порядок работы: обновления,
+/// сведения о приложении и порог технических логов.
+#[test]
+fn system_section_holds_diagnostics() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-system-section");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+
+    let output = host
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
+        .expect("список секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
+    let system_section = parsed["sections"]
+        .as_array()
+        .expect("массив секций")
+        .iter()
+        .find(|section| section["id"] == "app.system")
+        .expect("секция системы");
+    let keys: Vec<&str> = system_section["fields"]
+        .as_array()
+        .expect("поля секции")
+        .iter()
+        .filter_map(|field| field["key"].as_str())
+        .collect();
+    assert!(
+        keys.contains(&"diagnostics.log_level"),
+        "порог логов в разделе системы"
+    );
+    assert_eq!(
+        system_section["values"]["diagnostics.log_level"], "info",
+        "порог логов по умолчанию"
+    );
+    cleanup(&storage);
+}
+
+/// Порядок полей общих настроек: сперва язык, затем тема.
+///
+/// Язык стоит первым, потому что он меняет весь интерфейс, включая названия
+/// остальных полей; тема идёт сразу за ним как второе оформление.
+#[test]
+fn general_fields_start_with_language_and_theme() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-general-field-order");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+
+    let output = host
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
+        .expect("список секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
+    let keys: Vec<&str> = parsed["sections"]
+        .as_array()
+        .expect("массив секций")
+        .iter()
+        .find(|section| section["id"] == "app.general")
+        .expect("секция приложения")["fields"]
+        .as_array()
+        .expect("поля секции")
+        .iter()
+        .filter_map(|field| field["key"].as_str())
+        .collect();
+
+    assert_eq!(
+        keys[0], "appearance.language",
+        "первым идёт выбор языка интерфейса"
+    );
+    assert_eq!(keys[1], "appearance.theme", "затем тема оформления");
     cleanup(&storage);
 }
 
