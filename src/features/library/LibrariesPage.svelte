@@ -13,6 +13,7 @@
     type MetaItem,
   } from '@context/ui';
   import { invokeCommand, listenEvent, openDialog } from '../../shared/app-bridge';
+  import { t } from '@context/i18n';
   import { formatDateTime } from '../../shared/format';
   import { lastSegment } from '../../shared/path';
   import { activeLibrary } from '../../shared/base-plugin';
@@ -89,7 +90,11 @@
     const items: MetaItem[] = [];
     const opened = formatDateTime(entry.addedAtMillis);
     if (opened) {
-      items.push({ icon: 'clock', value: opened, title: `Открыта ${opened}` });
+      items.push({
+        icon: 'clock',
+        value: opened,
+        title: t('app.library.libraries.opened', { date: opened }),
+      });
     }
     if (entry.path) {
       items.push({ icon: 'folder', value: entry.path, title: entry.path });
@@ -100,8 +105,12 @@
   /** Пункты меню действий записи истории. */
   function entryActions(entry: HistoryEntry): MenuAction[] {
     return [
-      { id: 'open', label: 'Открыть', disabled: !entry.available || opening },
-      { id: 'forget', label: 'Убрать из списка', destructive: true },
+      {
+        id: 'open',
+        label: t('app.action.open'),
+        disabled: !entry.available || opening,
+      },
+      { id: 'forget', label: t('app.library.libraries.forget'), destructive: true },
     ];
   }
 
@@ -216,11 +225,11 @@
 <PageShell
   testId="libraries-page"
   loading={loading && entries.length === 0}
-  loadingText="Загрузка…"
+  loadingText={t('app.loading')}
   empty={entries.length === 0}
   emptyIcon="library"
-  emptyTitle="Нет открытых библиотек"
-  emptyText="Откройте директорию с книгами — она появится в списке, и по ней построится каталог."
+  emptyTitle={t('app.library.libraries.empty.title')}
+  emptyText={t('app.library.libraries.empty.description')}
 >
   {#snippet emptyAction()}
     <Button variant="primary" disabled={opening} onclick={pickLibrary}>
@@ -228,15 +237,15 @@
         <Spinner class="h-4 w-4" />
       {/if}
       <Icon name="folder" />
-      Открыть библиотеку
+      {t('app.library.libraries.open')}
     </Button>
   {/snippet}
 
   {#snippet controls()}
     <Input
       bind:value={query}
-      placeholder="Поиск библиотеки"
-      ariaLabel="Поиск библиотеки"
+      placeholder={t('app.search.library.placeholder')}
+      ariaLabel={t('app.search.library.placeholder')}
       icon="search"
       clearable
       class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
@@ -247,7 +256,7 @@
           <Spinner class="h-4 w-4" />
         {/if}
         <Icon name="folder" />
-        Открыть библиотеку
+        {t('app.library.libraries.open')}
       </Button>
     </div>
   {/snippet}
@@ -259,7 +268,7 @@
   {#if opening && progress}
     <div class="flex flex-col gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3">
       <div class="flex items-center justify-between role-caption text-[var(--muted-foreground)]">
-        <span>Индексация библиотеки…</span>
+        <span>{t('app.library.libraries.indexing')}</span>
         <span>{progress.percent}%</span>
       </div>
       <Progress value={progress.percent} />
@@ -277,15 +286,19 @@
     metaItems={metaItems}
     metaTestId="library-meta"
     actions={entryActions}
-    actionsLabel="Действия с библиотекой"
+    actionsLabel={t('app.library.libraries.actionsLabel')}
     onAction={runEntryAction}
   >
     {#snippet titleContent(entry)}
       <span
         class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)]"
         aria-live="polite"
-        title={entry.available ? 'доступна' : 'недоступна'}
-        aria-label={entry.available ? 'доступна' : 'недоступна'}
+        title={entry.available
+          ? t('app.library.libraries.available')
+          : t('app.library.libraries.unavailable')}
+        aria-label={entry.available
+          ? t('app.library.libraries.available')
+          : t('app.library.libraries.unavailable')}
       >
         {#if openingPath === entry.path}
           <Spinner class="h-3.5 w-3.5 text-[var(--primary)]" />
@@ -299,7 +312,7 @@
         {libraryName(entry.path)}
       </strong>
       {#if activePath === entry.path}
-        <Badge variant="default">Текущая</Badge>
+        <Badge variant="default">{t('app.library.libraries.current')}</Badge>
       {/if}
     {/snippet}
 

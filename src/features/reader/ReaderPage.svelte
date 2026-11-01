@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { onMount, untrack } from 'svelte';
   import { Button, EmptyState, ErrorState, Icon, Progress, Spinner } from '@context/ui';
   import BookReader from './BookReader.svelte';
@@ -805,18 +806,22 @@
         data-testid="reader-loading"
       >
         <Spinner />
-        <span>Открытие книги…</span>
+        <span>{t('app.reader.opening')}</span>
       </div>
     {:else if unavailable}
       <div class="mx-auto max-w-[35rem] p-6" data-testid="reader-unavailable">
-        <EmptyState icon="book" title={title} description="Книга недоступна: возможно, файл перемещён или переименован.">
+        <EmptyState
+        icon="book"
+        title={title}
+        description={t('app.reader.unavailable.description')}
+      >
           {#snippet action()}
             <div class="flex flex-wrap justify-center gap-2">
               {#if onRepoint}
-                <Button variant="primary" onclick={onRepoint}>Указать файл</Button>
+                <Button variant="primary" onclick={onRepoint}>{t('app.reader.pointFile')}</Button>
               {/if}
               {#if onRemove}
-                <Button variant="ghost" onclick={onRemove}>Убрать вкладку</Button>
+                <Button variant="ghost" onclick={onRemove}>{t('app.reader.removeTab')}</Button>
               {/if}
             </div>
           {/snippet}
@@ -826,19 +831,19 @@
       <div class="mx-auto max-w-[35rem] p-6">
         <EmptyState
           icon="book"
-          title="Формат не поддерживается"
-          description="Формат этой книги пока не поддерживается встроенным чтением."
+          title={t('app.reader.formatUnsupported.title')}
+          description={t('app.reader.formatUnsupported.description')}
         >
           {#snippet action()}
-            <Button variant="secondary" onclick={openFile}>Открыть</Button>
+            <Button variant="secondary" onclick={openFile}>{t('app.reader.open')}</Button>
           {/snippet}
         </EmptyState>
       </div>
     {:else if error}
       <div class="mx-auto max-w-[35rem] p-6 text-center" data-testid="reader-error">
-        <ErrorState message={`Не удалось открыть книгу: ${error}`} />
+        <ErrorState message={t('app.reader.openFailed', { error })} />
         {#if onRemove}
-          <Button variant="ghost" class="mt-3" onclick={onRemove}>Убрать вкладку</Button>
+          <Button variant="ghost" class="mt-3" onclick={onRemove}>{t('app.reader.removeTab')}</Button>
         {/if}
       </div>
     {:else if workplace}
@@ -941,12 +946,12 @@
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >
-            <NoteColorMenu labelPrefix="Создать заметку" onpick={confirmWorkplaceQuote} />
+            <NoteColorMenu labelPrefix={t('app.reader.note.createPrefix')} onpick={confirmWorkplaceQuote} />
             <Button
               variant="ghost"
               size="icon"
-              title="Отмена"
-              ariaLabel="Отмена"
+              title={t('app.reader.cancel')}
+              ariaLabel={t('app.reader.cancel')}
               onclick={dismissWorkplaceMenu}
             >
               <Icon name="close" />

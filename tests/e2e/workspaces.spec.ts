@@ -185,7 +185,8 @@ test('числа книг и вкладок совпадают, когда кн�
 
     const meta = page.getByTestId('workspace-meta');
     await expect(meta.getByTestId('workspace-book-count')).toContainText('1 книга');
-    await expect(meta.getByTestId('workspace-tab-count')).toContainText('2 вкладок');
+    // Русское склонение: 2 вкладки (форма 2–4), а не «вкладок».
+    await expect(meta.getByTestId('workspace-tab-count')).toContainText('2 вкладки');
     // Обложка показана один раз — по книге, а не по вкладке.
     await expect(page.getByTestId('workspace-covers').locator('img')).toHaveCount(1);
     await expect(page.getByTestId('workspace-covers-more')).toHaveCount(0);

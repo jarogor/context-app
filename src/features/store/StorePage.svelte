@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { onMount, untrack } from 'svelte';
   import {
     Badge,
@@ -191,11 +192,11 @@
       try {
         return new URL(location).host;
       } catch {
-        return 'Обновления';
+        return t('app.store.updatesFor');
       }
     }
     const parts = location.replace(/[\\/]+$/, '').split(/[\\/]/);
-    return parts[parts.length - 1] || 'Обновления';
+    return parts[parts.length - 1] || t('app.store.updatesFor');
   }
 
   /** Уникальный ключ нового места обновления. */
@@ -259,20 +260,20 @@
   async function checkUpdates() {
     await asyncState.run(async () => {
       if (!updateStatus?.config.source) {
-        updateMessage = 'Сначала добавьте ссылку или папку с обновлениями';
+        updateMessage = t('app.store.addSourceFirst');
         return;
       }
       const result = await checkCoreUpdate();
       availableCore = result.core;
       pluginUpdates = await listPluginUpdates().catch(() => []);
       if (result.core) {
-        updateMessage = `Доступна новая версия ${result.core.version}`;
+        updateMessage = t('app.store.newVersion', { version: result.core.version });
       } else if (pluginUpdates.length > 0) {
-        updateMessage = 'Доступны обновления плагинов';
+        updateMessage = t('app.store.pluginsAvailable');
       } else if (result.errors.length > 0) {
-        updateMessage = 'Не удалось проверить обновления. Проверьте подключение.';
+        updateMessage = t('app.store.checkFailed');
       } else {
-        updateMessage = 'Обновлений нет';
+        updateMessage = t('app.store.noUpdates');
       }
     });
   }
@@ -282,7 +283,7 @@
     await asyncState.run(async () => {
       const outcome = await applyCoreUpdate();
       coreReady = true;
-      updateMessage = `Версия ${outcome.version} установлена. Перезапустите приложение.`;
+      updateMessage = t('app.store.installed', { version: outcome.version });
     });
   }
 
@@ -335,7 +336,7 @@
         const selected = await openDialog({
           multiple: false,
           directory: false,
-          filters: [{ name: 'Плагин', extensions: ['zip'] }],
+          filters: [{ name: t('app.store.pluginFilter'), extensions: ['zip'] }],
         });
         const path = Array.isArray(selected) ? selected[0] : selected;
         if (typeof path !== 'string' || !path) {
@@ -391,15 +392,15 @@
   <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-5">
     <Card class="p-5">
       <div class="mb-4 flex flex-col gap-0.5">
-        <h2 class="role-heading">Обновления</h2>
+        <h2 class="role-heading">{t('app.store.title')}</h2>
         <span class="role-caption text-[var(--muted-foreground)]"
-          >Проверка и установка новых версий приложения и плагинов</span
+          >{t('app.store.description')}</span
         >
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
         <div class="flex flex-wrap items-center gap-2">
-          <span class="role-title">Приложение</span>
+          <span class="role-title">{t('app.update.application')}</span>
           {#if updateStatus}
             <Badge variant="outline">{updateStatus.current_version}</Badge>
           {/if}
@@ -407,11 +408,11 @@
             <span class="role-caption text-[var(--muted-foreground)]">→</span>
             <Badge variant="outline">{availableCore.version}</Badge>
             {#if !coreReady}
-              <Button variant="primary" size="sm" onclick={applyCore}>Обновить</Button>
+              <Button variant="primary" size="sm" onclick={applyCore}>{t('app.store.update')}</Button>
             {/if}
           {/if}
           {#if coreReady}
-            <Button variant="primary" size="sm" onclick={restartCore}>Перезапустить</Button>
+            <Button variant="primary" size="sm" onclick={restartCore}>{t('app.update.restart')}</Button>
           {/if}
         </div>
       </div>
@@ -426,9 +427,9 @@
             checked={checkOnStartup}
             onchange={(event) => toggleCheckOnStartup(event.currentTarget.checked)}
           />
-          <span class="role-body">Проверка при запуске</span>
+          <span class="role-body">{t('app.store.checkOnStartup')}</span>
         </label>
-        <Button variant="secondary" onclick={checkUpdates}>Проверить обновления</Button>
+        <Button variant="secondary" onclick={checkUpdates}>{t('app.store.check')}</Button>
       </div>
 
       {#if updateMessage}
@@ -436,7 +437,7 @@
       {/if}
 
       <div class="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4">
-        <span class="role-title">Источники обновлений</span>
+        <span class="role-title">{t('app.store.sources')}</span>
         {#if stores.length > 0}
           <ul class="flex list-none flex-col gap-2 p-0">
             {#each stores as store (store.id)}
@@ -449,8 +450,8 @@
                 {#if !isCurrentAppSource(store)}
                   <IconButton
                     action="delete"
-                    title="Убрать"
-                    ariaLabel="Убрать"
+                    title={t('app.store.removeSource')}
+                    ariaLabel={t('app.store.removeSource')}
                     onclick={() => removeStore(store.id)}
                   />
                 {/if}
@@ -469,28 +470,28 @@
               }
             }}
           />
-          <Button variant="primary" onclick={() => addSource(addLocation)}>Добавить</Button>
-          <Button variant="secondary" onclick={chooseFolder}>Выбрать папку</Button>
+          <Button variant="primary" onclick={() => addSource(addLocation)}>{t('app.store.add')}</Button>
+          <Button variant="secondary" onclick={chooseFolder}>{t('app.store.chooseFolder')}</Button>
         </div>
       </div>
 
       <div class="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <span class="role-title">Установленные плагины</span>
+          <span class="role-title">{t('app.store.installedPlugins')}</span>
           <div class="flex flex-wrap gap-2">
             {#if pluginUpdates.length > 1}
               <Button variant="secondary" size="sm" onclick={updateAllPlugins}>
-                Обновить все
+                {t('app.store.updateAll')}
               </Button>
             {/if}
             <Button variant="secondary" size="sm" disabled={installing} onclick={installFromFile}>
               <Icon name="plus" />
-              Установить из файла
+              {t('app.store.installFromFile')}
             </Button>
           </div>
         </div>
         {#if plugins.length === 0}
-          <div class="p-4 text-center role-body text-[var(--muted-foreground)]">Нет плагинов</div>
+          <div class="p-4 text-center role-body text-[var(--muted-foreground)]">{t('app.store.noPlugins')}</div>
         {:else}
           <ul class="flex list-none flex-col gap-2 p-0" data-testid="store-plugins">
             {#each plugins as plugin (plugin.id)}
@@ -518,7 +519,7 @@
                       {plugin.version || '—'} → {update.package.version || '—'}
                     </Badge>
                     <Button variant="primary" size="sm" onclick={() => updatePlugin(update)}>
-                      Обновить
+                      {t('app.store.update')}
                     </Button>
                   {:else if plugin.version}
                     <Badge variant="outline">{plugin.version}</Badge>
@@ -526,8 +527,8 @@
                   {#if plugin.removable}
                     <IconButton
                       action="delete"
-                      title="Удалить плагин"
-                      ariaLabel="Удалить плагин"
+                      title={t('app.store.deletePlugin')}
+                      ariaLabel={t('app.store.deletePlugin')}
                       onclick={() => uninstall(plugin.id)}
                     />
                   {/if}

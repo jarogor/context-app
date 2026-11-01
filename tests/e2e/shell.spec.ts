@@ -21,7 +21,8 @@ test('знак приложения — буква названия на пла�
     await expect(mark).toHaveClass(/bg-\[var\(--primary\)\]/);
     await expect(mark).toHaveClass(/text-\[var\(--primary-foreground\)\]/);
     await expect(mark).toHaveText('К');
-    // Настоящее имя остаётся доступным именем для экранных дикторов.
+    // Настоящее имя остаётся доступным именем для экранных дикторов и следует
+    // языку интерфейса; буква на знаке при этом не переводится.
     await expect(name).toHaveAttribute('aria-label', 'Контекст');
 });
 

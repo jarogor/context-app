@@ -10,6 +10,7 @@
  * файле указатель не восстанавливается, потому что скрытая «активность» путает.
  */
 
+import { t } from '@context/i18n';
 import {
   type BookRef,
   type WorkspaceState,
@@ -40,8 +41,10 @@ export interface WorkspaceRegistry {
   currentWorkspaceId: string | null;
 }
 
-/** Имя рабочего места, создаваемого с пустым именем. */
-export const DEFAULT_WORKSPACE_NAME = 'Рабочее место';
+/** Имя рабочего места, создаваемого с пустым именем, на активном языке. */
+export function defaultWorkspaceName(): string {
+  return t('app.workspace.defaultName');
+}
 
 /** Счётчик для уникальности идентификаторов в пределах сеанса. */
 let sequence = 0;
@@ -77,7 +80,7 @@ export function normalizeRegistry(value: unknown): WorkspaceRegistry {
       const tabs = normalizeWorkspace({ tabs: entry.tabs, activeTabId: entry.active_tab_id });
       return {
         id,
-        name: String(entry.name ?? '').trim() || DEFAULT_WORKSPACE_NAME,
+        name: String(entry.name ?? '').trim() || defaultWorkspaceName(),
         createdAtMillis:
           Number.isFinite(Number(entry.created_at_millis)) &&
           Number(entry.created_at_millis) >= 0
@@ -111,7 +114,7 @@ export function addWorkspace(
 ): WorkspaceRegistry {
   const workspace: WorkspaceRecord = {
     id,
-    name: name.trim() || DEFAULT_WORKSPACE_NAME,
+    name: name.trim() || defaultWorkspaceName(),
     createdAtMillis,
     tabs: [],
     activeTabId: null,

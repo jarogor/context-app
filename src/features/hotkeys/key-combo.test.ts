@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { t } from '@context/i18n';
 
 import {
     comboId,
@@ -101,6 +102,6 @@ describe('показ комбинации', () => {
         expect(formatCombo(parseCombo('Ctrl+,'))).toBe('Ctrl+,');
         expect(formatCombo(parseCombo('Escape'))).toBe('Escape');
         expect(formatCombo(parseCombo('PageDown'))).toBe('Page Down');
-        expect(formatCombo(parseCombo('Space'))).toBe('Пробел');
+        expect(formatCombo(parseCombo('Space'))).toBe(t('app.hotkey.space'));
     });
 });

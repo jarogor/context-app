@@ -20,6 +20,7 @@ use crate::constants::{
     resolve_app_data_root, resolve_app_state_root, resolve_user_plugins_root, resolve_webview_root,
     APP_DISPLAY_NAME, BASE_PLUGINS_DIR_NAME, PLUGINS_DIR_NAME,
 };
+
 use crate::plugin::{AppHostConfig, AppInfo, AppState, PluginSession, ReaderConfig};
 
 /// Точка входа Tauri-приложения и generic plugin host.
@@ -141,6 +142,7 @@ pub fn run() {
             commands::invoke_plugin_operation,
             commands::invoke_base_plugin_operation,
             commands::app_info,
+            commands::app_name_set,
             commands::select_source_library,
             commands::active_library,
             commands::library_history_list,
@@ -150,6 +152,8 @@ pub fn run() {
             commands::plugin_activation_pending,
             commands::theme_preference,
             commands::theme_palette,
+            commands::interface_locale,
+            commands::app_title_set,
             commands::reader_theme,
             commands::reader_font,
             commands::reader_open_link,

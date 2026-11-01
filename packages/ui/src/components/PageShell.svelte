@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { t } from '@context/i18n';
   import type { IconName } from './Icon.svelte';
   import ScrollArea from './ScrollArea.svelte';
   import EmptyState from './EmptyState.svelte';
@@ -85,7 +86,7 @@
     loadingContent,
     errorContent,
     emptyContent,
-    loadingText = 'Загрузка…',
+    loadingText,
     emptyText = '',
     loadingTestId,
     errorTestId,
@@ -106,7 +107,7 @@
       <Skeleton rows={4} testId={loadingTestId} />
       {#if loadingText}
         <p class="mt-2 role-caption text-[var(--muted-foreground)]" aria-hidden="true">
-          {loadingText}
+          {loadingText ?? t('app.loading')}
         </p>
       {/if}
     {/if}

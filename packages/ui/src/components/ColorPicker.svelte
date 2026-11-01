@@ -30,10 +30,12 @@
     class?: string;
   }
 
+  import { t } from '@context/i18n';
+
   let {
     colors,
     onpick,
-    ariaLabel = 'Цвет',
+    ariaLabel,
     testIdPrefix = 'color',
     size = 'md',
     class: className = '',
@@ -83,7 +85,7 @@
   )}
   style="width: {pickerWidth}px"
   role="group"
-  aria-label={ariaLabel}
+  aria-label={ariaLabel ?? t('app.color.label')}
   data-testid={`${testIdPrefix}-picker`}
 >
   {#each colors as color (color.id)}

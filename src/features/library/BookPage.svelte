@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Badge, BookCover, Button, ErrorState, Icon } from '@context/ui';
+  import { t } from '@context/i18n';
   import type { BookFormatInfo, BookWithCover } from './library';
 
   interface Props {
@@ -41,6 +42,12 @@
   /** Теги одной строкой. */
   const tags = $derived(book.tags.map((tag) => tag.name).join(', '));
 
+  /** Строки дополнительных сведений с переведёнными подписями. */
+  const detailRows = $derived([
+    { label: t('app.library.book.series'), value: series },
+    { label: t('app.library.book.tags'), value: tags },
+  ]);
+
 </script>
 
 <div class="@container flex min-h-0 min-w-0 flex-1 flex-col" data-testid="book-page">
@@ -51,9 +58,9 @@
   <header
     class="flex flex-none items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-2.5 md:px-6"
   >
-    <Button variant="ghost" size="sm" ariaLabel="К списку книг" onclick={onClose}>
+    <Button variant="ghost" size="sm" ariaLabel={t('app.library.book.back')} onclick={onClose}>
       <Icon name="chevron-left" />
-      К списку книг
+      {t('app.library.book.back')}
     </Button>
   </header>
 
@@ -67,7 +74,7 @@
         class="flex-none border-b border-[var(--warning)] bg-[var(--card)] px-4 py-2.5 role-body md:px-6"
         data-testid="book-unsupported"
       >
-        Формат не поддерживается.
+        {t('app.library.book.formatUnsupported')}
       </div>
     {/if}
 
@@ -112,7 +119,7 @@
                     testId="book-read-{entry.format}"
                     onclick={() => onAdd(entry.format)}
                   >
-                    Читать
+                    {t('app.library.book.read')}
                   </Button>
                 {/if}
                 <Button
@@ -122,7 +129,9 @@
                   testId="book-open-{entry.format}"
                   onclick={() => onOpen(entry.format)}
                 >
-                  {openingFormat === entry.format ? 'Открытие…' : 'Открыть'}
+                  {openingFormat === entry.format
+                    ? t('app.library.book.opening')
+                    : t('app.action.open')}
                 </Button>
               </div>
             {/each}
@@ -132,7 +141,7 @@
         <dl
           class="flex flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]"
         >
-          {#each [{ label: 'Серия', value: series }, { label: 'Теги', value: tags }] as row (row.label)}
+          {#each detailRows as row (row.label)}
             {#if row.value}
               <div
                 class="flex flex-col gap-1 border-b border-[var(--border)] px-4 py-3 last:border-b-0 sm:flex-row sm:gap-4"
@@ -146,7 +155,7 @@
           {/each}
           {#if !series && !tags}
             <div class="px-4 py-3 role-body text-[var(--muted-foreground)]">
-              Дополнительных сведений о книге нет.
+              {t('app.library.book.noDetails')}
             </div>
           {/if}
         </dl>

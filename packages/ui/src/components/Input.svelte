@@ -3,6 +3,7 @@
 </script>
 
 <script lang="ts">
+  import { t } from '@context/i18n';
   import Icon from './Icon.svelte';
   import { cn } from '../utils';
 
@@ -94,8 +95,8 @@
     {#if clearable && value}
       <button
         type="button"
-        aria-label="Очистить поиск"
-        title="Очистить"
+        aria-label={t('app.search.clear')}
+        title={t('app.search.clearTitle')}
         class="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--radius)] hover:bg-[var(--surface-hover)]"
         onclick={clear}
       >
@@ -122,8 +123,8 @@
     {#if clearable && value}
       <button
         type="button"
-        aria-label="Очистить поиск"
-        title="Очистить"
+        aria-label={t('app.search.clear')}
+        title={t('app.search.clearTitle')}
         class="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--radius)] hover:bg-[var(--surface-hover)]"
         onclick={clear}
       >

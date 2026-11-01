@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Button, Icon, readerOverlayTokens, type PaletteId, type ReaderThemeId } from '@context/ui';
+  import { t } from '@context/i18n';
 
   /** Меню сноски книги, общее для областей текучего чтения.
    *
@@ -89,8 +90,8 @@
       variant="secondary"
       size="icon"
       class={actionClass}
-      title="Перейти к сноске"
-      ariaLabel="Перейти к сноске"
+      title={t('app.reader.footnote.goto')}
+      ariaLabel={t('app.reader.footnote.goto')}
       testId="footnote-goto"
       onclick={onGoto}
     >
@@ -100,8 +101,8 @@
       variant="ghost"
       size="icon"
       class={actionClass}
-      title="Закрыть"
-      ariaLabel="Закрыть"
+      title={t('app.modal.close')}
+      ariaLabel={t('app.modal.close')}
       onclick={onClose}
     >
       <Icon name="close" />

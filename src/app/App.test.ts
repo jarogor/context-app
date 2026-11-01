@@ -53,6 +53,7 @@ function appProps(sets: Array<Record<string, unknown>> = []) {
             palette: DEFAULT_PALETTE,
             readerTheme: 'light' as const,
             readerFont: 'serif' as const,
+            locale: 'ru' as const,
         },
         initialSettings: { declarations: [], error: '' },
         initialNotifications: { entries: [], technicalVisible: false, error: '' },
@@ -657,6 +658,32 @@ describe('комбинации клавиш в оболочке', () => {
             currentWorkspaceId: 'ws-1',
         };
     }
+
+    it('смена языка в настройках переводит интерфейс без перезапуска', async () => {
+        render(App, { props: appProps() });
+        expect(screen.getByTestId('nav-workspace').getAttribute('aria-label')).toBe(
+            'Рабочее место',
+        );
+
+        // Событие приходит так же, как от плагина настроек после сохранения
+        // поля «Язык интерфейса»: без перезапуска весь интерфейс берёт другой
+        // словарь, а не только открытая страница.
+        await waitFor(() => expect(settingsChanged).toBeTypeOf('function'));
+        settingsChanged?.({ section: 'app.general', values: { 'appearance.language': 'en' } });
+        await waitFor(() =>
+            expect(screen.getByTestId('nav-workspace').getAttribute('aria-label')).toBe(
+                'Workspace',
+            ),
+        );
+        expect(document.documentElement.lang).toBe('en');
+
+        settingsChanged?.({ section: 'app.general', values: { 'appearance.language': 'ru' } });
+        await waitFor(() =>
+            expect(screen.getByTestId('nav-workspace').getAttribute('aria-label')).toBe(
+                'Рабочее место',
+            ),
+        );
+    });
 
     it('Ctrl+2 открывает библиотеку, Ctrl+3 — заметки, Ctrl+1 — рабочее место', async () => {
         render(App, { props: appProps() });

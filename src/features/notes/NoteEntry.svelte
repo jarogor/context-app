@@ -2,7 +2,7 @@
   import { Badge, RowActions } from '@context/ui';
   import type { Snippet } from 'svelte';
   import { formatDateTime } from '../../shared/format';
-  import { noteMarkerColor, NOTE_TYPE_LABELS, type NoteListItem } from './notes';
+  import { noteMarkerColor, noteTypeLabel, type NoteListItem } from './notes';
   import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@context/ui';
 
   /** Общая карточка заметки в списке: цветовая полоса, тип, место, дата и содержимое.
@@ -64,7 +64,7 @@
     >
       <span class="mb-1 flex items-center gap-2">
         <span data-testid="notes-item-type">
-          <Badge>{NOTE_TYPE_LABELS[item.note.type]}</Badge>
+          <Badge>{noteTypeLabel(item.note.type)}</Badge>
         </span>
         {#if item.place}
           <span class="role-caption text-[var(--muted-foreground)]" data-testid="notes-item-place"

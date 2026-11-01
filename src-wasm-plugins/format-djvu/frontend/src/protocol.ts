@@ -128,6 +128,14 @@ export interface SearchStepMessage {
   };
 }
 
+/** Язык интерфейса, выбранный в приложении. */
+export interface LocaleMessage {
+  /** Тип сообщения. */
+  type: 'reader-locale';
+  /** Код языка: `ru` или `en`. */
+  value: string;
+}
+
 /** Разобранное входящее сообщение. */
 export type IncomingMessage =
   | OpenMessage
@@ -141,7 +149,8 @@ export type IncomingMessage =
   | SearchMessage
   | SearchStepMessage
   | BindingsMessage
-  | CommandMessage;
+  | CommandMessage
+  | LocaleMessage;
 
 /** Нормализация инструмента создания заметок значениями по умолчанию. */
 export function normalizeTool(value: unknown): ViewerTool {
@@ -218,6 +227,8 @@ export function parseIncoming(data: unknown): IncomingMessage | null {
       const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as CommandMessage['value'];
       return { type: 'command', value: { id: typeof value.id === 'string' ? value.id : '' } };
     }
+    case 'reader-locale':
+      return { type: 'reader-locale', value: String(raw.value ?? 'ru') };
     default:
       return null;
   }

@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+  import { t, type MessageKey } from '@context/i18n';
   import Button from './Button.svelte';
   import Icon, { type IconName } from './Icon.svelte';
 
@@ -27,11 +28,11 @@
   /** Параметры действия: вариант кнопки, подпись и имя иконки. */
   const ACTIONS: Record<
     IconButtonAction,
-    { variant: 'primary' | 'secondary' | 'ghost-danger'; title: string; icon: IconName }
+    { variant: 'primary' | 'secondary' | 'ghost-danger'; title: MessageKey; icon: IconName }
   > = {
-    add: { variant: 'primary', title: 'Добавить', icon: 'plus' },
-    delete: { variant: 'ghost-danger', title: 'Удалить', icon: 'trash' },
-    edit: { variant: 'secondary', title: 'Изменить', icon: 'pencil' },
+    add: { variant: 'primary', title: 'app.action.add', icon: 'plus' },
+    delete: { variant: 'ghost-danger', title: 'app.action.delete', icon: 'trash' },
+    edit: { variant: 'secondary', title: 'app.action.edit', icon: 'pencil' },
   };
 
   let {
@@ -48,7 +49,7 @@
   const spec = $derived(ACTIONS[action]);
 
   /** Итоговая подпись-подсказка. */
-  const label = $derived(title ?? spec.title);
+  const label = $derived(title ?? t(spec.title));
 </script>
 
 <Button

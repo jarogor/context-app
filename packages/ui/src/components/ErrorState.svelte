@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import Icon from './Icon.svelte';
   import Button from './Button.svelte';
   import { cn } from '../utils';
@@ -25,7 +26,7 @@
 
   let {
     message,
-    retryLabel = 'Повторить',
+    retryLabel,
     onretry,
     testId,
     class: className = '',
@@ -43,6 +44,8 @@
   <Icon name="flag" class="h-4 w-4 shrink-0" />
   <span class="min-w-0 flex-1 break-words">{message}</span>
   {#if onretry}
-    <Button variant="secondary" size="sm" onclick={onretry}>{retryLabel}</Button>
+    <Button variant="secondary" size="sm" onclick={onretry}>
+      {retryLabel ?? t('app.action.retry')}
+    </Button>
   {/if}
 </div>

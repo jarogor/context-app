@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { onMount, untrack } from 'svelte';
   import { Button, Icon } from '@context/ui';
   import {
@@ -1938,7 +1939,7 @@
     bind:this={frame}
     class="h-full w-full border-0"
     style="background: {frameBackground}"
-    title="Чтение книги"
+    title={t('app.reader.reading')}
     srcdoc={html}
     onload={handleLoad}
   ></iframe>
@@ -1961,12 +1962,12 @@
       data-testid="quote-menu"
       style={menuStyle()}
     >
-      <NoteColorMenu labelPrefix="Создать заметку" onpick={confirmQuote} />
+      <NoteColorMenu labelPrefix={t('app.reader.note.createPrefix')} onpick={confirmQuote} />
       <Button
         variant="ghost"
         size="icon"
-        title="Отмена"
-        ariaLabel="Отмена"
+        title={t('app.reader.cancel')}
+        ariaLabel={t('app.reader.cancel')}
         onclick={dismissMenu}
       >
         <Icon name="close" />

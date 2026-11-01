@@ -86,6 +86,8 @@
     themeFromSettingsEvent,
   } from '../features/appearance/theme';
   import { saveSettingsValues } from '../features/settings/settings';
+  import { applyAppLocale, localeFromSettingsEvent } from '../features/appearance/locale';
+  import { currentLocale, t } from '@context/i18n';
   import {
     DEFAULT_PALETTE,
     DEFAULT_READER_FONT,
@@ -94,9 +96,12 @@
     normalizeReaderFontId,
     normalizeReaderThemeId,
     normalizeThemePreference,
+    oppositeTheme,
+    resolveTheme,
     type PaletteId,
     type ReaderFontId,
     type ReaderThemeId,
+    type ResolvedTheme,
     type ThemePreference,
   } from '@context/ui';
 
@@ -294,15 +299,28 @@
     untrack(() => normalizePaletteId(initialAppearance.palette ?? DEFAULT_PALETTE)),
   );
 
-  /** Порядок цикла темы кнопкой в шапке. */
-  const THEME_CYCLE: readonly ThemePreference[] = ['light', 'dark', 'system'];
-
-  /** Названия тем по значению предпочтения. */
-  const themeTitles: Record<ThemePreference, string> = {
-    light: 'Светлая',
-    dark: 'Тёмная',
-    system: 'Как в системе',
+  /** Названия сторон темы для показа. */
+  const themeTitles: Record<ResolvedTheme, string> = {
+    get light() {
+      return t('app.theme.light');
+    },
+    get dark() {
+      return t('app.theme.dark');
+    },
   };
+  /** Тёмное предпочтение темы операционной системы.
+   *
+   * Нужно кнопке в шапке: при предпочтении «как в системе» интерфейс показывает
+   * тему ОС, и нажатие должно поставить противоположную именно ей.
+   */
+  let systemPrefersDark = $state(
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false,
+  );
+
+  /** Фактически показанная сторона темы: у «как в системе» — тема ОС. */
+  const resolvedTheme: ResolvedTheme = $derived(resolveTheme(themePreference, systemPrefersDark));
 
   /** Читалка активной вкладки для перехода к заметке. */
   let reader: { goto: (note: Note) => void } | undefined = $state();
@@ -374,13 +392,13 @@
   const sectionTitle = $derived(
     settingsOpen
       ? settingsSection === 'updates'
-        ? 'Обновления'
-        : 'Настройки'
+        ? t('app.settings.updates')
+        : t('app.settings')
       : librariesOpen
-        ? 'Библиотека'
+        ? t('app.section.library')
         : notesLibraryOpen
-          ? 'Заметки'
-          : 'Рабочее место',
+          ? t('app.section.notes')
+          : t('app.section.workspace'),
   );
 
   /**
@@ -403,7 +421,7 @@
 
   /** Название текущей страницы настроек для их шапки. */
   const settingsSectionTitle = $derived(
-    settingsSection === 'updates' ? 'Обновления' : 'Общие',
+    settingsSection === 'updates' ? t('app.settings.updates') : t('app.settings.general'),
   );
 
   /** Замечания, показываемые в шапке одним индикатором.
@@ -415,19 +433,16 @@
   const headerAlerts = $derived.by(() => {
     const alerts: { text: string; warning: boolean }[] = [];
     if (registryError) {
-      alerts.push({ text: `Рабочее место: ${registryError}`, warning: false });
+      alerts.push({ text: t('app.error.workspace', { error: registryError }), warning: false });
     }
     if (notesController.error) {
-      alerts.push({ text: `Заметки: ${notesController.error}`, warning: false });
+      alerts.push({ text: t('app.error.notes', { error: notesController.error }), warning: false });
     }
     if (appearanceError) {
-      alerts.push({ text: `Оформление: ${appearanceError}`, warning: false });
+      alerts.push({ text: t('app.error.appearance', { error: appearanceError }), warning: false });
     }
     if (activationPending) {
-      alerts.push({
-        text: 'Плагины: изменения применятся после перезапуска приложения или переоткрытия библиотеки',
-        warning: true,
-      });
+      alerts.push({ text: t('app.error.pluginsRestart'), warning: true });
     }
     return alerts;
   });
@@ -590,10 +605,15 @@
     }
   }
 
-  /** Циклическое переключение темы кнопкой в шапке: светлая → тёмная → система. */
-  function cycleTheme() {
-    const index = THEME_CYCLE.indexOf(themePreference);
-    const next = THEME_CYCLE[(index + 1) % THEME_CYCLE.length];
+  /** Переключение темы кнопкой в шапке: на противоположную явную сторону.
+   *
+   * Третьего положения «как в системе» у кнопки нет: этот режим выбирают в
+   * настройках, а нажатие всегда ставит противоположную сторону той, что сейчас
+   * показана, — в том числе когда интерфейс следует теме ОС. Иначе очередное
+   * нажатие возвращало бы системный режим и мешало простому переключению.
+   */
+  function toggleTheme() {
+    const next = oppositeTheme(resolvedTheme);
     themePreference = next;
     applyAppThemeTracked(next);
     persistBootAppearance({ theme: next, palette });
@@ -847,8 +867,8 @@
       multiple: false,
       directory: false,
       filters: [
-        { name: 'Книги', extensions: ['epub', 'pdf', 'djvu', 'fb2'] },
-        { name: 'Все файлы', extensions: ['*'] },
+        { name: t('app.dialog.books'), extensions: ['epub', 'pdf', 'djvu', 'fb2'] },
+        { name: t('app.dialog.allFiles'), extensions: ['*'] },
       ],
     });
     const chosen = Array.isArray(selected) ? selected[0] : selected;
@@ -910,7 +930,7 @@
   function openNotesTarget(set: NoteSet, noteId: string | null) {
     const key = set.bookKey.trim();
     if (!key || key === 'no-library') {
-      notesLibraryError = 'Книга набора недоступна: у набора нет файла.';
+      notesLibraryError = t('app.error.notesBookUnavailable');
       return;
     }
     // Активный набор запоминается до загрузки заметок: `load` выберет его,
@@ -977,7 +997,7 @@
       if (updateCore || updatePlugins.length > 0) {
         updateDialogOpen = true;
       } else if (manual) {
-        updateError = 'Обновлений нет.';
+        updateError = t('app.update.none');
       }
     } catch (error) {
       updateError = String(error);
@@ -1084,6 +1104,14 @@
       mobileWindow = event.matches;
     };
     mobileQuery.addEventListener('change', onMobileChange);
+    // Тема операционной системы нужна кнопке в шапке: при предпочтении «как в
+    // системе» интерфейс показывает тему ОС, а нажатие ставит противоположную ей.
+    const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    systemPrefersDark = colorSchemeQuery.matches;
+    const onColorSchemeChange = (event: MediaQueryListEvent) => {
+      systemPrefersDark = event.matches;
+    };
+    colorSchemeQuery.addEventListener('change', onColorSchemeChange);
     void checkUpdatesOnStartup();
     void (async () => {
       unlisten = await listenEvent('source-catalog-changed', (value) => {
@@ -1141,10 +1169,17 @@
         if (nextOpenTabsLimit !== null && nextOpenTabsLimit !== openTabsLimit) {
           openTabsLimit = nextOpenTabsLimit;
         }
+        // Язык интерфейса применяется к текстам и формату дат целиком: смена
+        // настройки перерисовывает все области без перезапуска.
+        const nextLocale = localeFromSettingsEvent(value);
+        if (nextLocale !== null && nextLocale !== currentLocale()) {
+          applyAppLocale(nextLocale);
+        }
       });
     })();
     return () => {
       mobileQuery.removeEventListener('change', onMobileChange);
+      colorSchemeQuery.removeEventListener('change', onColorSchemeChange);
       unlisten?.();
       unlistenNotes?.();
       unlistenSettings?.();
@@ -1186,9 +1221,9 @@
     toggleWorkspace();
   }
 
-  /** Смена темы клавишей: тот же цикл, что у кнопки в шапке. */
+  /** Смена темы клавишей: то же переключение, что у кнопки в шапке. */
   function hotkeyTheme() {
-    cycleTheme();
+    toggleTheme();
   }
 
   /** Набор обработчиков оболочки для общего диспетчера клавиатуры. */
@@ -1245,14 +1280,15 @@
       alertCount={headerAlerts.length}
       alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
       alertError={headerAlerts.some((alert) => !alert.warning)}
-      themeTitle={themeTitles[themePreference]}
+      theme={resolvedTheme}
+      themeNext={oppositeTheme(resolvedTheme)}
       mobile={mobileWindow}
       onWorkspace={toggleWorkspace}
       onLibrary={toggleLibraries}
       onNotes={toggleNotesLibrary}
       onNotifications={toggleNotifications}
       onSettings={toggleSettings}
-      onTheme={cycleTheme}
+      onTheme={toggleTheme}
     />
   {/if}
 
@@ -1395,8 +1431,8 @@
           <Button
             variant="secondary"
             size="icon"
-            title="Закрыть настройки"
-            ariaLabel="Закрыть настройки"
+            title={t('app.settings.close')}
+            ariaLabel={t('app.settings.close')}
             onclick={closeSettings}
           >
             <Icon name="close" />
@@ -1404,14 +1440,14 @@
         </header>
         <div class="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
           <Menu
-            ariaLabel="Разделы настроек"
+            ariaLabel={t('app.settings.sections')}
             class="shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--panel)] p-2 max-md:flex-row md:w-[14rem] md:flex-none md:flex-col md:border-r md:border-b-0 md:p-3"
           >
             <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
-              Общие
+              {t('app.settings.general')}
             </MenuItem>
             <MenuItem active={settingsSection === 'updates'} onclick={() => selectSettingsSection('updates')}>
-              Обновления
+              {t('app.settings.updates')}
             </MenuItem>
           </Menu>
           <div class="flex min-h-0 min-w-0 flex-1">

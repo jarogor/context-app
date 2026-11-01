@@ -14,52 +14,75 @@ use crate::plugin::{get_bus, set_log_level, PluginError, PluginRuntime, PluginSc
 /// Схема передаётся базовому плагину настроек как opaque-декларация и не
 /// интерпретируется ядром, кроме собственного ключа приложения.
 const APP_SETTINGS_SCHEMA: &str = r#"{
-  "title": "Приложение",
+  "title": "app.settings.app.owner",
   "sections": [
     {
       "id": "general",
-      "title": "Общие",
-      "description": "Общие параметры приложения",
+      "title": "app.settings.app.general.title",
+      "description": "app.settings.app.general.description",
       "fields": [
         {
           "key": "startup.welcome_notification",
-          "title": "Приветственное уведомление при запуске",
+          "title": "app.settings.app.general.startup.welcome_notification.label",
           "type": "boolean",
-          "description": "Показывать приветствие при запуске приложения",
+          "description": "app.settings.app.general.startup.welcome_notification.description",
           "default": true
         },
         {
           "key": "diagnostics.log_level",
-          "title": "Порог технических логов",
+          "title": "app.settings.app.general.diagnostics.log_level.label",
           "type": "select",
-          "description": "Минимальная степень серьёзности технических записей: чем подробнее, тем больше записей",
+          "description": "app.settings.app.general.diagnostics.log_level.description",
           "default": "info",
           "options": [
-            { "value": "error", "title": "Только ошибки" },
-            { "value": "warn", "title": "Предупреждения и ошибки" },
-            { "value": "info", "title": "Информация и важнее" },
-            { "value": "debug", "title": "Отладка и важнее" },
-            { "value": "trace", "title": "Всё, включая трассу вызовов" }
+            { "value": "error", "title": "app.settings.app.general.diagnostics.log_level.option.error" },
+            { "value": "warn", "title": "app.settings.app.general.diagnostics.log_level.option.warn" },
+            { "value": "info", "title": "app.settings.app.general.diagnostics.log_level.option.info" },
+            { "value": "debug", "title": "app.settings.app.general.diagnostics.log_level.option.debug" },
+            { "value": "trace", "title": "app.settings.app.general.diagnostics.log_level.option.trace" }
+          ]
+        },
+        {
+          "key": "appearance.theme",
+          "title": "app.settings.app.general.appearance.theme.label",
+          "type": "select",
+          "description": "app.settings.app.general.appearance.theme.description",
+          "default": "system",
+          "options": [
+            { "value": "light", "title": "app.settings.app.general.appearance.theme.option.light" },
+            { "value": "dark", "title": "app.settings.app.general.appearance.theme.option.dark" },
+            { "value": "system", "title": "app.settings.app.general.appearance.theme.option.system" }
           ]
         },
         {
           "key": "appearance.palette",
-          "title": "Палитра оформления",
+          "title": "app.settings.app.general.appearance.palette.label",
           "type": "select",
-          "description": "Набор светлых и тёмных цветов интерфейса",
+          "description": "app.settings.app.general.appearance.palette.description",
           "default": "linen",
           "options": [
-            { "value": "linen", "title": "Лён" },
-            { "value": "cobalt", "title": "Индиго" },
-            { "value": "gruvbox", "title": "Янтарь" },
-            { "value": "mist", "title": "Графит" }
+            { "value": "linen", "title": "app.settings.app.general.appearance.palette.option.linen" },
+            { "value": "cobalt", "title": "app.settings.app.general.appearance.palette.option.cobalt" },
+            { "value": "gruvbox", "title": "app.settings.app.general.appearance.palette.option.gruvbox" },
+            { "value": "mist", "title": "app.settings.app.general.appearance.palette.option.mist" }
+          ]
+        },
+        {
+          "key": "appearance.language",
+          "title": "app.settings.app.general.appearance.language.label",
+          "type": "select",
+          "description": "app.settings.app.general.appearance.language.description",
+          "default": "ru",
+          "options": [
+            { "value": "ru", "title": "app.settings.app.general.appearance.language.option.ru" },
+            { "value": "en", "title": "app.settings.app.general.appearance.language.option.en" }
           ]
         },
         {
           "key": "window.open_tabs_limit",
-          "title": "Лимит открытых вкладок",
+          "title": "app.settings.app.general.window.open_tabs_limit.label",
           "type": "number",
-          "description": "Наибольшее число одновременно открытых вкладок рабочего места. Превышение допускается только за счёт уже открытых вкладок и блокирует открытие новых. Слишком большое значение лимита может привести к непредсказуемым последствиям — от замедления до падения приложения.",
+          "description": "app.settings.app.general.window.open_tabs_limit.description",
           "default": 50
         }
       ]
@@ -320,6 +343,17 @@ impl AppPluginHost {
     pub fn theme_palette(&mut self) -> String {
         self.app_setting_string("appearance.palette")
             .unwrap_or_else(|| "linen".to_string())
+    }
+
+    /// Язык интерфейса из настроек приложения.
+    ///
+    /// Поддерживаются `ru` и `en`; неизвестное или отсутствующее значение
+    /// трактуется как `ru` — до явного выбора интерфейс русский.
+    pub fn interface_locale(&mut self) -> String {
+        match self.app_setting_string("appearance.language").as_deref() {
+            Some("en") => "en".to_string(),
+            _ => "ru".to_string(),
+        }
     }
 
     /// Тема области чтения из настроек приложения.

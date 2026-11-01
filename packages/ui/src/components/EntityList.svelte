@@ -3,6 +3,7 @@
   import ListRow from './ListRow.svelte';
   import MetaList, { type MetaItem } from './MetaList.svelte';
   import ActionMenu, { type MenuAction } from './ActionMenu.svelte';
+  import { t } from '@context/i18n';
   import { cn } from '../utils';
 
   interface Props {
@@ -75,7 +76,7 @@
     itemTestId,
     buttonTestId,
     notFound = false,
-    notFoundText = 'Ничего не найдено.',
+    notFoundText,
     notFoundTestId,
     class: className = '',
   }: Props = $props();
@@ -109,8 +110,8 @@
     {#snippet actions()}
       {#if actionsFor}
         <ActionMenu
-          ariaLabel={actionsLabel ?? 'Действия'}
-          title="Действия"
+          ariaLabel={actionsLabel ?? t('app.list.actions')}
+          title={t('app.list.actions')}
           items={actionsFor(item)}
           onselect={(action) => onAction?.(item, action)}
         />
@@ -120,7 +121,9 @@
 {/snippet}
 
 {#if notFound}
-  <p class="text-[var(--muted-foreground)]" data-testid={notFoundTestId}>{notFoundText}</p>
+  <p class="text-[var(--muted-foreground)]" data-testid={notFoundTestId}>
+    {notFoundText ?? t('app.list.notFound')}
+  </p>
 {:else if container === 'div'}
   <div
     class={cn(

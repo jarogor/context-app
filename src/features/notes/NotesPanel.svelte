@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { ActionMenu, EmptyState, Input, SidePanel, Skeleton, type MenuAction, type MenuColor } from '@context/ui';
-  import { NOTE_COLORS, NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
+  import { NOTE_COLORS, noteColorLabel, NOTE_COLOR_SWATCHES, type Note, type NoteColor, type NoteListItem, type NoteSetSummary } from './notes';
   import NoteEntry from './NoteEntry.svelte';
   import NoteSetsControl from './NoteSetsControl.svelte';
   import NoteEditor from './NoteEditor.svelte';
@@ -86,16 +87,16 @@
   });
 
   /** Пункты меню заметки: изменение и удаление; цвет выбирается образцами. */
-  const noteActions: MenuAction[] = [
-    { id: 'edit', label: 'Изменить' },
-    { id: 'delete', label: 'Удалить', destructive: true },
-  ];
+  const noteActions: MenuAction[] = $derived([
+    { id: 'edit', label: t('app.notes.panel.edit') },
+    { id: 'delete', label: t('app.notes.panel.delete'), destructive: true },
+  ]);
 
   /** Образцы выбора цвета для меню заметки: текущий цвет отмечен. */
   function noteColorOptions(current: NoteColor): MenuColor[] {
     return NOTE_COLORS.map((color) => ({
       id: color,
-      label: NOTE_COLOR_LABELS[color],
+      label: noteColorLabel(color),
       color: NOTE_COLOR_SWATCHES[color],
       selected: color === current,
     }));
@@ -134,7 +135,7 @@
 </script>
 
 <SidePanel
-  title="Заметки"
+  title={t('app.notes.panel.title')}
   testId="notes-panel"
   side="left"
   showSearch={hasBook}
@@ -142,15 +143,21 @@
   {onClose}
 >
   {#snippet search()}
-    <Input bind:value={query} placeholder="Поиск по заметкам" ariaLabel="Поиск по заметкам" icon="search" clearable />
+    <Input
+        bind:value={query}
+        placeholder={t('app.search.notes.placeholder')}
+        ariaLabel={t('app.search.notes.placeholder')}
+        icon="search"
+        clearable
+      />
   {/snippet}
 
   {#if !hasBook}
     <div class="p-4" data-testid="notes-panel-empty">
       <EmptyState
         icon="book"
-        title="Книга не открыта"
-        description="Откройте книгу, чтобы вести заметки."
+        title={t('app.notes.panel.noBook.title')}
+        description={t('app.notes.panel.noBook.description')}
       />
     </div>
   {:else}
@@ -180,12 +187,12 @@
           >
             {#snippet actions()}
               <ActionMenu
-                ariaLabel="Действия с заметкой"
-                title="Действия"
+                ariaLabel={t('app.notes.panel.actionsLabel')}
+                title={t('app.action.actions')}
                 class="h-7 w-7"
                 items={noteActions}
                 colors={noteColorOptions(item.note.color)}
-                colorsLabel="Цвет заметки"
+                colorsLabel={t('app.notes.panel.colorLabel')}
                 oncolorselect={(color) => onChangeColor?.(item.note.id, color as NoteColor)}
                 onselect={(action) => runNoteAction(item.note.id, action)}
               />
@@ -207,9 +214,7 @@
             class="px-2 py-4 text-center role-body text-[var(--muted-foreground)]"
             data-testid="notes-list-empty"
           >
-            {query
-              ? 'Заметок по запросу не найдено.'
-              : 'Выделите фрагмент текста в книге, чтобы создать заметку.'}
+            {query ? t('app.notes.panel.empty') : t('app.notes.panel.emptyHint')}
           </li>
         {/each}
       </ul>

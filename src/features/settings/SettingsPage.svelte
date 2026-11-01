@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { Button, ErrorToast, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@context/ui';
+  import { t } from '@context/i18n';
   import type { UiIntent, UiNode, UiSpaceDeclaration } from '@context/ui-schema';
   import { listenEvent } from '../../shared/app-bridge';
   import {
@@ -192,7 +193,7 @@
     <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-6">
       {#if declarations.length === 0}
         <div class="p-6 text-center role-body text-[var(--muted-foreground)]">
-          Нет зарегистрированных настроек
+          {t('app.settings.empty')}
         </div>
       {:else}
         {#each declarations as item, index (item.declaration?.id ?? index)}
@@ -223,9 +224,9 @@
     style="padding-bottom: max(0.75rem, var(--safe-bottom));"
   >
     <span class="role-caption text-[var(--muted-foreground)]">
-      {dirty ? 'Есть несохранённые изменения' : 'Все изменения сохранены'}
+      {dirty ? t('app.settings.dirty') : t('app.settings.saved')}
     </span>
-    <Button variant="primary" disabled={!dirty} onclick={save}>Сохранить</Button>
+    <Button variant="primary" disabled={!dirty} onclick={save}>{t('app.action.save')}</Button>
   </div>
 </div>
 

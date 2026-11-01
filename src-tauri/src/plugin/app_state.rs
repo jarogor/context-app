@@ -69,12 +69,15 @@ impl AppHostConfig {
         let _ = host.refresh_settings_registry(&[]);
         host.refresh_log_level();
         if host.welcome_notification_enabled() {
-            host.notify_user(
-                Severity::Info,
-                "Добро пожаловать в «Контекст»",
-                "app",
-                serde_json::json!({}),
-            );
+            // Приветствие — пользовательская запись журнала, поэтому её текст
+            // следует выбранному языку интерфейса: ядро читает язык той же
+            // настройкой, что и оболочка.
+            let message = if host.interface_locale() == "en" {
+                "Welcome to «Context»"
+            } else {
+                "Добро пожаловать в «Контекст»"
+            };
+            host.notify_user(Severity::Info, message, "app", serde_json::json!({}));
         }
         crate::startup::mark("фон: базовые плагины собраны");
         Ok(host)
@@ -233,6 +236,14 @@ impl AppState {
     /// Сведения о приложении для страницы «Информация».
     pub fn app_info(&self) -> AppInfo {
         self.app_info.clone()
+    }
+
+    /// Смена имени приложения на выбранный язык интерфейса.
+    ///
+    /// Имя — текст интерфейса, поэтому оболочка сообщает его при смене языка;
+    /// остальные сведения о приложении не меняются.
+    pub fn set_app_name(&mut self, name: impl Into<String>) {
+        self.app_info.set_name(name);
     }
 
     /// Корень служебного состояния приложения.

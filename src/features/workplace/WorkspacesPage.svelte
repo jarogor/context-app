@@ -11,6 +11,7 @@
     PageShell,
     type MenuAction,
   } from '@context/ui';
+  import { t } from '@context/i18n';
   import { formatDateTime } from '../../shared/format';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
@@ -47,10 +48,10 @@
   let { workspaces, currentId, onCreate, onOpen, onRename, onRemove }: Props = $props();
 
   /** Пункты меню действий рабочего места. */
-  const workspaceActions: MenuAction[] = [
-    { id: 'rename', label: 'Переименовать' },
-    { id: 'delete', label: 'Удалить', destructive: true },
-  ];
+  const workspaceActions: MenuAction[] = $derived([
+    { id: 'rename', label: t('app.workspace.rename') },
+    { id: 'delete', label: t('app.workspace.delete'), destructive: true },
+  ]);
 
   /** Строка поиска по имени рабочего места. */
   let query = $state('');
@@ -124,14 +125,12 @@
 
   /** Подпись числа книг рабочего места. */
   function bookCountLabel(count: number): string {
-    const noun = count % 10 === 1 && count % 100 !== 11 ? 'книга' : 'книг';
-    return `${count} ${noun}`;
+    return t('app.workspace.count', { count });
   }
 
   /** Подпись числа вкладок рабочего места. */
   function tabCountLabel(count: number): string {
-    const noun = count % 10 === 1 && count % 100 !== 11 ? 'вкладка' : 'вкладок';
-    return `${count} ${noun}`;
+    return t('app.workspace.tabsCount', { count });
   }
 
   /** Число открытых вкладок рабочего места. */
@@ -255,8 +254,8 @@
   {#snippet emptyContent()}
     <EmptyState
       icon="workspace"
-      title="Рабочих мест нет"
-      description="Рабочее место — это место исследования: в нём вы откроете книги вкладками и будете вести заметки. Создайте первое в поле «Новое рабочее место» выше."
+      title={t('app.workspace.empty.title')}
+      description={t('app.workspace.empty.description')}
       testId="workspaces-empty"
     />
   {/snippet}
@@ -266,22 +265,22 @@
       {#if workspaces.length > 0}
         <Input
           bind:value={query}
-          placeholder="Поиск рабочего места"
-          ariaLabel="Поиск рабочего места"
+          placeholder={t('app.search.workspace.placeholder')}
+          ariaLabel={t('app.search.workspace.placeholder')}
           icon="search"
           clearable
           class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
         />
         <span class="role-caption text-[var(--muted-foreground)]">
-          {filtered.length} из {workspaces.length}
+          {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
         </span>
       {/if}
     </div>
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
       <Input
         bind:value={newName}
-        placeholder="Новое рабочее место"
-        ariaLabel="Новое рабочее место"
+        placeholder={t('app.search.newWorkspace.placeholder')}
+        ariaLabel={t('app.search.newWorkspace.placeholder')}
         class="min-w-0 flex-1 sm:w-[15rem] sm:flex-none"
         onkeydown={(event) => {
           if (event.key === 'Enter') {
@@ -291,8 +290,8 @@
       />
       <IconButton
         action="add"
-        title="Создать рабочее место"
-        ariaLabel="Создать рабочее место"
+        title={t('app.workspace.create')}
+        ariaLabel={t('app.workspace.create')}
         disabled={!newName.trim()}
         onclick={createFromField}
       />
@@ -302,8 +301,8 @@
   {#if workspaces.length > 0 && filtered.length === 0}
     <EmptyState
       icon="search"
-      title="Ничего не найдено"
-      description="Измените запрос поиска."
+      title={t('app.search.notFound')}
+      description={t('app.search.changeQuery')}
       testId="workspaces-not-found"
     />
   {:else}
@@ -317,11 +316,13 @@
             <div
               class="flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--primary-border)] bg-[var(--card)] p-4"
             >
-              <span class="role-eyebrow text-[var(--muted-foreground)]">Переименование</span>
+              <span class="role-eyebrow text-[var(--muted-foreground)]"
+                >{t('app.workspace.renameEyebrow')}</span
+              >
               <Input
                 bind:value={editingName}
-                placeholder="Новое имя"
-                ariaLabel="Новое имя рабочего места"
+                placeholder={t('app.search.newName.placeholder')}
+                ariaLabel={t('app.workspace.newNameLabel')}
                 onkeydown={(event) => {
                   if (event.key === 'Enter') {
                     commitRename();
@@ -329,9 +330,11 @@
                 }}
               />
               <div class="flex items-center gap-2">
-                <Button variant="primary" size="sm" onclick={commitRename}>Сохранить</Button>
+                <Button variant="primary" size="sm" onclick={commitRename}
+                  >{t('app.action.save')}</Button
+                >
                 <Button variant="secondary" size="sm" onclick={() => (editingId = null)}>
-                  Отмена
+                  {t('app.reader.cancel')}
                 </Button>
               </div>
             </div>
@@ -349,7 +352,7 @@
                 type="button"
                 class="absolute inset-0 z-[1] cursor-pointer"
                 data-testid="workspace-open"
-                aria-label={`Открыть «${item.name}»`}
+                aria-label={t('app.workspace.openNamed', { name: item.name })}
                 title={item.name}
                 onclick={() => onOpen(item.id)}
               ></button>
@@ -380,7 +383,7 @@
                       <span
                         class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center rounded-sm border border-[var(--border)] bg-[var(--muted)] role-caption text-[var(--muted-foreground)]"
                         data-testid="workspace-covers-more"
-                        title={`Ещё ${bookCountLabel(hiddenCount(item))}`}
+                        title={t('app.workspace.moreBooks', { count: hiddenCount(item) })}
                       >
                         +{hiddenCount(item)}
                       </span>
@@ -389,7 +392,7 @@
                 {:else}
                   <span class="flex flex-col items-center gap-1 text-[var(--muted-foreground)]">
                     <Icon name="workspace" class="h-6 w-6" />
-                    <span class="role-caption">Пустая полка</span>
+                    <span class="role-caption">{t('app.workspace.emptyShelf')}</span>
                   </span>
                 {/if}
               </div>
@@ -400,7 +403,7 @@
                     {item.name}
                   </span>
                   {#if item.id === currentId}
-                    <Badge testId="workspace-current">Текущее</Badge>
+                    <Badge testId="workspace-current">{t('app.workspace.current')}</Badge>
                   {/if}
                   <!--
                     Меню действий — в строке названия, как в списках библиотек и
@@ -410,8 +413,8 @@
                   -->
                   <span class="pointer-events-auto relative z-[2] flex shrink-0 items-center">
                     <ActionMenu
-                      ariaLabel="Действия с рабочим местом"
-                      title="Действия"
+                      ariaLabel={t('app.workspace.actionsLabel')}
+                      title={t('app.action.actions')}
                       items={workspaceActions}
                       onselect={(action) => runWorkspaceAction(item, action)}
                     />

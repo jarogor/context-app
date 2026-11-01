@@ -91,8 +91,9 @@ describe('экран списка рабочих мест', () => {
         });
 
         const meta = screen.getByTestId('workspace-meta').textContent ?? '';
-        expect(meta).toContain('2 книг');
-        expect(meta).toContain('3 вкладок');
+        // Русское склонение: 2 книги, 3 вкладки (формы 2–4).
+        expect(meta).toContain('2 книги');
+        expect(meta).toContain('3 вкладки');
     });
 
     it('не падает, когда одна книга открыта в нескольких вкладках места', () => {

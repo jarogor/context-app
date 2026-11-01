@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
+
   /**
    * Экран загрузки приложения.
    *
@@ -12,7 +14,7 @@
     message?: string;
   }
 
-  let { message = 'Загрузка…' }: Props = $props();
+  let { message }: Props = $props();
 </script>
 
 <div class="boot-screen" data-testid="bootstrap-loading">
@@ -25,5 +27,5 @@
       stroke-linecap="round"
     />
   </svg>
-  <p>{message}</p>
+  <p>{message ?? t('app.boot.loading')}</p>
 </div>

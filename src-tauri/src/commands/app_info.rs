@@ -16,3 +16,14 @@ pub async fn app_info(state: State<'_, Mutex<AppState>>) -> Result<AppInfo, Stri
     let state = crate::commands::lock_state(state.inner())?;
     Ok(state.app_info())
 }
+
+/// Установка имени приложения на выбранном языке интерфейса.
+///
+/// Команда асинхронная: она ждёт общий `Mutex<AppState>`, который может быть
+/// занят тяжёлой операцией базового плагина.
+#[tauri::command]
+pub async fn app_name_set(state: State<'_, Mutex<AppState>>, name: String) -> Result<(), String> {
+    let mut state = crate::commands::lock_state(state.inner())?;
+    state.set_app_name(name);
+    Ok(())
+}

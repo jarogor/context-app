@@ -12,6 +12,7 @@
     Skeleton,
   } from '@context/ui';
   import BookPage from './BookPage.svelte';
+  import { t } from '@context/i18n';
   import { listenEvent } from '../../shared/app-bridge';
   import {
     activeLibraryPath,
@@ -85,17 +86,17 @@
   let coverFilter = $state<'all' | 'without-cover'>('all');
 
   /** Варианты порядка книг. */
-  const sortOptions = [
-    { value: 'title', label: 'По названию' },
-    { value: 'author', label: 'По автору' },
-    { value: 'added', label: 'По порядку' },
-  ];
+  const sortOptions = $derived([
+    { value: 'title', label: t('app.library.sort.title') },
+    { value: 'author', label: t('app.library.sort.author') },
+    { value: 'added', label: t('app.library.sort.added') },
+  ]);
 
   /** Варианты фильтра по обложке. */
-  const coverOptions = [
-    { value: 'all', label: 'Все книги' },
-    { value: 'without-cover', label: 'Без обложки' },
-  ];
+  const coverOptions = $derived([
+    { value: 'all', label: t('app.library.filter.all') },
+    { value: 'without-cover', label: t('app.library.filter.withoutCover') },
+  ]);
 
   /** Имена авторов книги строкой. */
   function authorNames(book: Book): string {
@@ -410,8 +411,8 @@
       >
         <Input
           bind:value={searchQuery}
-          placeholder="Название или автор"
-          ariaLabel="Название или автор"
+          placeholder={t('app.search.books.placeholder')}
+          ariaLabel={t('app.search.books.placeholder')}
           icon="search"
           clearable
           class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
@@ -419,32 +420,32 @@
         />
         <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
           <span class="mr-auto role-caption text-[var(--muted-foreground)] sm:mr-0">
-            {viewBooks.length} из {books.length}
+            {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
           </span>
           <Select
             bind:value={sortMode}
             items={sortOptions}
-            ariaLabel="Порядок книг"
+            ariaLabel={t('app.library.orderLabel')}
             size="sm"
             class="w-[9.5rem]"
           />
           <Select
             bind:value={coverFilter}
             items={coverOptions}
-            ariaLabel="Фильтр книг"
+            ariaLabel={t('app.library.filterLabel')}
             size="sm"
             class="w-[9.5rem]"
           />
           <div
             class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
             role="group"
-            aria-label="Режим показа"
+            aria-label={t('app.library.modeLabel')}
           >
             <Button
               variant={viewMode === 'grid' ? 'primary' : 'ghost'}
               size="icon"
-              title="Плитка"
-              ariaLabel="Плитка"
+              title={t('app.library.mode.tiles')}
+              ariaLabel={t('app.library.mode.tiles')}
               ariaPressed={viewMode === 'grid'}
               onclick={() => chooseViewMode('grid')}
             >
@@ -453,8 +454,8 @@
             <Button
               variant={viewMode === 'list' ? 'primary' : 'ghost'}
               size="icon"
-              title="Список"
-              ariaLabel="Список"
+              title={t('app.library.mode.list')}
+              ariaLabel={t('app.library.mode.list')}
               ariaPressed={viewMode === 'list'}
               onclick={() => chooseViewMode('list')}
             >
@@ -469,8 +470,8 @@
       {#if !librarySelected}
         <EmptyState
           icon="library"
-          title="Библиотека не открыта"
-          description="Откройте директорию с книгами в разделе «Библиотеки»."
+          title={t('app.library.empty.noLibrary.title')}
+          description={t('app.library.empty.noLibrary.description')}
           testId="library-not-selected"
         />
       {:else if loading && books.length === 0}
@@ -480,15 +481,15 @@
       {:else if books.length === 0}
         <EmptyState
           icon="book"
-          title="В библиотеке пока нет книг"
-          description="Добавьте книги в папку библиотеки, и они появятся здесь."
+          title={t('app.library.empty.noBooks.title')}
+          description={t('app.library.empty.noBooks.description')}
           testId="library-empty"
         />
       {:else if viewBooks.length === 0}
         <EmptyState
           icon="book"
-          title="Книг по фильтру нет"
-          description="Измените фильтр, чтобы увидеть книги."
+          title={t('app.library.empty.filtered.title')}
+          description={t('app.library.empty.filtered.description')}
           testId="library-filtered-empty"
         />
       {:else if viewMode === 'grid'}
@@ -501,7 +502,7 @@
               <button
                 class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
                 type="button"
-                title="Страница книги"
+                title={t('app.library.book.title')}
                 onclick={() => openBook(book)}
               >
                 <span
@@ -532,7 +533,7 @@
               <button
                 class="flex w-full cursor-pointer items-center gap-3 p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
                 type="button"
-                title="Страница книги"
+                title={t('app.library.book.title')}
                 onclick={() => openBook(book)}
               >
                 <span class="block h-[4.5rem] w-[3rem] shrink-0">

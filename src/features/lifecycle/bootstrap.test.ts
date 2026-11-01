@@ -174,6 +174,9 @@ describe('загрузка начального состояния', () => {
             if (command === 'reader_font') {
                 return 'sans';
             }
+            if (command === 'interface_locale') {
+                return 'en';
+            }
             return null;
         });
 
@@ -184,6 +187,7 @@ describe('загрузка начального состояния', () => {
             palette: 'cobalt',
             readerTheme: 'dark',
             readerFont: 'sans',
+            locale: 'en',
         });
         expect(document.documentElement.dataset.theme).toBe('dark');
         expect(document.documentElement.dataset.palette).toBe('cobalt');
@@ -210,6 +214,9 @@ describe('загрузка начального состояния', () => {
             if (command === 'reader_font') {
                 throw new Error('гарнитура книги недоступна');
             }
+            if (command === 'interface_locale') {
+                throw new Error('язык недоступен');
+            }
             return null;
         });
 
@@ -220,6 +227,7 @@ describe('загрузка начального состояния', () => {
             palette: 'linen',
             readerTheme: 'light',
             readerFont: 'serif',
+            locale: 'ru',
         });
         expect(document.documentElement.dataset.theme).toBe('light');
         expect(document.documentElement.dataset.palette).toBe('linen');

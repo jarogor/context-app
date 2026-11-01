@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Card, ErrorState, Skeleton } from '@context/ui';
+  import { localize, t } from '@context/i18n';
   import { invokeCommand } from '../../shared/app-bridge';
 
   /** Служебное расположение в сведениях о приложении. */
@@ -47,14 +48,14 @@
   </Card>
 {:else}
   <Card class="p-5">
-    <h2 class="mb-3 role-heading">Расположение данных</h2>
+    <h2 class="mb-3 role-heading">{t('app.settings.dataLocation')}</h2>
     <ul class="flex list-none flex-col gap-2 p-0">
       {#each info.paths as path (path.key)}
         <li
           class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] p-3"
         >
           <code class="break-all role-mono text-[var(--foreground)]">{path.path}</code>
-          <span class="role-caption text-[var(--muted-foreground)]">{path.note}</span>
+          <span class="role-caption text-[var(--muted-foreground)]">{localize(path.note)}</span>
         </li>
       {/each}
     </ul>

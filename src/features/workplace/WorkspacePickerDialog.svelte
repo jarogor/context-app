@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { Dialog, Icon, SearchCreate } from '@context/ui';
 
   /** Рабочее место в диалоге выбора. */
@@ -39,7 +40,7 @@
 
 <Dialog
   bind:open
-  title="Открыть в рабочем месте"
+  title={t('app.picker.title')}
   onOpenChange={(value) => {
     if (!value) {
       query = '';
@@ -48,20 +49,20 @@
   }}
 >
   <p class="role-body text-[var(--muted-foreground)]">
-    Выберите место, в которое добавится книга, или создайте новое.
+    {t('app.picker.description')}
   </p>
   <SearchCreate
     bind:query
-    createPlaceholder="Новое рабочее место"
-    createTitle="Создать рабочее место"
-    createAriaLabel="Создать рабочее место"
-    searchPlaceholder="Поиск рабочего места"
+    createPlaceholder={t('app.search.newWorkspace.placeholder')}
+    createTitle={t('app.picker.createTitle')}
+    createAriaLabel={t('app.picker.createAria')}
+    searchPlaceholder={t('app.search.workspace.placeholder')}
     {onCreate}
   />
 
   {#if filtered.length === 0}
     <p class="role-body text-[var(--muted-foreground)]" data-testid="workspace-picker-empty">
-      {workspaces.length === 0 ? 'Рабочих мест ещё нет.' : 'Ничего не найдено.'}
+      {workspaces.length === 0 ? t('app.picker.noWorkspaces') : t('app.picker.notFound')}
     </p>
   {:else}
     <ul

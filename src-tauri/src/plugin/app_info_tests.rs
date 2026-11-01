@@ -14,7 +14,22 @@ fn exposes_single_data_location() {
     assert_eq!(info.paths.len(), 1);
     assert_eq!(info.paths[0].key, "app_data");
     assert_eq!(info.paths[0].path, "/data/context");
-    assert_eq!(info.paths[0].title, "Данные приложения");
+    // Заголовок и пояснение — ключи словаря интерфейса: текст показывается на
+    // выбранном языке, а ядро от языка не зависит.
+    assert_eq!(info.paths[0].title, "app.settings.appData.title");
+    assert_eq!(info.paths[0].note, "app.settings.appData.note");
+}
+
+#[test]
+fn name_follows_the_interface_language() {
+    // Имя — текст интерфейса: ядро перевода не хранит, а принимает готовое имя
+    // от оболочки. Расположения при этом не меняются.
+    let mut info = AppInfo::build("Контекст", "0.1.0", Path::new("/data/context"));
+    info.set_name("Context");
+
+    assert_eq!(info.name, "Context");
+    assert_eq!(info.paths.len(), 1);
+    assert_eq!(info.paths[0].path, "/data/context");
 }
 
 #[test]

@@ -28,6 +28,8 @@ import {
   loadThemePreference,
   persistBootAppearance,
 } from '../appearance/theme';
+import { applyAppLocale, loadInterfaceLocale } from '../appearance/locale';
+import { DEFAULT_LOCALE, t, type Locale } from '@context/i18n';
 import {
   DEFAULT_PALETTE,
   DEFAULT_READER_FONT,
@@ -94,6 +96,8 @@ export interface AppearanceBootstrap {
     readerTheme: ReaderThemeId;
     /** Гарнитура книги: с засечками или без. */
     readerFont: ReaderFontId;
+    /** Язык интерфейса, применённый до первого рендера. */
+    locale: Locale;
 }
 
 /** Декларации интерфейса настроек и ошибка их загрузки на бутстрапе. */
@@ -210,10 +214,11 @@ async function ensureUpdatePlace(
                   try {
                       return new URL(source.location).host;
                   } catch {
-                      return 'Обновления';
+                      return t('app.store.updatesFor');
                   }
               })()
-            : source.location.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || 'Обновления';
+            : source.location.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ||
+              t('app.store.updatesFor');
     await addStoreEntry({
         id: `updates-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}-${source.location.length}`,
         kind: source.kind,
@@ -230,19 +235,23 @@ async function ensureUpdatePlace(
  * светлая область чтения) и не прерывает вход.
  */
 async function applyAppearance(): Promise<AppearanceBootstrap> {
-    const [theme, palette, readerTheme, readerFont] = await Promise.all([
+    const [theme, palette, readerTheme, readerFont, locale] = await Promise.all([
         loadThemePreference().catch(() => 'system' as ThemePreference),
         loadThemePalette().catch(() => DEFAULT_PALETTE),
         loadReaderTheme().catch(() => DEFAULT_READER_THEME),
         loadReaderFont().catch(() => DEFAULT_READER_FONT),
+        loadInterfaceLocale().catch(() => DEFAULT_LOCALE),
     ]);
     applyAppThemeTracked(theme);
     applyAppPalette(palette);
     applyAppReaderTheme(readerTheme);
     applyAppReaderFont(readerFont);
+    // Язык применяется до первого кадра: экран загрузки и оболочка читают одни
+    // и те же словари, и подмена языка не видна пользователю.
+    applyAppLocale(locale);
     // Зеркало оформления для статичного экрана загрузки следующего запуска.
     persistBootAppearance({ theme, palette });
-    return { theme, palette, readerTheme, readerFont };
+    return { theme, palette, readerTheme, readerFont, locale };
 }
 
 /** Загрузка деклараций настроек; ошибка даёт пустое пространство с диагностикой. */

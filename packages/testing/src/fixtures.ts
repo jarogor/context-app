@@ -26,38 +26,89 @@ const SETTINGS_FIELDS: Record<
     'app.general': [
         {
             key: 'startup.welcome_notification',
-            title: 'Приветственное уведомление',
+            title: 'app.settings.app.general.startup.welcome_notification.label',
             type: 'boolean',
             default: true,
-            description: 'Показывать приветствие при запуске приложения',
+            description: 'app.settings.app.general.startup.welcome_notification.description',
         },
         {
             key: 'diagnostics.log_level',
-            title: 'Порог технических логов',
+            title: 'app.settings.app.general.diagnostics.log_level.label',
             type: 'select',
             default: 'info',
+            description: 'app.settings.app.general.diagnostics.log_level.description',
             options: [
-                { value: 'info', title: 'Информация' },
-                { value: 'trace', title: 'Всё' },
+                {
+                    value: 'info',
+                    title: 'app.settings.app.general.diagnostics.log_level.option.info',
+                },
+                {
+                    value: 'trace',
+                    title: 'app.settings.app.general.diagnostics.log_level.option.trace',
+                },
+            ],
+        },
+        {
+            key: 'appearance.theme',
+            title: 'app.settings.app.general.appearance.theme.label',
+            type: 'select',
+            default: 'system',
+            description: 'app.settings.app.general.appearance.theme.description',
+            options: [
+                {
+                    value: 'light',
+                    title: 'app.settings.app.general.appearance.theme.option.light',
+                },
+                {
+                    value: 'dark',
+                    title: 'app.settings.app.general.appearance.theme.option.dark',
+                },
+                {
+                    value: 'system',
+                    title: 'app.settings.app.general.appearance.theme.option.system',
+                },
             ],
         },
         {
             key: 'appearance.palette',
-            title: 'Палитра оформления',
+            title: 'app.settings.app.general.appearance.palette.label',
             type: 'select',
             default: 'linen',
+            description: 'app.settings.app.general.appearance.palette.description',
             options: [
-                { value: 'linen', title: 'Лён' },
-                { value: 'cobalt', title: 'Индиго' },
+                {
+                    value: 'linen',
+                    title: 'app.settings.app.general.appearance.palette.option.linen',
+                },
+                {
+                    value: 'cobalt',
+                    title: 'app.settings.app.general.appearance.palette.option.cobalt',
+                },
+            ],
+        },
+        {
+            key: 'appearance.language',
+            title: 'app.settings.app.general.appearance.language.label',
+            type: 'select',
+            default: 'ru',
+            description: 'app.settings.app.general.appearance.language.description',
+            options: [
+                {
+                    value: 'ru',
+                    title: 'app.settings.app.general.appearance.language.option.ru',
+                },
+                {
+                    value: 'en',
+                    title: 'app.settings.app.general.appearance.language.option.en',
+                },
             ],
         },
         {
             key: 'window.open_tabs_limit',
-            title: 'Лимит открытых вкладок',
+            title: 'app.settings.app.general.window.open_tabs_limit.label',
             type: 'number',
             default: 50,
-            description:
-                'Наибольшее число одновременно открытых вкладок рабочего места. Слишком большое значение может привести к непредсказуемым последствиям.',
+            description: 'app.settings.app.general.window.open_tabs_limit.description',
         },
     ],
 };
@@ -69,6 +120,7 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
         'diagnostics.log_level': 'info',
         'appearance.theme': 'system',
         'appearance.palette': 'linen',
+        'appearance.language': 'ru',
         'reader.theme': 'light',
         'reader.font': 'serif',
         'window.open_tabs_limit': 50,
@@ -135,8 +187,8 @@ function settingsSpaces(): unknown[] {
     return Object.entries(SETTINGS_FIELDS).map(([id, fields]) => ({
         space: 'settings.section',
         id,
-        title: 'Общие',
-        description: 'Общие параметры приложения',
+        title: 'app.settings.app.general.title',
+        description: 'app.settings.app.general.description',
         nodes: fields.map((field) => {
             const value = SETTINGS_VALUES[id][field.key];
             if (field.type === 'boolean') {
@@ -672,19 +724,22 @@ export function defaultMockConfig(): MockBridgeConfig {
             active_library: () => null,
             theme_preference: () => SETTINGS_VALUES['app.general']['appearance.theme'],
             theme_palette: () => SETTINGS_VALUES['app.general']['appearance.palette'],
+            interface_locale: () => SETTINGS_VALUES['app.general']['appearance.language'],
             reader_theme: () => SETTINGS_VALUES['app.general']['reader.theme'],
             reader_font: () => SETTINGS_VALUES['app.general']['reader.font'],
             window_open_tabs_limit: () => SETTINGS_VALUES['app.general']['window.open_tabs_limit'],
             show_window: () => null,
+            app_title_set: () => null,
+            app_name_set: () => null,
             app_info: () => ({
                 name: 'Контекст',
                 version: '0.1.0',
                 paths: [
                     {
                         key: 'app_data',
-                        title: 'Данные приложения',
+                        title: 'app.settings.appData.title',
                         path: '/home/user/.context',
-                        note: 'Настройки, плагины, кеш и обновления',
+                        note: 'app.settings.appData.note',
                     },
                 ],
             }),

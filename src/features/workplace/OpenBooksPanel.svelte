@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import {
     ActionMenu,
     Badge,
@@ -24,7 +25,7 @@
     type TabAppearancePatch,
     type WorkspaceTab,
   } from './workplace';
-  import { NOTE_COLOR_LABELS, NOTE_COLOR_SWATCHES } from '../notes/notes';
+  import { noteColorLabel, NOTE_COLOR_SWATCHES } from '../notes/notes';
   import { tabAccent, tabColorFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
@@ -103,18 +104,18 @@
 
   /** Пункты меню оформления вкладки: каждое свойство меняется отдельно. */
   const appearanceActions = $derived<MenuAction[]>([
-    { id: 'rename', label: 'Название' },
-    { id: 'describe', label: 'Описание' },
-    { id: 'duplicate', label: 'Дублировать вкладку', disabled: openBlocked },
-    { id: 'reset', label: 'Сбросить оформление', destructive: true },
-    { id: 'close', label: 'Закрыть вкладку', destructive: true },
+    { id: 'rename', label: t('app.workplace.tab.name') },
+    { id: 'describe', label: t('app.workplace.tab.description') },
+    { id: 'duplicate', label: t('app.workplace.tab.duplicate'), disabled: openBlocked },
+    { id: 'reset', label: t('app.workplace.tab.reset'), destructive: true },
+    { id: 'close', label: t('app.workplace.tab.close'), destructive: true },
   ]);
 
   /** Образцы выбора цвета вкладки: общая палитра заметок, текущий цвет отмечен. */
   function colorOptions(current?: TabColor): MenuColor[] {
     return TAB_COLORS.map((color) => ({
       id: color,
-      label: NOTE_COLOR_LABELS[color],
+      label: noteColorLabel(color),
       color: NOTE_COLOR_SWATCHES[color],
       selected: color === current,
     }));
@@ -137,7 +138,7 @@
     const items: MetaItem[] = [];
     const book = tab.title.trim();
     if (book && book !== tabLabel(tab)) {
-      items.push({ icon: 'book', value: book, title: `Книга: ${book}` });
+      items.push({ icon: 'book', value: book, title: t('app.workplace.tab.book', { book }) });
     }
     if (tab.path) {
       items.push({
@@ -235,7 +236,7 @@
 </script>
 
 <SidePanel
-  title="Вкладки"
+  title={t('app.workplace.tabs')}
   testId="open-books-panel"
   side="left"
   class="w-[var(--notes-panel-width)]"
@@ -248,8 +249,8 @@
   {#snippet search()}
     <Input
       bind:value={query}
-      placeholder="Поиск по вкладкам"
-      ariaLabel="Поиск по вкладкам"
+      placeholder={t('app.search.tabs.placeholder')}
+      ariaLabel={t('app.search.tabs.placeholder')}
       icon="search"
       clearable
     />
@@ -290,15 +291,15 @@
           </button>
           <RowActions>
             <ActionMenu
-              ariaLabel="Оформление вкладки"
-              title={overLimit ? 'Превышен лимит открытых вкладок' : 'Оформление'}
+              ariaLabel={t('app.workplace.tab.appearance')}
+              title={overLimit ? t('app.workplace.limitExceeded') : t('app.workplace.tab.appearance')}
               class="h-7 w-7 {overLimit ? 'text-destructive' : ''}"
               items={appearanceActions}
               icons={iconOptions(tab.icon)}
-              iconsLabel="Иконка вкладки"
+              iconsLabel={t('app.workplace.tab.iconLabel')}
               oniconselect={(icon) => onEditAppearance(tab.id, { icon })}
               colors={colorOptions(tab.color)}
-              colorsLabel="Цвет вкладки"
+              colorsLabel={t('app.workplace.tab.colorLabel')}
               oncolorselect={(color) => onEditAppearance(tab.id, { color: color as TabColor })}
               onselect={(action) => runAppearanceAction(tab, action)}
             />
@@ -320,20 +321,24 @@
         {#if editingTabId === tab.id && editingField}
           <div class="flex flex-col gap-2 pb-2" data-testid="open-books-item-editor">
             {#if editingField === 'name'}
-              <Input bind:value={draft} placeholder="Название" ariaLabel="Название вкладки" />
+              <Input
+                bind:value={draft}
+                placeholder={t('app.workplace.tab.name')}
+                ariaLabel={t('app.workplace.tab.nameLabel')}
+              />
             {:else}
               <Textarea
                 bind:value={draft}
-                placeholder="Описание"
-                ariaLabel="Описание вкладки"
+                placeholder={t('app.workplace.tab.description')}
+                ariaLabel={t('app.workplace.tab.descriptionLabel')}
                 rows={2}
               />
             {/if}
             <div class="flex items-center justify-between gap-2">
               <IconButton
                 action="delete"
-                title="Очистить"
-                ariaLabel="Очистить поле"
+                title={t('app.action.clear')}
+                ariaLabel={t('app.action.clearField')}
                 disabled={!draft}
                 onclick={() => {
                   draft = '';
@@ -344,8 +349,8 @@
                 <Button
                   variant="secondary"
                   size="icon"
-                  title="Отмена"
-                  ariaLabel="Отмена"
+                  title={t('app.reader.cancel')}
+                  ariaLabel={t('app.reader.cancel')}
                   onclick={cancelEditing}
                 >
                   <Icon name="close" />
@@ -353,8 +358,8 @@
                 <Button
                   variant="primary"
                   size="icon"
-                  title="Сохранить"
-                  ariaLabel="Сохранить"
+                  title={t('app.action.save')}
+                  ariaLabel={t('app.action.save')}
                   onclick={commitEditing}
                 >
                   <Icon name="check" />
@@ -369,7 +374,7 @@
         class="px-2 py-4 text-center role-body text-[var(--muted-foreground)]"
         data-testid={tabs.length > 0 ? 'open-books-search-empty' : 'open-books-empty'}
       >
-        {tabs.length > 0 ? 'Вкладок по запросу не найдено.' : 'Нет открытых книг'}
+        {tabs.length > 0 ? t('app.workplace.tabsNotFound') : t('app.workplace.noOpenBooks')}
       </li>
     {/each}
   </ul>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { ActionMenu, Button, Input, Select, type MenuAction } from '@context/ui';
   import type { NoteSetSummary } from './notes';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
@@ -64,9 +65,14 @@
 
   /** Пункты меню набора заметок. */
   const setActions = $derived<MenuAction[]>([
-    { id: 'create', label: 'Новый набор' },
-    { id: 'rename', label: 'Переименовать', disabled: !activeSet },
-    { id: 'delete', label: 'Удалить', destructive: true, disabled: !activeSet },
+    { id: 'create', label: t('app.notes.sets.new') },
+    { id: 'rename', label: t('app.notes.sets.rename'), disabled: !activeSet },
+    {
+      id: 'delete',
+      label: t('app.notes.sets.delete'),
+      destructive: true,
+      disabled: !activeSet,
+    },
   ]);
 
   /** Начало ввода имени нового набора. */
@@ -134,10 +140,12 @@
 <div class="flex flex-col gap-2 border-b border-[var(--border)] p-2.5" data-testid="notes-sets">
   {#if creating}
     <label class="flex flex-col gap-1">
-      <span class="role-caption text-[var(--muted-foreground)]">Имя набора</span>
+      <span class="role-caption text-[var(--muted-foreground)]"
+        >{t('app.notes.sets.nameLabel')}</span
+      >
       <Input
         bind:value={newSetName}
-        placeholder="Новый набор"
+        placeholder={t('app.notes.sets.new')}
         onkeydown={(event) => {
           if (event.key === 'Enter') {
             commitCreate();
@@ -147,16 +155,20 @@
     </label>
     <div class="flex gap-2">
       <Button variant="primary" size="sm" disabled={!newSetName.trim()} onclick={commitCreate}>
-        Создать
+        {t('app.action.create')}
       </Button>
-      <Button variant="secondary" size="sm" onclick={() => (creating = false)}>Отмена</Button>
+      <Button variant="secondary" size="sm" onclick={() => (creating = false)}
+        >{t('app.reader.cancel')}</Button
+      >
     </div>
   {:else if renaming}
     <label class="flex flex-col gap-1">
-      <span class="role-caption text-[var(--muted-foreground)]">Новое имя</span>
+      <span class="role-caption text-[var(--muted-foreground)]"
+        >{t('app.notes.sets.newName')}</span
+      >
       <Input
         bind:value={renameName}
-        placeholder="Новое имя"
+        placeholder={t('app.notes.sets.newName')}
         onkeydown={(event) => {
           if (event.key === 'Enter') {
             commitRename();
@@ -166,25 +178,27 @@
     </label>
     <div class="flex gap-2">
       <Button variant="primary" size="sm" disabled={!renameName.trim()} onclick={commitRename}>
-        Сохранить
+        {t('app.action.save')}
       </Button>
-      <Button variant="secondary" size="sm" onclick={() => (renaming = false)}>Отмена</Button>
+      <Button variant="secondary" size="sm" onclick={() => (renaming = false)}
+        >{t('app.reader.cancel')}</Button
+      >
     </div>
   {:else}
-    <span class="role-eyebrow text-[var(--muted-foreground)]">Набор</span>
+    <span class="role-eyebrow text-[var(--muted-foreground)]">{t('app.notes.sets.eyebrow')}</span>
     <div class="flex items-center gap-2">
       <Select
         value={activeSetId ?? ''}
         items={setOptions}
-        placeholder={sets.length === 0 ? 'Наборов нет' : 'Выберите набор'}
+        placeholder={sets.length === 0 ? t('app.notes.sets.noSets') : t('app.notes.sets.choose')}
         disabled={sets.length === 0}
-        ariaLabel="Набор заметок"
+        ariaLabel={t('app.notes.sets.label')}
         class="min-w-0 flex-1"
         onchange={changeSet}
       />
       <ActionMenu
-        ariaLabel="Действия с набором заметок"
-        title="Действия"
+        ariaLabel={t('app.notes.sets.actionsLabel')}
+        title={t('app.action.actions')}
         items={setActions}
         onselect={runSetAction}
       />

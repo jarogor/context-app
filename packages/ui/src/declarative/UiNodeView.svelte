@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { UiElement } from '@context/ui-schema';
+  import { localize, t } from '@context/i18n';
   import { cn } from '../utils';
   import Button from '../components/Button.svelte';
   import Card from '../components/Card.svelte';
@@ -43,17 +44,19 @@
   );
   /** Варианты выбора в форме выпадающего списка. */
   const selectOptions = $derived(
-    options.map((option) => ({ value: String(option.value), label: String(option.title) })),
+    options.map((option) => ({ value: String(option.value), label: localize(String(option.title)) })),
   );
   /** Уровень заголовка. */
   const level = $derived(typeof node.props?.level === 'number' ? (node.props.level as number) : 2);
   /** Идентификатор контрола для связи с подписью. */
   const controlId = $derived(name ? `ui-${name}` : undefined);
   /** Название поля. */
-  const label = $derived(typeof node.props?.label === 'string' ? (node.props.label as string) : '');
+  const label = $derived(
+    typeof node.props?.label === 'string' ? localize(node.props.label) : '',
+  );
   /** Пояснение поля, если оно задано контролом. */
   const description = $derived(
-    typeof node.props?.description === 'string' ? (node.props.description as string) : '',
+    typeof node.props?.description === 'string' ? localize(node.props.description) : '',
   );
   /** Признак того, что значение поля отличается от сохранённого состояния. */
   const changed = $derived(name !== '' && !sameValue(values[name], baseline?.[name]));
@@ -83,7 +86,7 @@
     class={labelClass}
     for={controlId}
     data-changed={changed ? 'true' : 'false'}
-    title={changed ? 'Изменено, не сохранено' : undefined}
+    title={changed ? t('app.settings.changed') : undefined}
   >
     {label}{#if changed}<span
         class="bg-[var(--primary)] ml-1.5 inline-block size-1.5 rounded-full align-middle"
@@ -103,11 +106,11 @@
     this={`h${Math.min(6, Math.max(1, level))}`}
     class="mb-1 text-base font-semibold"
   >
-    {node.props?.text ?? ''}
+    {localize(String(node.props?.text ?? ''))}
   </svelte:element>
 {:else if node.type === 'Text'}
   <p class="text-muted-foreground mb-2 role-body">
-    {node.props?.text ?? ''}
+    {localize(String(node.props?.text ?? ''))}
   </p>
 {:else if node.type === 'Checkbox'}
   <div class={fieldGridClass}>
@@ -214,10 +217,10 @@
       }
     }}
   >
-    {node.props?.label ?? ''}
+    {localize(String(node.props?.label ?? ''))}
   </Button>
 {:else}
   <span class={cn('text-muted-foreground role-body')}>
-    Неизвестный компонент: {node.type}
+    {t('app.settings.unknownComponent', { type: node.type })}
   </span>
 {/if}

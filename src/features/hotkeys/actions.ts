@@ -15,6 +15,8 @@
  * работать так же, как при английской.
  */
 
+import { t } from '@context/i18n';
+
 /** Область, в которой действие имеет смысл. */
 export type HotkeyScope = 'app' | 'workplace' | 'reader';
 
@@ -45,124 +47,132 @@ export interface HotkeyAction {
     allowInTextInput?: boolean;
 }
 
-/** Названия групп в порядке показа. */
+/** Названия групп в порядке показа на активном языке. */
 export const HOTKEY_GROUP_TITLES: Record<HotkeyGroup, string> = {
-    sections: 'Разделы и оболочка',
-    workplace: 'Рабочее место',
-    reading: 'Чтение книги',
-    layers: 'Слои',
+    get sections() {
+        return t('app.hotkey.sections');
+    },
+    get workplace() {
+        return t('app.hotkey.workplace');
+    },
+    get reading() {
+        return t('app.hotkey.reading');
+    },
+    get layers() {
+        return t('app.hotkey.layers');
+    },
 };
 
 /** Каталог действий системы комбинаций клавиш. */
 export const HOTKEY_ACTIONS: readonly HotkeyAction[] = [
     {
         id: 'app.section.workspace',
-        title: 'Рабочее место',
-        description: 'Переход к рабочему месту, не меняя открытые вкладки',
+        title: 'app.hotkey.app.section.workspace.title',
+        description: 'app.hotkey.app.section.workspace.description',
         group: 'sections',
         scope: 'app',
         bindings: ['Ctrl+1'],
     },
     {
         id: 'app.section.library',
-        title: 'Библиотека',
-        description: 'Переход к библиотеке',
+        title: 'app.hotkey.app.section.library.title',
+        description: 'app.hotkey.app.section.library.description',
         group: 'sections',
         scope: 'app',
         bindings: ['Ctrl+2'],
     },
     {
         id: 'app.section.notes',
-        title: 'Заметки',
-        description: 'Переход к реестру заметок',
+        title: 'app.hotkey.app.section.notes.title',
+        description: 'app.hotkey.app.section.notes.description',
         group: 'sections',
         scope: 'app',
         bindings: ['Ctrl+3'],
     },
     {
         id: 'app.settings',
-        title: 'Настройки',
-        description: 'Открытие и закрытие настроек',
+        title: 'app.hotkey.app.settings.title',
+        description: 'app.hotkey.app.settings.description',
         group: 'sections',
         scope: 'app',
         bindings: ['Ctrl+Comma'],
     },
     {
         id: 'app.notifications',
-        title: 'Уведомления',
-        description: 'Открытие и закрытие журнала уведомлений',
+        title: 'app.hotkey.app.notifications.title',
+        description: 'app.hotkey.app.notifications.description',
         group: 'sections',
         scope: 'app',
         bindings: ['Ctrl+Alt+N'],
     },
     {
         id: 'app.theme',
-        title: 'Тема оформления',
-        description: 'Светлая, тёмная, как в системе — по кругу',
+        title: 'app.hotkey.app.theme.title',
+        description: 'app.hotkey.app.theme.description',
         group: 'sections',
         scope: 'app',
         bindings: ['Ctrl+Alt+T'],
     },
     {
         id: 'workplace.books',
-        title: 'Панель открытых книг',
-        description: 'Показ и скрытие списка открытых книг рабочего места',
+        title: 'app.hotkey.workplace.books.title',
+        description: 'app.hotkey.workplace.books.description',
         group: 'workplace',
         scope: 'workplace',
         bindings: ['Ctrl+B'],
     },
     {
         id: 'workplace.notes',
-        title: 'Панель заметок',
-        description: 'Показ и скрытие заметок открытой книги',
+        title: 'app.hotkey.workplace.notes.title',
+        description: 'app.hotkey.workplace.notes.description',
         group: 'workplace',
         scope: 'workplace',
         bindings: ['Ctrl+J'],
     },
     {
         id: 'workplace.focus',
-        title: 'Сосредоточенное чтение',
-        description: 'Скрытие панелей и чтение на всё окно',
+        title: 'app.hotkey.workplace.focus.title',
+        description: 'app.hotkey.workplace.focus.description',
         group: 'workplace',
         scope: 'workplace',
         bindings: ['Ctrl+Shift+F'],
     },
     {
         id: 'workplace.tab.next',
-        title: 'Следующая вкладка',
-        description: 'Переход к следующей открытой книге',
+        title: 'app.hotkey.workplace.tab.next.title',
+        description: 'app.hotkey.workplace.tab.next.description',
         group: 'workplace',
         scope: 'workplace',
         bindings: ['Ctrl+Tab'],
     },
     {
         id: 'workplace.tab.prev',
-        title: 'Предыдущая вкладка',
-        description: 'Переход к предыдущей открытой книге',
+        title: 'app.hotkey.workplace.tab.prev.title',
+        description: 'app.hotkey.workplace.tab.prev.description',
         group: 'workplace',
         scope: 'workplace',
         bindings: ['Ctrl+Shift+Tab'],
     },
     {
         id: 'workplace.add.book',
-        title: 'Добавить книгу из файла',
-        description: 'Выбор файла книги и открытие его вкладкой',
+        title: 'app.hotkey.workplace.add.book.title',
+        description: 'app.hotkey.workplace.add.book.description',
         group: 'workplace',
         scope: 'workplace',
         bindings: ['Ctrl+O'],
     },
     {
         id: 'reader.search',
-        title: 'Поиск по книге',
-        description: 'Открытие панели поиска по содержимому книги',
+        title: 'app.hotkey.reader.search.title',
+        description: 'app.hotkey.reader.search.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['Ctrl+F'],
     },
     {
         id: 'reader.search.next',
-        title: 'Следующее вхождение',
-        description: 'Переход к следующему найденному месту в книге',
+        title: 'app.hotkey.reader.search.next.title',
+        description: 'app.hotkey.reader.search.next.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['F3'],
@@ -170,8 +180,8 @@ export const HOTKEY_ACTIONS: readonly HotkeyAction[] = [
     },
     {
         id: 'reader.search.prev',
-        title: 'Предыдущее вхождение',
-        description: 'Переход к предыдущему найденному месту в книге',
+        title: 'app.hotkey.reader.search.prev.title',
+        description: 'app.hotkey.reader.search.prev.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['Shift+F3'],
@@ -179,56 +189,56 @@ export const HOTKEY_ACTIONS: readonly HotkeyAction[] = [
     },
     {
         id: 'reader.zoom.in',
-        title: 'Увеличить масштаб',
-        description: 'Следующий уровень масштаба чтения',
+        title: 'app.hotkey.reader.zoom.in.title',
+        description: 'app.hotkey.reader.zoom.in.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['Ctrl+Equal', 'Ctrl+NumpadAdd'],
     },
     {
         id: 'reader.zoom.out',
-        title: 'Уменьшить масштаб',
-        description: 'Предыдущий уровень масштаба чтения',
+        title: 'app.hotkey.reader.zoom.out.title',
+        description: 'app.hotkey.reader.zoom.out.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['Ctrl+Minus', 'Ctrl+NumpadSubtract'],
     },
     {
         id: 'reader.screen.next',
-        title: 'Следующий экран',
-        description: 'Прокрутка книги вниз на высоту области чтения',
+        title: 'app.hotkey.reader.screen.next.title',
+        description: 'app.hotkey.reader.screen.next.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['PageDown'],
     },
     {
         id: 'reader.screen.prev',
-        title: 'Предыдущий экран',
-        description: 'Прокрутка книги вверх на высоту области чтения',
+        title: 'app.hotkey.reader.screen.prev.title',
+        description: 'app.hotkey.reader.screen.prev.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['PageUp'],
     },
     {
         id: 'reader.book.start',
-        title: 'Начало книги',
-        description: 'Прокрутка книги к самому началу',
+        title: 'app.hotkey.reader.book.start.title',
+        description: 'app.hotkey.reader.book.start.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['Home'],
     },
     {
         id: 'reader.book.end',
-        title: 'Конец книги',
-        description: 'Прокрутка книги к самому концу',
+        title: 'app.hotkey.reader.book.end.title',
+        description: 'app.hotkey.reader.book.end.description',
         group: 'reading',
         scope: 'reader',
         bindings: ['End'],
     },
     {
         id: 'app.dismiss',
-        title: 'Закрыть верхний слой',
-        description: 'Закрывает открытый слой: настройки, поиск, меню заметки, правку',
+        title: 'app.hotkey.app.dismiss.title',
+        description: 'app.hotkey.app.dismiss.description',
         group: 'layers',
         scope: 'app',
         bindings: ['Escape'],

@@ -7,6 +7,8 @@
  * шапке) и настройки приложения.
  */
 
+import { t } from '@context/i18n';
+
 /** Идентификатор палитры оформления. */
 export type PaletteId = 'linen' | 'cobalt' | 'gruvbox' | 'mist';
 
@@ -25,10 +27,42 @@ export const DEFAULT_PALETTE: PaletteId = 'linen';
 
 /** Реестр палитр дизайн-системы. */
 export const PALETTES: readonly Palette[] = [
-  { id: 'linen', title: 'Лён', description: 'Тёплая бумага со смолистым зелёным акцентом' },
-  { id: 'cobalt', title: 'Индиго', description: 'Голубая бумага с насыщенным синим акцентом' },
-  { id: 'gruvbox', title: 'Янтарь', description: 'Тёплая контрастная палитра с бирюзовым акцентом' },
-  { id: 'mist', title: 'Графит', description: 'Нейтральная графитовая палитра без цветного фона' },
+  {
+    id: 'linen',
+    get title() {
+      return t('app.palette.linen');
+    },
+    get description() {
+      return t('app.palette.linen.description');
+    },
+  },
+  {
+    id: 'cobalt',
+    get title() {
+      return t('app.palette.cobalt');
+    },
+    get description() {
+      return t('app.palette.cobalt.description');
+    },
+  },
+  {
+    id: 'gruvbox',
+    get title() {
+      return t('app.palette.gruvbox');
+    },
+    get description() {
+      return t('app.palette.gruvbox.description');
+    },
+  },
+  {
+    id: 'mist',
+    get title() {
+      return t('app.palette.mist');
+    },
+    get description() {
+      return t('app.palette.mist.description');
+    },
+  },
 ];
 
 /** Проверка, что значение — известный идентификатор палитры. */

@@ -36,6 +36,7 @@
 
 <script lang="ts">
   import { DropdownMenu } from 'bits-ui';
+  import { t } from '@context/i18n';
   import { cn } from '../utils';
   import { buttonVariants } from './Button.svelte';
   import ColorPicker from './ColorPicker.svelte';
@@ -74,10 +75,10 @@
     onselect,
     colors = [],
     oncolorselect,
-    colorsLabel = 'Выбор цвета',
+    colorsLabel,
     icons = [],
     oniconselect,
-    iconsLabel = 'Выбор иконки',
+    iconsLabel,
     ariaLabel,
     title,
     disabled = false,
@@ -145,7 +146,7 @@
           <ColorPicker
             colors={swatches}
             onpick={pickColor}
-            ariaLabel={colorsLabel}
+            ariaLabel={colorsLabel ?? t('app.color.choose')}
             testIdPrefix="menu-color"
           />
         </div>
@@ -155,7 +156,7 @@
           <IconPicker
             icons={iconSwatches}
             onpick={pickIcon}
-            ariaLabel={iconsLabel}
+            ariaLabel={iconsLabel ?? t('app.icon.choose')}
             testIdPrefix="menu-icon"
           />
         </div>

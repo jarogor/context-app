@@ -5,6 +5,7 @@
  * передаёт их в колбэки; разбор и проверка формы данных живут здесь.
  */
 
+import { t } from '@context/i18n';
 import type { NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
 import type { QuoteAnchor } from './reader/anchor';
 import {
@@ -262,7 +263,10 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
       };
     }
     case 'error':
-      return { type: 'error', message: String(message.message ?? 'не удалось отобразить книгу') };
+      return {
+      type: 'error',
+      message: String(message.message ?? t('app.reader.failedGeneric')),
+    };
     case 'open-external':
       return { type: 'open-external' };
     case 'open-link': {

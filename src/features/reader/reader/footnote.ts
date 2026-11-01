@@ -12,6 +12,7 @@
  * сносок, а не только у той, по которой только что кликнули.
  */
 
+import { t } from '@context/i18n';
 import { anchorTarget, parseBookLink } from './book-link';
 
 /** Класс тела сносок FB2. */
@@ -323,7 +324,7 @@ function backLink(doc: Document, sourceId: string): HTMLAnchorElement {
     const link = doc.createElement('a');
     link.className = FOOTNOTE_BACK_CLASS;
     link.setAttribute('href', `#${sourceId}`);
-    link.setAttribute('title', 'Вернуться к месту ссылки');
+    link.setAttribute('title', t('app.reader.footnote.back'));
     link.textContent = '↩';
     return link;
 }

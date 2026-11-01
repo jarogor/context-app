@@ -5,6 +5,7 @@
  * наборов заметок. Модуль чист от Svelte и обращений к мосту: только данные.
  */
 
+import { t } from '@context/i18n';
 import {
     DEFAULT_PALETTE,
     DEFAULT_READER_THEME,
@@ -15,8 +16,14 @@ import {
 
 /** Идентификатор активной библиотеки в ключе книги. */
 const NO_LIBRARY = 'no-library';
-/** Имя набора заметок, который книга заводит по умолчанию. */
-export const DEFAULT_SET_NAME = 'Основные';
+/** Имя набора заметок, который книга заводит по умолчанию.
+ *
+ * Перевод берётся из словаря: имя набора сохраняется в хранилище как есть, но
+ * создаётся уже на языке интерфейса, выбранном в момент создания.
+ */
+export function defaultSetName(): string {
+    return t('app.note.defaultSet');
+}
 
 /** Цвет подсветки заметки по умолчанию. */
 export const DEFAULT_NOTE_COLOR = 'yellow';
@@ -33,14 +40,10 @@ export const NOTE_COLORS = [
 /** Идентификатор цвета подсветки заметки. */
 export type NoteColor = (typeof NOTE_COLORS)[number];
 
-/** Русские названия цветов подсветки для интерфейса. */
-export const NOTE_COLOR_LABELS: Record<NoteColor, string> = {
-    yellow: 'жёлтый',
-    green: 'зелёный',
-    blue: 'синий',
-    red: 'красный',
-    purple: 'фиолетовый',
-};
+/** Названия цветов подсветки для интерфейса на активном языке. */
+export function noteColorLabel(color: NoteColor): string {
+    return t(`app.note.color.${color}`);
+}
 
 /** Насыщенные акценты палитры: образцы выбора цвета (панель, меню, список).
  *
@@ -98,12 +101,10 @@ export const NOTE_TYPES = ['quote', 'text', 'shape'] as const;
 /** Тип заметки: цитата, текстовая карточка или фигура. */
 export type NoteType = (typeof NOTE_TYPES)[number];
 
-/** Русские названия типов заметок для интерфейса. */
-export const NOTE_TYPE_LABELS: Record<NoteType, string> = {
-    quote: 'Цитата',
-    text: 'Текст',
-    shape: 'Фигура',
-};
+/** Названия типов заметок для интерфейса на активном языке. */
+export function noteTypeLabel(type: NoteType): string {
+    return t(`app.note.type.${type}`);
+}
 
 /** Вид фигуры по умолчанию: линия. */
 export const DEFAULT_SHAPE_KIND = 'line';
@@ -177,11 +178,9 @@ export function resetToolTypeAfterCreate(tool: NoteTool): NoteTool {
  * длинного варианта, а длинное «Прямоугольник» растягивало его и вытесняло
  * соседние инструменты. «Рамка» — то же действие: обвести область по контуру.
  */
-export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
-    line: 'Линия',
-    rectangle: 'Рамка',
-    ellipse: 'Эллипс',
-};
+export function shapeKindLabel(kind: ShapeKind): string {
+    return t(`app.note.shape.${kind}`);
+}
 
 /** Приведение значения к доступному цвету; неизвестное даёт цвет по умолчанию. */
 export function normalizeColor(value: unknown): NoteColor {

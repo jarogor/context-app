@@ -17,7 +17,7 @@
     "check:artifacts": "node scripts/plugin-artifacts.mjs check",
     "preview": "vite preview",
     "test": "npm run test:unit",
-    "test:unit": "vitest run && npm test -w @context/ui && npm test -w @context/ui-schema && npm test -w format-pdf-viewer && npm test -w format-djvu-viewer",
+    "test:unit": "vitest run && npm test -w @context/ui && npm test -w @context/ui-schema && npm test -w @context/i18n && npm test -w format-pdf-viewer && npm test -w format-djvu-viewer",
     "test:e2e": "npm run build:plugins && npm run check:artifacts && playwright test",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json && npm run check -w format-pdf-viewer && npm run check -w format-djvu-viewer",
     "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",
@@ -44,6 +44,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",
     "@tauri-apps/plugin-dialog": "^2.8.1",
+    "@context/i18n": "*",
     "@context/ui": "*",
     "pdfjs-dist": "4.10.38"
   }

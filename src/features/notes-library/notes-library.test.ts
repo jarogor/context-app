@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeSet } from '../notes/notes';
-import {
-    bookTitleOf,
-    fallbackBookTitle,
-    librarySets,
-    noteCountLabel,
-    pluralNotes,
-} from './notes-library';
+import { setLocale } from '@context/i18n';
+import { bookTitleOf, fallbackBookTitle, librarySets, noteCountLabel } from './notes-library';
 
 /** Набор реестра из сырого ответа плагина. */
 function set(raw: Record<string, unknown>) {
@@ -34,13 +29,22 @@ describe('резервное имя книги', () => {
 
 describe('склонение числа заметок', () => {
     it('склоняет запись по-русски', () => {
+        setLocale('ru');
         expect(noteCountLabel(0)).toBe('0 заметок');
         expect(noteCountLabel(1)).toBe('1 заметка');
         expect(noteCountLabel(2)).toBe('2 заметки');
         expect(noteCountLabel(5)).toBe('5 заметок');
         expect(noteCountLabel(11)).toBe('11 заметок');
         expect(noteCountLabel(21)).toBe('21 заметка');
-        expect(pluralNotes(22)).toBe('заметки');
+    });
+
+    it('склоняет запись по-английски', () => {
+        // Язык интерфейса меняет не только словарь, но и правила склонения:
+        // английский различает только единственное и множественное число.
+        setLocale('en');
+        expect(noteCountLabel(1)).toBe('1 note');
+        expect(noteCountLabel(2)).toBe('2 notes');
+        setLocale('ru');
     });
 });
 

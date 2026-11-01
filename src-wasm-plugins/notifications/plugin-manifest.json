@@ -19,18 +19,18 @@
   ],
   "requires": [],
   "settings": {
-    "title": "Уведомления",
+    "title": "app.settings.notifications.owner",
     "sections": [
       {
         "id": "notifications",
-        "title": "Журнал",
-        "description": "Параметры журнала уведомлений",
+        "title": "app.settings.notifications.notifications.title",
+        "description": "app.settings.notifications.notifications.description",
         "fields": [
           {
             "key": "technical_visible_default",
-            "title": "Показывать технические уведомления",
+            "title": "app.settings.notifications.notifications.technical_visible_default.label",
             "type": "boolean",
-            "description": "Включать технический уровень при открытии журнала",
+            "description": "app.settings.notifications.notifications.technical_visible_default.description",
             "default": false
           }
         ]

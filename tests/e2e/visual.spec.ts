@@ -14,8 +14,7 @@ test('снимок тёмной темы совпадает с эталоном'
   const settings = page.locator('main');
   await expect(settings.getByTestId('settings-group-heading').first()).toBeVisible();
   await page.getByLabel('Закрыть настройки').click();
-  // Тема переключается кнопкой в шапке: светлая → тёмная (второй клик) .
-  await page.getByLabel('Переключить тему', { exact: true }).click();
+  // Тема переключается кнопкой в шапке: светлая → тёмная (одно нажатие).
   await page.getByLabel('Переключить тему', { exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Button, Icon } from '@context/ui';
+  import { t } from '@context/i18n';
   import type { NoteType } from './notes';
 
   /** Контекстное меню заметки, общее для всех режимов чтения.
@@ -78,8 +79,8 @@
     <Button
       variant="secondary"
       size="icon"
-      title="Копировать текст"
-      ariaLabel="Копировать текст"
+      title={t('app.note.menu.copy')}
+      ariaLabel={t('app.note.menu.copy')}
       onclick={copyQuote}
     >
       <Icon name="copy" />
@@ -87,8 +88,8 @@
     <Button
       variant="secondary"
       size="icon"
-      title="Изменить выделение"
-      ariaLabel="Изменить выделение"
+      title={t('app.note.menu.resize')}
+      ariaLabel={t('app.note.menu.resize')}
       onclick={onResize}
     >
       <Icon name="resize" />
@@ -98,8 +99,8 @@
       <Button
         variant="secondary"
         size="icon"
-        title="Изменить текст"
-        ariaLabel="Изменить текст"
+        title={t('app.note.menu.editText')}
+        ariaLabel={t('app.note.menu.editText')}
         onclick={onEditText}
       >
         <Icon name="pencil" />
@@ -108,14 +109,20 @@
     <Button
       variant="secondary"
       size="icon"
-      title="Переместить"
-      ariaLabel="Переместить"
+      title={t('app.note.menu.move')}
+      ariaLabel={t('app.note.menu.move')}
       onclick={onMove}
     >
       <Icon name="move" />
     </Button>
   {/if}
-  <Button variant="ghost" size="icon" title="Закрыть" ariaLabel="Закрыть" onclick={onClose}>
+  <Button
+    variant="ghost"
+    size="icon"
+    title={t('app.modal.close')}
+    ariaLabel={t('app.modal.close')}
+    onclick={onClose}
+  >
     <Icon name="close" />
   </Button>
 </div>

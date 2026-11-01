@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Icon, type IconName } from '@context/ui';
+  import { t } from '@context/i18n';
 
   /**
    * Навигация по разделам приложения — единственный источник переходов.
@@ -41,9 +42,9 @@
 
   /** Разделы приложения в порядке показа. */
   const sections: Array<{ id: string; label: string; icon: IconName; active: boolean }> = $derived([
-    { id: 'workspace', label: 'Рабочее место', icon: 'workspace', active: workspaceActive },
-    { id: 'library', label: 'Библиотека', icon: 'library', active: libraryActive },
-    { id: 'notes', label: 'Заметки', icon: 'note', active: notesActive },
+    { id: 'workspace', label: t('app.section.workspace'), icon: 'workspace', active: workspaceActive },
+    { id: 'library', label: t('app.section.library'), icon: 'library', active: libraryActive },
+    { id: 'notes', label: t('app.section.notes'), icon: 'note', active: notesActive },
   ]);
 
   /** Обработчик раздела по идентификатору. */
@@ -88,7 +89,7 @@
 
 <nav
   class="flex min-w-0 items-center gap-0.5 overflow-hidden {className} md:gap-1"
-  aria-label="Разделы приложения"
+  aria-label={t('app.sections.label')}
   data-testid="section-nav"
   data-mobile={mobile ? 'true' : 'false'}
 >

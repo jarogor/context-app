@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import WorkplaceTabPage, { type TabReader } from './WorkplaceTabPage.svelte';
   import WorkplaceTabs from './WorkplaceTabs.svelte';
   import OpenBooksPanel from './OpenBooksPanel.svelte';
@@ -496,8 +497,8 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
           <div class="flex h-full items-center justify-center p-6" data-testid="workplace-empty">
             <EmptyState
               icon="workspace"
-              title="Рабочее место пусто"
-              description="Воспользуйтесь кнопкой «Добавить книгу» в полосе вкладок выше: книга появится здесь и встретится с заметками."
+              title={t('app.workplace.empty.title')}
+              description={t('app.workplace.empty.description')}
             />
           </div>
         {:else}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import {
     EmptyState,
     EntityList,
@@ -77,7 +78,9 @@
   }
 
   /** Пункты меню набора в реестре. */
-  const setActions: MenuAction[] = [{ id: 'open', label: 'Открыть книгу' }];
+  const setActions: MenuAction[] = $derived([
+    { id: 'open', label: t('app.notes.library.openBook') },
+  ]);
 
   /** Метаинформация набора: дата (изменения, иначе создания) и книга-подпись. */
   function metaItems(set: (typeof view)[number]): MetaItem[] {
@@ -85,9 +88,17 @@
     const created = formatDateTime(set.createdAtMillis);
     const items: MetaItem[] = [];
     if (changed) {
-      items.push({ icon: 'calendar', value: changed, title: `Изменён ${changed}` });
+      items.push({
+        icon: 'calendar',
+        value: changed,
+        title: t('app.notes.library.changed', { date: changed }),
+      });
     } else if (created) {
-      items.push({ icon: 'calendar', value: created, title: `Создан ${created}` });
+      items.push({
+        icon: 'calendar',
+        value: created,
+        title: t('app.notes.library.created', { date: created }),
+      });
     }
     items.push({
       icon: 'book',
@@ -129,17 +140,20 @@
 
   {#snippet errorContent()}
     <div class="p-4">
-      <ErrorState message={`Не удалось загрузить заметки: ${error}`} testId="notes-library-error" />
+      <ErrorState
+        message={t('app.notes.library.loadFailed', { error })}
+        testId="notes-library-error"
+      />
     </div>
   {/snippet}
 
   {#snippet emptyContent()}
     <EmptyState
       icon="note"
-      title={query ? 'По запросу ничего не найдено' : 'Заметок пока нет'}
+      title={query ? t('app.notes.library.notFound.title') : t('app.notes.library.empty.title')}
       description={query
-        ? 'Измените запрос поиска.'
-        : 'Выделите фрагмент текста в книге, чтобы создать заметку.'}
+        ? t('app.search.changeQuery')
+        : t('app.notes.library.empty.description')}
       testId="notes-library-empty"
     />
   {/snippet}
@@ -147,8 +161,8 @@
   {#snippet controls()}
     <Input
       bind:value={query}
-      placeholder="Поиск по заметкам"
-      ariaLabel="Поиск по заметкам"
+      placeholder={t('app.search.notes.placeholder')}
+      ariaLabel={t('app.search.notes.placeholder')}
       icon="search"
       clearable
       class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
@@ -156,11 +170,11 @@
     {#if sets.length > 0}
       <dl class="flex items-center gap-4 sm:ml-auto">
         <div class="flex items-baseline gap-1.5">
-          <dt class="role-caption text-[var(--muted-foreground)]">Наборов</dt>
+          <dt class="role-caption text-[var(--muted-foreground)]">{t('app.notes.library.sets')}</dt>
           <dd class="role-title">{sets.length}</dd>
         </div>
         <div class="flex items-baseline gap-1.5">
-          <dt class="role-caption text-[var(--muted-foreground)]">Заметок</dt>
+          <dt class="role-caption text-[var(--muted-foreground)]">{t('app.notes.library.notes')}</dt>
           <dd class="role-title">{totalNotes}</dd>
         </div>
       </dl>
@@ -178,7 +192,7 @@
     metaItems={metaItems}
     metaTestId="notes-library-set-meta"
     actions={() => setActions}
-    actionsLabel="Действия с набором заметок"
+    actionsLabel={t('app.notes.library.actionsLabel')}
     onAction={(set) => openBookOfSet(set)}
   >
     {#snippet titleContent(set)}
@@ -205,7 +219,7 @@
       {#if isExpanded(set.id)}
         {#if set.noteItems.length === 0}
           <p class="px-3 role-body text-[var(--muted-foreground)]" data-testid="notes-library-set-empty">
-            В наборе нет заметок.
+            {t('app.notes.library.noNotesInSet')}
           </p>
         {:else}
           <div

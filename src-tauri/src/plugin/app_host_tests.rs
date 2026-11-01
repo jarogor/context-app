@@ -234,6 +234,137 @@ fn refresh_registry_includes_palette_field() {
     cleanup(&storage);
 }
 
+/// Проверка, что поле языка интерфейса зарегистрировано в секции приложения.
+///
+/// Язык выбирается настройкой и по умолчанию русский; без поля переключить
+/// язык интерфейса было бы нечем.
+#[test]
+fn refresh_registry_includes_language_field() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-language-field");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+
+    let output = host
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
+        .expect("список секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
+    let app_section = parsed["sections"]
+        .as_array()
+        .expect("массив секций")
+        .iter()
+        .find(|section| section["id"] == "app.general")
+        .expect("секция приложения");
+    let language_field = app_section["fields"]
+        .as_array()
+        .expect("поля секции")
+        .iter()
+        .find(|field| field["key"] == "appearance.language")
+        .expect("поле языка");
+    assert_eq!(language_field["type"], "select", "тип поля языка");
+    let options: Vec<&str> = language_field["options"]
+        .as_array()
+        .expect("варианты языка")
+        .iter()
+        .filter_map(|option| option["value"].as_str())
+        .collect();
+    assert_eq!(options, vec!["ru", "en"], "языки интерфейса");
+    assert_eq!(
+        app_section["values"]["appearance.language"], "ru",
+        "язык по умолчанию"
+    );
+    cleanup(&storage);
+}
+
+/// Язык интерфейса по умолчанию — русский, а сохранённый `en` читается.
+#[test]
+fn interface_locale_defaults_to_russian_and_reads_saved_value() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-interface-locale");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+    assert_eq!(host.interface_locale(), "ru", "язык по умолчанию");
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "appearance.language": "en" }
+        }),
+    )
+    .expect("сохранение языка");
+    assert_eq!(host.interface_locale(), "en", "сохранённый язык");
+
+    host.invoke_capability(
+        CAPABILITY_SETTINGS,
+        "set",
+        serde_json::json!({
+            "section": "app.general",
+            "values": { "appearance.language": "de" }
+        }),
+    )
+    .expect("сохранение неизвестного языка");
+    assert_eq!(
+        host.interface_locale(),
+        "ru",
+        "неизвестный язык даёт русский"
+    );
+    cleanup(&storage);
+}
+
+/// Проверка, что поле темы оформления зарегистрировано в секции приложения.
+///
+/// Кнопка в шапке переключает только между светлой и тёмной, поэтому режим
+/// «как в системе» доступен лишь настройкой — без поля вернуть его нельзя.
+#[test]
+fn refresh_registry_includes_theme_field() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("base-plugins");
+    let storage = test_util::test_root("app-host-theme-field");
+    let mut host = AppPluginHost::load(&[bundled], storage.join("storage"))
+        .expect("загрузка базовых плагинов");
+    host.refresh_settings_registry(&[]).expect("регистрация");
+
+    let output = host
+        .invoke_capability(CAPABILITY_SETTINGS, "list", serde_json::json!({}))
+        .expect("список секций");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON списка");
+    let app_section = parsed["sections"]
+        .as_array()
+        .expect("массив секций")
+        .iter()
+        .find(|section| section["id"] == "app.general")
+        .expect("секция приложения");
+    let theme_field = app_section["fields"]
+        .as_array()
+        .expect("поля секции")
+        .iter()
+        .find(|field| field["key"] == "appearance.theme")
+        .expect("поле темы");
+    assert_eq!(theme_field["type"], "select", "тип поля темы");
+    let options: Vec<&str> = theme_field["options"]
+        .as_array()
+        .expect("варианты темы")
+        .iter()
+        .filter_map(|option| option["value"].as_str())
+        .collect();
+    // Все три режима: явные стороны и следование теме системы.
+    assert_eq!(options, vec!["light", "dark", "system"]);
+    assert_eq!(
+        app_section["values"]["appearance.theme"], "system",
+        "значение по умолчанию для темы"
+    );
+    cleanup(&storage);
+}
+
 /// Проверка, что поле лимита открытых вкладок зарегистрировано в секции
 /// приложения с числовым типом и значением по умолчанию.
 #[test]
@@ -662,10 +793,12 @@ fn registry_skips_fields_switched_by_reader_buttons() {
         !keys.contains(&"reader.theme"),
         "тема области чтения переключается кнопкой в панели чтения"
     );
-    // Тема интерфейса переключается кнопкой в шапке — поля в настройках нет.
+    // Тема интерфейса переключается кнопкой в шапке, но остаётся и настройкой:
+    // кнопка ведёт только между светлой и тёмной, а вернуть «как в системе»
+    // можно лишь в настройках.
     assert!(
-        !keys.contains(&"appearance.theme"),
-        "тема интерфейса переключается кнопкой в шапке"
+        keys.contains(&"appearance.theme"),
+        "режим «как в системе» выбирается в настройках"
     );
     // Палитра кнопки не имеет: она остаётся настройкой.
     assert!(

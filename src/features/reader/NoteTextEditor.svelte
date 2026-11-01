@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { untrack } from 'svelte';
   import { Button, ColorPicker, Textarea, type ColorSwatch } from '@context/ui';
   import {
     DEFAULT_NOTE_COLOR,
     NOTE_COLORS,
-    NOTE_COLOR_LABELS,
+    noteColorLabel,
     NOTE_COLOR_SWATCHES,
     type NoteColor,
   } from '../notes/notes';
@@ -37,7 +38,7 @@
   const colorSwatches = $derived<ColorSwatch[]>(
     NOTE_COLORS.map((value) => ({
       id: value,
-      label: NOTE_COLOR_LABELS[value],
+      label: noteColorLabel(value),
       value: NOTE_COLOR_SWATCHES[value],
       selected: color === value,
     })),
@@ -58,20 +59,22 @@
 >
   <Textarea
     bind:value={draft}
-    placeholder="Текст заметки"
-    ariaLabel="Текст заметки"
+    placeholder={t('app.reader.note.editor.placeholder')}
+    ariaLabel={t('app.reader.note.editor.placeholder')}
     rows={3}
   />
   <div class="mt-2 flex items-center justify-between gap-2">
     <ColorPicker
       colors={colorSwatches}
       onpick={(id) => (color = id as NoteColor)}
-      ariaLabel="Цвет заметки"
+      ariaLabel={t('app.reader.note.editor.colorLabel')}
       testIdPrefix="text-card-color"
     />
     <div class="flex items-center gap-2">
-      <Button variant="secondary" size="sm" onclick={onCancel}>Отмена</Button>
-      <Button variant="primary" size="sm" disabled={!draft.trim()} onclick={confirm}>Сохранить</Button>
+      <Button variant="secondary" size="sm" onclick={onCancel}>{t('app.reader.cancel')}</Button>
+      <Button variant="primary" size="sm" disabled={!draft.trim()} onclick={confirm}
+      >{t('app.action.save')}</Button
+    >
     </div>
   </div>
 </div>

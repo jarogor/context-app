@@ -18,6 +18,8 @@
     class?: string;
   }
 
+  import { t } from '@context/i18n';
+
   let {
     rows = 3,
     rowClass = 'h-9',
@@ -33,7 +35,7 @@
   class={cn('flex flex-col gap-2', className)}
   data-testid={testId}
   role="status"
-  aria-label="Загрузка"
+  aria-label={t('app.skeleton.loading')}
 >
   {#each indices as index (index)}
     <div

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Icon, type IconName } from '@context/ui';
+  import { Icon, type IconName, type ResolvedTheme } from '@context/ui';
+  import { t } from '@context/i18n';
   import SectionNav from './SectionNav.svelte';
 
   /**
@@ -35,8 +36,10 @@
     alertTitles: string;
     /** Есть ли замечания-ошибки (иначе замечания помечаются как предупреждение). */
     alertError: boolean;
-    /** Предпочтение темы для подачи кнопки. */
-    themeTitle: string;
+    /** Показанная сейчас сторона темы. */
+    theme: ResolvedTheme;
+    /** Сторона, которую поставит нажатие кнопки. */
+    themeNext: ResolvedTheme;
     /** Узкое окно: разделы показываются кнопками-иконками без подписей. */
     mobile: boolean;
     /** Выбор раздела «Рабочие места». */
@@ -65,7 +68,8 @@
     alertCount,
     alertTitles,
     alertError,
-    themeTitle,
+    theme,
+    themeNext,
     mobile,
     onWorkspace,
     onLibrary,
@@ -76,11 +80,23 @@
   }: Props = $props();
 
   /** Подсказка навигационного текста: полный путь к выбранному объекту. */
-  const contextTitle = $derived(selection ? `${section} · ${selection}` : section);
+  const contextTitle = $derived(
+    selection ? `${section}${t('app.context.separator')}${selection}` : section,
+  );
 
-  /** Иконка переключателя темы по предпочтению. */
-  const themeIcon: IconName = $derived(
-    themeTitle === 'Светлая' ? 'sun' : themeTitle === 'Тёмная' ? 'moon' : 'monitor',
+  /** Иконка кнопки: показывает текущую сторону темы.
+   *
+   * Третьего положения «как в системе» у кнопки нет — этот режим выбирают в
+   * настройках. Поэтому при системном предпочтении иконка показывает тему,
+   * которую сейчас видит пользователь, а не состояние настройки.
+   */
+  const themeIcon: IconName = $derived(theme === 'dark' ? 'moon' : 'sun');
+
+  /** Подпись кнопки: называет сторону, на которую она переключит. */
+  const themeTitle = $derived(
+    t('app.theme.title', {
+      theme: themeNext === 'dark' ? t('app.theme.dark') : t('app.theme.light'),
+    }),
   );
 </script>
 
@@ -101,8 +117,8 @@
     class="flex shrink-0 items-center"
     data-testid="app-name"
     role="img"
-    aria-label="Контекст"
-    title="Контекст"
+    aria-label={t('app.name')}
+    title={t('app.name')}
   >
     <!--
       Буква набрана шрифтом и центрирована: плашка — flex-контейнер, буква
@@ -132,7 +148,7 @@
     {#if mobile && selection}
       <span class="font-semibold">{selection}</span>
     {:else}
-      {section}{#if selection}{' · '}<span class="font-semibold">{selection}</span>{/if}
+      {section}{#if selection}{t('app.context.separator')}<span class="font-semibold">{selection}</span>{/if}
     {/if}
   </span>
 
@@ -154,7 +170,7 @@
           role="status"
           data-testid="header-alerts"
           title={alertTitles}
-          aria-label={`Замечания: ${alertCount}`}
+          aria-label={t('app.alerts', { count: alertCount })}
           style:background={alertError ? 'var(--destructive)' : 'var(--warning)'}
           style:color={alertError ? 'var(--destructive-foreground)' : 'var(--primary-foreground)'}
         >
@@ -167,8 +183,8 @@
           type="button"
           class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
           class:bg-[var(--primary-soft)]={notificationsOpen}
-          title="Уведомления"
-          aria-label="Уведомления"
+          title={t('app.notifications')}
+          aria-label={t('app.notifications')}
           aria-pressed={notificationsOpen}
           data-testid="nav-notifications"
           onclick={onNotifications}
@@ -189,8 +205,8 @@
       <button
         type="button"
         class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11 max-md:hidden"
-        title={`Тема: ${themeTitle}`}
-        aria-label="Переключить тему"
+        title={themeTitle}
+        aria-label={t('app.theme.switch')}
         data-testid="nav-theme"
         onclick={onTheme}
       >
@@ -201,8 +217,8 @@
         type="button"
         class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
         class:bg-[var(--primary-soft)]={settingsOpen}
-        title="Настройки"
-        aria-label="Настройки"
+        title={t('app.settings')}
+        aria-label={t('app.settings')}
         aria-pressed={settingsOpen}
         data-testid="nav-settings"
         onclick={onSettings}

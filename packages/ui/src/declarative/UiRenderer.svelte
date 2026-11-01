@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { UiIntent, UiSpaceDeclaration } from '@context/ui-schema';
+  import { localize } from '@context/i18n';
   import { untrack } from 'svelte';
   import UiNodeView from './UiNodeView.svelte';
   import { collectValues } from './values';
@@ -59,7 +60,11 @@
 
   /** Описание экземпляра пространства, если оно задано. */
   const groupDescription = $derived(
-    typeof declaration.description === 'string' ? declaration.description : '',
+    typeof declaration.description === 'string' ? localize(declaration.description) : '',
+  );
+  /** Переведённый заголовок группы: плагины вправе отдавать ключ словаря. */
+  const groupTitle = $derived(
+    typeof declaration.title === 'string' ? localize(declaration.title) : '',
   );
 </script>
 
@@ -68,11 +73,11 @@
     {diagnostics.join('; ')}
   </p>
 {/if}
-{#if showGroup && (declaration.title || groupDescription)}
+{#if showGroup && (groupTitle || groupDescription)}
   <div class="mb-2 flex items-center gap-3" data-testid="settings-group-heading">
-    {#if declaration.title}
+    {#if groupTitle}
       <span class="shrink-0 text-base font-semibold text-[var(--foreground)]">
-        {declaration.title}
+        {groupTitle}
       </span>
     {/if}
     <span class="h-px min-w-4 flex-1 bg-[var(--border)]" aria-hidden="true"></span>

@@ -5,7 +5,8 @@
  */
 
 import { isPageAnchor, isPointAnchor, parseAnchor } from '../reader/reader/anchor';
-import { SHAPE_KIND_LABELS, type Note } from './model';
+import { t } from '@context/i18n';
+import { shapeKindLabel, type Note } from './model';
 
 /** Имя заметки: пользовательское название, затем содержимое по типу, иначе номер.
  *
@@ -19,11 +20,11 @@ export function noteName(note: Note, index: number): string {
         return title.length > 80 ? `${title.slice(0, 80)}…` : title;
     }
     if (note.type === 'shape') {
-        return SHAPE_KIND_LABELS[note.shape];
+        return shapeKindLabel(note.shape);
     }
     const content = (note.type === 'text' ? note.text : note.quote).trim();
     if (!content) {
-        return `Заметка ${index + 1}`;
+        return t('app.note.name', { index: index + 1 });
     }
     return content.length > 80 ? `${content.slice(0, 80)}…` : content;
 }
@@ -45,7 +46,7 @@ export function notePreview(note: Note): string {
 /** Отображаемое место заметки: страница либо доля позиции. */
 export function notePlace(note: Note): string {
     if (note.page !== null) {
-        return `Стр. ${note.page}`;
+        return t('app.note.page', { page: note.page });
     }
     if (note.percent !== null) {
         return `${note.percent.toFixed(2)} %`;

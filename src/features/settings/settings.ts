@@ -11,6 +11,7 @@ import {
   type UiIntent,
   type UiSpaceDeclaration,
 } from '@context/ui-schema';
+import { t } from '@context/i18n';
 import { basePluginOperation } from '../../shared/base-plugin';
 
 /** Capability базового плагина настроек. */
@@ -19,7 +20,7 @@ export const SETTINGS_CAPABILITY = 'settings.store@1';
 /** Диагностика несовместимой версии схемы интерфейса или `null`. */
 export function versionDiagnostic(version: number): string | null {
   if (version !== UI_SCHEMA_VERSION) {
-    return `Несовместимая версия схемы интерфейса: ${version} (поддерживается ${UI_SCHEMA_VERSION})`;
+    return t('app.settings.schemaVersion', { version, supported: UI_SCHEMA_VERSION });
   }
   return null;
 }

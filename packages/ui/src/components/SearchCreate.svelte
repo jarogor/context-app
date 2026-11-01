@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { t } from '@context/i18n';
   import IconButton from './IconButton.svelte';
   import Input from './Input.svelte';
   import { cn } from '../utils';
@@ -27,7 +28,7 @@
     query = $bindable(''),
     searchPlaceholder = '',
     createPlaceholder = '',
-    createTitle = 'Добавить',
+    createTitle,
     createAriaLabel,
     onCreate,
     onSearch,
@@ -63,8 +64,8 @@
       />
       <IconButton
         action="add"
-        title={createTitle}
-        ariaLabel={createAriaLabel ?? createTitle}
+        title={createTitle ?? t('app.searchCreate.add')}
+        ariaLabel={createAriaLabel ?? createTitle ?? t('app.searchCreate.add')}
         disabled={!newName.trim()}
         onclick={create}
         class="@min-[18rem]:flex-none"

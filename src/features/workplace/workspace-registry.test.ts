@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_WORKSPACE_NAME,
+  defaultWorkspaceName,
   addWorkspace,
   createWorkspace,
   currentWorkspace,
@@ -28,7 +28,7 @@ describe('реестр рабочих мест', () => {
   it('заменяет пустое имя именем по умолчанию при создании', () => {
     const registry = createWorkspace(emptyRegistry(), '   ');
 
-    expect(registry.workspaces[0].name).toBe(DEFAULT_WORKSPACE_NAME);
+    expect(registry.workspaces[0].name).toBe(defaultWorkspaceName());
   });
 
   it('переключает текущее рабочее место и игнорирует неизвестное', () => {

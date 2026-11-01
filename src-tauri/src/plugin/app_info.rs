@@ -45,15 +45,24 @@ impl AppInfo {
         let path_of = |path: &Path| path.to_string_lossy().into_owned();
         let paths = vec![AppPath {
             key: "app_data".to_string(),
-            title: "Данные приложения".to_string(),
+            title: "app.settings.appData.title".to_string(),
             path: path_of(data_root),
-            note: "Настройки, плагины, кеш и обновления".to_string(),
+            note: "app.settings.appData.note".to_string(),
         }];
         Self {
             name: name.into(),
             version: version.into(),
             paths,
         }
+    }
+
+    /// Смена имени приложения на выбранный язык интерфейса.
+    ///
+    /// Имя — текст интерфейса: в русском «Контекст», в английском «Context».
+    /// Ядро перевода не хранит, а принимает готовое имя от оболочки, которая
+    /// знает активный язык; служебные расположения при этом не меняются.
+    pub fn set_name(&mut self, name: impl Into<String>) {
+        self.name = name.into();
     }
 }
 

@@ -7,6 +7,7 @@
 //! опирается на этот же каталог при рендере и валидации: недопустимый узел
 //! отклоняется с диагностикой, не влияя на остальной интерфейс.
 
+import { t } from '@context/i18n';
 import type { UiComponentSpec, UiElement, UiNode, UiSpaceDeclaration, UiSpaceSpec } from './index';
 import { isUiText } from './index';
 
@@ -51,7 +52,9 @@ export const UI_COMPONENTS: Record<string, UiComponentSpec> = {
 export const UI_SPACES: Record<string, UiSpaceSpec> = {
   'settings.section': {
     id: 'settings.section',
-    title: 'Секция настроек',
+    get title() {
+      return t('app.settings.title');
+    },
     components: ['Card', 'Heading', 'Text', 'Checkbox', 'Input', 'Textarea', 'Select', 'Button'],
   },
 };
@@ -101,11 +104,11 @@ function sanitizeNode(
   }
   const spec = componentSpec(node.type);
   if (!spec) {
-    diagnostics.push(`компонент не разрешён: ${node.type}`);
+    diagnostics.push(t('app.settings.moduleNotAllowed', { type: node.type }));
     return null;
   }
   if (!space.components.includes(node.type)) {
-    diagnostics.push(`компонент не разрешён в пространстве «${space.id}»: ${node.type}`);
+    diagnostics.push(t('app.settings.moduleNotInSpace', { space: space.id, type: node.type }));
     return null;
   }
   const props: Record<string, unknown> = {};
@@ -113,15 +116,15 @@ function sanitizeNode(
     if (spec.props.includes(name)) {
       props[name] = value;
     } else {
-      diagnostics.push(`свойство не разрешено: ${node.type}.${name}`);
+      diagnostics.push(t('app.settings.propNotAllowed', { type: node.type, name }));
     }
   }
   const on: Record<string, string> = {};
   for (const [event, action] of Object.entries(node.on ?? {})) {
     if (!spec.events.includes(event)) {
-      diagnostics.push(`событие не разрешено: ${node.type}.${event}`);
+      diagnostics.push(t('app.settings.eventNotAllowed', { type: node.type, event }));
     } else if (typeof action !== 'string') {
-      diagnostics.push(`действие события должно быть строкой: ${node.type}.${event}`);
+      diagnostics.push(t('app.settings.actionMustBeString', { type: node.type, event }));
     } else {
       on[event] = action;
     }
@@ -129,7 +132,7 @@ function sanitizeNode(
   const children: UiNode[] = [];
   const rawChildren = node.children ?? [];
   if (rawChildren.length > 0 && !spec.children) {
-    diagnostics.push(`компонент не принимает дочерние узлы: ${node.type}`);
+    diagnostics.push(t('app.settings.noChildren', { type: node.type }));
   } else {
     children.push(...sanitizeNodes(rawChildren, space, diagnostics));
   }
@@ -151,7 +154,7 @@ export function sanitizeDeclaration(declaration: UiSpaceDeclaration): UiSanitize
   const diagnostics: string[] = [];
   const space = spaceSpec(declaration.space);
   if (!space) {
-    diagnostics.push(`пространство не объявлено: ${declaration.space}`);
+    diagnostics.push(t('app.settings.spaceNotDeclared', { space: declaration.space }));
     return { declaration: null, diagnostics };
   }
   const nodes = sanitizeNodes(declaration.nodes ?? [], space, diagnostics);

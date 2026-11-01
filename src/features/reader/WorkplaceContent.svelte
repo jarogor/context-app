@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { currentLocale } from '@context/i18n';
+  import { t } from '@context/i18n';
   import { onMount, untrack } from 'svelte';
   import {
     loadWorkplaceBundle,
@@ -194,6 +196,19 @@
     post({ type: 'tool', value: { type: tool.type, shape: tool.shape, color: tool.color } });
   }
 
+  /** Передача плагину выбранного языка интерфейса.
+   *
+   * Плагин самостоятелен и своего выбора языка не имеет: он получает код
+   * языка сообщением и берёт из своего словаря только те тексты, которые
+   * показывает сам (состояние загрузки и ошибку).
+   */
+  function sendLocale() {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'reader-locale', value: currentLocale() });
+  }
+
   /** Передача плагину темы области чтения (сторона и готовые токены). */
   function sendReaderTheme() {
     if (!ready) {
@@ -228,6 +243,7 @@
       case 'ready':
         ready = true;
         sendReaderTheme();
+        sendLocale();
         sendTool();
         sendBindings();
         sendBookWhenVisible();
@@ -335,6 +351,12 @@
     sendReaderTheme();
   });
 
+  /** Передача языка при его смене в настройках. */
+  $effect(() => {
+    void currentLocale();
+    sendLocale();
+  });
+
   /** Доведение отрисовки по возврату видимости области чтения.
    *
    * Смена темы или палитры может произойти, пока рабочее место скрыто другим
@@ -406,7 +428,7 @@
       bind:this={frame}
       class="h-full w-full border-0"
       style="background: {readerBackground}"
-      title="Содержимое книги"
+      title={t('app.reader.content')}
       sandbox="allow-scripts"
       srcdoc={html}
     ></iframe>

@@ -45,6 +45,7 @@ export {
   applyTheme,
   isThemePreference,
   normalizeThemePreference,
+  oppositeTheme,
   resolveTheme,
   type ResolvedTheme,
   type ThemePreference,

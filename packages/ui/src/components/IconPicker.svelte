@@ -27,10 +27,12 @@
     class?: string;
   }
 
+  import { t } from '@context/i18n';
+
   let {
     icons,
     onpick,
-    ariaLabel = 'Иконка',
+    ariaLabel,
     testIdPrefix = 'icon',
     class: className = '',
   }: Props = $props();
@@ -48,7 +50,7 @@
     className,
   )}
   role="group"
-  aria-label={ariaLabel}
+  aria-label={ariaLabel ?? t('app.icon.label')}
   data-testid={`${testIdPrefix}-picker`}
 >
   {#each icons as item (item.id)}

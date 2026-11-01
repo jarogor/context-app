@@ -11,16 +11,17 @@
     type ReaderFontId,
     type ReaderThemeId,
   } from '@context/ui';
+  import { t } from '@context/i18n';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { hotkeyHint } from '../hotkeys/registry';
   import {
     NOTE_COLORS,
-    NOTE_COLOR_LABELS,
+    noteColorLabel,
     NOTE_COLOR_SWATCHES,
-    NOTE_TYPE_LABELS,
     NOTE_TYPES,
+    noteTypeLabel,
     SHAPE_KINDS,
-    SHAPE_KIND_LABELS,
+    shapeKindLabel,
     type NoteColor,
     type NoteTool,
     type NoteType,
@@ -104,7 +105,7 @@
 
   /** Варианты видов фигур для выпадающего списка. */
   const shapeOptions = $derived(
-    SHAPE_KINDS.map((kind) => ({ value: kind, label: SHAPE_KIND_LABELS[kind] })),
+    SHAPE_KINDS.map((kind) => ({ value: kind, label: shapeKindLabel(kind) })),
   );
 
   /** Доступные инструменты типов в порядке панели. */
@@ -114,37 +115,37 @@
   const colorSwatches = $derived<ColorSwatch[]>(
     NOTE_COLORS.map((color) => ({
       id: color,
-      label: NOTE_COLOR_LABELS[color],
+      label: noteColorLabel(color),
       value: NOTE_COLOR_SWATCHES[color],
       selected: tool.color === color,
     })),
   );
 
   /** Подсказки кнопок типов заметок: коротко называют сам тип. */
-  const NOTE_TYPE_TITLES: Record<NoteType, string> = {
-    quote: NOTE_TYPE_LABELS.quote,
-    text: NOTE_TYPE_LABELS.text,
-    shape: NOTE_TYPE_LABELS.shape,
-  };
+  const NOTE_TYPE_TITLES: Record<NoteType, string> = $derived({
+    quote: noteTypeLabel('quote'),
+    text: noteTypeLabel('text'),
+    shape: noteTypeLabel('shape'),
+  });
 
   /** Подпись кнопки-переключателя: называет тему, на которую кнопка переключает. */
   const themeLabel = $derived(
-    readerTheme === 'dark' ? 'Светлая тема области чтения' : 'Тёмная тема области чтения',
+    readerTheme === 'dark' ? t('app.theme.reader.light') : t('app.theme.reader.dark'),
   );
 
   /** Подсказка кнопки-переключателя: описывает действие переключения. */
   const themeTitle = $derived(
-    readerTheme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на тёмную тему',
+    readerTheme === 'dark' ? t('app.theme.reader.toLight') : t('app.theme.reader.toDark'),
   );
 
   /** Подпись кнопки-переключателя гарнитуры: называет шрифт, на который она переключает. */
   const fontLabel = $derived(
-    readerFont === 'serif' ? 'Шрифт без засечек' : 'Шрифт с засечками',
+    readerFont === 'serif' ? t('app.font.toSans') : t('app.font.toSerif'),
   );
 
   /** Подсказка кнопки-переключателя гарнитуры. */
   const fontTitle = $derived(
-    readerFont === 'serif' ? 'Переключить на шрифт без засечек' : 'Переключить на шрифт с засечками',
+    readerFont === 'serif' ? t('app.font.switchToSans') : t('app.font.switchToSerif'),
   );
 
   /** Переключение гарнитуры книги на противоположную. */
@@ -245,20 +246,20 @@
     <div
       class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-lg:order-1"
       role="group"
-      aria-label="Тип заметки"
+      aria-label={t('app.note.typeLabel')}
     >
       {#each typeOptions as type (type)}
         <Button
           variant={tool.type === type ? 'primary' : 'ghost'}
           size="sm"
           title={NOTE_TYPE_TITLES[type]}
-          ariaLabel={NOTE_TYPE_LABELS[type]}
+          ariaLabel={noteTypeLabel(type)}
           ariaPressed={tool.type === type}
           class="max-lg:px-2"
           onclick={() => selectType(type)}
         >
           <Icon name={type} class="hidden max-lg:block" />
-          <span class="max-lg:hidden">{NOTE_TYPE_LABELS[type]}</span>
+          <span class="max-lg:hidden">{noteTypeLabel(type)}</span>
         </Button>
       {/each}
     </div>
@@ -277,7 +278,7 @@
     <div
       class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-lg:order-2"
       role="group"
-      aria-label="Шрифт книги"
+      aria-label={t('app.font.bookLabel')}
       data-testid="reader-font-toggle"
     >
       <Button
@@ -305,7 +306,7 @@
         value={tool.shape}
         items={shapeOptions}
         class="h-8 w-[6.25rem] text-sm max-lg:w-[5.75rem]"
-        ariaLabel="Вид фигуры"
+        ariaLabel={t('app.note.shapeLabel')}
         onchange={selectShape}
       />
     </div>
@@ -315,7 +316,7 @@
     <ColorPicker
       colors={colorSwatches}
       onpick={(id) => selectColor(id as NoteColor)}
-      ariaLabel="Цвет заметки"
+      ariaLabel={t('app.note.colorMenuLabel')}
       testIdPrefix="note-tool-color"
       size={compact ? 'sm' : 'md'}
       class="h-8 max-lg:order-4"
@@ -345,8 +346,8 @@
       >
         <button
           type="button"
-          title="Следующая страница"
-          aria-label="Следующая страница"
+          title={t('app.reader.nextPage')}
+          aria-label={t('app.reader.nextPage')}
           disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
           class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 max-lg:h-7 max-lg:w-7"
           onclick={() => onStepPage?.(1)}
@@ -355,8 +356,8 @@
         </button>
         <button
           type="button"
-          title="Предыдущая страница"
-          aria-label="Предыдущая страница"
+          title={t('app.reader.prevPage')}
+          aria-label={t('app.reader.prevPage')}
           disabled={workplacePage <= 1}
           class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 max-lg:h-7 max-lg:w-7"
           onclick={() => onStepPage?.(-1)}
@@ -370,7 +371,7 @@
         -->
         <Input
           class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm max-lg:w-[2.75rem] max-lg:px-1 max-lg:text-xs"
-          ariaLabel="Текущая страница"
+          ariaLabel={t('app.reader.currentPage')}
           value={pageValue}
           oninput={(event) => (pageDraft = event.currentTarget.value)}
           onkeydown={(event) => {
@@ -412,8 +413,8 @@
         <Button
           size="icon"
           variant="ghost"
-          title={hotkeyHint('reader.zoom.out', 'Уменьшить масштаб')}
-          ariaLabel="Уменьшить масштаб"
+          title={hotkeyHint('reader.zoom.out', t('app.reader.zoomOut'))}
+          ariaLabel={t('app.reader.zoomOut')}
           class="size-8"
           disabled={zoom <= minZoom}
           onclick={() => onChangeZoom?.(-1)}>−</Button
@@ -421,8 +422,8 @@
         <Button
           size="icon"
           variant="ghost"
-          title={hotkeyHint('reader.zoom.in', 'Увеличить масштаб')}
-          ariaLabel="Увеличить масштаб"
+          title={hotkeyHint('reader.zoom.in', t('app.reader.zoomIn'))}
+          ariaLabel={t('app.reader.zoomIn')}
           class="size-8"
           disabled={zoom >= maxZoom}
           onclick={() => onChangeZoom?.(1)}>+</Button
@@ -443,8 +444,8 @@
         <Button
           size="icon"
           variant={searchOpen ? 'primary' : 'ghost'}
-          title={hotkeyHint('reader.search', 'Поиск по книге')}
-          ariaLabel="Поиск по книге"
+          title={hotkeyHint('reader.search', t('app.reader.searchShort'))}
+          ariaLabel={t('app.reader.searchShort')}
           ariaPressed={searchOpen}
           class="size-8"
           onclick={() => onToggleSearch?.()}

@@ -11,6 +11,8 @@
  * показа: `KeyF` показывается как `F`, `Digit1` — как `1`.
  */
 
+import { t } from '@context/i18n';
+
 /** Описание комбинации: клавиша и зажатые модификаторы. */
 export interface KeyCombo {
     /** Физический код клавиши: `KeyF`, `Digit1`, `PageDown`, `Escape`. */
@@ -296,7 +298,7 @@ function displayKey(code: string): string {
     }
     switch (code) {
         case 'Space':
-            return 'Пробел';
+            return t('app.hotkey.space');
         case 'Equal':
             return '=';
         case 'Minus':

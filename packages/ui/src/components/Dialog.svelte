@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Dialog as DialogPrimitive } from 'bits-ui';
   import type { Snippet } from 'svelte';
+  import { t } from '@context/i18n';
   import { cn } from '../utils';
   import Icon from './Icon.svelte';
 
@@ -42,7 +43,7 @@
       {@render children()}
       {#if showClose}
         <DialogPrimitive.Close
-          aria-label="Закрыть"
+          aria-label={t('app.modal.close')}
           class="absolute top-4 right-4 inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
         >
           <Icon name="close" />

@@ -19,24 +19,12 @@ import {
     type Note,
     type NoteListItem,
 } from '../notes/notes';
+import { t } from '@context/i18n';
 import { lastSegment } from '../../shared/path';
 
-/** Склонение числа заметок: 1 заметка, 2 заметки, 5 заметок. */
-export function pluralNotes(count: number): string {
-    const mod10 = count % 10;
-    const mod100 = count % 100;
-    if (mod10 === 1 && mod100 !== 11) {
-        return 'заметка';
-    }
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-        return 'заметки';
-    }
-    return 'заметок';
-}
-
-/** Число заметок словами: «3 заметки», «1 заметка». */
+/** Число заметок словами: «3 заметки», «1 заметка», «3 notes». */
 export function noteCountLabel(count: number): string {
-    return `${count} ${pluralNotes(count)}`;
+    return t('app.note.count', { count });
 }
 
 /** Резервное имя книги по ключу: имя файла без расширения.

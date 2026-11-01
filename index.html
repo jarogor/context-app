@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -33,6 +33,17 @@
         var root = document.documentElement;
         root.dataset.palette = palette;
         root.dataset.theme = dark ? 'dark' : 'light';
+        /* Язык экрана загрузки: до бандла словари недоступны, поэтому оболочка
+           держит выбранный язык в `localStorage` (ключ `context.locale`). Без
+           зеркала экран русский — как и язык по умолчанию. */
+        var locale = 'ru';
+        try {
+          locale = localStorage.getItem('context.locale') === 'en' ? 'en' : 'ru';
+        } catch (error) {
+          locale = 'ru';
+        }
+        root.lang = locale;
+        root.dataset.locale = locale;
       })();
     </script>
     <style>
@@ -154,9 +165,26 @@
             stroke-linecap="round"
           />
         </svg>
-        <p>Загрузка…</p>
+        <p id="boot-text">Загрузка…</p>
       </div>
     </div>
+    <script>
+      /* Текст экрана загрузки по выбранному языку. Отдельный скрипт после
+         разметки: язык определяется в `<head>`, а элемент `#boot-text` к тому
+         моменту ещё не разобран. Оболочка затем показывает тот же текст из
+         словаря, поэтому подмена экранов незаметна. */
+      (function () {
+        var english = document.documentElement.lang === 'en';
+        var bootText = document.getElementById('boot-text');
+        if (bootText && english) {
+          bootText.textContent = 'Loading…';
+        }
+        /* Название приложения тоже следует языку: до бандла словарь недоступен,
+           поэтому имя дублируется здесь, как и текст экрана загрузки. Знак на
+           плашке — буква «К» — не переводится. */
+        document.title = english ? 'Context' : 'Контекст';
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

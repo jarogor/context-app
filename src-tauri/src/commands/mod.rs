@@ -6,8 +6,10 @@ use crate::plugin::AppState;
 
 pub mod active_library;
 pub mod app_info;
+pub mod app_title_set;
 pub mod base_plugin_operation;
 pub mod get_workspaces;
+pub mod interface_locale;
 pub mod library_history_forget;
 pub mod library_history_list;
 pub mod plugin_activation_pending;
@@ -29,8 +31,15 @@ pub use active_library::__tauri_command_name_active_library;
 pub use active_library::active_library;
 
 pub use app_info::__cmd__app_info;
+pub use app_info::__cmd__app_name_set;
 pub use app_info::__tauri_command_name_app_info;
+pub use app_info::__tauri_command_name_app_name_set;
 pub use app_info::app_info;
+pub use app_info::app_name_set;
+
+pub use app_title_set::__cmd__app_title_set;
+pub use app_title_set::__tauri_command_name_app_title_set;
+pub use app_title_set::app_title_set;
 
 pub use get_workspaces::__cmd__get_workspaces;
 pub use get_workspaces::__tauri_command_name_get_workspaces;
@@ -105,6 +114,10 @@ pub use theme_preference::theme_preference;
 pub use theme_palette::__cmd__theme_palette;
 pub use theme_palette::__tauri_command_name_theme_palette;
 pub use theme_palette::theme_palette;
+
+pub use interface_locale::__cmd__interface_locale;
+pub use interface_locale::__tauri_command_name_interface_locale;
+pub use interface_locale::interface_locale;
 
 pub use update::__cmd__update_apply;
 pub use update::__cmd__update_check;

@@ -22,9 +22,9 @@ function infoResponse() {
     paths: [
       {
         key: 'app_data',
-        title: 'Данные приложения',
+        title: 'app.settings.appData.title',
         path: '/data/context',
-        note: 'Настройки, плагины, кеш и обновления',
+        note: 'app.settings.appData.note',
       },
     ],
   };

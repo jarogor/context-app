@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { onMount, untrack } from 'svelte';
   import { Badge, Button, Checkbox, EmptyState, ErrorToast, SidePanel, createAsyncState } from '@context/ui';
   import { formatTime } from '../../shared/format';
@@ -144,7 +145,7 @@
 </script>
 
 <SidePanel
-  title="Уведомления"
+  title={t('app.notifications')}
   testId="notifications-panel"
   class="w-full"
   {onClose}
@@ -154,7 +155,7 @@
       <span
         class="flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-[0.6875rem] px-1.5 role-caption text-[var(--counter-foreground)]"
         style:background="var(--counter)"
-        aria-label={`Непрочитанных: ${unreadUser}`}
+        aria-label={t('app.notifications.unread', { count: unreadUser })}
       >
         {unreadUser}
       </span>
@@ -164,17 +165,21 @@
   {#snippet headerActions()}
     <label class="flex cursor-pointer items-center gap-1 role-caption">
       <Checkbox bind:checked={technicalVisible} />
-      Технические
+      {t('app.notifications.technical')}
     </label>
     <Button variant="secondary" size="sm" disabled={unreadUser === 0} onclick={markAllRead}>
-      Прочитать
+      {t('app.notifications.markRead')}
     </Button>
-    <Button variant="secondary" size="sm" onclick={clearEntries}>Очистить</Button>
+    <Button variant="secondary" size="sm" onclick={clearEntries}>{t('app.notifications.clear')}</Button>
   {/snippet}
 
   {#if visibleEntries.length === 0}
     <div class="p-4">
-      <EmptyState icon="bell" title="Нет уведомлений" description="Здесь появятся события приложения." />
+      <EmptyState
+        icon="bell"
+        title={t('app.notifications.empty')}
+        description={t('app.notifications.emptyDescription')}
+      />
     </div>
   {:else}
     <div class="flex-1 overflow-y-auto p-2">

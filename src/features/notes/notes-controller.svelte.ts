@@ -17,7 +17,7 @@ import {
   deleteNote,
   deleteSet,
   DEFAULT_NOTE_TOOL,
-  DEFAULT_SET_NAME,
+  defaultSetName,
   getSet,
   listSets,
   loadSets,
@@ -352,7 +352,7 @@ export function createNotesController(
   async function ensureActiveSet(key: string): Promise<string | null> {
     let activeId = activeSetByBook[key] ?? setId;
     if (!activeId) {
-      const set = await createSet(key, DEFAULT_SET_NAME, bookTitleOf());
+      const set = await createSet(key, defaultSetName(), bookTitleOf());
       activeId = set.id;
       sets = await listSets(key);
     }
@@ -368,7 +368,7 @@ export function createNotesController(
     try {
       let activeId = activeSetByBook[key] ?? setId;
       if (!activeId) {
-        const set = await createSet(key, DEFAULT_SET_NAME, bookTitleOf());
+        const set = await createSet(key, defaultSetName(), bookTitleOf());
         activeId = set.id;
         sets = await listSets(key);
       }

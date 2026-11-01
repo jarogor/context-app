@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { t } from '@context/i18n';
   import Icon from './Icon.svelte';
   import { cn } from '../utils';
 
@@ -73,8 +74,8 @@
         <button
           type="button"
           class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
-          title="Закрыть панель"
-          aria-label="Закрыть панель"
+          title={t('app.sidePanel.close')}
+          aria-label={t('app.sidePanel.close')}
           data-testid="side-panel-close"
           onclick={onClose}
         >

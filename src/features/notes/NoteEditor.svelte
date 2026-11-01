@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { Button, Icon, IconButton, Input, Textarea } from '@context/ui';
+  import { t } from '@context/i18n';
 
   interface Props {
     /** Идентификатор редактируемой заметки. */
@@ -47,19 +48,23 @@
   class="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-2"
   data-testid="notes-item-editor"
 >
-  <Input bind:value={title} placeholder="Название" ariaLabel="Название заметки" />
+  <Input
+    bind:value={title}
+    placeholder={t('app.notes.editor.titlePlaceholder')}
+    ariaLabel={t('app.notes.editor.titleLabel')}
+  />
   <Textarea
     bind:value={comment}
-    placeholder="Комментарий"
-    ariaLabel="Комментарий заметки"
+    placeholder={t('app.notes.editor.commentPlaceholder')}
+    ariaLabel={t('app.notes.editor.commentLabel')}
     rows={3}
   />
   <div class="flex items-center justify-between gap-2">
     <!-- Удаление комментария — отдельно слева, чтобы не задеть сохранение/отмену. -->
     <IconButton
       action="delete"
-      title="Удалить комментарий"
-      ariaLabel="Удалить комментарий"
+      title={t('app.notes.editor.deleteComment')}
+      ariaLabel={t('app.notes.editor.deleteComment')}
       disabled={!comment}
       onclick={clearComment}
     />
@@ -67,8 +72,8 @@
       <Button
         variant="secondary"
         size="icon"
-        title="Отмена"
-        ariaLabel="Отмена"
+        title={t('app.reader.cancel')}
+        ariaLabel={t('app.reader.cancel')}
         onclick={onCancel}
       >
         <Icon name="close" />
@@ -76,8 +81,8 @@
       <Button
         variant="primary"
         size="icon"
-        title="Сохранить"
-        ariaLabel="Сохранить"
+        title={t('app.action.save')}
+        ariaLabel={t('app.action.save')}
         onclick={commit}
       >
         <Icon name="check" />

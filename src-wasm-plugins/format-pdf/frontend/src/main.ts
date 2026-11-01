@@ -34,10 +34,11 @@ import { applyReaderTheme } from './theme';
 import { state } from './state';
 import { clampTextSelection, endTextSelection } from './text-selection';
 import { resetSearchTexts, searchBook, stepSearch } from './search';
+import { setViewerLocale, viewerText } from './locale';
 
 /** Открытие книги: загрузка движка, документа и построение каркаса страниц. */
 async function openBook(data: string, position: number, zoomValue: number): Promise<void> {
-  status.textContent = 'Открытие книги…';
+  status.textContent = viewerText('opening');
   status.hidden = false;
   pagesEl.replaceChildren();
   // Предыдущая книга: освобождаем её холсты, иначе карта держала бы их.
@@ -64,7 +65,7 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
     state.currentPage = pageAtTop();
     reportState();
   } catch (error) {
-    status.textContent = 'Не удалось отобразить книгу: ' + error;
+    status.textContent = viewerText('openFailed') + error;
     post({ type: 'error', message: String(error) });
   }
 }
@@ -225,6 +226,10 @@ async function handleMessage(event: MessageEvent): Promise<void> {
       break;
     case 'command':
       runCommand(message.value.id ?? '');
+      break;
+    case 'reader-locale':
+      setViewerLocale(message.value);
+      status.textContent = viewerText('opening');
       break;
   }
 }

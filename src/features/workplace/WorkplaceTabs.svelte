@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
     import { untrack } from 'svelte';
   import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
@@ -68,7 +69,7 @@
 
   /** Краткая подсказка заблокированным кнопкам открытия. */
   const openBlockedTitle = $derived(
-    overLimit ? 'Превышен лимит открытых вкладок' : 'Достигнут лимит открытых вкладок',
+    overLimit ? t('app.workplace.limitExceeded') : t('app.workplace.limitReached'),
   );
 
   /** Подсказка кнопке открытия: краткая при блокировке, обычная иначе. */
@@ -90,7 +91,10 @@
     }
     overLimitReported = true;
     void publishUserNotification({
-      message: `Превышен лимит открытых вкладок: открыто ${tabs.length}, лимит ${openTabsLimit}. Закройте лишние вкладки или увеличьте лимит в настройках.`,
+      message: t('app.workplace.limitExceededMessage', {
+        opened: tabs.length,
+        limit: openTabsLimit,
+      }),
       severity: 'warn',
       source: 'workplace',
       details: { tabs: tabs.length, limit: openTabsLimit },
@@ -190,7 +194,9 @@
   const rangeTo = $derived(Math.min(safeStart + capacity, tabs.length));
 
   /** Подсказка счётчика видимого диапазона. */
-  const rangeTitle = $derived(`Показаны вкладки ${rangeFrom}–${rangeTo} из ${tabs.length}`);
+  const rangeTitle = $derived(
+    t('app.workplace.range', { from: rangeFrom, to: rangeTo, total: tabs.length }),
+  );
 
   /** Слежение за шириной списка вкладок и масштабом интерфейса. */
   $effect(() => {
@@ -317,12 +323,12 @@
 
   /** Пункты контекстного меню рабочего места на телефоне. */
   const workplaceActions = $derived<MenuAction[]>([
-    { id: 'books', label: 'Открытые вкладки' },
+    { id: 'books', label: t('app.workplace.openBooks') },
     ...(onToggleFocus
       ? [
           {
             id: 'focus',
-            label: focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение',
+            label: focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus'),
           },
         ]
       : []),
@@ -357,8 +363,8 @@
     <Button
       variant={booksOpen ? 'primary' : 'ghost'}
       size="icon"
-      title={hotkeyHint('workplace.books', 'Вкладки')}
-      ariaLabel="Вкладки"
+      title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
+      ariaLabel={t('app.workplace.tabs')}
       ariaPressed={booksOpen}
       onclick={onToggleBooks}
     >
@@ -367,8 +373,8 @@
     <Button
       variant={notesOpen ? 'primary' : 'ghost'}
       size="icon"
-      title={hotkeyHint('workplace.notes', 'Заметки')}
-      ariaLabel="Заметки"
+      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
+      ariaLabel={t('app.workplace.notes')}
       testId="workplace-notes-toggle"
       ariaPressed={notesOpen}
       onclick={onToggleNotes}
@@ -376,22 +382,25 @@
       <Icon name="note" />
     </Button>
     <span class="mx-[0.25rem] h-4 w-px flex-none bg-[var(--divider)]" aria-hidden="true"></span>
-    <span class="flex" title={openButtonTitle('Добавить книгу')}>
+    <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
       <Button
         size="icon"
         variant={overLimit ? 'ghost-danger' : 'ghost'}
-        ariaLabel="Добавить книгу"
+        ariaLabel={t('app.workplace.addBook')}
         disabled={openBlocked}
         onclick={onAdd}
       >
         <Icon name="plus" />
       </Button>
     </span>
-    <span class="flex" title={openButtonTitle(hotkeyHint('workplace.add.book', 'Открыть файл с диска'))}>
+    <span
+      class="flex"
+      title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
+    >
       <Button
         size="icon"
         variant={overLimit ? 'ghost-danger' : 'ghost'}
-        ariaLabel="Открыть файл с диска"
+        ariaLabel={t('app.workplace.addFile')}
         disabled={openBlocked}
         onclick={onAddFile}
       >
@@ -404,8 +413,8 @@
       <Button
         size="icon"
         variant="ghost"
-        title="Предыдущие вкладки"
-        ariaLabel="Предыдущие вкладки"
+        title={t('app.workplace.prevTabs')}
+        ariaLabel={t('app.workplace.prevTabs')}
         disabled={safeStart === 0}
         onclick={() => shiftWindow(-1)}
       >
@@ -448,10 +457,10 @@
             {/if}
             <span class="min-w-0 flex-1 truncate">{tabLabel(tab)}</span>
           </button>
-          <span class="flex" title={openButtonTitle('Дублировать вкладку')}>
+          <span class="flex" title={openButtonTitle(t('app.workplace.tab.duplicate'))}>
             <button
               type="button"
-              aria-label="Дублировать вкладку"
+              aria-label={t('app.workplace.tab.duplicate')}
               disabled={openBlocked}
               class="flex-none cursor-pointer px-[0.1875rem] opacity-60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
                 ? 'text-destructive'
@@ -464,8 +473,8 @@
           <button
             type="button"
             data-testid="workplace-tab-close"
-            title="Закрыть вкладку"
-            aria-label="Закрыть вкладку"
+            title={t('app.workplace.tab.close')}
+            aria-label={t('app.workplace.tab.close')}
             class="flex-none cursor-pointer px-[0.1875rem] pr-2 opacity-60 hover:opacity-100"
             onclick={() => askCloseTab(tab.id)}
           >
@@ -480,13 +489,13 @@
         data-testid="workplace-tabs-counter"
         title={rangeTitle}
       >
-        {rangeFrom}–{rangeTo} из {tabs.length}
+        {t('app.workplace.range', { from: rangeFrom, to: rangeTo, total: tabs.length })}
       </span>
       <Button
         size="icon"
         variant="ghost"
-        title="Следующие вкладки"
-        ariaLabel="Следующие вкладки"
+        title={t('app.workplace.nextTabs')}
+        ariaLabel={t('app.workplace.nextTabs')}
         disabled={safeStart + capacity >= tabs.length}
         onclick={() => shiftWindow(1)}
       >
@@ -505,9 +514,9 @@
         size="icon"
         title={hotkeyHint(
           'workplace.focus',
-          focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение',
+          focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus'),
         )}
-        ariaLabel={focusMode ? 'Выйти из сосредоточенного чтения' : 'Сосредоточенное чтение'}
+        ariaLabel={focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus')}
         ariaPressed={focusMode}
         onclick={onToggleFocus}
       >
@@ -517,8 +526,8 @@
   </span>
   <span class="flex md:hidden">
     <ActionMenu
-      ariaLabel="Действия рабочего места"
-      title="Действия"
+      ariaLabel={t('app.workplace.actionsLabel')}
+      title={t('app.action.actions')}
       items={workplaceActions}
       onselect={runWorkplaceAction}
     />
@@ -527,7 +536,7 @@
 
 <Dialog
   open={closingTabId !== null}
-  title="Закрыть вкладку?"
+  title={t('app.workplace.tab.closeConfirm')}
   showClose={false}
   onOpenChange={(value) => {
     if (!value) {
@@ -539,7 +548,7 @@
     {closingTabLabel}
   </p>
   <div class="flex justify-end gap-2">
-    <Button variant="secondary" onclick={cancelCloseTab}>Нет</Button>
-    <Button variant="primary" onclick={confirmCloseTab}>Да</Button>
+    <Button variant="secondary" onclick={cancelCloseTab}>{t('app.workplace.tab.closeNo')}</Button>
+    <Button variant="primary" onclick={confirmCloseTab}>{t('app.workplace.tab.closeYes')}</Button>
   </div>
 </Dialog>

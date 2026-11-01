@@ -1,34 +1,27 @@
 /** Единое форматирование значений для списков областей.
  *
- * Дата в русском виде: `ДД.ММ.ГГГГ чч:мм` (двухзначные день, месяц, час и
- * минута; 24-часовой формат). Формат задаётся вручную, а не через локаль
- * окружения: интернационализации интерфейса пока нет, весь текст русский, и
- * системная локаль (например, en-US) давала бы чужой порядок частей. Когда
- * появится выбор языка интерфейса, формат даты должен следовать выбранному
- * языку — это внесено в план (`ROADMAP.md`).
+ * Формат даты следует выбранному языку интерфейса: русский — `ДД.ММ.ГГГГ чч:мм`
+ * (двухзначные день, месяц, час и минута, 24-часовой формат), английский —
+ * `ММ/ДД/ГГГГ чч:мм AM` (12-часовой формат). Сам расчёт принадлежит пакету
+ * `@context/i18n`, чтобы порядок частей и подписи жили в одном месте; оболочка
+ * лишь передаёт текущий язык.
+ *
+ * Формат задаётся вручную, а не локалью окружения: системная локаль (например,
+ * en-US на русском интерфейсе) давала бы чужой порядок частей.
  */
 
-/** Двухзначное число с ведущим нулём. */
-function pad(value: number): string {
-    return String(value).padStart(2, '0');
+import { currentLocale, formatDateTimeFor, formatTimeFor, type Locale } from '@context/i18n';
+
+/** Дата и время в формате языка; ноль даёт пустую строку.
+ *
+ * Язык по умолчанию — активный: вызов в разметке создаёт зависимость от него,
+ * поэтому смена языка перерисовывает даты вместе с текстами.
+ */
+export function formatDateTime(millis: number, locale: Locale = currentLocale()): string {
+  return formatDateTimeFor(locale, millis);
 }
 
-/** Дата и время в русском формате `ДД.ММ.ГГГГ чч:мм`; ноль даёт пустую строку. */
-export function formatDateTime(millis: number): string {
-    if (!millis) {
-        return '';
-    }
-    const date = new Date(millis);
-    return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(
-        date.getHours(),
-    )}:${pad(date.getMinutes())}`;
-}
-
-/** Время в русском 24-часовом формате `чч:мм:сс`; ноль даёт пустую строку. */
-export function formatTime(millis: number): string {
-    if (!millis) {
-        return '';
-    }
-    const date = new Date(millis);
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+/** Время в формате языка; ноль даёт пустую строку. */
+export function formatTime(millis: number, locale: Locale = currentLocale()): string {
+  return formatTimeFor(locale, millis);
 }

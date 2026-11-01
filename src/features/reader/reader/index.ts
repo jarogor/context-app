@@ -6,6 +6,7 @@
  * рабочую страницу и оболочку.
  */
 
+import { t } from '@context/i18n';
 import { invokeCommand } from '../../../shared/app-bridge';
 import type { BookChapter, BookContent } from './types';
 
@@ -30,7 +31,9 @@ export class UnsupportedFormatError extends Error {
   readonly format: string;
 
   constructor(format: string) {
-    super(`формат не поддерживается встроенным чтением: ${format || 'неизвестен'}`);
+    super(
+            t('app.reader.unsupportedInline', { format: format || t('app.reader.unknown') }),
+        );
     this.name = 'UnsupportedFormatError';
     this.format = format;
   }

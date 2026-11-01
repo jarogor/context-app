@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@context/i18n';
   import { onMount } from 'svelte';
   import { Button, Icon, Input } from '@context/ui';
   import type { SearchState } from './search-state';
@@ -49,7 +50,7 @@
   /** Подпись счётчика: «2 из 17» или пусто, пока нечего показывать. */
   const counter = $derived(
     search.total > 0 && search.index !== null
-      ? `${search.index + 1} из ${search.total}`
+      ? t('app.reader.search.counter', { index: search.index + 1, total: search.total })
       : search.total > 0
         ? String(search.total)
         : '',
@@ -60,11 +61,11 @@
     error
       ? error
       : busy
-        ? 'Поиск…'
+        ? t('app.reader.search.searching')
         : search.total === 0 && query.trim()
-          ? 'Не найдено'
+          ? t('app.reader.search.notFound')
           : search.truncated
-            ? `Найдено больше ${search.total} — показаны первые`
+            ? t('app.reader.search.truncated', { total: search.total })
             : '',
   );
 
@@ -82,7 +83,7 @@
   class="absolute right-2 top-2 z-[var(--layer-popup)] flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--overlay-surface)] p-1.5 shadow-overlay"
   data-testid="reader-search"
   role="search"
-  aria-label="Поиск по книге"
+  aria-label={t('app.reader.searchShort')}
 >
   <!--
     Поле занимает всё доступное место строки до кнопок. Счётчик стоит в подсказке
@@ -94,8 +95,8 @@
       <Input
         bind:element={searchField}
         value={query}
-        placeholder="Поиск по книге"
-        ariaLabel="Поиск по книге"
+        placeholder={t('app.reader.search.placeholder')}
+        ariaLabel={t('app.reader.search.placeholder')}
         class="h-8"
         oninput={(event) => onQuery?.(event.currentTarget.value)}
         onkeydown={(event) => {
@@ -108,8 +109,8 @@
     <Button
       variant="ghost"
       size="icon"
-      title="Предыдущее вхождение"
-      ariaLabel="Предыдущее вхождение"
+      title={t('app.reader.search.prev')}
+      ariaLabel={t('app.reader.search.prev')}
       class="size-8"
       disabled={!canStep}
       testId="reader-search-prev"
@@ -120,8 +121,8 @@
     <Button
       variant="ghost"
       size="icon"
-      title="Следующее вхождение"
-      ariaLabel="Следующее вхождение"
+      title={t('app.reader.search.next')}
+      ariaLabel={t('app.reader.search.next')}
       class="size-8"
       disabled={!canStep}
       testId="reader-search-next"
@@ -132,8 +133,8 @@
     <Button
       variant="ghost"
       size="icon"
-      title="Закрыть поиск"
-      ariaLabel="Закрыть поиск"
+      title={t('app.reader.search.close')}
+      ariaLabel={t('app.reader.search.close')}
       class="size-8"
       onclick={() => onClose?.()}
     >
