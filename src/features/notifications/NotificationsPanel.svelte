@@ -1,7 +1,15 @@
 <script lang="ts">
   import { t } from '@context/i18n';
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, EmptyState, ErrorToast, SidePanel, createAsyncState } from '@context/ui';
+  import {
+    Badge,
+    Button,
+    EmptyState,
+    ErrorToast,
+    Icon,
+    SidePanel,
+    createAsyncState,
+  } from '@context/ui';
   import { formatTime } from '../../shared/format';
   import {
     clearNotifications,
@@ -133,10 +141,30 @@
   {/snippet}
 
   {#snippet headerActions()}
-    <Button variant="secondary" size="sm" disabled={unreadUser === 0} onclick={markAllRead}>
-      {t('app.notifications.markRead')}
+    <!--
+      Действия панели — иконками: подписи занимали всю шапку, и на узком окне
+      панель не помещалась. Название действия остаётся доступным именем и
+      подсказкой.
+    -->
+    <Button
+      variant="secondary"
+      size="icon"
+      title={t('app.notifications.markRead')}
+      ariaLabel={t('app.notifications.markRead')}
+      disabled={unreadUser === 0}
+      onclick={markAllRead}
+    >
+      <Icon name="check" />
     </Button>
-    <Button variant="secondary" size="sm" onclick={clearEntries}>{t('app.notifications.clear')}</Button>
+    <Button
+      variant="secondary"
+      size="icon"
+      title={t('app.notifications.clear')}
+      ariaLabel={t('app.notifications.clear')}
+      onclick={clearEntries}
+    >
+      <Icon name="trash" />
+    </Button>
   {/snippet}
 
   {#if visibleEntries.length === 0}

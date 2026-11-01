@@ -168,7 +168,7 @@
     onclick={item.onClick}
   >
     <Icon name={item.icon} class="h-[1.375rem] w-[1.375rem]" />
-    <span class="hidden min-[22.5rem]:inline role-caption leading-none">{item.label}</span>
+    <span class="hidden min-[34rem]:inline role-caption leading-none">{item.label}</span>
     {#if item.badge && item.badge > 0}
       <span
         class="absolute top-0.5 right-1/2 flex h-4 min-w-4 translate-x-3 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none text-[var(--counter-foreground)]"
@@ -215,7 +215,7 @@
         style:color={alertError ? 'var(--destructive)' : 'var(--warning)'}
       >
         <span class="flex h-[1.375rem] items-center justify-center role-title">{alertCount}</span>
-        <span class="hidden min-[22.5rem]:inline role-caption leading-none"
+        <span class="hidden min-[34rem]:inline role-caption leading-none"
           >{t('app.alerts.short')}</span
         >
       </span>
