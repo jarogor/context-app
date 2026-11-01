@@ -15,7 +15,6 @@
   } from '@context/ui';
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import AppInfoPage from '../settings/AppInfoPage.svelte';
-  import SupportReportCard from '../support/SupportReportCard.svelte';
   import type { NormalizedDeclaration } from '../settings/settings';
   import {
     addStore as addStoreEntry,
@@ -545,8 +544,6 @@
     <div data-testid="app-info-page">
       <AppInfoPage />
     </div>
-
-    <SupportReportCard />
   </div>
 </ScrollArea>
 

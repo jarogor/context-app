@@ -38,29 +38,29 @@ pub struct AppInfo {
 impl AppInfo {
     /// Сборка сведений из версии пакета и корня данных приложения.
     ///
-    /// Пользователю показывается одно расположение — каталог данных, где
-    /// лежат настройки, плагины, кеш и обновления. Внутреннее деление и
+    /// Пользователю показываются два файла: каталог данных с настройками и
+    /// плагинами и журнал, который отдаётся при обращении. Внутреннее деление и
     /// жаргон («каркас», «уровень приложения», «в поставке») наружу не выносятся.
     pub fn build(name: impl Into<String>, version: impl Into<String>, data_root: &Path) -> Self {
         let path_of = |path: &Path| path.to_string_lossy().into_owned();
         let paths = vec![
             AppPath {
                 key: "app_data".to_string(),
-                title: "app.settings.appData.title".to_string(),
+                title: "app.settings.data.title".to_string(),
                 path: path_of(data_root),
-                note: "app.settings.appData.note".to_string(),
+                note: "app.settings.data.note".to_string(),
             },
-            // Журнал диагностики — единственный файл, который пользователю
-            // может понадобиться найти самому: он прикладывается к обращению.
+            // Журнал — единственный файл, который пользователю нужно найти
+            // самому, чтобы отдать при обращении.
             AppPath {
                 key: "diagnostics".to_string(),
-                title: "app.settings.appData.diagnosticsTitle".to_string(),
+                title: "app.settings.logs.title".to_string(),
                 path: path_of(
                     &data_root
                         .join(crate::constants::APP_STATE_DIR_NAME)
                         .join(crate::plugin::diagnostics::DIAGNOSTICS_FILE_NAME),
                 ),
-                note: "app.settings.appData.diagnosticsNote".to_string(),
+                note: String::new(),
             },
         ];
         Self {

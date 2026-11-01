@@ -5,7 +5,7 @@ use std::path::Path;
 use super::*;
 
 #[test]
-fn exposes_single_data_location() {
+fn exposes_data_and_log_locations() {
     let info = AppInfo::build("Контекст", "0.1.0", Path::new("/data/context"));
 
     assert_eq!(info.name, "Контекст");
@@ -24,8 +24,9 @@ fn exposes_single_data_location() {
     assert!(info.paths[1].path.contains("app-state"));
     // Заголовок и пояснение — ключи словаря интерфейса: текст показывается на
     // выбранном языке, а ядро от языка не зависит.
-    assert_eq!(info.paths[0].title, "app.settings.appData.title");
-    assert_eq!(info.paths[0].note, "app.settings.appData.note");
+    assert_eq!(info.paths[0].title, "app.settings.data.title");
+    assert_eq!(info.paths[0].note, "app.settings.data.note");
+    assert_eq!(info.paths[1].title, "app.settings.logs.title");
 }
 
 #[test]
@@ -68,11 +69,10 @@ fn shows_no_plugin_jargon_or_levels() {
 }
 
 #[test]
-fn every_path_has_title_and_note() {
+fn every_path_has_title_and_path() {
     let info = AppInfo::build("Контекст", "0.1.0", Path::new("/data/context"));
     for path in &info.paths {
         assert!(!path.title.trim().is_empty(), "{}: нет названия", path.key);
-        assert!(!path.note.trim().is_empty(), "{}: нет пояснения", path.key);
         assert!(!path.path.trim().is_empty(), "{}: пустой путь", path.key);
     }
 }

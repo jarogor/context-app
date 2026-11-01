@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 /**
  * Логи приложения.
  *
- * Проверяется: отчёт есть в «Системе», собирается одним нажатием и содержит
- * версию, систему, плагины и журнал.
+ * Проверяется: журнал виден в сведениях о приложении как обычный пункт
+ * расположения данных, открывается папкой и выгружается одним нажатием.
  */
 
 test('логи экспортируются одним действием', async ({ page }) => {
@@ -14,11 +14,11 @@ test('логи экспортируются одним действием', asyn
     .getByRole('button', { name: 'Система' })
     .click();
 
-  const report = page.getByTestId('support-report');
+  // Логи — пункт расположения данных в сведениях о приложении.
+  const report = page.getByTestId('app-path-diagnostics');
   await expect(report).toBeVisible();
   await expect(report).toContainText('Логи');
-  // Описание говорит, что в файле, а не пересказывает действие кнопки.
-  await expect(report).toContainText('версия, система, плагины и журнал');
+  await expect(report).toContainText('diagnostics.log');
 
   await report.getByRole('button', { name: 'Экспорт' }).click();
   // Мок-мост возвращает путь сохранённого файла.

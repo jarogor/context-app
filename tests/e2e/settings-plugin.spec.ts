@@ -80,7 +80,7 @@ test('журнал для разбора находится в сведения�
   // к обращению: путь и кнопка открытия папки стоят в сведениях о приложении.
   const log = page.getByTestId('app-path-diagnostics');
   await expect(log).toContainText('diagnostics.log');
-  await expect(log.getByRole('button', { name: 'Открыть папку' })).toBeVisible();
+  await expect(log.getByRole('button', { name: 'Открыть' })).toBeVisible();
 });
 
 test('секция рисуется группой с линией и отступом содержимого', async ({ page }) => {
@@ -124,10 +124,11 @@ test('кнопка сохранения внизу недоступна без �
   const footer = page.getByTestId('settings-footer');
   await expect(footer).toBeVisible();
 
-  // Кнопка сохранения — у правого края нижней панели.
+  // Кнопка сохранения — в карточке панели, у правого края общей колонки
+  // контента: отступ карточки тот же, что у секций настроек.
   const pageBox = (await settings.boundingBox())!;
   const saveBox = (await footer.getByRole('button', { name: 'Сохранить' }).boundingBox())!;
-  expect(Math.abs(pageBox.x + pageBox.width - (saveBox.x + saveBox.width))).toBeLessThan(40);
+  expect(pageBox.x + pageBox.width - (saveBox.x + saveBox.width)).toBeLessThan(80);
 
   // Без правок кнопка недоступна.
   const save = footer.getByRole('button', { name: 'Сохранить' });
@@ -179,7 +180,7 @@ test('раздел «Система» показывает версию и ра�
   await expect(page.getByText('Приложение', { exact: true })).toBeVisible();
   await expect(page.locator('main').getByText('0.1.0', { exact: true }).first()).toBeVisible();
   const info = page.getByTestId('app-info-page');
-  await expect(info.getByRole('heading', { name: 'Расположение данных' })).toBeVisible();
+  await expect(info.getByText('Служебные данные приложения')).toBeVisible();
   await expect(info.getByText('/home/user/.context', { exact: true })).toBeVisible();
   // Одно расположение данных; деления плагинов и жаргона нет.
   await expect(info.getByText('Настройки, плагины, кеш и обновления')).toBeVisible();

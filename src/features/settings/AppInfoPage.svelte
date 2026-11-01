@@ -1,7 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Button, Card, ErrorState, Icon, Skeleton } from '@context/ui';
+  import {
+    Button,
+    Card,
+    ErrorToast,
+    ErrorState,
+    Icon,
+    Skeleton,
+    createAsyncState,
+  } from '@context/ui';
   import { localize, t } from '@context/i18n';
+  import { exportSupportReport } from '../support/report';
   import { invokeCommand } from '../../shared/app-bridge';
 
   /** Служебное расположение в сведениях о приложении. */
@@ -35,6 +44,23 @@
     }
   }
 
+  /** Состояние экспорта логов. */
+  const exportState = createAsyncState();
+
+  /** Путь выгруженного файла логов. */
+  let exportedPath = $state<string | null>(null);
+
+  /** Экспорт логов приложения. */
+  async function exportLogs() {
+    exportedPath = null;
+    await exportState.run(async () => {
+      const path = await exportSupportReport();
+      if (path) {
+        exportedPath = path;
+      }
+    });
+  }
+
   /** Открытие папки с журналом диагностики системным файловым менеджером. */
   async function openDiagnosticsFolder() {
     try {
@@ -57,31 +83,57 @@
   </Card>
 {:else}
   <Card class="p-5">
-    <h2 class="mb-3 role-heading">{t('app.settings.dataLocation')}</h2>
-    <ul class="flex list-none flex-col gap-2 p-0">
+    <!--
+      Список — единый лист, а не набор плашек: строки разделяет тонкий
+      `--divider`. Рамка вокруг каждой строки в тёмной теме сливалась с
+      подложкой карточки и читалась как случайное пятно.
+    -->
+    <ul class="flex list-none flex-col p-0">
       {#each info.paths as path (path.key)}
         <li
-          class="flex flex-col gap-[0.125rem] rounded-[var(--radius)] bg-[var(--surface-inset)] p-3"
+          class="flex flex-col gap-[0.125rem] py-3 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--divider)]"
           data-testid={`app-path-${path.key}`}
         >
           <span class="role-title text-[var(--foreground)]">{localize(path.title)}</span>
           <code class="break-all role-mono text-[var(--muted-foreground)]">{path.path}</code>
-          <span class="role-caption text-[var(--muted-foreground)]">{localize(path.note)}</span>
+          {#if localize(path.note)}
+            <span class="role-caption text-[var(--muted-foreground)]">{localize(path.note)}</span>
+          {/if}
           {#if path.key === 'diagnostics'}
             <!--
-              Журнал — единственный файл, который пользователю нужно найти
-              самому, чтобы приложить к обращению. Путь виден выше, а кнопка
-              избавляет от набора пути вручную.
+              Логи — файл, который пользователь отдаёт при обращении. Путь перед
+              действиями, сами действия — рядом.
             -->
-            <div class="mt-1">
+            <div class="mt-1 flex flex-wrap gap-2">
               <Button variant="secondary" size="sm" onclick={openDiagnosticsFolder}>
                 <Icon name="folder" />
                 {t('app.settings.openFolder')}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={exportState.loading}
+                onclick={exportLogs}
+              >
+                <Icon name="download" />
+                {t('app.support.save')}
               </Button>
             </div>
           {/if}
         </li>
       {/each}
     </ul>
+
+    {#if exportedPath}
+      <p
+        class="mt-3 flex items-start gap-2 break-all rounded-[var(--radius)] bg-[var(--surface-inset)] px-3 py-2 role-caption"
+        data-testid="support-report-saved"
+      >
+        <Icon name="check" class="mt-[0.125rem] h-3.5 w-3.5 flex-none text-[var(--success)]" />
+        <span>{t('app.support.saved', { path: exportedPath })}</span>
+      </p>
+    {/if}
   </Card>
 {/if}
+
+<ErrorToast message={exportState.error} />

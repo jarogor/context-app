@@ -246,22 +246,28 @@
 
 {#snippet footerContent()}
   <!--
-    Встроенная панель сохранения показывается только при несохранённых правках:
-    страница-хозяин («Система») живёт без постоянной нижней полосы, и кнопка не
-    висит посреди содержимого, когда сохранять нечего.
+    Панель сохранения — такая же карточка, как секции настроек: тот же скруглённый
+    контур, тот же фон и та же ширина контента. Отдельная полоса во всю ширину с
+    другим фоном выбивалась из страницы и читалась как чужая плашка.
+
+    Панель закреплена снизу и не уезжает при прокрутке: правки копятся в
+    черновике, и кнопка должна быть под рукой. Встроенный режим показывает её
+    только при несохранённых правках — страница-хозяин живёт без постоянной
+    полосы.
   -->
   {#if ownFooter || dirty}
     <div
-      class="flex flex-none flex-wrap items-center justify-between gap-3 {embedded
-        ? 'rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3'
-        : 'border-t border-[var(--border)] bg-[var(--panel)] px-4 py-3'}"
+      class="flex flex-none px-4 md:px-6 {embedded ? '' : 'pb-[max(0.75rem,var(--safe-bottom))]'}"
       data-testid="settings-footer"
-      style={embedded ? '' : 'padding-bottom: max(0.75rem, var(--safe-bottom));'}
     >
-      <span class="role-caption text-[var(--muted-foreground)]">
-        {dirty ? t('app.settings.dirty') : t('app.settings.saved')}
-      </span>
-      <Button variant="primary" disabled={!dirty} onclick={save}>{t('app.action.save')}</Button>
+      <div
+        class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3"
+      >
+        <span class="role-caption text-[var(--muted-foreground)]">
+          {dirty ? t('app.settings.dirty') : t('app.settings.saved')}
+        </span>
+        <Button variant="primary" disabled={!dirty} onclick={save}>{t('app.action.save')}</Button>
+      </div>
     </div>
   {/if}
 {/snippet}

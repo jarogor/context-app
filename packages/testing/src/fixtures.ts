@@ -717,15 +717,15 @@ export function defaultMockConfig(): MockBridgeConfig {
                 paths: [
                     {
                         key: 'app_data',
-                        title: 'app.settings.appData.title',
+                        title: 'app.settings.data.title',
                         path: '/home/user/.context',
-                        note: 'app.settings.appData.note',
+                        note: 'app.settings.data.note',
                     },
                     {
                         key: 'diagnostics',
-                        title: 'app.settings.appData.diagnosticsTitle',
+                        title: 'app.settings.logs.title',
                         path: '/home/user/.context/app-state/diagnostics.log',
-                        note: 'app.settings.appData.diagnosticsNote',
+                        note: '',
                     },
                 ],
             }),

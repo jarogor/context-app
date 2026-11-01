@@ -31,7 +31,7 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
     let request = Request::parse(input)?;
     match request.action.as_str() {
         "publish" => publish(host, &request.payload),
-        "list" => list(host, &request.payload),
+        "list" => list(host),
         "mark_read" => mark_read(host, &request.payload),
         "mark_all_read" => {
             let mut journal = load(host)?;
@@ -77,8 +77,11 @@ fn publish(host: &impl Host, payload: &serde_json::Value) -> Result<String, Stri
     Ok(serialized)
 }
 
-/// Список записей с опциональным фильтром уровня.
-fn list(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+/// Список записей журнала.
+///
+/// Журнал хранит только пользовательские события, поэтому фильтра по уровню
+/// нет: фильтровать нечего.
+fn list(host: &impl Host) -> Result<String, String> {
     let journal = load(host)?;
     let entries = journal.list(None);
     serde_json::to_string(&json!({ "entries": entries })).map_err(|error| error.to_string())
