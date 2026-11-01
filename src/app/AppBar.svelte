@@ -114,11 +114,11 @@
     Логотип вставляется разметкой, а не картинкой: его контуры рисуются
     `currentColor` и берут цвет активной темы (`--primary`), поэтому знак
     согласован с выделением раздела и виден на светлой и тёмной стороне. Размер
-    задан в `rem` (2.25rem) и остаётся меньше высоты шапки, поэтому знак крупный,
-    но высоту шапки не меняет.
+    задан в `rem` (2.125rem) и остаётся меньше высоты шапки, поэтому знак
+    заметный, но высоту шапки не меняет.
   -->
   <span
-    class="text-[var(--primary)] flex size-9 shrink-0 items-center justify-center [&>svg]:size-full"
+    class="text-[var(--primary)] flex size-[2.125rem] shrink-0 items-center justify-center [&>svg]:size-full"
     data-testid="app-name"
     role="img"
     aria-label={t('app.name')}
