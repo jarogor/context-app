@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Icon, type IconName, type ResolvedTheme } from '@context/ui';
   import { t } from '@context/i18n';
+  import logoMarkup from './context-logo.svg?raw';
   import SectionNav from './SectionNav.svelte';
 
   /**
@@ -106,32 +107,24 @@
   data-testid="app-bar"
 >
   <!--
-    Знак приложения — квадрат основного цвета с буквой названия цветом фона:
-    знак читается как печать на переплёте, а не как надпись рядом с разделами.
-    Скругление взято из токена системы, поэтому знак согласован с кнопками и
-    карточками. Размер задан в `em` и следует за кеглем шапки. Отдельной надписи
-    рядом нет, а настоящее имя остаётся доступным именем элемента — его читают
-    экранные дикторы, и оно попадает в подсказку.
+    Знак приложения — логотип из файла `context-logo.svg`. Знак стоит в шапке
+    один, без подписи рядом: настоящее имя остаётся доступным именем элемента,
+    его читают экранные дикторы, и оно попадает в подсказку.
+
+    Логотип вставляется разметкой, а не картинкой: его контуры рисуются
+    `currentColor` и берут цвет активной темы (`--primary`), поэтому знак
+    согласован с выделением раздела и виден на светлой и тёмной стороне. Размер
+    задан в `rem` (2.25rem) и остаётся меньше высоты шапки, поэтому знак крупный,
+    но высоту шапки не меняет.
   -->
   <span
-    class="flex shrink-0 items-center"
+    class="text-[var(--primary)] flex size-9 shrink-0 items-center justify-center [&>svg]:size-full"
     data-testid="app-name"
     role="img"
     aria-label={t('app.name')}
     title={t('app.name')}
   >
-    <!--
-      Буква набрана шрифтом и центрирована: плашка — flex-контейнер, буква
-      стоит по её центру. `line-height` равен высоте плашки, поэтому строка
-      занимает её целиком и вертикальное выравнивание идёт по центру. Цвета —
-      акцент активной палитры и текст на акценте: знак согласован с выделением
-      раздела и счётчиком уведомлений, а не выбивается из темы.
-    -->
-    <span
-      class="flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] font-black text-[var(--primary-foreground)] select-none"
-      style="width: 1.75rem; height: 1.75rem; font-size: 1.25rem; line-height: 1.75rem; letter-spacing: -0.01em;"
-      aria-hidden="true">К</span
-    >
+    {@html logoMarkup}
   </span>
   <span class="hidden h-6 w-px shrink-0 bg-[var(--border)] md:block" aria-hidden="true"></span>
   <!--
@@ -152,79 +145,86 @@
     {/if}
   </span>
 
-  <div class="ml-auto flex min-w-0 items-center gap-2 md:gap-4">
-    <SectionNav
-      {workspaceActive}
-      {libraryActive}
-      {notesActive}
-      {mobile}
-      {onWorkspace}
-      {onLibrary}
-      {onNotes}
-    />
+  <!--
+    Действия верхней панели. На телефоне они переезжают в нижнюю навигацию
+    (`SectionNav`), и здесь не рисуются вовсе: активна ровно одна компоновка, а
+    не две с повторяющимися доступными именами и метками для тестов.
+  -->
+  {#if !mobile}
+    <div class="ml-auto flex min-w-0 items-center gap-2 md:gap-4">
+      <SectionNav
+        {workspaceActive}
+        {libraryActive}
+        {notesActive}
+        {mobile}
+        {onWorkspace}
+        {onLibrary}
+        {onNotes}
+      />
 
-    <div class="flex shrink-0 items-center gap-1">
-      {#if alertCount > 0}
-        <span
-          class="flex h-8 min-w-8 items-center justify-center rounded-full px-2 role-caption"
-          role="status"
-          data-testid="header-alerts"
-          title={alertTitles}
-          aria-label={t('app.alerts', { count: alertCount })}
-          style:background={alertError ? 'var(--destructive)' : 'var(--warning)'}
-          style:color={alertError ? 'var(--destructive-foreground)' : 'var(--primary-foreground)'}
-        >
-          {alertCount}
+      <div class="flex shrink-0 items-center gap-1">
+        {#if alertCount > 0}
+          <span
+            class="flex h-8 min-w-8 items-center justify-center rounded-full px-2 role-caption"
+            role="status"
+            data-testid="header-alerts"
+            title={alertTitles}
+            aria-label={t('app.alerts', { count: alertCount })}
+            style:background={alertError ? 'var(--destructive)' : 'var(--warning)'}
+            style:color={alertError ? 'var(--destructive-foreground)' : 'var(--primary-foreground)'}
+          >
+            {alertCount}
+          </span>
+        {/if}
+
+        <span class="relative flex">
+          <button
+            type="button"
+            class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+            class:bg-[var(--primary-soft)]={notificationsOpen}
+            title={t('app.notifications')}
+            aria-label={t('app.notifications')}
+            aria-pressed={notificationsOpen}
+            data-testid="nav-notifications"
+            onclick={onNotifications}
+          >
+            <Icon name="bell" class="h-[1.15rem] w-[1.15rem]" />
+          </button>
+          {#if unreadCount > 0}
+            <span
+              class="pointer-events-none absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none text-[var(--counter-foreground)]"
+              style:background="var(--counter)"
+              aria-hidden="true"
+            >
+              {unreadCount}
+            </span>
+          {/if}
         </span>
-      {/if}
 
-      <span class="relative flex">
         <button
           type="button"
           class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
-          class:bg-[var(--primary-soft)]={notificationsOpen}
-          title={t('app.notifications')}
-          aria-label={t('app.notifications')}
-          aria-pressed={notificationsOpen}
-          data-testid="nav-notifications"
-          onclick={onNotifications}
+          title={themeTitle}
+          aria-label={t('app.theme.switch')}
+          data-testid="nav-theme"
+          onclick={onTheme}
         >
-          <Icon name="bell" class="h-[1.15rem] w-[1.15rem]" />
+          <Icon name={themeIcon} class="h-[1.15rem] w-[1.15rem]" />
         </button>
-        {#if unreadCount > 0}
-          <span
-            class="pointer-events-none absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none text-[var(--counter-foreground)]"
-            style:background="var(--counter)"
-            aria-hidden="true"
-          >
-            {unreadCount}
-          </span>
-        {/if}
-      </span>
 
-      <button
-        type="button"
-        class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11 max-md:hidden"
-        title={themeTitle}
-        aria-label={t('app.theme.switch')}
-        data-testid="nav-theme"
-        onclick={onTheme}
-      >
-        <Icon name={themeIcon} class="h-[1.15rem] w-[1.15rem]" />
-      </button>
-
-      <button
-        type="button"
-        class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
-        class:bg-[var(--primary-soft)]={settingsOpen}
-        title={t('app.settings')}
-        aria-label={t('app.settings')}
-        aria-pressed={settingsOpen}
-        data-testid="nav-settings"
-        onclick={onSettings}
-      >
-        <Icon name="menu" class="h-[1.15rem] w-[1.15rem]" />
-      </button>
+        <button
+          type="button"
+          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+          class:bg-[var(--primary-soft)]={settingsOpen}
+          title={t('app.settings')}
+          aria-label={t('app.settings')}
+          aria-pressed={settingsOpen}
+          data-testid="nav-settings"
+          onclick={onSettings}
+        >
+          <Icon name="menu" class="h-[1.15rem] w-[1.15rem]" />
+        </button>
+      </div>
     </div>
-  </div>
+  {/if}
 </header>

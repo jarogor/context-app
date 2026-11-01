@@ -24,25 +24,27 @@ async function hasHorizontalScroll(page: import('@playwright/test').Page): Promi
 /** Контрольные ширины: очень узкий телефон, компактный, распространённый, планшет. */
 const WIDTHS = [320, 360, 390, 414, 768];
 
-test('на узком окне разделы остаются в верхней панели кнопками-иконками', async ({ page }) => {
+test('на телефоне разделы уходят в нижнюю навигацию, на планшете — тоже', async ({ page }) => {
     for (const width of WIDTHS) {
         await page.setViewportSize({ width, height: 800 });
         await page.goto('/');
 
         const nav = page.getByTestId('section-nav');
         await expect(nav).toBeVisible();
-        // Меню разделов живёт в верхней панели на любой ширине; на узком окне
-        // (телефон и планшет, до `--breakpoint-narrow`) — без подписей, иконками.
+        // Телефон — не уменьшенный десктоп: меню разделов переезжает в нижнюю
+        // полосу, а верхняя панель остаётся знаком и именем. Нижняя полоса
+        // прижата к нижнему краю экрана, а не стоит в шапке.
         const bar = page.getByTestId('app-bar');
         const navBox = await nav.boundingBox();
         const barBox = await bar.boundingBox();
         expect(navBox).not.toBeNull();
         expect(barBox).not.toBeNull();
-        expect(navBox!.y).toBeGreaterThanOrEqual(barBox!.y);
-        expect(navBox!.y + navBox!.height).toBeLessThanOrEqual(barBox!.y + barBox!.height + 1);
+        expect(navBox!.y).toBeGreaterThanOrEqual(barBox!.y + barBox!.height - 1);
+        expect(navBox!.y + navBox!.height).toBeGreaterThanOrEqual(800 - 1);
         await expect(nav).toHaveAttribute('data-mobile', width < 900 ? 'true' : 'false');
 
-        // Разделы и служебные действия доступны на любой ширине.
+        // Разделы и служебные действия доступны на любой ширине — ровно один раз:
+        // на телефоне они в нижней полосе, в шапке их нет.
         for (const label of [
             'Рабочее место',
             'Библиотека',
@@ -50,7 +52,7 @@ test('на узком окне разделы остаются в верхней
             'Уведомления',
             'Настройки',
         ]) {
-            await expect(page.getByLabel(label, { exact: true }).first()).toBeVisible();
+            await expect(page.getByLabel(label, { exact: true })).toHaveCount(1);
         }
     }
 });

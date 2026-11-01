@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import { Button, Icon, Menu, MenuItem } from '@context/ui';
   import AppBar from './AppBar.svelte';
+  import SectionNav from './SectionNav.svelte';
   import NotificationsPanel from '../features/notifications/NotificationsPanel.svelte';
   import SettingsPage from '../features/settings/SettingsPage.svelte';
   import StorePage from '../features/store/StorePage.svelte';
@@ -1501,4 +1502,36 @@
     onRestart={restartAfterUpdates}
   />
   </div>
+
+  <!--
+    Нижняя навигация телефона: разделы и служебные действия (уведомления, тема,
+    настройки) прижаты к нижнему краю и удобны пальцу. Меню в верхней панели на
+    телефоне не рисуется: активна ровно одна компоновка, разметка не дублируется.
+    Скрывается в сосредоточенном чтении и в полноэкранных настройках — там своя
+    шапка с закрытием.
+  -->
+  {#if mobileWindow && !focusMode && !settingsOpen}
+    <div class="flex-none" data-testid="mobile-nav-slot">
+      <SectionNav
+        workspaceActive={workspaceListVisible}
+        libraryActive={librariesVisible}
+        notesActive={notesLibraryVisible}
+        {notificationsOpen}
+        {settingsOpen}
+        {unreadCount}
+        alertCount={headerAlerts.length}
+        alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
+        alertError={headerAlerts.some((alert) => !alert.warning)}
+        theme={resolvedTheme}
+        themeNext={oppositeTheme(resolvedTheme)}
+        mobile
+        onWorkspace={toggleWorkspace}
+        onLibrary={toggleLibraries}
+        onNotes={toggleNotesLibrary}
+        onNotifications={toggleNotifications}
+        onSettings={toggleSettings}
+        onTheme={toggleTheme}
+      />
+    </div>
+  {/if}
 </div>

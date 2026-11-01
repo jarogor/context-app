@@ -34,11 +34,10 @@ test('выбор языка переводит интерфейс без пер�
   await expect(page.getByTestId('nav-workspace')).toHaveAttribute('aria-label', 'Workspace');
   await expect(page.getByTestId('nav-library')).toHaveAttribute('aria-label', 'Library');
 
-  // Имя приложения — тоже текст интерфейса: знак с буквой «К» остаётся, а имя
+  // Имя приложения — тоже текст интерфейса: знак-логотип не меняется, а имя
   // и заголовок документа переводятся.
   await expect(page).toHaveTitle('Context');
   await expect(page.getByTestId('app-name')).toHaveAttribute('aria-label', 'Context');
-  await expect(page.getByTestId('app-name').locator('span').first()).toHaveText('К');
 
   await page.getByLabel('Settings', { exact: true }).click();
   await page.locator('main').getByRole('button', { name: 'Interface language' }).click();

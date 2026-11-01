@@ -6,23 +6,48 @@ async function showLibrary(page: import('@playwright/test').Page) {
     await showLibraryBookList(page);
 }
 
-test('знак приложения — буква названия на плашке', async ({ page }) => {
+test('знак приложения — логотип из файла, окрашенный в акцент темы', async ({ page }) => {
     await page.goto('/');
     const name = page.getByTestId('app-name');
     await expect(name).toBeVisible();
 
-    // Знак — плашка акцента темы с буквой цветом текста на акценте, буква шрифтом.
-    const mark = name.locator('span').first();
-    const box = await mark.boundingBox();
+    // Знак — логотип `context-logo.svg`: квадратная область того же размера,
+    // что прежняя плашка, поэтому шапка не меняет высоту.
+    const box = await name.boundingBox();
     expect(box).not.toBeNull();
     expect(Math.abs(box!.width - box!.height)).toBeLessThanOrEqual(1);
-    await expect(mark).toHaveClass(/rounded-\[var\(--radius-sm\)\]/);
-    // Плашка в акценте темы: знак согласован с выделением раздела и счётчиком.
-    await expect(mark).toHaveClass(/bg-\[var\(--primary\)\]/);
-    await expect(mark).toHaveClass(/text-\[var\(--primary-foreground\)\]/);
-    await expect(mark).toHaveText('К');
+    // Контуры логотипа рисуются `currentColor` и берут акцент темы: знак виден
+    // на светлой и тёмной стороне и согласован с выделением раздела.
+    await expect(name).toHaveClass(/text-\[var\(--primary\)\]/);
+    await expect(name.locator('svg')).toHaveCount(1);
+    await expect(name.locator('svg path')).toHaveCount(3);
+
+    // Цвет контуров следует теме: он равен акценту активной палитры и стороны,
+    // а не задан в файле логотипа жёстко.
+    const logoColor = await name.locator('svg path').first().evaluate(
+        (path) => getComputedStyle(path).fill,
+    );
+    const primary = await page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue('--primary').trim(),
+    );
+    expect(logoColor).toBe(await page.evaluate((hex) => {
+        const probe = document.createElement('span');
+        probe.style.color = hex;
+        document.body.append(probe);
+        const value = getComputedStyle(probe).color;
+        probe.remove();
+        return value;
+    }, primary));
+
+    // В тёмной стороне цвет меняется вместе с темой.
+    await page.getByLabel('Переключить тему', { exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    const darkLogoColor = await name.locator('svg path').first().evaluate(
+        (path) => getComputedStyle(path).fill,
+    );
+    expect(darkLogoColor).not.toBe(logoColor);
     // Настоящее имя остаётся доступным именем для экранных дикторов и следует
-    // языку интерфейса; буква на знаке при этом не переводится.
+    // языку интерфейса.
     await expect(name).toHaveAttribute('aria-label', 'Контекст');
 });
 

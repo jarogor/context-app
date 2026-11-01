@@ -77,25 +77,66 @@ describe('SectionNav', () => {
     expect(library.className).not.toContain('bg-[var(--primary)]');
   });
 
-  it('на узком окне показывает те же разделы кнопками-иконками без подписей', () => {
+  it('на телефоне показывает нижнюю навигацию с разделами и служебными действиями', () => {
     render(SectionNav, { props: props({ mobile: true, libraryActive: true }) });
 
     const nav = screen.getByTestId('section-nav');
     expect(nav.getAttribute('data-mobile')).toBe('true');
 
-    // Разделы доступны и на телефоне: те же кнопки с доступными именами.
-    expect(screen.getByLabelText('Рабочее место')).toBeTruthy();
-    expect(screen.getByLabelText('Заметки')).toBeTruthy();
-    // Подпись внутри кнопки скрыта — остаётся иконка.
-    expect(screen.getByTestId('nav-library').textContent?.trim()).toBe('');
-    // Активный раздел выделен.
+    // Телефон — не уменьшенный десктоп: в нижней полосе не только разделы, но и
+    // служебные действия (уведомления, тема, настройки), доступные пальцу.
+    for (const label of [
+      'Рабочее место',
+      'Библиотека',
+      'Заметки',
+      'Уведомления',
+      'Настройки',
+    ]) {
+      expect(screen.getByLabelText(label)).toBeTruthy();
+    }
+    expect(screen.getByTestId('nav-theme')).toBeTruthy();
+    // Активный раздел выделен и здесь.
     expect(screen.getByTestId('nav-library').getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('на телефоне показывает разметку активного раздела как и на широком окне', () => {
-    render(SectionNav, { props: props({ mobile: true, workspaceActive: true }) });
+  it('на телефоне пункт навигации — вертикальный: иконка над подписью', () => {
+    render(SectionNav, { props: props({ mobile: true }) });
 
-    expect(screen.getByTestId('nav-workspace').getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByTestId('nav-notes').getAttribute('aria-pressed')).toBe('false');
+    // Кнопка нижней полосы складывает иконку и подпись столбиком, а не строкой:
+    // иначе полоса не помещается по ширине телефона.
+    const workspace = screen.getByTestId('nav-workspace');
+    expect(workspace.className).toContain('flex-col');
+    expect(workspace.className).toContain('flex-1');
+    // Короткая подпись вместо полного названия — полоса помещается целиком.
+    expect(workspace.textContent?.trim()).toBe('Место');
+  });
+
+  it('на телефоне сообщает о выборе служебных действий', () => {
+    const onNotifications = vi.fn();
+    const onTheme = vi.fn();
+    const onSettings = vi.fn();
+    render(SectionNav, { props: props({ mobile: true, onNotifications, onTheme, onSettings }) });
+
+    screen.getByTestId('nav-notifications').click();
+    screen.getByTestId('nav-theme').click();
+    screen.getByTestId('nav-settings').click();
+
+    expect(onNotifications).toHaveBeenCalledTimes(1);
+    expect(onTheme).toHaveBeenCalledTimes(1);
+    expect(onSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('на телефоне показывает счётчик непрочитанного на пункте уведомлений', () => {
+    render(SectionNav, { props: props({ mobile: true, unreadCount: 4 }) });
+
+    expect(screen.getByTestId('nav-notifications').textContent).toContain('4');
+  });
+
+  it('на телефоне показывает замечания отдельным пунктом', () => {
+    render(SectionNav, { props: props({ mobile: true, alertCount: 2, alertError: true }) });
+
+    // Замечания видны и без верхней панели: индикатор живёт в нижней полосе.
+    expect(screen.getByTestId('header-alerts')).toBeTruthy();
+    expect(screen.getByLabelText('Замечания: 2')).toBeTruthy();
   });
 });
