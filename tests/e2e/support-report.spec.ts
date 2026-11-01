@@ -1,15 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Отчёт для поддержки.
+ * Логи приложения.
  *
- * Идея: пользователь не знает, что искать при сбое, поэтому приложение само
- * собирает всё нужное и отдаёт одним файлом. Проверяется именно это — что отчёт
- * есть в «Системе», собирается одним нажатием и содержит сведения о приложении,
- * платформе, плагинах и журнале.
+ * Проверяется: отчёт есть в «Системе», собирается одним нажатием и содержит
+ * версию, систему, плагины и журнал.
  */
 
-test('отчёт для поддержки собирается и сохраняется одним действием', async ({ page }) => {
+test('логи экспортируются одним действием', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
   await page.getByRole('navigation', { name: 'Разделы настроек' })
@@ -18,11 +16,11 @@ test('отчёт для поддержки собирается и сохран�
 
   const report = page.getByTestId('support-report');
   await expect(report).toBeVisible();
-  // Пользователю объяснено, зачем это нужно и что разбираться самому не надо.
-  await expect(report).toContainText('Отчёт для поддержки');
-  await expect(report).toContainText('приложите его к обращению');
+  await expect(report).toContainText('Логи');
+  // Описание говорит, что в файле, а не пересказывает действие кнопки.
+  await expect(report).toContainText('версия, система, плагины и журнал');
 
-  await report.getByRole('button', { name: /Сохранить отчёт/ }).click();
+  await report.getByRole('button', { name: 'Экспорт' }).click();
   // Мок-мост возвращает путь сохранённого файла.
   await expect(page.getByTestId('support-report-saved')).toContainText('context-report');
 });

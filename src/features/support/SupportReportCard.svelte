@@ -4,15 +4,9 @@
   import { exportSupportReport } from './report';
 
   /**
-   * Отчёт для поддержки.
+   * Отчёт о работе приложения.
    *
-   * Когда что-то не работает, пользователь обычно не может объяснить, что
-   * именно: он не знает, где смотреть, и не должен. Достаточно одного
-   * нажатия — приложение соберёт версию, платформу, список плагинов и журнал
-   * диагностики в один файл, который останется приложить к обращению.
-   *
-   * Технические подробности здесь не показываются: пользователю они ничего не
-   * объясняют, а поддержке нужны целиком — в файле.
+   * Описание говорит, что лежит в файле, а не пересказывает работу кнопки.
    */
   /** Состояние операции сохранения. */
   const asyncState = createAsyncState();
@@ -39,13 +33,10 @@
     <span class="role-caption text-[var(--muted-foreground)]">{t('app.support.description')}</span>
   </div>
 
-  <div class="flex flex-wrap items-center gap-3">
-    <Button variant="primary" onclick={save} disabled={asyncState.loading}>
-      <Icon name="download" />
-      {t('app.support.save')}
-    </Button>
-    <span class="role-caption text-[var(--muted-foreground)]">{t('app.support.hint')}</span>
-  </div>
+  <Button variant="primary" onclick={save} disabled={asyncState.loading}>
+    <Icon name="download" />
+    {t('app.support.save')}
+  </Button>
 
   {#if savedPath}
     <p

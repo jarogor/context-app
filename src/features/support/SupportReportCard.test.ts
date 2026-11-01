@@ -14,7 +14,7 @@ beforeEach(() => {
   invoke.mockReset();
 });
 
-describe('отчёт для поддержки', () => {
+describe('логи приложения', () => {
   it('собирает и сохраняет отчёт одним действием', async () => {
     invoke.mockImplementation(async (command: string) => {
       if (command === 'support_report') {
@@ -27,7 +27,7 @@ describe('отчёт для поддержки', () => {
     });
 
     render(SupportReportCard);
-    await fireEvent.click(screen.getByRole('button', { name: /Сохранить отчёт/ }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Экспорт' }));
 
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('support_report', {}));
     // Собранный отчёт уходит на сохранение целиком: пользователь не выбирает,
@@ -51,7 +51,7 @@ describe('отчёт для поддержки', () => {
     });
 
     render(SupportReportCard);
-    await fireEvent.click(screen.getByRole('button', { name: /Сохранить отчёт/ }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Экспорт' }));
 
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('support_report_save', expect.anything()));
     expect(screen.queryByTestId('support-report-saved')).toBeNull();
@@ -61,7 +61,7 @@ describe('отчёт для поддержки', () => {
     invoke.mockRejectedValue(new Error('журнал недоступен'));
 
     render(SupportReportCard);
-    await fireEvent.click(screen.getByRole('button', { name: /Сохранить отчёт/ }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Экспорт' }));
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain('журнал недоступен'),

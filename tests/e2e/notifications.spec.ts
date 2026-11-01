@@ -5,7 +5,7 @@ test('лента показывает только события, адресо�
   await page.getByLabel('Уведомления').click();
 
   // Лента — про понятные пользователю события: техническая диагностика живёт
-  // в файле для поддержки и в ленту не попадает.
+  // в файле журнала и в ленту не попадает.
   await expect(page.getByText('Библиотека открыта')).toBeVisible();
   await expect(page.getByText('Плагин пропущен')).toBeHidden();
   await expect(page.getByText('Ошибка вызова плагина')).toBeHidden();
