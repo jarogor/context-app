@@ -412,7 +412,11 @@ function applyWordDrag(clientX: number, clientY: number): void {
     if (!anchor || !layer) {
         return;
     }
-    const caret = caretAtPoint(clientX, clientY);
+    /* Каретка берётся штатно; если точка попала между строк или мимо текста,
+       движок отдаёт позицию на элементе слоя — тогда конец ставится у
+       ближайшей к точке строки, иначе выделение «залипало» бы на строке выше. */
+    const caret =
+        caretAtPoint(clientX, clientY) ?? lineCaretAtPoint(layer, anchor, clientY);
     if (!caret || !layer.contains(caret.startContainer)) {
         return;
     }
@@ -446,23 +450,7 @@ function applyWordDrag(clientX: number, clientY: number): void {
 
 /** Каретка в текстовом слое по координатам указателя. */
 function caretAtPoint(clientX: number, clientY: number): Range | null {
-    const create = (x: number, y: number): Range | null => {
-        if (typeof document.caretRangeFromPoint === 'function') {
-            return document.caretRangeFromPoint(x, y);
-        }
-        if (typeof document.caretPositionFromPoint === 'function') {
-            const position = document.caretPositionFromPoint(x, y);
-            if (!position) {
-                return null;
-            }
-            const range = document.createRange();
-            range.setStart(position.offsetNode, position.offset);
-            range.setEnd(position.offsetNode, position.offset);
-            return range;
-        }
-        return null;
-    };
-    const range = create(clientX, clientY);
+    const range = caretRangeAt(clientX, clientY);
     if (!range) {
         return null;
     }
@@ -472,5 +460,95 @@ function caretAtPoint(clientX: number, clientY: number): Range | null {
     }
     // Каретка ставится за пределами текста — конец диапазона всё равно нужен:
     // он упирается в крайнюю позицию узла, и выделение доходит до края страницы.
+    return range;
+}
+
+/** Каретка по координатам указателя штатными средствами движка. */
+function caretRangeAt(clientX: number, clientY: number): Range | null {
+    if (typeof document.caretRangeFromPoint === 'function') {
+        return document.caretRangeFromPoint(clientX, clientY);
+    }
+    if (typeof document.caretPositionFromPoint === 'function') {
+        const position = document.caretPositionFromPoint(clientX, clientY);
+        if (!position) {
+            return null;
+        }
+        const range = document.createRange();
+        range.setStart(position.offsetNode, position.offset);
+        range.setEnd(position.offsetNode, position.offset);
+        return range;
+    }
+    return null;
+}
+
+/** Каретка у ближайшей к точке строки текстового слоя.
+ *
+ * В промежутке между строками движок отдаёт каретку на элемент слоя, а не на
+ * текст: строка для него — не текстовая позиция. Если это не обработать, конец
+ * выделения оставался на прежнем месте (у конца строки выше), и выделение
+ * «залипало», показывая всё, что выше якоря.
+ *
+ * Берётся строка, ближайшая к точке по вертикали; при равном зазоре — та, что
+ * лежит по направлению протяжки. Направление определяется порядком строк
+ * относительно строки с якорем: ниже — вперёд, выше — назад. Конец ставится на
+ * конец строки при движении вперёд и на её начало при движении назад, поэтому
+ * выделение продолжает движение по тексту.
+ */
+function lineCaretAtPoint(layer: Element, anchor: Range, clientY: number): Range | null {
+    const spans = Array.from(layer.querySelectorAll('span')).filter(
+        (span) => (span.textContent ?? '').trim().length > 0 && span.firstChild,
+    );
+    if (spans.length === 0) {
+        return null;
+    }
+    const anchorIndex = spans.findIndex((span) => span.contains(anchor.startContainer));
+    const anchorLine = anchorIndex >= 0 ? anchorIndex : 0;
+    const anchorBounds = spans[anchorLine].getBoundingClientRect();
+    const forward = clientY > anchorBounds.top + anchorBounds.height / 2;
+    /* Зазор до строки по вертикали: точка внутри строки даёт ноль, выше или
+       ниже — расстояние до её края. */
+    const distances = spans.map((span) => {
+        const bounds = span.getBoundingClientRect();
+        return clientY < bounds.top
+            ? bounds.top - clientY
+            : clientY > bounds.bottom
+              ? clientY - bounds.bottom
+              : 0;
+    });
+    const nearest = Math.min(...distances);
+    /* В промежутке между строками зазоры равны: берётся строка по направлению
+       протяжки, иначе выделение откатывалось бы к строке с якорем и стояло на
+       месте — «залипало», показывая всё, что выше. */
+    let index = -1;
+    for (let candidate = 0; candidate < spans.length; candidate += 1) {
+        if (distances[candidate] > nearest + 0.5) {
+            continue;
+        }
+        if (index === -1) {
+            index = candidate;
+            continue;
+        }
+        const better = forward ? candidate > index : candidate < index;
+        if (better) {
+            index = candidate;
+        }
+    }
+    if (index === -1) {
+        return null;
+    }
+    return caretIn(index, spans, forward);
+}
+
+/** Каретка на начале или конце строки по её порядковому номеру. */
+function caretIn(index: number, spans: Element[], atEnd: boolean): Range | null {
+    const span = spans[index];
+    const text = span?.firstChild as Text | null;
+    if (!text) {
+        return null;
+    }
+    const offset = atEnd ? text.data.length : 0;
+    const range = document.createRange();
+    range.setStart(text, offset);
+    range.setEnd(text, offset);
     return range;
 }

@@ -1427,6 +1427,32 @@ test('протяжка от двойного клика через нескол�
     await page.mouse.up({ clickCount: 3 });
 });
 
+test('протяжка от двойного клика в промежуток между строками идёт к ближайшей строке', async ({
+    page,
+}) => {
+    await openPdf(page, 1, false, pdfBase64Paragraph());
+    const lines = await textLayerLines(page);
+    expect(lines.length).toBeGreaterThanOrEqual(4);
+
+    // Двойной клик по слову третьей строки, протяжка в промежуток под ней.
+    const from = lines[2];
+    const below = lines[3];
+    const gapY = (from.top + from.height + below.top) / 2;
+    await doubleClickThenDrag(page, from, 10, {
+        x: below.left + below.width * 0.4,
+        y: gapY,
+    });
+
+    const selection = await currentSelection(page);
+    /* Конец — ближайшая строка снизу, а не конец строки с якорем: раньше в
+       промежутке движок не давал текстовой позиции, конец оставался на месте,
+       и выделение «залипало», показывая всё, что выше слова. */
+    expect(selection.startsWith('follows')).toBe(true);
+    expect(selection).toContain('paragraph of several lines long');
+
+    await page.mouse.up({ clickCount: 3 });
+});
+
 test('простой тройной клик без протяжки выделяет строку', async ({ page }) => {
     await openPdf(page, 1, false, pdfBase64Paragraph());
     const lines = await textLayerLines(page);
