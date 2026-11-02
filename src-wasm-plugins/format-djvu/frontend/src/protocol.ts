@@ -136,6 +136,19 @@ export interface LocaleMessage {
   value: string;
 }
 
+/** Запрос миниатюр страниц. */
+export interface ThumbsRequestMessage {
+  /** Тип сообщения. */
+  type: 'thumbs';
+  /** Параметры запроса. */
+  value: {
+    /** Номера страниц (1-based), для которых нужны миниатюры. */
+    pages?: number[];
+    /** Желаемая ширина миниатюры в пикселях. */
+    width?: number;
+  };
+}
+
 /** Разобранное входящее сообщение. */
 export type IncomingMessage =
   | OpenMessage
@@ -150,7 +163,8 @@ export type IncomingMessage =
   | SearchStepMessage
   | BindingsMessage
   | CommandMessage
-  | LocaleMessage;
+  | LocaleMessage
+  | ThumbsRequestMessage;
 
 /** Нормализация инструмента создания заметок значениями по умолчанию. */
 export function normalizeTool(value: unknown): ViewerTool {
@@ -229,6 +243,19 @@ export function parseIncoming(data: unknown): IncomingMessage | null {
     }
     case 'reader-locale':
       return { type: 'reader-locale', value: String(raw.value ?? 'ru') };
+    case 'thumbs': {
+      const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as {
+        pages?: unknown;
+        width?: unknown;
+      };
+      const pages = Array.isArray(value.pages)
+        ? value.pages.map(Number).filter((page) => Number.isFinite(page) && page >= 1)
+        : [];
+      return {
+        type: 'thumbs',
+        value: { pages, width: Math.max(16, Math.min(400, Number(value.width) || 96)) },
+      };
+    }
     default:
       return null;
   }

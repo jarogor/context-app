@@ -1,0 +1,40 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R /Annots [6 0 R 7 0 R] >>
+endobj
+4 0 obj
+<< /Length 59 >>
+stream
+BT /F1 18 Tf 50 700 Td (Highlighted text on page one) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+6 0 obj
+<< /Type /Annot /Subtype /Highlight /Rect [50 700 300 730] /QuadPoints [50 730 300 730 50 700 300 700] /C [1 0.9 0] /T (Reader) /Contents (My embedded comment) /P 3 0 R >>
+endobj
+7 0 obj
+<< /Type /Annot /Subtype /Text /Rect [320 700 340 720] /Contents (Sticky note comment) /T (Other) /P 3 0 R >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000263 00000 n 
+0000000372 00000 n 
+0000000442 00000 n 
+0000000629 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+754
+%%EOF

@@ -12,6 +12,8 @@
   import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import type { QuoteAnchor } from './reader/anchor';
+  import type { FileAnnotationBatch, FileBookmark } from './file-properties';
+  import type { WorkplaceThumbnail } from './workplace-protocol';
   import {
     WORKPLACE_CHANNEL,
     buildReaderThemeMessage,
@@ -77,6 +79,12 @@
     onSearch?: (result: WorkplaceSearchResult) => void;
     /** Нажатие привязанной комбинации внутри книги (плагин распознал). */
     onHotkey?: (actionId: string) => void;
+    /** Встроенные закладки файла, прочитанные после открытия книги. */
+    onBookmarks?: (bookmarks: FileBookmark[]) => void;
+    /** Миниатюры страниц, нарисованные плагином по запросу. */
+    onThumbs?: (thumbnails: WorkplaceThumbnail[]) => void;
+    /** Порция найденных в файле пометок. */
+    onFileAnnotations?: (batch: FileAnnotationBatch) => void;
   }
 
   let {
@@ -105,6 +113,9 @@
     onError,
     onSearch,
     onHotkey,
+    onBookmarks,
+    onThumbs,
+    onFileAnnotations,
   }: Props = $props();
 
   /** Канал сообщений между областью содержимого и приложением. */
@@ -304,6 +315,15 @@
       case 'hotkey':
         onHotkey?.(message.actionId);
         break;
+      case 'bookmarks':
+        onBookmarks?.(message.value);
+        break;
+      case 'thumbs':
+        onThumbs?.(message.value);
+        break;
+      case 'file-annotations':
+        onFileAnnotations?.(message.value);
+        break;
     }
   }
 
@@ -403,6 +423,38 @@
       return;
     }
     post({ type: 'search-step', value: { delta } });
+  }
+
+  /** Запрос миниатюр страниц у модуля рисования. */
+  export function requestThumbs(pages: number[], width: number) {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'thumbs', value: { pages, width } });
+  }
+
+  /** Запуск анализа встроенных в файл пометок. */
+  export function analyzeAnnotations() {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'annotate' });
+  }
+
+  /** Остановка анализа встроенных пометок. */
+  export function stopAnnotations() {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'annotate-stop' });
+  }
+
+  /** Показ выбранных встроенных пометок на страницах. */
+  export function showAnnotations(ids: string[]) {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'show-annotations', value: { ids } });
   }
 
   /** Команда действия над содержимым книги.

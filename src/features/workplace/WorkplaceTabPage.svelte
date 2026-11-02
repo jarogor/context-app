@@ -3,6 +3,8 @@
   import ReaderPage, { type FooterSnapshot } from '../reader/ReaderPage.svelte';
   import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
+  import type { FilePropertiesSnapshot } from '../reader/file-properties';
+  import type { FileAnnotation, FileBookmark, FileChapter } from '../reader/file-properties';
   import type { PaletteId, ReaderFontId, ReaderThemeId } from '@context/ui';
 
   /** Читалка вкладки для перехода к заметке и управления нижней панелью. */
@@ -19,6 +21,22 @@
     gotoFooterPage: (page: number) => void;
     /** Переключение панели поиска по книге. */
     toggleFooterSearch: () => void;
+    /** Переход к главе текучей книги из панели содержания. */
+    goToChapter: (chapter: FileChapter) => void;
+    /** Переход к странице из панели свойств файла. */
+    goToFilePage: (page: number) => void;
+    /** Переход к закладке файла. */
+  goToBookmark: (bookmark: FileBookmark) => void;
+    /** Заказ миниатюр страниц у модуля рисования. */
+    requestThumbs: (pages: number[], width: number) => void;
+    /** Запуск анализа встроенных пометок файла. */
+    analyzeAnnotations: () => void;
+    /** Остановка анализа встроенных пометок файла. */
+    stopAnnotations: () => void;
+    /** Показ или снятие показа встроенной пометки на странице. */
+    toggleAnnotation: (annotation: FileAnnotation, shown: boolean) => void;
+    /** Снятие показа всех встроенных пометок. */
+    hideAnnotations: () => void;
   }
 
   interface Props {
@@ -68,6 +86,8 @@
     onRepoint?: () => void;
     /** Убрать вкладку. */
     onRemove?: () => void;
+    /** Снимок свойств открытого файла для панели рабочего места. */
+    onProperties?: (snapshot: FilePropertiesSnapshot) => void;
   }
 
   let {
@@ -94,6 +114,7 @@
     onPlaceNote,
     onRepoint,
     onRemove,
+    onProperties,
   }: Props = $props();
 
   /** Читалка вкладки после монтирования. */
@@ -127,4 +148,5 @@
   {onPlaceNote}
   {onRepoint}
   {onRemove}
+  {onProperties}
 />

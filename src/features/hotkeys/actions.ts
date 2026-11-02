@@ -130,6 +130,14 @@ export const HOTKEY_ACTIONS: readonly HotkeyAction[] = [
         bindings: ['Ctrl+J'],
     },
     {
+        id: 'workplace.properties',
+        title: 'app.hotkey.workplace.properties.title',
+        description: 'app.hotkey.workplace.properties.description',
+        group: 'workplace',
+        scope: 'workplace',
+        bindings: ['Ctrl+Shift+I'],
+    },
+    {
         id: 'workplace.focus',
         title: 'app.hotkey.workplace.focus.title',
         description: 'app.hotkey.workplace.focus.description',

@@ -290,6 +290,46 @@ body[data-editing='move'] .overlay [data-note-id] {
 .textLayer ::selection {
   background: transparent;
 }
+/* Встроенная в файл пометка (выделение PDF): показывается только по запросу
+   из панели свойств. Это не заметка пользователя, поэтому подсветка прозрачнее
+   и без курсора выбора заметки. */
+.overlay .file-annotation {
+  position: absolute;
+  border-radius: 2px;
+  background: var(--file-annotation-color, #f2cd52);
+  opacity: 0.45;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+html[data-reader-theme='dark'] .overlay .file-annotation {
+  mix-blend-mode: screen;
+}
+.overlay .file-annotation[data-kind='underline'] {
+  background: transparent;
+  border-bottom: 2px solid var(--file-annotation-color, #f2cd52);
+  border-radius: 0;
+  opacity: 1;
+}
+.overlay .file-annotation[data-kind='strikeout'] {
+  background: transparent;
+  border-top: 2px solid var(--file-annotation-color, #f2cd52);
+  border-radius: 0;
+  opacity: 1;
+}
+.overlay .file-annotation[data-kind='squiggly'] {
+  background: transparent;
+  border-bottom: 2px dotted var(--file-annotation-color, #f2cd52);
+  border-radius: 0;
+  opacity: 1;
+}
+/* Текстовый стикер и надпись PDF: рамка в месте аннотации, потому что ни
+   растр, ни текстовый слой их не содержат. */
+.overlay .file-annotation[data-kind='note'],
+.overlay .file-annotation[data-kind='freetext'] {
+  border: 1px dashed var(--file-annotation-color, #f2cd52);
+  background: transparent;
+  opacity: 0.9;
+}
 /* Слой подсветки найденного поиском: полосы строк над растром страницы.
    Отдельный слой, а не разметка внутри прозрачного текстового слоя: там заливка
    ложилась плёнкой поверх букв и делала текст мутным. Полосы смешиваются с

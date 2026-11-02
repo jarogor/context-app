@@ -35,6 +35,10 @@ import { state } from './state';
 import { clampTextSelection, endTextSelection } from './text-selection';
 import { resetSearchTexts, searchBook, stepSearch } from './search';
 import { setViewerLocale, viewerText } from './locale';
+import { readBookmarksFromBytes } from './bookmarks';
+import { resolveBookmarkNames } from './bookmark-names';
+import { pageComponentNames } from './djvm';
+import { resetThumbs, sendThumbs } from './thumbs';
 
 /** Открытие книги: загрузка движка, документа и построение каркаса страниц. */
 async function openBook(data: string, position: number, zoomValue: number): Promise<void> {
@@ -45,9 +49,11 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
   state.rendered.clear();
   state.pending.clear();
   resetSearchTexts();
+  resetThumbs();
   try {
+    const bytes = decodeBase64(data);
     state.module = await loadEngine();
-    state.doc = openDocument(state.module, decodeBase64(data));
+    state.doc = openDocument(state.module, bytes);
     state.pageCount = state.doc.page_count();
     // Размеры читаются лениво: у книги на тысячи страниц разбор всех сразу
     // занял бы секунды. Первая страница задаёт размер по умолчанию — она же
@@ -65,6 +71,12 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
     centerHorizontally();
     state.currentPage = pageAtTop();
     reportState();
+    // Оглавление книги: встроенные закладки файла. Пункты, ссылающиеся на файл
+    // страницы составной книги, разрешаются по его каталогу.
+    post({
+      type: 'bookmarks',
+      value: resolveBookmarkNames(readBookmarksFromBytes(bytes), pageComponentNames(bytes)),
+    });
   } catch (error) {
     status.textContent = viewerText('openFailed') + error;
     post({ type: 'error', message: String(error) });
@@ -223,6 +235,11 @@ async function handleMessage(event: MessageEvent): Promise<void> {
       setViewerLocale(message.value);
       status.textContent = viewerText('opening');
       break;
+    case 'thumbs':
+      // Миниатюры рисуются после ответа на запрос: список в панели наполняется
+      // порциями, а чтение не ждёт их готовности.
+      void sendThumbs(message.value.pages ?? [], message.value.width ?? 96);
+      break;
   }
 }
 
@@ -312,7 +329,7 @@ function start(): void {
   addEventListener('message', (event) => {
     void handleMessage(event);
   });
-  post({ type: 'capabilities', value: { zoom: true, pages: true, selection: true } });
+  post({ type: 'capabilities', value: { zoom: true, pages: true, selection: true, thumbnails: true, bookmarks: true } });
   post({ type: 'ready' });
 }
 

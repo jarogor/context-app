@@ -63,6 +63,7 @@
   } from '../features/notes/notes';
   import { createNotesController } from '../features/notes/notes-controller.svelte';
   import { formatFromPath, isSupportedFormat } from '../features/reader/reader';
+  import type { PropertiesTabId } from '../features/reader/file-properties';
   import { normalizeOpenTabsLimit } from '../features/workplace/workplace';
   import { openTabsLimitFromSettingsEvent } from '../features/workplace/open-tabs-limit';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
@@ -269,6 +270,12 @@
   /** Открыта ли панель заметок. */
   let notesPanelOpen = $state(false);
 
+  /** Открыта ли панель свойств файла. */
+  let propertiesPanelOpen = $state(false);
+
+  /** Выбранная вкладка панели свойств файла; `null` — первая доступная. */
+  let propertiesTab: PropertiesTabId | null = $state(null);
+
   /** Выбранная в списке заметка (для подсветки и после клика по подсветке). */
   let selectedNoteId: string | null = $state(null);
 
@@ -325,7 +332,8 @@
   const resolvedTheme: ResolvedTheme = $derived(resolveTheme(themePreference, systemPrefersDark));
 
   /** Читалка активной вкладки для перехода к заметке. */
-  let reader: { goto: (note: Note) => void } | undefined = $state();
+  let reader: { goto: (note: Note) => void; hideAnnotations?: () => void } | undefined =
+    $state();
 
   /** Реестр рабочих мест и активное место (загружен до первого рендера). */
   let registry: WorkspaceRegistry = $state(untrack(() => initialRegistry));
@@ -695,6 +703,7 @@
     booksPanelOpen = !booksPanelOpen;
     if (booksPanelOpen) {
       notesPanelOpen = false;
+      propertiesPanelOpen = false;
     }
   }
 
@@ -703,7 +712,21 @@
     notesPanelOpen = !notesPanelOpen;
     if (notesPanelOpen) {
       booksPanelOpen = false;
+      propertiesPanelOpen = false;
       void notesController.load();
+    }
+  }
+
+  /** Переключение панели свойств файла (одно место с заметками и вкладками). */
+  function togglePropertiesPanel() {
+    propertiesPanelOpen = !propertiesPanelOpen;
+    if (propertiesPanelOpen) {
+      booksPanelOpen = false;
+      notesPanelOpen = false;
+    } else {
+      // Закрытие панели снимает показ встроенных пометок активной вкладки:
+      // без панели у них не осталось бы управления.
+      reader?.hideAnnotations?.();
     }
   }
 
@@ -726,6 +749,7 @@
     selectedNoteId = noteId;
     notesPanelOpen = true;
     booksPanelOpen = false;
+    propertiesPanelOpen = false;
     // Клик по заметке лишь выбирает её и открывает панель: активный инструмент
     // не переключается, чтобы создание заметок не зависело от прежнего выбора.
     void notesController.load();
@@ -773,6 +797,7 @@
       pendingNoteTarget = null;
       notesPanelOpen = true;
       booksPanelOpen = false;
+      propertiesPanelOpen = false;
       return;
     }
     const note = notesController.findNote(target.noteId);
@@ -782,6 +807,7 @@
     pendingNoteTarget = null;
     notesPanelOpen = true;
     booksPanelOpen = false;
+    propertiesPanelOpen = false;
     goToNote(note);
   });
 
@@ -1342,6 +1368,8 @@
           onToggleFocus={() => (focusMode = !focusMode)}
           booksOpen={booksPanelOpen}
           notesOpen={notesPanelOpen}
+          propertiesOpen={propertiesPanelOpen}
+          propertiesTab={propertiesTab}
           notes={notesController.items}
           noteSets={notesController.sets}
           activeSetId={notesController.setId}
@@ -1366,6 +1394,8 @@
           onAddFile={chooseBookFile}
           onToggleBooks={toggleBooksPanel}
           onToggleNotes={toggleNotesPanel}
+          onToggleProperties={togglePropertiesPanel}
+          onSelectPropertiesTab={(tab) => (propertiesTab = tab)}
           onCloseNotes={closeNotesPanel}
           onQuote={notesController.addQuote}
           onTextNote={notesController.addTextNote}

@@ -536,6 +536,33 @@
     }
   }
 
+  /** Переход к главе книги из панели содержания.
+   *
+   * Глава адресуется своим индексом в разметке (тот же порядок, что и у
+   * содержания): раздел ставится у верха области, а позиция чтения
+   * запоминается для следующего открытия.
+   */
+  export function goToChapter(index: number): void {
+    const value = document();
+    if (!value) {
+      return;
+    }
+    const section = chapterSection(index);
+    const win = value.defaultView;
+    const root = value.scrollingElement ?? value.documentElement;
+    if (!section || !win || !root) {
+      return;
+    }
+    const height = root.clientHeight;
+    const inView = section.getBoundingClientRect().top >= 0 &&
+      section.getBoundingClientRect().top <= height - 80;
+    if (!inView) {
+      scrollReaderTo(win, root, section.getBoundingClientRect().top, 80);
+    }
+    captureAnchorNow();
+    handleScroll();
+  }
+
   /** Переход к доле позиции в книге. */
   function gotoPercent(percent: number): void {
     const value = document();

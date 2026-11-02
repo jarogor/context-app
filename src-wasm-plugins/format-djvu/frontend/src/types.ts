@@ -126,3 +126,15 @@ export interface Caret {
   /** Текстовый слой страницы. */
   layer: Element;
 }
+
+/** Встроенная закладка файла (оглавление DjVu). */
+export interface ViewerBookmark {
+  /** Название пункта. */
+  title: string;
+  /** Страница перехода (1-based) или `null`. */
+  page: number | null;
+  /** Имя файла страницы составной книги или `null`. */
+  name: string | null;
+  /** Вложенные пункты. */
+  children: ViewerBookmark[];
+}

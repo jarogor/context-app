@@ -8,6 +8,11 @@
 import { t } from '@context/i18n';
 import type { NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
 import type { QuoteAnchor } from './reader/anchor';
+import type { FileAnnotationBatch, FileBookmark } from './file-properties';
+import {
+  normalizeBookmarks,
+  parseFileAnnotationBatch,
+} from './file-properties';
 import {
   readerPageColors,
   readerThemeNoteTones,
@@ -67,6 +72,24 @@ export interface WorkplaceCapabilities {
   pages?: boolean;
   /** Поддерживает ли модуль выделение текста. */
   selection?: boolean;
+  /** Умеет ли модуль рисовать миниатюры страниц по запросу. */
+  thumbnails?: boolean;
+  /** Умеет ли модуль разбирать встроенные в файл пометки. */
+  annotations?: boolean;
+  /** Умеет ли модуль читать встроенные закладки файла. */
+  bookmarks?: boolean;
+}
+
+/** Миниатюра страницы, нарисованная модулем по запросу. */
+export interface WorkplaceThumbnail {
+  /** Номер страницы (1-based). */
+  page: number;
+  /** Картинка миниатюры как data-URL. */
+  dataUrl: string;
+  /** Ширина картинки в пикселях. */
+  width: number;
+  /** Высота картинки в пикселях. */
+  height: number;
 }
 
 /** Состояние позиции модуля: текущая страница и их общее число. */
@@ -132,7 +155,10 @@ export type ViewerMessage =
   | { type: 'open-external' }
   | { type: 'open-link'; href: string }
   | { type: 'hotkey'; actionId: string }
-  | { type: 'search'; value: WorkplaceSearchResult };
+  | { type: 'search'; value: WorkplaceSearchResult }
+  | { type: 'bookmarks'; value: FileBookmark[] }
+  | { type: 'thumbs'; value: WorkplaceThumbnail[] }
+  | { type: 'file-annotations'; value: FileAnnotationBatch };
 
 /** Проверка источника и канала сообщения области содержимого. */
 export function isWorkplaceMessage(
@@ -300,6 +326,30 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
         },
       };
     }
+    case 'bookmarks':
+      return { type: 'bookmarks', value: normalizeBookmarks(message.value) };
+    case 'thumbs': {
+      const items = Array.isArray(message.value) ? message.value : [];
+      const thumbnails = items
+        .map((item) => {
+          const record = (item ?? {}) as Record<string, unknown>;
+          const page = Number(record.page);
+          const dataUrl = String(record.dataUrl ?? '');
+          if (!Number.isFinite(page) || page < 1 || !dataUrl.startsWith('data:image/')) {
+            return null;
+          }
+          return {
+            page: Math.trunc(page),
+            dataUrl,
+            width: Math.max(0, Number(record.width) || 0),
+            height: Math.max(0, Number(record.height) || 0),
+          };
+        })
+        .filter((item): item is WorkplaceThumbnail => item !== null);
+      return { type: 'thumbs', value: thumbnails };
+    }
+    case 'file-annotations':
+      return { type: 'file-annotations', value: parseFileAnnotationBatch(message.value) };
     default:
       return null;
   }

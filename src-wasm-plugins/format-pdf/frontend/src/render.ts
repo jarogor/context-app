@@ -14,6 +14,7 @@ import { renderSelection } from './selection';
 import { state, type CanvasInfo, type RenderedEntry } from './state';
 import { alignTextLayer, isInvisibleScan, textContentWithPageFonts, waitForPageFonts, waitForRasterInk } from './text-layer';
 import { markPage } from './search';
+import { drawAnnotations } from './annotations';
 import { recolorCanvas } from './theme';
 import {
   boundedRatio,
@@ -338,6 +339,9 @@ export async function renderPage(
     // слой их не содержат, поэтому слой строится отдельно.
     await renderLinks(doc, page, pageEl, viewport);
     drawNotes(pageEl, state.notes);
+    // Встроенные пометки файла лежат отдельным слоем: по умолчанию их нет, они
+    // появляются только по запросу из панели свойств.
+    drawAnnotations(pageEl);
     // Найденное поиском отмечается на каждой отрисованной странице: поиск
     // может идти по книге параллельно с чтением.
     markPage(pageEl);

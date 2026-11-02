@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import WorkplaceArea from './WorkplaceArea.svelte';
 import { DEFAULT_NOTE_TOOL, normalizeNote, noteList } from '../notes/notes';
+import { emptyProperties } from '../reader/file-properties';
 
 vi.mock('../../shared/app-bridge', () => ({
     invokeCommand: vi.fn(async () => null),
@@ -481,5 +482,62 @@ describe('область рабочего места: список и вклад
         // Состав вкладок и активная вкладка при правке оформления не меняются.
         expect(base.onSelectTab).not.toHaveBeenCalled();
         expect(base.onCloseTab).not.toHaveBeenCalled();
+    });
+});
+
+describe('область рабочего места: свойства файла', () => {
+    it('переключает панель свойств кнопкой полосы вкладок', async () => {
+        const base = handlers();
+        const onToggleProperties = vi.fn();
+        render(WorkplaceArea, {
+            props: {
+                ...workplaceProps({ listMode: false }),
+                ...base,
+                onToggleProperties,
+            },
+        });
+
+        await fireEvent.click(screen.getByTestId('workplace-properties-toggle'));
+        expect(onToggleProperties).toHaveBeenCalledTimes(1);
+    });
+
+    it('показывает свойства активной вкладки и передаёт выбор вкладки панели', async () => {
+        const base = handlers();
+        const onSelectPropertiesTab = vi.fn();
+        render(WorkplaceArea, {
+            props: {
+                ...workplaceProps({ listMode: false }),
+                ...base,
+                propertiesOpen: true,
+                propertiesByTab: {
+                    t1: {
+                        ...emptyProperties('epub'),
+                        flowing: true,
+                        chapters: [{ index: 0, title: 'Введение' }],
+                    },
+                },
+                onSelectPropertiesTab,
+            },
+        });
+
+        expect(screen.getByTestId('properties-panel')).toBeTruthy();
+        expect(screen.getAllByTestId('properties-content-row')).toHaveLength(1);
+
+        await fireEvent.click(screen.getByTestId('properties-tab-contents'));
+        expect(onSelectPropertiesTab).toHaveBeenCalledWith('contents');
+    });
+
+    it('показывает пустое состояние, пока свойства вкладки не пришли', async () => {
+        render(WorkplaceArea, {
+            props: {
+                ...workplaceProps({ listMode: false }),
+                propertiesOpen: true,
+            },
+        });
+
+        // Снимок вкладки приходит от читалки; до него панель уже открыта и
+        // объясняет, что показывать нечего, а не исчезает без следа.
+        expect(screen.getByTestId('properties-panel')).toBeTruthy();
+        expect(await screen.findByTestId('properties-empty')).toBeTruthy();
     });
 });

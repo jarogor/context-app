@@ -42,6 +42,17 @@
   import { createZoomCoalescer, nextZoom, type ZoomDirection } from './zoom';
   import { hotkeys } from '../hotkeys';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
+  import {
+    emptyProperties,
+    mergeFileAnnotations,
+    type FileAnnotation,
+    type FileAnnotationBatch,
+    type FileBookmark,
+    type FileChapter,
+    type FilePropertiesSnapshot,
+    type PropertiesTabId,
+  } from './file-properties';
+  import type { WorkplaceThumbnail } from './workplace-protocol';
 
   interface Props {
     /** Путь к файлу открытой книги (вложение вкладки). */
@@ -83,6 +94,8 @@
     onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
     /** Убрать вкладку. */
     onRemove?: () => void;
+    /** Снимок свойств открытого файла для панели рабочего места. */
+    onProperties?: (snapshot: FilePropertiesSnapshot) => void;
   }
 
   /**
@@ -135,6 +148,7 @@
     onNoteClick,
     onPlaceNote,
     onRemove,
+    onProperties,
   }: Props = $props();
 
   /** Минимальный и максимальный масштаб текста в процентах. */
@@ -191,6 +205,7 @@
   let reader:
     | {
         goto: (note: Note) => void;
+        goToChapter: (index: number) => void;
         search: (query: string) => { hits: unknown[]; truncated: boolean };
         goToSearchHit: (index: number) => void;
         clearSearch: () => void;
@@ -207,6 +222,10 @@
         search: (query: string) => void;
         stepSearch: (delta: 1 | -1) => void;
         sendCommand: (id: string) => void;
+        requestThumbs: (pages: number[], width: number) => void;
+        analyzeAnnotations: () => void;
+        stopAnnotations: () => void;
+        showAnnotations: (ids: string[]) => void;
       }
     | undefined = $state();
   /** Незавершённый якорь выделения для создания заметки. */
@@ -239,6 +258,10 @@
   let searchBusy = $state(false);
   /** Ошибка поиска. */
   let searchError: string | null = $state(null);
+  /** Свойства открытого файла: содержание, закладки, превью и пометки. */
+  let properties: FilePropertiesSnapshot = $state(emptyProperties());
+  /** Пометки, показ которых включён на страницах. */
+  let shownAnnotations: string[] = $state([]);
 
   /** Позиция меню создания заметки внутри области содержимого.
    *
@@ -563,14 +586,30 @@
     unavailable = false;
     content = null;
     workplace = null;
+    const format = formatFromPath(value);
+    properties = {
+      ...emptyProperties(format),
+      // Встроенное чтение — это и есть текучие форматы: их текст течёт по
+      // колонке, а у страничных форматов рисует плагин.
+      flowing: isSupportedFormat(format),
+    };
+    shownAnnotations = [];
     try {
-      const format = formatFromPath(value);
       if (!format) {
         unsupported = true;
         return;
       }
       if (isSupportedFormat(format)) {
         content = await loadBookContent(value);
+        // Содержание текучей книги — её главы: заголовки уже разобраны
+        // встроенным чтением, отдельного разбора не нужно.
+        properties = {
+          ...properties,
+          chapters: content.chapters.map((chapter, index) => ({
+            index,
+            title: chapter.title?.trim() || t('app.properties.chapterUntitled', { index: index + 1 }),
+          })),
+        };
       } else {
         const selection = await selectWorkplacePlugin(value);
         if (selection) {
@@ -785,6 +824,100 @@
     untrack(() => onFooter?.(snapshot));
   });
 
+  /** Публикация снимка свойств файла.
+   *
+   * Снимок отправляется при каждом изменении его полей: панель свойств в
+   * рабочем месте показывает данные активной вкладки. Скрытые вкладки тоже
+   * публикуют свои снимки, но рабочее место их игнорирует.
+   */
+  $effect(() => {
+    const value = properties;
+    untrack(() => onProperties?.(value));
+  });
+
+  /** Переход к главе текучей книги: прокрутка встроенного чтения к разделу. */
+  export function goToChapter(chapter: FileChapter) {
+    reader?.goToChapter(chapter.index);
+  }
+
+  /** Переход к странице из панели свойств. */
+  export function goToFilePage(page: number) {
+    goToPage(page);
+  }
+
+  /** Переход к закладке файла: страница известна, заголовок — нет. */
+  export function goToBookmark(bookmark: FileBookmark) {
+    if (bookmark.page !== null) {
+      goToPage(bookmark.page);
+    }
+  }
+
+  /** Заказ миниатюр страниц у модуля рисования. */
+  export function requestThumbs(pages: number[], width: number) {
+    workplaceContent?.requestThumbs(pages, width);
+  }
+
+  /** Запуск анализа встроенных пометок файла. */
+  export function analyzeAnnotations() {
+    if (!workplace) {
+      return;
+    }
+    properties = { ...properties, annotationsDone: false, annotationsError: '' };
+    workplaceContent?.analyzeAnnotations();
+  }
+
+  /** Остановка анализа встроенных пометок файла. */
+  export function stopAnnotations() {
+    workplaceContent?.stopAnnotations();
+  }
+
+  /** Показ или снятие показа встроенной пометки на странице.
+   *
+   * Пометка файла не добавляется в заметки: она принадлежит документу, поэтому
+   * показывается только подсветкой по запросу из панели свойств.
+   */
+  export function toggleAnnotation(annotation: FileAnnotation, shown: boolean) {
+    const next = shown
+      ? [...shownAnnotations.filter((id) => id !== annotation.id), annotation.id]
+      : shownAnnotations.filter((id) => id !== annotation.id);
+    shownAnnotations = next;
+    workplaceContent?.showAnnotations(next);
+  }
+
+  /** Снятие показа всех встроенных пометок на страницах.
+   *
+   * Закрытие панели свойств снимает показ: пометки файла — справочный слой,
+   * и без панели у них нет органа управления, чтобы их убрать.
+   */
+  export function hideAnnotations() {
+    shownAnnotations = [];
+    workplaceContent?.showAnnotations([]);
+  }
+
+  /** Приём порции найденных пометок файла. */
+  function handleFileAnnotations(batch: FileAnnotationBatch) {
+    properties = {
+      ...properties,
+      annotations: mergeFileAnnotations(properties.annotations, batch),
+      annotationsDone: batch.done,
+      annotationsError: batch.error,
+      annotationsProcessed: batch.processed,
+      annotationsTotal: batch.total,
+    };
+  }
+
+  /** Приём миниатюр страниц: картинки кладутся в снимок по номеру страницы. */
+  function handleThumbs(thumbnails: WorkplaceThumbnail[]) {
+    if (thumbnails.length === 0) {
+      return;
+    }
+    const thumbs = { ...properties.thumbs };
+    for (const thumbnail of thumbnails) {
+      thumbs[thumbnail.page] = thumbnail.dataUrl;
+    }
+    properties = { ...properties, thumbs };
+  }
+
   /** Переход к месту заметки в тексте книги.
    *
    * Используется панелью заметок: чтение возвращается к выделению заметки.
@@ -886,11 +1019,20 @@
           onCapabilities={(value) => {
             workplaceZoom = value.zoom !== false;
             workplacePages = value.pages === true;
+            properties = {
+              ...properties,
+              thumbnails: value.thumbnails === true,
+              annotationsSupported: value.annotations === true,
+              bookmarksSupported: value.bookmarks === true,
+            };
           }}
           onLoadProgress={(value) => (loadProgress = value)}
           onState={(value) => {
             workplacePage = value.page;
             workplacePageCount = value.pages;
+            if (value.pages !== null && value.pages !== properties.pageCount) {
+              properties = { ...properties, pageCount: value.pages };
+            }
             if (value.pages && value.page) {
               progress = pageProgress(value.page, value.pages);
             }
@@ -927,6 +1069,14 @@
           onError={(value) => (error = value)}
           onSearch={handleWorkplaceSearch}
           onHotkey={(actionId) => hotkeys.handleViewerAction(actionId)}
+          onBookmarks={(bookmarks) =>
+            (properties = {
+              ...properties,
+              bookmarks,
+              pageCount: workplacePageCount,
+            })}
+          onThumbs={handleThumbs}
+          onFileAnnotations={handleFileAnnotations}
         />
         {#if noteMenu}
           <NoteMenu

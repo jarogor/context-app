@@ -35,6 +35,10 @@
     onToggleBooks: () => void;
     /** Переключение панели заметок. */
     onToggleNotes: () => void;
+    /** Открыта ли панель свойств файла. */
+    propertiesOpen?: boolean;
+    /** Переключение панели свойств файла. */
+    onToggleProperties?: () => void;
     /** Режим сосредоточенного чтения. */
     focusMode?: boolean;
     /** Переключение режима сосредоточенного чтения. */
@@ -54,6 +58,8 @@
     onAddFile,
     onToggleBooks,
     onToggleNotes,
+    propertiesOpen = false,
+    onToggleProperties,
     focusMode = false,
     onToggleFocus,
   }: Props = $props();
@@ -380,6 +386,22 @@
       onclick={onToggleNotes}
     >
       <Icon name="note" />
+    </Button>
+    <!--
+      Свойства файла — содержание, закладки, страницы и встроенные пометки.
+      Кнопка стоит рядом с заметками: это второй способ увидеть книгу, кроме
+      её текста, и он тоже относится к открытой книге.
+    -->
+    <Button
+      variant={propertiesOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
+      ariaLabel={t('app.workplace.properties')}
+      testId="workplace-properties-toggle"
+      ariaPressed={propertiesOpen}
+      onclick={onToggleProperties}
+    >
+      <Icon name="layers" />
     </Button>
     <span class="mx-[0.25rem] h-4 w-px flex-none bg-[var(--divider)]" aria-hidden="true"></span>
     <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>

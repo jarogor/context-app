@@ -11,6 +11,14 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import { EmptyState } from '@context/ui';
   import { activeTab } from './workplace';
   import { FLOWING_FORMATS, formatFromPath } from '../reader/reader';
+  import FilePropertiesPanel from '../reader/FilePropertiesPanel.svelte';
+  import type {
+    FileAnnotation,
+    FileBookmark,
+    FileChapter,
+    FilePropertiesSnapshot,
+    PropertiesTabId,
+  } from '../reader/file-properties';
   import type { TabAppearancePatch } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
   import type { Note, NoteListItem, NoteSetSummary, NoteTool, NoteType, ShapeKind } from '../notes/notes';
@@ -40,6 +48,16 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     booksOpen: boolean;
     /** Открыта ли панель заметок. */
     notesOpen: boolean;
+    /** Открыта ли панель свойств файла. */
+    propertiesOpen?: boolean;
+    /** Выбранная вкладка панели свойств. */
+    propertiesTab?: PropertiesTabId | null;
+    /** Снимки свойств открытых книг по идентификатору вкладки. */
+    propertiesByTab?: Record<string, FilePropertiesSnapshot>;
+    /** Переключение панели свойств файла. */
+    onToggleProperties?: () => void;
+    /** Выбор вкладки панели свойств. */
+    onSelectPropertiesTab?: (tab: PropertiesTabId) => void;
     /** Элементы списка заметок книги активной вкладки. */
     notes: NoteListItem[];
     /** Наборы заметок книги активной вкладки. */
@@ -143,6 +161,11 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     listMode,
     booksOpen,
     notesOpen,
+    propertiesOpen = false,
+    propertiesTab = null,
+    propertiesByTab = {},
+    onToggleProperties,
+    onSelectPropertiesTab,
     notes,
     noteSets,
     activeSetId,
@@ -227,6 +250,23 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   /** Снимок нижней панели по идентификатору вкладки. */
   let footerByTab: Record<string, FooterSnapshot> = $state({});
 
+  /** Снимки свойств файла открытых книг: оболочка хранит их по вкладкам. */
+  let propertiesTabs: Record<string, FilePropertiesSnapshot> = $state({});
+
+  /** Снимки свойств извне (для тестов и внешних областей). */
+  const externalProperties = $derived(propertiesByTab);
+
+  /** Снимки свойств для панели: пришедшие от читалок плюс внешние. */
+  const mergedProperties = $derived({ ...propertiesTabs, ...externalProperties });
+
+  /** Снимок свойств вкладки, пришедший от читалки. */
+  function handleProperties(tabId: string, snapshot: FilePropertiesSnapshot) {
+    propertiesTabs = { ...propertiesTabs, [tabId]: snapshot };
+  }
+
+  /** Снимок свойств активной вкладки. */
+  const activeProperties = $derived(tab ? (mergedProperties[tab.id] ?? null) : null);
+
   /** Снимок нижней панели активной вкладки. */
   const activeFooter = $derived(tab ? (footerByTab[tab.id] ?? null) : null);
 
@@ -287,6 +327,62 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   export function goto(note: Note) {
     if (tab) {
       readers.get(tab.id)?.goto(note);
+    }
+  }
+
+  /** Снятие показа встроенных пометок активной вкладки. */
+  export function hideAnnotations() {
+    if (tab) {
+      readers.get(tab.id)?.hideAnnotations();
+    }
+  }
+
+  /** Переход к главе текучей книги активной вкладки. */
+  function goToChapter(chapter: FileChapter) {
+    if (tab) {
+      readers.get(tab.id)?.goToChapter(chapter);
+    }
+  }
+
+  /** Переход к странице из панели свойств активной вкладки. */
+  function goToFilePage(page: number) {
+    if (tab) {
+      readers.get(tab.id)?.goToFilePage(page);
+    }
+  }
+
+  /** Переход к закладке файла активной вкладки. */
+  function goToBookmark(bookmark: FileBookmark) {
+    if (tab) {
+      readers.get(tab.id)?.goToBookmark(bookmark);
+    }
+  }
+
+  /** Заказ миниатюр страниц активной вкладки. */
+  function requestThumbs(pages: number[], width: number) {
+    if (tab) {
+      readers.get(tab.id)?.requestThumbs(pages, width);
+    }
+  }
+
+  /** Запуск анализа встроенных пометок активной вкладки. */
+  function analyzeAnnotations() {
+    if (tab) {
+      readers.get(tab.id)?.analyzeAnnotations();
+    }
+  }
+
+  /** Остановка анализа встроенных пометок активной вкладки. */
+  function stopAnnotations() {
+    if (tab) {
+      readers.get(tab.id)?.stopAnnotations();
+    }
+  }
+
+  /** Показ или снятие показа встроенной пометки на странице. */
+  function toggleAnnotation(annotation: FileAnnotation, shown: boolean) {
+    if (tab) {
+      readers.get(tab.id)?.toggleAnnotation(annotation, shown);
     }
   }
 
@@ -355,6 +451,12 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       }
       onToggleNotes();
     },
+    'workplace.properties': () => {
+      if (!tab) {
+        return false;
+      }
+      onToggleProperties?.();
+    },
     'workplace.focus': () => {
       if (!tab) {
         return false;
@@ -413,6 +515,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       activeTabId={workspace.activeTabId}
       {booksOpen}
       {notesOpen}
+      {propertiesOpen}
       {openTabsLimit}
       {focusMode}
       onToggleFocus={onToggleFocus}
@@ -423,6 +526,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       onAddFile={onAddFile}
       onToggleBooks={onToggleBooks}
       onToggleNotes={onToggleNotes}
+      onToggleProperties={onToggleProperties}
     />
     <div class="relative flex min-h-0 flex-1">
       <!--
@@ -452,6 +556,29 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
           onRemoveSet={onRemoveSet}
           onClose={onCloseNotes}
         />
+      {/if}
+      {#if propertiesOpen && activeProperties}
+        <!--
+          Панель пересоздаётся при смене активной вкладки: показ пометки и
+          запрос разбора относятся к конкретной книге и не должны переезжать
+          на соседнюю.
+        -->
+        {#key tab?.id}
+          <FilePropertiesPanel
+            snapshot={activeProperties}
+            tab={propertiesTab}
+            currentPage={activeFooter?.page ?? null}
+            onGoToChapter={goToChapter}
+            onGoToBookmark={goToBookmark}
+            onGoToPage={goToFilePage}
+            onSelectTab={(next) => onSelectPropertiesTab?.(next)}
+            onRequestThumbs={requestThumbs}
+            onAnalyzeAnnotations={analyzeAnnotations}
+            onStopAnnotations={stopAnnotations}
+            onToggleAnnotation={toggleAnnotation}
+            onClose={onToggleProperties}
+          />
+        {/key}
       {/if}
       {#if booksOpen}
         <OpenBooksPanel
@@ -540,6 +667,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
                   onPlaceNote={onPlaceNote}
                   onRepoint={() => onRepointTab(item.id)}
                   onRemove={() => onCloseTab(item.id)}
+                  onProperties={(snapshot) => handleProperties(item.id, snapshot)}
                 />
               {/key}
             </div>

@@ -268,6 +268,62 @@ function dictionaryFor(
  */
 const MAX_DICTIONARY_BYTES = 64 * 1024 * 1024;
 
+/** Имена страниц составного DjVu: идентификаторы компонентов-страниц.
+ *
+ * Пункты оглавления ссылаются на страницы по имени файла (`#p0002.djvu`), а в
+ * каталоге `DIRM` хранятся идентификаторы компонентов. Возвращаются имена
+ * только компонентов-страниц (`kind` 1) в порядке каталога: номер страницы —
+ * место имени в этом списке.
+ */
+export function pageComponentNames(bytes: Uint8Array): string[] {
+  if (
+    !matchesAscii(bytes, 0, 'AT&T') ||
+    !matchesAscii(bytes, 4, 'FORM') ||
+    !matchesAscii(bytes, 12, 'DJVM') ||
+    !matchesAscii(bytes, 16, 'DIRM')
+  ) {
+    return [];
+  }
+  const dirSize = readU32(bytes, 20);
+  const dirStart = 24;
+  const flags = bytes[dirStart];
+  if ((flags & 0x80) === 0) {
+    return [];
+  }
+  const nfiles = (bytes[dirStart + 1] << 8) | bytes[dirStart + 2];
+  const dirEnd = dirStart + dirSize;
+  if (dirEnd > bytes.length || nfiles === 0) {
+    return [];
+  }
+  const entries = parseDirectory(nfiles, bytes.slice(dirStart + 3 + nfiles * 4, dirEnd));
+  if (!entries) {
+    return [];
+  }
+  const names: string[] = [];
+  for (const entry of entries) {
+    if (entry.kind !== 1) {
+      continue;
+    }
+    names.push(entryName(entry.id));
+  }
+  return names;
+}
+
+/** Имя компонента каталога: UTF-8 либо байты как есть. */
+function entryName(id: Uint8Array): string {
+  const text = decodeUtf8(id);
+  if (text !== null) {
+    return text.trim();
+  }
+  // Имя в однобайтовой кодировке: сравнивается с ссылкой оглавления побайтово,
+  // поэтому берётся его видимая часть.
+  return Array.from(id)
+    .map((byte) => String.fromCharCode(byte))
+    .join('')
+    .replace(/\0+$/, '')
+    .trim();
+}
+
 /** Встраивание общих словарей `DJVU`-страниц в сами страницы.
  *
  * Если документ не является составным `DJVM`, не содержит общих словарей или

@@ -35,6 +35,14 @@ import { state } from './state';
 import { clampTextSelection, endTextSelection } from './text-selection';
 import { resetSearchTexts, searchBook, stepSearch } from './search';
 import { setViewerLocale, viewerText } from './locale';
+import { readBookmarks } from './bookmarks';
+import { resetThumbs, sendThumbs } from './thumbs';
+import {
+  analyzeAnnotations,
+  resetAnnotations,
+  showAnnotations,
+  stopAnnotations,
+} from './annotations';
 
 /** Открытие книги: загрузка движка, документа и построение каркаса страниц. */
 async function openBook(data: string, position: number, zoomValue: number): Promise<void> {
@@ -46,6 +54,8 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
   state.pending.clear();
   state.renderEpoch += 1;
   resetSearchTexts();
+  resetThumbs();
+  resetAnnotations();
   try {
     const lib = await loadEngine();
     state.doc = await lib.getDocument({ data: decodeBase64(data) }).promise;
@@ -64,6 +74,9 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
     scrollToFraction(position);
     state.currentPage = pageAtTop();
     reportState();
+    // Оглавление книги: дерево закладок файла. Ошибка чтения не мешает
+    // чтению — панель просто останется пустой.
+    post({ type: 'bookmarks', value: await readBookmarks(state.doc) });
   } catch (error) {
     status.textContent = viewerText('openFailed') + error;
     post({ type: 'error', message: String(error) });
@@ -231,6 +244,20 @@ async function handleMessage(event: MessageEvent): Promise<void> {
       setViewerLocale(message.value);
       status.textContent = viewerText('opening');
       break;
+    case 'thumbs':
+      // Миниатюры рисуются после ответа на запрос: список в панели наполняется
+      // порциями, а чтение не ждёт их готовности.
+      void sendThumbs(message.value.pages ?? [], message.value.width ?? 96);
+      break;
+    case 'annotate':
+      void analyzeAnnotations();
+      break;
+    case 'annotate-stop':
+      stopAnnotations();
+      break;
+    case 'show-annotations':
+      showAnnotations(message.value.ids ?? []);
+      break;
   }
 }
 /** Навешивание обработчиков указателя, прокрутки, выделения и размера. */
@@ -319,7 +346,7 @@ function start(): void {
   addEventListener('message', (event) => {
     void handleMessage(event);
   });
-  post({ type: 'capabilities', value: { zoom: true, pages: true, selection: true } });
+  post({ type: 'capabilities', value: { zoom: true, pages: true, selection: true, thumbnails: true, annotations: true, bookmarks: true } });
   post({ type: 'ready' });
 }
 

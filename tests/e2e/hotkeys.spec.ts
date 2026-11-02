@@ -133,6 +133,11 @@ test('панели рабочего места переключаются кла
     await page.keyboard.press('Control+j');
     await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
     await expect(page.getByTestId('notes-panel')).toBeVisible();
+
+    // Свойства файла — третья панель того же места: открытие закрывает заметки.
+    await page.keyboard.press('Control+Shift+I');
+    await expect(page.getByTestId('notes-panel')).toHaveCount(0);
+    await expect(page.getByTestId('properties-panel')).toBeVisible();
 });
 
 test('вкладки переключаются клавишами по кругу', async ({ page }) => {

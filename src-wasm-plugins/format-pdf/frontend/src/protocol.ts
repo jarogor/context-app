@@ -135,6 +135,42 @@ export interface LocaleMessage {
   value: string;
 }
 
+/** Запрос миниатюр страниц. */
+export interface ThumbsRequestMessage {
+  /** Тип сообщения. */
+  type: 'thumbs';
+  /** Параметры запроса. */
+  value: {
+    /** Номера страниц (1-based), для которых нужны миниатюры. */
+    pages?: number[];
+    /** Желаемая ширина миниатюры в пикселях. */
+    width?: number;
+  };
+}
+
+/** Запрос анализа встроенных в файл пометок. */
+export interface AnnotateMessage {
+  /** Тип сообщения. */
+  type: 'annotate';
+}
+
+/** Остановка анализа встроенных пометок. */
+export interface AnnotateStopMessage {
+  /** Тип сообщения. */
+  type: 'annotate-stop';
+}
+
+/** Показ встроенных пометок на страницах. */
+export interface ShowAnnotationsMessage {
+  /** Тип сообщения. */
+  type: 'show-annotations';
+  /** Параметры показа. */
+  value: {
+    /** Идентификаторы пометок; пустой список снимает показ. */
+    ids?: string[];
+  };
+}
+
 /** Разобранное входящее сообщение. */
 export type IncomingMessage =
   | OpenMessage
@@ -149,7 +185,11 @@ export type IncomingMessage =
   | SearchStepMessage
   | BindingsMessage
   | CommandMessage
-  | LocaleMessage;
+  | LocaleMessage
+  | ThumbsRequestMessage
+  | AnnotateMessage
+  | AnnotateStopMessage
+  | ShowAnnotationsMessage;
 
 /** Нормализация инструмента создания заметок значениями по умолчанию. */
 export function normalizeTool(value: unknown): ViewerTool {
@@ -228,6 +268,34 @@ export function parseIncoming(data: unknown): IncomingMessage | null {
     }
     case 'reader-locale':
       return { type: 'reader-locale', value: String(raw.value ?? 'ru') };
+    case 'thumbs': {
+      const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as {
+        pages?: unknown;
+        width?: unknown;
+      };
+      const pages = Array.isArray(value.pages)
+        ? value.pages.map(Number).filter((page) => Number.isFinite(page) && page >= 1)
+        : [];
+      return {
+        type: 'thumbs',
+        value: { pages, width: Math.max(16, Math.min(400, Number(value.width) || 96)) },
+      };
+    }
+    case 'annotate':
+      return { type: 'annotate' };
+    case 'annotate-stop':
+      return { type: 'annotate-stop' };
+    case 'show-annotations': {
+      const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as {
+        ids?: unknown;
+      };
+      return {
+        type: 'show-annotations',
+        value: {
+          ids: Array.isArray(value.ids) ? value.ids.map(String).filter(Boolean) : [],
+        },
+      };
+    }
     default:
       return null;
   }
