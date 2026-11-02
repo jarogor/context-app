@@ -248,7 +248,7 @@ describe('панель открытых книг: правка оформлен�
         });
 
         await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
-        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Название' }));
+        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Добавить название' }));
         await fireEvent.input(screen.getByLabelText('Название вкладки'), {
             target: { value: 'Черновик' },
         });
@@ -265,7 +265,7 @@ describe('панель открытых книг: правка оформлен�
         });
 
         await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
-        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Описание' }));
+        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Добавить описание' }));
         await fireEvent.input(screen.getByLabelText('Описание вкладки'), {
             target: { value: 'сравнение глав' },
         });
@@ -281,7 +281,8 @@ describe('панель открытых книг: правка оформлен�
         });
 
         await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
-        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Название' }));
+        // Имя уже задано, поэтому пункт предлагает редактирование, а не добавление.
+        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Редактировать название' }));
         await fireEvent.input(screen.getByLabelText('Название вкладки'), {
             target: { value: 'X' },
         });
@@ -289,7 +290,7 @@ describe('панель открытых книг: правка оформлен�
         expect(base.onEditAppearance).not.toHaveBeenCalled();
 
         await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
-        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Название' }));
+        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Редактировать название' }));
         expect((screen.getByLabelText('Название вкладки') as HTMLInputElement).value).toBe('Имя');
     });
 
@@ -300,7 +301,7 @@ describe('панель открытых книг: правка оформлен�
         });
 
         await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
-        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Название' }));
+        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Редактировать название' }));
         await fireEvent.click(screen.getByLabelText('Очистить поле'));
 
         expect(base.onEditAppearance).toHaveBeenCalledWith('t1', { name: undefined });
@@ -324,7 +325,7 @@ describe('панель открытых книг: правка оформлен�
         });
 
         await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
-        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Сбросить оформление' }));
+        await fireEvent.click(await screen.findByRole('menuitem', { name: 'Сбросить все изменения' }));
 
         expect(base.onEditAppearance).toHaveBeenCalledWith('t1', {
             name: undefined,

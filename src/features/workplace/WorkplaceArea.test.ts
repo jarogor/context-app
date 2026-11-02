@@ -470,7 +470,7 @@ describe('область рабочего места: список и вклад
         });
 
         await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
-        await fireEvent.click(await screen.findByText('Сбросить оформление'));
+        await fireEvent.click(await screen.findByText('Сбросить все изменения'));
 
         expect(base.onEditTabAppearance).toHaveBeenCalledWith('t1', {
             name: undefined,

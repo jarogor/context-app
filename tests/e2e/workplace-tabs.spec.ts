@@ -450,7 +450,7 @@ test('длинное описание вкладки видно полность
         'переклички с источниками и предварительные выводы по всему тексту книги.';
 
     await panel.getByLabel('Оформление вкладки').click();
-    await page.getByRole('menuitem', { name: 'Описание' }).click();
+    await page.getByRole('menuitem', { name: 'Добавить описание' }).click();
     await page.getByLabel('Описание вкладки').fill(long);
     await page.getByLabel('Сохранить').click();
 
@@ -478,12 +478,12 @@ test('правка оформления вкладки видна и в пане
     const panel = page.getByTestId('open-books-panel');
     // Каждое свойство правится отдельным пунктом меню.
     await panel.getByLabel('Оформление вкладки').click();
-    await page.getByRole('menuitem', { name: 'Название' }).click();
+    await page.getByRole('menuitem', { name: 'Добавить название' }).click();
     await page.getByLabel('Название вкладки').fill('Черновик');
     await page.getByLabel('Сохранить').click();
 
     await panel.getByLabel('Оформление вкладки').click();
-    await page.getByRole('menuitem', { name: 'Описание' }).click();
+    await page.getByRole('menuitem', { name: 'Добавить описание' }).click();
     await page.getByLabel('Описание вкладки').fill('сравнение глав');
     await page.getByLabel('Сохранить').click();
 
@@ -529,7 +529,7 @@ test('цвет вкладки заливает её и в панели, и на 
 
     // Сброс оформления снимает заливку.
     await panel.getByLabel('Оформление вкладки').click();
-    await page.getByRole('menuitem', { name: 'Сбросить оформление' }).click();
+    await page.getByRole('menuitem', { name: 'Сбросить все изменения' }).click();
 
     await expect(panel.getByTestId('open-books-item')).not.toHaveAttribute('style', /color-mix/);
     await expect(tab(page, 'Демо-книга')).not.toHaveAttribute('style', /color-mix/);
@@ -561,14 +561,14 @@ test('правка имени открывается снова после от�
 
     const panel = page.getByTestId('open-books-panel');
     await panel.getByLabel('Оформление вкладки').click();
-    await page.getByRole('menuitem', { name: 'Название' }).click();
+    await page.getByRole('menuitem', { name: 'Добавить название' }).click();
     await expect(page.getByLabel('Название вкладки')).toBeVisible();
     await page.getByLabel('Отмена').click();
     await expect(page.getByLabel('Название вкладки')).toBeHidden();
 
     // Повторное открытие после отмены снова показывает форму.
     await panel.getByLabel('Оформление вкладки').click();
-    await page.getByRole('menuitem', { name: 'Название' }).click();
+    await page.getByRole('menuitem', { name: 'Добавить название' }).click();
     await expect(page.getByLabel('Название вкладки')).toBeVisible();
 });
 

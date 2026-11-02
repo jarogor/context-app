@@ -26,6 +26,7 @@
     type WorkspaceTab,
   } from './workplace';
   import { noteColorLabel, NOTE_COLOR_SWATCHES } from '../notes/notes';
+  import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { openBookFile } from '../reader/reader';
   import { tabAccent, tabColorFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
 
@@ -80,6 +81,30 @@
   /** Черновик правки текстового свойства. */
   let draft = $state('');
 
+  /** Поле правки: фокус ставится в него сразу после открытия. */
+  let editorField = $state<HTMLInputElement | HTMLTextAreaElement | undefined>();
+
+  /** Постановка фокуса в открытое поле правки. */
+  $effect(() => {
+    if (editingTabId !== null && editorField) {
+      editorField.focus();
+    }
+  });
+
+  /** Escape снимает правку, не закрывая панель.
+   *
+   * Клавиша приходит от общего диспетчера: собственного обработчика `Escape`
+   * у поля нет, иначе одно нажатие закрывало бы два слоя сразу.
+   */
+  $effect(() => {
+    if (editingTabId === null) {
+      return;
+    }
+    return pushDismissLayer(() => {
+      cancelEditing();
+    });
+  });
+
   /** Вкладки, отфильтрованные поиском по имени, названию книги и описанию. */
   const visible = $derived.by(() => {
     const needle = query.trim().toLowerCase();
@@ -103,15 +128,32 @@
     return tabs.findIndex((tab) => tab.id === id) + 1;
   }
 
-  /** Пункты меню оформления вкладки: каждое свойство меняется отдельно. */
-  const appearanceActions = $derived<MenuAction[]>([
-    { id: 'rename', label: t('app.workplace.tab.name') },
-    { id: 'describe', label: t('app.workplace.tab.description') },
-    { id: 'duplicate', label: t('app.workplace.tab.duplicate'), disabled: openBlocked },
-    { id: 'external', label: t('app.workplace.tab.openExternal') },
-    { id: 'reset', label: t('app.workplace.tab.reset'), destructive: true },
-    { id: 'close', label: t('app.workplace.tab.close'), destructive: true },
-  ]);
+  /** Пункты меню вкладки.
+   *
+   * Название и описание называются по состоянию: пока значения нет, пункт
+   * предлагает добавить его, а после — редактировать. Пользователь видит, что
+   * произойдёт, не открывая пункт.
+   */
+  function appearanceActions(tab: WorkspaceTab): MenuAction[] {
+    const hasName = Boolean(tab.name?.trim());
+    const hasDescription = Boolean(tab.description?.trim());
+    return [
+      {
+        id: 'rename',
+        label: hasName ? t('app.workplace.tab.editName') : t('app.workplace.tab.addName'),
+      },
+      {
+        id: 'describe',
+        label: hasDescription
+          ? t('app.workplace.tab.editDescription')
+          : t('app.workplace.tab.addDescription'),
+      },
+      { id: 'duplicate', label: t('app.workplace.tab.duplicate'), disabled: openBlocked },
+      { id: 'external', label: t('app.workplace.tab.openExternal') },
+      { id: 'reset', label: t('app.workplace.tab.reset'), destructive: true },
+      { id: 'close', label: t('app.workplace.tab.close'), destructive: true },
+    ];
+  }
 
   /** Образцы выбора цвета вкладки: общая палитра заметок, текущий цвет отмечен. */
   function colorOptions(current?: TabColor): MenuColor[] {
@@ -140,7 +182,14 @@
     const items: MetaItem[] = [];
     const book = tab.title.trim();
     if (book && book !== tabLabel(tab)) {
-      items.push({ icon: 'book', value: book, title: t('app.workplace.tab.book', { book }) });
+      // Название книги под чужим именем вкладки — главное, по чему вкладку
+      // узнают, поэтому оно выделено начертанием, а не тонет в мелкой строке.
+      items.push({
+        icon: 'book',
+        value: book,
+        strong: true,
+        title: t('app.workplace.tab.book', { book }),
+      });
     }
     if (tab.path) {
       items.push({
@@ -197,6 +246,29 @@
     editingTabId = null;
     editingField = null;
     draft = '';
+  }
+
+  /**
+   * Клавиши в поле правки.
+   *
+   * Enter сохраняет **только название**, `Ctrl+Enter` — только описание: поля
+   * разной природы, и одно нажатие не должно подменять другое. `Escape`
+   * снимает правку через общий слой закрытия.
+   */
+  function handleEditorKey(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      const isName = editingField === 'name';
+      const isDescription = editingField === 'description';
+      if ((isName && !event.ctrlKey && !event.metaKey) || (isDescription && (event.ctrlKey || event.metaKey))) {
+        event.preventDefault();
+        commitEditing();
+      }
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelEditing();
+    }
   }
 
   /** Сохранение изменённого текстового свойства вкладки. */
@@ -302,7 +374,7 @@
               ariaLabel={t('app.workplace.tab.appearance')}
               title={overLimit ? t('app.workplace.limitExceeded') : t('app.workplace.tab.appearance')}
               class="h-7 w-7 {overLimit ? 'text-destructive' : ''}"
-              items={appearanceActions}
+              items={appearanceActions(tab)}
               icons={iconOptions(tab.icon)}
               iconsLabel={t('app.workplace.tab.iconLabel')}
               oniconselect={(icon) => onEditAppearance(tab.id, { icon })}
@@ -331,15 +403,19 @@
             {#if editingField === 'name'}
               <Input
                 bind:value={draft}
+                bind:element={editorField as HTMLInputElement | undefined}
                 placeholder={t('app.workplace.tab.name')}
                 ariaLabel={t('app.workplace.tab.nameLabel')}
+                onkeydown={handleEditorKey}
               />
             {:else}
               <Textarea
                 bind:value={draft}
+                bind:element={editorField as HTMLTextAreaElement | undefined}
                 placeholder={t('app.workplace.tab.description')}
                 ariaLabel={t('app.workplace.tab.descriptionLabel')}
                 rows={2}
+                onkeydown={handleEditorKey}
               />
             {/if}
             <div class="flex items-center justify-between gap-2">
