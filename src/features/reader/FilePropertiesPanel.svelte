@@ -589,17 +589,6 @@
           {/if}
         </div>
       {:else if activeTab === 'annotations'}
-        <!--
-          Пояснение стоит **над списком**: здесь его видно сразу, а под списком
-          его никто не находит. Оно объясняет, почему чужой слой файла выключен
-          и как его включить.
-        -->
-        <p
-          class="border-b border-[var(--border)] px-3 py-2 role-caption text-[var(--muted-foreground)]"
-          data-testid="properties-annotations-hint"
-        >
-          {t('app.properties.annotations.hint')}
-        </p>
         <div class="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-3 py-2">
           <span
             class="min-w-0 flex-1 role-caption text-[var(--muted-foreground)]"

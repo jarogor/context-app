@@ -482,7 +482,6 @@ export const en: Dictionary = {
   'app.properties.annotations.rescan': 'Rescan',
   'app.properties.annotations.empty': 'The file has no embedded annotations.',
   'app.properties.annotations.failed': 'Could not parse the embedded annotations.',
-  'app.properties.annotations.hint': 'These annotations are embedded in the file itself: highlights and notes left by someone earlier. They are hidden by default so they do not mix with your own notes. Tick the ones you need and they appear on the page; the file is not modified.',
   'app.properties.annotations.show': 'Show this annotation on the page',
   'app.properties.annotations.toggle': 'Show annotation: {text}',
   'app.properties.annotations.shown': 'Shown on the page: {count}',

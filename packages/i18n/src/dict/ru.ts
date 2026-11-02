@@ -450,7 +450,6 @@ export const ru = {
   'app.properties.annotations.rescan': 'Повторить',
   'app.properties.annotations.empty': 'В файле нет встроенных пометок.',
   'app.properties.annotations.failed': 'Не удалось разобрать встроенные пометки.',
-  'app.properties.annotations.hint': 'Это пометки, встроенные в сам файл: выделения и заметки, оставленные кем-то раньше. По умолчанию они скрыты, чтобы не смешиваться с вашими заметками. Отметьте нужные галочкой, и они появятся на странице; файл при этом не изменяется.',
   'app.properties.annotations.show': 'Показать эту пометку на странице',
   'app.properties.annotations.toggle': 'Показывать пометку: {text}',
   'app.properties.annotations.shown': 'Показано на странице: {count}',
