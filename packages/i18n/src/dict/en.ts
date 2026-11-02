@@ -283,7 +283,8 @@ export const en: Dictionary = {
 
   'app.library.libraries.empty.title': 'No open libraries',
   'app.library.libraries.empty.description': 'Open a directory with books — it will appear in the list and a catalog will be built for it.',
-  'app.library.libraries.open': 'Open library',
+  'app.library.libraries.add': 'Add library',
+  'app.library.libraries.openFolder': 'Open folder',
   'app.library.libraries.search': 'Library search',
   'app.library.libraries.indexing': 'Indexing the library…',
   'app.library.libraries.current': 'Current',
@@ -292,7 +293,6 @@ export const en: Dictionary = {
   'app.library.libraries.forget': 'Remove from the list',
   'app.library.libraries.opened': 'Opened {date}',
   'app.library.libraries.actionsLabel': 'Library actions',
-  'app.library.libraries.add': 'Add library',
   'app.library.libraries.location': 'Directory with books',
   'app.library.libraries.remove': 'Remove library',
   'app.library.book.back': 'Back to the book list',

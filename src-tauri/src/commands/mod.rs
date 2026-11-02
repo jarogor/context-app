@@ -12,6 +12,7 @@ pub mod get_workspaces;
 pub mod interface_locale;
 pub mod library_history_forget;
 pub mod library_history_list;
+pub mod open_folder;
 pub mod plugin_activation_pending;
 pub mod plugin_operation;
 pub mod reader;
@@ -60,6 +61,10 @@ pub use base_plugin_operation::invoke_base_plugin_operation;
 pub use plugin_operation::__cmd__invoke_plugin_operation;
 pub use plugin_operation::__tauri_command_name_invoke_plugin_operation;
 pub use plugin_operation::invoke_plugin_operation;
+
+pub use open_folder::__cmd__open_folder;
+pub use open_folder::__tauri_command_name_open_folder;
+pub use open_folder::open_folder;
 
 pub use library_history_forget::__cmd__library_history_forget;
 pub use library_history_forget::__tauri_command_name_library_history_forget;

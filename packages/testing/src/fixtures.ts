@@ -711,6 +711,7 @@ export function defaultMockConfig(): MockBridgeConfig {
             }),
             support_report_save: () => '/tmp/context-report-test.txt',
             diagnostics_open_folder: () => null,
+            open_folder: () => null,
             app_info: () => ({
                 name: 'Контекст',
                 version: '0.1.0',

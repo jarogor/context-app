@@ -103,12 +103,19 @@
   }
 
   /** Пункты меню действий записи истории. */
+  /**
+   * Пункты меню записи истории.
+   *
+   * «Открыть папку» показывает директорию библиотеки в файловом менеджере:
+   * открыть саму библиотеку можно кликом по строке, поэтому пункт делает то,
+   * чего клик не умеет.
+   */
   function entryActions(entry: HistoryEntry): MenuAction[] {
     return [
       {
-        id: 'open',
-        label: t('app.action.open'),
-        disabled: !entry.available || opening,
+        id: 'open-folder',
+        label: t('app.library.libraries.openFolder'),
+        disabled: !entry.available,
       },
       { id: 'forget', label: t('app.library.libraries.forget'), destructive: true },
     ];
@@ -194,11 +201,20 @@
 
   /** Выбор действия записи истории из меню. */
   function runEntryAction(entry: HistoryEntry, action: string) {
-    if (action === 'open') {
-      void openLibrary(entry.path);
+    if (action === 'open-folder') {
+      void openFolder(entry.path);
     }
     if (action === 'forget') {
       void forget(entry.path);
+    }
+  }
+
+  /** Открытие директории библиотеки системным файловым менеджером. */
+  async function openFolder(path: string) {
+    try {
+      await invokeCommand('open_folder', { path });
+    } catch (e) {
+      error = String(e);
     }
   }
 
@@ -237,7 +253,7 @@
         <Spinner class="h-4 w-4" />
       {/if}
       <Icon name="folder" />
-      {t('app.library.libraries.open')}
+      {t('app.library.libraries.add')}
     </Button>
   {/snippet}
 
@@ -256,7 +272,7 @@
           <Spinner class="h-4 w-4" />
         {/if}
         <Icon name="folder" />
-        {t('app.library.libraries.open')}
+        {t('app.library.libraries.add')}
       </Button>
     </div>
   {/snippet}

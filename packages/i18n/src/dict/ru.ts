@@ -251,7 +251,8 @@ export const ru = {
 
   'app.library.libraries.empty.title': 'Нет открытых библиотек',
   'app.library.libraries.empty.description': 'Откройте директорию с книгами — она появится в списке, и по ней построится каталог.',
-  'app.library.libraries.open': 'Открыть библиотеку',
+  'app.library.libraries.add': 'Добавить библиотеку',
+  'app.library.libraries.openFolder': 'Открыть папку',
   'app.library.libraries.search': 'Поиск библиотеки',
   'app.library.libraries.indexing': 'Индексация библиотеки…',
   'app.library.libraries.current': 'Текущая',
@@ -260,7 +261,6 @@ export const ru = {
   'app.library.libraries.forget': 'Убрать из списка',
   'app.library.libraries.opened': 'Открыта {date}',
   'app.library.libraries.actionsLabel': 'Действия с библиотекой',
-  'app.library.libraries.add': 'Добавить библиотеку',
   'app.library.libraries.location': 'Директория с книгами',
   'app.library.libraries.remove': 'Убрать библиотеку',
   'app.library.book.back': 'К списку книг',

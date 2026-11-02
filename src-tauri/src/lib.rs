@@ -147,6 +147,7 @@ pub fn run() {
             commands::app_info,
             commands::app_name_set,
             commands::diagnostics_open_folder,
+            commands::open_folder,
             commands::support_report,
             commands::support_report_save,
             commands::select_source_library,
