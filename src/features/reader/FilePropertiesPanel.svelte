@@ -477,12 +477,9 @@
           отдельная строка постоянной высоты, а не часть прокручиваемого списка.
         -->
         <div class="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
-          <span class="min-w-0 flex-1 role-caption text-[var(--muted-foreground)]">
-            {t('app.properties.pages.hint')}
-          </span>
           <button
             type="button"
-            class="shrink-0 cursor-pointer rounded-[var(--radius)] px-2 py-1 role-caption text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            class="cursor-pointer rounded-[var(--radius)] px-2 py-1 role-caption text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
             data-testid="properties-pages-regenerate"
             onclick={() => onRegenerateThumbs?.()}
           >
