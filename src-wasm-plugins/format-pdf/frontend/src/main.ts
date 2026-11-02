@@ -56,6 +56,10 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
   resetSearchTexts();
   resetThumbs();
   resetAnnotations();
+  // Прежний документ закрывается: pdf.js держит разобранные страницы и их
+  // операторы, и без закрытия каждая новая книга оставляла бы всю прежнюю.
+  await state.doc?.destroy();
+  state.doc = null;
   try {
     const lib = await loadEngine();
     state.doc = await lib.getDocument({ data: decodeBase64(data) }).promise;
@@ -68,6 +72,9 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
       width: firstBase.width,
       height: firstBase.height,
     });
+    // Разобранная первая страница дальше не нужна: её дескриптор держит
+    // операторы и шрифты страницы.
+    first.cleanup();
     layoutPages();
     startObserver();
     status.hidden = true;
@@ -243,6 +250,11 @@ async function handleMessage(event: MessageEvent): Promise<void> {
     case 'reader-locale':
       setViewerLocale(message.value);
       status.textContent = viewerText('opening');
+      break;
+    case 'thumbs-reset':
+      // Перегенерация: прежние картинки забываются, следующие заказы рисуют
+      // страницы заново.
+      resetThumbs();
       break;
     case 'thumbs':
       // Миниатюры рисуются после ответа на запрос: список в панели наполняется

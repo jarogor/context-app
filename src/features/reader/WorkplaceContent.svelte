@@ -449,6 +449,14 @@
     post({ type: 'annotate-stop' });
   }
 
+  /** Сброс кэша превью в модуле: картинки будут нарисованы заново. */
+  export function resetThumbs() {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'thumbs-reset' });
+  }
+
   /** Показ выбранных встроенных пометок на страницах. */
   export function showAnnotations(ids: string[]) {
     if (!ready) {

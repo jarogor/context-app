@@ -171,6 +171,12 @@ export interface ShowAnnotationsMessage {
   };
 }
 
+/** Сброс кэша превью страниц: картинки будут нарисованы заново. */
+export interface ThumbsResetMessage {
+  /** Тип сообщения. */
+  type: 'thumbs-reset';
+}
+
 /** Разобранное входящее сообщение. */
 export type IncomingMessage =
   | OpenMessage
@@ -187,6 +193,7 @@ export type IncomingMessage =
   | CommandMessage
   | LocaleMessage
   | ThumbsRequestMessage
+  | ThumbsResetMessage
   | AnnotateMessage
   | AnnotateStopMessage
   | ShowAnnotationsMessage;
@@ -281,6 +288,8 @@ export function parseIncoming(data: unknown): IncomingMessage | null {
         value: { pages, width: Math.max(16, Math.min(400, Number(value.width) || 96)) },
       };
     }
+    case 'thumbs-reset':
+      return { type: 'thumbs-reset' };
     case 'annotate':
       return { type: 'annotate' };
     case 'annotate-stop':

@@ -279,7 +279,10 @@ export async function renderPage(
     // Рисуем во **откреплённый** канвас: pdf.js последовательно заливает его
     // фоном и содержимым, и, будь он в DOM, на экране мелькала бы белая страница
     // до перекраски. Готовый канвас вставляется одним кадром.
-    await page.render({ canvasContext: context, viewport, transform }).promise;
+    // Аннотации в растр не входят: встроенные в файл пометки — чужой слой,
+    // сделанный неизвестно кем, и по умолчанию их не показывают. Они
+    // включаются по одной из панели свойств и рисуются своим слоем.
+    await page.render({ canvasContext: context, viewport, transform, annotationMode: 0 }).promise;
     if (epoch !== state.renderEpoch) {
       throw new Error('отрисовка устарела из-за смены масштаба');
     }

@@ -149,6 +149,12 @@ export interface ThumbsRequestMessage {
   };
 }
 
+/** Сброс кэша превью страниц: картинки будут нарисованы заново. */
+export interface ThumbsResetMessage {
+  /** Тип сообщения. */
+  type: 'thumbs-reset';
+}
+
 /** Разобранное входящее сообщение. */
 export type IncomingMessage =
   | OpenMessage
@@ -164,7 +170,8 @@ export type IncomingMessage =
   | BindingsMessage
   | CommandMessage
   | LocaleMessage
-  | ThumbsRequestMessage;
+  | ThumbsRequestMessage
+  | ThumbsResetMessage;
 
 /** Нормализация инструмента создания заметок значениями по умолчанию. */
 export function normalizeTool(value: unknown): ViewerTool {
@@ -243,6 +250,8 @@ export function parseIncoming(data: unknown): IncomingMessage | null {
     }
     case 'reader-locale':
       return { type: 'reader-locale', value: String(raw.value ?? 'ru') };
+    case 'thumbs-reset':
+      return { type: 'thumbs-reset' };
     case 'thumbs': {
       const value = (raw.value && typeof raw.value === 'object' ? raw.value : {}) as {
         pages?: unknown;

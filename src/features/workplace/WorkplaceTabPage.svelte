@@ -37,6 +37,8 @@
     toggleAnnotation: (annotation: FileAnnotation, shown: boolean) => void;
     /** Снятие показа всех встроенных пометок. */
     hideAnnotations: () => void;
+    /** Перегенерация превью страниц. */
+    regenerateThumbs: () => void;
   }
 
   interface Props {

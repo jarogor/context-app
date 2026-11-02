@@ -53,6 +53,12 @@
     type PropertiesTabId,
   } from './file-properties';
   import type { WorkplaceThumbnail } from './workplace-protocol';
+  import {
+  forgetThumbsCache,
+  loadCachedProperties,
+  saveCachedProperties,
+} from './file-properties-cache';
+  import { normalizeBookmarks } from './file-properties';
 
   interface Props {
     /** Путь к файлу открытой книги (вложение вкладки). */
@@ -226,6 +232,7 @@
         analyzeAnnotations: () => void;
         stopAnnotations: () => void;
         showAnnotations: (ids: string[]) => void;
+        resetThumbs: () => void;
       }
     | undefined = $state();
   /** Незавершённый якорь выделения для создания заметки. */
@@ -614,6 +621,9 @@
         const selection = await selectWorkplacePlugin(value);
         if (selection) {
           workplace = selection;
+          // Свойства файла из прошлого открытия: закладки, число страниц,
+          // встроенные пометки и превью показываются до разбора файла заново.
+          await applyCachedProperties(value);
         } else {
           unsupported = true;
         }
@@ -628,6 +638,35 @@
     } finally {
       loading = false;
     }
+  }
+
+  /** Применение свойств книги из дискового кэша.
+   *
+   * Кэш читается до загрузки плагина и показывает закладки, число страниц и
+   * превью сразу; плагин затем дорисует недостающее. Превью и пометки из кэша
+   * помечаются готовыми, чтобы панель не заказывала их повторно.
+   */
+  async function applyCachedProperties(value: string) {
+    const cached = await loadCachedProperties(value);
+    if (!cached) {
+      return;
+    }
+    properties = {
+      ...properties,
+      bookmarks: normalizeBookmarks(cached.bookmarks),
+      bookmarksSupported: true,
+      pageCount: cached.pageCount ?? properties.pageCount,
+      thumbs: { ...properties.thumbs, ...cached.thumbs },
+      annotations: cached.annotations,
+      annotationsSupported: cached.annotations.length > 0 || properties.annotationsSupported,
+      annotationsDone: cached.annotations.length > 0,
+      annotationsProcessed: cached.annotations.length > 0 ? (cached.pageCount ?? 0) : 0,
+      annotationsTotal: cached.pageCount,
+      // Кэш пометок пришёл целиком: панель не заказывает разбор заново. При
+      // этом сама поддержка пометок у формата подтвердится возможностями
+      // плагина; если файл изменился, кэш отсеется по свежести и разбор пойдёт.
+      annotationsCached: cached.annotations.length > 0,
+    };
   }
 
   /** Изменение масштаба текста в допустимых границах по общей лестнице уровней.
@@ -884,6 +923,18 @@
     workplaceContent?.showAnnotations(next);
   }
 
+  /** Перегенерация превью страниц.
+   *
+   * Кэш превью на диске и в памяти оболочки удаляется: в нём могут лежать
+   * картинки, снятые по прежним правилам (например, до исправления
+   * разрешения). Плагин рисует их заново, панель заказывает их снова.
+   */
+  export async function regenerateThumbs() {
+    properties = { ...properties, thumbs: {} };
+    await forgetThumbsCache(path);
+    workplaceContent?.resetThumbs();
+  }
+
   /** Снятие показа всех встроенных пометок на страницах.
    *
    * Закрытие панели свойств снимает показ: пометки файла — справочный слой,
@@ -904,6 +955,34 @@
       annotationsProcessed: batch.processed,
       annotationsTotal: batch.total,
     };
+    // Разбор пометок дорогой: результат сохраняется целиком, чтобы следующее
+    // открытие вкладки показало пометки сразу.
+    if (batch.done) {
+      void saveCachedProperties(path, {
+        annotations: { annotations: properties.annotations },
+      });
+    }
+  }
+
+  /** Очередь миниатюр для записи в кэш и незавершённая запись. */
+  let thumbQueue: WorkplaceThumbnail[] = [];
+  let thumbSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Сохранение накопленных миниатюр одной записью.
+   *
+   * Миниатюры приходят по одной (панель наполняется сразу), но писать на диск
+   * на каждую — сотни IPC-вызовов и перезапись описания книги на каждую
+   * страницу. Поэтому миниатюры копятся и уходят одной порцией после короткой
+   * паузы.
+   */
+  function flushThumbQueue() {
+    thumbSaveTimer = null;
+    const batch = thumbQueue;
+    thumbQueue = [];
+    if (batch.length === 0) {
+      return;
+    }
+    void saveCachedProperties(path, { thumbs: batch });
   }
 
   /** Приём миниатюр страниц: картинки кладутся в снимок по номеру страницы. */
@@ -916,6 +995,12 @@
       thumbs[thumbnail.page] = thumbnail.dataUrl;
     }
     properties = { ...properties, thumbs };
+    // Миниатюры рисуются дорого и не меняются до изменения файла: они
+    // сохраняются порциями, чтобы следующее открытие показало их сразу.
+    thumbQueue.push(...thumbnails);
+    if (thumbSaveTimer === null) {
+      thumbSaveTimer = setTimeout(flushThumbQueue, 600);
+    }
   }
 
   /** Переход к месту заметки в тексте книги.
@@ -1069,12 +1154,20 @@
           onError={(value) => (error = value)}
           onSearch={handleWorkplaceSearch}
           onHotkey={(actionId) => hotkeys.handleViewerAction(actionId)}
-          onBookmarks={(bookmarks) =>
-            (properties = {
+          onBookmarks={(bookmarks) => {
+            // Закладки из ответа плагина важнее кэша: файл мог измениться, и
+            // плагин прочитал его заново.
+            properties = {
               ...properties,
               bookmarks,
-              pageCount: workplacePageCount,
-            })}
+              pageCount: workplacePageCount ?? properties.pageCount,
+            };
+            // Оглавление файла не меняется до изменения файла: сохраняется
+            // вместе с числом страниц, чтобы показываться сразу.
+            void saveCachedProperties(path, {
+              properties: { bookmarks, pageCount: workplacePageCount ?? properties.pageCount },
+            });
+          }}
           onThumbs={handleThumbs}
           onFileAnnotations={handleFileAnnotations}
         />

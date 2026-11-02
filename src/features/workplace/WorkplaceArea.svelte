@@ -379,6 +379,13 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     }
   }
 
+  /** Перегенерация превью страниц активной вкладки. */
+  function regenerateThumbs() {
+    if (tab) {
+      readers.get(tab.id)?.regenerateThumbs();
+    }
+  }
+
   /** Показ или снятие показа встроенной пометки на странице. */
   function toggleAnnotation(annotation: FileAnnotation, shown: boolean) {
     if (tab) {
@@ -576,6 +583,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
             onAnalyzeAnnotations={analyzeAnnotations}
             onStopAnnotations={stopAnnotations}
             onToggleAnnotation={toggleAnnotation}
+            onRegenerateThumbs={regenerateThumbs}
             onClose={onToggleProperties}
           />
         {/key}

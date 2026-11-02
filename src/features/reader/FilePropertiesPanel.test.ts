@@ -149,14 +149,23 @@ describe('панель свойств файла', () => {
     expect(rows[0].textContent).toContain('выделенный текст');
     expect(rows[0].textContent).toContain('комментарий');
 
+    // По умолчанию пометки не показаны: это чужой слой файла.
+    expect(onToggleAnnotation).not.toHaveBeenCalled();
+
+    // Нажатие на строку показывает ровно эту пометку.
     await fireEvent.click(rows[0]);
     expect(onToggleAnnotation).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'a1' }),
       true,
     );
-    // Повторное нажатие снимает показ.
-    await fireEvent.click(rows[0]);
-    expect(onToggleAnnotation).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'a1' }), false);
+
+    // Галочка снимает показ.
+    const toggle = screen.getAllByTestId('properties-annotation-toggle')[0];
+    await fireEvent.change(toggle, { target: { checked: false } });
+    expect(onToggleAnnotation).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'a1' }),
+      false,
+    );
   });
 
   it('фильтрует пометки по комментарию', async () => {
@@ -212,6 +221,26 @@ describe('панель свойств файла', () => {
     });
     expect(screen.getByTestId('properties-annotations-status').textContent).toContain('4');
     expect(screen.getByTestId('properties-annotations-stop')).toBeTruthy();
+  });
+
+  it('не заказывает повторно страницы, которые не нарисовались', async () => {
+    const onRequestThumbs = vi.fn();
+    const { rerender } = render(FilePropertiesPanel, {
+      props: {
+        snapshot: pagedSnapshot(),
+        tab: 'pages',
+        currentPage: 1,
+        onRequestThumbs,
+      },
+    });
+
+    const first = onRequestThumbs.mock.calls.length;
+    expect(first).toBeGreaterThan(0);
+    // Ни одна картинка не пришла: без запрета повторов панель заказывала бы те
+    // же страницы на каждое обновление снимка — бесконечный цикл отрисовки.
+    await rerender({ snapshot: { ...pagedSnapshot() }, tab: 'pages', currentPage: 1, onRequestThumbs });
+    await rerender({ snapshot: { ...pagedSnapshot() }, tab: 'pages', currentPage: 1, onRequestThumbs });
+    expect(onRequestThumbs.mock.calls.length).toBe(first);
   });
 
   it('показывает пометку на странице при наличии в снимке', async () => {

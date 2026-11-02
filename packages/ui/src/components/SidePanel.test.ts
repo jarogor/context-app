@@ -63,4 +63,35 @@ describe('SidePanel', () => {
 
     expect(screen.queryByTestId('side-panel-close')).toBeNull();
   });
+
+  it('ставит вкладки над поиском, чтобы поиск не сдвигал их основание', () => {
+    render(SidePanel, {
+      props: { title: 'Панель', tabs: text('вкладки'), search: text('поиск'), testId: 'panel' },
+    });
+
+    const tabs = screen.getByText('вкладки');
+    const search = screen.getByText('поиск');
+    // Вкладки обязаны стоять в разметке раньше поиска: иначе появление поля
+    // поиска у соседней вкладки сдвигало бы полосу кнопок вниз.
+    expect(tabs.parentElement!.compareDocumentPosition(search)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it('держит полосу вкладок на месте при скрытии поиска', () => {
+    const { rerender } = render(SidePanel, {
+      props: { title: 'Панель', tabs: text('вкладки'), testId: 'panel' },
+    });
+    const withoutSearch = screen.getByText('вкладки').getBoundingClientRect().top;
+
+    rerender({
+      title: 'Панель',
+      tabs: text('вкладки'),
+      search: text('поиск'),
+      testId: 'panel',
+    });
+
+    // Положение полосы вкладок не зависит от наличия поиска.
+    expect(screen.getByText('вкладки').getBoundingClientRect().top).toBe(withoutSearch);
+  });
 });

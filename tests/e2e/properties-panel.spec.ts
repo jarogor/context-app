@@ -162,6 +162,39 @@ test('панель свойств DjVu: встроенные закладки и
     await panel.getByTestId('properties-tab-pages').click();
     await expect(panel.getByTestId('properties-page').first()).toBeVisible();
     await expect(panel.locator('img').first()).toBeVisible({ timeout: 30000 });
+
+    // В этой книге большинство страниц — сканы без фонового слоя DjVu. Раньше
+    // миниатюры строились только для страниц с фоном, и у сканов их не было
+    // вовсе: из первой порции (24 страницы) выходила одна картинка. Теперь
+    // миниатюра есть у каждой заказанной страницы.
+    await expect
+        .poll(async () => panel.locator('img').count(), { timeout: 30000 })
+        .toBeGreaterThan(12);
+
+    // Список виртуализирован: в разметке только окно прокрутки, а не все 71
+    // страница книги. Иначе на книге в тысячу страниц разметка съедала бы
+    // память и время раскладки.
+    const rendered = await panel.getByTestId('properties-page').count();
+    expect(rendered).toBeLessThan(71);
+    expect(rendered).toBeGreaterThan(0);
+
+    // Прокрутка списка показывает дальние страницы: окно сдвигается.
+    const body = panel.getByTestId('properties-body');
+    await body.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+    });
+    await expect
+        .poll(async () => {
+            const labels = await panel
+                .getByTestId('properties-page')
+                .allTextContents();
+            return Math.max(...labels.map((label) => Number(label) || 0));
+        })
+        .toBeGreaterThan(40);
+
+    // Переход по дальнему превью открывает его страницу в чтении.
+    await panel.getByTestId('properties-page').last().click();
+    await expect(page.getByLabel('Текущая страница')).not.toHaveValue('1');
 });
 
 test('встроенные пометки PDF не рисуются на странице до запроса', async ({ page }) => {

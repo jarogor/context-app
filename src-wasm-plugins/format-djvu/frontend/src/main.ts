@@ -50,8 +50,15 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
   state.pending.clear();
   resetSearchTexts();
   resetThumbs();
+  // Прежний документ освобождается: движок держит разобранные страницы в его
+  // памяти, и без освобождения каждая новая книга оставляла бы всю прежнюю.
+  state.doc?.free();
+  state.doc = null;
   try {
     const bytes = decodeBase64(data);
+    // Байты книги нужны и документу миниатюр: он отдельный, чтобы миниатюры не
+    // занимали память читаемого документа.
+    state.bytes = bytes;
     state.module = await loadEngine();
     state.doc = openDocument(state.module, bytes);
     state.pageCount = state.doc.page_count();
@@ -59,7 +66,13 @@ async function openBook(data: string, position: number, zoomValue: number): Prom
     // занял бы секунды. Первая страница задаёт размер по умолчанию — она же
     // видна при открытии.
     state.naturalSizes = new Array(state.pageCount);
-    state.defaultSize = naturalPageSize(state.doc.page(0));
+    const firstPage = state.doc.page(0);
+    try {
+      state.defaultSize = naturalPageSize(firstPage);
+    } finally {
+      // Дескриптор страницы освобождается: он держит разобранную страницу.
+      firstPage.free();
+    }
     state.naturalSizes[0] = state.defaultSize;
     // Как в PDF: 100 % — абсолютный естественный размер страницы файла.
     state.initialZoom = Number(zoomValue) || 100;
@@ -234,6 +247,11 @@ async function handleMessage(event: MessageEvent): Promise<void> {
     case 'reader-locale':
       setViewerLocale(message.value);
       status.textContent = viewerText('opening');
+      break;
+    case 'thumbs-reset':
+      // Перегенерация: прежние картинки забываются, следующие заказы рисуют
+      // страницы заново.
+      resetThumbs();
       break;
     case 'thumbs':
       // Миниатюры рисуются после ответа на запрос: список в панели наполняется

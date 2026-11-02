@@ -28,6 +28,8 @@
     onStopAnnotations?: () => void;
     /** Переключение показа встроенной пометки на странице. */
     onToggleAnnotation?: (annotation: FileAnnotation, shown: boolean) => void;
+    /** Перегенерация превью страниц (кэш картинок удаляется). */
+    onRegenerateThumbs?: () => void;
     /** Закрытие панели (на узком окне панель перекрывает содержимое). */
     onClose?: () => void;
   }
@@ -44,6 +46,7 @@
     onAnalyzeAnnotations,
     onStopAnnotations,
     onToggleAnnotation,
+    onRegenerateThumbs,
     onClose,
   }: Props = $props();
 
@@ -64,15 +67,89 @@
   /** Поиск по текущему списку. */
   let query = $state('');
 
-  /** Идентификатор пометки, показанной на странице; `null` — не показана. */
-  let shownId = $state<string | null>(null);
+  /** Пометки, включённые для показа на странице; по умолчанию ни одной.
+   *
+   * Пометки — чужой слой внутри файла, сделанный неизвестно кем: он может
+   * конфликтовать с заметками приложения. Поэтому по умолчанию он выключен, и
+   * включается только явно — галочкой в списке или кнопкой «Показать».
+   */
+  let shownAnnotations = $state<Set<string>>(new Set());
 
-  /** Список страниц для превью: контейнер прокрутки и докуда заказаны миниатюры. */
+  /** Список страниц для превью: контейнер прокрутки и первая видимая страница. */
   let pagesListEl: HTMLDivElement | undefined = $state();
-  let requestedUntil = $state(24);
 
-  /** Шаг догрузки миниатюр при прокрутке списка превью. */
-  const THUMB_PAGE_STEP = 24;
+  /** Номер первой видимой страницы (по прокрутке списка). */
+  let windowStart = $state(1);
+
+  /** Страницы книги для превью: список строится один раз на снимок. */
+  const pageNumbers = $derived.by(() =>
+    Array.from({ length: snapshot.pageCount ?? 0 }, (_, index) => index + 1),
+  );
+
+  /** Сколько узлов держать в разметке: окно прокрутки плюс запас. */
+  const VISIBLE_PAGES = 60;
+
+  /** Число колонок сетки превью и высота строки (измеряются по разметке). */
+  let columns = $state(4);
+  let rowHeight = $state(176);
+
+  /** Последняя страница окна в разметке. */
+  const windowEnd = $derived(
+    Math.min(pageNumbers.length, windowStart + VISIBLE_PAGES - 1),
+  );
+
+  /** Страницы в разметке.
+   *
+   * Для книги в тысячу страниц разметка всех узлов (картинка, подпись, кнопка)
+   * — это тысячи элементов, которые движок раскладывает при каждом обновлении.
+   * В разметке живёт только окно вокруг прокрутки; пропущенные строки заменены
+   * распорками той же высоты, поэтому полоса прокрутки и положение страниц
+   * остаются верными.
+   *
+   * Окно выровнено по границе строки: тогда распорка до него — целое число
+   * строк и превью не съезжают по колонкам.
+   */
+  const visiblePages = $derived.by(() =>
+    pageNumbers.slice(windowStart - 1, windowEnd),
+  );
+
+  /** Строк до окна в разметке. */
+  const rowsBefore = $derived(Math.floor((windowStart - 1) / columns));
+
+  /** Строк после окна в разметке. */
+  const rowsAfter = $derived(
+    Math.ceil(Math.max(0, pageNumbers.length - windowEnd) / columns),
+  );
+
+  /** Измерение сетки превью: колонки и высота строки.
+   *
+   * Размеры зависят от ширины панели и масштаба интерфейса, поэтому берутся у
+   * отрисованного узла, а не задаются числом.
+   */
+  $effect(() => {
+    if (activeTab !== 'pages') {
+      return;
+    }
+    const list = pagesListEl;
+    const slot = list?.querySelector('[data-testid="properties-page"]') as
+      | HTMLElement
+      | null;
+    if (!list || !slot) {
+      return;
+    }
+    const width = slot.offsetWidth > 0 ? slot.offsetWidth : 96;
+    const gap = 8;
+    const measured = Math.max(1, Math.floor((list.clientWidth + gap) / (width + gap)));
+    if (measured !== columns) {
+      columns = measured;
+    }
+    if (slot.offsetHeight > 0 && slot.offsetHeight !== rowHeight) {
+      rowHeight = slot.offsetHeight;
+    }
+  });
+
+  /** Сколько страниц держать заказанными от первой видимой. */
+  const THUMB_WINDOW = 24;
 
   /** Ширина миниатюры в пикселях: заказывается у модуля и задаёт слот превью. */
   const THUMB_WIDTH = 96;
@@ -134,25 +211,51 @@
     return annotation.author ? `${page} · ${annotation.author}` : page;
   }
 
-  /** Переключение показа пометки на странице.
+  /** Включение и выключение показа пометки на странице.
    *
-   * При включении страница чтения переходит к месту пометки: иначе пометка,
-   * найденная на другой странице, оказывалась бы вне экрана и нажатие выглядело
-   * бы безрезультатным.
+   * Пометка включается явно: кликом по галочке или кнопкой «Показать». При
+   * включении страница чтения переходит к её месту — иначе пометка на другой
+   * странице оказалась бы вне экрана и включение выглядело бы безрезультатным.
    */
-  function toggleAnnotation(annotation: FileAnnotation) {
-    const shown = shownId === annotation.id;
-    shownId = shown ? null : annotation.id;
-    if (!shown) {
+  function setAnnotationShown(annotation: FileAnnotation, shown: boolean) {
+    const next = new Set(shownAnnotations);
+    if (shown) {
+      next.add(annotation.id);
       onGoToPage?.(annotation.page);
+    } else {
+      next.delete(annotation.id);
     }
-    onToggleAnnotation?.(annotation, !shown);
+    shownAnnotations = next;
+    onToggleAnnotation?.(annotation, shown);
   }
 
-  /** Страницы книги для превью: список строится один раз на снимок. */
-  const pageNumbers = $derived.by(() =>
-    Array.from({ length: snapshot.pageCount ?? 0 }, (_, index) => index + 1),
-  );
+  /** Снятие показа всех пометок файла. */
+  function hideAllAnnotations() {
+    const shown = snapshot.annotations.filter((annotation) =>
+      shownAnnotations.has(annotation.id),
+    );
+    shownAnnotations = new Set();
+    for (const annotation of shown) {
+      onToggleAnnotation?.(annotation, false);
+    }
+  }
+
+  /** Показ только этой пометки, остальные снимаются.
+   *
+   * Уже показанные пометки снимаются по одной: формат рисует их пачкой по
+   * списку, и одной команды «покажи другую» недостаточно.
+   */
+  function showOnlyAnnotation(annotation: FileAnnotation) {
+    const shown = snapshot.annotations.filter(
+      (candidate) => candidate.id !== annotation.id && shownAnnotations.has(candidate.id),
+    );
+    for (const candidate of shown) {
+      onToggleAnnotation?.(candidate, false);
+    }
+    shownAnnotations = new Set([annotation.id]);
+    onGoToPage?.(annotation.page);
+    onToggleAnnotation?.(annotation, true);
+  }
 
   /** Признак незавершённого анализа пометок. */
   const annotating = $derived(
@@ -161,37 +264,63 @@
       snapshot.annotationsProcessed > 0,
   );
 
-  /** Заказ недостающих миниатюр при открытой вкладке страниц.
+  /** Заказ недостающих миниатюр видимого окна списка.
    *
-   * Заказываются только страницы без картинки и в пределах уже открытого куска
-   * списка: у книги на тысячи страниц заказ всей книги сразу перегрузил бы
-   * модуль рисования. Прокрутка списка расширяет кусок, и недостающие миниатюры
-   * дорисовываются. Модуль отвечает порциями по мере готовности.
+   * Заказываются только страницы, которые читатель видит, плюс небольшой запас
+   * вперёд: у книги на тысячи страниц заказ всей книги заранее занял бы минуты
+   * и память. Окно следует за прокруткой списка, поэтому при листании
+   * дорисовывается только новое.
+   *
+   * Каждая страница заказывается **один раз**: запрос отмечается сразу, поэтому
+   * обновление снимка (пришедшая порция) не запускает новый заказ тех же
+   * страниц. Без этого панель заказывала бы снова и снова всё, что ещё не
+   * нарисовано, — а страницу, которую формат не может нарисовать, это
+   * превращало в бесконечный цикл отрисовки.
    */
+  let requestedThumbs = new Set<number>();
+
   $effect(() => {
     if (activeTab !== 'pages' || !snapshot.thumbnails) {
       return;
     }
+    const from = Math.max(1, windowStart);
     const missing = pageNumbers
-      .filter((page) => page <= requestedUntil && !snapshot.thumbs[page])
-      .slice(0, 48);
-    if (missing.length > 0) {
-      onRequestThumbs?.(missing, THUMB_WIDTH);
-    }
-  });
-
-  /** Догрузка превью при прокрутке списка страниц. */
-  function handlePagesScroll() {
-    const list = pagesListEl;
-    if (!list || activeTab !== 'pages') {
+      .filter(
+        (page) =>
+          page >= from &&
+          page < from + THUMB_WINDOW &&
+          !snapshot.thumbs[page] &&
+          !requestedThumbs.has(page),
+      )
+      .slice(0, 12);
+    if (missing.length === 0) {
       return;
     }
-    const nearEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - list.clientHeight;
-    if (nearEnd && requestedUntil < (snapshot.pageCount ?? 0)) {
-      requestedUntil = Math.min(
-        (snapshot.pageCount ?? 0),
-        requestedUntil + THUMB_PAGE_STEP,
-      );
+    for (const page of missing) {
+      requestedThumbs.add(page);
+    }
+    onRequestThumbs?.(missing, THUMB_WIDTH);
+  });
+
+  /** Догрузка превью при прокрутке списка страниц.
+   *
+   * Окно начинается со строки, в которую попала прокрутка, и всегда выровнено
+   * по границе строки: только тогда распорка до окна занимает целое число строк
+   * и сетка не съезжает по колонкам. Окно следует за прокруткой, поэтому
+   * заказанными остаются только видимые страницы; иначе каждое добавление
+   * картинок (список становится выше) снова считалось бы «дошли до конца», и
+   * заказ лавиной доходил бы до всей книги.
+   */
+  function handlePagesScroll() {
+    const list = pagesListEl;
+    if (!list || activeTab !== 'pages' || pageNumbers.length === 0) {
+      return;
+    }
+    const scrollTop = list.scrollTop;
+    const firstRow = Math.max(0, Math.floor(scrollTop / Math.max(1, rowHeight + 8)));
+    const start = firstRow * columns + 1;
+    if (start !== windowStart) {
+      windowStart = Math.min(pageNumbers.length, Math.max(1, start));
     }
   }
 
@@ -208,6 +337,7 @@
       !snapshot.annotationsSupported ||
       snapshot.annotationsDone ||
       snapshot.annotationsError ||
+      snapshot.annotationsCached ||
       analysisRequested
     ) {
       return;
@@ -225,40 +355,15 @@
   });
 </script>
 
-<SidePanel
-  title={t('app.properties.title')}
-  testId="properties-panel"
-  side="left"
-  showSearch={activeTab === 'contents' || activeTab === 'bookmarks' || activeTab === 'annotations'}
-  class="w-[var(--properties-panel-width)]"
-  {onClose}
->
-  {#snippet search()}
-    <Input
-      bind:value={query}
-      placeholder={t('app.properties.search')}
-      ariaLabel={t('app.properties.search')}
-      icon="search"
-      clearable
-    />
-  {/snippet}
-
-  {#if tabs.length === 0}
-    <div class="p-4" data-testid="properties-empty">
-      <EmptyState
-        icon="book"
-        title={t('app.properties.empty.title')}
-        description={t('app.properties.empty.description')}
-      />
-    </div>
-  {:else}
+  {#snippet tabsSnippet()}
     <!--
       Состав вкладок зависит от формата книги: содержание есть у текучих книг,
       закладки — у страничных, превью и встроенные пометки — у тех форматов,
-      которые умеют их разбирать.
+      которые умеют их разбирать. Полоса вкладок стоит над поиском и не зависит
+      от него: смена вкладки не сдвигает основание панели.
     -->
     <div
-      class="flex flex-wrap gap-0.5 border-b border-[var(--border)] bg-[var(--panel)] p-1.5"
+      class="flex flex-wrap gap-0.5"
       role="tablist"
       aria-label={t('app.properties.tabs')}
       data-testid="properties-tabs"
@@ -279,7 +384,38 @@
         </button>
       {/each}
     </div>
+  {/snippet}
 
+  {#snippet searchSnippet()}
+    <Input
+      bind:value={query}
+      placeholder={t('app.properties.search')}
+      ariaLabel={t('app.properties.search')}
+      icon="search"
+      clearable
+    />
+  {/snippet}
+
+<SidePanel
+  title={t('app.properties.title')}
+  testId="properties-panel"
+  side="left"
+  showSearch={activeTab === 'contents' || activeTab === 'bookmarks' || activeTab === 'annotations'}
+  class="w-[var(--properties-panel-width)]"
+  tabs={tabs.length > 0 ? tabsSnippet : undefined}
+  search={searchSnippet}
+  {onClose}
+>
+
+  {#if tabs.length === 0}
+    <div class="p-4" data-testid="properties-empty">
+      <EmptyState
+        icon="book"
+        title={t('app.properties.empty.title')}
+        description={t('app.properties.empty.description')}
+      />
+    </div>
+  {:else}
     <div
       class="flex min-h-0 flex-1 flex-col overflow-y-auto"
       data-testid="properties-body"
@@ -336,14 +472,49 @@
           {/each}
         </ul>
       {:else if activeTab === 'pages'}
+        <!--
+          Полоса управления превью стоит над сеткой и не сдвигается ею: это
+          отдельная строка постоянной высоты, а не часть прокручиваемого списка.
+        -->
+        <div class="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
+          <span class="min-w-0 flex-1 role-caption text-[var(--muted-foreground)]">
+            {t('app.properties.pages.hint')}
+          </span>
+          <button
+            type="button"
+            class="shrink-0 cursor-pointer rounded-[var(--radius)] px-2 py-1 role-caption text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            data-testid="properties-pages-regenerate"
+            onclick={() => onRegenerateThumbs?.()}
+          >
+            {t('app.properties.pages.regenerate')}
+          </button>
+        </div>
         <div
           class="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2 p-2"
           data-testid="properties-pages"
         >
-          {#each pageNumbers as page (page)}
+          <!--
+            Распорка до окна: пропущенные строки занимают то же место, что заняли
+            бы их превью, поэтому полоса прокрутки соответствует всей книге.
+          -->
+          {#if rowsBefore > 0}
+            <span
+              class="col-span-full"
+              style="height: {rowsBefore * (rowHeight + 8)}px"
+              aria-hidden="true"
+              data-testid="properties-pages-before"
+            ></span>
+          {/if}
+          {#each visiblePages as page (page)}
+            <!--
+              Слот превью одинаковой высоты во всех состояниях: картинка, ожидание
+              и место вне заказанного окна. Список не меняет высоту по мере
+              дорисовки, поэтому прокрутка не «прыгает», а окно заказа не
+              разрастается от собственного роста.
+            -->
             <button
               type="button"
-              class="flex cursor-pointer flex-col items-center gap-1 rounded-[var(--radius)] p-1 transition-colors {currentPage ===
+              class="flex h-[10rem] cursor-pointer flex-col items-center gap-1 overflow-hidden rounded-[var(--radius)] p-1 transition-colors {currentPage ===
               page
                 ? 'bg-[var(--surface-selected)]'
                 : 'hover:bg-[var(--surface-hover)]'}"
@@ -356,23 +527,43 @@
                 <img
                   src={snapshot.thumbs[page]}
                   alt={t('app.note.page', { page })}
-                  class="max-h-[8rem] w-full rounded-[0.25rem] border border-[var(--border)] object-contain"
+                  class="min-h-0 w-full flex-1 rounded-[0.25rem] border border-[var(--border)] object-contain"
                 />
               {:else}
                 <span
-                  class="flex w-full items-center justify-center rounded-[0.25rem] border border-[var(--border)] bg-[var(--muted)] text-[var(--muted-foreground)]"
-                  style="height: 8rem;"
-                  data-testid="properties-page-pending"
+                  class="flex min-h-0 w-full flex-1 items-center justify-center rounded-[0.25rem] border border-[var(--border)] bg-[var(--muted)] text-[var(--muted-foreground)]"
+                  data-testid={page >= windowStart && page < windowStart + THUMB_WINDOW
+                    ? 'properties-page-pending'
+                    : 'properties-page-idle'}
                 >
                   <Icon name="book" />
                 </span>
               {/if}
-              <span class="role-caption text-[var(--muted-foreground)]">{page}</span>
+              <span class="shrink-0 role-caption text-[var(--muted-foreground)]">{page}</span>
             </button>
           {/each}
+          {#if rowsAfter > 0}
+            <span
+              class="col-span-full"
+              style="height: {rowsAfter * (rowHeight + 8)}px"
+              aria-hidden="true"
+              data-testid="properties-pages-after"
+            ></span>
+          {/if}
         </div>
       {:else if activeTab === 'annotations'}
-        <div class="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
+        <!--
+          Пояснение стоит **над списком**: здесь его видно сразу, а под списком
+          его никто не находит. Оно объясняет, почему чужой слой файла выключен
+          и как его включить.
+        -->
+        <p
+          class="border-b border-[var(--border)] px-3 py-2 role-caption text-[var(--muted-foreground)]"
+          data-testid="properties-annotations-hint"
+        >
+          {t('app.properties.annotations.hint')}
+        </p>
+        <div class="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-3 py-2">
           <span
             class="min-w-0 flex-1 role-caption text-[var(--muted-foreground)]"
             data-testid="properties-annotations-status"
@@ -413,18 +604,51 @@
             {snapshot.annotationsError}
           </p>
         {/if}
+        {#if shownAnnotations.size > 0}
+          <div class="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
+            <span class="role-caption text-[var(--muted-foreground)]"
+              >{t('app.properties.annotations.shown', { count: shownAnnotations.size })}</span
+            >
+            <button
+              type="button"
+              class="ml-auto cursor-pointer rounded-[var(--radius)] px-2 py-1 role-caption text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+              data-testid="properties-annotations-hide-all"
+              onclick={hideAllAnnotations}
+            >
+              {t('app.properties.annotations.hideAll')}
+            </button>
+          </div>
+        {/if}
         <ul class="m-0 list-none p-1" data-testid="properties-annotations">
           {#each annotations as annotation (annotation.id)}
-            <li>
+            <li
+              class="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 transition-colors {shownAnnotations.has(
+                annotation.id,
+              )
+                ? 'bg-[var(--surface-selected)]'
+                : 'hover:bg-[var(--surface-hover)]'}"
+            >
+              <!--
+                Галочка — единственный переключатель показа: по умолчанию она
+                снята, и чужой слой файла на странице не появляется.
+              -->
+              <input
+                type="checkbox"
+                class="size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
+                checked={shownAnnotations.has(annotation.id)}
+                aria-label={t('app.properties.annotations.toggle', {
+                  text: annotation.quote || annotation.comment || annotationKindLabel(annotation.kind),
+                })}
+                data-testid="properties-annotation-toggle"
+                onchange={(event) =>
+                  setAnnotationShown(annotation, event.currentTarget.checked)}
+              />
               <button
                 type="button"
-                class="flex w-full cursor-pointer flex-col gap-1 rounded-[var(--radius)] px-2 py-2 text-left transition-colors {shownId ===
-                annotation.id
-                  ? 'bg-[var(--surface-selected)]'
-                  : 'hover:bg-[var(--surface-hover)]'}"
-                aria-pressed={shownId === annotation.id}
+                class="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 text-left [font:inherit]"
+                title={t('app.properties.annotations.show')}
                 data-testid="properties-annotation-row"
-                onclick={() => toggleAnnotation(annotation)}
+                onclick={() => showOnlyAnnotation(annotation)}
               >
                 <span class="flex w-full items-center gap-2">
                   <span
@@ -460,9 +684,6 @@
             </li>
           {/each}
         </ul>
-        <p class="px-3 pb-3 role-caption text-[var(--muted-foreground)]">
-          {t('app.properties.annotations.hint')}
-        </p>
       {/if}
     </div>
   {/if}

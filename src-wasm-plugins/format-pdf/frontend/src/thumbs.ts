@@ -1,9 +1,14 @@
 /** Миниатюры страниц PDF по запросу приложения.
  *
- * Панель свойств файла заказывает миниатюры видимых пунктов списка, а не всей
- * книги: у книги на сотни страниц полная отрисовка заняла бы минуты. Страница
- * рисуется в маленький канвас с низкой плотностью и отдаётся картинкой
- * (`data:`-URL); повторный запрос уже нарисованной страницы не рисует её снова.
+ * Панель свойств файла заказывает миниатюры страниц, которые видит читатель:
+ * отрисовка всей книги заняла бы минуты. Страница рисуется в маленький канвас и
+ * отдаётся картинкой (`data:`-URL); повторный запрос уже нарисованной страницы
+ * её не рисует.
+ *
+ * Страницы рисуются **строго по одной**. pdf.js держит разобранную страницу и
+ * её операторы, пока на неё есть ссылка, а пачка из десятка страниц на большой
+ * книге раздувала память так, что процесс убивала система. После отрисовки
+ * страница освобождается (`cleanup`), поэтому пик памяти — одна миниатюра.
  */
 import { engine, type PdfJsModule } from './engine';
 import { post } from './protocol';
@@ -24,16 +29,30 @@ export interface Thumb {
 /** Нарисованные миниатюры: ключ `страница:ширина`. */
 const cache = new Map<string, Thumb>();
 
-/** Отрисовки, которые уже идут: повторный запрос ждёт ту же. */
-const pending = new Map<string, Promise<Thumb | null>>();
+/** Страницы, которые нарисовать не удалось: повторно не заказываются.
+ *
+ * Запись не вечна: неудачная страница пробуется ещё раз после паузы, потому что
+ * первый сбой бывает случайным. Совсем не рисующаяся страница так и остаётся
+ * без превью, но не запускает бесконечный цикл.
+ */
+const failed = new Map<string, number>();
+
+/** Сколько раз пробовать неудачную страницу, прежде чем оставить её без превью. */
+const FAILED_RETRIES = 2;
+
+/** Очередь заказов: циклы отрисовки не должны идти одновременно. */
+let queue: Promise<void> = Promise.resolve();
 
 /** Сброс кэша миниатюр (новая книга). */
 export function resetThumbs(): void {
   cache.clear();
-  pending.clear();
+  failed.clear();
 }
 
-/** Отрисовка одной миниатюры. */
+/** Целевая ширина миниатюры в CSS-пикселях: панель просит её же. */
+const MIN_RENDER_WIDTH = 288;
+
+/** Отрисовка одной миниатюры; `null` — страницу нарисовать не удалось. */
 async function renderThumb(pageNumber: number, width: number): Promise<Thumb | null> {
   const doc = state.doc;
   const lib = engine() as PdfJsModule | null;
@@ -42,69 +61,93 @@ async function renderThumb(pageNumber: number, width: number): Promise<Thumb | n
   }
   try {
     const page = await doc.getPage(pageNumber);
-    const base = page.getViewport({ scale: 1 });
-    const viewport = page.getViewport({ scale: width / Math.max(1, base.width) });
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(viewport.width));
-    canvas.height = Math.max(1, Math.round(viewport.height));
-    const context = canvas.getContext('2d');
-    if (!context) {
-      return null;
+    try {
+      const base = page.getViewport({ scale: 1 });
+      // Страница рисуется в нормальном разрешении и затем уменьшается: сразу
+      // мелкий растр даёт неровный текст, потому что глифы попадают в сетку
+      // по-разному — на превью это читается как «полстраницы жирным».
+      const renderWidth = Math.max(width, MIN_RENDER_WIDTH);
+      const viewport = page.getViewport({ scale: renderWidth / Math.max(1, base.width) });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(viewport.width));
+      canvas.height = Math.max(1, Math.round(viewport.height));
+      const context = canvas.getContext('2d');
+      if (!context) {
+        return null;
+      }
+      // Аннотации в миниатюру не рисуются: обзор показывает страницу, а
+      // разбор аннотаций — отдельная задача панели свойств.
+      await page.render({ canvasContext: context, viewport, annotationMode: 0 }).promise;
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = Math.max(1, Math.round(width));
+      thumbCanvas.height = Math.max(
+        1,
+        Math.round((canvas.height * thumbCanvas.width) / canvas.width),
+      );
+      const thumbContext = thumbCanvas.getContext('2d');
+      if (!thumbContext) {
+        return null;
+      }
+      // Уменьшение канвасом с высоким качеством усредняет пиксели: текст
+      // становится ровным серым, а не рваным чёрным.
+      thumbContext.imageSmoothingEnabled = true;
+      thumbContext.imageSmoothingQuality = 'high';
+      thumbContext.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+      // В тёмной теме миниатюра остаётся светлой: это вид страницы, а не текст
+      // для чтения, и перекраска уменьшенного растра съедала бы детали.
+      const dataUrl = thumbCanvas.toDataURL('image/jpeg', 0.85);
+      return {
+        page: pageNumber,
+        dataUrl,
+        width: thumbCanvas.width,
+        height: thumbCanvas.height,
+      };
+    } finally {
+      // Разобранная страница и её операторы освобождаются сразу: иначе на
+      // книге в сотни страниц они накапливаются в памяти документа.
+      page.cleanup();
     }
-    await page.render({ canvasContext: context, viewport }).promise;
-    // В тёмной теме миниатюра остаётся светлой: это вид страницы, а не текст
-    // для чтения, и перекраска уменьшенного растра съедала бы детали.
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
-    return { page: pageNumber, dataUrl, width: canvas.width, height: canvas.height };
   } catch {
     return null;
   }
 }
 
-/** Отрисовка миниатюры с объединением повторных запросов. */
-function thumbOf(pageNumber: number, width: number): Promise<Thumb | null> {
-  const key = `${pageNumber}:${width}`;
-  const cached = cache.get(key);
-  if (cached) {
-    return Promise.resolve(cached);
-  }
-  const existing = pending.get(key);
-  if (existing) {
-    return existing;
-  }
-  const task = renderThumb(pageNumber, width)
-    .then((thumb) => {
-      if (thumb) {
-        cache.set(key, thumb);
-      }
-      return thumb;
-    })
-    .finally(() => {
-      pending.delete(key);
-    });
-  pending.set(key, task);
-  return task;
-}
-
 /** Отрисовка запрошенных миниатюр и отправка их приложению.
  *
- * Миниатюры рисуются небольшими порциями: у большой книги параллельная
- * отрисовка десятков страниц занимает весь главный поток и мешает чтению.
- * Ответ уходит порциями, поэтому список в панели наполняется по мере
- * готовности.
+ * Страницы рисуются по одной и отправляются сразу, как только готовы: панель
+ * наполняется постепенно, а не после всей пачки. Неудачная страница
+ * запоминается и повторно не заказывается — иначе панель, видя отсутствие
+ * картинки, заказывала бы её снова и снова.
  */
 export async function sendThumbs(pages: number[], width: number): Promise<void> {
+  // Заказы выполняются строго по очереди: отрисовка страницы не должна
+  // пересекаться с другой.
+  queue = queue.then(() => renderBatch(pages, width)).catch(() => undefined);
+  return queue;
+}
+
+/** Отрисовка одной порции заказа. */
+async function renderBatch(pages: number[], width: number): Promise<void> {
   const unique = Array.from(new Set(pages.filter((page) => page >= 1)));
-  const batchSize = 6;
-  for (let from = 0; from < unique.length; from += batchSize) {
-    const batch = unique.slice(from, from + batchSize);
-    const rendered = await Promise.all(batch.map((page) => thumbOf(page, width)));
-    const value = rendered.filter((thumb): thumb is Thumb => thumb !== null);
-    if (value.length > 0) {
-      post({ type: 'thumbs', value });
+  for (const page of unique) {
+    const key = `${page}:${width}`;
+    if ((failed.get(key) ?? 0) >= FAILED_RETRIES) {
+      continue;
     }
-    // Между порциями управление отдаётся браузеру: прокрутка и отрисовка
-    // страниц чтения не ждут конца заказа.
+    const cached = cache.get(key);
+    if (cached) {
+      post({ type: 'thumbs', value: [cached] });
+      continue;
+    }
+    const thumb = await renderThumb(page, width);
+    if (!thumb) {
+      failed.set(key, (failed.get(key) ?? 0) + 1);
+      continue;
+    }
+    cache.set(key, thumb);
+    post({ type: 'thumbs', value: [thumb] });
+    // Управление возвращается браузеру между страницами: прокрутка и чтение не
+    // ждут конца заказа.
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
 }

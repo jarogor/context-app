@@ -16,6 +16,7 @@ pub mod open_folder;
 pub mod plugin_activation_pending;
 pub mod plugin_operation;
 pub mod reader;
+pub mod reader_cache;
 pub mod reader_font;
 pub mod reader_open_link;
 pub mod reader_theme;
@@ -88,6 +89,16 @@ pub use support_report::support_report_save;
 pub use plugin_activation_pending::__cmd__plugin_activation_pending;
 pub use plugin_activation_pending::__tauri_command_name_plugin_activation_pending;
 pub use plugin_activation_pending::plugin_activation_pending;
+
+pub use reader_cache::__cmd__reader_cache_forget;
+pub use reader_cache::__cmd__reader_cache_load;
+pub use reader_cache::__cmd__reader_cache_save;
+pub use reader_cache::__tauri_command_name_reader_cache_forget;
+pub use reader_cache::__tauri_command_name_reader_cache_load;
+pub use reader_cache::__tauri_command_name_reader_cache_save;
+pub use reader_cache::reader_cache_forget;
+pub use reader_cache::reader_cache_load;
+pub use reader_cache::reader_cache_save;
 
 pub use reader::__cmd__reader_book_chunk;
 pub use reader::__cmd__reader_content;

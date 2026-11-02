@@ -48,6 +48,8 @@ export interface ViewerState {
   module: DjVuModule | null;
   /** Документ DjVu текущей книги. */
   doc: DjVuDocument | null;
+  /** Байты открытой книги: из них собирается отдельный документ миниатюр. */
+  bytes: Uint8Array | null;
   /** Общее число страниц. */
   pageCount: number;
   /** Текущий масштаб в процентах. */
@@ -108,6 +110,7 @@ export interface ViewerState {
 export const state: ViewerState = {
   module: null,
   doc: null,
+  bytes: null,
   pageCount: 0,
   zoom: 100,
   initialZoom: 100,

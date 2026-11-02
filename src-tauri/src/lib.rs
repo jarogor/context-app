@@ -7,6 +7,7 @@ pub mod constants;
 pub mod library_history;
 pub mod paths;
 pub mod plugin;
+pub mod reader_cache;
 pub mod startup;
 pub mod update;
 pub mod workspace_state;
@@ -176,6 +177,9 @@ pub fn run() {
             commands::workspace_covers,
             commands::reader_open_external,
             commands::reader_book_chunk,
+            commands::reader_cache_load,
+            commands::reader_cache_save,
+            commands::reader_cache_forget,
             commands::reader_forget_book,
             commands::update_status,
             commands::update_source_set,

@@ -161,13 +161,21 @@ test('встроенные пометки PDF: в панели есть, на с
     );
     await expect(panel.getByTestId('properties-annotations')).toContainText('Sticky note comment');
 
-    // Показ пометки по нажатию: на странице появляется её полоса.
-    await rows.first().click();
+    // По умолчанию ни одна пометка файла не показана: это чужой слой, он не
+    // должен смешиваться с заметками приложения.
+    await expect(content(page).locator('.file-annotation')).toHaveCount(0);
+
+    // Галочка показывает пометку на странице.
+    await panel.getByTestId('properties-annotation-toggle').first().check();
     await expect(content(page).locator('.file-annotation')).toHaveCount(1);
 
-    // Повторное нажатие снимает показ.
-    await rows.first().click();
+    // Снятая галочка убирает её со страницы.
+    await panel.getByTestId('properties-annotation-toggle').first().uncheck();
     await expect(content(page).locator('.file-annotation')).toHaveCount(0);
+
+    // Кнопка «Показать» включает ровно одну пометку, остальные остаются скрытыми.
+    await rows.first().click();
+    await expect(content(page).locator('.file-annotation')).toHaveCount(1);
 });
 
 test('закрытие панели свойств снимает показ встроенной пометки', async ({ page }) => {
@@ -183,7 +191,7 @@ test('закрытие панели свойств снимает показ в�
     const rows = panel.getByTestId('properties-annotation-row');
     await expect(rows).toHaveCount(2, { timeout: 30000 });
 
-    await rows.first().click();
+    await panel.getByTestId('properties-annotation-toggle').first().check();
     await expect(content(page).locator('.file-annotation')).toHaveCount(1);
 
     // Панель закрыта — пометка снята: без панели её нечем убрать.

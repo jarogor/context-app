@@ -11,6 +11,12 @@ const INSTALLED_ID = 'e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c';
 const TINY_PNG =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
+/** Кэш свойств файла в моке: путь → запись (живёт в пределах прогона). */
+const READER_CACHE = new Map<
+    string,
+    { properties?: unknown; annotations?: unknown; thumbs?: Record<string, string> }
+>();
+
 /** Поля секции настроек тестового окружения. */
 const SETTINGS_FIELDS: Record<
     string,
@@ -686,6 +692,38 @@ export function defaultMockConfig(): MockBridgeConfig {
                 return { chunk: encoded, next: bytes.length, total: bytes.length, done: true };
             },
             reader_forget_book: () => ({ forgotten: true }),
+            // Кэш свойств файла: мок держит записи в памяти одного прогона,
+            // чтобы сценарий повторного открытия вкладки проверял именно кэш.
+            reader_cache_load: (payload: unknown) => {
+                const path = (payload as { path?: string } | null)?.path ?? '';
+                return READER_CACHE.get(path) ?? null;
+            },
+            reader_cache_save: (payload: unknown) => {
+                const value = (payload ?? {}) as {
+                    path?: string;
+                    properties?: unknown;
+                    annotations?: unknown;
+                    thumbs?: Array<{ page?: number; dataUrl?: string; width?: number; height?: number }>;
+                };
+                const path = value.path ?? '';
+                const previous = READER_CACHE.get(path) ?? {};
+                const thumbs: Record<string, string> = { ...previous.thumbs };
+                for (const thumb of value.thumbs ?? []) {
+                    if (thumb.page && thumb.dataUrl) {
+                        thumbs[String(thumb.page)] = thumb.dataUrl;
+                    }
+                }
+                READER_CACHE.set(path, {
+                    properties: value.properties ?? previous.properties,
+                    annotations: value.annotations ?? previous.annotations,
+                    thumbs,
+                });
+                return true;
+            },
+            reader_cache_forget: (payload: unknown) => {
+                READER_CACHE.delete((payload as { path?: string } | null)?.path ?? '');
+                return true;
+            },
             reader_viewer_files: () => [
                 { path: 'index.html', mime: 'text/html' },
                 { path: 'viewer.mjs', mime: 'text/javascript' },

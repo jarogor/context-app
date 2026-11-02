@@ -113,6 +113,8 @@ export interface FilePropertiesSnapshot {
   annotationsTotal: number | null;
   /** Умеет ли модуль читать встроенные закладки файла. */
   bookmarksSupported: boolean;
+  /** Пометки пришли из кэша целиком: повторный разбор не нужен. */
+  annotationsCached: boolean;
 }
 
 /** Вкладка панели свойств файла. */
@@ -135,6 +137,7 @@ export function emptyProperties(format = ''): FilePropertiesSnapshot {
     annotationsProcessed: 0,
     annotationsTotal: null,
     bookmarksSupported: false,
+    annotationsCached: false,
   };
 }
 
