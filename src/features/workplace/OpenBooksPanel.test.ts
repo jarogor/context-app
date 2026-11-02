@@ -1,7 +1,19 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import OpenBooksPanel from './OpenBooksPanel.svelte';
 import type { WorkspaceTab } from './workplace';
+
+vi.mock('../reader/reader', () => ({
+    openBookFile: vi.fn(),
+}));
+
+import { openBookFile } from '../reader/reader';
+
+const openExternal = vi.mocked(openBookFile);
+
+beforeEach(() => {
+    openExternal.mockReset();
+});
 
 /** Вкладка с заданным оформлением. */
 function tab(id: string, overrides: Partial<WorkspaceTab> = {}): WorkspaceTab {
@@ -346,6 +358,44 @@ describe('панель открытых книг: правка оформлен�
 
         expect(base.onDuplicate).toHaveBeenCalledWith('t1');
         expect(base.onClose).not.toHaveBeenCalled();
+        expect(base.onEditAppearance).not.toHaveBeenCalled();
+    });
+});
+
+describe('панель открытых книг: открытие книги в другой программе', () => {
+    it('открывает файл вкладки системным приложением', async () => {
+        // Книга открывается тем файлом, что лежит во вкладке: рабочее место и
+        // вкладка при этом не меняются.
+        render(OpenBooksPanel, {
+            props: {
+                ...handlers(),
+                tabs: [tab('t1', { path: '/lib/book.pdf' })],
+                activeTabId: 't1',
+            },
+        });
+
+        await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
+        await fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Открыть в другой программе' }),
+        );
+
+        await waitFor(() => expect(openExternal).toHaveBeenCalledWith('/lib/book.pdf'));
+    });
+
+    it('не закрывает и не дублирует вкладку при внешнем открытии', async () => {
+        const base = handlers();
+        render(OpenBooksPanel, {
+            props: { ...base, tabs: [tab('t1')], activeTabId: 't1' },
+        });
+
+        await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
+        await fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Открыть в другой программе' }),
+        );
+
+        await waitFor(() => expect(openExternal).toHaveBeenCalled());
+        expect(base.onClose).not.toHaveBeenCalled();
+        expect(base.onDuplicate).not.toHaveBeenCalled();
         expect(base.onEditAppearance).not.toHaveBeenCalled();
     });
 });

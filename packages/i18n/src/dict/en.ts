@@ -245,6 +245,7 @@ export const en: Dictionary = {
   'app.workplace.addBookTarget': 'Add to «{name}»',
   'app.workplace.addBookNoTarget': 'Add to workspace',
   'app.workplace.tab.duplicate': 'Duplicate tab',
+  'app.workplace.tab.openExternal': 'Open in another app',
   'app.workplace.tab.close': 'Close tab',
   'app.workplace.tab.appearance': 'Tab appearance',
   'app.workplace.tab.name': 'Name',

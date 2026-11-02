@@ -26,6 +26,7 @@
     type WorkspaceTab,
   } from './workplace';
   import { noteColorLabel, NOTE_COLOR_SWATCHES } from '../notes/notes';
+  import { openBookFile } from '../reader/reader';
   import { tabAccent, tabColorFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
@@ -107,6 +108,7 @@
     { id: 'rename', label: t('app.workplace.tab.name') },
     { id: 'describe', label: t('app.workplace.tab.description') },
     { id: 'duplicate', label: t('app.workplace.tab.duplicate'), disabled: openBlocked },
+    { id: 'external', label: t('app.workplace.tab.openExternal') },
     { id: 'reset', label: t('app.workplace.tab.reset'), destructive: true },
     { id: 'close', label: t('app.workplace.tab.close'), destructive: true },
   ]);
@@ -218,6 +220,12 @@
     if (action === 'duplicate') {
       cancelEditing();
       onDuplicate(tab.id);
+    }
+    if (action === 'external') {
+      cancelEditing();
+      // Книга открывается системным приложением, привязанным к её формату:
+      // рабочее место остаётся как есть, вкладка не меняется.
+      void openBookFile(tab.path);
     }
     if (action === 'reset') {
       cancelEditing();

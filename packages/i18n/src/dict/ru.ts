@@ -213,6 +213,7 @@ export const ru = {
   'app.workplace.addBookTarget': 'Добавить в «{name}»',
   'app.workplace.addBookNoTarget': 'Добавить в рабочее место',
   'app.workplace.tab.duplicate': 'Дублировать вкладку',
+  'app.workplace.tab.openExternal': 'Открыть в другой программе',
   'app.workplace.tab.close': 'Закрыть вкладку',
   'app.workplace.tab.appearance': 'Оформление вкладки',
   'app.workplace.tab.name': 'Название',
