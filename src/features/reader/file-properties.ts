@@ -115,6 +115,8 @@ export interface FilePropertiesSnapshot {
   bookmarksSupported: boolean;
   /** Пометки пришли из кэша целиком: повторный разбор не нужен. */
   annotationsCached: boolean;
+  /** Номер перегенерации превью: по нему панель начинает заказ заново. */
+  thumbsEpoch: number;
 }
 
 /** Вкладка панели свойств файла. */
@@ -138,6 +140,7 @@ export function emptyProperties(format = ''): FilePropertiesSnapshot {
     annotationsTotal: null,
     bookmarksSupported: false,
     annotationsCached: false,
+    thumbsEpoch: 0,
   };
 }
 

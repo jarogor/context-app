@@ -94,6 +94,18 @@ const DOC_PAGE_BUDGET = 24;
 let docPagesUsed = 0;
 
 /** Сброс кэша миниатюр (новая книга). */
+/**
+ * Сброс кэша миниатюр через очередь.
+ *
+ * Освобождать документ миниатюр напрямую нельзя: очередь может как раз
+ * рисовать из него страницу, и отрисовка упадёт — страница навсегда останется
+ * без превью. Поэтому сброс встаёт в ту же очередь, что и заказы.
+ */
+export function resetThumbsQueued(): Promise<void> {
+  queue = queue.then(() => resetThumbs()).catch(() => undefined);
+  return queue;
+}
+
 export function resetThumbs(): void {
   cache.clear();
   failed.clear();

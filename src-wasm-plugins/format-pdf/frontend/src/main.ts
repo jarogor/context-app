@@ -36,7 +36,7 @@ import { clampTextSelection, endTextSelection } from './text-selection';
 import { resetSearchTexts, searchBook, stepSearch } from './search';
 import { setViewerLocale, viewerText } from './locale';
 import { readBookmarks } from './bookmarks';
-import { resetThumbs, sendThumbs } from './thumbs';
+import { resetThumbs, resetThumbsQueued, sendThumbs } from './thumbs';
 import {
   analyzeAnnotations,
   resetAnnotations,
@@ -253,8 +253,8 @@ async function handleMessage(event: MessageEvent): Promise<void> {
       break;
     case 'thumbs-reset':
       // Перегенерация: прежние картинки забываются, следующие заказы рисуют
-      // страницы заново.
-      resetThumbs();
+      // страницы заново. Сброс идёт через очередь отрисовки.
+      void resetThumbsQueued();
       break;
     case 'thumbs':
       // Миниатюры рисуются после ответа на запрос: список в панели наполняется

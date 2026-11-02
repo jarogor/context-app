@@ -930,7 +930,9 @@
    * разрешения). Плагин рисует их заново, панель заказывает их снова.
    */
   export async function regenerateThumbs() {
-    properties = { ...properties, thumbs: {} };
+    // Смена номера перегенерации заставляет панель забыть прежние заказы:
+    // иначе она считала бы страницы уже заказанными и не просила бы их снова.
+    properties = { ...properties, thumbs: {}, thumbsEpoch: properties.thumbsEpoch + 1 };
     await forgetThumbsCache(path);
     workplaceContent?.resetThumbs();
   }

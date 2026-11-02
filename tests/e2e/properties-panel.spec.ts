@@ -72,10 +72,37 @@ async function installMock(page: Page, data: string) {
     const entry = viewerEntry();
     await page.addInitScript(
         (payload: { data: string; books: unknown; entry: string; files: unknown }) => {
+            // Кэш свойств своей копией: по нему видно, какие превью собраны.
+            const cache: Record<string, { thumbs?: Record<string, string> }> = {};
+            (window as unknown as { __PROPERTIES_CACHE__: unknown }).__PROPERTIES_CACHE__ = cache;
             (
                 window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }
             ).__TEXTURE_MOCK_OVERRIDES__ = {
                 handlers: {
+                    reader_cache_load: (input: unknown) =>
+                        cache[(input as { path?: string }).path ?? ''] ?? null,
+                    reader_cache_save: (input: unknown) => {
+                        const value = input as {
+                            path?: string;
+                            properties?: unknown;
+                            annotations?: unknown;
+                            thumbs?: Array<{ page?: number; dataUrl?: string }>;
+                        };
+                        const key = value.path ?? '';
+                        const previous = cache[key] ?? {};
+                        const thumbs = { ...(previous.thumbs ?? {}) };
+                        for (const thumb of value.thumbs ?? []) {
+                            if (thumb.page && thumb.dataUrl) {
+                                thumbs[String(thumb.page)] = thumb.dataUrl;
+                            }
+                        }
+                        cache[key] = { ...previous, thumbs };
+                        return true;
+                    },
+                    reader_cache_forget: (input: unknown) => {
+                        delete cache[(input as { path?: string }).path ?? ''];
+                        return true;
+                    },
                     active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
                     reader_formats: () => ['djvu'],
                     reader_plugin_for_format: () => 'format-djvu',
@@ -207,4 +234,88 @@ test('встроенные пометки PDF не рисуются на стр�
 
     await page.getByTestId('workplace-properties-toggle').click();
     await expect(page.getByTestId('properties-tab-annotations')).toHaveCount(0);
+});
+
+test('превью покрывают книгу без пропусков, «Обновить» пересоздаёт их', async ({ page }) => {
+    // Сценарий проходит всю книгу и пересоздаёт превью: это заведомо дольше
+    // обычного теста панели.
+    test.setTimeout(180000);
+    await installMock(page, bookBase64());
+    await page.goto('/');
+    await addBookToWorkspace(page, /Демо-книга/);
+    await content(page).locator('.page canvas').first().waitFor({ timeout: 30000 });
+
+    await page.getByTestId('workplace-properties-toggle').click();
+    const panel = page.getByTestId('properties-panel');
+    await panel.getByTestId('properties-tab-pages').click();
+    const body = panel.getByTestId('properties-body');
+
+    /** Номера страниц, у которых уже есть картинка. */
+    const realized = async () => {
+        const labels = await panel.getByTestId('properties-page').allTextContents();
+        const images = await panel.locator('img').count();
+        return { labels: labels.length, images };
+    };
+
+    // Прыжок прокрутки, как перетаскиванием полосы: окно переезжает через
+    // середину книги. Страницы между началом и новым окном не должны остаться
+    // без превью — на их месте образовывалась «дыра».
+    await body.evaluate((element) => {
+        element.scrollTop = element.scrollHeight * 0.45;
+    });
+    await page.waitForTimeout(6000);
+
+    // После прыжка превью должны покрывать всю просмотренную часть книги, а не
+    // только окно вокруг новой позиции: иначе посреди списка остаётся полоса
+    // страниц без картинок.
+    const coveredUpTo = async () => {
+        const missing = await page.evaluate(() => {
+            const cache = (window as unknown as {
+                __PROPERTIES_CACHE__?: Record<string, { thumbs?: Record<string, string> }>;
+            }).__PROPERTIES_CACHE__;
+            const entry = cache ? Object.values(cache)[0] : undefined;
+            const have = new Set(Object.keys(entry?.thumbs ?? {}));
+            return Array.from({ length: 30 }, (_, index) => index + 1).filter(
+                (page) => !have.has(String(page)),
+            );
+        });
+        return missing;
+    };
+    await expect.poll(coveredUpTo, { timeout: 60000 }).toEqual([]);
+
+    // Собранные превью должны покрывать просмотренную часть без пропусков.
+    const missing = await page.evaluate(() => {
+        const cache = (window as unknown as {
+            __PROPERTIES_CACHE__?: Record<string, { thumbs?: Record<string, string> }>;
+        }).__PROPERTIES_CACHE__;
+        const entry = cache ? Object.values(cache)[0] : undefined;
+        const have = new Set(Object.keys(entry?.thumbs ?? {}));
+        return Array.from({ length: 20 }, (_, index) => index + 1).filter(
+            (page) => !have.has(String(page)),
+        );
+    });
+    expect(missing).toEqual([]);
+
+    // Дальше — ровный проход остатка книги до конца.
+    for (let step = 0; step < 12; step += 1) {
+        await body.evaluate((element) => {
+            element.scrollTop = element.scrollTop + element.clientHeight * 0.9;
+        });
+        await page.waitForTimeout(1200);
+    }
+    // Возврат к началу книги: здесь окно целиком заполнено страницами, и
+    // проверка не зависит от того, сколько страниц осталось в конце списка.
+    await body.evaluate((element) => {
+        element.scrollTop = 0;
+    });
+    await expect
+        .poll(async () => (await realized()).images, { timeout: 40000 })
+        .toBeGreaterThan(10);
+
+    // «Обновить» удаляет кэш картинок и создаёт их заново: превью снова есть,
+    // а не остаются пустыми.
+    await panel.getByTestId('properties-pages-regenerate').click();
+    await expect
+        .poll(async () => (await realized()).images, { timeout: 60000 })
+        .toBeGreaterThan(10);
 });

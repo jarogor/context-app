@@ -44,6 +44,17 @@ const FAILED_RETRIES = 2;
 let queue: Promise<void> = Promise.resolve();
 
 /** Сброс кэша миниатюр (новая книга). */
+/**
+ * Сброс кэша миниатюр через очередь.
+ *
+ * Сброс не должен застать идущую отрисовку врасплох: он встаёт в ту же очередь,
+ * что и заказы страниц.
+ */
+export function resetThumbsQueued(): Promise<void> {
+  queue = queue.then(() => resetThumbs()).catch(() => undefined);
+  return queue;
+}
+
 export function resetThumbs(): void {
   cache.clear();
   failed.clear();

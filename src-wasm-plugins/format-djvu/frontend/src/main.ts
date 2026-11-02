@@ -38,7 +38,7 @@ import { setViewerLocale, viewerText } from './locale';
 import { readBookmarksFromBytes } from './bookmarks';
 import { resolveBookmarkNames } from './bookmark-names';
 import { pageComponentNames } from './djvm';
-import { resetThumbs, sendThumbs } from './thumbs';
+import { resetThumbs, resetThumbsQueued, sendThumbs } from './thumbs';
 
 /** Открытие книги: загрузка движка, документа и построение каркаса страниц. */
 async function openBook(data: string, position: number, zoomValue: number): Promise<void> {
@@ -250,8 +250,8 @@ async function handleMessage(event: MessageEvent): Promise<void> {
       break;
     case 'thumbs-reset':
       // Перегенерация: прежние картинки забываются, следующие заказы рисуют
-      // страницы заново.
-      resetThumbs();
+      // страницы заново. Сброс идёт через очередь отрисовки.
+      void resetThumbsQueued();
       break;
     case 'thumbs':
       // Миниатюры рисуются после ответа на запрос: список в панели наполняется

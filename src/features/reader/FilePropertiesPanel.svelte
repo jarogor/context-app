@@ -279,20 +279,60 @@
    */
   let requestedThumbs = new Set<number>();
 
+  /** Номер перегенерации, для которого набран набор заказов. */
+  let requestedEpoch = $state(-1);
+
+  /** Начало нового набора заказов после перегенерации превью.
+   *
+   * Перегенерация меняет номер в снимке: прежние заказы забываются, и панель
+   * снова просит все страницы видимого окна. Без этого уже заказанные страницы
+   * оставались бы в наборе, и после «Обновить» не появлялись бы ни они, ни
+   * прежде пропущенные.
+   */
+  $effect(() => {
+    const epoch = snapshot.thumbsEpoch;
+    if (epoch !== requestedEpoch) {
+      requestedEpoch = epoch;
+      requestedThumbs = new Set();
+      reachedPage = 1;
+    }
+  });
+
+  /** Самая дальняя просмотренная страница: до неё заказ добирает пропуски. */
+  let reachedPage = $state(1);
+
   $effect(() => {
     if (activeTab !== 'pages' || !snapshot.thumbnails) {
       return;
     }
     const from = Math.max(1, windowStart);
-    const missing = pageNumbers
+    const end = Math.min(pageNumbers.length, from + THUMB_WINDOW - 1);
+    if (end > reachedPage) {
+      reachedPage = end;
+    }
+    // Первыми идут видимые страницы: их ждёт пользователь.
+    const visible = pageNumbers
       .filter(
         (page) =>
           page >= from &&
-          page < from + THUMB_WINDOW &&
+          page <= end &&
           !snapshot.thumbs[page] &&
           !requestedThumbs.has(page),
       )
       .slice(0, 12);
+    // Затем — пропуски до просмотренного места по возрастанию: прыжок
+    // прокрутки перескакивает окно, и страницы между старым и новым окном
+    // иначе не попали бы в заказ никогда — на их месте оставалась «дыра».
+    const gap = pageNumbers
+      .filter(
+        (page) =>
+          page <= reachedPage &&
+          (page < from || page > end) &&
+          !snapshot.thumbs[page] &&
+          !requestedThumbs.has(page),
+      )
+      .slice(0, Math.max(0, 12 - visible.length));
+    const missing = [...visible, ...gap];
     if (missing.length === 0) {
       return;
     }
