@@ -32,18 +32,17 @@ extern "ExtismHost" {
     fn sql_query(sql: String, params: String) -> String;
     /// Публикация прикладного события с JSON-payload.
     fn emit_event(name: String, payload: String) -> String;
-    /// Публикация уведомления от source-плагина.
-    fn notify(level: String, severity: String, message: String, details: String) -> String;
+    /// Запись сообщения source-плагина в журнал диагностики.
+    fn log(severity: String, message: String, details: String);
 }
 
 /// Реализация `Fs` поверх host-функций приложения.
 pub struct HostFs;
 
-/// Публикация уведомления без прерывания операции.
-pub fn emit_notification(level: &str, severity: &str, message: &str, details: serde_json::Value) {
+/// Запись сообщения в журнал диагностики без прерывания операции.
+pub fn emit_log(severity: &str, message: &str, details: serde_json::Value) {
     let _ = unsafe {
-        notify(
-            level.to_string(),
+        log(
             severity.to_string(),
             message.to_string(),
             details.to_string(),

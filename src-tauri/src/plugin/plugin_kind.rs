@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PluginKind {
-    /// Служебный плагин каркаса: настройки, уведомления, стор.
+    /// Служебный плагин каркаса: настройки, стор.
     #[serde(alias = "base")]
     Framework,
     /// Плагин-источник книг: каталог, импорт, чтение.

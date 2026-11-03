@@ -4,7 +4,6 @@ members = [
     "books-source-calibre",
     "demo",
     "notes-store",
-    "notifications",
     "plugin-store",
     "settings",
 ]

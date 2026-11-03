@@ -1,11 +1,12 @@
-//! Событийный bus для передачи уведомлений от плагинов.
+//! События плагинов и запись их в журнал диагностики.
 //!
-//! Плагины публикуют события через host-функции `log`/`notify`, а app-level
-//! runtime доставляет их плагину, предоставляющему capability уведомлений.
-//! Bus не хранит журнал и не интерпретирует предметный смысл события.
+//! Плагины сообщают о происходящем через host-функции `log`/`notify`, а
+//! приложение пишет эти сообщения в файловый журнал диагностики. Отдельной
+//! ленты уведомлений в интерфейсе нет: пользователь читает не события
+//! приложения, а книгу, а разбор сбоя идёт по файлу, который прикладывается к
+//! отчёту.
 
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
 
 /// Степень серьёзности события: от важного к подробному.
 #[derive(
@@ -83,53 +84,26 @@ pub fn set_log_level(severity: Severity) {
     LOG_LEVEL.store(severity.as_u8(), Ordering::Relaxed);
 }
 
-/// Событие, опубликованное плагином для системы уведомлений.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct PluginEvent {
-    /// Канал события: `user` для уведомлений пользователю или `technical` для диагностики.
-    pub level: String,
-    /// Степень серьёзности события.
-    pub severity: Severity,
-    /// Текстовое описание события.
-    pub message: String,
-    /// Источник события.
-    pub source: String,
-    /// Дополнительные данные события.
-    pub details: serde_json::Value,
-}
-
 /// Приёмник событий плагинов.
 ///
-/// Хранит события в буфере, доступном из host-функций и app-level runtime.
-#[derive(Clone, Default)]
-pub struct EventBus {
-    /// Общий буфер накопленных событий.
-    inner: Arc<Mutex<Vec<PluginEvent>>>,
-}
+/// Буфера в памяти нет: событие — это строка журнала диагностики, и живёт оно
+/// сразу в файле. Так отчёт поддержки всегда полон, а память не растёт вместе с
+/// числом событий.
+#[derive(Clone, Copy, Default)]
+pub struct EventBus;
 
 impl EventBus {
-    /// Создание пустого bus.
+    /// Создание приёмника событий.
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 
-    /// Публикация события в буфер без фильтрации.
-    pub fn publish(&self, event: PluginEvent) {
-        if let Ok(mut events) = self.inner.lock() {
-            events.push(event);
-        }
-    }
-
-    /// Запись технического события в журнал диагностики.
-    ///
-    /// Технические события не попадают в ленту уведомлений: пользователю они
-    /// не адресованы и ничего ему не объясняют. Они пишутся в файл, из
-    /// которого поддержка собирает отчёт, когда что-то не работает.
+    /// Запись события в журнал диагностики.
     ///
     /// Записывается всё, что сообщил код: подробность не настраивается, потому
     /// что решать это — не дело пользователя. Трассу вызовов плагинов пишет
     /// только явно включённая отладка сборки.
-    pub fn publish_technical(
+    pub fn publish(
         &self,
         severity: Severity,
         message: impl Into<String>,
@@ -140,46 +114,12 @@ impl EventBus {
         let source = source.into();
         crate::plugin::diagnostics::record(severity, &message, &source, &details);
     }
-
-    /// Публикация пользовательского события без учёта порога логирования.
-    pub fn publish_user(
-        &self,
-        severity: Severity,
-        message: impl Into<String>,
-        source: impl Into<String>,
-        details: serde_json::Value,
-    ) {
-        self.publish(PluginEvent {
-            level: "user".to_string(),
-            severity,
-            message: message.into(),
-            source: source.into(),
-            details,
-        });
-    }
-
-    /// Извлечение всех накопленных событий.
-    pub fn drain(&self) -> Vec<PluginEvent> {
-        self.inner
-            .lock()
-            .map(|mut events| std::mem::take(&mut *events))
-            .unwrap_or_default()
-    }
-
-    /// Проверка отсутствия накопленных событий.
-    #[cfg(test)]
-    pub fn is_empty(&self) -> bool {
-        self.inner
-            .lock()
-            .map(|events| events.is_empty())
-            .unwrap_or(true)
-    }
 }
 
-/// Глобальный bus событий плагинов.
-static GLOBAL_BUS: OnceLock<EventBus> = OnceLock::new();
+/// Глобальный приёмник событий плагинов.
+static GLOBAL_BUS: std::sync::OnceLock<EventBus> = std::sync::OnceLock::new();
 
-/// Возврат глобального bus событий.
+/// Возврат глобального приёмника событий.
 pub fn get_bus() -> &'static EventBus {
     GLOBAL_BUS.get_or_init(EventBus::new)
 }

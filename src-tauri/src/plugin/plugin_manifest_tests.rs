@@ -112,9 +112,9 @@ fn parses_framework_plugin_kind() {
         "contract_version": 1,
         "level": "framework", "kind": "framework",
         "id": "44444444-4444-4444-8444-444444444444",
-        "name": "notifications",
-        "description": "Уведомления",
-        "module": "notifications.wasm",
+        "name": "settings",
+        "description": "Настройки",
+        "module": "settings.wasm",
         "export": "invoke",
         "host_functions": ["emit_event"]
       }"#,
@@ -151,9 +151,9 @@ fn manifest_without_settings_has_none() {
         r#"{
         "contract_version": 1,
         "id": "66666666-6666-4666-8666-666666666666",
-        "name": "notifications",
-        "description": "Уведомления",
-        "module": "notifications.wasm",
+        "name": "settings",
+        "description": "Настройки",
+        "module": "settings.wasm",
         "export": "invoke",
         "host_functions": []
       }"#,
@@ -194,15 +194,15 @@ fn parses_settings_declaration() {
         r#"{
         "contract_version": 1,
         "id": "77777777-7777-4777-8777-777777777777",
-        "name": "notifications",
-        "description": "Уведомления",
-        "module": "notifications.wasm",
+        "name": "settings",
+        "description": "Настройки",
+        "module": "settings.wasm",
         "export": "invoke",
         "host_functions": [],
         "settings": {
           "title": "Уведомления",
           "sections": [
-            { "id": "notifications", "title": "Журнал", "defaults": { "technical_visible_default": false } }
+            { "id": "general", "title": "Общие", "defaults": { "welcome_notification": false } }
           ]
         }
       }"#,
@@ -211,9 +211,9 @@ fn parses_settings_declaration() {
     let manifest = PluginManifest::load(&path).expect("парсинг декларации настроек");
     let settings = manifest.settings.expect("декларация настроек");
     assert_eq!(settings["title"], "Уведомления");
-    assert_eq!(settings["sections"][0]["id"], "notifications");
+    assert_eq!(settings["sections"][0]["id"], "general");
     assert_eq!(
-        settings["sections"][0]["defaults"]["technical_visible_default"],
+        settings["sections"][0]["defaults"]["welcome_notification"],
         serde_json::json!(false)
     );
     fs::remove_dir_all(path.parent().expect("директория")).expect("очистка");

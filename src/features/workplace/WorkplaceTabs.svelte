@@ -4,7 +4,7 @@
   import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
-  import { publishUserNotification } from '../notifications/notifications';
+  import { logEvent } from '../../shared/app-log';
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
   import { tabColorFill, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
@@ -86,7 +86,7 @@
   /** Признак того, что о превышении лимита уже сообщено (для дедупликации). */
   let overLimitReported = false;
 
-  /** Публикация пояснения о превышении лимита с дедупликацией. */
+  /** Запись пояснения о превышении лимита в журнал с дедупликацией. */
   $effect(() => {
     if (!overLimit) {
       overLimitReported = false;
@@ -96,7 +96,7 @@
       return;
     }
     overLimitReported = true;
-    void publishUserNotification({
+    void logEvent({
       message: t('app.workplace.limitExceededMessage', {
         opened: tabs.length,
         limit: openTabsLimit,

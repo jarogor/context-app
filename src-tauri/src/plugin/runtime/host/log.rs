@@ -19,30 +19,28 @@ pub(super) fn host_log(
     let message: String = plugin.memory_get_val(&args[1])?;
     let details: String = plugin.memory_get_val(&args[2])?;
     let severity = Severity::parse(&severity_raw).unwrap_or_default();
-    get_bus().publish_technical(severity, message, "plugin", parse_details(&details));
+    get_bus().publish(severity, message, "plugin", parse_details(&details));
     Ok(())
 }
 
-/// Host-функция публикации уведомления, сформированного плагином.
+/// Host-функция публикации сообщения, сформированного плагином.
 ///
-/// Сигнатура: `notify(level, severity, message, details)`.
+/// Сигнатура: `notify(level, severity, message, details)`. Уровень сохранён в
+/// сигнатуре ради совместимости контракта, но на запись не влияет: и
+/// пользовательский, и технический поток попадают в журнал диагностики — ленты
+/// уведомлений в интерфейсе нет.
 pub(super) fn host_notify(
     plugin: &mut CurrentPlugin,
     args: &[Val],
     returns: &mut [Val],
     _user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
-    let level: String = plugin.memory_get_val(&args[0])?;
+    let _level: String = plugin.memory_get_val(&args[0])?;
     let severity_raw: String = plugin.memory_get_val(&args[1])?;
     let message: String = plugin.memory_get_val(&args[2])?;
     let details: String = plugin.memory_get_val(&args[3])?;
     let severity = Severity::parse(&severity_raw).unwrap_or_default();
-    let details = parse_details(&details);
-    if level == "user" {
-        get_bus().publish_user(severity, message, "plugin", details);
-    } else {
-        get_bus().publish_technical(severity, message, "plugin", details);
-    }
+    get_bus().publish(severity, message, "plugin", parse_details(&details));
     plugin
         .memory_set_val(&mut returns[0], "ok")
         .map_err(|err| extism::Error::msg(err.to_string()))

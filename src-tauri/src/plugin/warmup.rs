@@ -27,7 +27,7 @@ pub(crate) fn spawn_reader_warmup(config: ReaderConfig) -> Arc<SharedRuntime<Plu
         )
         .map_err(|error| {
             let message = error.to_string();
-            get_bus().publish_technical(
+            get_bus().publish(
                 Severity::Debug,
                 format!("Прогрев плагинов чтения не удался: {message}"),
                 "core",
@@ -37,7 +37,7 @@ pub(crate) fn spawn_reader_warmup(config: ReaderConfig) -> Arc<SharedRuntime<Plu
         })?;
         runtime.set_storage_root(config.storage_root.clone());
         crate::startup::mark("фон: runtime чтения собран");
-        get_bus().publish_technical(
+        get_bus().publish(
             Severity::Debug,
             format!(
                 "Прогрев плагинов чтения завершён: {}",

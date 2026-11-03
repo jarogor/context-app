@@ -107,48 +107,6 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
     },
 };
 
-/** Стартовые записи журнала уведомлений мока. */
-const BASE_JOURNAL_ENTRIES: Array<Record<string, unknown>> = [
-    {
-        id: 1,
-        timestamp: 1_700_000_000_000,
-        level: 'User',
-        severity: 'info',
-        message: 'Библиотека открыта',
-        source: 'app',
-        details: {},
-        read: true,
-    },
-    {
-        id: 2,
-        timestamp: 1_700_000_001_000,
-        level: 'Technical',
-        severity: 'warn',
-        message: 'Плагин пропущен',
-        source: 'core',
-        details: {},
-        read: false,
-    },
-    {
-        id: 3,
-        timestamp: 1_700_000_002_000,
-        level: 'Technical',
-        severity: 'error',
-        message: 'Ошибка вызова плагина',
-        source: 'core',
-        details: {},
-        read: true,
-    },
-];
-
-/** Изменяемый журнал уведомлений в моке: публикации переживают чтения. */
-const MOCK_JOURNAL: Array<Record<string, unknown>> = [];
-
-/** Записи журнала уведомлений: стартовые примеры и опубликованные записи. */
-function mockJournalEntries(): Array<Record<string, unknown>> {
-    return [...BASE_JOURNAL_ENTRIES, ...MOCK_JOURNAL];
-}
-
 /** Секции настроек с текущими значениями для opaque-операций. */
 function settingsSections(): unknown[] {
     return Object.entries(SETTINGS_FIELDS).map(([id, fields]) => ({
@@ -336,38 +294,6 @@ function baseOperation(payload: unknown): unknown {
     }
     if (message.capability === 'plugin-store@1' && message.operation === 'install_from_store') {
         return { plugin: { id: INSTALLED_ID, name: 'installed-plugin', version: '0.1.0' } };
-    }
-    if (message.capability === 'notifications.journal@1' && message.operation === 'list') {
-        return { entries: mockJournalEntries() };
-    }
-    if (message.capability === 'notifications.journal@1' && message.operation === 'publish') {
-        const record = (message.payload ?? {}) as {
-            level?: string;
-            severity?: string;
-            message?: string;
-            source?: string;
-            details?: Record<string, unknown>;
-        };
-        MOCK_JOURNAL.push({
-            // Идентификаторы продолжают нумерацию стартовых записей, чтобы ключ
-            // записи в ленте уведомлений оставался уникальным.
-            id: BASE_JOURNAL_ENTRIES.length + MOCK_JOURNAL.length + 1,
-            timestamp: 1_700_000_003_000 + MOCK_JOURNAL.length,
-            level: record.level === 'technical' ? 'Technical' : 'User',
-            severity: record.severity ?? 'info',
-            message: record.message ?? '',
-            source: record.source ?? 'core',
-            details: record.details ?? {},
-            read: false,
-        });
-        emitMockEvent('notifications:added', MOCK_JOURNAL[MOCK_JOURNAL.length - 1]);
-        return { ok: true };
-    }
-    if (message.capability === 'notifications.journal@1' && message.operation === 'mark_all_read') {
-        return { ok: true };
-    }
-    if (message.capability === 'notifications.journal@1' && message.operation === 'clear') {
-        return { ok: true };
     }
     if (message.capability === 'notes.store@1') {
         return notesOperation(message.operation, (payload as { payload?: unknown }).payload);
@@ -661,6 +587,9 @@ export function defaultMockConfig(): MockBridgeConfig {
         dialogResult: null,
         handlers: {
             invoke_base_plugin_operation: baseOperation,
+            // Запись события интерфейса в журнал диагностики: мок принимает её
+            // без файла, проверки интерфейса сторож не читает.
+            app_log: () => null,
             invoke_plugin_operation: pluginOperation,
             reader_content: () => demoContent(),
             // Обложка книги из самого файла: у демонстрационного EPUB она есть,

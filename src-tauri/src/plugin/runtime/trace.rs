@@ -39,7 +39,7 @@ pub(super) fn trace_call(
                 details["error"] = serde_json::Value::String(error.to_string());
             }
         }
-        get_bus().publish_technical(
+        get_bus().publish(
             Severity::Trace,
             format!("Вызов {operation}: {name}"),
             "core",
@@ -47,7 +47,7 @@ pub(super) fn trace_call(
         );
     }
     if let Err(error) = result {
-        get_bus().publish_technical(
+        get_bus().publish(
             Severity::Error,
             format!("Вызов {operation} завершился ошибкой: {name}"),
             "core",

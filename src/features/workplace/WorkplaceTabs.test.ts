@@ -1,11 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import WorkplaceTabs from './WorkplaceTabs.svelte';
-import { publishUserNotification } from '../notifications/notifications';
+import { logEvent } from '../../shared/app-log';
 import type { WorkspaceTab } from './workplace';
 
-vi.mock('../notifications/notifications', () => ({
-    publishUserNotification: vi.fn(async () => undefined),
+vi.mock('../../shared/app-log', () => ({
+    logEvent: vi.fn(async () => undefined),
 }));
 
 /** Вкладка с заданным идентификатором и названием. */
@@ -59,7 +59,7 @@ function wrapperTitle(el: Element): string | null {
 
 afterEach(() => {
     vi.restoreAllMocks();
-    vi.mocked(publishUserNotification).mockClear();
+    vi.mocked(logEvent).mockClear();
 });
 
 describe('панель вкладок: окно и навигация', () => {
@@ -417,7 +417,7 @@ describe('панель вкладок: лимит открытых вкладо�
         expect(add.disabled).toBe(false);
         expect(addFile.disabled).toBe(false);
         expect(wrapperTitle(add)).toBe('Добавить книгу');
-        expect(publishUserNotification).not.toHaveBeenCalled();
+        expect(logEvent).not.toHaveBeenCalled();
     });
 
     it('блокирует открытие и дублирование при достижении лимита', async () => {
@@ -441,12 +441,12 @@ describe('панель вкладок: лимит открытых вкладо�
         const duplicate = screen.getAllByLabelText('Дублировать вкладку')[0] as HTMLButtonElement;
         expect(duplicate.disabled).toBe(true);
         expect(wrapperTitle(duplicate)).toBe('Достигнут лимит открытых вкладок');
-        // Достижение лимита ещё не превышение: уведомление не публикуется.
+        // Достижение лимита ещё не превышение: в журнал ничего не пишется.
         await Promise.resolve();
-        expect(publishUserNotification).not.toHaveBeenCalled();
+        expect(logEvent).not.toHaveBeenCalled();
     });
 
-    it('выделяет превышение и публикует пояснение один раз', async () => {
+    it('выделяет превышение и пишет пояснение в журнал один раз', async () => {
         mockWidth(320);
         const { rerender } = render(WorkplaceTabs, {
             props: {
@@ -479,7 +479,7 @@ describe('панель вкладок: лимит открытых вкладо�
         expect(duplicate.className).toContain('text-destructive');
         expect(wrapperTitle(duplicate)).toBe('Превышен лимит открытых вкладок');
 
-        // Повторный рендер при том же превышении не публикует запись дважды.
+        // Повторный рендер при том же превышении не пишет запись дважды.
         await rerender({
             tabs: tabs(5),
             activeTabId: 't1',
@@ -488,7 +488,7 @@ describe('панель вкладок: лимит открытых вкладо�
             ...handlers(),
             openTabsLimit: 3,
         });
-        expect(publishUserNotification).toHaveBeenCalledTimes(1);
+        expect(logEvent).toHaveBeenCalledTimes(1);
 
         // Возврат в предел снимает выделение и подсказку о превышении.
         await rerender({

@@ -89,7 +89,7 @@ impl PluginRuntime {
                         // При загрузке из двух мест (plugins/ и ресурсы) один и тот
                         // же плагин не должен загружаться повторно.
                         if seen.insert(plugin.id.clone()) {
-                            get_bus().publish_technical(
+                            get_bus().publish(
                                 Severity::Info,
                                 format!("Плагин загружен: {}", plugin.name),
                                 "core",
@@ -104,7 +104,7 @@ impl PluginRuntime {
                         }
                     }
                     Err(err) => {
-                        get_bus().publish_technical(
+                        get_bus().publish(
                             Severity::Warn,
                             format!("Плагин пропущен: {err}"),
                             "core",

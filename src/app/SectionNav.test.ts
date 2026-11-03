@@ -9,9 +9,7 @@ function props(overrides: Record<string, unknown> = {}) {
     workspaceActive: false,
     libraryActive: false,
     notesActive: false,
-    notificationsOpen: false,
     settingsOpen: false,
-    unreadCount: 0,
     alertCount: 0,
     alertTitles: '',
     alertError: false,
@@ -21,7 +19,6 @@ function props(overrides: Record<string, unknown> = {}) {
     onWorkspace: vi.fn(),
     onLibrary: vi.fn(),
     onNotes: vi.fn(),
-    onNotifications: vi.fn(),
     onSettings: vi.fn(),
     onTheme: vi.fn(),
     ...overrides,
@@ -54,9 +51,9 @@ describe('SectionNav', () => {
   });
 
   it('на широком окне показывается вкладками без служебных пунктов', () => {
-    render(SectionNav, { props: props({ mobile: false, unreadCount: 3 }) });
+    render(SectionNav, { props: props({ mobile: false }) });
 
-    // Разделы — вкладки верхней панели; уведомления и настройки живут в шапке.
+    // Разделы — вкладки верхней панели; настройки живут в шапке.
     expect(screen.getByTestId('nav-workspace')).toBeTruthy();
     expect(screen.queryByTestId('nav-notifications')).toBeNull();
     expect(screen.queryByTestId('nav-settings')).toBeNull();
@@ -84,14 +81,8 @@ describe('SectionNav', () => {
     expect(nav.getAttribute('data-mobile')).toBe('true');
 
     // Телефон — не уменьшенный десктоп: в нижней полосе не только разделы, но и
-    // служебные действия (уведомления, тема, настройки), доступные пальцу.
-    for (const label of [
-      'Рабочее место',
-      'Библиотека',
-      'Заметки',
-      'Уведомления',
-      'Настройки',
-    ]) {
+    // служебные действия (тема, настройки), доступные пальцу.
+    for (const label of ['Рабочее место', 'Библиотека', 'Заметки', 'Настройки']) {
       expect(screen.getByLabelText(label)).toBeTruthy();
     }
     expect(screen.getByTestId('nav-theme')).toBeTruthy();
@@ -112,24 +103,15 @@ describe('SectionNav', () => {
   });
 
   it('на телефоне сообщает о выборе служебных действий', () => {
-    const onNotifications = vi.fn();
     const onTheme = vi.fn();
     const onSettings = vi.fn();
-    render(SectionNav, { props: props({ mobile: true, onNotifications, onTheme, onSettings }) });
+    render(SectionNav, { props: props({ mobile: true, onTheme, onSettings }) });
 
-    screen.getByTestId('nav-notifications').click();
     screen.getByTestId('nav-theme').click();
     screen.getByTestId('nav-settings').click();
 
-    expect(onNotifications).toHaveBeenCalledTimes(1);
     expect(onTheme).toHaveBeenCalledTimes(1);
     expect(onSettings).toHaveBeenCalledTimes(1);
-  });
-
-  it('на телефоне показывает счётчик непрочитанного на пункте уведомлений', () => {
-    render(SectionNav, { props: props({ mobile: true, unreadCount: 4 }) });
-
-    expect(screen.getByTestId('nav-notifications').textContent).toContain('4');
   });
 
   it('на телефоне показывает замечания отдельным пунктом', () => {

@@ -9,7 +9,7 @@ use crate::models::{SourceCapabilities, SourceCatalog, SOURCE_PROTOCOL_VERSION};
 use crate::scanner;
 use extism_pdk::{plugin_fn, FnResult};
 use serde_json::json;
-use source_protocol::host::{emit_notification, HostFs};
+use source_protocol::host::{emit_log, HostFs};
 use source_protocol::labels::{indexed_message, library_label};
 use source_protocol::request::Request;
 use std::rc::Rc;
@@ -37,8 +37,7 @@ pub fn invoke(input: String) -> FnResult<String> {
         "probe" => match scanner::probe(&fs) {
             Ok(priority) => {
                 let supported = priority.is_some();
-                emit_notification(
-                    "technical",
+                emit_log(
                     "info",
                     "Проверка source завершена",
                     json!({ "supported": supported, "priority": priority }),
@@ -49,8 +48,7 @@ pub fn invoke(input: String) -> FnResult<String> {
                 }))?
             }
             Err(error) => {
-                emit_notification(
-                    "technical",
+                emit_log(
                     "error",
                     "Проверка source не удалась",
                     json!({ "error": error }),
@@ -66,14 +64,12 @@ pub fn invoke(input: String) -> FnResult<String> {
             match open_catalog(&fs, portable) {
                 Ok(catalog) => {
                     let message = indexed_message("Индексация библиотеки завершена", &name, &path);
-                    emit_notification(
-                        "user",
+                    emit_log(
                         "info",
                         &message,
                         json!({ "mode": mode, "name": name.clone(), "path": path.clone() }),
                     );
-                    emit_notification(
-                        "technical",
+                    emit_log(
                         "info",
                         "Индекс каталога обновлён",
                         json!({ "mode": mode, "name": name, "path": path }),
@@ -84,8 +80,7 @@ pub fn invoke(input: String) -> FnResult<String> {
                     })?
                 }
                 Err(error) => {
-                    emit_notification(
-                        "technical",
+                    emit_log(
                         "error",
                         "Индексация библиотеки не удалась",
                         json!({ "error": error, "mode": mode, "name": name, "path": path }),

@@ -45,7 +45,7 @@ pub(crate) fn prepare(app_state_root: &Path) -> Option<PathBuf> {
             Some(path)
         }
         Err(error) => {
-            get_bus().publish_technical(
+            get_bus().publish(
                 Severity::Warn,
                 format!("Постоянный кэш компиляции WASM недоступен: {error}"),
                 "core",
@@ -65,7 +65,7 @@ pub(crate) fn prepare(app_state_root: &Path) -> Option<PathBuf> {
 /// и не прерывает запуск.
 pub(crate) fn cleanup(cache_dir: &Path) {
     if let Err(error) = cleanup_inner(cache_dir) {
-        get_bus().publish_technical(
+        get_bus().publish(
             Severity::Debug,
             format!("Очистка кэша компиляции WASM пропущена: {error}"),
             "core",

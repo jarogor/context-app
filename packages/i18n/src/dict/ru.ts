@@ -30,14 +30,6 @@ export const ru = {
   'app.settings.general': 'Общие',
   'app.settings.updates': 'Система',
 
-  'app.notifications': 'Уведомления',
-  'app.notifications.short': 'Уведомления',
-  'app.notifications.unread': 'Непрочитанных: {count}',
-  'app.notifications.markRead': 'Прочитать',
-  'app.notifications.clear': 'Очистить',
-  'app.notifications.empty': 'Нет уведомлений',
-  'app.notifications.emptyDescription': 'Здесь появятся события приложения.',
-
   'app.alerts': 'Замечания: {count}',
   'app.alerts.short': 'Замечания',
   'app.theme.switch': 'Переключить тему',
@@ -146,8 +138,6 @@ export const ru = {
   'app.hotkey.app.section.notes.description': 'Переход к реестру заметок',
   'app.hotkey.app.settings.title': 'Настройки',
   'app.hotkey.app.settings.description': 'Открытие и закрытие настроек',
-  'app.hotkey.app.notifications.title': 'Уведомления',
-  'app.hotkey.app.notifications.description': 'Открытие и закрытие журнала уведомлений',
   'app.hotkey.app.theme.title': 'Тема оформления',
   'app.hotkey.app.theme.description': 'Светлая, тёмная, как в системе — по кругу',
   'app.hotkey.app.dismiss.title': 'Закрыть верхний слой',

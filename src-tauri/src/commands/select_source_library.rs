@@ -65,8 +65,6 @@ pub async fn select_source_library(
     let mut state = crate::commands::lock_state(state.inner())?;
     state.after_session_reload();
 
-    let _ = state.with_app_host(|host| host.drain_and_deliver());
-
     // Библиотека открыта — сообщаем интерфейсу, что активная библиотека сменилась.
     crate::plugin::relay::emit(
         "source-catalog-changed",

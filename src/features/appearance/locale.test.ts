@@ -72,7 +72,7 @@ describe('язык интерфейса', () => {
     ).toBe('en');
     expect(
       localeFromSettingsEvent({
-        section: 'notifications.notifications',
+        section: 'books-source.catalog',
         values: { [LANGUAGE_SETTING_KEY]: 'en' },
       }),
     ).toBeNull();

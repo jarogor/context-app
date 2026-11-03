@@ -45,7 +45,7 @@ test('на телефоне нижняя навигация даёт все ра
     await page.goto('/');
     await page.getByTestId('app-bar').waitFor();
 
-    for (const label of ['Рабочее место', 'Библиотека', 'Заметки', 'Уведомления', 'Настройки']) {
+    for (const label of ['Рабочее место', 'Библиотека', 'Заметки', 'Настройки']) {
       await expect(page.getByTestId('section-nav').getByLabel(label, { exact: true })).toBeVisible();
     }
     // Тема тоже доступна с телефона — кнопка в шапке туда не помещается.
@@ -112,17 +112,13 @@ test('на телефоне разделы открываются из нижн�
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
 });
 
-test('на телефоне из нижней навигации работают уведомления, тема и настройки', async ({ page }) => {
+test('на телефоне из нижней навигации работают тема и настройки', async ({ page }) => {
   const device = devices['iPhone 13'];
   await page.setViewportSize({ width: device.viewport.width, height: device.viewport.height });
   await page.goto('/');
   await page.getByTestId('app-bar').waitFor();
 
   const nav = page.getByTestId('section-nav');
-
-  await nav.getByTestId('nav-notifications').click();
-  await expect(page.getByTestId('notifications-panel')).toBeVisible();
-  await nav.getByTestId('nav-notifications').click();
 
   const themeBefore = await page.locator('html').getAttribute('data-theme');
   await nav.getByTestId('nav-theme').click();
@@ -138,7 +134,7 @@ test('на телефоне нет горизонтальной прокрутк
   for (const name of ['iPhone SE', 'iPad Mini']) {
     const device = devices[name];
     await page.setViewportSize({ width: device.viewport.width, height: device.viewport.height });
-    for (const section of ['workspace', 'library', 'notes', 'settings', 'notifications']) {
+    for (const section of ['workspace', 'library', 'notes', 'settings']) {
       await page.goto('/');
       await page.getByTestId('app-bar').waitFor();
       if (section !== 'workspace') {

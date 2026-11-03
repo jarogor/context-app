@@ -30,14 +30,6 @@ export const en: Dictionary = {
   'app.settings.general': 'General',
   'app.settings.updates': 'System',
 
-  'app.notifications': 'Notifications',
-  'app.notifications.short': 'Notifications',
-  'app.notifications.unread': 'Unread: {count}',
-  'app.notifications.markRead': 'Mark read',
-  'app.notifications.clear': 'Clear',
-  'app.notifications.empty': 'No notifications',
-  'app.notifications.emptyDescription': 'Application events will appear here.',
-
   'app.alerts': 'Issues: {count}',
   'app.alerts.short': 'Issues',
   'app.theme.switch': 'Switch theme',
@@ -115,7 +107,6 @@ export const en: Dictionary = {
   'app.search.notFound': 'Nothing found',
   'app.search.changeQuery': 'Change the search query.',
 
-
   'app.note.type.quote': 'Quote',
   'app.note.type.text': 'Text',
   'app.note.type.shape': 'Shape',
@@ -146,8 +137,6 @@ export const en: Dictionary = {
   'app.hotkey.app.section.notes.description': 'Go to the notes registry',
   'app.hotkey.app.settings.title': 'Settings',
   'app.hotkey.app.settings.description': 'Open and close settings',
-  'app.hotkey.app.notifications.title': 'Notifications',
-  'app.hotkey.app.notifications.description': 'Open and close the notification journal',
   'app.hotkey.app.theme.title': 'Appearance theme',
   'app.hotkey.app.theme.description': 'Light, dark, system — in a cycle',
   'app.hotkey.app.dismiss.title': 'Close the top layer',
@@ -394,7 +383,6 @@ export const en: Dictionary = {
   'app.notes.library.changed': 'Changed {date}',
   'app.notes.library.created': 'Created {date}',
   'app.notes.library.setCount': '{count} sets',
-
 
   'app.update.available': 'Update available',
   'app.update.done': 'Update complete',

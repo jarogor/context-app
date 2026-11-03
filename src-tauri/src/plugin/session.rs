@@ -100,7 +100,7 @@ impl PluginSession {
         let root = match self.prepare(root.into(), writable) {
             Ok(root) => root,
             Err(error) => {
-                get_bus().publish_technical(
+                get_bus().publish(
                     Severity::Warn,
                     format!("Библиотека недоступна: {error}"),
                     "core",
@@ -110,7 +110,7 @@ impl PluginSession {
             }
         };
         if let Err(error) = self.install(&root, storage_root.into(), writable) {
-            get_bus().publish_technical(
+            get_bus().publish(
                 Severity::Warn,
                 format!("Не удалось загрузить плагины библиотеки: {error}"),
                 "core",
@@ -125,7 +125,7 @@ impl PluginSession {
                 Ok(Some(priority)) => candidates.push((id, priority)),
                 Ok(None) => {}
                 Err(error) => {
-                    get_bus().publish_technical(
+                    get_bus().publish(
                         Severity::Warn,
                         format!("Опрос source-плагина не удался: {error}"),
                         "core",
@@ -136,7 +136,7 @@ impl PluginSession {
         }
 
         let Some(provider) = pick_best(candidates) else {
-            get_bus().publish_technical(
+            get_bus().publish(
                 Severity::Warn,
                 "Ни один source-плагин не подтвердил директорию",
                 "core",

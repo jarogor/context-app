@@ -9,7 +9,7 @@ use crate::lifecycle;
 use crate::models::{SourceCapabilities, SourceCatalog, SOURCE_PROTOCOL_VERSION};
 use crate::scanner;
 use serde_json::json;
-use source_protocol::host::{emit_notification, HostFs};
+use source_protocol::host::{emit_log, HostFs};
 use source_protocol::labels::{indexed_message, library_label};
 use source_protocol::request::Request;
 use std::rc::Rc;
@@ -32,8 +32,7 @@ pub(crate) fn probe() -> Result<String, String> {
     match scanner::probe(&fs) {
         Ok(priority) => {
             let supported = priority.is_some();
-            emit_notification(
-                "technical",
+            emit_log(
                 "info",
                 "Проверка source Calibre завершена",
                 json!({ "supported": supported, "priority": priority }),
@@ -45,8 +44,7 @@ pub(crate) fn probe() -> Result<String, String> {
             .map_err(|error| error.to_string())
         }
         Err(error) => {
-            emit_notification(
-                "technical",
+            emit_log(
                 "error",
                 "Проверка source Calibre не удалась",
                 json!({ "error": error }),
@@ -63,8 +61,7 @@ pub(crate) fn open(request: &Request) -> Result<String, String> {
     match open_catalog(&fs) {
         Ok(catalog) => {
             let message = indexed_message("Индексация библиотеки Calibre завершена", &name, &path);
-            emit_notification(
-                "user",
+            emit_log(
                 "info",
                 &message,
                 json!({ "mode": "source", "name": name, "path": path }),
@@ -76,8 +73,7 @@ pub(crate) fn open(request: &Request) -> Result<String, String> {
             .map_err(|error| error.to_string())
         }
         Err(error) => {
-            emit_notification(
-                "technical",
+            emit_log(
                 "error",
                 "Индексация библиотеки Calibre не удалась",
                 json!({ "error": error, "name": name, "path": path }),

@@ -52,9 +52,8 @@ impl AppHostConfig {
     /// Сборка полностью инициализированного runtime базовых плагинов.
     ///
     /// Выполняется в фоновом потоке: загрузка и компиляция WASM базовых
-    /// плагинов, регистрация настроек, сброс журнала, порог логирования и
-    /// приветственное уведомление готовятся до первого обращения команды, но не
-    /// задерживают показ окна.
+    /// плагинов, регистрация настроек и порог логирования готовятся до первого
+    /// обращения команды, но не задерживают показ окна.
     pub fn build_host(&self) -> Result<AppPluginHost, String> {
         let mut host = AppPluginHost::load_with_cache(
             &self.directories,
@@ -65,7 +64,6 @@ impl AppHostConfig {
         host.set_plugin_store_root(self.user_plugins_dir.clone());
         host.set_activation_root(self.activation_root.clone());
         host.set_catalog_dirs(self.catalog_dirs.clone());
-        let _ = host.reset_notifications();
         let _ = host.refresh_settings_registry(&[]);
         crate::startup::mark("фон: базовые плагины собраны");
         Ok(host)

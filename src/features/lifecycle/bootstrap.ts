@@ -39,7 +39,6 @@ import {
   type ReaderThemeId,
   type ThemePreference,
 } from '@context/ui';
-import { listNotifications, type NotificationEntry } from '../notifications/notifications';
 import {
   addStore as addStoreEntry,
   loadActivationPending,
@@ -72,8 +71,6 @@ export interface BootstrapState {
     appearance: AppearanceBootstrap;
     /** Декларации интерфейса настроек, загруженные до первого рендера. */
     settings: SettingsBootstrap;
-    /** Журнал уведомлений и настройки его показа, загруженные до первого рендера. */
-    notifications: NotificationsBootstrap;
     /** Каталог плагинов и сторов, загруженный до первого рендера. */
     store: StoreBootstrap;
     /** Лимит числа открытых вкладок рабочего места (значение по умолчанию при ошибке). */
@@ -104,14 +101,6 @@ export interface SettingsBootstrap {
     error: string;
 }
 
-/** Журнал уведомлений на бутстрапе. */
-export interface NotificationsBootstrap {
-    /** Записи журнала. */
-    entries: NotificationEntry[];
-    /** Ошибка загрузки журнала, иначе пустая строка. */
-    error: string;
-}
-
 /** Каталог плагинов и сторов на бутстрапе. */
 export interface StoreBootstrap {
     /** Перечень отключаемых плагинов. */
@@ -129,21 +118,20 @@ export interface StoreBootstrap {
  * Сведения о библиотеке необязательны — при ошибке она считается не открытой;
  * ошибка реестра рабочих мест пробрасывается, потому что от неё зависит
  * отображение точки входа. Данные встроенных областей (декларации настроек,
- * журнал уведомлений, каталог плагинов и сторов) тоже необязательны: их ошибка
- * не должна мешать входу в приложение.
+ * каталог плагинов и сторов) тоже необязательны: их ошибка не должна мешать
+ * входу в приложение.
  *
  * Реестр заметок и форматы читалки на этой стадии НЕ читаются: они зависят от
  * объёма пользовательских данных и от плагинов чтения, которые не нужны первому
  * кадру. Их загружают области при соответствующем действии пользователя.
  */
 export async function loadBootstrap(): Promise<BootstrapState> {
-    const [registry, library, appearance, settings, notifications, store, openTabsLimit, update] =
+    const [registry, library, appearance, settings, store, openTabsLimit, update] =
         await Promise.all([
             invokeCommand('get_workspaces', {}),
             loadActiveLibrary(),
             applyAppearance(),
             loadSettingsBootstrap(),
-            loadNotificationsBootstrap(),
             loadStoreBootstrap(),
             loadOpenTabsLimit().catch(() => DEFAULT_OPEN_TABS_LIMIT),
             loadUpdateBootstrap(),
@@ -158,7 +146,6 @@ export async function loadBootstrap(): Promise<BootstrapState> {
         activeLibrary: library,
         appearance,
         settings,
-        notifications,
         store,
         openTabsLimit,
         update,
@@ -254,15 +241,6 @@ async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
         return await loadSettingsUi();
     } catch (error) {
         return { declarations: [], error: String(error) };
-    }
-}
-
-/** Загрузка журнала уведомлений; ошибка даёт пустой журнал с диагностикой. */
-async function loadNotificationsBootstrap(): Promise<NotificationsBootstrap> {
-    try {
-        return { entries: await listNotifications(), error: '' };
-    } catch (cause) {
-        return { entries: [], error: String(cause) };
     }
 }
 

@@ -206,24 +206,6 @@ test('настройки открываются на всё окно без ме
   ).toBeVisible();
 });
 
-test('настройки открываются отдельной страницей, без панели уведомлений', async ({ page }) => {
-  await page.goto('/');
-  // Панель уведомлений открыта — это область рядом с содержимым.
-  await page.getByLabel('Уведомления').click();
-  await expect(page.getByTestId('notifications-panel')).toBeVisible();
-
-  await page.getByTestId('nav-settings').click();
-
-  // Настройки — отдельная страница на всё окно: панель уведомлений скрыта,
-  // а не делит место с настройками.
-  await expect(page.getByTestId('settings-page')).toBeVisible();
-  await expect(page.getByTestId('notifications-panel')).toBeHidden();
-
-  // Закрытие настроек возвращает прежнюю область вместе с её панелью.
-  await page.getByLabel('Закрыть настройки').click();
-  await expect(page.getByTestId('notifications-panel')).toBeVisible();
-});
-
 test('кнопка закрытия доступна с любой страницы настроек', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();

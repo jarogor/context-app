@@ -56,7 +56,6 @@ function appProps(sets: Array<Record<string, unknown>> = []) {
             locale: 'ru' as const,
         },
         initialSettings: { declarations: [], error: '' },
-        initialNotifications: { entries: [], error: '' },
         initialStore: { plugins: [], stores: [], activationPending: false, error: '' },
         initialOpenTabsLimit: 50,
     };
@@ -323,8 +322,9 @@ describe('состав меню разделов', () => {
         expect(labels).toContain('Библиотека');
         expect(labels).toContain('Заметки');
         const service = serviceLabels();
-        expect(service).toContain('Уведомления');
         expect(service).toContain('Настройки');
+        // Ленты уведомлений нет: в шапке остаются только тема и настройки.
+        expect(service).not.toContain('Уведомления');
     });
 
     it('разделы идут в порядке: рабочие места, библиотека, заметки', async () => {

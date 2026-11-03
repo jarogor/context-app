@@ -178,7 +178,7 @@ describe('themeFromSettingsEvent', () => {
 
   it('игнорирует события других секций', () => {
     const value = themeFromSettingsEvent({
-      section: 'notifications.notifications',
+      section: 'books-source.catalog',
       values: { 'appearance.theme': 'dark' },
     });
 
@@ -205,7 +205,7 @@ describe('paletteFromSettingsEvent', () => {
 
   it('игнорирует события других секций', () => {
     const value = paletteFromSettingsEvent({
-      section: 'notifications.notifications',
+      section: 'books-source.catalog',
       values: { 'appearance.palette': 'cobalt' },
     });
 
@@ -232,7 +232,7 @@ describe('readerThemeFromSettingsEvent', () => {
 
   it('игнорирует события других секций', () => {
     const value = readerThemeFromSettingsEvent({
-      section: 'notifications.notifications',
+      section: 'books-source.catalog',
       values: { 'reader.theme': 'dark' },
     });
 

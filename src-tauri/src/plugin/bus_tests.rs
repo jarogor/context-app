@@ -1,66 +1,67 @@
 use super::*;
+use std::path::{Path, PathBuf};
 
-/// Публикация и извлечение события.
+/// Направление журнала диагностики в каталог теста.
+///
+/// Журнал один на процесс, поэтому каждая проверка перед записью перенаправляет
+/// его в свой каталог и возвращает путь к файлу.
+fn setup_diagnostics(root: &Path) -> PathBuf {
+    crate::plugin::diagnostics::init(root);
+    root.join(crate::plugin::diagnostics::DIAGNOSTICS_FILE_NAME)
+}
+
+/// Публикация события пишет запись в журнал диагностики.
 #[test]
-fn publish_and_drain_event() {
+fn publish_writes_diagnostics_record() {
+    let root = crate::test_util::test_root("bus-publish");
+    let journal = setup_diagnostics(&root);
     let bus = EventBus::new();
-    assert!(bus.is_empty());
-    bus.publish(PluginEvent {
-        level: "user".to_string(),
-        severity: Severity::Info,
-        message: "привет".to_string(),
-        source: "test".to_string(),
-        details: serde_json::json!({ "key": "value" }),
-    });
-    let events = bus.drain();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0].level, "user");
-    assert_eq!(events[0].severity, Severity::Info);
-    assert_eq!(events[0].message, "привет");
-    assert!(bus.is_empty(), "после извлечения буфер пуст");
+
+    bus.publish(
+        Severity::Info,
+        "привет",
+        "test",
+        serde_json::json!({ "key": "value" }),
+    );
+
+    let content = std::fs::read_to_string(&journal).expect("журнал диагностики");
+    assert!(content.contains("привет"), "текст события: {content}");
+    assert!(content.contains("[test]"), "источник события: {content}");
+    assert!(
+        content.contains("\"key\":\"value\""),
+        "подробности события: {content}"
+    );
+    crate::test_util::cleanup(&root);
 }
 
 /// Порядок событий сохраняется.
 #[test]
 fn preserves_order() {
+    let root = crate::test_util::test_root("bus-order");
+    let journal = setup_diagnostics(&root);
     let bus = EventBus::new();
+
     for index in 0..3 {
-        bus.publish(PluginEvent {
-            level: "technical".to_string(),
-            severity: Severity::Info,
-            message: format!("event-{index}"),
-            source: "test".to_string(),
-            details: serde_json::json!({}),
-        });
+        bus.publish(
+            Severity::Info,
+            format!("event-{index}"),
+            "test",
+            serde_json::json!({}),
+        );
     }
-    let messages: Vec<String> = bus.drain().into_iter().map(|event| event.message).collect();
-    assert_eq!(messages, ["event-0", "event-1", "event-2"]);
+
+    let content = std::fs::read_to_string(&journal).expect("журнал диагностики");
+    let first = content.find("event-0").expect("первое событие");
+    let second = content.find("event-1").expect("второе событие");
+    let third = content.find("event-2").expect("третье событие");
+    assert!(
+        first < second && second < third,
+        "порядок записей: {content}"
+    );
+    crate::test_util::cleanup(&root);
 }
 
-/// Повторное извлечение пустого буфера не даёт событий.
-#[test]
-fn drain_empty_bus() {
-    let bus = EventBus::new();
-    assert!(bus.drain().is_empty());
-    assert!(bus.is_empty());
-}
-
-/// Событие сериализуется в JSON и обратно.
-#[test]
-fn event_round_trip() {
-    let event = PluginEvent {
-        level: "technical".to_string(),
-        severity: Severity::Warn,
-        message: "ok".to_string(),
-        source: "plugin".to_string(),
-        details: serde_json::json!({ "a": 1 }),
-    };
-    let json = serde_json::to_string(&event).expect("сериализация");
-    let restored: PluginEvent = serde_json::from_str(&json).expect("десериализация");
-    assert_eq!(event, restored);
-}
-
-/// Степень разбирается из строки независимо от регистра.
+/// Степень серьёзности разбирается из строки независимо от регистра.
 #[test]
 fn parses_severity() {
     assert_eq!(Severity::parse("error"), Some(Severity::Error));
@@ -78,37 +79,4 @@ fn threshold_allows_more_severe() {
     assert!(Severity::Info.allows(Severity::Info));
     assert!(!Severity::Trace.allows(Severity::Info));
     assert!(!Severity::Debug.allows(Severity::Info));
-}
-
-/// Технические события не попадают в ленту уведомлений.
-///
-/// Они пишутся в файл диагностики: пользователю строка «Плагин загружен» ничего
-/// не объясняет, а поддержке нужен весь журнал, а не отдельные записи в ленте.
-#[test]
-fn publish_technical_does_not_reach_user_journal() {
-    let bus = EventBus::new();
-    set_log_level(Severity::Info);
-    bus.publish_technical(Severity::Info, "инфо", "test", serde_json::json!({}));
-    bus.publish_technical(Severity::Trace, "трасса", "test", serde_json::json!({}));
-    assert!(
-        bus.drain().is_empty(),
-        "технические события не публикуются в ленту"
-    );
-    set_log_level(Severity::Info);
-}
-
-/// Пользовательские события публикуются независимо от порога.
-#[test]
-fn publish_user_ignores_threshold() {
-    let bus = EventBus::new();
-    set_log_level(Severity::Error);
-    bus.publish_user(
-        Severity::Info,
-        "пользовательское",
-        "test",
-        serde_json::json!({}),
-    );
-    let messages: Vec<String> = bus.drain().into_iter().map(|event| event.message).collect();
-    assert_eq!(messages, ["пользовательское"]);
-    set_log_level(Severity::Info);
 }

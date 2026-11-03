@@ -1,12 +1,11 @@
 //! App-level runtime базовых плагинов каркаса.
 //!
-//! Базовые плагины (уведомления, настройки) загружаются один раз на уровне
-//! всего приложения и не зависят от активной библиотеки. Runtime также
-//! доставляет события из bus плагину, предоставляющему capability уведомлений.
+//! Базовые плагины (настройки, стор, заметки) загружаются один раз на уровне
+//! всего приложения и не зависят от активной библиотеки.
 
 use std::path::{Path, PathBuf};
 
-use crate::plugin::contract::{CAPABILITY_NOTIFICATIONS, CAPABILITY_SETTINGS};
+use crate::plugin::contract::CAPABILITY_SETTINGS;
 use crate::plugin::{get_bus, PluginError, PluginRuntime, PluginScope, Severity};
 
 /// Декларация собственной секции настроек приложения.
@@ -149,30 +148,12 @@ impl AppPluginHost {
             .invoke_capability(capability, operation, payload)
     }
 
-    /// Доставка накопленных событий плагину, предоставляющему capability уведомлений.
+    /// Запись сообщения, адресованного пользователю, в журнал диагностики.
     ///
-    /// При отсутствии провайдера события отбрасываются без ошибки. События,
-    /// порождённые во время доставки, остаются в bus до следующего вызова.
-    pub fn drain_and_deliver(&mut self) -> Result<(), PluginError> {
-        if self
-            .runtime
-            .plugin_providing(CAPABILITY_NOTIFICATIONS)
-            .is_none()
-        {
-            get_bus().drain();
-            return Ok(());
-        }
-        for event in get_bus().drain() {
-            let payload = serde_json::to_value(&event).map_err(|error| {
-                PluginError::runtime(format!("не удалось сериализовать событие: {error}"))
-            })?;
-            self.runtime
-                .invoke_capability(CAPABILITY_NOTIFICATIONS, "publish", payload)?;
-        }
-        Ok(())
-    }
-
-    /// Публикация пользовательского события и его доставка плагину уведомлений.
+    /// Отдельной ленты уведомлений в интерфейсе нет: сообщение живёт в файле,
+    /// который пользователь прикладывает к отчёту о сбое. Поэтому запись идёт
+    /// тем же путём, что техническая диагностика, и ничего не доставляет
+    /// плагину.
     pub fn notify_user(
         &mut self,
         severity: Severity,
@@ -180,8 +161,7 @@ impl AppPluginHost {
         source: impl Into<String>,
         details: serde_json::Value,
     ) {
-        get_bus().publish_user(severity, message, source, details);
-        let _ = self.drain_and_deliver();
+        get_bus().publish(severity, message, source, details);
     }
 
     /// Запись технического события в журнал диагностики.
@@ -196,7 +176,7 @@ impl AppPluginHost {
         source: impl Into<String>,
         details: serde_json::Value,
     ) {
-        get_bus().publish_technical(severity, message, source, details);
+        get_bus().publish(severity, message, source, details);
     }
 
     /// Перерегистрация реестра настроек в базовом плагине настроек.
@@ -216,7 +196,7 @@ impl AppPluginHost {
         let app_schema: serde_json::Value = match serde_json::from_str(APP_SETTINGS_SCHEMA) {
             Ok(schema) => schema,
             Err(error) => {
-                get_bus().publish_technical(
+                get_bus().publish(
                     Severity::Warn,
                     format!("Некорректная схема настроек приложения: {error}"),
                     "core",
@@ -237,7 +217,7 @@ impl AppPluginHost {
             "register",
             serde_json::json!({ "sources": sources }),
         ) {
-            get_bus().publish_technical(
+            get_bus().publish(
                 Severity::Warn,
                 format!("Не удалось обновить реестр настроек: {error}"),
                 "core",
@@ -245,24 +225,6 @@ impl AppPluginHost {
             );
             return Err(error);
         }
-        Ok(())
-    }
-
-    /// Сброс журнала уведомлений при старте сессии приложения.
-    ///
-    /// Вызывает opaque-операцию `clear` у провайдера capability уведомлений,
-    /// чтобы журнал жил только в пределах текущего запуска. При отсутствии
-    /// провайдера вызов безвреден.
-    pub fn reset_notifications(&mut self) -> Result<(), PluginError> {
-        if self
-            .runtime
-            .plugin_providing(CAPABILITY_NOTIFICATIONS)
-            .is_none()
-        {
-            return Ok(());
-        }
-        self.runtime
-            .invoke_capability(CAPABILITY_NOTIFICATIONS, "clear", serde_json::json!({}))?;
         Ok(())
     }
 

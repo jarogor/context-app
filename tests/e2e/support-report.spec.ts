@@ -38,23 +38,12 @@ test('журнал не настраивается: пользователю н�
   await expect(page.getByText('Отладка и важнее')).toHaveCount(0);
 });
 
-test('в уведомлениях есть только понятные пользователю события', async ({ page }) => {
+test('ленты уведомлений нет: в шапке остаются тема и настройки', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Уведомления').click();
 
-  // Раздел называется «Уведомления», а не «Лента»: это события приложения,
-  // адресованные человеку.
-  await expect(page.locator('aside').getByText('Уведомления').first()).toBeVisible();
-  await expect(page.getByText('Библиотека открыта')).toBeVisible();
-  await expect(page.getByText('Плагин пропущен')).toHaveCount(0);
-});
-
-test('журнал диагностики не показывается в ленте уведомлений', async ({ page }) => {
-  await page.goto('/');
-  await page.getByLabel('Уведомления').click();
-
-  // Лента — только пользовательские события: технические записи собираются в
-  // файл для отчёта.
-  await expect(page.getByText('Библиотека открыта')).toBeVisible();
-  await expect(page.getByText('Плагин пропущен')).toHaveCount(0);
+  // Отдельной ленты уведомлений больше нет: события пишутся в журнал
+  // диагностики, из которого собирается отчёт.
+  await expect(page.getByLabel('Уведомления')).toHaveCount(0);
+  await expect(page.getByTestId('notifications-panel')).toHaveCount(0);
+  await expect(page.getByLabel('Настройки', { exact: true })).toBeVisible();
 });

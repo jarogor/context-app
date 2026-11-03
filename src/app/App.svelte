@@ -3,7 +3,6 @@
   import { Button, Icon, Menu, MenuItem } from '@context/ui';
   import AppBar from './AppBar.svelte';
   import SectionNav from './SectionNav.svelte';
-  import NotificationsPanel from '../features/notifications/NotificationsPanel.svelte';
   import SettingsPage from '../features/settings/SettingsPage.svelte';
   import StorePage from '../features/store/StorePage.svelte';
   import LibraryPage from '../features/library/LibraryPage.svelte';
@@ -51,7 +50,6 @@
   import type { ActiveLibrary } from '../features/lifecycle/bootstrap';
   import type { AppearanceBootstrap } from '../features/lifecycle/bootstrap';
   import type { SettingsBootstrap } from '../features/lifecycle/bootstrap';
-  import type { NotificationsBootstrap } from '../features/lifecycle/bootstrap';
   import type { StoreBootstrap } from '../features/lifecycle/bootstrap';
   import {
     allowedNoteTypes,
@@ -116,8 +114,6 @@
     initialAppearance: AppearanceBootstrap;
     /** Декларации настроек, загруженные до первого рендера. */
     initialSettings: SettingsBootstrap;
-    /** Журнал уведомлений, загруженный до первого рендера. */
-    initialNotifications: NotificationsBootstrap;
     /** Каталог плагинов и сторов, загруженный до первого рендера. */
     initialStore: StoreBootstrap;
     /** Лимит открытых вкладок рабочего места, загруженный до первого рендера. */
@@ -131,7 +127,6 @@
     initialLibrary,
     initialAppearance,
     initialSettings,
-    initialNotifications,
     initialStore,
     initialOpenTabsLimit,
     initialUpdate = { status: null, error: '' },
@@ -185,19 +180,9 @@
   let pendingNoteTarget: { bookKey: string; setId: string; noteId: string | null } | null =
     $state(null);
 
-  /** Открыта ли панель уведомлений; состояние принадлежит оболочке. */
-  let notificationsOpen = $state(false);
-
   /** Узкое окно (телефон и планшет): меню разделов показывается иконками без
    * подписей. Точка совпадает с токеном `--breakpoint-narrow`. */
   let mobileWindow = $state(false);
-
-  /** Число непрочитанных уведомлений, полученное от области уведомлений. */
-  let unreadCount = $state(
-    untrack(
-      () => initialNotifications.entries.filter((entry) => entry.level === 'User' && !entry.read).length,
-    ),
-  );
 
   /** Есть ли неприменённые изменения активности плагинов. */
   let activationPending = $state(untrack(() => initialStore.activationPending));
@@ -478,7 +463,7 @@
 
   /** Закрытие верхнего слоя (действие `Escape`).
    *
-   * Полноэкранные слои оболочки (настройки, уведомления) закрываются первыми:
+   * Полноэкранный раздел настроек закрывается первым:
    * они лежат выше всего рабочего места. Остальные слои — поиск, меню заметки,
    * правка — сообщают о себе стеку закрытия в порядке появления, поэтому
    * верхним закрывается именно последний открытый.
@@ -486,10 +471,6 @@
   function dismissTop(): boolean {
     if (settingsOpen) {
       closeSettings();
-      return true;
-    }
-    if (notificationsOpen) {
-      notificationsOpen = false;
       return true;
     }
     return dismissTopLayer();
@@ -594,11 +575,6 @@
   /** Выбор страницы раздела настроек. */
   function selectSettingsSection(section: SettingsSection) {
     settingsSection = section;
-  }
-
-  /** Переключение панели уведомлений. */
-  function toggleNotifications() {
-    notificationsOpen = !notificationsOpen;
   }
 
   /** Сохранение оформления в секции настроек приложения.
@@ -1260,7 +1236,6 @@
     'app.section.library': toggleLibraries,
     'app.section.notes': toggleNotesLibrary,
     'app.settings': toggleSettings,
-    'app.notifications': toggleNotifications,
     'app.theme': hotkeyTheme,
     'app.dismiss': dismissTop,
   } as const;
@@ -1302,9 +1277,7 @@
       workspaceActive={workspaceListVisible}
       libraryActive={librariesVisible}
       notesActive={notesLibraryVisible}
-      {notificationsOpen}
       {settingsOpen}
-      {unreadCount}
       alertCount={headerAlerts.length}
       alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
       alertError={headerAlerts.some((alert) => !alert.warning)}
@@ -1314,33 +1287,12 @@
       onWorkspace={toggleWorkspace}
       onLibrary={toggleLibraries}
       onNotes={toggleNotesLibrary}
-      onNotifications={toggleNotifications}
       onSettings={toggleSettings}
       onTheme={toggleTheme}
     />
   {/if}
 
   <div class="relative flex min-h-0 flex-1">
-  <!--
-    Панель уведомлений выезжает справа, под своим пунктом в верхней панели:
-    элемент управления и то, чем он управляет, остаются рядом. Панель идёт от
-    верха области и не перекрывает панель раздела. Она остаётся смонтированной и
-    в скрытом виде: иначе потеряла бы события журнала, пришедшие, пока она скрыта,
-    и показала бы устаревший список.
-  -->
-  <div
-    class="flex min-w-0 flex-none max-lg:absolute max-lg:inset-0 max-lg:z-[var(--layer-panel)] max-lg:w-auto max-lg:order-none lg:order-last lg:w-[var(--notifications-panel-width)]"
-    class:hidden={!notificationsOpen || settingsOpen || focusMode}
-    data-testid="notifications-slot"
-  >
-    <NotificationsPanel
-      initialEntries={initialNotifications.entries}
-      initialError={initialNotifications.error}
-      onUnreadChange={(count) => (unreadCount = count)}
-      onClose={toggleNotifications}
-    />
-  </div>
-
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     <div class="relative flex min-h-0 flex-1 overflow-hidden">
       <main class="flex min-w-0 flex-1">
@@ -1539,8 +1491,8 @@
   </div>
 
   <!--
-    Нижняя навигация телефона: разделы и служебные действия (уведомления, тема,
-    настройки) прижаты к нижнему краю и удобны пальцу. Меню в верхней панели на
+    Нижняя навигация телефона: разделы и служебные действия (тема, настройки)
+    прижаты к нижнему краю и удобны пальцу. Меню в верхней панели на
     телефоне не рисуется: активна ровно одна компоновка, разметка не дублируется.
     Скрывается в сосредоточенном чтении и в полноэкранных настройках — там своя
     шапка с закрытием.
@@ -1551,9 +1503,7 @@
         workspaceActive={workspaceListVisible}
         libraryActive={librariesVisible}
         notesActive={notesLibraryVisible}
-        {notificationsOpen}
         {settingsOpen}
-        {unreadCount}
         alertCount={headerAlerts.length}
         alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
         alertError={headerAlerts.some((alert) => !alert.warning)}
@@ -1563,8 +1513,7 @@
         onWorkspace={toggleWorkspace}
         onLibrary={toggleLibraries}
         onNotes={toggleNotesLibrary}
-        onNotifications={toggleNotifications}
-        onSettings={toggleSettings}
+          onSettings={toggleSettings}
         onTheme={toggleTheme}
       />
     </div>

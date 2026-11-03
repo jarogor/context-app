@@ -26,7 +26,7 @@ fn setup_plugin(name: &str, manifest: &str) -> PathBuf {
 fn loads_only_base_plugins() {
     let dir = test_util::test_root("app-host-kinds");
     cleanup(&dir);
-    let base_dir = dir.join("base-notifications");
+    let base_dir = dir.join("base-settings");
     let extension_dir = dir.join("extension-demo");
     fs::create_dir_all(&base_dir).expect("директория base");
     fs::create_dir_all(&extension_dir).expect("директория extension");
@@ -36,12 +36,12 @@ fn loads_only_base_plugins() {
         "contract_version": 1,
         "level": "framework", "kind": "framework",
         "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
-        "name": "notifications",
-        "description": "Уведомления",
+        "name": "settings",
+        "description": "Настройки",
         "module": "plugin.wasm",
         "export": "invoke",
         "host_functions": [],
-        "provides": ["notifications.journal@1"]
+        "provides": ["settings.store@1"]
       }"#,
     )
     .expect("манифест base");
@@ -65,7 +65,7 @@ fn loads_only_base_plugins() {
 
     let host =
         AppPluginHost::load(std::slice::from_ref(&dir), dir.join("storage")).expect("загрузка");
-    assert_eq!(host.plugin_names(), vec!["notifications".to_string()]);
+    assert_eq!(host.plugin_names(), vec!["settings".to_string()]);
     cleanup(&dir);
 }
 
@@ -79,28 +79,31 @@ fn missing_directory_is_skipped() {
 }
 
 #[test]
-fn delivers_events_to_provider() {
+fn notify_user_writes_diagnostics() {
     let dir = setup_plugin(
-        "notifications",
+        "demo",
         r#"{
         "contract_version": 1,
         "level": "framework", "kind": "framework",
-        "id": "313fbeb9-8537-48bc-bb5f-5296e7b1c81e",
-        "name": "notifications",
-        "description": "Уведомления",
+        "id": "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c",
+        "name": "demo",
+        "description": "Без плагинов уведомлений",
         "module": "plugin.wasm",
         "export": "invoke",
-        "host_functions": [],
-        "provides": ["notifications.journal@1"]
+        "host_functions": []
       }"#,
     );
+    crate::plugin::diagnostics::init(&dir);
     let mut host =
         AppPluginHost::load(std::slice::from_ref(&dir), dir.join("storage")).expect("загрузка");
     host.notify_user(Severity::Info, "привет", "test", serde_json::json!({}));
-    let remaining = get_bus().drain();
+
+    let content =
+        std::fs::read_to_string(dir.join(crate::plugin::diagnostics::DIAGNOSTICS_FILE_NAME))
+            .expect("журнал диагностики");
     assert!(
-        !remaining.iter().any(|event| event.message == "привет"),
-        "событие доставлено провайдеру и извлечено из bus"
+        content.contains("привет") && content.contains("[test]"),
+        "сообщение пользователю записано в журнал: {content}"
     );
     cleanup(&dir);
 }
@@ -439,8 +442,8 @@ fn open_tabs_limit_reads_and_normalizes_setting() {
     cleanup(&storage);
 }
 
-/// Проверка сквозного сценария настроек: реестр приложения и уведомлений и
-/// сохранение значения между перезапусками runtime.
+/// Проверка сквозного сценария настроек: реестр приложения и сохранение
+/// значения между перезапусками runtime.
 #[test]
 fn settings_registry_survives_restart() {
     let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -495,58 +498,7 @@ fn settings_registry_survives_restart() {
 }
 
 #[test]
-fn real_notifications_plugin_records_events() {
-    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join("base-plugins");
-    let storage = test_util::test_root("app-host-notifications-record");
-    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
-        .expect("загрузка базовых плагинов");
-    host.notify_user(Severity::Info, "проверка", "test", serde_json::json!({}));
-
-    let output = host
-        .invoke_capability(CAPABILITY_NOTIFICATIONS, "list", serde_json::json!({}))
-        .expect("список журнала");
-    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON журнала");
-    let entries = parsed["entries"].as_array().expect("массив записей");
-    let recorded = entries
-        .iter()
-        .find(|entry| entry["message"] == "проверка")
-        .expect("пользовательское событие записано в журнал");
-    assert!(
-        recorded["timestamp"].as_i64().unwrap_or_default() > 0,
-        "метка времени получена от host-функции"
-    );
-    cleanup(&storage);
-}
-
-#[test]
-fn reset_notifications_clears_journal() {
-    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("resources")
-        .join("base-plugins");
-    let storage = test_util::test_root("app-host-notifications-reset");
-    let mut host = AppPluginHost::load(std::slice::from_ref(&bundled), storage.join("storage"))
-        .expect("загрузка базовых плагинов");
-    host.notify_user(Severity::Info, "до сброса", "test", serde_json::json!({}));
-    host.reset_notifications().expect("сброс журнала");
-
-    let output = host
-        .invoke_capability(CAPABILITY_NOTIFICATIONS, "list", serde_json::json!({}))
-        .expect("список журнала");
-    let parsed: serde_json::Value = serde_json::from_str(&output).expect("JSON журнала");
-    assert!(
-        parsed["entries"]
-            .as_array()
-            .expect("массив записей")
-            .is_empty(),
-        "журнал пуст после сброса"
-    );
-    cleanup(&storage);
-}
-
-#[test]
-fn drops_events_without_provider() {
+fn notify_technical_writes_diagnostics() {
     let dir = setup_plugin(
         "demo",
         r#"{
@@ -560,13 +512,17 @@ fn drops_events_without_provider() {
         "host_functions": []
       }"#,
     );
+    crate::plugin::diagnostics::init(&dir);
     let mut host =
         AppPluginHost::load(std::slice::from_ref(&dir), dir.join("storage")).expect("загрузка");
     host.notify_technical(Severity::Info, "шум", "test", serde_json::json!({}));
-    let remaining = get_bus().drain();
+
+    let content =
+        std::fs::read_to_string(dir.join(crate::plugin::diagnostics::DIAGNOSTICS_FILE_NAME))
+            .expect("журнал диагностики");
     assert!(
-        !remaining.iter().any(|event| event.message == "шум"),
-        "событие отброшено без провайдера"
+        content.contains("шум") && content.contains("[test]"),
+        "техническое событие записано в журнал: {content}"
     );
     cleanup(&dir);
 }

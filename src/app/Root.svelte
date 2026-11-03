@@ -6,7 +6,6 @@
     loadBootstrap,
     type ActiveLibrary,
     type AppearanceBootstrap,
-    type NotificationsBootstrap,
     type SettingsBootstrap,
     type StoreBootstrap,
   } from '../features/lifecycle/bootstrap';
@@ -42,12 +41,6 @@
 
   /** Декларации настроек, загруженные до первого рендера. */
   let initialSettings: SettingsBootstrap = $state({ declarations: [], error: '' });
-
-  /** Журнал уведомлений, загруженный до первого рендера. */
-  let initialNotifications: NotificationsBootstrap = $state({
-    entries: [],
-    error: '',
-  });
 
   /** Каталог плагинов и сторов, загруженный до первого рендера. */
   let initialStore: StoreBootstrap = $state({
@@ -92,7 +85,6 @@
         initialLibrary = state.activeLibrary;
         initialAppearance = state.appearance;
         initialSettings = state.settings;
-        initialNotifications = state.notifications;
         initialStore = state.store;
         initialOpenTabsLimit = state.openTabsLimit;
         initialUpdate = state.update;
@@ -120,7 +112,6 @@
     initialLibrary={initialLibrary}
     initialAppearance={initialAppearance}
     initialSettings={initialSettings}
-    initialNotifications={initialNotifications}
     initialStore={initialStore}
     initialOpenTabsLimit={initialOpenTabsLimit}
     initialUpdate={initialUpdate}

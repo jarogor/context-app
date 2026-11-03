@@ -258,50 +258,6 @@ test('список библиотек адаптивен к ширине окн�
     expect(controlsBox!.y).toBeLessThan(listBox!.y);
 });
 
-test('открытие панели уведомлений не ломает список библиотек', async ({ page }) => {
-    // Окно 1024px: открытие панели заметно сужает область; список не должен
-    // переполняться по горизонтали.
-    await page.setViewportSize({ width: 1024, height: 800 });
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
-    await expect(page.getByTestId('libraries-page')).toBeVisible();
-
-    await page.getByLabel('Уведомления').click();
-
-    const noHorizontalScroll = await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-    );
-    expect(noHorizontalScroll).toBe(true);
-});
-
-test('открытие панели уведомлений не ломает список рабочих мест', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 800 });
-    await page.goto('/');
-    // Список рабочих мест открыт при запуске.
-    await expect(page.getByTestId('workspaces-page')).toBeVisible();
-
-    await page.getByLabel('Уведомления').click();
-
-    const noHorizontalScroll = await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-    );
-    expect(noHorizontalScroll).toBe(true);
-});
-
-test('открытие панели уведомлений не ломает реестр заметок', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 800 });
-    await page.goto('/');
-    await page.getByTestId('nav-notes').click();
-    await expect(page.getByTestId('notes-library')).toBeVisible();
-
-    await page.getByLabel('Уведомления').click();
-
-    const noHorizontalScroll = await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-    );
-    expect(noHorizontalScroll).toBe(true);
-});
-
 test('реестр заметок и библиотеки используют общую полосу управления', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 800 });
     await page.goto('/');

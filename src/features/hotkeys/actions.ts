@@ -98,14 +98,6 @@ export const HOTKEY_ACTIONS: readonly HotkeyAction[] = [
         bindings: ['Ctrl+Comma'],
     },
     {
-        id: 'app.notifications',
-        title: 'app.hotkey.app.notifications.title',
-        description: 'app.hotkey.app.notifications.description',
-        group: 'sections',
-        scope: 'app',
-        bindings: ['Ctrl+Alt+N'],
-    },
-    {
         id: 'app.theme',
         title: 'app.hotkey.app.theme.title',
         description: 'app.hotkey.app.theme.description',

@@ -36,9 +36,6 @@ describe('загрузка начального состояния', () => {
                         spaces: [{ space: 'settings.section', id: 'app.general', nodes: [] }],
                     };
                 }
-                if (capability === 'notifications.journal@1' && operation === 'list') {
-                    return { entries: [{ id: 1, level: 'User', read: false }] };
-                }
                 if (capability === 'plugin-store@1' && operation === 'plugins') {
                     return { plugins: [{ id: 'p1', name: 'demo' }] };
                 }
@@ -58,8 +55,6 @@ describe('загрузка начального состояния', () => {
         expect(state.activeLibrary).toEqual({ path: '/lib', provider_name: 'books-source' });
         expect(state.settings.declarations).toHaveLength(1);
         expect(state.settings.error).toBe('');
-        expect(state.notifications.entries).toHaveLength(1);
-        expect(state.notifications.error).toBe('');
         expect(state.store.plugins).toHaveLength(1);
         expect(state.store.stores).toHaveLength(1);
         expect(state.store.activationPending).toBe(true);
@@ -119,8 +114,6 @@ describe('загрузка начального состояния', () => {
 
         expect(state.settings.declarations).toEqual([]);
         expect(state.settings.error).toContain('настройки недоступны');
-        expect(state.notifications.entries).toEqual([]);
-        expect(state.notifications.error).toContain('настройки недоступны');
         expect(state.store.plugins).toEqual([]);
         expect(state.store.error).toContain('настройки недоступны');
     });

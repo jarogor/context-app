@@ -18,7 +18,7 @@
     "sql_execute",
     "sql_query",
     "emit_event",
-    "notify"
+    "log"
   ],
   "provides": [
     "books-source.catalog@1",

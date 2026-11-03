@@ -12,7 +12,7 @@ use crate::plugin::{AppState, PluginSession};
 /// Команда асинхронная и держит общий замок состояния только на получение
 /// сессии: операции источника (сканирование, чтение, обложки) могут занимать
 /// секунды, и держать на это время общий замок нельзя — иначе весь интерфейс
-/// (настройки, шапка, уведомления) ждёт окончания сканирования книг.
+/// (настройки, шапка) ждёт окончания сканирования книг.
 #[tauri::command]
 pub async fn invoke_plugin_operation(
     state: State<'_, Mutex<AppState>>,
@@ -53,7 +53,6 @@ pub async fn invoke_plugin_operation(
     if reloaded {
         state.after_session_reload();
     }
-    let _ = state.with_app_host(|host| host.drain_and_deliver());
 
     serde_json::from_str(&response).map_err(|error| error.to_string())
 }

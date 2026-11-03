@@ -38,18 +38,18 @@ fn source(owner: &str, sections: Vec<SectionSchema>) -> Source {
 
 #[test]
 fn builds_full_section_identifier() {
-    let registry = Registry::from_sources(&[source("notifications", vec![section("journal")])])
+    let registry = Registry::from_sources(&[source("books-source", vec![section("catalog")])])
         .expect("сборка реестра");
     assert_eq!(registry.sections().len(), 1);
-    assert_eq!(registry.sections()[0].id, "notifications.journal");
-    assert_eq!(registry.sections()[0].owner, "notifications");
-    assert!(registry.find("notifications.journal").is_some());
+    assert_eq!(registry.sections()[0].id, "books-source.catalog");
+    assert_eq!(registry.sections()[0].owner, "books-source");
+    assert!(registry.find("books-source.catalog").is_some());
 }
 
 #[test]
 fn keeps_field_metadata() {
     let registry = Registry::from_sources(&[source(
-        "notifications",
+        "books-source",
         vec![SectionSchema {
             id: "general".to_string(),
             title: "Общие".to_string(),

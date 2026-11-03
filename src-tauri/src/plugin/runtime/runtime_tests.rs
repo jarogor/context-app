@@ -1,6 +1,6 @@
 use super::*;
 use crate::plugin::contract::{HOST_STORE_INSTALLED, MANIFEST_FILE_NAME, STORE_HOST_FUNCTIONS};
-use crate::plugin::{get_bus, set_log_level, PluginManifest, Severity};
+use crate::plugin::{set_log_level, PluginManifest, Severity};
 use crate::test_util;
 use crate::test_util::cleanup;
 use std::fs;
@@ -481,7 +481,6 @@ fn load_writes_plugin_info_to_diagnostics() {
         "событие загрузки в журнале: {content}"
     );
     assert!(content.contains(TEST_PLUGIN_ID), "идентификатор плагина");
-    assert!(get_bus().drain().is_empty(), "в ленту ничего не попало");
 
     drop(runtime);
     cleanup(&root);

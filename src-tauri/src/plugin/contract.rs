@@ -17,7 +17,7 @@ pub const EXPORT_FUNCTION: &str = "invoke";
 ///
 /// Сигнатура: `log(severity, message, details)`.
 pub const HOST_LOG_FUNCTION: &str = "log";
-/// Имя host-функции публикации уведомления плагином.
+/// Имя host-функции публикации сообщения плагином.
 ///
 /// Сигнатура: `notify(level, severity, message, details)`.
 pub const HOST_NOTIFY_FUNCTION: &str = "notify";
@@ -40,9 +40,6 @@ pub const HOST_OPEN_FILE: &str = "open_file";
 
 /// Имя host-функции публикации прикладного события плагином.
 pub const HOST_EMIT_EVENT: &str = "emit_event";
-
-/// Capability журнала уведомлений, предоставляемая базовым плагином.
-pub const CAPABILITY_NOTIFICATIONS: &str = "notifications.journal@1";
 
 /// Capability реестра и хранилища настроек, предоставляемая базовым плагином.
 pub const CAPABILITY_SETTINGS: &str = "settings.store@1";

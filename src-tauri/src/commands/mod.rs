@@ -6,6 +6,7 @@ use crate::plugin::AppState;
 
 pub mod active_library;
 pub mod app_info;
+pub mod app_log;
 pub mod app_title_set;
 pub mod base_plugin_operation;
 pub mod get_workspaces;
@@ -42,6 +43,10 @@ pub use app_info::__tauri_command_name_diagnostics_open_folder;
 pub use app_info::app_info;
 pub use app_info::app_name_set;
 pub use app_info::diagnostics_open_folder;
+
+pub use app_log::__cmd__app_log;
+pub use app_log::__tauri_command_name_app_log;
+pub use app_log::app_log;
 
 pub use app_title_set::__cmd__app_title_set;
 pub use app_title_set::__tauri_command_name_app_title_set;

@@ -57,7 +57,6 @@ test('шапка рабочего места оставляет кнопки д�
     await openWorkplace(page);
 
     await expect(page.getByRole('button', { name: 'Библиотека' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Уведомления' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Настройки' })).toBeVisible();
 });
 

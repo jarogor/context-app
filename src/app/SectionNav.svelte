@@ -21,12 +21,8 @@
     libraryActive: boolean;
     /** Открыт ли раздел «Заметки». */
     notesActive: boolean;
-    /** Открыта ли панель уведомлений (телефонная компоновка). */
-    notificationsOpen?: boolean;
     /** Открыт ли раздел настроек (телефонная компоновка). */
     settingsOpen?: boolean;
-    /** Число непрочитанных уведомлений (телефонная компоновка). */
-    unreadCount?: number;
     /** Число замечаний (телефонная компоновка). */
     alertCount?: number;
     /** Тексты замечаний для подсказки индикатора (телефонная компоновка). */
@@ -45,8 +41,6 @@
     onLibrary: () => void;
     /** Выбор раздела «Заметки». */
     onNotes: () => void;
-    /** Переключение панели уведомлений (телефонная компоновка). */
-    onNotifications?: () => void;
     /** Открытие раздела настроек (телефонная компоновка). */
     onSettings?: () => void;
     /** Переключение темы (телефонная компоновка). */
@@ -59,9 +53,7 @@
     workspaceActive,
     libraryActive,
     notesActive,
-    notificationsOpen = false,
     settingsOpen = false,
-    unreadCount = 0,
     alertCount = 0,
     alertTitles = '',
     alertError = false,
@@ -71,7 +63,6 @@
     onWorkspace,
     onLibrary,
     onNotes,
-    onNotifications,
     onSettings,
     onTheme,
     class: className = '',
@@ -125,8 +116,8 @@
 
 {#snippet sectionTab(item: { id: string; label: string; icon: IconName; active: boolean })}
   <!--
-    Все кнопки меню — одного цвета в покое: разделы, уведомления, тема и настройки
-    берут один приглушённый тон, поэтому панель читается единым рядом действий.
+    Все кнопки меню — одного цвета в покое: разделы, тема и настройки берут один
+    приглушённый тон, поэтому панель читается единым рядом действий.
     Активный раздел выделяется **той же плотной акцентной заливкой**, что и
     активная вкладка книги: одно выделение на всё приложение, без второго
     «своего» цвета у меню.
@@ -154,7 +145,6 @@
   icon: IconName;
   active: boolean;
   onClick: () => void;
-  badge?: number;
 })}
   <button
     type="button"
@@ -169,14 +159,6 @@
   >
     <Icon name={item.icon} class="h-[1.375rem] w-[1.375rem]" />
     <span class="hidden min-[34rem]:inline role-caption leading-none">{item.label}</span>
-    {#if item.badge && item.badge > 0}
-      <span
-        class="absolute top-0.5 right-1/2 flex h-4 min-w-4 translate-x-3 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none text-[var(--counter-foreground)]"
-        style:background="var(--counter)"
-      >
-        {item.badge}
-      </span>
-    {/if}
   </button>
 {/snippet}
 
@@ -220,16 +202,6 @@
         >
       </span>
     {/if}
-
-    {@render mobileTab({
-      id: 'notifications',
-      label: t('app.notifications.short'),
-      title: t('app.notifications'),
-      icon: 'bell',
-      active: notificationsOpen,
-      onClick: () => onNotifications?.(),
-      badge: unreadCount,
-    })}
 
     {@render mobileTab({
       id: 'theme',

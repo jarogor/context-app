@@ -24,7 +24,7 @@ fn extracts_safe_package() {
         &archive,
         &[
             ("context", b"binary"),
-            ("base-plugins/notifications/plugin-manifest.json", b"{}"),
+            ("base-plugins/settings/plugin-manifest.json", b"{}"),
         ],
     );
     let destination = root.join("payload");
@@ -35,7 +35,7 @@ fn extracts_safe_package() {
         b"binary"
     );
     assert!(destination
-        .join("base-plugins/notifications/plugin-manifest.json")
+        .join("base-plugins/settings/plugin-manifest.json")
         .is_file());
     test_util::cleanup(&root);
 }
