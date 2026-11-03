@@ -52,7 +52,7 @@ test.beforeEach(async ({ page }) => {
                 handlers: {
                     active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
                     reader_formats: () => ['demo'],
-                    reader_plugin_for_format: () => 'format-demo',
+                    reader_plugin_for_format: () => 'format-mock',
                     reader_viewer: () => payload.viewer,
                     reader_book_chunk: () => {
                         window.__BOOK_CHUNKS__ = (window.__BOOK_CHUNKS__ ?? 0) + 1;

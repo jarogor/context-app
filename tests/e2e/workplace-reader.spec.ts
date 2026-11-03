@@ -49,7 +49,7 @@ test.beforeEach(async ({ page }) => {
                 handlers: {
                     active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
                     reader_formats: () => ['demo'],
-                    reader_plugin_for_format: () => 'format-demo',
+                    reader_plugin_for_format: () => 'format-mock',
                     reader_viewer: () => payload.viewer,
                     reader_book_chunk: () => ({ chunk: 'AA==', next: 1, total: 1, done: true }),
                     invoke_plugin_operation: () => payload.books,

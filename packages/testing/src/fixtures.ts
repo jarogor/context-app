@@ -254,26 +254,6 @@ function baseOperation(payload: unknown): unknown {
                     enabled: false,
                     removable: true,
                 },
-                {
-                    id: 'b1f2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5e',
-                    name: 'demo',
-                    version: '0.1.0',
-                    kind: 'extension',
-                    description: 'Образец: минимальный extension-плагин',
-                    enabled: true,
-                    removable: false,
-                    sample: true,
-                },
-                {
-                    id: 'c1a7e0d4-2b3f-4c5a-9d6e-7f8a9b0c1d2e',
-                    name: 'format-demo',
-                    version: '0.1.0',
-                    kind: 'format',
-                    description: 'Образец плагина формата чтения',
-                    enabled: true,
-                    removable: false,
-                    sample: true,
-                },
             ],
         };
     }
@@ -600,7 +580,7 @@ export function defaultMockConfig(): MockBridgeConfig {
                     ? { data: TINY_PNG, format: 'png' }
                     : { data: null };
             },
-            reader_formats: () => ['demo'],
+            reader_formats: () => ['epub', 'fb2'],
             reader_plugin_for_format: () => null,
             reader_open_external: () => ({ opened: true }),
             // Обложки книг рабочего места приходят одним вызовом: путь → данные.

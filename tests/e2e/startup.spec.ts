@@ -69,7 +69,7 @@ test('старт не запрашивает форматы чтения', async
             handlers: {
                 reader_formats: () => {
                     globals.__TEXTURE_INVOKED__?.push('reader_formats');
-                    return ['demo'];
+                    return ['epub'];
                 },
             },
         };

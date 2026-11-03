@@ -7,8 +7,10 @@ use crate::test_util;
 const LIBRARY_ID: &str = "a692624f-1fa0-49a2-9015-9cb7361f9d47";
 const CALIBRE_ID: &str = "f7c8b139-887f-4a2f-84e8-fdcc89635a79";
 const SETTINGS_ID: &str = "69b39e5d-0c25-4cdb-8c3e-d3ba89147c24";
-const DEMO_ID: &str = "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c";
+const EXTENSION_ID: &str = "e6ddd2e8-a62c-4350-b431-2bb4f2cb8d5c";
 const NOTES_ID: &str = "b1f2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
+/// Идентификатор тестового плагина формата чтения.
+const FORMAT_ID: &str = "d3b8f2a1-6c4e-4f7a-9b2d-1e5c8a7f0b3d";
 
 /// Создание директории плагина с манифестом заданного уровня и назначения.
 fn write_manifest(directory: &Path, id: &str, name: &str, level: &str, kind: &str) {
@@ -67,7 +69,13 @@ fn lists_disableable_with_flags() {
     std::fs::create_dir_all(&user).expect("user");
     write_manifest(&bundled, CALIBRE_ID, "calibre", "application", "books");
     write_manifest(&bundled, SETTINGS_ID, "settings", "framework", "framework");
-    write_manifest(&user, DEMO_ID, "demo", "application", "extension");
+    write_manifest(
+        &user,
+        EXTENSION_ID,
+        "user-extension",
+        "application",
+        "extension",
+    );
 
     let entries = list_disableable(
         &[bundled.clone(), user.clone()],
@@ -79,16 +87,23 @@ fn lists_disableable_with_flags() {
         .iter()
         .map(|entry| entry.name.clone())
         .collect::<Vec<_>>();
-    assert_eq!(names, vec!["demo", "calibre"], "каркасные исключены");
+    assert_eq!(
+        names,
+        vec!["user-extension", "calibre"],
+        "каркасные исключены"
+    );
     let calibre = entries.iter().find(|entry| entry.id == CALIBRE_ID).unwrap();
     assert_eq!(calibre.kind, "books", "назначение источника книг");
     assert_eq!(calibre.level, "application");
     assert!(!calibre.enabled, "отключён по реестру");
     assert!(!calibre.removable, "поставляемый не удаляется");
-    let demo = entries.iter().find(|entry| entry.id == DEMO_ID).unwrap();
-    assert_eq!(demo.kind, "extension", "назначение расширения");
-    assert!(demo.enabled);
-    assert!(demo.removable, "пользовательский удаляется");
+    let user = entries
+        .iter()
+        .find(|entry| entry.id == EXTENSION_ID)
+        .unwrap();
+    assert_eq!(user.kind, "extension", "назначение расширения");
+    assert!(user.enabled);
+    assert!(user.removable, "пользовательский удаляется");
     test_util::cleanup(&dir);
 }
 
@@ -100,7 +115,7 @@ fn every_entry_reports_purpose() {
     write_manifest(&bundled, LIBRARY_ID, "books-source", "application", "books");
     write_manifest(&bundled, CALIBRE_ID, "calibre", "application", "books");
     write_manifest(&bundled, NOTES_ID, "notes-store", "application", "notes");
-    write_manifest(&bundled, DEMO_ID, "format-demo", "application", "format");
+    write_manifest(&bundled, FORMAT_ID, "format-pdf", "application", "format");
 
     let entries = list_disableable(std::slice::from_ref(&bundled), None, &[]);
 
@@ -121,7 +136,7 @@ fn every_entry_reports_purpose() {
     assert_eq!(purpose(LIBRARY_ID), "books");
     assert_eq!(purpose(CALIBRE_ID), "books");
     assert_eq!(purpose(NOTES_ID), "notes");
-    assert_eq!(purpose(DEMO_ID), "format");
+    assert_eq!(purpose(FORMAT_ID), "format");
     test_util::cleanup(&dir);
 }
 
@@ -133,8 +148,20 @@ fn sample_flag_survives_user_copy() {
     std::fs::create_dir_all(&bundled).expect("bundled");
     std::fs::create_dir_all(&user).expect("user");
     // Поставляемый образец и его пользовательская копия без признака образца.
-    write_sample_manifest(&bundled, DEMO_ID, "demo", "application", "extension");
-    write_manifest(&user, DEMO_ID, "demo", "application", "extension");
+    write_sample_manifest(
+        &bundled,
+        EXTENSION_ID,
+        "sample-extension",
+        "application",
+        "extension",
+    );
+    write_manifest(
+        &user,
+        EXTENSION_ID,
+        "sample-extension",
+        "application",
+        "extension",
+    );
 
     let entries = list_disableable(&[user.clone(), bundled.clone()], Some(user.as_path()), &[]);
 

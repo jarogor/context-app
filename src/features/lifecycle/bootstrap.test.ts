@@ -37,7 +37,7 @@ describe('загрузка начального состояния', () => {
                     };
                 }
                 if (capability === 'plugin-store@1' && operation === 'plugins') {
-                    return { plugins: [{ id: 'p1', name: 'demo' }] };
+                    return { plugins: [{ id: 'p1', name: 'books-source' }] };
                 }
                 if (capability === 'plugin-store@1' && operation === 'stores_list') {
                     return { stores: [{ id: 's1', title: 'store' }] };

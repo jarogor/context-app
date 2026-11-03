@@ -2,7 +2,6 @@
 members = [
     "books-source",
     "books-source-calibre",
-    "demo",
     "notes-store",
     "plugin-store",
     "settings",
