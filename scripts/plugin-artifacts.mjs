@@ -250,7 +250,7 @@ function check(plugin) {
     } else if (readFileSync(hashPath, 'utf8') !== expectedHash) {
         problems.push(`${HASH_FILE}: устарел`);
     }
-    problems.push(...checkMirrors(plugin.name, outDir, expected));
+    problems.push(...checkMirrors(plugin));
     return problems;
 }
 
@@ -261,10 +261,11 @@ function check(plugin) {
  * ресурсы своим шагом сборки. Без сверки этих копий правка исходника при
  * актуальных ресурсах оставалась бы незамеченной в запущенном приложении.
  */
-function checkMirrors(pluginName, outDir, expected) {
+function checkMirrors(plugin) {
+    const expected = expectedFiles(plugin);
     const problems = [];
-    for (const buildDir of buildOutputDirs()) {
-        const destination = join(buildDir, pluginName);
+    for (const buildDir of buildOutputDirs(plugin.manifest.level)) {
+        const destination = join(buildDir, plugin.name);
         const deployed = deployedFiles(destination);
         if (!deployed) {
             problems.push(`${destination}: копия плагина отсутствует`);
@@ -290,12 +291,15 @@ function checkMirrors(pluginName, outDir, expected) {
  * сборки, и без пересборки Rust эта копия отстаёт от `resources`. Развёрнутые
  * артефакты дублируются туда сразу, чтобы `make plugins` обновлял и копию,
  * которую реально читает запущенное приложение.
+ *
+ * Каркасные плагины копируются в `base-plugins`, прикладные — в `plugins`:
+ * раскладка повторяет ресурсную, иначе каркасный плагин искали бы не там.
  */
-function buildOutputDirs() {
+function buildOutputDirs(level) {
     const target = join(ROOT, 'src-tauri', 'target');
     const dirs = [];
     for (const profile of ['debug', 'release']) {
-        const dir = join(target, profile, PLUGINS_DIR_NAME);
+        const dir = join(target, profile, targetDirName(level));
         if (existsSync(join(target, profile))) {
             dirs.push(dir);
         }
@@ -303,10 +307,97 @@ function buildOutputDirs() {
     return dirs;
 }
 
+/** Имя каталога раскладки по уровню плагина. */
+function targetDirName(level) {
+    return level === 'framework' ? 'base-plugins' : PLUGINS_DIR_NAME;
+}
+
+/** Каталоги, где лежат развёрнутые плагины: ресурсы и копии в сборке.
+ *
+ * У каждого каталога указан ожидаемый уровень плагинов: каркасные живут в
+ * `base-plugins`, прикладные — в `plugins`.
+ */
+function deploymentDirs() {
+    const dirs = [
+        { path: PLUGINS_DIR, level: 'application' },
+        { path: BASE_PLUGINS_DIR, level: 'framework' },
+    ];
+    for (const level of ['framework', 'application']) {
+        for (const path of buildOutputDirs(level)) {
+            dirs.push({ path, level });
+        }
+    }
+    return dirs;
+}
+
+/** Удаление развёрнутых плагинов, которых больше нет в исходниках.
+ *
+ * Без этого удалённый плагин остаётся в ресурсах и в каталоге сборки, откуда
+ * приложение его читает: правка исходников выглядит как «ничего не изменилось».
+ * Каталог считается плагином, если в нём есть манифест.
+ */
+function removeStale(plugins) {
+    const levels = new Map(plugins.map((plugin) => [plugin.name, plugin.manifest.level]));
+    for (const { path: dir, level } of deploymentDirs()) {
+        if (!existsSync(dir)) {
+            continue;
+        }
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            if (!entry.isDirectory()) {
+                continue;
+            }
+            const location = join(dir, entry.name);
+            if (!existsSync(join(location, 'plugin-manifest.json'))) {
+                continue;
+            }
+            // Плагин не на своём уровне — тоже остаток: каркасный в `plugins`
+            // или прикладной в `base-plugins` загружался бы не оттуда.
+            if (levels.get(entry.name) === level) {
+                continue;
+            }
+            rmSync(location, { recursive: true, force: true });
+            console.log(`удалён устаревший плагин: ${location}`);
+        }
+    }
+}
+
+/** Проверка отсутствия плагинов, которых больше нет в исходниках.
+ *
+ * Каталог с манифестом вне списка плагинов — остаток удалённого плагина:
+ * приложение продолжит его загружать, поэтому это ошибка, а не мелочь. Плагин
+ * не на своём месте (каркасный в `plugins` или прикладной в `base-plugins`) —
+ * тоже остаток: раскладка следует уровню из манифеста.
+ */
+function checkStale(plugins) {
+    const levels = new Map(plugins.map((plugin) => [plugin.name, plugin.manifest.level]));
+    const problems = [];
+    for (const { path: dir, level } of deploymentDirs()) {
+        if (!existsSync(dir)) {
+            continue;
+        }
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            if (!entry.isDirectory()) {
+                continue;
+            }
+            const location = join(dir, entry.name);
+            if (!existsSync(join(location, 'plugin-manifest.json'))) {
+                continue;
+            }
+            const pluginLevel = levels.get(entry.name);
+            if (pluginLevel === undefined) {
+                problems.push(`${location}: плагин удалён из исходников, но остался развёрнутым`);
+            } else if (pluginLevel !== level) {
+                problems.push(`${location}: плагин уровня ${pluginLevel} развёрнут в чужом каталоге`);
+            }
+        }
+    }
+    return problems;
+}
+
 /** Дублирование развёрнутого плагина в каталоги сборки приложения. */
-function mirrorToBuild(pluginName, outDir) {
-    for (const buildDir of buildOutputDirs()) {
-        const destination = join(buildDir, pluginName);
+function mirrorToBuild(plugin, outDir) {
+    for (const buildDir of buildOutputDirs(plugin.manifest.level)) {
+        const destination = join(buildDir, plugin.name);
         rmSync(destination, { recursive: true, force: true });
         mkdirSync(destination, { recursive: true });
         for (const relative of collectFiles(outDir)) {
@@ -325,9 +416,10 @@ function main() {
     const command = process.argv[2];
     const plugins = listPlugins();
     if (command === 'build') {
+        removeStale(plugins);
         for (const plugin of plugins) {
             deploy(plugin);
-            mirrorToBuild(plugin.name, targetDir(plugin.manifest, plugin.name));
+            mirrorToBuild(plugin, targetDir(plugin.manifest, plugin.name));
         }
         return;
     }
@@ -336,6 +428,7 @@ function main() {
         for (const plugin of plugins) {
             problems.push(...check(plugin));
         }
+        problems.push(...checkStale(plugins));
         if (problems.length > 0) {
             console.error('Артефакты плагинов устарели:');
             for (const problem of problems) {
