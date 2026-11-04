@@ -367,6 +367,9 @@ test('список рабочих мест адаптивен к ширине о
         .boundingBox();
     expect(counter).not.toBeNull();
     expect(create!.x - (counter!.x + counter!.width)).toBeLessThan(16);
+    // Поиск занимает всё место до счётчика: между его правым краем и цифрами
+    // нет пустого провала.
+    expect(counter!.x - (search!.x + search!.width)).toBeLessThan(16);
 
     const narrow = await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,

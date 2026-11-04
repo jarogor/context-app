@@ -309,11 +309,11 @@
 
   {#snippet controls()}
     <!--
-      Одна полоса и одно поведение на всех ширинах: пока поле создания не
-      открыто, справа стоит только кнопка создания. Нажатие показывает поле, и
-      кнопка остаётся на своём месте, меняя действие: при пустом поле она
-      закрывает создание, при введённом имени — сохраняет рабочее место. Так
-      ничего не переезжает под курсором.
+      Одна полоса: поиск слева, счётчик и кнопка создания — справа на панели.
+      Пока поле создания закрыто, на месте поля стоит только кнопка; нажатие
+      показывает поле слева от неё, и кнопка остаётся на своём месте, меняя
+      действие: при пустом поле закрывает создание, при введённом имени
+      сохраняет рабочее место. Так ничего не переезжает под курсором.
     -->
     <div class="flex w-full min-w-0 items-center gap-2" data-testid="workspaces-controls">
       {#if !composerOpen && workspaces.length > 0}
@@ -323,24 +323,25 @@
           ariaLabel={t('app.search.workspace.placeholder')}
           icon="search"
           clearable
-          class="min-w-0 flex-1 sm:max-w-[24rem]"
+          class="min-w-0 flex-1"
         />
-        <span class="flex-none role-caption text-[var(--muted-foreground)]">
-          {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
-        </span>
       {/if}
       <!--
-        Поле имени стоит вплотную к кнопке. На телефоне и планшете оно занимает
-        всю доступную ширину панели слева от кнопки, на широком окне —
-        компактное. Кнопка при этом не переезжает.
+        Правая группа: счётчик и создание. Она прижата к правому краю панели,
+        поэтому кнопка всегда стоит справа, а поле появляется слева от неё.
       -->
       <div
-        class="flex min-w-0 items-center gap-2 {composerOpen ? 'flex-1 sm:flex-none' : 'flex-none'}"
+        class="ml-auto flex min-w-0 items-center gap-2 {composerOpen ? 'flex-1 sm:flex-none' : 'flex-none'}"
         data-testid="workspace-composer"
       >
+        {#if !composerOpen && workspaces.length > 0}
+          <span class="flex-none role-caption text-[var(--muted-foreground)]">
+            {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
+          </span>
+        {/if}
         {#if composerOpen}
-          <!-- Обёртка растягивается на узком окне и сжимается до компактной
-               ширины на широком; само поле занимает её целиком. -->
+          <!-- Поле занимает всё место слева до кнопки: на телефоне и планшете
+               это вся доступная ширина панели, на широком окне — компактное. -->
           <div class="relative min-w-0 flex-1 sm:w-[15rem] sm:flex-none">
             <Input
               bind:element={composerField}
