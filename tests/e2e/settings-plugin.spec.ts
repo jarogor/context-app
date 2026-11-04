@@ -246,11 +246,13 @@ test('поле настроек имеет акцентное название �
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
-  const nameLabel = page.locator('main label', { hasText: 'Тема оформления' });
+  // Пояснение проверяется на поле, у которого оно есть: у темы и языка его нет —
+  // там всё понятно из названия.
+  const nameLabel = page.locator('main label', { hasText: 'Палитра оформления' });
   const nameFont = await nameLabel.evaluate((el) => getComputedStyle(el).fontSize);
   const nameColor = await nameLabel.evaluate((el) => getComputedStyle(el).color);
 
-  const description = page.locator('main p').filter({ hasText: 'Светлая или тёмная тема' });
+  const description = page.locator('main p').filter({ hasText: 'Набор светлых и тёмных цветов' });
   await expect(description).toBeVisible();
   const descFont = await description.evaluate((el) => getComputedStyle(el).fontSize);
   const descColor = await description.evaluate((el) => getComputedStyle(el).color);
@@ -258,4 +260,13 @@ test('поле настроек имеет акцентное название �
   // Название крупнее пояснения, и цвет у них разный (акцент против приглушённого).
   expect(Number.parseFloat(nameFont)).toBeGreaterThan(Number.parseFloat(descFont));
   expect(nameColor).not.toBe(descColor);
+});
+
+test('у переключения темы нет описания: название говорит само за себя', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('nav-settings').click();
+
+  // Описание на абзац дублировало поведение и мешало найти сам переключатель.
+  await expect(page.locator('main p').filter({ hasText: 'Светлая или тёмная тема' })).toHaveCount(0);
+  await expect(page.locator('main label', { hasText: 'Тема оформления' })).toBeVisible();
 });

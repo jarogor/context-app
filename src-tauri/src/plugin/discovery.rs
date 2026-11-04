@@ -132,7 +132,9 @@ pub fn list_disableable(
             });
         }
     }
-    entries.sort_by(|left, right| left.id.cmp(&right.id));
+    // Порядок — по названию: идентификатор видит только программа, а список
+    // читает человек.
+    entries.sort_by(|left, right| left.name.cmp(&right.name));
     entries
 }
 

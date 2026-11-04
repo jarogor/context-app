@@ -470,7 +470,6 @@ export const ru = {
   'app.settings.app.system.diagnostics.log_level.option.debug': 'Подробный',
   'app.settings.app.system.diagnostics.log_level.option.trace': 'Максимально подробный — для сложного случая',
   'app.settings.app.general.appearance.theme.label': 'Тема оформления',
-  'app.settings.app.general.appearance.theme.description': 'Светлая или тёмная тема интерфейса либо следование теме системы. Кнопка в шапке переключает только между светлой и тёмной и сразу сохраняет выбор сюда; вернуть «как в системе» можно здесь',
   'app.settings.app.general.appearance.theme.option.light': 'Светлая',
   'app.settings.app.general.appearance.theme.option.dark': 'Тёмная',
   'app.settings.app.general.appearance.theme.option.system': 'Как в системе',
@@ -481,9 +480,8 @@ export const ru = {
   'app.settings.app.general.appearance.palette.option.gruvbox': 'Янтарь',
   'app.settings.app.general.appearance.palette.option.mist': 'Графит',
   'app.settings.app.general.appearance.language.label': 'Язык интерфейса',
-  'app.settings.app.general.appearance.language.description': 'Язык текстов интерфейса. Даты следуют выбранному языку.',
   'app.settings.app.general.appearance.language.option.ru': 'Русский',
   'app.settings.app.general.appearance.language.option.en': 'English',
   'app.settings.app.general.window.open_tabs_limit.label': 'Лимит открытых вкладок',
-  'app.settings.app.general.window.open_tabs_limit.description': 'Наибольшее число одновременно открытых вкладок рабочего места. Превышение допускается только за счёт уже открытых вкладок и блокирует открытие новых. Слишком большое значение лимита может привести к непредсказуемым последствиям — от замедления до падения приложения.',
+  'app.settings.app.general.window.open_tabs_limit.description': 'Наибольшее число одновременно открытых вкладок рабочего места.',
 } as const;

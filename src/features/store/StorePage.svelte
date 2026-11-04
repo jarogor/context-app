@@ -446,7 +446,9 @@
                 class="flex items-center justify-between gap-3 rounded-[var(--radius)] bg-[var(--surface-inset)] p-2.5"
               >
                 <div class="flex min-w-0 flex-col gap-[0.125rem]">
-                  <span class="role-body break-all">{store.location || '—'}</span>
+                  <!-- Путь — техническая информация: моноширинный шрифт отличает
+                       его от обычного текста и не даёт спутать с названием. -->
+                  <code class="break-all role-mono text-[var(--muted-foreground)]">{store.location || '—'}</code>
                 </div>
                 {#if !isCurrentAppSource(store)}
                   <IconButton

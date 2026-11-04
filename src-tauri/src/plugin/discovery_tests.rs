@@ -87,10 +87,11 @@ fn lists_disableable_with_flags() {
         .iter()
         .map(|entry| entry.name.clone())
         .collect::<Vec<_>>();
+    // Порядок — по названию: список читает человек, а не программа.
     assert_eq!(
         names,
-        vec!["user-extension", "calibre"],
-        "каркасные исключены"
+        vec!["calibre", "user-extension"],
+        "каркасные исключены, порядок по названию"
     );
     let calibre = entries.iter().find(|entry| entry.id == CALIBRE_ID).unwrap();
     assert_eq!(calibre.kind, "books", "назначение источника книг");

@@ -24,7 +24,6 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "key": "appearance.language",
           "title": "app.settings.app.general.appearance.language.label",
           "type": "select",
-          "description": "app.settings.app.general.appearance.language.description",
           "default": "ru",
           "options": [
             { "value": "ru", "title": "app.settings.app.general.appearance.language.option.ru" },
@@ -35,7 +34,6 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "key": "appearance.theme",
           "title": "app.settings.app.general.appearance.theme.label",
           "type": "select",
-          "description": "app.settings.app.general.appearance.theme.description",
           "default": "system",
           "options": [
             { "value": "light", "title": "app.settings.app.general.appearance.theme.option.light" },

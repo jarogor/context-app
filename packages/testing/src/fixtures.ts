@@ -35,7 +35,6 @@ const SETTINGS_FIELDS: Record<
             title: 'app.settings.app.general.appearance.language.label',
             type: 'select',
             default: 'ru',
-            description: 'app.settings.app.general.appearance.language.description',
             options: [
                 {
                     value: 'ru',
@@ -52,7 +51,6 @@ const SETTINGS_FIELDS: Record<
             title: 'app.settings.app.general.appearance.theme.label',
             type: 'select',
             default: 'system',
-            description: 'app.settings.app.general.appearance.theme.description',
             options: [
                 {
                     value: 'light',
