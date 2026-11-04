@@ -1,43 +1,11 @@
 /** Общий интерфейс чтения книги по вложению вкладки, не зависящий от формата.
  *
  * Вкладка адресует книгу путём к файлу; рабочее место не знает, откуда книга.
- * Загрузчик определяет формат по расширению файла и обращается к нужной
- * реализации. EPUB — первая реализация; подключение нового формата не меняет
- * рабочую страницу и оболочку.
+ * Читатель выбирается по плагину формата: каждый формат обслуживает свой
+ * плагин, а встроенного чтения отдельных форматов в оболочке нет.
  */
 
-import { t } from '@context/i18n';
 import { invokeCommand } from '../../../shared/app-bridge';
-import type { BookChapter, BookContent } from './types';
-
-export type { BookChapter, BookContent } from './types';
-
-/** Форматы, поддерживаемые встроенным чтением (текстовые). */
-export const BUILTIN_FORMATS = ['epub', 'fb2'];
-
-/** Форматы текучего чтения: текст течёт по колонке и масштабируется.
- *
- * У постраничных форматов (PDF, DjVu) текст — часть растра, поэтому выбор
- * гарнитуры и ширина колонки к ним не применяются.
- */
-export const FLOWING_FORMATS: readonly string[] = BUILTIN_FORMATS;
-
-/** Форматы, поддерживаемые встроенным чтением. */
-const SUPPORTED_FORMATS: readonly string[] = BUILTIN_FORMATS;
-
-/** Ошибка неподдерживаемого встроенным чтением формата. */
-export class UnsupportedFormatError extends Error {
-  /** Неподдерживаемый формат книги. */
-  readonly format: string;
-
-  constructor(format: string) {
-    super(
-            t('app.reader.unsupportedInline', { format: format || t('app.reader.unknown') }),
-        );
-    this.name = 'UnsupportedFormatError';
-    this.format = format;
-  }
-}
 
 /** Доступ загрузчика к командам приложения. */
 export interface ReaderBackend {
@@ -49,24 +17,6 @@ export interface ReaderBackend {
 export function formatFromPath(path: string): string {
   const match = /\.([a-z0-9]+)$/i.exec(path.trim());
   return (match?.[1] ?? '').toLowerCase();
-}
-
-/** Проверка поддержки формата встроенным чтением. */
-export function isSupportedFormat(format: string): boolean {
-  return SUPPORTED_FORMATS.includes(format.toLowerCase());
-}
-
-/** Загрузка содержимого книги по пути через общий интерфейс чтения. */
-export async function loadBookContent(
-  path: string,
-  backend: ReaderBackend = defaultBackend(),
-): Promise<BookContent> {
-  const format = formatFromPath(path);
-  if (!isSupportedFormat(format)) {
-    throw new UnsupportedFormatError(format);
-  }
-  const response = await backend.invoke('reader_content', { path });
-  return normalizeContent(response);
 }
 
 /** Открытие внешней ссылки книги системным приложением. */
@@ -91,6 +41,8 @@ export interface WorkplaceSelection {
   pluginId: string;
   /** Формат книги, обслуживаемый плагином. */
   format: string;
+  /** Текучая ли книга: плагин объявляет это в манифесте. */
+  flowing: boolean;
 }
 
 /** Выбор плагина рабочего места по формату файла, если он установлен. */
@@ -102,13 +54,24 @@ export async function selectWorkplacePlugin(
   if (!format) {
     return null;
   }
-  const pluginId = (await backend.invoke('reader_plugin_for_format', {
-    format,
-  })) as string | null | undefined;
+  const value = (await backend.invoke('reader_plugin_for_format', { format })) as
+    | { plugin_id?: unknown; flowing?: unknown }
+    | string
+    | null
+    | undefined;
+  if (!value) {
+    return null;
+  }
+  // Ответ ядра — плагин и признак текучести; строка поддерживается для
+  // совместимости с прежним ответом «только идентификатор».
+  if (typeof value === 'string') {
+    return { pluginId: value, format, flowing: false };
+  }
+  const pluginId = String(value.plugin_id ?? '');
   if (!pluginId) {
     return null;
   }
-  return { pluginId, format };
+  return { pluginId, format, flowing: value.flowing === true };
 }
 
 /** Загрузка модуля рисования плагина рабочего места. */
@@ -236,13 +199,27 @@ export async function readWorkplaceBook(
   return parts.join('');
 }
 
-/** Приведение ответа плагина к модели содержимого. */
+/** Глава книги: заголовок и внутренний HTML с изображениями в `data:`-URI. */
+export interface BookChapter {
+  /** Заголовок главы, если он найден при разборе. */
+  title?: string | null;
+  /** Внутренний HTML главы. */
+  html: string;
+}
+
+/** Содержимое книги, не зависящее от конкретного формата. */
+export interface BookContent {
+  /** Название книги. */
+  title: string;
+  /** Авторы книги. */
+  authors: string[];
+  /** Упорядоченные главы книги. */
+  chapters: BookChapter[];
+}
+
+/** Разбор ответа плагина формата в модель содержимого. */
 function normalizeContent(value: unknown): BookContent {
-  const record = (value ?? {}) as {
-    title?: unknown;
-    authors?: unknown;
-    chapters?: unknown;
-  };
+  const record = (value ?? {}) as { title?: unknown; authors?: unknown; chapters?: unknown };
   const chapters: BookChapter[] = Array.isArray(record.chapters)
     ? record.chapters.map((chapter) => {
         const item = (chapter ?? {}) as { title?: unknown; html?: unknown };
@@ -257,6 +234,32 @@ function normalizeContent(value: unknown): BookContent {
     authors: Array.isArray(record.authors) ? record.authors.map(String) : [],
     chapters,
   };
+}
+
+/** Кодирование текста в base64 для передачи модулю рисования. */
+export function encodeText(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+/** Загрузка содержимого книги: разбор выполняет плагин её формата.
+ *
+ * Ядро отдаёт главы плагина как opaque-модель, поэтому оболочка лишь приводит
+ * ответ к общему виду содержимого.
+ */
+export async function readBookContent(
+  path: string,
+  onProgress?: (value: number) => void,
+  backend: ReaderBackend = defaultBackend(),
+): Promise<BookContent> {
+  onProgress?.(0);
+  const response = await backend.invoke('reader_content', { path });
+  onProgress?.(100);
+  return normalizeContent(response);
 }
 
 /** Загрузчик по умолчанию поверх моста приложения. */

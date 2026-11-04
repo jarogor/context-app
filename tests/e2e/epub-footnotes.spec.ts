@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockFlowingBook } from './plugin-viewer';
 import { openWorkspaceArea } from './workplace-area';
 
 /** Главы EPUB со сноской: разметка `epub:type` и ссылка в файл сносок. */
@@ -22,28 +23,14 @@ const CHAPTERS = [
     },
 ];
 
-/** Установка мока: книга EPUB с двумя видами сносок. */
-async function installEpubMock(page: Page) {
-    await page.addInitScript((chapters) => {
-        const target = window as unknown as {
-            __TEXTURE_MOCK_OVERRIDES__?: { handlers?: Record<string, unknown> };
-        };
-        target.__TEXTURE_MOCK_OVERRIDES__ = {
-            handlers: {
-                ...(target.__TEXTURE_MOCK_OVERRIDES__?.handlers ?? {}),
-                active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
-                reader_formats: () => ['epub'],
-                reader_plugin_for_format: () => null,
-                reader_content: () => ({ title: 'Книга', authors: [], chapters }),
-                reader_cover: () => ({ data: null }),
-            },
-        };
-    }, CHAPTERS);
+/** Установка мока: книга текучего формата, нарисованная плагином. */
+async function installMock(page: Page) {
+    await mockFlowingBook(page, 'epub', CHAPTERS);
 }
 
 /** Область содержимого книги. */
 function content(page: Page) {
-    return page.frameLocator('iframe[title="Чтение книги"]');
+    return page.frameLocator('iframe[title="Содержимое книги"]');
 }
 
 /** Открытие книги EPUB вкладкой рабочего места. */
@@ -73,7 +60,7 @@ async function openBook(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-    await installEpubMock(page);
+    await installMock(page);
 });
 
 // Книги EPUB размечают сноски по-разному: `epub:type`, роли ARIA или только

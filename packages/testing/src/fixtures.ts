@@ -480,6 +480,76 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
     return {};
 }
 
+/** Каталоги модулей рисования, известные моку.
+ *
+ * Адреса файлов повторяют раскладку ресурсов плагинов; dev-сервер отдаёт их
+ * как статику проекта.
+ */
+const VIEWER_PLUGINS: Record<string, string[]> = {
+    'format-epub': ['index.html', 'viewer.js'],
+    'format-fb2': ['index.html', 'viewer.js'],
+};
+
+/** Точка входа модуля рисования плагина для мока.
+ *
+ * Точка входа читается так же, как файлы: по адресу развёрнутого ресурса.
+ * Она нужна синхронно, а мок отдаёт данные асинхронно, поэтому содержимое
+ * приходит заглушкой, а модуль подключается файлами (см. `viewerFile`).
+ */
+function viewerEntry(pluginId: string): string {
+    return (
+        '<!doctype html><html lang="ru"><head><meta charset="utf-8">' +
+        `<title>${pluginId}</title></head><body>` +
+        '<div id="viewer"><div id="chapters"></div></div>' +
+        '<div id="status">Ожидание книги…</div>' +
+        // Загрузка бандла — обычным скриптом: модульный `import` в песочнице
+        // `srcdoc` не исполняется в браузерном прогоне.
+        "<script>import(contextViewerUrl('./viewer.js'));</script>" +
+        '</body></html>'
+    );
+}
+
+/** Список файлов модуля рисования плагина для мока. */
+function viewerFiles(pluginId: string): Array<{ path: string; mime: string }> {
+    return (VIEWER_PLUGINS[pluginId] ?? []).map((path) => ({
+        path,
+        mime: path.endsWith('.html') ? 'text/html' : 'text/javascript',
+    }));
+}
+
+/** Кэш прочитанных файлов модулей рисования: путь → base64. */
+const VIEWER_FILE_CACHE = new Map<string, string>();
+
+/** Содержимое файла модуля рисования плагина в base64 для мока.
+ *
+ * Мок работает в браузере и читать диск не может, поэтому берёт собранный
+ * ресурс по адресу его раскладки: dev-сервер отдаёт каталог проекта как
+ * статику. Так браузерный тест проверяет настоящий модуль плагина, а не
+ * подделку.
+ */
+async function viewerFile(
+    pluginId: string,
+    path: string,
+): Promise<{ path: string; data: string }> {
+    const url = `/src-tauri/resources/plugins/${pluginId}/viewer/${path}`;
+    const cached = VIEWER_FILE_CACHE.get(url);
+    if (cached !== undefined) {
+        return { path, data: cached };
+    }
+    const response = await fetch(url);
+    if (!response.ok) {
+        return { path, data: '' };
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    let binary = '';
+    for (const byte of bytes) {
+        binary += String.fromCharCode(byte);
+    }
+    const data = btoa(binary);
+    VIEWER_FILE_CACHE.set(url, data);
+    return { path, data };
+}
+
 /** Ответ session-плагина на opaque-операцию в браузерных тестах. */
 function pluginOperation(payload: unknown): unknown {
     const message = (payload ?? {}) as {
@@ -581,7 +651,20 @@ export function defaultMockConfig(): MockBridgeConfig {
                     : { data: null };
             },
             reader_formats: () => ['epub', 'fb2'],
-            reader_plugin_for_format: () => null,
+            // Читатель выбирается по плагину формата: EPUB и FB2 обслуживают
+            // собственные плагины, как и страничные форматы.
+            reader_plugin_for_format: (payload: unknown) => {
+                const format = (payload as { format?: string } | null)?.format ?? '';
+                // EPUB и FB2 — текучие книги: плагин получает разобранные главы,
+                // а страничные форматы — байты файла.
+                if (format === 'epub') {
+                    return { plugin_id: 'format-epub', flowing: true };
+                }
+                if (format === 'fb2') {
+                    return { plugin_id: 'format-fb2', flowing: true };
+                }
+                return null;
+            },
             reader_open_external: () => ({ opened: true }),
             // Обложки книг рабочего места приходят одним вызовом: путь → данные.
             workspace_covers: (payload: unknown) => {
@@ -633,13 +716,16 @@ export function defaultMockConfig(): MockBridgeConfig {
                 READER_CACHE.delete((payload as { path?: string } | null)?.path ?? '');
                 return true;
             },
-            reader_viewer_files: () => [
-                { path: 'index.html', mime: 'text/html' },
-                { path: 'viewer.mjs', mime: 'text/javascript' },
-            ],
+            // Модуль рисования берётся из развёрнутых ресурсов плагина: их
+            // отдаёт dev-сервер (каталог проекта), поэтому браузерный тест
+            // проверяет настоящий плагин, а не подделку.
+            reader_viewer: (payload: unknown) =>
+                viewerEntry((payload as { pluginId?: string } | null)?.pluginId ?? ''),
+            reader_viewer_files: (payload: unknown) =>
+                viewerFiles((payload as { pluginId?: string } | null)?.pluginId ?? ''),
             reader_viewer_file: (payload: unknown) => {
-                const value = (payload ?? {}) as { path?: string };
-                return { path: value.path ?? '', data: btoa(`asset:${value.path ?? ''}`) };
+                const value = (payload ?? {}) as { pluginId?: string; path?: string };
+                return viewerFile(value.pluginId ?? '', value.path ?? '');
             },
             select_source_library: () => ({ provider: LIBRARY_ID, provider_name: 'books-source' }),
             active_library: () => null,

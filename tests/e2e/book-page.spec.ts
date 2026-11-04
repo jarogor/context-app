@@ -143,7 +143,12 @@ test('книга с несколькими читаемыми форматами
         (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
             handlers: {
                 active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
-                reader_formats: () => ['pdf'],
+                // Форматы объявляют плагины: EPUB и PDF стоят одновременно.
+                reader_formats: () => ['epub', 'fb2'],
+                reader_plugin_for_format: (payload: unknown) =>
+                    (payload as { format?: string } | null)?.format === 'fb2'
+                        ? { plugin_id: 'format-fb2', flowing: true }
+                        : { plugin_id: 'format-epub', flowing: true },
                 reader_content: (payload: unknown) => {
                     (window as unknown as { __OPENED_PATH__?: string }).__OPENED_PATH__ = String(
                         (payload as { path?: string }).path ?? '',

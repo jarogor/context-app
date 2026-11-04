@@ -1,0 +1,18 @@
+{
+  "name": "format-epub-viewer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Фронтенд-исходники модуля рисования плагина формата чтения format-epub: самостоятельный проект, не разделяющий код и конфиги с оболочкой приложения.",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run --passWithNoTests",
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.2"
+  }
+}

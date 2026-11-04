@@ -165,6 +165,19 @@ function expectedFiles(plugin) {
             files.set(normalized, readFileSync(join(plugin.dir, relative)));
         }
     }
+    // Плагин формата может совмещать WASM-модуль (разбор) и модуль рисования
+    // (`viewer/`): содержимое разбирает плагин, а рисует его фронтенд.
+    if (plugin.manifest.module && plugin.manifest.viewer) {
+        const viewerDir = join(plugin.dir, 'viewer');
+        if (existsSync(viewerDir)) {
+            for (const relative of collectFiles(viewerDir, plugin.dir)) {
+                files.set(
+                    relative.replaceAll('\\', '/'),
+                    readFileSync(join(plugin.dir, relative)),
+                );
+            }
+        }
+    }
     const assets = assetsOf(plugin);
     if (assets) {
         for (const asset of assets) {

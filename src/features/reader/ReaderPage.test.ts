@@ -4,16 +4,13 @@ import { describe, expect, it, vi } from 'vitest';
 import ReaderPage from './ReaderPage.svelte';
 
 vi.mock('./reader', () => ({
-    UnsupportedFormatError: class UnsupportedFormatError extends Error {},
     formatFromPath: (path: string) => /\.([a-z0-9]+)$/i.exec(path)?.[1]?.toLowerCase() ?? '',
-    isSupportedFormat: (format: string) => format === 'epub',
-    loadBookContent: vi.fn(async () => ({
-        title: 'Книга',
-        authors: [],
-        chapters: [{ title: null, html: '<p>Текст</p>' }],
-    })),
     openBookFile: vi.fn(),
-    selectWorkplacePlugin: vi.fn(async () => null),
+    openBookLink: vi.fn(),
+    selectWorkplacePlugin: vi.fn(async () => ({ pluginId: 'format-epub', format: 'epub', flowing: true })),
+    loadWorkplaceBundle: vi.fn(async () => ({ entry: '<html></html>', files: [] })),
+    readBookContent: vi.fn(async () => ({ title: 'Книга', authors: [], chapters: [] })),
+    encodeText: (value: string) => value,
 }));
 
 describe('ReaderPage как содержимое вкладки', () => {
@@ -27,7 +24,7 @@ describe('ReaderPage как содержимое вкладки', () => {
         component.component.toggleFooterSearch();
         await tick();
 
-        expect(screen.getByTestId('reader-search')).toBeTruthy();
+        expect(await screen.findByTestId('reader-search')).toBeTruthy();
         expect(onFooter).toHaveBeenLastCalledWith(expect.objectContaining({ searchOpen: true }));
 
         component.component.toggleFooterSearch();
@@ -79,7 +76,7 @@ describe('ReaderPage как содержимое вкладки', () => {
 
     it('показывает заглушку недоступной книги и предлагает указать файл', async () => {
         const reader = await import('./reader');
-        vi.mocked(reader.loadBookContent).mockRejectedValueOnce(new Error('нет файла'));
+        vi.mocked(reader.selectWorkplacePlugin).mockRejectedValueOnce(new Error('нет файла'));
 
         render(ReaderPage, {
             props: { path: '/lib/gone.epub', title: 'Пропавшая книга', onRepoint: vi.fn() },
@@ -103,8 +100,9 @@ describe('ReaderPage как содержимое вкладки', () => {
 
         await screen.findByTestId('reader-loading');
         expect(onFooter).toHaveBeenCalled();
+        // Книгу открывает плагин формата: встроенного чтения больше нет.
         expect(onFooter).toHaveBeenLastCalledWith(
-            expect.objectContaining({ workplace: false, zoom: 130, progress: 40 }),
+            expect.objectContaining({ workplace: true, zoom: 130, progress: 40 }),
         );
     });
 });

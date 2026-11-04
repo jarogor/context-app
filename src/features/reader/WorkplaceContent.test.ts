@@ -5,7 +5,9 @@ import { readerThemeNoteTones, readerThemeTokens } from '@context/ui';
 
 vi.mock('./reader', () => ({
     loadWorkplaceBundle: vi.fn(async () => ({ entry: '<html></html>', files: [] })),
-    readWorkplaceBook: vi.fn(async () => ({ data: '' })),
+    readBookContent: vi.fn(async () => ({ title: '', authors: [], chapters: [] })),
+    readWorkplaceBook: vi.fn(async () => ''),
+    encodeText: (value: string) => value,
     openBookFile: vi.fn(),
 }));
 
@@ -59,46 +61,50 @@ describe('WorkplaceContent: тема области чтения', () => {
         expect(payload.value.notes).toEqual(readerThemeNoteTones('linen', 'dark'));
     });
 
-    it('не читает книгу, пока вкладка скрыта, и читает при первом показе', async () => {
-        // При открытии рабочего места монтируются все вкладки. Если каждая начнёт
-        // читать свою книгу, главный поток занят ими всеми сразу — интерфейс
-        // замирает, хотя книги грузятся «в свои области».
-        const { readWorkplaceBook } = await import('./reader');
-        const readBook = vi.mocked(readWorkplaceBook);
+    it('разбирает книгу сразу, а модулю отдаёт её по готовности', async () => {
+        // Книгу разбирает плагин формата, а не загрузка модуля рисования:
+        // поэтому содержимое читается сразу при монтировании вкладки, а
+        // сообщение `open` уходит модулю, когда он сообщил о готовности.
+        const { readBookContent } = await import('./reader');
+        const readBook = vi.mocked(readBookContent);
         readBook.mockClear();
-        readBook.mockResolvedValue('' as never);
+        readBook.mockResolvedValue({ title: '', authors: [], chapters: [] });
 
         const props = {
-            pluginId: 'pdf',
-            path: '/lib/book.pdf',
+            pluginId: 'format-epub',
+            path: '/lib/book.epub',
             title: 'Книга',
             zoom: 100,
             readerTheme: 'dark' as const,
             palette: 'linen' as const,
+            flowing: true,
         };
-        const result = render(WorkplaceContent, { props: { ...props, visible: false } });
+        const result = render(WorkplaceContent, { props });
+        await waitFor(() => {
+            expect(readBook).toHaveBeenCalledTimes(1);
+        });
+
         const frame = document.querySelector('iframe') as HTMLIFrameElement;
         const contentWindow = frame.contentWindow;
         if (!contentWindow) {
             return;
         }
-
+        const post = vi.spyOn(contentWindow, 'postMessage');
         window.dispatchEvent(
             new MessageEvent('message', {
                 source: contentWindow,
                 data: { channel: 'context-workplace', type: 'ready' },
             }),
         );
-
-        // Скрытая вкладка книгу не читает.
-        expect(readBook).not.toHaveBeenCalled();
-
-        // Первый показ вкладки запускает чтение, и только один раз.
-        await result.rerender({ ...props, visible: true });
         await waitFor(() => {
-            expect(readBook).toHaveBeenCalledTimes(1);
+            expect(
+                post.mock.calls.some(
+                    (call) => (call[0] as { type?: string })?.type === 'open',
+                ),
+            ).toBe(true);
         });
-        await result.rerender({ ...props, visible: false });
+
+        // Повторная видимость не разбирает файл заново.
         await result.rerender({ ...props, visible: true });
         expect(readBook).toHaveBeenCalledTimes(1);
     });

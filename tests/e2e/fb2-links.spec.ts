@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockFlowingBook } from './plugin-viewer';
 import { openWorkspaceArea } from './workplace-area';
 
 /** Глава со внутренней сноской, внешней ссылкой и ссылкой на другой файл.
@@ -17,28 +18,14 @@ const CHAPTERS = [
     },
 ];
 
-/** Установка мока: книга FB2 с главами и сносками. */
-async function installFb2Mock(page: Page) {
-    await page.addInitScript((chapters) => {
-        const target = window as unknown as {
-            __TEXTURE_MOCK_OVERRIDES__?: { handlers?: Record<string, unknown> };
-        };
-        target.__TEXTURE_MOCK_OVERRIDES__ = {
-            handlers: {
-                ...(target.__TEXTURE_MOCK_OVERRIDES__?.handlers ?? {}),
-                active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
-                reader_formats: () => ['fb2'],
-                reader_plugin_for_format: () => null,
-                reader_content: () => ({ title: 'Книга', authors: [], chapters }),
-                reader_cover: () => ({ data: null }),
-            },
-        };
-    }, CHAPTERS);
+/** Установка мока: книга текучего формата, нарисованная плагином. */
+async function installMock(page: Page) {
+    await mockFlowingBook(page, 'fb2', CHAPTERS);
 }
 
 /** Область содержимого книги. */
 function content(page: Page) {
-    return page.frameLocator('iframe[title="Чтение книги"]');
+    return page.frameLocator('iframe[title="Содержимое книги"]');
 }
 
 /** Открытие книги FB2 вкладкой рабочего места. */
@@ -74,14 +61,14 @@ async function openBook(page: Page) {
  * ссылке загружал туда сам интерфейс, и вкладка книги ломалась.
  */
 async function expectBookIntact(page: Page) {
+    // Документ книги остаётся в песочнице `srcdoc`: адрес читается изнутри
+    // кадра, потому что снаружи он закрыт политикой того же источника.
     await expect
         .poll(async () =>
-            page
-                .locator('iframe[title="Чтение книги"]')
-                .evaluate(
-                    (element) =>
-                        (element as HTMLIFrameElement).contentWindow?.location.href ?? 'none',
-                ),
+            content(page)
+                .locator('body')
+                .evaluate(() => globalThis.location.href)
+                .catch(() => 'none'),
         )
         .toBe('about:srcdoc');
     await expect(content(page).locator('.context-chapter')).not.toHaveCount(0);
@@ -92,7 +79,7 @@ async function expectBookIntact(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-    await installFb2Mock(page);
+    await installMock(page);
 });
 
 // Документ книги живёт в `srcdoc`, поэтому браузер разрешал относительные
@@ -187,6 +174,8 @@ test('клик по внешней ссылке не уводит область
     // страницы, поэтому регистрируется раньше открытия книги.
     const opened: string[] = [];
     await page.exposeFunction('__recordLink', (href: string) => opened.push(href));
+    // Перехват ссылки кладётся поверх мока из `beforeEach`: обработчики книги и
+    // подключение плагина остаются, добавляется только запись ссылки.
     await page.addInitScript(() => {
         const target = window as unknown as {
             __TEXTURE_MOCK_OVERRIDES__?: { handlers?: Record<string, unknown> };
@@ -205,7 +194,6 @@ test('клик по внешней ссылке не уводит область
 
     await openBook(page);
     await content(page).locator('a[href^="https"]').click();
-
     await expectBookIntact(page);
     await expect.poll(async () => opened.length).toBe(1);
     expect(opened[0]).toBe('https://example.org/');
@@ -230,7 +218,7 @@ test('область, ушедшая с книги, возвращает сод�
     const progress = await page.getByTestId('reader-progress').textContent();
 
     // Уход области на чужой документ — то, что раньше делал клик по ссылке.
-    await page.locator('iframe[title="Чтение книги"]').evaluate((element) => {
+    await page.locator('iframe[title="Содержимое книги"]').evaluate((element) => {
         element.setAttribute('src', 'about:blank');
     });
     await page.waitForTimeout(500);

@@ -8,7 +8,7 @@
 import { t } from '@context/i18n';
 import type { NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
 import type { QuoteAnchor } from './reader/anchor';
-import type { FileAnnotationBatch, FileBookmark } from './file-properties';
+import type { FileAnnotationBatch, FileBookmark, FileChapter } from './file-properties';
 import {
   normalizeBookmarks,
   parseFileAnnotationBatch,
@@ -47,7 +47,7 @@ export interface WorkplaceReaderTheme {
 /** Сборка сообщения о теме области чтения для модуля рисования.
  *
  * Значения берутся из дизайн-системы по палитре и стороне, поэтому у хоста и
- * встроенного чтения один источник токенов.
+ * плагинов форматов один источник токенов.
  */
 export function buildReaderThemeMessage(
   palette: PaletteId,
@@ -78,6 +78,8 @@ export interface WorkplaceCapabilities {
   annotations?: boolean;
   /** Умеет ли модуль читать встроенные закладки файла. */
   bookmarks?: boolean;
+  /** Текучая ли книга: текст течёт по колонке и гарнитура применима. */
+  flowing?: boolean;
 }
 
 /** Миниатюра страницы, нарисованная модулем по запросу. */
@@ -137,6 +139,24 @@ export interface WorkplaceNoteMenu {
   bottom: number;
 }
 
+/** Сноска книги, показанная плагином в меню у её маркера.
+ *
+ * Содержимое готовит плагин: он владеет разметкой книги, а оболочка показывает
+ * меню в своей системе оформления.
+ */
+export interface WorkplaceFootnote {
+  /** HTML содержимого сноски. */
+  html: string;
+  /** Идентификатор якоря сноски. */
+  anchor: string;
+  /** Экранная координата левого края маркера. */
+  left: number;
+  /** Экранная координата верхнего края маркера. */
+  top: number;
+  /** Экранная координата нижнего края маркера. */
+  bottom: number;
+}
+
 /** Разобранное входящее сообщение модуля рисования. */
 export type ViewerMessage =
   | { type: 'ready' }
@@ -150,6 +170,9 @@ export type ViewerMessage =
   | { type: 'note-click'; noteId: string }
   | { type: 'note-menu'; value: WorkplaceNoteMenu }
   | { type: 'note-menu-close' }
+  | { type: 'footnote'; value: WorkplaceFootnote }
+  | { type: 'footnote-close' }
+  | { type: 'contents'; value: FileChapter[] }
   | { type: 'place-note'; noteId: string; anchor: QuoteAnchor; geometry: string | undefined }
   | { type: 'error'; message: string }
   | { type: 'open-external' }
@@ -275,6 +298,31 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
     }
     case 'note-menu-close':
       return { type: 'note-menu-close' };
+    case 'footnote-close':
+      return { type: 'footnote-close' };
+    case 'contents': {
+      const value = Array.isArray(message.value) ? message.value : [];
+      return {
+        type: 'contents',
+        value: value.map((item) => {
+          const chapter = (item ?? {}) as { index?: unknown; title?: unknown };
+          return { index: Number(chapter.index) || 0, title: String(chapter.title ?? '') };
+        }),
+      };
+    }
+    case 'footnote': {
+      const value = (message.value as { html?: unknown; anchor?: unknown; left?: unknown; top?: unknown; bottom?: unknown }) ?? {};
+      return {
+        type: 'footnote',
+        value: {
+          html: String(value.html ?? ''),
+          anchor: String(value.anchor ?? ''),
+          left: Number(value.left) || 0,
+          top: Number(value.top) || 0,
+          bottom: Number(value.bottom) || 0,
+        },
+      };
+    }
     case 'place-note': {
       const value =
         (message.value as { noteId?: unknown; anchor?: QuoteAnchor; geometry?: unknown }) ?? {};

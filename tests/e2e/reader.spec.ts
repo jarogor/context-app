@@ -48,7 +48,7 @@ test('открытие книги добавляет вкладку в рабо�
 test('рабочее место показывает содержимое книги', async ({ page }) => {
     await openWorkplace(page);
 
-    const reader = page.frameLocator('iframe[title="Чтение книги"]');
+    const reader = page.frameLocator('iframe[title="Содержимое книги"]');
     await expect(reader.getByText('Первый абзац книги.')).toBeVisible();
     await expect(reader.getByText('Глава 2')).toBeVisible();
 });
@@ -62,8 +62,13 @@ test('шапка рабочего места оставляет кнопки д�
 
 test('масштаб меняет размер текста книги', async ({ page }) => {
     await openWorkplace(page);
+    // Книгу рисует плагин: масштаб применяется к её документу, поэтому ждём,
+    // пока содержимое появится.
+    await expect(
+        page.frameLocator('iframe[title="Содержимое книги"]').getByText('Первый абзац книги.'),
+    ).toBeVisible();
 
-    const html = page.frameLocator('iframe[title="Чтение книги"]').locator('html');
+    const html = page.frameLocator('iframe[title="Содержимое книги"]').locator('html');
     const before = await html.evaluate((element) => getComputedStyle(element).fontSize);
 
     await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
@@ -79,7 +84,9 @@ test('масштаб меняет размер текста книги', async (
 test('масштаб удерживает читаемую строку на месте', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 620 });
     await openWorkplace(page);
-    const body = page.frameLocator('iframe[title="Чтение книги"]').locator('body');
+    const frameLocator = page.frameLocator('iframe[title="Содержимое книги"]');
+    await expect(frameLocator.getByText('Первый абзац книги.')).toBeVisible();
+    const body = frameLocator.locator('body');
     const snapshot = (element: HTMLElement) => {
         const document = element.ownerDocument;
         const width = document.defaultView?.innerWidth ?? 0;
@@ -106,8 +113,10 @@ test('масштаб удерживает читаемую строку на м�
 test('открытие панели заметок не сбивает читаемое место', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 700 });
     await openWorkplace(page);
-    const body = page.frameLocator('iframe[title="Чтение книги"]').locator('body');
-    const frame = page.locator('iframe[title="Чтение книги"]');
+    const frameLocator = page.frameLocator('iframe[title="Содержимое книги"]');
+    await expect(frameLocator.getByText('Первый абзац книги.')).toBeVisible();
+    const body = frameLocator.locator('body');
+    const frame = page.locator('iframe[title="Содержимое книги"]');
     const snapshot = (element: HTMLElement) => {
         const document = element.ownerDocument;
         const width = document.defaultView?.innerWidth ?? 0;
@@ -140,14 +149,18 @@ test('открытие панели заметок не сбивает чита�
 test('прогресс обновляется при прокрутке книги', async ({ page }) => {
     await openWorkplace(page);
 
-    const iframe = page.locator('iframe[title="Чтение книги"]');
+    // Книга нарисована плагином: до готовности содержимого колесо некуда
+    // прокручивать, и прогресс оставался бы нулевым.
+    await expect(
+        page.frameLocator('iframe[title="Содержимое книги"]').getByText('Первый абзац книги.'),
+    ).toBeVisible();
+    const iframe = page.locator('iframe[title="Содержимое книги"]');
     const box = await iframe.boundingBox();
     if (!box) {
         throw new Error('область чтения не найдена');
     }
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.wheel(0, 1200);
-
     await expect
         .poll(async () => {
             const text = await page.getByTestId('reader-progress').textContent();
@@ -162,7 +175,7 @@ test('переключатель меняет тему области чтени
     await openWorkplace(page);
 
     const root = page.locator('html');
-    const readerHtml = page.frameLocator('iframe[title="Чтение книги"]').locator('html');
+    const readerHtml = page.frameLocator('iframe[title="Содержимое книги"]').locator('html');
     await expect(root).toHaveAttribute('data-theme', 'light');
     await expect(root).toHaveAttribute('data-reader-theme', 'light');
     await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
@@ -189,7 +202,7 @@ test('поиск по книге: поле во всю ширину, корот�
     await openWorkplace(page);
     await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
     const search = page.getByTestId('reader-search');
-    const reader = page.frameLocator('iframe[title="Чтение книги"]');
+    const reader = page.frameLocator('iframe[title="Содержимое книги"]');
     const field = search.getByRole('textbox', { name: 'Поиск по книге' });
 
     // Пока результата нет, счётчика нет вовсе: он не резервирует место справа

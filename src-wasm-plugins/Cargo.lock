@@ -257,6 +257,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
+name = "format-epub"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "extism-pdk",
+ "format-parsers",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "format-fb2"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "extism-pdk",
+ "format-parsers",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "format-parsers"
 version = "0.1.0"
 dependencies = [

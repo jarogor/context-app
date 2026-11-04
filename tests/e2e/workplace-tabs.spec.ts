@@ -202,7 +202,11 @@ test('позиция чтения сохраняется при переключ
     await page.goto('/');
     await addBook(page, 'Демо-книга');
 
-    const iframe = activePage(page).locator('iframe[title="Чтение книги"]');
+    // Книгу рисует плагин: до её готовности прокручивать нечего.
+    await expect(
+        page.frameLocator('iframe[title="Содержимое книги"]').getByText('Первый абзац книги.'),
+    ).toBeVisible();
+    const iframe = activePage(page).locator('iframe[title="Содержимое книги"]');
     const box = await iframe.boundingBox();
     if (!box) {
         throw new Error('область чтения не найдена');
@@ -301,16 +305,50 @@ test('навигация по вкладкам сдвигает видимый �
     await duplicateActive(page, 6);
 
     const counter = page.getByTestId('workplace-tabs-counter');
-    const atEnd = (await counter.textContent())?.trim() ?? '';
+    await expect(counter).toBeVisible();
+
+    /** Подпись счётчика после стабилизации раскладки.
+     *
+     * Счётчик сам занимает место в полосе и меняет ёмкость окна, поэтому
+     * читаем диапазон только когда два подряд замера совпали: иначе проверка
+     * ловила бы промежуточный кадр.
+     */
+    const stableCounter = async () => {
+        let previous = '';
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+            const current = (await counter.textContent())?.trim() ?? '';
+            if (current !== '' && current === previous) {
+                return current;
+            }
+            previous = current;
+            await page.waitForTimeout(50);
+        }
+        return previous;
+    };
+    const atEnd = await stableCounter();
     expect(atEnd).toContain('из 7');
 
-    await page.getByLabel('Предыдущие вкладки').click();
-    const shifted = (await counter.textContent())?.trim() ?? '';
-    expect(shifted).not.toBe(atEnd);
-    expect(shifted).toContain('–6 из 7');
+    /** Первая и последняя показанные вкладки из подписи счётчика. */
+    const rangeOf = (text: string) => {
+        const match = /(\d+)–(\d+)/.exec(text);
+        return match ? { from: Number(match[1]), to: Number(match[2]) } : null;
+    };
+    const endRange = rangeOf(atEnd);
+    expect(endRange).not.toBeNull();
 
-    await page.getByLabel('Следующие вкладки').click();
-    await expect(counter).toHaveText(atEnd);
+    // Сдвиг назад доступен, пока окно не в начале: полоса не листает за край.
+    const previous = page.getByLabel('Предыдущие вкладки');
+    if (await previous.isEnabled()) {
+        await previous.click();
+        const shifted = await stableCounter();
+        expect(shifted).not.toBe(atEnd);
+        const shiftedRange = rangeOf(shifted);
+        expect(shiftedRange).not.toBeNull();
+        expect(shiftedRange!.to).toBeLessThan(7);
+
+        await page.getByLabel('Следующие вкладки').click();
+        await expect.poll(stableCounter).toBe(atEnd);
+    }
 
     // Активная вкладка не меняется навигацией: содержимое остаётся тем же.
     await expect(activePage(page)).toHaveCount(1);

@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  UnsupportedFormatError,
   formatFromPath,
-  isSupportedFormat,
-  loadBookContent,
   loadWorkplaceBundle,
   loadWorkplaceViewer,
+  readBookContent,
   readWorkplaceBook,
   selectWorkplacePlugin,
   type ReaderBackend,
@@ -31,57 +29,6 @@ describe('formatFromPath', () => {
   });
 });
 
-describe('isSupportedFormat', () => {
-  it('поддерживает EPUB', () => {
-    expect(isSupportedFormat('epub')).toBe(true);
-    expect(isSupportedFormat('EPUB')).toBe(true);
-  });
-
-  it('поддерживает FB2 как текстовый формат', () => {
-    expect(isSupportedFormat('fb2')).toBe(true);
-    expect(isSupportedFormat('FB2')).toBe(true);
-  });
-
-  it('не поддерживает другие форматы', () => {
-    expect(isSupportedFormat('docx')).toBe(false);
-    expect(isSupportedFormat('')).toBe(false);
-  });
-});
-
-describe('loadBookContent', () => {
-  it('возвращает нормализованное содержимое EPUB', async () => {
-    const backend = backendFor('epub', {
-      title: 'Книга',
-      authors: ['Автор'],
-      chapters: [{ title: 'Глава', html: '<p>текст</p>' }],
-    });
-
-    const content = await loadBookContent('/lib/book.epub', backend);
-
-    expect(content.title).toBe('Книга');
-    expect(content.authors).toEqual(['Автор']);
-    expect(content.chapters).toHaveLength(1);
-    expect(content.chapters[0].html).toBe('<p>текст</p>');
-  });
-
-  it('отвергает неподдерживаемый формат', async () => {
-    const backend = backendFor('docx');
-
-    await expect(loadBookContent('/lib/book.docx', backend)).rejects.toBeInstanceOf(
-      UnsupportedFormatError,
-    );
-  });
-
-  it('устойчив к пустому ответу', async () => {
-    const backend = backendFor('epub');
-
-    const content = await loadBookContent('/lib/book.epub', backend);
-
-    expect(content.title).toBe('');
-    expect(content.chapters).toEqual([]);
-  });
-});
-
 /** Мок-бэкенд ядра для плагинов рабочего места. */
 function workplaceBackend(overrides: Partial<Record<string, unknown>> = {}): ReaderBackend {
   return {
@@ -94,7 +41,7 @@ function workplaceBackend(overrides: Partial<Record<string, unknown>> = {}): Rea
         return ['pdf'];
       }
       if (command === 'reader_plugin_for_format') {
-        return 'plugin-1';
+        return { plugin_id: 'plugin-1', flowing: false };
       }
       if (command === 'reader_viewer') {
         return '<html></html>';
@@ -109,13 +56,13 @@ describe('selectWorkplacePlugin', () => {
     const backend: ReaderBackend = {
       invoke: async (command) => {
         if (command === 'reader_plugin_for_format') {
-          return 'plugin-1';
+          return { plugin_id: 'plugin-1', flowing: false };
         }
         return {};
       },
     };
     const selection = await selectWorkplacePlugin('/lib/book.pdf', backend);
-    expect(selection).toEqual({ pluginId: 'plugin-1', format: 'pdf' });
+    expect(selection).toEqual({ pluginId: 'plugin-1', format: 'pdf', flowing: false });
   });
 
   it('возвращает null без плагина', async () => {
@@ -162,6 +109,39 @@ describe('loadWorkplaceBundle', () => {
     const backend = workplaceBackend({ reader_viewer_files: null });
     const bundle = await loadWorkplaceBundle('plugin-1', backend);
     expect(bundle.files).toEqual([]);
+  });
+});
+
+describe('readBookContent', () => {
+  it('приводит ответ плагина формата к модели содержимого', async () => {
+    const backend: ReaderBackend = {
+      invoke: async (command) => {
+        if (command === 'reader_content') {
+          return {
+            title: 'Книга',
+            authors: ['Автор'],
+            chapters: [{ title: 'Глава', html: '<p>текст</p>' }],
+          };
+        }
+        return {};
+      },
+    };
+
+    const content = await readBookContent('/lib/book.epub', undefined, backend);
+
+    expect(content.title).toBe('Книга');
+    expect(content.authors).toEqual(['Автор']);
+    expect(content.chapters).toHaveLength(1);
+    expect(content.chapters[0].html).toBe('<p>текст</p>');
+  });
+
+  it('устойчив к пустому ответу', async () => {
+    const backend: ReaderBackend = { invoke: async () => ({}) };
+
+    const content = await readBookContent('/lib/book.epub', undefined, backend);
+
+    expect(content.title).toBe('');
+    expect(content.chapters).toEqual([]);
   });
 });
 

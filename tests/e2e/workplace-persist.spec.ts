@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { addBookToWorkspace } from './workplace-area';
+import { viewerBundle } from './plugin-viewer';
 
 /** Ответ активной библиотеки для сценариев сохранения рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
@@ -112,12 +113,29 @@ test('прежнее одиночное состояние переноситс�
 });
 
 test('недоступную книгу можно переуказать на файл с диска', async ({ page }) => {
-    await page.addInitScript(() => {
+    const bundle = viewerBundle('format-epub');
+    await page.addInitScript((viewer) => {
         (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ =
             {
                 // Пользователь выбирает на диске доступный файл книги.
                 dialogResult: '/library/demo-1.epub',
                 handlers: {
+                    // Книгу рисует плагин формата: его модуль нужен и здесь,
+                    // иначе недоступность файла неотличима от пустой области.
+                    reader_plugin_for_format: () => ({ plugin_id: 'format-epub', flowing: true }),
+                    reader_viewer: () => viewer.entry,
+                    reader_viewer_files: () =>
+                        viewer.files.map((file: { path: string; mime: string }) => ({
+                            path: file.path,
+                            mime: file.mime,
+                        })),
+                    reader_viewer_file: (input: unknown) => {
+                        const path = (input as { path?: string } | null)?.path ?? '';
+                        const found = viewer.files.find(
+                            (file: { path: string }) => file.path === path,
+                        );
+                        return { path, data: found?.data ?? '' };
+                    },
                     // Файл недоступен, пока путь не переуказан: чтение по старому
                     // пути завершается ошибкой, по новому — отдаёт содержимое.
                     reader_content: (payload: unknown) => {
@@ -160,7 +178,7 @@ test('недоступную книгу можно переуказать на �
                     },
                 },
             };
-    });
+    }, bundle);
 
     await page.goto('/');
 
@@ -175,7 +193,7 @@ test('недоступную книгу можно переуказать на �
 
     await expect(page.getByTestId('reader-unavailable')).toHaveCount(0);
     await expect(
-        page.frameLocator('iframe[title="Чтение книги"]').getByText('Первый абзац книги.'),
+        page.frameLocator('iframe[title="Содержимое книги"]').getByText('Первый абзац книги.'),
     ).toBeVisible();
 });
 
@@ -224,6 +242,6 @@ test('рабочее место читает книгу без открытой 
     await expect(page.getByTestId('reader-unavailable')).toHaveCount(0);
     await expect(page.getByTestId('reader-error')).toHaveCount(0);
     await expect(
-        page.frameLocator('iframe[title="Чтение книги"]').getByText('Первый абзац книги.'),
+        page.frameLocator('iframe[title="Содержимое книги"]').getByText('Первый абзац книги.'),
     ).toBeVisible();
 });

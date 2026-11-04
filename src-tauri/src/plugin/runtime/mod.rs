@@ -154,6 +154,18 @@ impl PluginRuntime {
             .map(|plugin| plugin.id.clone())
     }
 
+    /// Текучая ли книга формата, обслуживаемого плагином.
+    ///
+    /// Признак объявляет сам плагин: от него зависит, что приложение передаёт
+    /// модулю рисования — разобранные главы или байты файла.
+    pub fn format_plugin_flowing(&self, format: &str) -> bool {
+        self.plugins
+            .iter()
+            .find(|plugin| plugin.kind == PluginKind::Format && plugin.supports_format(format))
+            .map(|plugin| plugin.flowing)
+            .unwrap_or(false)
+    }
+
     /// Абсолютный путь к модулю рисования плагина рабочего места.
     pub fn viewer_path(&self, id: &str) -> Option<PathBuf> {
         let plugin = self

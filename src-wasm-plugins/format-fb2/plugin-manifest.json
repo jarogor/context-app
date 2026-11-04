@@ -1,0 +1,20 @@
+{
+  "contract_version": 1,
+  "level": "application",
+  "kind": "format",
+  "id": "7b1d3c55-4e28-4a90-b6f2-8c5e1d9a0b47",
+  "name": "format-fb2",
+  "description": "Плагин формата чтения: чтение FB2 с главами, поиском, заметками и сносками",
+  "version": "0.1.0",
+  "module": "format_fb2.wasm",
+  "export": "invoke",
+  "formats": [
+    "fb2"
+  ],
+  "viewer": "viewer/index.html",
+  "host_functions": [
+    "fs_read_bytes"
+  ],
+  "requires": [],
+  "flowing": true
+}

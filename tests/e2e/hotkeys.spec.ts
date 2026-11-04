@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 function bookDocument(page: Page) {
     return page
         .locator('[data-testid="workplace-tab-page"][data-active="true"]')
-        .locator('iframe[title="Чтение книги"]')
+        .locator('iframe[title="Содержимое книги"]')
         .contentFrame();
 }
 

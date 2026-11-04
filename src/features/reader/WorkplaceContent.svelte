@@ -6,13 +6,15 @@
     loadWorkplaceBundle,
     openBookFile,
     openBookLink,
+    readBookContent,
     readWorkplaceBook,
+    encodeText,
   } from './reader';
   import { buildViewerDocument } from './viewer-bundle';
   import type { Note, NoteColor, NoteTool, ShapeKind } from '../notes/notes';
   import { DEFAULT_NOTE_TOOL } from '../notes/notes';
   import type { QuoteAnchor } from './reader/anchor';
-  import type { FileAnnotationBatch, FileBookmark } from './file-properties';
+  import type { FileAnnotationBatch, FileBookmark, FileChapter } from './file-properties';
   import type { WorkplaceThumbnail } from './workplace-protocol';
   import {
     WORKPLACE_CHANNEL,
@@ -21,10 +23,21 @@
     parseViewerMessage,
     type WorkplaceCapabilities,
     type WorkplaceNoteMenu,
+    type WorkplaceFootnote,
     type WorkplaceSearchResult,
     type WorkplaceState,
   } from './workplace-protocol';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, readerThemeTokens, type PaletteId, type ReaderThemeId } from '@context/ui';
+  import {
+    DEFAULT_PALETTE,
+    DEFAULT_READER_FONT,
+    DEFAULT_READER_THEME,
+    readerFontFamily,
+    readerThemeTokens,
+    solidNoteTones,
+    type PaletteId,
+    type ReaderFontId,
+    type ReaderThemeId,
+  } from '@context/ui';
   import { viewerBindingsMessage, viewerCommand } from '../hotkeys/viewer-keys';
   import { hotkeys } from '../hotkeys';
 
@@ -45,6 +58,8 @@
     tool?: NoteTool;
     /** Тема области чтения (светлая или тёмная). */
     readerTheme?: ReaderThemeId;
+    /** Гарнитура книги: с засечками или без. */
+    readerFont?: ReaderFontId;
     /** Палитра оформления: общий реестр дизайн-системы. */
     palette?: PaletteId;
     /** Видима ли область чтения (для доведения отрисовки после возврата). */
@@ -85,6 +100,12 @@
     onThumbs?: (thumbnails: WorkplaceThumbnail[]) => void;
     /** Порция найденных в файле пометок. */
     onFileAnnotations?: (batch: FileAnnotationBatch) => void;
+    /** Сноска книги, показанная плагином у её маркера (`null` — закрыть). */
+    onFootnote?: (footnote: WorkplaceFootnote | null) => void;
+    /** Содержание книги: главы, которые разобрал плагин. */
+    onContents?: (chapters: FileChapter[]) => void;
+    /** Текучая ли книга: плагин получает главы, а страничный — байты файла. */
+    flowing?: boolean;
   }
 
   let {
@@ -96,6 +117,7 @@
     notes = [],
     tool = DEFAULT_NOTE_TOOL,
     readerTheme = DEFAULT_READER_THEME,
+    readerFont = DEFAULT_READER_FONT,
     palette = DEFAULT_PALETTE,
     visible = true,
     onCapabilities,
@@ -116,6 +138,9 @@
     onBookmarks,
     onThumbs,
     onFileAnnotations,
+    onFootnote,
+    onContents,
+    flowing = false,
   }: Props = $props();
 
   /** Канал сообщений между областью содержимого и приложением. */
@@ -127,13 +152,17 @@
   let ready = $state(false);
   /** Отправлено ли содержимое книги плагину.
    *
-   * Скрытая вкладка не загружает книгу: при открытии рабочего места вкладки
-   * монтируются все сразу, и если каждая начинает читать свою книгу, главный
-   * поток занят ими всеми одновременно — интерфейс перестаёт отвечать, хотя
-   * книги грузятся «в свои области». Поэтому книга читается при первом показе
-   * вкладки и только один раз.
+   * Прочитанное содержимое готовится один раз за жизнь вкладки: повторный показ
+   * не разбирает файл заново.
    */
   let bookSent = $state(false);
+  /** Разобранное содержимое книги, ожидающее готовности модуля рисования.
+   *
+   * Книгу разбирает плагин формата (WASM) — это его предметная работа, а не
+   * загрузка модуля рисования. Поэтому содержимое читается сразу при монтировании
+   * вкладки, а модулю отдаётся, когда он сообщит о готовности.
+   */
+  let pendingBook: string | null = $state(null);
   /** Ошибка загрузки модуля или содержимого. */
   let error = $state<string | null>(null);
   /** Последний запрос поиска: при готовности модуля он отправляется заново. */
@@ -148,30 +177,46 @@
     frame?.contentWindow?.postMessage({ channel: CHANNEL, ...message }, '*');
   }
 
-  /** Отправка книги, когда вкладка впервые становится видимой. */
-  function sendBookWhenVisible() {
-    if (!ready || !visible || bookSent) {
+  /** Передача книги модулю, когда он готов и книга разобрана. */
+  function sendBookWhenReady() {
+    if (!ready || pendingBook === null) {
       return;
     }
-    bookSent = true;
-    void sendBook();
-  }
-
-  /** Передача содержимого книги модулю рисования. */
-  async function sendBook() {
-    try {
-      const data = await readWorkplaceBook(path, undefined, (value) =>
-        onLoadProgress?.(value),
-      );
-      onLoadProgress?.(null);
+    if (!bookSent) {
+      bookSent = true;
       post({
         type: 'open',
-        data,
+        data: pendingBook,
         title,
         position: untrack(() => initialPosition),
         zoom,
       });
       sendNotes();
+      return;
+    }
+    post({ type: 'show' });
+  }
+
+  /** Разбор содержимого книги: выполняется один раз при монтировании вкладки.
+   *
+   * Главы разбирает плагин формата (WASM) — это его предметная работа. Модулю
+   * рисования приходят готовые главы JSON-ом в base64: байты книги в песочницу
+   * не передаются, формат разобран до неё.
+   */
+  async function loadBook() {
+    try {
+      // Текучая книга приходит разобранными главами, страничная — байтами
+      // файла: рисунок страниц делает модуль плагина, а не оболочка.
+      const data = flowing
+        ? encodeText(
+            JSON.stringify(
+              await readBookContent(path, (value) => onLoadProgress?.(value)),
+            ),
+          )
+        : await readWorkplaceBook(path, undefined, (value) => onLoadProgress?.(value));
+      onLoadProgress?.(null);
+      pendingBook = data;
+      sendBookWhenReady();
     } catch (e) {
       onLoadProgress?.(null);
       error = String(e);
@@ -225,7 +270,21 @@
     if (!ready) {
       return;
     }
-    post(buildReaderThemeMessage(palette, readerTheme));
+    // Гарнитура книги — часть темы области чтения: плагин получает готовое
+    // семейство шрифта и не знает о гарнитурах приложения.
+    const theme = buildReaderThemeMessage(palette, readerTheme);
+    // Плоские тона подсветки цитат: куски подсветки перекрываются на доли
+    // пикселя, и полупрозрачные слои складывали бы альфу в тёмную полосу.
+    const solid = solidNoteTones(theme.value.notes, theme.value.tokens.background);
+    post({
+      ...theme,
+      value: {
+        ...theme.value,
+        solid,
+        font: readerFontFamily(readerFont),
+        fontId: readerFont,
+      },
+    });
   }
 
   /** Передача плагину привязок клавиш приложения.
@@ -257,7 +316,7 @@
         sendLocale();
         sendTool();
         sendBindings();
-        sendBookWhenVisible();
+        sendBookWhenReady();
         // Поиск, запрошенный до готовности модуля, отправляется теперь: иначе
         // запрос, набранный во время загрузки книги, терялся.
         if (pendingSearch) {
@@ -297,6 +356,15 @@
       case 'place-note':
         onPlaceNote?.(message.noteId, message.anchor, message.geometry);
         break;
+      case 'footnote':
+        onFootnote?.(message.value);
+        break;
+      case 'footnote-close':
+        onFootnote?.(null);
+        break;
+      case 'contents':
+        onContents?.(message.value);
+        break;
       case 'error':
         error = message.message;
         onError?.(error);
@@ -328,6 +396,7 @@
   }
 
   onMount(() => {
+    void loadBook();
     void loadWorkplaceBundle(pluginId)
       .then(({ entry, files }) => {
         html = buildViewerDocument(entry, files);
@@ -364,10 +433,14 @@
     sendTool();
   });
 
-  /** Передача темы области чтения при её смене (сторона или палитра). */
+  /** Действующая гарнитура: часть темы, поэтому читается вместе с ней. */
+  const activeFont = $derived(readerFontFamily(readerFont));
+
+  /** Передача темы области чтения при её смене (сторона, палитра, гарнитура). */
   $effect(() => {
     void readerTheme;
     void palette;
+    void activeFont;
     sendReaderTheme();
   });
 
@@ -386,16 +459,48 @@
    * полагаясь на срабатывание наблюдателя размера в webview. */
   $effect(() => {
     if (visible && ready) {
-      post({ type: 'show' });
-      // Первый показ вкладки запускает чтение её книги. Скрытые вкладки книг не
-      // читают: иначе открытие рабочего места грузило бы все книги разом.
-      sendBookWhenVisible();
+      // Готовность модуля и разобранная книга отправляются вместе: книга
+      // разбирается сразу, а показывается, когда модуль готов.
+      sendBookWhenReady();
     }
   });
+
+  /** Закрытие меню сноски по действию оболочки.
+   *
+   * Плагин держит маркер открытой сноски: без уведомления повторный клик по
+   * нему считался бы закрытием и меню не открылось бы снова.
+   */
+  export function closeFootnote() {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'footnote-close' });
+  }
+
+  /** Снятие выделения в книге по действию оболочки (закрытие меню, отмена).
+   *
+   * Выделение живёт в документе плагина, поэтому снять его может только он:
+   * оболочка сообщает команду, а плагин убирает диапазон и слой выделения.
+   */
+  export function clearSelection() {
+    if (!ready) {
+      return;
+    }
+    post({ type: 'clear-selection' });
+  }
 
   /** Переход к странице. */
   export function gotoPage(page: number) {
     post({ type: 'goto', value: { page } });
+  }
+
+  /** Переход к главе книги из панели содержания.
+   *
+   * Глава адресуется номером в содержимом, которое разобрал плагин формата;
+   * где именно она лежит в документе, знает только плагин.
+   */
+  export function gotoChapter(index: number) {
+    post({ type: 'goto', value: { chapter: index } });
   }
 
   /** Переход к якорю заметки. */

@@ -111,7 +111,7 @@ async function expectNoteSetOptions(
 function bookDocument(page: import('@playwright/test').Page) {
     return page
         .locator('[data-testid="workplace-tab-page"][data-active="true"]')
-        .locator('iframe[title="Чтение книги"]')
+        .locator('iframe[title="Содержимое книги"]')
         .contentFrame();
 }
 
@@ -208,10 +208,11 @@ test('меню создания появляется у конца многос�
             };
         });
 
+
     await expect(page.getByTestId('quote-menu')).toBeVisible();
     const frameBox = await page
         .locator('[data-testid="workplace-tab-page"][data-active="true"]')
-        .locator('iframe[title="Чтение книги"]')
+        .locator('iframe[title="Содержимое книги"]')
         .boundingBox();
     const menuBox = await page.getByTestId('quote-menu').boundingBox();
     // Меню стоит у конца выделения (правого края последней строки), а не у
@@ -915,7 +916,7 @@ test('границы цитаты в EPUB применяются по отпус
     await highlightParagraph(page, 'Первый абзац книги.');
 
     // Меню заметки (общий компонент) открывает правку границ.
-    const frame = page.frameLocator('iframe[title="Чтение книги"]');
+    const frame = page.frameLocator('iframe[title="Содержимое книги"]');
     await frame.locator('mark.context-note').first().click();
     await expect(page.getByTestId('note-menu')).toBeVisible();
     await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить выделение' }).click();

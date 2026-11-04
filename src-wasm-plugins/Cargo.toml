@@ -2,6 +2,8 @@
 members = [
     "books-source",
     "books-source-calibre",
+    "format-epub",
+    "format-fb2",
     "notes-store",
     "plugin-store",
     "settings",

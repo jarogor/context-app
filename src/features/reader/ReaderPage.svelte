@@ -2,17 +2,12 @@
   import { t } from '@context/i18n';
   import { onMount, untrack } from 'svelte';
   import { Button, EmptyState, ErrorState, Icon, Progress, Spinner } from '@context/ui';
-  import BookReader from './BookReader.svelte';
   import WorkplaceContent from './WorkplaceContent.svelte';
   import {
-    UnsupportedFormatError,
     formatFromPath,
-    isSupportedFormat,
-    loadBookContent,
     openBookFile,
     openBookLink,
     selectWorkplacePlugin,
-    type BookContent,
     type WorkplaceSelection,
   } from './reader';
   import {
@@ -28,6 +23,7 @@
   import NoteColorMenu from '../notes/NoteColorMenu.svelte';
   import NoteMenu from '../notes/NoteMenu.svelte';
   import NoteTextEditor from './NoteTextEditor.svelte';
+  import FootnoteMenu from '../notes/FootnoteMenu.svelte';
   import ReaderSearchBar from './ReaderSearchBar.svelte';
   import {
     EMPTY_SEARCH_STATE,
@@ -52,7 +48,7 @@
     type FilePropertiesSnapshot,
     type PropertiesTabId,
   } from './file-properties';
-  import type { WorkplaceThumbnail } from './workplace-protocol';
+  import type { WorkplaceFootnote, WorkplaceThumbnail } from './workplace-protocol';
   import {
   forgetThumbsCache,
   loadCachedProperties,
@@ -117,6 +113,8 @@
     workplaceZoom: boolean;
     /** Поддерживает ли плагин страницы. */
     workplacePages: boolean;
+    /** Текучая ли книга: текст течёт по колонке. */
+    flowing: boolean;
     /** Текущая страница плагина или `null`. */
     page: number | null;
     /** Общее число страниц плагина или `null`. */
@@ -169,7 +167,6 @@
   const PAGE_MAX_ZOOM = 1000;
 
   /** Содержимое книги (текстовые форматы). */
-  let content: BookContent | null = $state(null);
   /** Плагин рабочего места, если формат читается им. */
   let workplace: WorkplaceSelection | null = $state(null);
   /** Идёт загрузка содержимого. */
@@ -198,6 +195,10 @@
   let workplaceZoom = $state(true);
   /** Поддерживает ли плагин рабочего места страницы. */
   let workplacePages = $state(false);
+  /** Текучая ли книга: возможность сообщает плагин формата. */
+  let flowing = $state(false);
+  /** Сноска, показанная плагином у маркера: меню рисует оболочка. */
+  let workplaceFootnote = $state<WorkplaceFootnote | null>(null);
   /** Прогресс загрузки содержимого плагина в процентах. */
   let loadProgress = $state<number | null>(null);
   /** Действующие границы масштаба: шире для страничных форматов. */
@@ -207,24 +208,15 @@
   let workplacePage = $state<number | null>(null);
   /** Общее число страниц плагина рабочего места. */
   let workplacePageCount = $state<number | null>(null);
-  /** Читалка текстовой книги для перехода к заметке. */
-  let reader:
-    | {
-        goto: (note: Note) => void;
-        goToChapter: (index: number) => void;
-        search: (query: string) => { hits: unknown[]; truncated: boolean };
-        goToSearchHit: (index: number) => void;
-        clearSearch: () => void;
-        scrollScreen: (direction: 1 | -1) => void;
-        scrollToEdge: (edge: 'start' | 'end') => void;
-      }
-    | undefined = $state();
   /** Область содержимого плагина для перехода к странице и заметке. */
   let workplaceContent:
     | {
         gotoPage: (page: number) => void;
+        gotoChapter: (index: number) => void;
         gotoAnchor: (anchor: string, noteId?: string) => void;
         noteMenuAction: (noteId: string, action: 'move' | 'resize') => void;
+        clearSelection: () => void;
+        closeFootnote: () => void;
         search: (query: string) => void;
         stepSearch: (delta: 1 | -1) => void;
         sendCommand: (id: string) => void;
@@ -393,7 +385,6 @@
   function clearSearchResults() {
     searchState = EMPTY_SEARCH_STATE;
     searchBusy = false;
-    reader?.clearSearch();
     workplaceContent?.search('');
   }
 
@@ -414,20 +405,6 @@
 
   /** Выполнение поиска по готовому запросу в области чтения формата. */
   function applySearch(needle: string) {
-    if (reader) {
-      const result = reader.search(needle);
-      searchState = {
-        total: result.hits.length,
-        index: result.hits.length > 0 ? 0 : null,
-        truncated: result.truncated,
-      };
-      // Первое вхождение показывается сразу: иначе поиск находил бы места, но
-      // не показывал ни одного, и пользователь не видел результата.
-      if (result.hits.length > 0) {
-        reader.goToSearchHit(0);
-      }
-      return;
-    }
     if (workplaceContent) {
       // Плагин формата ищет по текстовому слою страниц и отвечает событием
       // `search`: ответ несёт запрос, поэтому устаревший ответ не применяется.
@@ -452,11 +429,7 @@
       return;
     }
     searchState = withSearchIndex(searchState, next);
-    if (reader) {
-      reader.goToSearchHit(next);
-    } else {
-      workplaceContent?.stepSearch(delta);
-    }
+    workplaceContent?.stepSearch(delta);
   }
 
   /** Результат поиска, сообщённый плагином формата. */
@@ -482,7 +455,7 @@
    */
   let searchAreaReady = $state(false);
   $effect(() => {
-    const ready = reader !== undefined || workplaceContent !== undefined;
+    const ready = workplaceContent !== undefined;
     if (!ready || searchAreaReady) {
       return;
     }
@@ -508,6 +481,8 @@
   function dismissWorkplaceMenu() {
     pendingAnchor = null;
     menuPosition = null;
+    // Выделение живёт в документе плагина: снимает его он по команде.
+    workplaceContent?.clearSelection();
   }
 
   /** Закрытие контекстного меню заметки страничного формата. */
@@ -533,7 +508,7 @@
     }
   }
 
-  /** Открытие окна правки текста заметки типа `text` из встроенного чтения. */
+  /** Открытие окна правки текста заметки типа `text`. */
   function startEditNoteTextInReader(noteId: string) {
     openNoteTextEditor(noteId);
   }
@@ -591,14 +566,12 @@
     error = null;
     unsupported = false;
     unavailable = false;
-    content = null;
     workplace = null;
     const format = formatFromPath(value);
     properties = {
       ...emptyProperties(format),
-      // Встроенное чтение — это и есть текучие форматы: их текст течёт по
-      // колонке, а у страничных форматов рисует плагин.
-      flowing: isSupportedFormat(format),
+      // Читатель выбирается по плагину формата: встроенного чтения нет.
+      flowing: false,
     };
     shownAnnotations = [];
     try {
@@ -606,35 +579,18 @@
         unsupported = true;
         return;
       }
-      if (isSupportedFormat(format)) {
-        content = await loadBookContent(value);
-        // Содержание текучей книги — её главы: заголовки уже разобраны
-        // встроенным чтением, отдельного разбора не нужно.
-        properties = {
-          ...properties,
-          chapters: content.chapters.map((chapter, index) => ({
-            index,
-            title: chapter.title?.trim() || t('app.properties.chapterUntitled', { index: index + 1 }),
-          })),
-        };
+      const selection = await selectWorkplacePlugin(value);
+      if (selection) {
+        workplace = selection;
+        // Свойства файла из прошлого открытия: закладки, число страниц,
+        // встроенные пометки и превью показываются до разбора файла заново.
+        await applyCachedProperties(value);
       } else {
-        const selection = await selectWorkplacePlugin(value);
-        if (selection) {
-          workplace = selection;
-          // Свойства файла из прошлого открытия: закладки, число страниц,
-          // встроенные пометки и превью показываются до разбора файла заново.
-          await applyCachedProperties(value);
-        } else {
-          unsupported = true;
-        }
+        unsupported = true;
       }
     } catch (e) {
-      if (e instanceof UnsupportedFormatError) {
-        unsupported = true;
-      } else {
-        unavailable = true;
-        error = String(e);
-      }
+      unavailable = true;
+      error = String(e);
     } finally {
       loading = false;
     }
@@ -703,6 +659,7 @@
       workplace: workplace !== null,
       workplaceZoom,
       workplacePages,
+      flowing,
       page: workplacePage,
       pageCount: workplacePageCount,
       zoom,
@@ -734,12 +691,12 @@
   }
 
   /** Есть ли чем выполнять действия чтения (книга открыта и читается). */
-  const readerReady = $derived(reader !== undefined || workplaceContent !== undefined);
+  const readerReady = $derived(workplaceContent !== undefined);
 
   /** Прокрутка содержимого книги по действию клавиатуры.
    *
    * У плагина формата прокруткой владеет модуль рисования — ему уходит команда
-   * по протоколу. У встроенного чтения прокручивается документ главы; делается
+   * по протоколу. У текучей книги прокручивается документ главы; делается
    * это здесь, а не обработчиком клавиши, чтобы навигация по книге была одной
    * точкой и не расходилась между форматами.
    */
@@ -748,7 +705,6 @@
       workplaceContent.sendCommand(direction > 0 ? 'reader.screen.next' : 'reader.screen.prev');
       return;
     }
-    reader?.scrollScreen(direction);
   }
 
   /** Прокрутка содержимого книги к началу или концу. */
@@ -757,7 +713,6 @@
       workplaceContent.sendCommand(edge === 'start' ? 'reader.book.start' : 'reader.book.end');
       return;
     }
-    reader?.scrollToEdge(edge);
   }
 
   /** Действия клавиатуры чтения книги.
@@ -874,9 +829,10 @@
     untrack(() => onProperties?.(value));
   });
 
-  /** Переход к главе текучей книги: прокрутка встроенного чтения к разделу. */
+  /** Переход к главе текучей книги: прокрутка документа книги к разделу. */
   export function goToChapter(chapter: FileChapter) {
-    reader?.goToChapter(chapter.index);
+    // Переход к главе — команда плагину формата: содержимым владеет он.
+    workplaceContent?.gotoChapter(chapter.index);
   }
 
   /** Переход к странице из панели свойств. */
@@ -1011,7 +967,6 @@
    */
   export function goto(note: Note) {
     noteMenu = null;
-    reader?.goto(note);
     if (workplace) {
       workplaceContent?.gotoAnchor(note.anchor, note.id);
     }
@@ -1101,11 +1056,14 @@
           {notes}
           {tool}
           {readerTheme}
+          {readerFont}
+          flowing={workplace.flowing}
           {palette}
           {visible}
           onCapabilities={(value) => {
             workplaceZoom = value.zoom !== false;
             workplacePages = value.pages === true;
+            flowing = value.flowing === true;
             properties = {
               ...properties,
               thumbnails: value.thumbnails === true,
@@ -1153,7 +1111,10 @@
           onNoteMenu={(menu) => (noteMenu = menu)}
           onNoteMenuClose={closeNoteMenu}
           onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
-          onError={(value) => (error = value)}
+          // Ошибка чтения книги — это недоступность файла, а не сбой
+          // интерфейса: вкладка предлагает указать файл заново, как и при
+          // нечитаемом формате, а не показывает техническую ошибку.
+          onError={() => (unavailable = true)}
           onSearch={handleWorkplaceSearch}
           onHotkey={(actionId) => hotkeys.handleViewerAction(actionId)}
           onBookmarks={(bookmarks) => {
@@ -1172,7 +1133,32 @@
           }}
           onThumbs={handleThumbs}
           onFileAnnotations={handleFileAnnotations}
+          onFootnote={(footnote) => (workplaceFootnote = footnote)}
+          onContents={(chapters) => (properties = { ...properties, chapters })}
         />
+        {#if workplaceFootnote}
+          <FootnoteMenu
+            html={workplaceFootnote.html}
+            at={{
+              left: workplaceFootnote.left,
+              top: workplaceFootnote.top,
+              bottom: workplaceFootnote.bottom,
+            }}
+            area={{ width: readerAreaWidth, height: readerAreaHeight }}
+            {palette}
+            {readerTheme}
+            onGoto={() => {
+              workplaceContent?.gotoAnchor(`#${workplaceFootnote?.anchor ?? ''}`);
+              workplaceFootnote = null;
+            }}
+            onClose={() => {
+              workplaceFootnote = null;
+              // Плагин забывает маркер открытой сноски: иначе повторный клик
+              // по нему закрывал бы меню вместо открытия.
+              workplaceContent?.closeFootnote();
+            }}
+          />
+        {/if}
         {#if noteMenu}
           <NoteMenu
             type={noteMenu.noteType}
@@ -1202,67 +1188,6 @@
               <Icon name="close" />
             </Button>
           </div>
-        {/if}
-        {#if pendingTextAnchor}
-          <NoteTextEditor
-            initialColor={tool.color}
-            onConfirm={commitTextCard}
-            onCancel={cancelTextCard}
-          />
-        {/if}
-        {#if editingTextNote}
-          <NoteTextEditor
-            initialText={editingTextNote.text}
-            initialColor={editingTextNote.color}
-            onConfirm={commitEditNoteText}
-            onCancel={cancelEditNoteText}
-          />
-        {/if}
-      </div>
-    {:else if content}
-      <div class="relative h-full w-full">
-        <BookReader
-          bind:this={reader}
-          {content}
-          zoom={appliedZoom}
-          {initialPosition}
-          {notes}
-          {visible}
-          {tool}
-          {readerTheme}
-          {readerFont}
-          {palette}
-          onQuote={(anchor, color) => onQuote?.(anchor, color)}
-          onTextPoint={(anchor) => startTextCard(anchor)}
-          onShape={(anchor, shape, geometry, color) => onShape?.(anchor, shape, geometry, color)}
-          onSelectNote={(noteId) => onNoteClick?.(noteId)}
-          onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
-          onEditText={startEditNoteTextInReader}
-          onOpenLink={(href) => void openBookLink(href).catch(() => undefined)}
-          onProgress={(value) => {
-            progress = value;
-            reportState();
-          }}
-          onSearchResult={(result) => {
-            // Документ книги построился после запроса: подсветка на месте, а
-            // счётчик обновляется итогом отложенного поиска.
-            searchState = {
-              total: result.hits.length,
-              index: result.hits.length > 0 ? 0 : null,
-              truncated: result.truncated,
-            };
-            searchBusy = false;
-          }}
-        />        {#if searchOpen}
-          <ReaderSearchBar
-            query={searchQuery}
-            state={searchState}
-            busy={searchBusy}
-            error={searchError}
-            onQuery={changeSearch}
-            onStep={stepSearch}
-            onClose={toggleSearch}
-          />
         {/if}
         {#if pendingTextAnchor}
           <NoteTextEditor

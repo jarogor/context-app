@@ -83,7 +83,7 @@ test('меню в строке вкладки стоит так же, как м�
     await expect(page.getByTestId('notes-panel')).toBeVisible();
     const frame = page
         .locator('[data-testid="workplace-tab-page"][data-active="true"]')
-        .locator('iframe[title="Чтение книги"]')
+        .locator('iframe[title="Содержимое книги"]')
         .contentFrame();
     const paragraph = frame.getByText('Первый абзац книги.').first();
     await paragraph.evaluate((element) => {

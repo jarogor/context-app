@@ -896,6 +896,52 @@ fn skips_workplace_plugin_without_viewer_file() {
     cleanup(&root);
 }
 
+/// Все поставляемые плагины форматов загружаются и объявляют свой формат.
+///
+/// Проверка идёт по развёрнутым ресурсам, которые реально читает приложение:
+/// манифест с опечаткой (например, без `export` у WASM-модуля) отклоняется при
+/// загрузке, и формат молча становится «неподдерживаемым».
+#[test]
+fn bundled_format_plugins_load() {
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("plugins");
+    let root = crate::test_util::test_root("plugin-runtime-bundled-formats");
+    let runtime = PluginRuntime::load(std::slice::from_ref(&bundled), root.clone())
+        .expect("загрузка поставляемых плагинов");
+
+    for (format, name) in [
+        ("epub", "format-epub"),
+        ("fb2", "format-fb2"),
+        ("pdf", "format-pdf"),
+        ("djvu", "format-djvu"),
+    ] {
+        let id = runtime
+            .format_plugin_for_format(format)
+            .unwrap_or_else(|| panic!("формат {format} обслуживает плагин"));
+        assert_eq!(
+            runtime.plugin_name(&id).as_deref(),
+            Some(name),
+            "формат {format} обслуживает {name}"
+        );
+        assert!(
+            runtime.viewer_path(&id).is_some(),
+            "у {name} есть модуль рисования"
+        );
+    }
+
+    // Текучие форматы объявляют признак: от него зависит, что приложение
+    // передаёт модулю рисования — разобранные главы или байты файла.
+    assert!(runtime.format_plugin_flowing("epub"), "EPUB — текучая книга");
+    assert!(runtime.format_plugin_flowing("fb2"), "FB2 — текучая книга");
+    assert!(
+        !runtime.format_plugin_flowing("pdf"),
+        "PDF — страничная книга"
+    );
+
+    cleanup(&root);
+}
+
 #[test]
 fn workplace_plugin_is_not_selected_for_unknown_format() {
     let dir = setup_workplace_root("unknown-format", true);

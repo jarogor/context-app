@@ -76,6 +76,19 @@ beforeEach(() => {
         ) {
             return { sets: notesSets };
         }
+        // Читатель выбирается по плагину формата: книга открывается через него.
+        if (command === 'reader_plugin_for_format') {
+            return { plugin_id: 'format-epub', flowing: true };
+        }
+        if (command === 'reader_viewer') {
+            return '<html lang="ru"><body></body></html>';
+        }
+        if (command === 'reader_viewer_files') {
+            return [];
+        }
+        if (command === 'reader_content') {
+            return { title: 'Книга A', authors: [], chapters: [] };
+        }
         return null;
     });
     listen.mockImplementation(async (event, handler) => {

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { openWorkspaceArea } from './workplace-area';
+import { mockFlowingBook } from './plugin-viewer';
 
 /** Глава с оформлением в классах — как у книги после конвертации в calibre. */
 const CHAPTER = `<style>.calibre1{font-size:2.2em;text-align:center;margin:1em 0}
@@ -13,32 +14,11 @@ const CHAPTER = `<style>.calibre1{font-size:2.2em;text-align:center;margin:1em 0
 <ul><li>Пункт списка</li></ul>`;
 
 test.beforeEach(async ({ page }) => {
-    await page.addInitScript((chapter) => {
-        // Обработчики мока дополняются, а не заменяются: сохранение реестра и
-        // тема оформления остаются штатными, поэтому сценарий с перезагрузкой
-        // проверяет именно сохранённый выбор шрифта.
-        const target = window as unknown as {
-            __TEXTURE_MOCK_OVERRIDES__?: { handlers?: Record<string, unknown> };
-        };
-        target.__TEXTURE_MOCK_OVERRIDES__ = {
-            handlers: {
-                ...(target.__TEXTURE_MOCK_OVERRIDES__?.handlers ?? {}),
-                active_library: () => ({
-                    path: '/demo-library',
-                    provider_name: 'books-source',
-                }),
-                reader_formats: () => ['epub'],
-                reader_plugin_for_format: () => null,
-                reader_content: () => ({
-                    title: 'Книга',
-                    authors: [],
-                    chapters: [{ title: 'Глава 1', html: chapter }],
-                }),
-                reader_cover: () => ({ data: null }),
-            },
-        };
-    }, CHAPTER);
+    // Оформление проверяется на книге, нарисованной плагином формата: текст
+    // живёт в песочнице плагина, а не в компоненте оболочки.
+    await mockFlowingBook(page, 'epub', [{ title: 'Глава 1', html: CHAPTER }]);
 });
+
 
 /** Открытие книги EPUB вкладкой рабочего места. */
 async function openBook(page: import('@playwright/test').Page) {
@@ -67,7 +47,7 @@ async function openBook(page: import('@playwright/test').Page) {
 
 /** Область содержимого книги. */
 function content(page: import('@playwright/test').Page) {
-    return page.frameLocator('iframe[title="Чтение книги"]');
+    return page.frameLocator('iframe[title="Содержимое книги"]');
 }
 
 test('книга EPUB показывает оформление из классов главы', async ({ page }) => {
@@ -96,28 +76,14 @@ test('книга EPUB показывает оформление из класс�
 });
 
 test('заголовки разной величины и цитата оформлены без CSS книги', async ({ page }) => {
-    // Книга без оформления: типографику задаёт читалка. Остальные обработчики
-    // мока сохраняются — подменяется только содержимое книги.
-    await page.addInitScript(() => {
-        const target = window as unknown as {
-            __TEXTURE_MOCK_OVERRIDES__?: { handlers?: Record<string, unknown> };
-        };
-        const overrides = target.__TEXTURE_MOCK_OVERRIDES__ ?? {};
-        overrides.handlers = {
-            ...(overrides.handlers ?? {}),
-            reader_content: () => ({
-                title: 'Книга',
-                authors: [],
-                chapters: [
-                    {
-                        title: 'Глава',
-                        html: '<h1>Первый</h1><h2>Второй</h2><h3>Третий</h3><p>Абзац текста.</p><blockquote><p>Цитата.</p></blockquote>',
-                    },
-                ],
-            }),
-        };
-        target.__TEXTURE_MOCK_OVERRIDES__ = overrides;
-    });
+    // Книга без оформления: типографику задаёт читалка. Подменяется только
+    // содержимое книги — модуль рисования остаётся настоящим.
+    await mockFlowingBook(page, 'epub', [
+        {
+            title: 'Глава',
+            html: '<h1>Первый</h1><h2>Второй</h2><h3>Третий</h3><p>Абзац текста.</p><blockquote><p>Цитата.</p></blockquote>',
+        },
+    ]);
     await openBook(page);
     const frame = content(page);
     await expect(frame.locator('h1')).toBeVisible();

@@ -60,8 +60,8 @@
     type NoteType,
   } from '../features/notes/notes';
   import { createNotesController } from '../features/notes/notes-controller.svelte';
-  import { formatFromPath, isSupportedFormat } from '../features/reader/reader';
   import type { PropertiesTabId } from '../features/reader/file-properties';
+  import { formatFromPath } from '../features/reader/reader';
   import { normalizeOpenTabsLimit } from '../features/workplace/workplace';
   import { openTabsLimitFromSettingsEvent } from '../features/workplace/open-tabs-limit';
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
@@ -347,10 +347,16 @@
    * перестраивается, поэтому точки и фигуры неустойчивы, и доступна только
    * цитата. Страничные форматы (плагин рабочего места, PDF) — все три типа.
    */
+  /** Текучая ли книга активной вкладки: признак сообщает плагин формата.
+   *
+   * У текучей книги доступна только цитата: точки и фигуры неустойчивы к
+   * перестройке потока текста. Список форматов в оболочке не держится.
+   */
+  let activeFlowing = $state(false);
+
   const currentNoteTypes: readonly NoteType[] = $derived.by(() => {
     const tab = currentTab;
-    const format = tab ? formatFromPath(tab.path) : '';
-    return allowedNoteTypes(!isSupportedFormat(format));
+    return allowedNoteTypes(tab !== null && !activeFlowing);
   });
 
   /** Контроллер заметок активной книги: состояние набора и операции хранилища. */
@@ -1364,6 +1370,7 @@
           onRenameSet={notesController.renameSet}
           onRemoveSet={notesController.removeSet}
           onTabState={handleTabState}
+          onFlowingChange={(flowing) => (activeFlowing = flowing)}
           onRepointTab={requestRepoint}
           onCreateWorkspace={createNewWorkspace}
           onOpenWorkspace={openWorkspace}

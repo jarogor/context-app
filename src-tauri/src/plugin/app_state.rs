@@ -386,27 +386,28 @@ impl AppState {
         }))
     }
 
-    /// Содержимое книги по пути через source-плагин.
+    /// Содержимое книги по пути через плагин её формата.
     ///
-    /// Перебирает source-плагины runtime чтения и возвращает первый успешный
-    /// ответ операции `content`. Ядро не интерпретирует результат: разбор
-    /// формата выполняет плагин, а приложение получает opaque-модель.
+    /// Формат файла сопоставляется с манифестом плагина формата: ядро форматов
+    /// не знает. Плагин сам читает файл и отдаёт главы, а ядро не
+    /// интерпретирует результат — приложению приходит opaque-модель.
     pub(crate) fn reader_content_of(
         runtime: &mut PluginRuntime,
         path: &str,
     ) -> Result<serde_json::Value, String> {
         let name = Self::apply_sandbox(runtime, path)?;
-        let ids = runtime.source_plugin_ids();
-        let mut last = "нет source-плагина для чтения книги".to_string();
-        for id in ids {
-            match runtime.invoke_operation(&id, "content", serde_json::json!({ "path": name })) {
-                Ok(output) => {
-                    return serde_json::from_str(&output).map_err(|error| error.to_string());
-                }
-                Err(error) => last = error.to_string(),
-            }
-        }
-        Err(last)
+        let format = std::path::Path::new(path)
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        let id = runtime
+            .format_plugin_for_format(&format)
+            .ok_or_else(|| format!("нет плагина формата для книги: {format}"))?;
+        let output = runtime
+            .invoke_operation(&id, "content", serde_json::json!({ "path": name }))
+            .map_err(|error| error.to_string())?;
+        serde_json::from_str(&output).map_err(|error| error.to_string())
     }
 
     /// Открытие файла книги системным приложением по пути.

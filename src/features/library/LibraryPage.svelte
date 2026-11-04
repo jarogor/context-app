@@ -25,7 +25,6 @@
     type BookFormatInfo,
     type BookWithCover,
   } from './library';
-  import { BUILTIN_FORMATS } from '../reader/reader';
   import type { ActiveLibrary } from '../lifecycle/bootstrap';
 
   interface Props {
@@ -65,7 +64,7 @@
   let openedBook: BookWithCover | null = $state(null);
 
   /** Форматы, поддерживаемые встроенным чтением. */
-  let supportedFormats: string[] = $state([...BUILTIN_FORMATS]);
+  let supportedFormats: string[] = $state<string[]>([]);
 
   /** Запрошены ли форматы чтения; повторный запрос не выполняется. */
   let formatsLoaded = $state(false);
@@ -207,11 +206,9 @@
     formatsLoaded = true;
     try {
       const formats = await readerFormats();
-      supportedFormats = [
-        ...new Set([...BUILTIN_FORMATS, ...formats.map((value) => value.toLowerCase())]),
-      ];
+      supportedFormats = [...new Set(formats.map((value) => value.toLowerCase()))];
     } catch {
-      supportedFormats = [...BUILTIN_FORMATS];
+      supportedFormats = [];
     }
   }
 

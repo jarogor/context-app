@@ -38,9 +38,16 @@ pub async fn reader_plugin_for_format(
     format: String,
 ) -> Result<Value, String> {
     let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| match runtime.format_plugin_for_format(&format) {
-        Some(id) => Value::String(id),
-        None => Value::Null,
+    handle.with_ready(|runtime| {
+        match runtime.format_plugin_for_format(&format) {
+            // Текучая ли книга, решает плагин формата: от этого зависит, что
+            // приложение передаёт модулю рисования — главы или байты файла.
+            Some(id) => serde_json::json!({
+                "plugin_id": id,
+                "flowing": runtime.format_plugin_flowing(&format),
+            }),
+            None => Value::Null,
+        }
     })
 }
 

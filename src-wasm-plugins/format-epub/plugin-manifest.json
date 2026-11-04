@@ -1,0 +1,20 @@
+{
+  "contract_version": 1,
+  "level": "application",
+  "kind": "format",
+  "id": "2f4c8a10-9b3d-4e6f-8a71-5c0d2e3f4a5b",
+  "name": "format-epub",
+  "description": "Плагин формата чтения: чтение EPUB с главами, поиском, заметками и сносками",
+  "version": "0.1.0",
+  "module": "format_epub.wasm",
+  "export": "invoke",
+  "formats": [
+    "epub"
+  ],
+  "viewer": "viewer/index.html",
+  "host_functions": [
+    "fs_read_bytes"
+  ],
+  "requires": [],
+  "flowing": true
+}

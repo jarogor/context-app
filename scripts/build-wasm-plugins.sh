@@ -24,5 +24,7 @@ cd "$ROOT"
 # артефактов (они в git не хранятся).
 npm run build -w format-pdf-viewer
 npm run build -w format-djvu-viewer
+npm run build -w format-epub-viewer
+npm run build -w format-fb2-viewer
 
 node scripts/plugin-artifacts.mjs build

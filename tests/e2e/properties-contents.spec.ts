@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openWorkspaceArea } from './workplace-area';
+import { mockFlowingBook } from './plugin-viewer';
 
 /** Главы книги для панели содержания. */
 const CHAPTERS = [
@@ -9,29 +10,11 @@ const CHAPTERS = [
 ];
 
 test.beforeEach(async ({ page }) => {
-    await page.addInitScript((chapters) => {
-        const target = window as unknown as {
-            __TEXTURE_MOCK_OVERRIDES__?: { handlers?: Record<string, unknown> };
-        };
-        target.__TEXTURE_MOCK_OVERRIDES__ = {
-            handlers: {
-                ...(target.__TEXTURE_MOCK_OVERRIDES__?.handlers ?? {}),
-                active_library: () => ({
-                    path: '/demo-library',
-                    provider_name: 'books-source',
-                }),
-                reader_formats: () => ['epub'],
-                reader_plugin_for_format: () => null,
-                reader_content: () => ({
-                    title: 'Книга',
-                    authors: [],
-                    chapters,
-                }),
-                reader_cover: () => ({ data: null }),
-            },
-        };
-    }, CHAPTERS);
+    // Книга нарисована плагином формата: главы для панели содержания приходят
+    // из содержимого, который разобрал плагин.
+    await mockFlowingBook(page, 'epub', CHAPTERS);
 });
+
 
 /** Открытие книги EPUB вкладкой рабочего места. */
 async function openBook(page: Page) {
@@ -60,7 +43,7 @@ async function openBook(page: Page) {
 
 /** Область содержимого книги. */
 function content(page: Page) {
-    return page.frameLocator('iframe[title="Чтение книги"]');
+    return page.frameLocator('iframe[title="Содержимое книги"]');
 }
 
 test('панель содержания EPUB: главы книги и переход к главе', async ({ page }) => {
@@ -76,12 +59,23 @@ test('панель содержания EPUB: главы книги и пере�
     await expect(rows).toHaveCount(3);
     await expect(rows.first()).toContainText('Введение');
 
-    // Переход к третьей главе прокручивает книгу к её разделу.
+    /** Текущее положение прокрутки документа книги. */
+    const scrollTop = () =>
+        content(page)
+            .locator('html')
+            .evaluate(() => (document.scrollingElement ?? document.documentElement).scrollTop);
+
+    // Переход вниз прокручивает книгу к разделу третьей главы: вторая глава
+    // длинная, поэтому её начало уже не помещается на первом экране.
     await rows.nth(2).click();
-    const scrollTop = await content(page)
-        .locator('html')
-        .evaluate(() => (document.scrollingElement ?? document.documentElement).scrollTop);
-    expect(scrollTop).toBeGreaterThan(0);
+    await expect.poll(scrollTop).toBeGreaterThan(0);
+    const down = await scrollTop();
+
+    // Переход вверх возвращает книгу к началу. Раньше прокрутка прибавлялась к
+    // текущей позиции, и книга уезжала только вниз, упираясь в конец.
+    await rows.first().click();
+    await expect.poll(scrollTop).toBeLessThan(down);
+    expect(await scrollTop()).toBeLessThan(120);
 });
 
 test('панель свойств EPUB не показывает чужие вкладки', async ({ page }) => {

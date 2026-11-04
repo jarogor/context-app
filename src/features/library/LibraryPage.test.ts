@@ -120,7 +120,8 @@ describe('страница библиотеки', () => {
     const onOpenInWorkplace = vi.fn();
     invoke.mockImplementation(async (command) => {
       if (command === 'reader_formats') {
-        return ['pdf'];
+        // Форматы объявляют плагины формата: без плагина формат не читается.
+        return ['fb2', 'pdf'];
       }
       if (command === 'active_library') {
         return { path: '/demo-library', provider_name: 'books-source' };

@@ -30,6 +30,8 @@ pub struct LoadedPlugin {
     pub formats: Vec<String>,
     /// Относительный путь к модулю рисования плагина формата.
     pub viewer: Option<String>,
+    /// Текучая ли книга формата: текст течёт по колонке.
+    pub flowing: bool,
     /// Директория, из которой загружен плагин.
     pub dir: PathBuf,
     /// Инстанс плагина в Extism runtime; `None`, если WASM-модуль отсутствует.

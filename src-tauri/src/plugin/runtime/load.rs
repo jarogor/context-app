@@ -200,6 +200,7 @@ impl PluginRuntime {
             function: manifest.export,
             formats: manifest.formats,
             viewer: manifest.viewer,
+            flowing: manifest.flowing,
             dir: dir.to_path_buf(),
             plugin,
         })

@@ -10,7 +10,6 @@
 import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import { EmptyState } from '@context/ui';
   import { activeTab } from './workplace';
-  import { FLOWING_FORMATS, formatFromPath } from '../reader/reader';
   import FilePropertiesPanel from '../reader/FilePropertiesPanel.svelte';
   import type {
     FileAnnotation,
@@ -134,6 +133,8 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     onRemoveSet: (setId: string) => void;
     /** Изменение состояния чтения вкладки. */
     onTabState: (id: string, state: { zoom: number; position: number }) => void;
+    /** Текучая ли книга активной вкладки: это сообщает плагин формата. */
+    onFlowingChange?: (flowing: boolean) => void;
     /** Просьба переуказать файл недоступной книги вкладки. */
     onRepointTab: (id: string) => void;
     /** Гарнитура книги: с засечками или без. */
@@ -206,6 +207,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     onRenameSet,
     onRemoveSet,
     onTabState,
+    onFlowingChange,
     onRepointTab,
     focusMode = false,
     onToggleFocus,
@@ -225,14 +227,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   /** Заметки книги активной вкладки для подсветки. */
   const tabNotes = $derived(tabItems.map((item) => item.note));
 
-  /** Открытая книга текучего формата: текст течёт и масштабируется.
-   *
-   * У постраничных форматов (PDF, DjVu) текст — часть растра, и выбор гарнитуры
-   * ничего не меняет; кнопка шрифта показывается только у текучих книг.
-   */
-  const flowingBook = $derived(
-    tab !== null && FLOWING_FORMATS.includes(formatFromPath(tab.path)),
-  );
 
   /** Заметки каждой открытой книги рабочего места по идентификатору вкладки. */
   const notesByTab = $derived.by(() => {
@@ -269,6 +263,18 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
 
   /** Снимок нижней панели активной вкладки. */
   const activeFooter = $derived(tab ? (footerByTab[tab.id] ?? null) : null);
+
+  /** Плагин сообщил, что книга текучая: текст течёт и гарнитура применима.
+   *
+   * Список форматов в оболочке не держится: возможность сообщает плагин
+   * формата, а страничные книги (PDF, DjVu) её просто не объявляют.
+   */
+  const flowingBook = $derived(activeFooter?.flowing === true);
+
+  /** Передача признака текучести оболочке: от него зависит набор типов заметок. */
+  $effect(() => {
+    onFlowingChange?.(flowingBook);
+  });
 
   /** Точка перелома «узкое окно»: та же, что у общего компонента боковой панели. */
   const NARROW_WINDOW_QUERY = NARROW_MAX_WIDTH;

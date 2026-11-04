@@ -10,6 +10,9 @@
 
 mod decode;
 mod html;
+mod metadata;
+
+pub use metadata::{extract, Fb2Metadata};
 
 use roxmltree::{Document, Node};
 use serde::Serialize;

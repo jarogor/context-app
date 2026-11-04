@@ -131,31 +131,6 @@ pub fn invoke(input: String) -> FnResult<String> {
                 base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
             serde_json::to_string(&json!({ "data": encoded, "size": bytes.len() }))?
         }
-        "content" => {
-            let (path, format) = book_file_info(&request.payload)?;
-            let bytes = fs.read_bytes(&path).map_err(extism_pdk::Error::msg)?;
-            let chapters = match format.as_str() {
-                "epub" => serde_json::to_value(
-                    crate::epub::read_epub_chapters(&bytes).map_err(extism_pdk::Error::msg)?,
-                )?,
-                "fb2" => serde_json::to_value(
-                    format_parsers::fb2::read_fb2_chapters(&bytes)
-                        .map_err(extism_pdk::Error::msg)?,
-                )?,
-                _ => {
-                    return Err(extism_pdk::Error::msg(format!(
-                        "формат не поддерживается встроенным чтением: {format}"
-                    ))
-                    .into());
-                }
-            };
-            let (title, authors) = book_identity(&request.payload, &path);
-            serde_json::to_string(&json!({
-                "title": title,
-                "authors": authors,
-                "chapters": chapters,
-            }))?
-        }
         "cover" => {
             if let Some(id) = request
                 .payload
@@ -264,23 +239,3 @@ fn book_file_info(payload: &serde_json::Value) -> Result<(String, String), extis
         .ok_or_else(|| extism_pdk::Error::msg("файл книги не найден"))
 }
 
-/// Название и авторы книги из каталога или из пути к файлу.
-fn book_identity(payload: &serde_json::Value, path: &str) -> (String, Vec<String>) {
-    let id = payload.get("book_id").and_then(|value| value.as_str());
-    if let Some((title, authors)) = id.and_then(|id| {
-        let catalog = lifecycle::catalog()?;
-        catalog
-            .books
-            .iter()
-            .find(|book| book.id == id)
-            .map(|book| (book.title.clone(), book.authors.clone()))
-    }) {
-        return (title, authors);
-    }
-    let title = std::path::Path::new(path)
-        .file_name()
-        .and_then(|value| value.to_str())
-        .unwrap_or(path)
-        .to_string();
-    (title, Vec::new())
-}
