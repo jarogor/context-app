@@ -10,11 +10,13 @@ mod chapters;
 mod metadata;
 mod style;
 mod text;
+mod toc;
 
 pub use chapters::{read_epub_chapters, EpubChapter};
 pub use metadata::{extract, parse_epub_metadata};
 pub use style::{sanitize_css, BookStyle};
 pub use text::read_epub_text;
+pub use toc::EpubToc;
 
 #[cfg(test)]
 #[path = "epub_tests.rs"]

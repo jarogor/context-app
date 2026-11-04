@@ -11,6 +11,7 @@ use super::archive::{
     cover_format, manifest_items, read_zip_entry, resolve_relative, rootfile_path, ManifestItem,
 };
 use super::style::{book_style, inline_styles};
+use super::toc::{read_toc, EpubToc};
 use crate::xml::strip_markup;
 
 /// Глава EPUB для рабочей страницы чтения.
@@ -38,6 +39,9 @@ pub fn read_epub_chapters(bytes: &[u8]) -> Result<Vec<EpubChapter>, String> {
     // Оформление собирается один раз на книгу: главы ссылаются на общий CSS.
     let sources = style_sources(&mut archive, &rootfile, &items);
     let style = book_style(&sources).css;
+    // Оглавление книги: подписи пунктов уникальны, тогда как `<title>` файла
+    // главы у многих книг одинаков во всех главах.
+    let toc = read_toc(&mut archive, &opf, &rootfile);
     let chapters = spine_ids(&opf)
         .into_iter()
         .filter_map(|idref| {
@@ -56,7 +60,7 @@ pub fn read_epub_chapters(bytes: &[u8]) -> Result<Vec<EpubChapter>, String> {
             let html = embed_images(&mut archive, &path, &body);
             let html = strip_scripts(&html);
             Some(EpubChapter {
-                title: chapter_title(&source),
+                title: toc_title(&toc, &path).or_else(|| chapter_title(&source)),
                 html: with_style(&html, &style, &inline_styles(&source)),
             })
         })
@@ -297,17 +301,24 @@ fn body_content(html: &str) -> String {
     html[content_start..content_start + close].to_string()
 }
 
-/// Заголовок главы: `<title>` документа или первый заголовок.
+/// Подпись главы из оглавления книги.
+fn toc_title(toc: &EpubToc, path: &str) -> Option<String> {
+    toc.title_for(path).map(str::to_string)
+}
+
+/// Заголовок главы документа: первый заголовок, затем `<title>`.
+///
+/// `<title>` стоит последним: у книг от конвертеров он одинаков во всех файлах
+/// (нередко это название книги), и как подпись главы он бесполезен. Заголовок
+/// внутри текста — настоящий, а оглавление книги (если оно есть) уже проверено
+/// вызывающей стороной раньше.
 fn chapter_title(html: &str) -> Option<String> {
-    if let Some(title) = element_text(html, "title").filter(|value| !value.is_empty()) {
-        return Some(title);
-    }
     for tag in ["h1", "h2", "h3"] {
         if let Some(text) = element_text(html, tag).filter(|value| !value.is_empty()) {
             return Some(text);
         }
     }
-    None
+    element_text(html, "title").filter(|value| !value.is_empty())
 }
 
 /// Текст первого элемента с указанным тегом, без разметки.

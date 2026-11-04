@@ -124,16 +124,76 @@ fn strips_script_blocks() {
 }
 
 #[test]
-fn title_comes_from_head_title() {
+fn title_prefers_heading_over_document_title() {
+    // `<title>` у книг от конвертеров одинаков во всех главах (часто это
+    // название книги), поэтому подписью главы служит первый заголовок текста.
     let chapters = [(
         "chapter.xhtml",
-        "<html><head><title>Название</title></head><body><h1>Заголовок</h1></body></html>",
+        "<html><head><title>Название книги</title></head><body><h1>Заголовок главы</h1></body></html>",
     )];
     let bytes = build_epub(&chapters, &[0], &[]);
 
     let result = read_epub_chapters(&bytes).expect("разбор глав");
 
-    assert_eq!(result[0].title.as_deref(), Some("Название"));
+    assert_eq!(result[0].title.as_deref(), Some("Заголовок главы"));
+}
+
+#[test]
+fn title_falls_back_to_document_title() {
+    let chapters = [(
+        "chapter.xhtml",
+        "<html><head><title>Только заголовок</title></head><body><p>Текст</p></body></html>",
+    )];
+    let bytes = build_epub(&chapters, &[0], &[]);
+
+    let result = read_epub_chapters(&bytes).expect("разбор глав");
+
+    assert_eq!(result[0].title.as_deref(), Some("Только заголовок"));
+}
+
+#[test]
+fn chapter_titles_come_from_navigation() {
+    // Книга конвертера: одинаковый `<title>` во всех файлах, а настоящие
+    // подписи — в навигационном документе EPUB 3. Раньше содержание выходило
+    // списком повторов одного названия.
+    let chapters = [
+        (
+            "ch1.xhtml",
+            "<html><head><title>Название книги</title></head><body><p>Первая</p></body></html>",
+        ),
+        (
+            "ch2.xhtml",
+            "<html><head><title>Название книги</title></head><body><p>Вторая</p></body></html>",
+        ),
+    ];
+    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+    add_file(
+        &mut writer,
+        "META-INF/container.xml",
+        br#"<?xml version="1.0"?>
+<container><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>"#,
+    );
+    let opf = r#"<?xml version="1.0"?>
+<package><manifest>
+  <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+  <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
+  <item id="ch2" href="ch2.xhtml" media-type="application/xhtml+xml"/>
+</manifest><spine><itemref idref="ch1"/><itemref idref="ch2"/></spine></package>"#;
+    add_file(&mut writer, "OEBPS/content.opf", opf.as_bytes());
+    let nav = r#"<html><body><nav epub:type="toc"><ol>
+      <li><a href="ch1.xhtml">Предисловие</a></li>
+      <li><a href="ch2.xhtml">Основная часть</a></li>
+    </ol></nav></body></html>"#;
+    add_file(&mut writer, "OEBPS/nav.xhtml", nav.as_bytes());
+    for (path, body) in chapters {
+        add_file(&mut writer, &format!("OEBPS/{path}"), body.as_bytes());
+    }
+    let bytes = writer.finish().expect("архив").into_inner();
+
+    let result = read_epub_chapters(&bytes).expect("разбор глав");
+
+    assert_eq!(result[0].title.as_deref(), Some("Предисловие"));
+    assert_eq!(result[1].title.as_deref(), Some("Основная часть"));
 }
 
 #[test]
