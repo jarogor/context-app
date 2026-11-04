@@ -81,6 +81,29 @@ describe('панель свойств файла', () => {
     expect(onGoToChapter).toHaveBeenCalledWith({ index: 1, title: 'Первая глава' });
   });
 
+  it('переносит длинное название раздела, а не обрезает его', () => {
+    // По обрезанному «…» нельзя понять, куда ведёт пункт: название переносится
+    // на несколько строк, а иконка остаётся у первой строки.
+    const longTitle =
+      'Глава двенадцатая: о том, как долгий заголовок не помещается в одну строку';
+    render(FilePropertiesPanel, {
+      props: {
+        snapshot: {
+          ...flowingSnapshot(),
+          chapters: [{ index: 0, title: longTitle }],
+        },
+        tab: 'contents',
+        currentPage: null,
+        onGoToChapter: noop,
+      },
+    });
+
+    const title = screen.getByText(longTitle);
+    expect(title.className).toContain('break-words');
+    expect(title.className).not.toContain('truncate');
+    expect(title.className).toContain('flex-1');
+  });
+
   it('показывает вкладки по возможностям формата', () => {
     render(FilePropertiesPanel, {
       props: { snapshot: pagedSnapshot(), tab: null, currentPage: 1 },

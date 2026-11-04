@@ -466,14 +466,23 @@
         <ul class="m-0 list-none p-1" data-testid="properties-contents">
           {#each contents as chapter (chapter.index)}
             <li>
+              <!--
+                Название раздела переносится, а не обрезается: длинные заголовки
+                глав встречаются часто, и по «…» нельзя понять, куда ведёт пункт.
+                Иконка выровнена по первой строке, чтобы перенос не сдвигал её
+                к середине блока.
+              -->
               <button
                 type="button"
-                class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left role-body transition-colors hover:bg-[var(--surface-hover)]"
+                class="flex w-full cursor-pointer items-start gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left role-body transition-colors hover:bg-[var(--surface-hover)]"
                 data-testid="properties-content-row"
                 onclick={() => onGoToChapter?.(chapter)}
               >
-                <Icon name="list" class="h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)]" />
-                <span class="min-w-0 flex-1 truncate">{chapter.title}</span>
+                <Icon
+                  name="list"
+                  class="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)]"
+                />
+                <span class="min-w-0 flex-1 break-words">{chapter.title}</span>
               </button>
             </li>
           {:else}
