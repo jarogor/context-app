@@ -12,6 +12,7 @@
   import { localize, t } from '@context/i18n';
   import { exportSupportReport } from '../support/report';
   import { invokeCommand } from '../../shared/app-bridge';
+  import { formatBytes } from '../../shared/format';
 
   /** Служебное расположение в сведениях о приложении. */
   interface AppPath {
@@ -23,6 +24,8 @@
     path: string;
     /** Пояснение назначения. */
     note: string;
+    /** Занятое место в байтах; `null` — размер не определён. */
+    size_bytes?: number | null;
   }
 
   /** Сведения о приложении. */
@@ -94,7 +97,18 @@
           class="flex flex-col gap-[0.125rem] py-3 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--divider)]"
           data-testid={`app-path-${path.key}`}
         >
-          <span class="role-title text-[var(--foreground)]">{localize(path.title)}</span>
+          <span class="flex flex-wrap items-baseline gap-x-2">
+            <span class="role-title text-[var(--foreground)]">{localize(path.title)}</span>
+            <!--
+              Размер стоит рядом с названием: пользователь приходит сюда, чтобы
+              понять, сколько место занимает состояние приложения и журнал.
+            -->
+            {#if formatBytes(path.size_bytes)}
+              <span class="role-caption text-[var(--muted-foreground)]" data-testid={`app-path-size-${path.key}`}>
+                {formatBytes(path.size_bytes)}
+              </span>
+            {/if}
+          </span>
           <code class="break-all role-mono text-[var(--muted-foreground)]">{path.path}</code>
           {#if localize(path.note)}
             <span class="role-caption text-[var(--muted-foreground)]">{localize(path.note)}</span>

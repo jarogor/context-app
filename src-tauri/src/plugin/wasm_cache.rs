@@ -81,9 +81,13 @@ fn cleanup_inner(cache_dir: &Path) -> std::io::Result<()> {
         return Ok(());
     }
 
-    // Записи собираются парами «модуль + .stats» по времени изменения: свежие
-    // остаются, старейшие удаляются. Свежие — это те, что собраны текущей
-    // сборкой приложения, поэтому их удаление остановилось бы на перекомпиляции.
+    // Единица учёта — запись кэша: файл верхнего уровня или каталог запуска
+    // wasmtime (`wasmtime--<id>`), в котором лежат модули этого запуска.
+    //
+    // Каталоги запусков — основная раскладка: wasmtime заводит новый каталог на
+    // каждый запуск и складывает модули внутрь. Очистка, смотревшая только
+    // файлы верхнего уровня, не находила ничего и кэш рос неограниченно —
+    // сотни каталогов по несколько мегабайт.
     let mut entries = cache_entries(&modules_dir)?;
     let mut total_bytes: u64 = entries.iter().map(|entry| entry.size).sum();
     let mut total_count = entries.len();
@@ -101,28 +105,40 @@ fn cleanup_inner(cache_dir: &Path) -> std::io::Result<()> {
 }
 
 /// Запись кэша: путь, размер и время изменения.
+///
+/// Записью считается либо отдельный файл модуля верхнего уровня, либо каталог
+/// запуска wasmtime целиком: он самодостаточен, и удалять его нужно только
+/// целым, иначе останутся модули без своего запуска.
 struct CacheEntry {
-    /// Путь к файлу записи.
+    /// Путь к файлу или каталогу записи.
     path: PathBuf,
-    /// Размер файла в байтах.
+    /// Занятое место в байтах.
     size: u64,
     /// Время последнего изменения для упорядочивания.
     modified: std::time::SystemTime,
 }
 
-/// Перечисление файлов-модулей кэша (без `.stats`).
+/// Перечисление записей кэша.
 fn cache_entries(modules_dir: &Path) -> std::io::Result<Vec<CacheEntry>> {
     let mut entries = Vec::new();
     for entry in std::fs::read_dir(modules_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if !path.is_file() {
+        let metadata = entry.metadata()?;
+        if metadata.is_dir() {
+            // Каталог запуска wasmtime: размер и свежесть — по самому новому
+            // файлу внутри, чтобы не удалить каталог, к которому сейчас пишут.
+            let (size, modified) = directory_usage(&path);
+            entries.push(CacheEntry {
+                path,
+                size,
+                modified,
+            });
             continue;
         }
         if path.extension().and_then(|value| value.to_str()) == Some("stats") {
             continue;
         }
-        let metadata = entry.metadata()?;
         let modified = metadata.modified().unwrap_or(std::time::UNIX_EPOCH);
         entries.push(CacheEntry {
             path,
@@ -133,19 +149,46 @@ fn cache_entries(modules_dir: &Path) -> std::io::Result<Vec<CacheEntry>> {
     Ok(entries)
 }
 
+/// Занятое место каталога и время последнего изменения самого свежего файла.
+fn directory_usage(dir: &Path) -> (u64, std::time::SystemTime) {
+    let mut total = 0u64;
+    let mut modified = std::time::UNIX_EPOCH;
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&current) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            if file_type.is_dir() {
+                stack.push(entry.path());
+                continue;
+            }
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
+            total = total.saturating_add(metadata.len());
+            if let Ok(time) = metadata.modified() {
+                modified = modified.max(time);
+            }
+        }
+    }
+    (total, modified)
+}
+
 /// Удаление записи кэша вместе с её файлом статистики.
 ///
-/// Устаревшие каталоги подмодулей wasmtime не сохраняются: каждый запуск создаёт
-/// новый каталог, поэтому старые каталоги без модулей удаляются целиком.
+/// Каталог запуска удаляется целиком: модули внутри принадлежат только ему.
 fn remove_cache_entry(entry: &CacheEntry) {
+    if entry.path.is_dir() {
+        let _ = std::fs::remove_dir_all(&entry.path);
+        return;
+    }
     let _ = std::fs::remove_file(&entry.path);
     let stats = entry.path.with_extension("stats");
     let _ = std::fs::remove_file(stats);
-    if let Some(parent) = entry.path.parent() {
-        // Каталог пуст, если в нём не осталось записей: after wasmtime создаёт
-        // каталог на запуск, поэтому пустой каталог — устаревший.
-        let _ = std::fs::remove_dir(parent);
-    }
 }
 
 /// Запись конфигурационного файла кэша и возврат пути к нему.

@@ -163,3 +163,85 @@ fn cleanup_failure_is_not_fatal() {
 
     test_util::cleanup(&root);
 }
+
+/// Создание каталога кэша в раскладке wasmtime: модули внутри каталогов
+/// запусков (`wasmtime--<id>`), а не файлами верхнего уровня.
+fn setup_run_directories(root_name: &str, runs: usize, per_run: usize, entry_size: u64) -> PathBuf {
+    let root = test_util::test_root(root_name);
+    let modules = root.join(WASM_CACHE_DIR_NAME).join("modules");
+    for run in 0..runs {
+        let dir = modules.join(format!("wasmtime--{}", 1_000 + run));
+        fs::create_dir_all(&dir).expect("каталог запуска");
+        for index in 0..per_run {
+            let entry = dir.join(format!("module-{index:04}"));
+            fs::write(&entry, vec![0u8; entry_size as usize]).expect("модуль кэша");
+            fs::write(entry.with_extension("stats"), b"stats").expect("статистика");
+        }
+    }
+    root
+}
+
+/// Число каталогов запусков в каталоге кэша.
+fn run_directory_count(root: &Path) -> usize {
+    let modules = root.join(WASM_CACHE_DIR_NAME).join("modules");
+    fs::read_dir(&modules)
+        .expect("каталог модулей")
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().is_dir())
+        .count()
+}
+
+/// Кэш в раскладке wasmtime (каталоги запусков) очищается по числу записей.
+///
+/// Раньше очистка смотрела только файлы верхнего уровня: в этой раскладке их
+/// нет, и кэш рос неограниченно — сотни каталогов по несколько мегабайт.
+#[test]
+fn cleanup_limits_run_directories() {
+    let runs = WASM_CACHE_MAX_ENTRIES + 5;
+    let root = setup_run_directories("wasm-cache-runs", runs, 2, 4 * 1024);
+    assert_eq!(run_directory_count(&root), runs, "подготовлено каталогов");
+
+    cleanup(&root.join(WASM_CACHE_DIR_NAME));
+
+    let remaining = run_directory_count(&root);
+    assert!(
+        remaining <= WASM_CACHE_MAX_ENTRIES,
+        "после очистки каталогов не больше предела: {remaining}"
+    );
+    test_util::cleanup(&root);
+}
+
+/// Кэш в раскладке wasmtime очищается и по размеру.
+#[test]
+fn cleanup_limits_run_directories_by_bytes() {
+    // Каталоги по 100 МиБ: четыре уже больше предела 256 МиБ.
+    let entry_size = 100 * 1024 * 1024;
+    let root = setup_run_directories("wasm-cache-runs-bytes", 4, 1, entry_size);
+
+    cleanup(&root.join(WASM_CACHE_DIR_NAME));
+
+    let modules = root.join(WASM_CACHE_DIR_NAME).join("modules");
+    let mut total = 0u64;
+    for dir in fs::read_dir(&modules).expect("каталог модулей").flatten() {
+        for file in fs::read_dir(dir.path()).expect("каталог запуска").flatten() {
+            total += file.metadata().map(|meta| meta.len()).unwrap_or(0);
+        }
+    }
+    assert!(
+        total <= WASM_CACHE_MAX_BYTES,
+        "после очистки объём не больше предела: {total}"
+    );
+    test_util::cleanup(&root);
+}
+
+/// Свежие каталоги запусков в пределах предела сохраняются.
+#[test]
+fn cleanup_keeps_recent_run_directories() {
+    let root = setup_run_directories("wasm-cache-runs-keep", 3, 1, 1024);
+    let before = run_directory_count(&root);
+
+    cleanup(&root.join(WASM_CACHE_DIR_NAME));
+
+    assert_eq!(run_directory_count(&root), before, "записи сохранены");
+    test_util::cleanup(&root);
+}

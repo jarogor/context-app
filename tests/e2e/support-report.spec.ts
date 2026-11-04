@@ -20,6 +20,13 @@ test('логи экспортируются одним действием', asyn
   await expect(report).toContainText('Логи');
   await expect(report).toContainText('diagnostics.log');
 
+  // Рядом с путём видно занятое место: по нему понятно, сколько занимает
+  // состояние приложения и журнал, который отдаётся при обращении.
+  await expect(report.getByTestId('app-path-size-diagnostics')).toHaveText(/\d+\s(Б|КБ|МБ|ГБ)/);
+  await expect(
+    page.getByTestId('app-path-app_data').getByTestId('app-path-size-app_data'),
+  ).toHaveText(/\d+\s(Б|КБ|МБ|ГБ)/);
+
   await report.getByRole('button', { name: 'Экспорт' }).click();
   // Мок-мост возвращает путь сохранённого файла.
   await expect(page.getByTestId('support-report-saved')).toContainText('context-report');

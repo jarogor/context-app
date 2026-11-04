@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDateTime, formatTime } from './format';
+import { formatBytes, formatDateTime, formatTime } from './format';
 
 describe('formatDateTime', () => {
     it('форматирует дату по-русски: ДД.ММ.ГГГГ чч:мм', () => {
@@ -52,5 +52,25 @@ describe('formatTime', () => {
     it('ноль даёт пустую строку', () => {
         expect(formatTime(0, 'ru')).toBe('');
         expect(formatTime(0, 'en')).toBe('');
+    });
+});
+
+describe('formatBytes', () => {
+    it('показывает байты и килобайты', () => {
+        expect(formatBytes(0)).toBe('0 Б');
+        expect(formatBytes(1023)).toBe('1023 Б');
+        expect(formatBytes(1024)).toBe('1 КБ');
+    });
+
+    it('переходит к крупным единицам', () => {
+        expect(formatBytes(1536)).toBe('1.5 КБ');
+        expect(formatBytes(5 * 1024 * 1024)).toBe('5 МБ');
+        expect(formatBytes(3 * 1024 * 1024 * 1024)).toBe('3 ГБ');
+    });
+
+    it('неопределённый размер даёт пустую строку', () => {
+        expect(formatBytes(null)).toBe('');
+        expect(formatBytes(undefined)).toBe('');
+        expect(formatBytes(-1)).toBe('');
     });
 });

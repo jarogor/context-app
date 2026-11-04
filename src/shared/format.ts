@@ -25,3 +25,25 @@ export function formatDateTime(millis: number, locale: Locale = currentLocale())
 export function formatTime(millis: number, locale: Locale = currentLocale()): string {
   return formatTimeFor(locale, millis);
 }
+
+/** Размер в байтах в человекочитаемом виде.
+ *
+ * Единицы — общие для всех языков (`Б`, `КБ`, `МБ`, `ГБ`): это сокращения,
+ * которые читаются одинаково, и отдельная таблица переводов для них не нужна.
+ * Дробная часть показывается только у мелких единиц — крупные значения удобнее
+ * целыми.
+ */
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes === null || bytes === undefined || !Number.isFinite(bytes) || bytes < 0) {
+    return '';
+  }
+  const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const rounded = unit === 0 ? Math.round(value) : Math.round(value * 10) / 10;
+  return `${rounded} ${units[unit]}`;
+}

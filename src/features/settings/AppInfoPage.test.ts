@@ -25,12 +25,14 @@ function infoResponse() {
         title: 'app.settings.data.title',
         path: '/data/context',
         note: 'app.settings.data.note',
+        size_bytes: 5 * 1024 * 1024,
       },
       {
         key: 'diagnostics',
         title: 'app.settings.logs.title',
         path: '/data/context/app-state/diagnostics.log',
         note: '',
+        size_bytes: 2048,
       },
     ],
   };
@@ -52,6 +54,31 @@ describe('сведения о приложении', () => {
     expect(screen.queryByText(/в поставке/)).toBeNull();
     expect(screen.queryByText('Каркас')).toBeNull();
     expect(screen.queryByText('Приложение')).toBeNull();
+  });
+
+  it('показывает размер каталога и файла журнала рядом с путём', async () => {
+    // Пользователь приходит сюда, чтобы понять, сколько место занимает
+    // состояние приложения и журнал, который он отдаёт при обращении.
+    invoke.mockResolvedValue(infoResponse());
+
+    render(AppInfoPage);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('app-path-size-app_data').textContent).toBe('5 МБ'),
+    );
+    expect(screen.getByTestId('app-path-size-diagnostics').textContent).toBe('2 КБ');
+  });
+
+  it('не показывает размер, когда он неизвестен', async () => {
+    const response = infoResponse();
+    // Размер приходит как `null`, когда файла ещё нет.
+    response.paths[1].size_bytes = null as unknown as number;
+    invoke.mockResolvedValue(response);
+
+    render(AppInfoPage);
+
+    await waitFor(() => expect(screen.getByText('Логи')).toBeTruthy());
+    expect(screen.queryByTestId('app-path-size-diagnostics')).toBeNull();
   });
 
   it('показывает путь к логам и выгружает их', async () => {
