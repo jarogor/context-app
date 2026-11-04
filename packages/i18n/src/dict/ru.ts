@@ -101,6 +101,8 @@ export const ru = {
   'app.search.books.placeholder': 'Название или автор',
   'app.search.workspace.placeholder': 'Поиск рабочего места',
   'app.search.newWorkspace.placeholder': 'Новое рабочее место',
+  'app.workspace.saveCreate': 'Создать рабочее место',
+  'app.workspace.createCancel': 'Отменить создание',
   'app.search.tabs.placeholder': 'Поиск по вкладкам',
   'app.search.notes.placeholder': 'Поиск по заметкам',
   'app.search.newName.placeholder': 'Новое имя',

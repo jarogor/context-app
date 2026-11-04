@@ -25,9 +25,17 @@ test.beforeEach(async ({ page }) => {
     }, ACTIVE_LIBRARY);
 });
 
-/** Создание рабочего места с указанным именем. */
+/** Создание рабочего места с указанным именем.
+ *
+ * На узком окне поле создания скрыто за кнопкой: оно открывается нажатием, а
+ * не стоит в полосе постоянно. Широкая ширина показывает поле сразу.
+ */
 async function createWorkspace(page: import('@playwright/test').Page, name: string) {
-    await page.getByPlaceholder('Новое рабочее место').fill(name);
+    const field = page.getByPlaceholder('Новое рабочее место');
+    if (!(await field.isVisible().catch(() => false))) {
+        await page.getByLabel('Создать рабочее место').click();
+    }
+    await field.fill(name);
     await page.getByLabel('Создать рабочее место').click();
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
 }

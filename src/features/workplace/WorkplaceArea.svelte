@@ -343,24 +343,38 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     }
   }
 
-  /** Переход к главе текучей книги активной вкладки. */
+  /** Переход к главе текучей книги активной вкладки; на узком окне — с закрытием. */
   function goToChapter(chapter: FileChapter) {
     if (tab) {
       readers.get(tab.id)?.goToChapter(chapter);
     }
+    if (isNarrowWindow()) {
+      onToggleProperties?.();
+    }
   }
 
-  /** Переход к странице из панели свойств активной вкладки. */
+  /** Переход к странице из панели свойств активной вкладки.
+   *
+   * На узком окне панель перекрывает содержимое целиком, поэтому после перехода
+   * она закрывается — иначе не видно, к чему привёл выбор. На широком окне
+   * панель стоит рядом с книгой и остаётся открытой.
+   */
   function goToFilePage(page: number) {
     if (tab) {
       readers.get(tab.id)?.goToFilePage(page);
     }
+    if (isNarrowWindow()) {
+      onToggleProperties?.();
+    }
   }
 
-  /** Переход к закладке файла активной вкладки. */
+  /** Переход к закладке файла активной вкладки; на узком окне — с закрытием. */
   function goToBookmark(bookmark: FileBookmark) {
     if (tab) {
       readers.get(tab.id)?.goToBookmark(bookmark);
+    }
+    if (isNarrowWindow()) {
+      onToggleProperties?.();
     }
   }
 
@@ -392,10 +406,18 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     }
   }
 
-  /** Показ или снятие показа встроенной пометки на странице. */
+  /** Показ или снятие показа встроенной пометки на странице.
+   *
+   * На узком окне панель закрывается после показа: пометка появляется на
+   * странице, и без закрытия пользователь её не увидит. Снятие показа панель не
+   * закрывает — оно ничего не показывает.
+   */
   function toggleAnnotation(annotation: FileAnnotation, shown: boolean) {
     if (tab) {
       readers.get(tab.id)?.toggleAnnotation(annotation, shown);
+    }
+    if (shown && isNarrowWindow()) {
+      onToggleProperties?.();
     }
   }
 

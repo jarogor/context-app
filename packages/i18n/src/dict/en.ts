@@ -101,6 +101,8 @@ export const en: Dictionary = {
   'app.search.books.placeholder': 'Title or author',
   'app.search.workspace.placeholder': 'Workspace search',
   'app.search.newWorkspace.placeholder': 'New workspace',
+  'app.workspace.saveCreate': 'Create workspace',
+  'app.workspace.createCancel': 'Cancel creation',
   'app.search.tabs.placeholder': 'Search tabs',
   'app.search.notes.placeholder': 'Search notes',
   'app.search.filter': '{shown} of {total}',

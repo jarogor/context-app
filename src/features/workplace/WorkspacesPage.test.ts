@@ -152,6 +152,33 @@ describe('экран списка рабочих мест', () => {
         expect(base.onCreate).not.toHaveBeenCalled();
     });
 
+    it('на узком окне показывает кнопку создания, а поле — по нажатию', async () => {
+        // Поле во всю ширину оттесняло поиск, поэтому на телефоне и планшете
+        // оно появляется только по нажатию кнопки.
+        const matchMedia = vi.fn((query: string) => ({
+            matches: query.includes('899'),
+            media: query,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        }));
+        vi.stubGlobal('matchMedia', matchMedia);
+
+        const base = handlers();
+        render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
+
+        // Поля нет: на его месте только кнопка создания.
+        expect(screen.queryByPlaceholderText('Новое рабочее место')).toBeNull();
+        await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+
+        // Нажатие открывает поле, ввод и подтверждение создают место.
+        const input = await screen.findByPlaceholderText('Новое рабочее место');
+        await fireEvent.input(input, { target: { value: 'С телефона' } });
+        await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+        expect(base.onCreate).toHaveBeenCalledWith('С телефона');
+
+        vi.unstubAllGlobals();
+    });
+
     it('открывает рабочее место по клику', async () => {
         const base = handlers();
         render(WorkspacesPage, {

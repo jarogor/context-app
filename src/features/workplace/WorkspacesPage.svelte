@@ -12,6 +12,8 @@
     type MenuAction,
   } from '@context/ui';
   import { t } from '@context/i18n';
+  import { onMount } from 'svelte';
+  import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { formatDateTime } from '../../shared/format';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
@@ -46,6 +48,51 @@
   }
 
   let { workspaces, currentId, onCreate, onOpen, onRename, onRemove }: Props = $props();
+
+  /**
+   * Узкое окно (телефон и планшет).
+   *
+   * На узком экране поле создания занимает всю ширину полосы управления и
+   * оттесняет поиск. Поэтому поле показывается только по нажатию кнопки
+   * создания, а по умолчанию на его месте стоит сама кнопка.
+   */
+  let narrow = $state(false);
+
+  /** Открыто ли поле создания на узком окне. */
+  let composerOpen = $state(false);
+
+  /** Узел поля создания: к нему ставится фокус при открытии. */
+  let composerField = $state<HTMLInputElement | undefined>();
+
+  onMount(() => {
+    const query = window.matchMedia(NARROW_MAX_WIDTH);
+    narrow = query.matches;
+    const onChange = (event: MediaQueryListEvent) => {
+      narrow = event.matches;
+      // Смена ширины закрывает поле: в широком окне оно и так всегда видно.
+      composerOpen = false;
+    };
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  });
+
+  /** Показ поля создания на узком окне. */
+  function openComposer() {
+    composerOpen = true;
+  }
+
+  /** Постановка фокуса в поле создания после его появления. */
+  $effect(() => {
+    if (composerOpen && composerField) {
+      composerField.focus();
+    }
+  });
+
+  /** Скрытие поля создания на узком окне. */
+  function closeComposer() {
+    composerOpen = false;
+    newName = '';
+  }
 
   /** Пункты меню действий рабочего места. */
   const workspaceActions: MenuAction[] = $derived([
@@ -277,24 +324,51 @@
       {/if}
     </div>
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
-      <Input
-        bind:value={newName}
-        placeholder={t('app.search.newWorkspace.placeholder')}
-        ariaLabel={t('app.search.newWorkspace.placeholder')}
-        class="min-w-0 flex-1 sm:w-[15rem] sm:flex-none"
-        onkeydown={(event) => {
-          if (event.key === 'Enter') {
-            createFromField();
-          }
-        }}
-      />
-      <IconButton
-        action="add"
-        title={t('app.workspace.create')}
-        ariaLabel={t('app.workspace.create')}
-        disabled={!newName.trim()}
-        onclick={createFromField}
-      />
+      {#if narrow && !composerOpen}
+        <!--
+          На узком окне на месте поля стоит только кнопка: поле во всю ширину
+          оттесняло бы поиск. Нажатие показывает поле для ввода имени.
+        -->
+        <span class="ml-auto">
+          <IconButton
+            action="add"
+            title={t('app.workspace.create')}
+            ariaLabel={t('app.workspace.create')}
+            onclick={openComposer}
+          />
+        </span>
+      {:else}
+        <Input
+          bind:element={composerField}
+          bind:value={newName}
+          placeholder={t('app.search.newWorkspace.placeholder')}
+          ariaLabel={t('app.search.newWorkspace.placeholder')}
+          class="min-w-0 flex-1 sm:w-[15rem] sm:flex-none"
+          onkeydown={(event) => {
+            if (event.key === 'Enter') {
+              createFromField();
+            }
+          }}
+        />
+        <IconButton
+          action="add"
+          title={t('app.workspace.create')}
+          ariaLabel={t('app.workspace.saveCreate')}
+          disabled={!newName.trim()}
+          onclick={createFromField}
+        />
+        {#if narrow}
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t('app.workspace.createCancel')}
+            ariaLabel={t('app.workspace.createCancel')}
+            onclick={closeComposer}
+          >
+            <Icon name="close" />
+          </Button>
+        {/if}
+      {/if}
     </div>
   {/snippet}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from '@context/i18n';
+  import { untrack } from 'svelte';
   import {
     ActionMenu,
     Badge,
@@ -103,6 +104,34 @@
     return pushDismissLayer(() => {
       cancelEditing();
     });
+  });
+
+  /** Список вкладок: по нему прокручивается активная. */
+  let listEl = $state<HTMLUListElement | undefined>();
+
+  /**
+   * Показ активной вкладки при открытии панели.
+   *
+   * Панель размонтируется при закрытии, поэтому собственное состояние прокрутки
+   * не переживает закрытие. Вместо этого при открытии список ставит активную
+   * вкладку к верху видимой части: в длинном составе она иначе остаётся за
+   * пределами видимости, и её приходится искать вручную. Scroll-контейнер при
+   * этом не сбрасывается в начало — прокрутка сразу идёт к нужному месту.
+   */
+  $effect(() => {
+    // Эффект выполняется после отрисовки, когда список и его строки уже есть.
+    const el = untrack(() => listEl);
+    if (!el) {
+      return;
+    }
+    const active = el.querySelector<HTMLElement>(
+      '[data-testid="open-books-item"][data-active="true"]',
+    );
+    if (!active) {
+      return;
+    }
+    // Верх активной вкладки встаёт к верху видимой части списка.
+    el.scrollTop = active.offsetTop - el.offsetTop;
   });
 
   /** Вкладки, отфильтрованные поиском по имени, названию книги и описанию. */
@@ -336,7 +365,11 @@
     />
   {/snippet}
 
-  <ul class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2">
+  <ul
+    bind:this={listEl}
+    class="m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-2"
+    data-testid="open-books-list"
+  >
     {#each visible as tab (tab.id)}
       <li
         class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border py-2.5 pr-2 pl-3 transition-colors {itemFillClass(

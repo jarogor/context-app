@@ -168,7 +168,7 @@
       class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
     />
     {#if sets.length > 0}
-      <dl class="flex items-center gap-4 sm:ml-auto">
+      <dl class="ml-auto flex items-center gap-4">
         <div class="flex items-baseline gap-1.5">
           <dt class="role-caption text-[var(--muted-foreground)]">{t('app.notes.library.sets')}</dt>
           <dd class="role-title">{sets.length}</dd>

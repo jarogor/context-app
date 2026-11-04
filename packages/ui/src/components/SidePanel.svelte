@@ -82,7 +82,7 @@
           data-testid="side-panel-close"
           onclick={onClose}
         >
-          <Icon name={side === 'left' ? 'chevron-right' : 'chevron-left'} />
+          <Icon name="close" />
         </button>
       </span>
     {/if}

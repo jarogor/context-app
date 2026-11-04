@@ -14,6 +14,20 @@ describe('библиотека заметок', () => {
         expect(screen.getByTestId('notes-library-empty').textContent).toContain('пока нет');
     });
 
+    it('выравнивает счётчики вправо на любой ширине', () => {
+        // На телефоне полоса управления переносит поиск и счётчики друг под
+        // друга; счётчики должны стоять справа, а не липнуть к левому краю.
+        render(NotesLibraryPage, {
+            props: {
+                sets: [set({ id: 'ns-1', book_key: '/a.pdf', book_title: 'Книга A', name: 'Основные' })],
+            },
+        });
+
+        const counters = screen.getByText('Наборов').closest('dl');
+        expect(counters?.className).toContain('ml-auto');
+        expect(counters?.className).not.toContain('sm:ml-auto');
+    });
+
     it('показывает наборы свёрнутыми: имя набора и книга-подпись без заметок', () => {
         render(NotesLibraryPage, {
             props: {

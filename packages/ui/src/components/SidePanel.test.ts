@@ -58,6 +58,16 @@ describe('SidePanel', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('закрывает панель крестиком, а не стрелкой', () => {
+    // Стрелка читалась как «вернуться» и сбивала: действие закрытия обозначается
+    // крестиком, как и в остальных слоях интерфейса. Путь крестика —
+    // `M6 6l12 12M18 6 6 18`, у шевронов он другой.
+    render(SidePanel, { props: { title: 'Панель', onClose: vi.fn(), testId: 'panel' } });
+
+    const path = screen.getByTestId('side-panel-close').querySelector('path');
+    expect(path?.getAttribute('d')).toBe('M6 6l12 12M18 6 6 18');
+  });
+
   it('не показывает кнопку закрытия без обработчика', () => {
     render(SidePanel, { props: { title: 'Панель', testId: 'panel' } });
 

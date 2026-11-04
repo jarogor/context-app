@@ -165,6 +165,29 @@ function content(page: Page) {
     return page.frameLocator('iframe[title="Содержимое книги"]');
 }
 
+test('на телефоне переход по закладке закрывает панель свойств', async ({ page }) => {
+    // На узком окне панель перекрывает содержимое целиком: без закрытия не
+    // видно, к какой странице привёл выбор. Поведение — как у вкладок и заметок.
+    await page.setViewportSize({ width: 390, height: 780 });
+    await installMock(page, bookBase64());
+    await page.goto('/');
+    await addBookToWorkspace(page, /Демо-книга/);
+    await content(page).locator('.page canvas').first().waitFor({ timeout: 30000 });
+
+    await page.getByTestId('workplace-properties-toggle').click();
+    const panel = page.getByTestId('properties-panel');
+    await expect(panel).toBeVisible();
+
+    await panel.getByTestId('properties-tab-bookmarks').click();
+    // Верхний пункт оглавления DjVu — сама книга без номера страницы; берём
+    // первый пункт, у которого переход на страницу определён.
+    await panel.getByText('Document organization').click();
+
+    // Панель закрылась, чтение осталось на месте.
+    await expect(panel).toHaveCount(0);
+    await expect(content(page).locator('.page canvas').first()).toBeVisible();
+});
+
 test('панель свойств DjVu: встроенные закладки и превью страниц', async ({ page }) => {
     await installMock(page, bookBase64());
     await page.goto('/');
