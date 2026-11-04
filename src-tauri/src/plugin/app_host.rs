@@ -116,6 +116,11 @@ impl AppPluginHost {
         self.runtime.plugin_names()
     }
 
+    /// Подробности загруженных плагинов каркаса и приложения.
+    pub fn plugin_details(&self) -> Vec<crate::plugin::discovery::PluginEntry> {
+        self.runtime.plugin_details()
+    }
+
     /// Корень служебного хранилища базовых плагинов.
     pub fn storage_root(&self) -> &std::path::Path {
         &self.storage_root

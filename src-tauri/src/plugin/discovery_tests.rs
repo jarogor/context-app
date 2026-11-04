@@ -173,6 +173,47 @@ fn sample_flag_survives_user_copy() {
     test_util::cleanup(&dir);
 }
 
+#[test]
+fn lists_installed_including_framework() {
+    // Отчёт поддержки строится по установленным плагинам: каркасные в него
+    // входят наравне с прикладными, иначе по отчёту не видно, что за сборка
+    // обслуживает настройки и стор.
+    let dir = test_util::test_root("plugin-discovery-installed");
+    write_manifest(&dir, LIBRARY_ID, "books-source", "application", "books");
+    write_manifest(&dir, SETTINGS_ID, "settings", "framework", "framework");
+
+    let entries = list_installed(std::slice::from_ref(&dir), &[]);
+
+    assert_eq!(
+        entries
+            .iter()
+            .map(|entry| entry.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["books-source", "settings"]
+    );
+    assert!(entries.iter().all(|entry| entry.enabled), "все включены");
+    test_util::cleanup(&dir);
+}
+
+#[test]
+fn installed_marks_disabled_and_keeps_first_copy() {
+    // Директории идут в порядке приоритета: запись берётся из первой, а
+    // отключение считается по идентификатору, а не по копии.
+    let dir = test_util::test_root("plugin-discovery-installed-disabled");
+    let bundled = dir.join("bundled");
+    let user = dir.join("user");
+    std::fs::create_dir_all(&bundled).expect("bundled");
+    std::fs::create_dir_all(&user).expect("user");
+    write_manifest(&user, CALIBRE_ID, "calibre", "application", "books");
+    write_manifest(&bundled, CALIBRE_ID, "calibre", "application", "books");
+
+    let entries = list_installed(&[user, bundled], &[CALIBRE_ID.to_string()]);
+
+    assert_eq!(entries.len(), 1, "копии одного id схлопываются");
+    assert!(!entries[0].enabled, "отключение видно в перечне");
+    test_util::cleanup(&dir);
+}
+
 /// Создание директории плагина с манифестом-образцом.
 fn write_sample_manifest(directory: &Path, id: &str, name: &str, level: &str, kind: &str) {
     let plugin_dir = directory.join(name);

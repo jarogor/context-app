@@ -39,8 +39,42 @@ const NETWORK_TIMEOUT_SECS: u64 = 30;
 const DEFAULT_NETWORK_UPDATE_SOURCE: &str = "https://updates.jarogor.ru/context";
 
 /// Загрузка состояния обновлений с источником по умолчанию.
+///
+/// Сохранённый файловый источник проверяется на съехавший путь: если каталог
+/// сам не содержит индекса, а подкаталог `updates` содержит, источник
+/// переводится на него. Так исправляется источник, указанный на корень данных
+/// (`dev_data`) вместо каталога обновлений внутри него.
 pub fn load_state(state_root: &Path) -> Result<PersistedUpdate, String> {
-    state::load_or_default(state_root, default_source())
+    let mut state = state::load_or_default(state_root, default_source())?;
+    if let Some(source) = state.config.source.clone() {
+        if let Some(migrated) = migrate_file_source(&source) {
+            state.config.source = Some(migrated);
+            let _ = state::save(state_root, &state);
+        }
+    }
+    Ok(state)
+}
+
+/// Исправленный файловый источник, если путь указывает на родительский каталог.
+///
+/// Индекс обновлений лежит в собственном каталоге `updates`, а не в корне
+/// данных приложения: в корне рядом с ним живут состояние, плагины и кеш.
+fn migrate_file_source(source: &UpdateSource) -> Option<UpdateSource> {
+    if source.kind != "file" {
+        return None;
+    }
+    let root = Path::new(&source.location);
+    if root.join(source::INDEX_FILE_NAME).is_file() {
+        return None;
+    }
+    let nested = root.join("updates");
+    if !nested.join(source::INDEX_FILE_NAME).is_file() {
+        return None;
+    }
+    Some(UpdateSource {
+        kind: source.kind.clone(),
+        location: nested.to_string_lossy().into_owned(),
+    })
 }
 
 /// Настройки обновлений.

@@ -221,6 +221,13 @@ fn append(path: &Path, line: &str) -> std::io::Result<()> {
 fn rotate(path: &Path) -> std::io::Result<()> {
     let content = std::fs::read_to_string(path).unwrap_or_default();
     let mut keep_from = (content.len() as f64 * (1.0 - KEEP_RATIO)) as usize;
+    // Смещение половины файла редко приходится на границу символа — а журнал
+    // пишется по-русски, и срез по такому байту паникует. Паника в вытеснении
+    // не даёт записать ни одного следующего события: журнал молча перестаёт
+    // пополняться. Граница выравнивается до начала символа.
+    while keep_from > 0 && !content.is_char_boundary(keep_from) {
+        keep_from -= 1;
+    }
     // Границу сдвигаем к началу следующей строки: обрезанная запись хуже её
     // отсутствия. Начало файла тоже не рвём.
     if keep_from > 0 {

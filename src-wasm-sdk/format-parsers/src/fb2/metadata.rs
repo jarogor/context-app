@@ -133,7 +133,10 @@ pub fn extract(bytes: &[u8]) -> Fb2Metadata {
 /// Имя тега без пространства имён.
 fn local_name(name: &[u8]) -> String {
     let text = String::from_utf8_lossy(name);
-    text.rsplit(':').next().unwrap_or(&text).to_ascii_lowercase()
+    text.rsplit(':')
+        .next()
+        .unwrap_or(&text)
+        .to_ascii_lowercase()
 }
 
 /// Значение атрибута по локальному имени.
@@ -142,7 +145,10 @@ fn attribute(event: &quick_xml::events::BytesStart, key: &str) -> Option<String>
         let name = String::from_utf8_lossy(attribute.key.as_ref()).to_string();
         let local = name.rsplit(':').next().unwrap_or(&name);
         if local.eq_ignore_ascii_case(key) {
-            attribute.unescape_value().ok().map(|value| value.into_owned())
+            attribute
+                .unescape_value()
+                .ok()
+                .map(|value| value.into_owned())
         } else {
             None
         }

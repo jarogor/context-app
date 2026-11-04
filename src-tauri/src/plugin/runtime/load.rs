@@ -191,6 +191,8 @@ impl PluginRuntime {
         Ok(LoadedPlugin {
             id: manifest.id,
             name: manifest.name,
+            version: manifest.version.clone(),
+            description: manifest.description.clone(),
             level: manifest.level,
             kind: manifest.kind,
             scope,

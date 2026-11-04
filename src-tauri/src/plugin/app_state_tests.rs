@@ -214,18 +214,88 @@ fn book_chunks_rebuild_the_whole_file() {
 #[test]
 fn support_report_contains_everything_needed_to_investigate() {
     // Отчёт должен отвечать на вопросы поддержки без расспросов пользователя:
-    // что за версия, на чём запущено, какие плагины загружены и что происходило.
+    // что за версия, на чём запущено, какие плагины установлены и что
+    // происходило в приложении.
     let info = AppInfo::build("Контекст", "1.2.3", Path::new("/data/context"));
-    let plugins = vec!["books-source".to_string(), "format-pdf".to_string()];
+    let entry =
+        |name: &str, kind: &str, version: &str, description: &str, enabled: bool| PluginEntry {
+            id: format!("id-{name}"),
+            name: name.to_string(),
+            version: version.to_string(),
+            level: "application".to_string(),
+            kind: kind.to_string(),
+            description: description.to_string(),
+            enabled,
+            removable: false,
+            sample: false,
+        };
+    // Установлены три плагина, но без открытой книги загружен только источник:
+    // отчёт обязан показать весь состав, а не только загруженное.
+    let installed = vec![
+        entry("books-source", "books", "0.1.0", "Источник книг", true),
+        entry("format-pdf", "format", "0.2.0", "Плагин формата PDF", true),
+        entry(
+            "format-djvu",
+            "format",
+            "0.1.0",
+            "Плагин формата DjVu",
+            false,
+        ),
+    ];
+    let loaded = vec![entry(
+        "books-source",
+        "books",
+        "0.1.0",
+        "Источник книг",
+        true,
+    )];
+    let source = crate::update::UpdateSource {
+        kind: "file".to_string(),
+        location: "/data/updates".to_string(),
+    };
     let diagnostics = Some("2026-11-01T10:00:00.000Z ERROR [core] вызов упал\n".to_string());
 
-    let report = build_support_report(&info, &plugins, diagnostics);
+    let report = build_support_report(&info, &installed, &loaded, Some(&source), diagnostics);
 
     assert!(report.contains("Версия: 1.2.3"), "версия в отчёте");
     assert!(report.contains("Платформа:"), "платформа в отчёте");
     assert!(report.contains("/data/context"), "расположение данных");
-    assert!(report.contains("books-source"), "плагины в отчёте");
-    assert!(report.contains("format-pdf"), "все плагины");
+    // Состав виден целиком, включая плагины, которые сейчас не загружены.
+    assert!(
+        report.contains("format-pdf"),
+        "незагруженный плагин в отчёте"
+    );
+    assert!(
+        report.contains("format-djvu"),
+        "отключённый плагин в отчёте"
+    );
+    assert!(
+        report.contains("Плагины: установлено 3, загружено 1, отключено 1"),
+        "счётчики состава: {report}"
+    );
+    // По отчёту видно, что за плагин и какой сборкой он работает, а не только
+    // имя: иначе по журналу нельзя понять, какой формат открыт.
+    assert!(
+        report.contains("books-source [books] 0.1.0 — Источник книг — загружен"),
+        "назначение, версия и состояние: {report}"
+    );
+    assert!(report.contains("Плагин формата PDF"), "описание плагина");
+    // «Не загружен» и «отключён» — разные причины, и по отчёту их нужно
+    // различать: первое нормально до открытия книги, второе — решение
+    // пользователя.
+    assert!(
+        report.contains("format-pdf [format] 0.2.0 — Плагин формата PDF — не загружен"),
+        "признак незагруженного: {report}"
+    );
+    assert!(
+        report.contains("format-djvu [format] 0.1.0 — Плагин формата DjVu — отключён"),
+        "признак отключённого: {report}"
+    );
+    // Неверный источник обновлений — тоже частая причина, он пишется как есть.
+    assert!(
+        report.contains("file: /data/updates"),
+        "источник обновлений"
+    );
     assert!(
         report.contains("ERROR [core] вызов упал"),
         "журнал диагностики целиком"
@@ -237,8 +307,10 @@ fn support_report_is_honest_about_an_empty_journal() {
     // Пустой журнал — не повод для пустого места: поддержка должна видеть, что
     // записей нет, а не гадать, потерялись они или их не было.
     let info = AppInfo::build("Контекст", "1.0.0", Path::new("/data"));
-    let report = build_support_report(&info, &[], None);
+    let report = build_support_report(&info, &[], &[], None, None);
 
     assert!(report.contains("журнал пуст или недоступен"), "{report}");
-    assert!(report.contains("ни один плагин не загружен"), "{report}");
+    assert!(report.contains("ни один плагин не найден"), "{report}");
+    assert!(report.contains("Плагины: установлено 0"), "{report}");
+    assert!(report.contains("(не задан)"), "{report}");
 }

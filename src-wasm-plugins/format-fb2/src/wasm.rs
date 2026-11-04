@@ -3,7 +3,7 @@
 //! Модуль собирается только под `wasm32`: объявляет host-функции приложения и
 //! экспортируемую функцию `invoke` по контракту.
 
-use extism_pdk::{plugin_fn, host_fn, FnResult};
+use extism_pdk::{host_fn, plugin_fn, FnResult};
 use serde_json::json;
 
 use crate::handle;

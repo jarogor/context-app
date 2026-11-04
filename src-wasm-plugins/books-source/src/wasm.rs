@@ -238,4 +238,3 @@ fn book_file_info(payload: &serde_json::Value) -> Result<(String, String), extis
         .map(|file| (file.path.clone(), file.format.clone()))
         .ok_or_else(|| extism_pdk::Error::msg("файл книги не найден"))
 }
-

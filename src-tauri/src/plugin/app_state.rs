@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::shared_runtime::SharedRuntime;
+use crate::plugin::discovery::PluginEntry;
 use crate::plugin::{AppInfo, AppPluginHost, PluginRuntime, PluginScope, PluginSession};
 
 use super::cover_cache::{CoverCache, CoverData};
@@ -75,9 +76,17 @@ impl AppHostConfig {
 /// Отчёт самодостаточен: по нему видно версию, платформу, набор плагинов и что
 /// происходило в приложении. Пользователю не нужно ничего объяснять — он
 /// прикладывает файл.
+///
+/// Плагины перечисляются с назначением, версией и состоянием. Список строится
+/// по **установленным** плагинам, а не по загруженным: источник книг и форматы
+/// чтения грузятся только при открытой библиотеке и книге, и отчёт по
+/// загруженным показывал три записи, хотя остальные установлены. Состояние
+/// указано у каждой записи, чтобы «не загружен» и «отключён» не путались.
 fn build_support_report(
     app_info: &AppInfo,
-    plugins: &[String],
+    installed: &[PluginEntry],
+    loaded: &[PluginEntry],
+    update_source: Option<&crate::update::UpdateSource>,
     diagnostics: Option<String>,
 ) -> String {
     let mut content = String::new();
@@ -103,14 +112,66 @@ fn build_support_report(
     }
     content.push('\n');
 
-    content.push_str("Загруженные плагины\n");
+    // Перечень строится по установленным плагинам, а не по загруженным:
+    // источник книг и форматы чтения грузятся только при открытой библиотеке и
+    // книге, и отчёт по загруженным показывал три записи, хотя остальные
+    // установлены. Состояние у каждой записи указано явно — «не загружен» без
+    // открытой библиотеки это норма, а «отключён» — причина, по которой плагина
+    // нет в работе.
+    let loaded_names: std::collections::HashSet<&str> =
+        loaded.iter().map(|plugin| plugin.name.as_str()).collect();
+    let disabled_count = installed.iter().filter(|plugin| !plugin.enabled).count();
+    let plugins_total = installed.len().max(loaded.len());
+    content.push_str(&format!(
+        "Плагины: установлено {}, загружено {}, отключено {}\n",
+        plugins_total,
+        loaded.len(),
+        disabled_count
+    ));
     content.push_str("-------------------\n");
-    if plugins.is_empty() {
-        content.push_str("(ни один плагин не загружен)\n");
+    if installed.is_empty() && loaded.is_empty() {
+        content.push_str("(ни один плагин не найден)\n");
     } else {
-        for plugin in plugins {
-            content.push_str(&format!("{plugin}\n"));
+        for plugin in installed {
+            let description = plugin.description.trim();
+            let suffix = if description.is_empty() {
+                String::new()
+            } else {
+                format!(" — {description}")
+            };
+            let state = if !plugin.enabled {
+                "отключён"
+            } else if loaded_names.contains(plugin.name.as_str()) {
+                "загружен"
+            } else {
+                "не загружен (нет открытой библиотеки или книги)"
+            };
+            content.push_str(&format!(
+                "{} [{}] {}{} — {state}\n",
+                plugin.name, plugin.kind, plugin.version, suffix
+            ));
         }
+        // Загруженный плагин, которого нет среди установленных, всё равно должен
+        // попасть в отчёт: иначе часть работы остаётся невидимой.
+        for plugin in loaded {
+            if installed.iter().any(|item| item.name == plugin.name) {
+                continue;
+            }
+            content.push_str(&format!(
+                "{} [{}] {} — загружен\n",
+                plugin.name, plugin.kind, plugin.version
+            ));
+        }
+    }
+    content.push('\n');
+
+    content.push_str("Источник обновлений\n");
+    content.push_str("-------------------\n");
+    match update_source {
+        // Источник пишется как есть: именно он определяет, куда смотрит
+        // приложение, и именно его чаще всего указывают неверно.
+        Some(source) => content.push_str(&format!("{}: {}\n", source.kind, source.location)),
+        None => content.push_str("(не задан)\n"),
     }
     content.push('\n');
 
@@ -295,11 +356,52 @@ impl AppState {
     /// данных и журнал диагностики. Пользователь прикладывает один файл к
     /// обращению, а не объясняет, «что не работает».
     pub fn support_report(&mut self) -> crate::commands::support_report::SupportReport {
-        let plugins = self
-            .with_app_host(|host| host.plugin_names())
+        // Загруженные плагины собираются из всех областей загрузки: каркасные и
+        // прикладные живут в app-level runtime, источники книг — в сессионном,
+        // форматы чтения — в читательском.
+        let mut loaded = self
+            .with_app_host(|host| host.plugin_details())
             .unwrap_or_default();
-        let content =
-            build_support_report(&self.app_info, &plugins, crate::plugin::diagnostics::read());
+        if let Ok(session) = self.session.lock() {
+            loaded.extend(session.plugin_details());
+        }
+        // Сборка runtime ради отчёта не запускается: если он ещё не поднимался,
+        // открытых книг нет и загруженных форматов тоже.
+        if let Some(reader) = &self.reader {
+            let details = reader
+                .with_ready(|runtime| runtime.plugin_details())
+                .unwrap_or_default();
+            loaded.extend(details);
+        }
+        // Один плагин может встретиться в двух областях (например, notes-store
+        // в приложении и в сессии): в отчёте он должен быть один раз.
+        loaded.sort_by(|left, right| left.name.cmp(&right.name));
+        loaded.dedup_by(|left, right| left.name == right.name);
+
+        // Установленные плагины читаются по манифестам, а не берутся из
+        // загруженных: источник книг и форматы чтения грузятся только при
+        // открытой библиотеке и книге. Отчёт по загруженным показывал три записи
+        // и умалчивал об остальных, хотя они установлены, — по такому отчёту
+        // нельзя понять, что за форматы есть и не отключены ли они.
+        let disabled_ids = self.disabled_plugins();
+        let installed = crate::plugin::discovery::list_installed(
+            &self.app_host_config.directories,
+            &disabled_ids,
+        );
+
+        // Источник обновлений — частая причина «обновлений нет»: он попадает в
+        // отчёт как есть, вместе с видом (файл или сеть).
+        let update_source = crate::update::load_state(&self.app_state_root)
+            .ok()
+            .and_then(|state| state.config.source);
+
+        let content = build_support_report(
+            &self.app_info,
+            &installed,
+            &loaded,
+            update_source.as_ref(),
+            crate::plugin::diagnostics::read(),
+        );
         crate::commands::support_report::SupportReport {
             file_name: crate::commands::support_report::report_file_name(),
             content,

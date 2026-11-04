@@ -932,7 +932,10 @@ fn bundled_format_plugins_load() {
 
     // Текучие форматы объявляют признак: от него зависит, что приложение
     // передаёт модулю рисования — разобранные главы или байты файла.
-    assert!(runtime.format_plugin_flowing("epub"), "EPUB — текучая книга");
+    assert!(
+        runtime.format_plugin_flowing("epub"),
+        "EPUB — текучая книга"
+    );
     assert!(runtime.format_plugin_flowing("fb2"), "FB2 — текучая книга");
     assert!(
         !runtime.format_plugin_flowing("pdf"),

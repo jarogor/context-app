@@ -175,7 +175,10 @@ fn manifest_events(opf: &[u8]) -> Vec<quick_xml::events::BytesStart<'static>> {
 fn attribute(event: &quick_xml::events::BytesStart, key: &str) -> Option<String> {
     event.attributes().flatten().find_map(|attribute| {
         if local_name(attribute.key.as_ref()) == key {
-            attribute.unescape_value().ok().map(|value| value.into_owned())
+            attribute
+                .unescape_value()
+                .ok()
+                .map(|value| value.into_owned())
         } else {
             None
         }
@@ -204,9 +207,7 @@ fn parse_nav(source: &str, opf_path: &str) -> EpubToc {
                         let has_toc = kind.split_whitespace().any(|value| value == "toc");
                         nav_depth += 1;
                         // Оглавление — первый nav типа toc, иначе первый nav.
-                        if nav_depth == 1 && has_toc {
-                            toc_nav = true;
-                        } else if nav_depth == 1 && kind.is_empty() && toc.is_empty() {
+                        if nav_depth == 1 && (has_toc || (kind.is_empty() && toc.is_empty())) {
                             toc_nav = true;
                         }
                     }
@@ -226,29 +227,27 @@ fn parse_nav(source: &str, opf_path: &str) -> EpubToc {
                     link_text.push_str(&value);
                 }
             }
-            Ok(Event::End(event)) => {
-                match local_name(event.name().as_ref()).as_str() {
-                    "a" if text_depth > 0 => {
-                        text_depth = 0;
-                        if let (Some(href), Some(title)) =
-                            (link_href.take(), normalize_title(&link_text))
-                        {
-                            toc.insert(opf_path, &href, &title);
-                        }
-                        link_text.clear();
+            Ok(Event::End(event)) => match local_name(event.name().as_ref()).as_str() {
+                "a" if text_depth > 0 => {
+                    text_depth = 0;
+                    if let (Some(href), Some(title)) =
+                        (link_href.take(), normalize_title(&link_text))
+                    {
+                        toc.insert(opf_path, &href, &title);
                     }
-                    "nav" if nav_depth > 0 => {
-                        nav_depth -= 1;
-                        if nav_depth == 0 {
-                            toc_nav = false;
-                        }
-                    }
-                    _ if text_depth > 0 => {
-                        text_depth -= 1;
-                    }
-                    _ => {}
+                    link_text.clear();
                 }
-            }
+                "nav" if nav_depth > 0 => {
+                    nav_depth -= 1;
+                    if nav_depth == 0 {
+                        toc_nav = false;
+                    }
+                }
+                _ if text_depth > 0 => {
+                    text_depth -= 1;
+                }
+                _ => {}
+            },
             Ok(Event::Eof) => break,
             Err(_) => break,
             _ => {}
@@ -298,12 +297,9 @@ fn parse_ncx(source: &str, opf_path: &str) -> EpubToc {
                 }
             }
             Ok(Event::End(event)) => {
-                match local_name(event.name().as_ref()).as_str() {
-                    "navlabel" => {
-                        in_label = false;
-                        pending_title = normalize_title(&label_text);
-                    }
-                    _ => {}
+                if local_name(event.name().as_ref()) == "navlabel" {
+                    in_label = false;
+                    pending_title = normalize_title(&label_text);
                 }
             }
             Ok(Event::Eof) => break,
@@ -326,7 +322,9 @@ impl EpubToc {
         };
         // Первая подпись файла побеждает: следующий пункт того же файла — уже
         // другая глава внутри него, а путь адресует файл.
-        self.entries.entry(path).or_insert_with(|| title.to_string());
+        self.entries
+            .entry(path)
+            .or_insert_with(|| title.to_string());
     }
 }
 
@@ -337,7 +335,10 @@ fn resolve_href(opf_path: &str, href: &str) -> Option<String> {
         return None;
     }
     let without_fragment = value.split('#').next().unwrap_or(value);
-    let without_query = without_fragment.split('?').next().unwrap_or(without_fragment);
+    let without_query = without_fragment
+        .split('?')
+        .next()
+        .unwrap_or(without_fragment);
     let path = if without_query.is_empty() {
         // Ссылка только с якорем: она ведёт в тот же файл, что и OPF не задаёт.
         return None;
@@ -356,7 +357,6 @@ fn normalize_title(value: &str) -> Option<String> {
         Some(title)
     }
 }
-
 
 #[cfg(test)]
 #[path = "toc_tests.rs"]

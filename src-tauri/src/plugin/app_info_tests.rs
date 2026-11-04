@@ -95,10 +95,18 @@ fn reports_directory_and_log_size() {
 
     let info = AppInfo::build("Контекст", "0.1.0", &root);
 
-    let data = info.paths.iter().find(|path| path.key == "app_data").expect("данные");
+    let data = info
+        .paths
+        .iter()
+        .find(|path| path.key == "app_data")
+        .expect("данные");
     let size = data.size_bytes.expect("размер каталога");
     assert!(size >= 400, "каталог посчитан целиком: {size}");
-    let logs = info.paths.iter().find(|path| path.key == "diagnostics").expect("журнал");
+    let logs = info
+        .paths
+        .iter()
+        .find(|path| path.key == "diagnostics")
+        .expect("журнал");
     assert_eq!(logs.size_bytes, Some(250), "размер журнала");
 
     crate::test_util::cleanup(&root);
@@ -113,7 +121,11 @@ fn missing_file_has_no_size() {
 
     let info = AppInfo::build("Контекст", "0.1.0", &root);
 
-    let logs = info.paths.iter().find(|path| path.key == "diagnostics").expect("журнал");
+    let logs = info
+        .paths
+        .iter()
+        .find(|path| path.key == "diagnostics")
+        .expect("журнал");
     assert_eq!(logs.size_bytes, None, "нет файла — нет размера");
     crate::test_util::cleanup(&root);
 }

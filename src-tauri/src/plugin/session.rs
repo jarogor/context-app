@@ -165,6 +165,20 @@ impl PluginSession {
         self.runtime.plugin_name(id)
     }
 
+    /// Имена загруженных плагинов сессии.
+    ///
+    /// Нужны отчёту: источник книг и форматы чтения загружаются в сессии, и без
+    /// них отчёт показывал бы только каркасные плагины — по нему нельзя было бы
+    /// понять, что за форматы открыты.
+    pub fn plugin_names(&self) -> Vec<String> {
+        self.runtime.plugin_names()
+    }
+
+    /// Подробности загруженных плагинов сессии: имя, назначение, версия.
+    pub fn plugin_details(&self) -> Vec<crate::plugin::discovery::PluginEntry> {
+        self.runtime.plugin_details()
+    }
+
     /// Вызов opaque operation активного plugin-а.
     pub fn invoke(
         &mut self,

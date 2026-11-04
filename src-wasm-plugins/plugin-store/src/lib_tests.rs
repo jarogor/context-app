@@ -402,6 +402,83 @@ fn updates_ignores_same_version() {
 }
 
 #[test]
+fn updates_reports_store_without_index() {
+    // Ядро не обрывает вызов плагина из-за отсутствующего файла: оно отдаёт
+    // пустую строку, и стору без индекса полагается понятная ошибка в ответе, а
+    // не падение всего действия `updates` с backtrace wasm.
+    let host = FakeHost::new(vec![("/store/store-index.json", "")])
+        .with_plugin(SAMPLE_ID, "sample", true, true);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "local", "kind": "file", "title": "L", "location": "/store" } }),
+    );
+
+    let response = call(&host, "updates", json!({}));
+    assert_eq!(response["updates"].as_array().map(Vec::len), Some(0));
+    assert!(
+        response["errors"][0]
+            .as_str()
+            .unwrap_or_default()
+            .contains("нет индекса пакетов"),
+        "понятная причина вместо падения: {response}"
+    );
+}
+
+#[test]
+fn stores_list_moves_store_to_nested_updates() {
+    // Стор, указанный на корень данных, переводится на каталог обновлений
+    // внутри него: в корне рядом лежат состояние, плагины и кеш.
+    let index = json!({ "packages": [] }).to_string();
+    let host = FakeHost::new(vec![("/data/updates/store-index.json", &index)]);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "up", "kind": "file", "title": "data", "location": "/data" } }),
+    );
+
+    let response = call(&host, "stores_list", json!({}));
+
+    assert_eq!(response["stores"][0]["location"], "/data/updates");
+    assert_eq!(response["stores"][0]["title"], "updates");
+}
+
+#[test]
+fn stores_list_keeps_store_with_own_index() {
+    // Каталог, в котором индекс лежит на своём уровне, не подменяется: путь
+    // выбран пользователем осознанно.
+    let index = json!({ "packages": [] }).to_string();
+    let host = FakeHost::new(vec![
+        ("/store/store-index.json", &index),
+        ("/store/updates/store-index.json", &index),
+    ]);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "s", "kind": "file", "title": "store", "location": "/store" } }),
+    );
+
+    let response = call(&host, "stores_list", json!({}));
+
+    assert_eq!(response["stores"][0]["location"], "/store");
+}
+
+#[test]
+fn stores_list_keeps_network_store() {
+    // Сетевой стор адресуется напрямую: вложенного каталога у него нет.
+    let host = FakeHost::new(vec![]);
+    call(
+        &host,
+        "stores_add",
+        json!({ "store": { "id": "n", "kind": "network", "title": "site", "location": "https://example.com/s" } }),
+    );
+
+    let response = call(&host, "stores_list", json!({}));
+
+    assert_eq!(response["stores"][0]["location"], "https://example.com/s");
+}
+
+#[test]
 fn plugins_lists_catalog() {
     let host = FakeHost::new(vec![]).with_plugin(CALIBRE_ID, "calibre", true, false);
 

@@ -98,6 +98,28 @@ impl PluginRuntime {
         self.plugins.iter().map(|p| p.name.clone()).collect()
     }
 
+    /// Подробности загруженных плагинов: имя, назначение, версия.
+    ///
+    /// Отчёт поддержки показывает по плагину не только имя: без назначения и
+    /// версии по нему нельзя понять, какой формат или источник открыт и с какой
+    /// сборкой он работает.
+    pub fn plugin_details(&self) -> Vec<crate::plugin::discovery::PluginEntry> {
+        self.plugins
+            .iter()
+            .map(|plugin| crate::plugin::discovery::PluginEntry {
+                id: plugin.id.clone(),
+                name: plugin.name.clone(),
+                version: plugin.version.clone(),
+                level: plugin.level.as_str().to_string(),
+                kind: plugin.kind.as_str().to_string(),
+                description: plugin.description.clone(),
+                enabled: true,
+                removable: false,
+                sample: false,
+            })
+            .collect()
+    }
+
     /// Человекочитаемое имя плагина по идентификатору.
     pub fn plugin_name(&self, id: &str) -> Option<String> {
         self.plugins

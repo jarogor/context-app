@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use extism::{CurrentPlugin, UserData, Val};
 
-use crate::plugin::{activation, discovery, package};
+use crate::plugin::{activation, discovery, get_bus, package, Severity};
 use crate::update::{package as update_package, source, UpdateSource};
 
 use super::super::host_state::HostState;
@@ -187,6 +187,12 @@ pub(super) fn host_store_set_enabled(
 ///
 /// Файловый вид читает файл из каталога стора, сетевой — запрашивает адрес.
 /// Источник описывается теми же полями, что и подключённый стор.
+///
+/// Ошибка чтения **возвращается плагину текстом**, а не обрывает вызов: у
+/// Extism ошибка host-функции завершает весь вызов плагина, и одна недоступная
+/// запись (например, стор без индекса) роняла всё действие `updates` с
+/// backtrace wasm вместо понятного сообщения. Пустая строка означает «файла
+/// нет» — плагин превращает это в свой отказ и продолжает остальные сторы.
 pub(super) fn host_store_read(
     plugin: &mut CurrentPlugin,
     args: &[Val],
@@ -197,8 +203,19 @@ pub(super) fn host_store_read(
     let location: String = plugin.memory_get_val(&args[1])?;
     let relative: String = plugin.memory_get_val(&args[2])?;
     let source = UpdateSource { kind, location };
-    let text =
-        source::read_text(&source, &relative, MAX_INDEX_BYTES).map_err(extism::Error::msg)?;
+    let text = match source::read_text(&source, &relative, MAX_INDEX_BYTES) {
+        Ok(text) => text,
+        Err(error) => {
+            // Отказ публикуется в журнал: без него непонятно, почему стор пуст.
+            get_bus().publish(
+                Severity::Debug,
+                format!("Стор не читается ({relative}): {error}"),
+                "core",
+                serde_json::json!({ "relative": relative }),
+            );
+            String::new()
+        }
+    };
     plugin
         .memory_set_val(&mut returns[0], &text)
         .map_err(|err| extism::Error::msg(err.to_string()))

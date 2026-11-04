@@ -21,6 +21,12 @@ use crate::models::{Installed, Package, Store, StoreIndex, StoreState};
 /// Ключ служебного состояния с реестром сторов.
 const STATE_KEY: &str = "stores.json";
 
+/// Имя файла индекса пакетов внутри стора.
+const INDEX_FILE: &str = "store-index.json";
+
+/// Каталог обновлений внутри каталога данных приложения.
+const UPDATES_DIR_NAME: &str = "updates";
+
 /// Версия контракта поставщика стора.
 const PROVIDER_CONTRACT: &str = "plugin-store.provider@1";
 
@@ -239,14 +245,73 @@ fn find_store(host: &impl Host, id: &str) -> Result<Store, String> {
 }
 
 /// Загрузка индекса пакетов стора.
+///
+/// Пустой ответ означает, что индекса нет: ядро не обрывает вызов плагина из-за
+/// отсутствующего файла, а сообщает об этом пустой строкой. Такой стор просто не
+/// предлагает обновлений, а остальные сторы проверяются дальше.
 fn load_index(host: &impl Host, store: &Store) -> Result<StoreIndex, String> {
     let text = host.store_read(&store.kind, &store.location, "store-index.json")?;
+    if text.trim().is_empty() {
+        return Err("в сторе нет индекса пакетов (store-index.json)".to_string());
+    }
     serde_json::from_str(&text).map_err(|error| format!("некорректный индекс стора: {error}"))
 }
 
 /// Загрузка состояния из служебного хранилища.
+///
+/// Реестр проверяется на съехавший файловый путь: если у каталога нет своего
+/// индекса, а в подкаталоге `updates` он есть, путь переводится туда. Так
+/// исправляется стор, указанный на корень данных (`dev_data`) вместо каталога
+/// обновлений внутри него, — иначе он числится подключённым, но ничего не
+/// предлагает.
 fn load_state(host: &impl Host) -> Result<StoreState, String> {
-    state::load::<StoreState>(host, STATE_KEY)
+    let mut state = state::load::<StoreState>(host, STATE_KEY)?;
+    if migrate_stores(host, &mut state) {
+        save_state(host, &state)?;
+    }
+    Ok(state)
+}
+
+/// Перевод файловых сторов на каталог обновлений внутри каталога данных.
+///
+/// Возвращает признак изменения реестра: после него новое расположение
+/// сохраняется, чтобы путь не пересчитывался при каждом обращении.
+fn migrate_stores(host: &impl Host, state: &mut StoreState) -> bool {
+    let mut changed = false;
+    for store in &mut state.stores {
+        // Сетевой стор адресуется напрямую: у него нет «вложенного каталога».
+        if store.kind != "file" {
+            continue;
+        }
+        let location = store.location.trim_end_matches(['/', '\\']);
+        if location.is_empty() || has_index(host, store.kind.as_str(), location) {
+            continue;
+        }
+        let nested = format!("{location}/{UPDATES_DIR_NAME}");
+        if !has_index(host, store.kind.as_str(), &nested) {
+            continue;
+        }
+        // Подпись, совпадающая с прежним последним сегментом, после переезда
+        // начинает врать: её заменяет имя нового сегмента.
+        if store.title.trim() == last_segment(location) {
+            store.title = UPDATES_DIR_NAME.to_string();
+        }
+        store.location = nested;
+        changed = true;
+    }
+    changed
+}
+
+/// Признак читаемого индекса пакетов по указанному расположению.
+fn has_index(host: &impl Host, kind: &str, location: &str) -> bool {
+    host.store_read(kind, location, INDEX_FILE)
+        .map(|text| !text.trim().is_empty())
+        .unwrap_or(false)
+}
+
+/// Последний сегмент пути или адреса.
+fn last_segment(location: &str) -> &str {
+    location.rsplit(['/', '\\']).next().unwrap_or(location)
 }
 
 /// Сохранение состояния в служебное хранилище.

@@ -136,6 +136,54 @@ pub fn list_disableable(
     entries
 }
 
+/// Перечень установленных плагинов из указанных директорий.
+///
+/// В отличие от [`list_disableable`], сюда входят и каркасные плагины: отчёт
+/// поддержки должен видеть весь состав, а не только то, что можно отключить.
+/// `enabled` вычисляется по списку отключённых идентификаторов. При нескольких
+/// копиях одного идентификатора запись берётся из первой директории (директории
+/// идут в порядке приоритета), но признак образца поднимается, если он есть в
+/// любой из копий.
+pub fn list_installed(directories: &[PathBuf], disabled: &[String]) -> Vec<PluginEntry> {
+    let mut entries: Vec<PluginEntry> = Vec::new();
+    let mut index_by_id: HashMap<String, usize> = HashMap::new();
+    let disabled: HashSet<&str> = disabled.iter().map(String::as_str).collect();
+    for directory in directories {
+        let Ok(dir_entries) = std::fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in dir_entries.flatten() {
+            if !entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let plugin_dir = entry.path();
+            let Ok(manifest) = PluginManifest::load(&plugin_dir.join(MANIFEST_FILE_NAME)) else {
+                continue;
+            };
+            if let Some(&index) = index_by_id.get(&manifest.id) {
+                if manifest.sample {
+                    entries[index].sample = true;
+                }
+                continue;
+            }
+            index_by_id.insert(manifest.id.clone(), entries.len());
+            entries.push(PluginEntry {
+                id: manifest.id.clone(),
+                name: manifest.name.clone(),
+                version: manifest.version_or_zero(),
+                level: manifest.level.to_string(),
+                kind: manifest.kind.to_string(),
+                description: manifest.description.clone(),
+                enabled: !disabled.contains(manifest.id.as_str()),
+                removable: false,
+                sample: manifest.sample,
+            });
+        }
+    }
+    entries.sort_by(|left, right| left.name.cmp(&right.name));
+    entries
+}
+
 /// Признак, что в директориях есть отключаемый плагин с указанным идентификатором.
 ///
 /// Сканирование прекращается на первом совпадении: полный перечень отключаемых
