@@ -640,3 +640,42 @@ test('в списке вкладок формат книги виден вмес
     await expect(item.getByTestId('open-books-item-path-badge')).toHaveText('EPUB');
     await expect(item.getByTestId('open-books-item-path')).toContainText('/');
 });
+
+test('на телефоне полоса вкладок без контекстного меню и в одном порядке', async ({ page }) => {
+    // На телефоне не должно быть ни собственного меню действий, ни отдельной
+    // раскладки: слева направо идут открытие книги, вкладка, панели и
+    // сосредоточенное чтение — так же, как на планшете и в широком окне.
+    await page.setViewportSize({ width: 390, height: 780 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    const bar = page.getByTestId('workplace-tabs');
+    await expect(bar).toBeVisible();
+
+    // Меню действий рабочего места больше нет.
+    await expect(page.getByLabel('Действия рабочего места')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Действия' })).toHaveCount(0);
+
+    // Все элементы полосы на месте, включая кнопки панелей и чтения.
+    await expect(page.getByLabel('Добавить книгу')).toBeVisible();
+    await expect(page.getByLabel('Открыть файл с диска')).toBeVisible();
+    await expect(page.getByLabel('Вкладки')).toBeVisible();
+    await expect(page.getByTestId('workplace-notes-toggle')).toBeVisible();
+    await expect(page.getByTestId('workplace-properties-toggle')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Сосредоточенное чтение' })).toBeVisible();
+
+    // Порядок слева направо: книга, файл, вкладка, затем кнопки панелей.
+    const xs = await Promise.all([
+        page.getByLabel('Добавить книгу').boundingBox(),
+        page.getByLabel('Открыть файл с диска').boundingBox(),
+        page.getByTestId('workplace-tabs-window').boundingBox(),
+        page.getByTestId('workplace-tabs-panels').boundingBox(),
+        page.getByRole('button', { name: 'Сосредоточенное чтение' }).boundingBox(),
+    ]);
+    for (const box of xs) {
+        expect(box).not.toBeNull();
+    }
+    for (let index = 1; index < xs.length; index += 1) {
+        expect(xs[index]!.x).toBeGreaterThan(xs[index - 1]!.x);
+    }
+});

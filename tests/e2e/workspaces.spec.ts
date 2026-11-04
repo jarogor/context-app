@@ -317,6 +317,16 @@ test('список рабочих мест адаптивен к ширине о
     await expect(
         page.getByTestId('workspaces-page').getByPlaceholder('Поиск рабочего места'),
     ).toBeVisible();
+    // Поиск и кнопка создания стоят в одной полосе: поле поиска и кнопка
+    // создания на одной высоте, а не двумя отдельными рядами.
+    const search = await page.getByPlaceholder('Поиск рабочего места').boundingBox();
+    const create = await page.getByLabel('Создать рабочее место').boundingBox();
+    expect(search).not.toBeNull();
+    expect(create).not.toBeNull();
+    expect(Math.abs(search!.y - create!.y)).toBeLessThan(4);
+    // Кнопка стоит справа от поиска и от его правого края.
+    expect(create!.x).toBeGreaterThan(search!.x + search!.width - 1);
+
     const narrow = await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
     );

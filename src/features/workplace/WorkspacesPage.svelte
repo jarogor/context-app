@@ -308,42 +308,19 @@
   {/snippet}
 
   {#snippet controls()}
-    <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-      {#if workspaces.length > 0}
-        <Input
-          bind:value={query}
-          placeholder={t('app.search.workspace.placeholder')}
-          ariaLabel={t('app.search.workspace.placeholder')}
-          icon="search"
-          clearable
-          class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
-        />
-        <span class="role-caption text-[var(--muted-foreground)]">
-          {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
-        </span>
-      {/if}
-    </div>
-    <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
-      {#if narrow && !composerOpen}
-        <!--
-          На узком окне на месте поля стоит только кнопка: поле во всю ширину
-          оттесняло бы поиск. Нажатие показывает поле для ввода имени.
-        -->
-        <span class="ml-auto">
-          <IconButton
-            action="add"
-            title={t('app.workspace.create')}
-            ariaLabel={t('app.workspace.create')}
-            onclick={openComposer}
-          />
-        </span>
-      {:else}
+    <!--
+      Одна полоса: поиск, счётчик и создание стоят в одном ряду. Кнопка
+      создания — справа; на узком окне она только показывает поле, а само поле
+      занимает место поиска, а не заводит вторую строку.
+    -->
+    <div class="flex w-full min-w-0 items-center gap-2" data-testid="workspaces-controls">
+      {#if narrow && composerOpen}
         <Input
           bind:element={composerField}
           bind:value={newName}
           placeholder={t('app.search.newWorkspace.placeholder')}
           ariaLabel={t('app.search.newWorkspace.placeholder')}
-          class="min-w-0 flex-1 sm:w-[15rem] sm:flex-none"
+          class="min-w-0 flex-1"
           onkeydown={(event) => {
             if (event.key === 'Enter') {
               createFromField();
@@ -357,17 +334,52 @@
           disabled={!newName.trim()}
           onclick={createFromField}
         />
-        {#if narrow}
-          <Button
-            variant="ghost"
-            size="icon"
-            title={t('app.workspace.createCancel')}
-            ariaLabel={t('app.workspace.createCancel')}
-            onclick={closeComposer}
-          >
-            <Icon name="close" />
-          </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          title={t('app.workspace.createCancel')}
+          ariaLabel={t('app.workspace.createCancel')}
+          onclick={closeComposer}
+        >
+          <Icon name="close" />
+        </Button>
+      {:else}
+        {#if workspaces.length > 0}
+          <Input
+            bind:value={query}
+            placeholder={t('app.search.workspace.placeholder')}
+            ariaLabel={t('app.search.workspace.placeholder')}
+            icon="search"
+            clearable
+            class="min-w-0 flex-1 sm:max-w-[24rem]"
+          />
+          <span class="flex-none role-caption text-[var(--muted-foreground)]">
+            {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
+          </span>
         {/if}
+        <div class="ml-auto flex flex-none items-center gap-2">
+          {#if !narrow}
+            <Input
+              bind:element={composerField}
+              bind:value={newName}
+              placeholder={t('app.search.newWorkspace.placeholder')}
+              ariaLabel={t('app.search.newWorkspace.placeholder')}
+              class="w-[15rem]"
+              onkeydown={(event) => {
+                if (event.key === 'Enter') {
+                  createFromField();
+                }
+              }}
+            />
+          {/if}
+          <IconButton
+            action="add"
+            title={t('app.workspace.create')}
+            ariaLabel={t('app.workspace.create')}
+            disabled={!narrow && !newName.trim()}
+            onclick={narrow ? openComposer : createFromField}
+          />
+        </div>
       {/if}
     </div>
   {/snippet}

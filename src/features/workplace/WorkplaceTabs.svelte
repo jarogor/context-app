@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '@context/i18n';
     import { untrack } from 'svelte';
-  import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@context/ui';
+  import { Button, Dialog, Icon } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { logEvent } from '../../shared/app-log';
@@ -328,27 +328,6 @@
   }
 
   /** Пункты контекстного меню рабочего места на телефоне. */
-  const workplaceActions = $derived<MenuAction[]>([
-    { id: 'books', label: t('app.workplace.openBooks') },
-    ...(onToggleFocus
-      ? [
-          {
-            id: 'focus',
-            label: focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus'),
-          },
-        ]
-      : []),
-  ]);
-
-  /** Обработка пункта меню рабочего места. */
-  function runWorkplaceAction(action: string) {
-    if (action === 'books') {
-      onToggleBooks();
-    }
-    if (action === 'focus') {
-      onToggleFocus?.();
-    }
-  }
 </script>
 
 <div
@@ -359,51 +338,6 @@
     Кнопки «К списку рабочих мест» здесь нет: к списку возвращает кнопка раздела
     в верхней панели, и вторая точка входа только дублировала бы её.
   -->
-  <!-- Действия открытия книги закреплены вне окна вкладок: переполнение не
-       выталкивает их за пределы панели. -->
-  <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-actions">
-    <!--
-      Панели вкладок и заметок открываются слева, рядом с содержимым места:
-      кнопка списка вкладок, затем заметок, разделитель и действия открытия книги.
-    -->
-    <Button
-      variant={booksOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
-      ariaLabel={t('app.workplace.tabs')}
-      ariaPressed={booksOpen}
-      onclick={onToggleBooks}
-    >
-      <Icon name="tabs" />
-    </Button>
-    <Button
-      variant={notesOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
-      ariaLabel={t('app.workplace.notes')}
-      testId="workplace-notes-toggle"
-      ariaPressed={notesOpen}
-      onclick={onToggleNotes}
-    >
-      <Icon name="note" />
-    </Button>
-    <!--
-      Свойства файла — содержание, закладки, страницы и встроенные пометки.
-      Кнопка стоит рядом с заметками: это второй способ увидеть книгу, кроме
-      её текста, и он тоже относится к открытой книге.
-    -->
-    <Button
-      variant={propertiesOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
-      ariaLabel={t('app.workplace.properties')}
-      testId="workplace-properties-toggle"
-      ariaPressed={propertiesOpen}
-      onclick={onToggleProperties}
-    >
-      <Icon name="layers" />
-    </Button>
-    <span class="mx-[0.25rem] h-4 w-px flex-none bg-[var(--divider)]" aria-hidden="true"></span>
     <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
       <Button
         size="icon"
@@ -429,7 +363,6 @@
         <Icon name="folder" />
       </Button>
     </span>
-  </div>
   <div class="flex min-w-0 flex-1 items-center gap-2">
     {#if overflowing}
       <Button
@@ -526,34 +459,62 @@
     {/if}
   </div>
   <!--
-    Справа остаётся только сосредоточенное чтение: на телефоне эта кнопка уходит
-    в контекстное меню, чтобы полоса оставалась свободной и удобной пальцу.
+    Кнопки панелей — справа от окна вкладок, рядом с содержимым, которое они
+    показывают. Порядок один на всех ширинах: отдельного меню на телефоне нет.
   -->
-  <span class="hidden md:flex md:items-center md:gap-1">
-    {#if onToggleFocus}
-      <Button
-        variant={focusMode ? 'primary' : 'ghost'}
-        size="icon"
-        title={hotkeyHint(
-          'workplace.focus',
-          focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus'),
-        )}
-        ariaLabel={focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus')}
-        ariaPressed={focusMode}
-        onclick={onToggleFocus}
-      >
-        <Icon name="focus" />
-      </Button>
-    {/if}
-  </span>
-  <span class="flex md:hidden">
-    <ActionMenu
-      ariaLabel={t('app.workplace.actionsLabel')}
-      title={t('app.action.actions')}
-      items={workplaceActions}
-      onselect={runWorkplaceAction}
-    />
-  </span>
+  <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-panels">    <Button
+      variant={booksOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
+      ariaLabel={t('app.workplace.tabs')}
+      ariaPressed={booksOpen}
+      onclick={onToggleBooks}
+    >
+      <Icon name="tabs" />
+    </Button>
+    <Button
+      variant={notesOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
+      ariaLabel={t('app.workplace.notes')}
+      testId="workplace-notes-toggle"
+      ariaPressed={notesOpen}
+      onclick={onToggleNotes}
+    >
+      <Icon name="note" />
+    </Button>
+    <!--
+      Свойства файла — содержание, закладки, страницы и встроенные пометки.
+      Кнопка стоит рядом с заметками: это второй способ увидеть книгу, кроме
+      её текста, и он тоже относится к открытой книге.
+    -->
+    <Button
+      variant={propertiesOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
+      ariaLabel={t('app.workplace.properties')}
+      testId="workplace-properties-toggle"
+      ariaPressed={propertiesOpen}
+      onclick={onToggleProperties}
+    >
+      <Icon name="layers" />
+    </Button>
+  </div>
+  {#if onToggleFocus}
+    <Button
+      variant={focusMode ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint(
+        'workplace.focus',
+        focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus'),
+      )}
+      ariaLabel={focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus')}
+      ariaPressed={focusMode}
+      onclick={onToggleFocus}
+    >
+      <Icon name="focus" />
+    </Button>
+  {/if}
 </div>
 
 <Dialog
