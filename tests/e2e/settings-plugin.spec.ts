@@ -64,7 +64,8 @@ test('диагностика не имеет настроек в разделе 
 
   // Раздел — про обновления и сведения о приложении. Журнал пишется всегда,
   // поэтому настраивать в нём нечего: решение «что записывать» не для человека.
-  await expect(page.getByText('Обновления', { exact: true })).toBeVisible();
+  await expect(page.getByText('Приложение', { exact: true })).toBeVisible();
+  await expect(page.getByText('Плагины', { exact: true })).toBeVisible();
   await expect(page.getByTestId('app-info-page')).toBeVisible();
   await expect(page.getByText('Подробность журнала для разбора проблем')).toHaveCount(0);
 });

@@ -20,6 +20,27 @@ fn reads_index_from_file_source() {
 }
 
 #[test]
+fn index_with_legacy_plugin_list_still_reads() {
+    // Плагины обновляются через стор, и поля `plugins` в этом индексе больше
+    // нет. Прежние индексы с ним должны по-прежнему разбираться: иначе
+    // обновление ядра перестало бы работать у тех, кто не перевыпустил индекс.
+    let root = test_util::test_root("update-source-legacy-plugins");
+    fs::write(
+        root.join(INDEX_FILE_NAME),
+        r#"{"contract_version":1,"core":{"version":"0.3.0","platforms":{}},"plugins":[{"name":"format-pdf","version":"0.2.0","location":"p.zip"}]}"#,
+    )
+    .expect("индекс источника");
+    let source = UpdateSource {
+        kind: "file".to_string(),
+        location: root.to_string_lossy().to_string(),
+    };
+
+    let index = read_index(&source).expect("старый индекс читается");
+    assert_eq!(index.core.expect("выпуск ядра").version, "0.3.0");
+    test_util::cleanup(&root);
+}
+
+#[test]
 fn rejects_index_over_limit() {
     let root = test_util::test_root("update-source-limit");
     fs::write(root.join(INDEX_FILE_NAME), "x".repeat(MAX_INDEX_BYTES + 1)).expect("индекс");

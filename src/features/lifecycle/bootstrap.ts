@@ -40,7 +40,6 @@ import {
   type ThemePreference,
 } from '@context/ui';
 import {
-  addStore as addStoreEntry,
   loadActivationPending,
   loadStoreCatalog,
   type PluginEntry,
@@ -140,7 +139,6 @@ export async function loadBootstrap(): Promise<BootstrapState> {
     // ними сразу и не дорисовывает их по одной. Извлечение кэшируется в ядре,
     // поэтому повторный запуск читает готовые обложки.
     await loadWorkspaceCovers(registry).catch(() => {});
-    await ensureUpdatePlace(store, update).catch(() => {});
     return {
         registry,
         activeLibrary: library,
@@ -175,38 +173,6 @@ function workspaceBookPaths(registry: unknown): string[] {
 /** Загрузка обложек книг рабочих мест в кэш оболочки до первого рендера. */
 async function loadWorkspaceCovers(registry: unknown): Promise<void> {
     await loadCovers(workspaceBookPaths(registry));
-}
-
-/** Регистрация встроенного адреса обновлений среди мест обновления. */
-async function ensureUpdatePlace(
-    store: StoreBootstrap,
-    update: UpdateBootstrap,
-): Promise<void> {
-    const source = update.status?.config.source;
-    if (!source) {
-        return;
-    }
-    if (store.stores.some((item) => item.kind === source.kind && item.location === source.location)) {
-        return;
-    }
-    const title =
-        source.kind === 'network'
-            ? (() => {
-                  try {
-                      return new URL(source.location).host;
-                  } catch {
-                      return t('app.store.updatesFor');
-                  }
-              })()
-            : source.location.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ||
-              t('app.store.updatesFor');
-    await addStoreEntry({
-        id: `updates-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}-${source.location.length}`,
-        kind: source.kind,
-        title,
-        location: source.location,
-    });
-    store.stores = (await loadStoreCatalog()).stores;
 }
 
 /** Чтение и применение оформления до первого кадра.

@@ -3,27 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use serde::Deserialize;
-
 use crate::plugin::AppState;
 use crate::update::{self, UpdateConfig, UpdateSource};
-
-/// Запись о месте обновления из реестра плагинов.
-#[derive(Deserialize)]
-struct StoreEntry {
-    /// Вид места: папка или сетевой адрес.
-    kind: String,
-    /// Расположение.
-    location: String,
-}
-
-/// Реестр мест обновления плагинов.
-#[derive(Deserialize)]
-struct StoresResponse {
-    /// Подключённые места.
-    #[serde(default)]
-    stores: Vec<StoreEntry>,
-}
 
 /// Снимок состояния обновлений для интерфейса.
 #[derive(serde::Serialize)]
@@ -43,56 +24,6 @@ fn context(state: &Mutex<AppState>) -> Result<(PathBuf, String), String> {
         state.app_state_root().to_path_buf(),
         state.app_info().version,
     ))
-}
-
-/// Все места, откуда приложение и плагины получают обновления.
-///
-/// Основной список ведёт стор плагинов; встроенное место добавляется как
-/// запасной вариант, если стор ещё не успел его зарегистрировать.
-async fn collect_sources(
-    state: &Mutex<AppState>,
-    fallback: Option<UpdateSource>,
-) -> Vec<UpdateSource> {
-    let mut sources = Vec::new();
-    let response = crate::commands::with_app_host(state, |host| {
-        host.invoke_capability(
-            crate::plugin::contract::CAPABILITY_PLUGIN_STORE,
-            "stores_list",
-            serde_json::json!({}),
-        )
-    })
-    .await;
-    if let Ok(Ok(text)) = response {
-        if let Ok(list) = serde_json::from_str::<StoresResponse>(&text) {
-            for store in list.stores {
-                push_unique(
-                    &mut sources,
-                    UpdateSource {
-                        kind: store.kind,
-                        location: store.location,
-                    },
-                );
-            }
-        }
-    }
-    if let Some(source) = fallback {
-        push_unique(&mut sources, source);
-    }
-    sources
-}
-
-/// Добавление места обновления без повторов.
-fn push_unique(sources: &mut Vec<UpdateSource>, source: UpdateSource) {
-    if source.location.trim().is_empty() {
-        return;
-    }
-    if sources
-        .iter()
-        .any(|item| item.kind == source.kind && item.location == source.location)
-    {
-        return;
-    }
-    sources.push(source);
 }
 
 /// Сведения об обновлениях: источник и последняя проверка.
@@ -145,7 +76,10 @@ pub async fn update_check(
 ) -> Result<update::UpdateCheck, String> {
     let (root, current_version) = context(state.inner())?;
     let config = update::config(&root)?;
-    let sources = collect_sources(state.inner(), config.source.clone()).await;
+    // Приложение обновляется только из своего источника. Места плагинов в
+    // проверке ядра не участвуют: иначе адрес плагинов влиял на версию
+    // приложения, и было не понять, откуда что пришло.
+    let sources: Vec<UpdateSource> = config.source.clone().into_iter().collect();
     update::check_sources_and_record(
         &root,
         &current_version,
@@ -161,13 +95,26 @@ pub async fn update_apply(
 ) -> Result<update::ApplyOutcome, String> {
     let (root, current_version) = context(state.inner())?;
     let config = update::config(&root)?;
-    let sources = collect_sources(state.inner(), config.source.clone()).await;
+    let sources: Vec<UpdateSource> = config.source.clone().into_iter().collect();
     update::apply_sources(
         &root,
         &current_version,
         &sources,
         config.skipped_version.as_deref(),
     )
+}
+
+/// Возврат встроенного источника обновлений плагинов.
+#[tauri::command]
+pub async fn plugin_source_clear(
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    let default = crate::update::default_plugin_source();
+    crate::commands::with_app_host(state.inner(), |host| {
+        host.reset_plugin_source(default)
+            .map_err(|error| error.to_string())
+    })
+    .await?
 }
 
 /// Отказ от предлагаемой версии приложения.

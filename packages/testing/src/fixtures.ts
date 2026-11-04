@@ -259,7 +259,18 @@ function baseOperation(payload: unknown): unknown {
         return { enabled: true };
     }
     if (message.capability === 'plugin-store@1' && message.operation === 'stores_list') {
-        return { stores: [] };
+        return {
+            stores: [
+                {
+                    id: 'plugin-updates',
+                    kind: 'file',
+                    title: 'plugins',
+                    // Источник плагинов отличается от источника приложения:
+                    // у плагинов свой набор пакетов.
+                    location: '/home/user/.context/plugin-updates',
+                },
+            ],
+        };
     }
     if (message.capability === 'plugin-store@1' && message.operation === 'stores_add') {
         return { stores: [] };
@@ -764,10 +775,13 @@ export function defaultMockConfig(): MockBridgeConfig {
                 ],
             }),
             plugin_activation_pending: () => ({ pending: false }),
+            plugin_source_clear: () => null,
             update_status: () => ({
                 current_version: '0.1.0',
                 config: {
-                    source: null,
+                    // Встроенный источник: приложение задаёт его само, поэтому
+                    // в списке мест он подписан и не удаляется.
+                    source: { kind: 'file', location: '/home/user/.context/updates' },
                     check_on_startup: true,
                     skipped_version: null,
                 },
@@ -779,13 +793,13 @@ export function defaultMockConfig(): MockBridgeConfig {
                 checked_at_millis: 0,
                 errors: [],
             }),
-            update_source_set: () => ({
-                source: null,
+            update_source_set: (args: unknown) => ({
+                source: (args as { source?: { kind: string; location: string } } | null)?.source ?? null,
                 check_on_startup: true,
                 skipped_version: null,
             }),
             update_source_clear: () => ({
-                source: null,
+                source: { kind: 'file', location: '/home/user/.context/updates' },
                 check_on_startup: true,
                 skipped_version: null,
             }),

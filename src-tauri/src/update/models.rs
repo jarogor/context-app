@@ -71,6 +71,11 @@ fn default_check_on_startup() -> bool {
 }
 
 /// Индекс обновлений в источнике (`update-index.json`).
+///
+/// Здесь только выпуск ядра: прикладные плагины обновляются через стор из
+/// `store-index.json` (см. `UPDATE.md`). Прежнее поле `plugins` в этом индексе
+/// не читалось и удалено; сердце игнорирует неизвестные поля, поэтому старые
+/// индексы продолжают разбираться.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpdateIndex {
     /// Версия контракта индекса.
@@ -79,9 +84,6 @@ pub struct UpdateIndex {
     /// Выпуск ядра приложения.
     #[serde(default)]
     pub core: Option<CoreRelease>,
-    /// Выпуски прикладных плагинов.
-    #[serde(default)]
-    pub plugins: Vec<PluginRelease>,
 }
 
 /// Выпуск ядра приложения: версия, заметки и артефакты по платформам.
@@ -121,24 +123,6 @@ pub enum ReleaseMode {
     Appimage,
     /// Штатный установщик платформы.
     Installer,
-}
-
-/// Выпуск прикладного плагина в индексе обновлений.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PluginRelease {
-    /// Идентификатор плагина в формате UUID.
-    #[serde(default)]
-    pub id: String,
-    /// Человекочитаемое имя плагина.
-    #[serde(default)]
-    pub name: String,
-    /// Версия выпуска в формате SemVer.
-    pub version: String,
-    /// Путь относительно источника или абсолютный адрес.
-    pub location: String,
-    /// Контрольная сумма SHA-256 (hex).
-    #[serde(default)]
-    pub sha256: Option<String>,
 }
 
 /// Доступное обновление ядра.

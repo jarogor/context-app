@@ -65,6 +65,10 @@ impl AppHostConfig {
         host.set_plugin_store_root(self.user_plugins_dir.clone());
         host.set_activation_root(self.activation_root.clone());
         host.set_catalog_dirs(self.catalog_dirs.clone());
+        // Встроенный источник обновлений плагинов регистрируется до первого
+        // обращения к стору: иначе список мест пуст, и пользователь видит
+        // «источников нет», хотя приложение задаёт их само.
+        let _ = host.ensure_plugin_source(crate::update::default_plugin_source());
         let _ = host.refresh_settings_registry(&[]);
         crate::startup::mark("фон: базовые плагины собраны");
         Ok(host)

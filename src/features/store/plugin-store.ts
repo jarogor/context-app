@@ -130,6 +130,11 @@ export async function removeStore(id: string): Promise<void> {
   await operation('stores_remove', { id });
 }
 
+/** Возврат встроенного источника обновлений плагинов. */
+export async function resetPluginSource(): Promise<void> {
+  await invokeCommand('plugin_source_clear', {});
+}
+
 /** Пакеты, предлагаемые стором; `supported === false` — сетевой стор не поддержан. */
 export async function listStorePackages(
   id: string,
@@ -140,10 +145,23 @@ export async function listStorePackages(
   return { supported: result.supported, packages: result.packages ?? [] };
 }
 
+/** Итог проверки обновлений плагинов. */
+export interface PluginUpdates {
+  /** Найденные обновления. */
+  updates: PluginUpdate[];
+  /**
+   * Почему часть мест не проверена.
+   *
+   * Место без индекса пакетов — не поломка, а повод сказать об этом: иначе
+   * пользователь видит «обновлений нет» и не понимает, что источник пуст.
+   */
+  errors: string[];
+}
+
 /** Доступные обновления прикладных плагинов во всех подключённых сторах. */
-export async function listPluginUpdates(): Promise<PluginUpdate[]> {
-  const result = await operation<{ updates?: PluginUpdate[] }>('updates', {});
-  return result.updates ?? [];
+export async function listPluginUpdates(): Promise<PluginUpdates> {
+  const result = await operation<{ updates?: PluginUpdate[]; errors?: string[] }>('updates', {});
+  return { updates: result.updates ?? [], errors: result.errors ?? [] };
 }
 
 /** Установка или обновление плагина из стора. */

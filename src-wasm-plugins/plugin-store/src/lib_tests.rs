@@ -416,12 +416,16 @@ fn updates_reports_store_without_index() {
 
     let response = call(&host, "updates", json!({}));
     assert_eq!(response["updates"].as_array().map(Vec::len), Some(0));
+    let message = response["errors"][0].as_str().unwrap_or_default();
     assert!(
-        response["errors"][0]
-            .as_str()
-            .unwrap_or_default()
-            .contains("нет индекса пакетов"),
+        message.contains("нет индекса пакетов"),
         "понятная причина вместо падения: {response}"
+    );
+    // Место называется подписью, а не служебным идентификатором: по id
+    // пользователь не поймёт, о каком из добавленных мест речь.
+    assert!(
+        message.starts_with("L:"),
+        "место названо понятно: {message}"
     );
 }
 

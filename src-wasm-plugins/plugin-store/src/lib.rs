@@ -183,7 +183,10 @@ fn updates(host: &impl Host) -> Result<String, String> {
         let index = match load_index(host, &store) {
             Ok(index) => index,
             Err(error) => {
-                errors.push(format!("стор {}: {error}", store.id));
+                // В сообщении — расположение места, а не его служебный
+                // идентификатор: по идентификатору пользователь не поймёт, о
+                // каком из добавленных мест речь.
+                errors.push(format!("{}: {error}", store_display(&store)));
                 continue;
             }
         };
@@ -209,6 +212,19 @@ fn updates(host: &impl Host) -> Result<String, String> {
         }
     }
     Ok(json!({ "updates": updates, "errors": errors }).to_string())
+}
+
+/// Человекочитаемое название места для сообщений.
+///
+/// Служебный идентификатор (`updates-mvs9zo6g-…`) ничего не говорит
+/// пользователю, поэтому берётся подпись, а если её нет — расположение.
+fn store_display(store: &Store) -> &str {
+    let title = store.title.trim();
+    if title.is_empty() {
+        store.location.trim()
+    } else {
+        title
+    }
 }
 
 /// Признак соответствия пакета установленному плагину.

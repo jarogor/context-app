@@ -828,3 +828,34 @@ fn notes_capability_missing_provider_is_safe() {
     );
     cleanup(&dir);
 }
+
+/// Проверка, что встроенный источник обновлений плагинов регистрируется сам и
+/// не дублируется при повторной сборке runtime.
+#[test]
+fn ensures_plugin_source_once() {
+    let resources = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
+    let directories = vec![resources.join("base-plugins")];
+    let storage = test_util::test_root("app-host-plugin-source");
+    let source = crate::update::UpdateSource {
+        kind: "file".to_string(),
+        location: "/data/plugin-updates".to_string(),
+    };
+
+    let mut host = AppPluginHost::load(&directories, storage.join("storage")).expect("runtime");
+    host.ensure_plugin_source(source.clone()).expect("источник добавлен");
+    host.ensure_plugin_source(source).expect("повтор безвреден");
+
+    let listed = host
+        .invoke_capability(
+            crate::plugin::contract::CAPABILITY_PLUGIN_STORE,
+            "stores_list",
+            serde_json::json!({}),
+        )
+        .expect("список мест");
+    let listed: serde_json::Value = serde_json::from_str(&listed).expect("JSON списка");
+    let stores = listed["stores"].as_array().expect("массив мест");
+    assert_eq!(stores.len(), 1, "источник добавлен один раз: {listed}");
+    assert_eq!(stores[0]["location"], "/data/plugin-updates");
+    assert_eq!(stores[0]["id"], "plugin-updates");
+    cleanup(&storage);
+}

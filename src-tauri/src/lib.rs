@@ -185,6 +185,7 @@ pub fn run() {
             commands::update_status,
             commands::update_source_set,
             commands::update_source_clear,
+            commands::plugin_source_clear,
             commands::update_check_on_startup_set,
             commands::update_check,
             commands::update_apply,

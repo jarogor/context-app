@@ -18,8 +18,8 @@ use std::path::Path;
 use std::process::Command;
 
 pub use models::{
-    ApplyOutcome, AvailableCore, CoreRelease, PluginRelease, ReleaseArtifact, ReleaseMode,
-    UpdateCheck, UpdateConfig, UpdateIndex, UpdateSource,
+    ApplyOutcome, AvailableCore, CoreRelease, ReleaseArtifact, ReleaseMode, UpdateCheck,
+    UpdateConfig, UpdateIndex, UpdateSource,
 };
 pub use state::PersistedUpdate;
 
@@ -32,11 +32,19 @@ const MAX_ARTIFACT_BYTES: u64 = 1024 * 1024 * 1024;
 /// Таймаут сетевых запросов обновлений в секундах.
 const NETWORK_TIMEOUT_SECS: u64 = 30;
 
-/// Сетевой адрес обновлений по умолчанию для выпуска.
+/// Сетевой адрес обновлений приложения по умолчанию для выпуска.
 ///
 /// Может быть переопределён при сборке переменной `CONTEXT_UPDATE_URL`.
 #[cfg(not(debug_assertions))]
 const DEFAULT_NETWORK_UPDATE_SOURCE: &str = "https://updates.jarogor.ru/context";
+
+/// Сетевой адрес обновлений плагинов по умолчанию для выпуска.
+///
+/// Плагины обновляются из собственного каталога: у них своя линейка выпусков и
+/// свой индекс (`store-index.json`), поэтому адрес отличается от адреса
+/// приложения.
+#[cfg(not(debug_assertions))]
+const DEFAULT_NETWORK_PLUGIN_SOURCE: &str = "https://updates.jarogor.ru/plugins";
 
 /// Загрузка состояния обновлений с источником по умолчанию.
 ///
@@ -299,6 +307,44 @@ pub fn relaunch() -> Result<(), String> {
         .spawn()
         .map_err(|error| format!("приложение не перезапущено: {error}"))?;
     Ok(())
+}
+
+/// Источник обновлений плагинов по умолчанию.
+///
+/// Это **отдельный** адрес, а не адрес приложения: у плагинов свой индекс
+/// (`store-index.json`) и своя линейка выпусков. В разработке — каталог
+/// `dev_data/plugin-updates`, в выпуске — сетевой адрес. Переопределяется
+/// переменной окружения `CONTEXT_PLUGIN_SOURCE`.
+pub fn default_plugin_source() -> UpdateSource {
+    if let Some(value) = std::env::var_os("CONTEXT_PLUGIN_SOURCE") {
+        let value = value.to_string_lossy().into_owned();
+        if let Some((kind, location)) = value.split_once(':') {
+            let source = UpdateSource {
+                kind: kind.to_string(),
+                location: location.to_string(),
+            };
+            if source.validate().is_ok() {
+                return source;
+            }
+        }
+    }
+    #[cfg(debug_assertions)]
+    {
+        UpdateSource {
+            kind: "file".to_string(),
+            location: crate::paths::dev_data_dir()
+                .join("plugin-updates")
+                .to_string_lossy()
+                .into_owned(),
+        }
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        UpdateSource {
+            kind: "network".to_string(),
+            location: DEFAULT_NETWORK_PLUGIN_SOURCE.to_string(),
+        }
+    }
 }
 
 /// Источник обновлений по умолчанию.

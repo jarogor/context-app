@@ -151,6 +151,93 @@ impl AppPluginHost {
             .invoke_capability(capability, operation, payload)
     }
 
+    /// Возврат встроенного источника обновлений плагинов.
+    ///
+    /// Свои места пользователя убираются, а встроенный ставится заново: именно
+    /// этого ждут от действия «вернуть встроенный». Повторный вызов безвреден.
+    pub fn reset_plugin_source(
+        &mut self,
+        source: crate::update::UpdateSource,
+    ) -> Result<(), PluginError> {
+        let listed = self.invoke_capability(
+            crate::plugin::contract::CAPABILITY_PLUGIN_STORE,
+            "stores_list",
+            serde_json::json!({}),
+        )?;
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&listed) {
+            if let Some(stores) = parsed["stores"].as_array() {
+                for store in stores {
+                    if let Some(id) = store["id"].as_str() {
+                        let _ = self.invoke_capability(
+                            crate::plugin::contract::CAPABILITY_PLUGIN_STORE,
+                            "stores_remove",
+                            serde_json::json!({ "id": id }),
+                        );
+                    }
+                }
+            }
+        }
+        self.ensure_plugin_source(source)
+    }
+
+    /// Регистрация встроенного источника обновлений плагинов.
+    ///
+    /// Источник плагинов отличается от источника приложения: у них свой индекс
+    /// пакетов и своя линейка выпусков. Место добавляется один раз; если оно
+    /// уже есть, повторно не пишется.
+    pub fn ensure_plugin_source(
+        &mut self,
+        source: crate::update::UpdateSource,
+    ) -> Result<(), PluginError> {
+        if source.location.trim().is_empty() {
+            return Ok(());
+        }
+        let listed = self.invoke_capability(
+            crate::plugin::contract::CAPABILITY_PLUGIN_STORE,
+            "stores_list",
+            serde_json::json!({}),
+        )?;
+        let parsed: serde_json::Value = match serde_json::from_str(&listed) {
+            Ok(value) => value,
+            Err(_) => return Ok(()),
+        };
+        let already = parsed["stores"]
+            .as_array()
+            .map(|stores| {
+                stores.iter().any(|store| {
+                    store["kind"].as_str() == Some(source.kind.as_str())
+                        && store["location"].as_str() == Some(source.location.as_str())
+                })
+            })
+            .unwrap_or(false);
+        if already {
+            return Ok(());
+        }
+        // Подпись — последний сегмент адреса: она читается человеком, в отличие
+        // от служебного идентификатора места.
+        let title = source
+            .location
+            .trim_end_matches(['/', '\\'])
+            .rsplit(['/', '\\'])
+            .next()
+            .filter(|value| !value.is_empty())
+            .unwrap_or(&source.location)
+            .to_string();
+        self.invoke_capability(
+            crate::plugin::contract::CAPABILITY_PLUGIN_STORE,
+            "stores_add",
+            serde_json::json!({
+                "store": {
+                    "id": "plugin-updates",
+                    "kind": source.kind,
+                    "title": title,
+                    "location": source.location,
+                },
+            }),
+        )?;
+        Ok(())
+    }
+
     /// Запись сообщения, адресованного пользователю, в журнал диагностики.
     ///
     /// Отдельной ленты уведомлений в интерфейсе нет: сообщение живёт в файле,

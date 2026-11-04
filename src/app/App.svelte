@@ -998,12 +998,14 @@
     try {
       const [core, plugins] = await Promise.all([
         checkCoreUpdate(),
-        listPluginUpdates().catch(() => [] as PluginUpdate[]),
+        listPluginUpdates().catch(() => ({ updates: [], errors: [] })),
       ]);
       updateCore = core.core;
-      updatePlugins = plugins;
+      updatePlugins = plugins.updates;
       updateCurrentVersion = core.core?.current_version ?? updateCurrentVersion;
-      updateError = core.errors.join('\n');
+      // Ошибки обеих проверок: место без нужного индекса относится к обеим, и
+      // молчать о нём нельзя — иначе «обновлений нет» читается как «всё свежее».
+      updateError = [...new Set([...core.errors, ...plugins.errors])].join('\n');
       if (updateCore || updatePlugins.length > 0) {
         updateDialogOpen = true;
       } else if (manual) {

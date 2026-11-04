@@ -66,7 +66,12 @@ test('оболочка показывает панель и переключае
     await expect(menu.getByRole('button', { name: 'Система' })).toBeVisible();
 
     await menu.getByRole('button', { name: 'Система' }).click();
-    await expect(page.locator('main').getByRole('heading', { name: 'Обновления' })).toBeVisible();
+    // Раздел «Система» открывается на обновлениях: приложение и плагины —
+    // два отдельных раздела.
+    await expect(page.locator('main').getByRole('heading', { name: 'Приложение' })).toBeVisible();
+    await expect(
+      page.locator('main').getByRole('heading', { name: 'Плагины', exact: true }),
+    ).toBeVisible();
 });
 
 test('разделы меню показывают активный раздел', async ({ page }) => {
