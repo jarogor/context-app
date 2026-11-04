@@ -83,7 +83,7 @@ async function installDjvuMock(page: Page, data = djvuBase64()) {
                 handlers: {
                     active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
                     reader_formats: () => ['djvu'],
-                    reader_plugin_for_format: () => 'format-djvu',
+                    reader_plugin_for_format: () => ({ plugin_id: 'format-djvu', flowing: false }),
                     reader_viewer: () => payload.entry,
                     reader_viewer_files: () => payload.files,
                     reader_viewer_file: (input: unknown) => {
@@ -516,20 +516,48 @@ test('прокрутка внутри увеличенной страницы д
         await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
     }
     await expect(page.getByTestId('reader-zoom')).not.toHaveText('100%');
+    /**
+     * Доля видимой части области чтения, занятая нарисованными страницами.
+     *
+     * Считается от страниц, а не от рамки области: под последней страницей
+     * лежит отступ списка (и место под горизонтальной полосой прокрутки), и
+     * деление на высоту области занижало покрытие даже при полностью
+     * нарисованном растре.
+     */
     const coverage = () =>
         frame.locator('#viewer').evaluate((element) => {
             const viewer = element as HTMLElement;
             const viewerBox = viewer.getBoundingClientRect();
-            let coveredHeight = 0;
-            for (const canvas of viewer.querySelectorAll('.page canvas')) {
+            // Меряются именно канвасы: они и есть нарисованный растр. Страница
+            // без канваса показывает лишь фон рамки и считается непокрытой.
+            const canvases = Array.from(
+                viewer.querySelectorAll('.page canvas'),
+            ) as HTMLElement[];
+            const covered = canvases.reduce((sum, canvas) => {
                 const box = canvas.getBoundingClientRect();
-                coveredHeight += Math.max(
-                    0,
-                    Math.min(box.bottom, viewerBox.bottom) - Math.max(box.top, viewerBox.top),
+                return (
+                    sum +
+                    Math.max(
+                        0,
+                        Math.min(box.bottom, viewerBox.bottom) - Math.max(box.top, viewerBox.top),
+                    )
                 );
-            }
-            return viewer.clientHeight > 0 ? coveredHeight / viewer.clientHeight : 0;
+            }, 0);
+            // Область, которую должны закрыть страницы: всё видимое, кроме
+            // отступа списка под последней страницей.
+            const contentBottom = Math.min(
+                viewerBox.bottom,
+                Math.max(
+                    ...Array.from(viewer.querySelectorAll('.page')).map(
+                        (page) => page.getBoundingClientRect().bottom,
+                    ),
+                    viewerBox.top,
+                ),
+            );
+            const visible = Math.max(0, contentBottom - viewerBox.top);
+            return visible > 0 ? Math.min(1, covered / visible) : 0;
         });
+
     await expect.poll(coverage, { timeout: 20000 }).toBeGreaterThan(0.9);
     for (const delta of [400, 700]) {
         await frame.locator('#viewer').evaluate((element, step) => {
