@@ -27,15 +27,14 @@ test.beforeEach(async ({ page }) => {
 
 /** Создание рабочего места с указанным именем.
  *
- * На узком окне поле создания скрыто за кнопкой: оно открывается нажатием, а
- * не стоит в полосе постоянно. Широкая ширина показывает поле сразу.
+ * Поле открывается кнопкой создания на любой ширине; кнопка остаётся на своём
+ * месте и меняет действие: с введённым именем сохраняет, с пустым — закрывает.
  */
 async function createWorkspace(page: import('@playwright/test').Page, name: string) {
+    await page.getByLabel('Создать рабочее место').click();
     const field = page.getByPlaceholder('Новое рабочее место');
-    if (!(await field.isVisible().catch(() => false))) {
-        await page.getByLabel('Создать рабочее место').click();
-    }
     await field.fill(name);
+    // С введённым именем кнопка сохраняет рабочее место.
     await page.getByLabel('Создать рабочее место').click();
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
 }
@@ -303,6 +302,28 @@ test('реестр рабочих мест переживает перезагр
     // При запуске открывается список рабочих мест — он и есть точка входа.
     await expect(page.getByTestId('workspaces-page')).toBeVisible();
     await expect(page.getByTestId('workspace-open')).toHaveCount(2);
+});
+
+test('кнопка создания не переезжает при вводе имени', async ({ page }) => {
+    // Кнопка стоит на одном месте до и во время ввода: меняется только её
+    // действие (с введённым именем — сохранить, с пустым — закрыть). Иначе она
+    // уходила бы из-под курсора и нажатие попадало бы мимо.
+    for (const width of [390, 1400]) {
+        await page.setViewportSize({ width, height: 800 });
+        await page.goto('/');
+        await page.getByLabel('Создать рабочее место').click();
+
+        const before = await page.getByLabel('Отменить создание').boundingBox();
+        await page.getByPlaceholder('Новое рабочее место').fill('Новое');
+        const after = await page.getByLabel('Создать рабочее место').boundingBox();
+        expect(before).not.toBeNull();
+        expect(after).not.toBeNull();
+        expect(Math.abs(before!.x - after!.x)).toBeLessThan(2);
+        expect(Math.abs(before!.y - after!.y)).toBeLessThan(2);
+
+        await page.getByLabel('Создать рабочее место').click();
+        await expect(page.getByTestId('workplace-tabs')).toBeVisible();
+    }
 });
 
 test('список рабочих мест адаптивен к ширине окна', async ({ page }) => {

@@ -136,20 +136,39 @@ describe('экран списка рабочих мест', () => {
         const base = handlers();
         render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
 
-        const input = screen.getByPlaceholderText('Новое рабочее место');
+        // Поле открывается кнопкой создания, а кнопка меняет действие по вводу.
+        await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+        const input = await screen.findByPlaceholderText('Новое рабочее место');
         await fireEvent.input(input, { target: { value: 'Новое' } });
         await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
 
         expect(base.onCreate).toHaveBeenCalledWith('Новое');
     });
 
-    it('не создаёт рабочее место с пустым именем', async () => {
+    it('с пустым полем кнопка закрывает создание, а не создаёт место', async () => {
         const base = handlers();
         render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
 
         await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+        await expect(await screen.findByPlaceholderText('Новое рабочее место')).toBeTruthy();
 
+        // Пустое поле: кнопка становится закрытием и убирает поле.
+        await fireEvent.click(screen.getByLabelText('Отменить создание'));
         expect(base.onCreate).not.toHaveBeenCalled();
+        expect(screen.queryByPlaceholderText('Новое рабочее место')).toBeNull();
+    });
+
+    it('показывает кнопку создания в одном и том же месте при открытии поля', async () => {
+        const base = handlers();
+        render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
+
+        // Кнопка не переезжает: меняется только её действие.
+        const before = screen.getByLabelText('Создать рабочее место');
+        expect(before.className).toContain('inline-flex');
+        await fireEvent.click(before);
+        expect(await screen.findByPlaceholderText('Новое рабочее место')).toBeTruthy();
+        // На месте кнопки создания — та же иконочная кнопка закрытия.
+        expect(screen.getByLabelText('Отменить создание')).toBeTruthy();
     });
 
     it('на узком окне показывает кнопку создания, а поле — по нажатию', async () => {

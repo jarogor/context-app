@@ -679,3 +679,28 @@ test('на телефоне полоса вкладок без контекст�
         expect(xs[index]!.x).toBeGreaterThan(xs[index - 1]!.x);
     }
 });
+
+test('вкладка занимает всю доступную ширину полосы', async ({ page }) => {
+    // Одна вкладка при широком окне не должна жаться к левому краю: она делит
+    // свободное место с соседями и растягивается на всю полосу.
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    const windowBox = await page.getByTestId('workplace-tabs-window').boundingBox();
+    const tabBox = await page.getByTestId('workplace-tab-item').first().boundingBox();
+    expect(windowBox).not.toBeNull();
+    expect(tabBox).not.toBeNull();
+    // Ширина вкладки совпадает с окном вкладок: свободного места не осталось.
+    expect(Math.abs(tabBox!.width - windowBox!.width)).toBeLessThan(2);
+    // И она начинается от левого края окна, а не стоит отдельным островком.
+    expect(Math.abs(tabBox!.x - windowBox!.x)).toBeLessThan(2);
+
+    // При переполнении вкладки держат свой размер, иначе все не поместились бы.
+    await page.setViewportSize({ width: 920, height: 800 });
+    await duplicateActive(page, 6);
+    const items = await page.getByTestId('workplace-tab-item').count();
+    expect(items).toBeLessThan(7);
+    const first = await page.getByTestId('workplace-tab-item').first().boundingBox();
+    expect(first!.width).toBeLessThan(windowBox!.width / 2);
+});

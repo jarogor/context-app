@@ -185,6 +185,15 @@
       : tabs.slice(safeStart, safeStart + capacity),
   );
 
+  /**
+   * Вкладки занимают всю ширину окна.
+   *
+   * Когда листать нечего, срез не должен жаться к левому краю: вкладки делят
+   * доступное место поровну и растягиваются на всю полосу. На узком окне так
+   * же растягивается единственная активная вкладка.
+   */
+  const stretched = $derived(windowTabs.length <= capacity);
+
   /** Номер вкладки в составе рабочего места (с единицы) по её идентификатору.
    *
    * Нумерация одна на полосу и на панель списка: номер — это место вкладки в
@@ -383,10 +392,10 @@
     >
       {#each windowTabs as tab (tab.id)}
         <div
-          class="relative flex flex-none items-center overflow-hidden rounded-[var(--radius)] {tabFillClass(
-            tab,
-          )}"
-          style="width: {TAB_WIDTH_REM}rem; height: {TAB_ROW_REM}rem;{tabFill(tab)}"
+          class="relative flex items-center overflow-hidden rounded-[var(--radius)] {stretched
+            ? 'min-w-0 flex-1'
+            : 'flex-none'} {tabFillClass(tab)}"
+          style="{stretched ? '' : `width: ${TAB_WIDTH_REM}rem;`}height: {TAB_ROW_REM}rem;{tabFill(tab)}"
           data-testid="workplace-tab-item"
         >
           <!--

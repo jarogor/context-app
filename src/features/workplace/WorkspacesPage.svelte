@@ -309,17 +309,20 @@
 
   {#snippet controls()}
     <!--
-      Одна полоса: поиск, счётчик и создание стоят в одном ряду. Кнопка
-      создания — справа; на узком окне она только показывает поле, а само поле
-      занимает место поиска, а не заводит вторую строку.
+      Одна полоса и одно поведение на всех ширинах: пока поле создания не
+      открыто, справа стоит только кнопка создания. Нажатие показывает поле, и
+      кнопка остаётся на своём месте, меняя действие: при пустом поле она
+      закрывает создание, при введённом имени — сохраняет рабочее место. Так
+      ничего не переезжает под курсором.
     -->
     <div class="flex w-full min-w-0 items-center gap-2" data-testid="workspaces-controls">
-      {#if narrow && composerOpen}
+      {#if composerOpen}
         <Input
           bind:element={composerField}
           bind:value={newName}
           placeholder={t('app.search.newWorkspace.placeholder')}
           ariaLabel={t('app.search.newWorkspace.placeholder')}
+          clearable
           class="min-w-0 flex-1"
           onkeydown={(event) => {
             if (event.key === 'Enter') {
@@ -327,60 +330,46 @@
             }
           }}
         />
-        <IconButton
-          action="add"
-          title={t('app.workspace.create')}
-          ariaLabel={t('app.workspace.saveCreate')}
-          disabled={!newName.trim()}
-          onclick={createFromField}
+      {:else if workspaces.length > 0}
+        <Input
+          bind:value={query}
+          placeholder={t('app.search.workspace.placeholder')}
+          ariaLabel={t('app.search.workspace.placeholder')}
+          icon="search"
+          clearable
+          class="min-w-0 flex-1 sm:max-w-[24rem]"
         />
-        <Button
-          variant="ghost"
-          size="icon"
-          title={t('app.workspace.createCancel')}
-          ariaLabel={t('app.workspace.createCancel')}
-          onclick={closeComposer}
-        >
-          <Icon name="close" />
-        </Button>
-      {:else}
-        {#if workspaces.length > 0}
-          <Input
-            bind:value={query}
-            placeholder={t('app.search.workspace.placeholder')}
-            ariaLabel={t('app.search.workspace.placeholder')}
-            icon="search"
-            clearable
-            class="min-w-0 flex-1 sm:max-w-[24rem]"
+        <span class="flex-none role-caption text-[var(--muted-foreground)]">
+          {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
+        </span>
+      {/if}
+      <div class="ml-auto flex flex-none items-center gap-2">
+        {#if composerOpen && newName.trim()}
+          <IconButton
+            action="add"
+            title={t('app.workspace.create')}
+            ariaLabel={t('app.workspace.saveCreate')}
+            onclick={createFromField}
           />
-          <span class="flex-none role-caption text-[var(--muted-foreground)]">
-            {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
-          </span>
-        {/if}
-        <div class="ml-auto flex flex-none items-center gap-2">
-          {#if !narrow}
-            <Input
-              bind:element={composerField}
-              bind:value={newName}
-              placeholder={t('app.search.newWorkspace.placeholder')}
-              ariaLabel={t('app.search.newWorkspace.placeholder')}
-              class="w-[15rem]"
-              onkeydown={(event) => {
-                if (event.key === 'Enter') {
-                  createFromField();
-                }
-              }}
-            />
-          {/if}
+        {:else if composerOpen}
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t('app.workspace.createCancel')}
+            ariaLabel={t('app.workspace.createCancel')}
+            onclick={closeComposer}
+          >
+            <Icon name="close" />
+          </Button>
+        {:else}
           <IconButton
             action="add"
             title={t('app.workspace.create')}
             ariaLabel={t('app.workspace.create')}
-            disabled={!narrow && !newName.trim()}
-            onclick={narrow ? openComposer : createFromField}
+            onclick={openComposer}
           />
-        </div>
-      {/if}
+        {/if}
+      </div>
     </div>
   {/snippet}
 
