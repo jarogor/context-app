@@ -321,6 +321,18 @@ test('кнопка создания не переезжает при вводе 
         expect(Math.abs(before!.x - after!.x)).toBeLessThan(2);
         expect(Math.abs(before!.y - after!.y)).toBeLessThan(2);
 
+        // Поле стоит вплотную к кнопке: правый край поля упирается в левый
+        // край кнопки, а не тянется через всю полосу.
+        const field = await page.getByPlaceholder('Новое рабочее место').boundingBox();
+        expect(field).not.toBeNull();
+        expect(Math.abs(after!.x - (field!.x + field!.width) - 8)).toBeLessThan(10);
+
+        // На телефоне и планшете поле занимает всю ширину панели, на широком
+        // окне остаётся компактным.
+        const controls = await page.getByTestId('workspaces-controls').boundingBox();
+        const expected = width < 900 ? controls!.width - 44 : 240;
+        expect(Math.abs(field!.width - expected)).toBeLessThan(24);
+
         await page.getByLabel('Создать рабочее место').click();
         await expect(page.getByTestId('workplace-tabs')).toBeVisible();
     }
@@ -345,8 +357,16 @@ test('список рабочих мест адаптивен к ширине о
     expect(search).not.toBeNull();
     expect(create).not.toBeNull();
     expect(Math.abs(search!.y - create!.y)).toBeLessThan(4);
-    // Кнопка стоит справа от поиска и от его правого края.
+    // Кнопка стоит справа от поиска и от его правого края, вплотную к
+    // счётчику: между цифрами и кнопкой нет широкого зазора.
     expect(create!.x).toBeGreaterThan(search!.x + search!.width - 1);
+    const counter = await page
+        .getByTestId('workspaces-controls')
+        .locator('span.role-caption')
+        .first()
+        .boundingBox();
+    expect(counter).not.toBeNull();
+    expect(create!.x - (counter!.x + counter!.width)).toBeLessThan(16);
 
     const narrow = await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,

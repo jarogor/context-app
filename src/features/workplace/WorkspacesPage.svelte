@@ -316,21 +316,7 @@
       ничего не переезжает под курсором.
     -->
     <div class="flex w-full min-w-0 items-center gap-2" data-testid="workspaces-controls">
-      {#if composerOpen}
-        <Input
-          bind:element={composerField}
-          bind:value={newName}
-          placeholder={t('app.search.newWorkspace.placeholder')}
-          ariaLabel={t('app.search.newWorkspace.placeholder')}
-          clearable
-          class="min-w-0 flex-1"
-          onkeydown={(event) => {
-            if (event.key === 'Enter') {
-              createFromField();
-            }
-          }}
-        />
-      {:else if workspaces.length > 0}
+      {#if !composerOpen && workspaces.length > 0}
         <Input
           bind:value={query}
           placeholder={t('app.search.workspace.placeholder')}
@@ -343,7 +329,34 @@
           {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
         </span>
       {/if}
-      <div class="ml-auto flex flex-none items-center gap-2">
+      <!--
+        Поле имени стоит вплотную к кнопке. На телефоне и планшете оно занимает
+        всю доступную ширину панели слева от кнопки, на широком окне —
+        компактное. Кнопка при этом не переезжает.
+      -->
+      <div
+        class="flex min-w-0 items-center gap-2 {composerOpen ? 'flex-1 sm:flex-none' : 'flex-none'}"
+        data-testid="workspace-composer"
+      >
+        {#if composerOpen}
+          <!-- Обёртка растягивается на узком окне и сжимается до компактной
+               ширины на широком; само поле занимает её целиком. -->
+          <div class="relative min-w-0 flex-1 sm:w-[15rem] sm:flex-none">
+            <Input
+              bind:element={composerField}
+              bind:value={newName}
+              placeholder={t('app.search.newWorkspace.placeholder')}
+              ariaLabel={t('app.search.newWorkspace.placeholder')}
+              clearable
+              class="w-full"
+              onkeydown={(event) => {
+                if (event.key === 'Enter') {
+                  createFromField();
+                }
+              }}
+            />
+          </div>
+        {/if}
         {#if composerOpen && newName.trim()}
           <IconButton
             action="add"
