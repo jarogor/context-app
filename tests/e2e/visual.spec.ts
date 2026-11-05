@@ -33,7 +33,9 @@ async function pickWorkspaceIfAsked(page: import('@playwright/test').Page) {
 async function openWorkplaceBook(page: import('@playwright/test').Page) {
   await page.addInitScript(() => {
     (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
-      handlers: { active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }) },
+      handlers: {
+        active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
+      },
     };
   });
   await page.goto('/');

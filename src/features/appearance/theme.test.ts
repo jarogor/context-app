@@ -186,9 +186,7 @@ describe('themeFromSettingsEvent', () => {
   });
 
   it('возвращает null, если значение темы отсутствует', () => {
-    expect(
-      themeFromSettingsEvent({ section: APP_SETTINGS_SECTION, values: {} }),
-    ).toBeNull();
+    expect(themeFromSettingsEvent({ section: APP_SETTINGS_SECTION, values: {} })).toBeNull();
     expect(themeFromSettingsEvent(null)).toBeNull();
   });
 });
@@ -213,9 +211,7 @@ describe('paletteFromSettingsEvent', () => {
   });
 
   it('возвращает null, если значение палитры отсутствует', () => {
-    expect(
-      paletteFromSettingsEvent({ section: APP_SETTINGS_SECTION, values: {} }),
-    ).toBeNull();
+    expect(paletteFromSettingsEvent({ section: APP_SETTINGS_SECTION, values: {} })).toBeNull();
     expect(paletteFromSettingsEvent(null)).toBeNull();
   });
 });
@@ -240,9 +236,7 @@ describe('readerThemeFromSettingsEvent', () => {
   });
 
   it('возвращает null, если значение темы области чтения отсутствует', () => {
-    expect(
-      readerThemeFromSettingsEvent({ section: APP_SETTINGS_SECTION, values: {} }),
-    ).toBeNull();
+    expect(readerThemeFromSettingsEvent({ section: APP_SETTINGS_SECTION, values: {} })).toBeNull();
     expect(readerThemeFromSettingsEvent(null)).toBeNull();
   });
 });

@@ -8,12 +8,12 @@
 
 /** Состояние поиска по книге. */
 export interface SearchState {
-    /** Сколько вхождений найдено. */
-    total: number;
-    /** Номер вхождения, к которому ведёт переход; `null` — перехода ещё нет. */
-    index: number | null;
-    /** Найдено больше вхождений, чем показывается. */
-    truncated: boolean;
+  /** Сколько вхождений найдено. */
+  total: number;
+  /** Номер вхождения, к которому ведёт переход; `null` — перехода ещё нет. */
+  index: number | null;
+  /** Найдено больше вхождений, чем показывается. */
+  truncated: boolean;
 }
 
 /** Пустое состояние: запрос не задан или ничего не найдено. */
@@ -26,23 +26,23 @@ export const EMPTY_SEARCH_STATE: SearchState = { total: 0, index: null, truncate
  * ведёт к первому вхождению, «назад» — к последнему.
  */
 export function stepSearchIndex(state: SearchState, delta: 1 | -1): number | null {
-    if (state.total <= 0) {
-        return null;
-    }
-    if (state.index === null) {
-        return delta > 0 ? 0 : state.total - 1;
-    }
-    const next = state.index + delta;
-    if (next < 0) {
-        return state.total - 1;
-    }
-    if (next >= state.total) {
-        return 0;
-    }
-    return next;
+  if (state.total <= 0) {
+    return null;
+  }
+  if (state.index === null) {
+    return delta > 0 ? 0 : state.total - 1;
+  }
+  const next = state.index + delta;
+  if (next < 0) {
+    return state.total - 1;
+  }
+  if (next >= state.total) {
+    return 0;
+  }
+  return next;
 }
 
 /** Состояние поиска с выбранным вхождением. */
 export function withSearchIndex(state: SearchState, index: number | null): SearchState {
-    return { ...state, index: index === null ? null : Math.max(0, index) };
+  return { ...state, index: index === null ? null : Math.max(0, index) };
 }

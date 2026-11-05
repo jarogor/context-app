@@ -18,12 +18,7 @@ export interface FileBookmark {
 
 /** Вид встроенной в PDF пометки. */
 export type FileAnnotationKind =
-  | 'highlight'
-  | 'underline'
-  | 'squiggly'
-  | 'strikeout'
-  | 'note'
-  | 'freetext';
+  'highlight' | 'underline' | 'squiggly' | 'strikeout' | 'note' | 'freetext';
 
 /** Прямоугольник пометки в долях размера страницы. */
 export interface FileAnnotationRect {

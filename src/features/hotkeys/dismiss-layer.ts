@@ -22,13 +22,13 @@ const layers: DismissLayer[] = [];
  * трогает чужие слои.
  */
 export function pushDismissLayer(layer: DismissLayer): () => void {
-    layers.push(layer);
-    return () => {
-        const index = layers.lastIndexOf(layer);
-        if (index >= 0) {
-            layers.splice(index, 1);
-        }
-    };
+  layers.push(layer);
+  return () => {
+    const index = layers.lastIndexOf(layer);
+    if (index >= 0) {
+      layers.splice(index, 1);
+    }
+  };
 }
 
 /** Закрытие верхнего слоя.
@@ -37,15 +37,15 @@ export function pushDismissLayer(layer: DismissLayer): () => void {
  * выполненным, и клавиша остаётся свободной.
  */
 export function dismissTopLayer(): boolean {
-    const layer = layers.pop();
-    if (!layer) {
-        return false;
-    }
-    layer();
-    return true;
+  const layer = layers.pop();
+  if (!layer) {
+    return false;
+  }
+  layer();
+  return true;
 }
 
 /** Забыть все слои (только для тестов и полной смены области). */
 export function resetDismissLayers(): void {
-    layers.length = 0;
+  layers.length = 0;
 }

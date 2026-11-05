@@ -107,7 +107,11 @@ describe('реестр рабочих мест', () => {
   it('нормализует реестр из ядра, но не восстанавливает текущее место', () => {
     const registry = normalizeRegistry({
       workspaces: [
-        { id: 'ws-1', name: 'Первое', tabs: [{ id: 't1', path: '/lib/book-1.epub', title: 'Книга' }] },
+        {
+          id: 'ws-1',
+          name: 'Первое',
+          tabs: [{ id: 't1', path: '/lib/book-1.epub', title: 'Книга' }],
+        },
       ],
       active_workspace_id: 'ws-1',
     });

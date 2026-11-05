@@ -30,14 +30,16 @@ test('книгу текучего формата рисует плагин фо�
   await expect(content(page).getByText('Первый абзац книги.')).toBeVisible();
   await expect(content(page).getByText('Заголовок главы')).toBeVisible();
 
-  const sizes = await content(page).locator('body').evaluate((body) => {
-    const doc = body.ownerDocument;
-    const size = (selector: string) => {
-      const element = doc.querySelector(selector);
-      return element ? Number.parseFloat(getComputedStyle(element).fontSize) : 0;
-    };
-    return { title: size('h1'), paragraph: size('p') };
-  });
+  const sizes = await content(page)
+    .locator('body')
+    .evaluate((body) => {
+      const doc = body.ownerDocument;
+      const size = (selector: string) => {
+        const element = doc.querySelector(selector);
+        return element ? Number.parseFloat(getComputedStyle(element).fontSize) : 0;
+      };
+      return { title: size('h1'), paragraph: size('p') };
+    });
   expect(sizes.title).toBeGreaterThan(sizes.paragraph * 1.5);
 });
 

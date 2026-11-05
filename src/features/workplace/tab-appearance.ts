@@ -36,7 +36,7 @@ const TAB_IDLE_FILL_PERCENT = 7;
  * заменяет его.
  */
 export function tabLabel(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
-    return tab.name?.trim() || tab.title;
+  return tab.name?.trim() || tab.title;
 }
 
 /** Короткая метка формата книги: `EPUB`, `FB2`, `PDF`, `DJVU`.
@@ -46,8 +46,8 @@ export function tabLabel(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
  * занимать место в строке.
  */
 export function tabFormatLabel(tab: { format?: string }): string | undefined {
-    const format = tab.format?.trim();
-    return format ? format.toUpperCase() : undefined;
+  const format = tab.format?.trim();
+  return format ? format.toUpperCase() : undefined;
 }
 
 /** Чистый цвет вкладки (свот палитры заметок); отсутствует, если цвет не задан.
@@ -56,7 +56,7 @@ export function tabFormatLabel(tab: { format?: string }): string | undefined {
  * выбранного пункта в списке вкладок.
  */
 export function tabAccent(color: TabColor | undefined): string | undefined {
-    return color ? NOTE_COLOR_SWATCHES[color] : undefined;
+  return color ? NOTE_COLOR_SWATCHES[color] : undefined;
 }
 
 /** CSS-фон заливки вкладки; отсутствует, если цвет не задан.
@@ -68,15 +68,15 @@ export function tabAccent(color: TabColor | undefined): string | undefined {
  * вкладка оставалась отличимой от активной.
  */
 export function tabColorFill(
-    color: TabColor | undefined,
-    base = 'var(--card)',
-    active = false,
+  color: TabColor | undefined,
+  base = 'var(--card)',
+  active = false,
 ): string | undefined {
-    if (!color) {
-        return undefined;
-    }
-    const percent = active ? TAB_FILL_ACTIVE_PERCENT : TAB_FILL_PERCENT;
-    return `color-mix(in oklab, ${NOTE_COLOR_SWATCHES[color]} ${percent}%, ${base})`;
+  if (!color) {
+    return undefined;
+  }
+  const percent = active ? TAB_FILL_ACTIVE_PERCENT : TAB_FILL_PERCENT;
+  return `color-mix(in oklab, ${NOTE_COLOR_SWATCHES[color]} ${percent}%, ${base})`;
 }
 
 /** CSS-фон неактивной цветной вкладки панели вкладок; отсутствует, если цвета нет.
@@ -86,10 +86,10 @@ export function tabColorFill(
  * плашек полосы цвет читается оттенком, а не насыщенной заливкой.
  */
 export function tabIdleFill(color: TabColor | undefined): string | undefined {
-    if (!color) {
-        return undefined;
-    }
-    return `color-mix(in oklab, ${NOTE_COLOR_SWATCHES[color]} ${TAB_IDLE_FILL_PERCENT}%, var(--tab-idle-surface))`;
+  if (!color) {
+    return undefined;
+  }
+  return `color-mix(in oklab, ${NOTE_COLOR_SWATCHES[color]} ${TAB_IDLE_FILL_PERCENT}%, var(--tab-idle-surface))`;
 }
 
 /** Подсказка вкладки: пользовательское имя и название книги.
@@ -99,10 +99,10 @@ export function tabIdleFill(color: TabColor | undefined): string | undefined {
  * одной строке в форме `Имя (Книга)`.
  */
 export function tabTooltip(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
-    const label = tabLabel(tab);
-    // Пользовательское имя перекрывает название книги — книгу называем в скобках.
-    if (tab.name?.trim() && tab.title?.trim() && tab.name.trim() !== tab.title.trim()) {
-        return `${label} (${tab.title})`;
-    }
-    return tab.title?.trim() || label;
+  const label = tabLabel(tab);
+  // Пользовательское имя перекрывает название книги — книгу называем в скобках.
+  if (tab.name?.trim() && tab.title?.trim() && tab.name.trim() !== tab.title.trim()) {
+    return `${label} (${tab.title})`;
+  }
+  return tab.title?.trim() || label;
 }

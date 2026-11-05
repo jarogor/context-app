@@ -46,7 +46,9 @@ test('на телефоне нижняя навигация даёт все ра
     await page.getByTestId('app-bar').waitFor();
 
     for (const label of ['Рабочее место', 'Библиотека', 'Заметки', 'Настройки']) {
-      await expect(page.getByTestId('section-nav').getByLabel(label, { exact: true })).toBeVisible();
+      await expect(
+        page.getByTestId('section-nav').getByLabel(label, { exact: true }),
+      ).toBeVisible();
     }
     // Тема тоже доступна с телефона — кнопка в шапке туда не помещается.
     await expect(page.getByTestId('section-nav').getByTestId('nav-theme')).toBeVisible();

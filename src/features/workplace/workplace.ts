@@ -125,7 +125,9 @@ let sequence = 0;
 /** Приведение значения к известному цвету вкладки; неизвестное даёт «не задано». */
 export function normalizeTabColor(value: unknown): TabColor | undefined {
   const candidate = String(value ?? '').trim();
-  return (TAB_COLORS as readonly string[]).includes(candidate) ? (candidate as TabColor) : undefined;
+  return (TAB_COLORS as readonly string[]).includes(candidate)
+    ? (candidate as TabColor)
+    : undefined;
 }
 
 /** Приведение значения к допустимой иконке вкладки; неизвестная даёт «не задано». */
@@ -190,7 +192,11 @@ function normalizeTab(item: unknown): WorkspaceTab {
  * недоступные и предлагают указать файл заново.
  */
 export function normalizeWorkspace(value: unknown): WorkspaceState {
-  const record = (value ?? {}) as { tabs?: unknown; activeTabId?: unknown; active_tab_id?: unknown };
+  const record = (value ?? {}) as {
+    tabs?: unknown;
+    activeTabId?: unknown;
+    active_tab_id?: unknown;
+  };
   const rawTabs = Array.isArray(record.tabs) ? record.tabs : [];
   const tabs: WorkspaceTab[] = rawTabs.map(normalizeTab);
   const requested = record.activeTabId ?? record.active_tab_id;
@@ -254,11 +260,7 @@ export function activateTab(state: WorkspaceState, tabId: string): WorkspaceStat
  * Если задан лимит открытых вкладок и он уже достигнут или превышен,
  * дублирование не создаёт вкладку.
  */
-export function duplicateTab(
-  state: WorkspaceState,
-  tabId: string,
-  limit?: number,
-): WorkspaceState {
+export function duplicateTab(state: WorkspaceState, tabId: string, limit?: number): WorkspaceState {
   const index = state.tabs.findIndex((tab) => tab.id === tabId);
   if (index < 0) {
     return state;

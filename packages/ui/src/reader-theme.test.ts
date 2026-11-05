@@ -179,7 +179,8 @@ describe('readerPageColors', () => {
     for (const colors of [linen, cobalt]) {
       const paper = Number.parseInt(colors.paper.slice(1), 16);
       const ink = Number.parseInt(colors.ink.slice(1), 16);
-      const paperLum = ((paper >> 16) & 255) * 0.299 + ((paper >> 8) & 255) * 0.587 + (paper & 255) * 0.114;
+      const paperLum =
+        ((paper >> 16) & 255) * 0.299 + ((paper >> 8) & 255) * 0.587 + (paper & 255) * 0.114;
       const inkLum = ((ink >> 16) & 255) * 0.299 + ((ink >> 8) & 255) * 0.587 + (ink & 255) * 0.114;
       // Темнее прежней светлой бумаги, но заметно светлее нейтрального чёрного.
       expect(paperLum).toBeGreaterThan(35);

@@ -24,7 +24,10 @@ function initialValue(node: UiElement): unknown {
 }
 
 /** Пересборка карты значений из узлов декларации. */
-export function collectValues(nodes: UiNode[], into: Record<string, unknown> = {}): Record<string, unknown> {
+export function collectValues(
+  nodes: UiNode[],
+  into: Record<string, unknown> = {},
+): Record<string, unknown> {
   for (const node of nodes) {
     if (isUiText(node)) {
       continue;

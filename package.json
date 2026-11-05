@@ -22,8 +22,8 @@
     "test:unit": "vitest run && npm test -w @context/ui && npm test -w @context/ui-schema && npm test -w @context/i18n && npm test -w format-pdf-viewer && npm test -w format-djvu-viewer && npm test -w format-epub-viewer && npm test -w format-fb2-viewer",
     "test:e2e": "npm run build:plugins && npm run check:artifacts && playwright test",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json && npm run check -w format-pdf-viewer && npm run check -w format-djvu-viewer && npm run check -w format-epub-viewer && npm run check -w format-fb2-viewer",
-    "format:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --write",
-    "check:ts": "prettier \"src/**/*.{ts,tsx,js,jsx,json,css}\" --check"
+    "format:ts": "prettier \"src/**/*.{ts,js,json,css}\" \"tests/**/*.ts\" \"packages/*/src/**/*.{ts,js,json,css}\" \"scripts/*.mjs\" \"*.{ts,json,mjs}\" --write",
+    "check:ts": "prettier \"src/**/*.{ts,js,json,css}\" \"tests/**/*.ts\" \"packages/*/src/**/*.{ts,js,json,css}\" \"scripts/*.mjs\" \"*.{ts,json,mjs}\" --check"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

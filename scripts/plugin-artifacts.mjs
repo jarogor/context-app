@@ -21,15 +21,15 @@
 
 import { createHash } from 'node:crypto';
 import {
-    copyFileSync,
-    cpSync,
-    existsSync,
-    mkdirSync,
-    readdirSync,
-    readFileSync,
-    rmSync,
-    statSync,
-    writeFileSync,
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,50 +54,50 @@ const ASSETS_FILE = 'bundle-assets.json';
  * прикладные — в `plugins/`. Отсутствие поля трактуется как прикладной плагин.
  */
 function targetDir(manifest, name) {
-    return join(manifest.level === 'framework' ? BASE_PLUGINS_DIR : PLUGINS_DIR, name);
+  return join(manifest.level === 'framework' ? BASE_PLUGINS_DIR : PLUGINS_DIR, name);
 }
 
 /** Список плагинов workspace: каталоги с манифестом. */
 function listPlugins() {
-    const entries = readdirSync(WORKSPACE, { withFileTypes: true });
-    const plugins = [];
-    for (const entry of entries) {
-        if (!entry.isDirectory()) {
-            continue;
-        }
-        const dir = join(WORKSPACE, entry.name);
-        const manifestPath = join(dir, 'plugin-manifest.json');
-        if (!existsSync(manifestPath)) {
-            continue;
-        }
-        const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-        plugins.push({ name: entry.name, dir, manifest, manifestPath });
+  const entries = readdirSync(WORKSPACE, { withFileTypes: true });
+  const plugins = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
     }
-    return plugins;
+    const dir = join(WORKSPACE, entry.name);
+    const manifestPath = join(dir, 'plugin-manifest.json');
+    if (!existsSync(manifestPath)) {
+      continue;
+    }
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    plugins.push({ name: entry.name, dir, manifest, manifestPath });
+  }
+  return plugins;
 }
 
 /** Имя WASM-модуля из имени крейта Cargo. */
 function wasmFileName(plugin) {
-    const cargo = readFileSync(join(plugin.dir, 'Cargo.toml'), 'utf8');
-    const match = cargo.match(/^name\s*=\s*"([^"]+)"/m);
-    if (!match) {
-        throw new Error(`${plugin.name}: в Cargo.toml не найдено имя крейта`);
-    }
-    const module = plugin.manifest.module;
-    if (!module) {
-        throw new Error(`${plugin.name}: в манифесте не указан module`);
-    }
-    return module;
+  const cargo = readFileSync(join(plugin.dir, 'Cargo.toml'), 'utf8');
+  const match = cargo.match(/^name\s*=\s*"([^"]+)"/m);
+  if (!match) {
+    throw new Error(`${plugin.name}: в Cargo.toml не найдено имя крейта`);
+  }
+  const module = plugin.manifest.module;
+  if (!module) {
+    throw new Error(`${plugin.name}: в манифесте не указан module`);
+  }
+  return module;
 }
 
 /** Декларация внешних ассетов плагина (или null). */
 function assetsOf(plugin) {
-    const path = join(plugin.dir, ASSETS_FILE);
-    if (!existsSync(path)) {
-        return null;
-    }
-    const parsed = JSON.parse(readFileSync(path, 'utf8'));
-    return Array.isArray(parsed.assets) ? parsed.assets : [];
+  const path = join(plugin.dir, ASSETS_FILE);
+  if (!existsSync(path)) {
+    return null;
+  }
+  const parsed = JSON.parse(readFileSync(path, 'utf8'));
+  return Array.isArray(parsed.assets) ? parsed.assets : [];
 }
 
 /** Пути, исключаемые из развёртывания плагина.
@@ -107,164 +107,167 @@ function assetsOf(plugin) {
  * перечисляет их в поле `exclude`.
  */
 function excludesOf(plugin) {
-    const path = join(plugin.dir, ASSETS_FILE);
-    if (!existsSync(path)) {
-        return [];
-    }
-    const parsed = JSON.parse(readFileSync(path, 'utf8'));
-    if (!Array.isArray(parsed.exclude)) {
-        return [];
-    }
-    return parsed.exclude.map((value) => String(value).replaceAll('\\', '/').replace(/\/+$/, ''));
+  const path = join(plugin.dir, ASSETS_FILE);
+  if (!existsSync(path)) {
+    return [];
+  }
+  const parsed = JSON.parse(readFileSync(path, 'utf8'));
+  if (!Array.isArray(parsed.exclude)) {
+    return [];
+  }
+  return parsed.exclude.map((value) => String(value).replaceAll('\\', '/').replace(/\/+$/, ''));
 }
 
 /** Признак, что путь исключён из развёртывания (сам путь или его подкаталог). */
 function isExcluded(relative, excludes) {
-    for (const exclude of excludes) {
-        if (relative === exclude || relative.startsWith(`${exclude}/`)) {
-            return true;
-        }
+  for (const exclude of excludes) {
+    if (relative === exclude || relative.startsWith(`${exclude}/`)) {
+      return true;
     }
-    return false;
+  }
+  return false;
 }
 
 /** Рекурсивный сбор файлов каталога относительно его корня. */
 function collectFiles(dir, base = dir, acc = []) {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name);
-        if (entry.isDirectory()) {
-            collectFiles(full, base, acc);
-        } else if (entry.isFile()) {
-            acc.push(full.slice(base.length + 1));
-        }
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectFiles(full, base, acc);
+    } else if (entry.isFile()) {
+      acc.push(full.slice(base.length + 1));
     }
-    return acc;
+  }
+  return acc;
 }
 
 /** Ожидаемые файлы плагина: относительный путь → Buffer. */
 function expectedFiles(plugin) {
-    const files = new Map();
-    const manifest = readFileSync(plugin.manifestPath);
-    files.set('plugin-manifest.json', manifest);
-    if (plugin.manifest.module) {
-        const wasmPath = join(WORKSPACE, 'target', 'wasm32-unknown-unknown', 'release', wasmFileName(plugin));
-        if (!existsSync(wasmPath)) {
-            throw new Error(
-                `${plugin.name}: не найден собранный модуль ${wasmPath};` +
-                    ' сначала выполните сборку WASM-плагинов',
-            );
-        }
-        files.set(plugin.manifest.module, readFileSync(wasmPath));
-    } else {
-        const excludes = excludesOf(plugin);
-        for (const relative of collectFiles(plugin.dir)) {
-            const normalized = relative.replaceAll('\\', '/');
-            if (normalized === ASSETS_FILE || isExcluded(normalized, excludes)) {
-                continue;
-            }
-            files.set(normalized, readFileSync(join(plugin.dir, relative)));
-        }
+  const files = new Map();
+  const manifest = readFileSync(plugin.manifestPath);
+  files.set('plugin-manifest.json', manifest);
+  if (plugin.manifest.module) {
+    const wasmPath = join(
+      WORKSPACE,
+      'target',
+      'wasm32-unknown-unknown',
+      'release',
+      wasmFileName(plugin),
+    );
+    if (!existsSync(wasmPath)) {
+      throw new Error(
+        `${plugin.name}: не найден собранный модуль ${wasmPath};` +
+          ' сначала выполните сборку WASM-плагинов',
+      );
     }
-    // Плагин формата может совмещать WASM-модуль (разбор) и модуль рисования
-    // (`viewer/`): содержимое разбирает плагин, а рисует его фронтенд.
-    if (plugin.manifest.module && plugin.manifest.viewer) {
-        const viewerDir = join(plugin.dir, 'viewer');
-        if (existsSync(viewerDir)) {
-            for (const relative of collectFiles(viewerDir, plugin.dir)) {
-                files.set(
-                    relative.replaceAll('\\', '/'),
-                    readFileSync(join(plugin.dir, relative)),
-                );
-            }
-        }
+    files.set(plugin.manifest.module, readFileSync(wasmPath));
+  } else {
+    const excludes = excludesOf(plugin);
+    for (const relative of collectFiles(plugin.dir)) {
+      const normalized = relative.replaceAll('\\', '/');
+      if (normalized === ASSETS_FILE || isExcluded(normalized, excludes)) {
+        continue;
+      }
+      files.set(normalized, readFileSync(join(plugin.dir, relative)));
     }
-    const assets = assetsOf(plugin);
-    if (assets) {
-        for (const asset of assets) {
-            const from = join(ROOT, asset.from);
-            if (!existsSync(from)) {
-                throw new Error(`${plugin.name}: не найден внешний ассет ${asset.from}`);
-            }
-            files.set(asset.to, readFileSync(from));
-        }
+  }
+  // Плагин формата может совмещать WASM-модуль (разбор) и модуль рисования
+  // (`viewer/`): содержимое разбирает плагин, а рисует его фронтенд.
+  if (plugin.manifest.module && plugin.manifest.viewer) {
+    const viewerDir = join(plugin.dir, 'viewer');
+    if (existsSync(viewerDir)) {
+      for (const relative of collectFiles(viewerDir, plugin.dir)) {
+        files.set(relative.replaceAll('\\', '/'), readFileSync(join(plugin.dir, relative)));
+      }
     }
-    return files;
+  }
+  const assets = assetsOf(plugin);
+  if (assets) {
+    for (const asset of assets) {
+      const from = join(ROOT, asset.from);
+      if (!existsSync(from)) {
+        throw new Error(`${plugin.name}: не найден внешний ассет ${asset.from}`);
+      }
+      files.set(asset.to, readFileSync(from));
+    }
+  }
+  return files;
 }
 
 /** Хэш набора файлов (путь + содержимое) для контроля целостности. */
 function hashFiles(files) {
-    const hash = createHash('sha256');
-    for (const [relative, data] of [...files.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-        hash.update(relative);
-        hash.update('\0');
-        hash.update(data);
-        hash.update('\0');
-    }
-    return hash.digest('hex');
+  const hash = createHash('sha256');
+  for (const [relative, data] of [...files.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    hash.update(relative);
+    hash.update('\0');
+    hash.update(data);
+    hash.update('\0');
+  }
+  return hash.digest('hex');
 }
 
 /** Развёртывание одного плагина. */
 function deploy(plugin) {
-    const files = expectedFiles(plugin);
-    const outDir = targetDir(plugin.manifest, plugin.name);
-    rmSync(outDir, { recursive: true, force: true });
-    mkdirSync(outDir, { recursive: true });
-    for (const [relative, data] of files) {
-        const path = join(outDir, relative);
-        mkdirSync(dirname(path), { recursive: true });
-        writeFileSync(path, data);
-    }
-    writeFileSync(join(outDir, HASH_FILE), `${hashFiles(files)}\n`);
-    console.log(`собран плагин: ${outDir}`);
+  const files = expectedFiles(plugin);
+  const outDir = targetDir(plugin.manifest, plugin.name);
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
+  for (const [relative, data] of files) {
+    const path = join(outDir, relative);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, data);
+  }
+  writeFileSync(join(outDir, HASH_FILE), `${hashFiles(files)}\n`);
+  console.log(`собран плагин: ${outDir}`);
 }
 
 /** Фактически развёрнутые файлы каталога (без файла хэша). */
 function deployedFiles(outDir) {
-    if (!existsSync(outDir)) {
-        return null;
+  if (!existsSync(outDir)) {
+    return null;
+  }
+  const files = new Map();
+  for (const relative of collectFiles(outDir)) {
+    const normalized = relative.replaceAll('\\', '/');
+    if (normalized === HASH_FILE) {
+      continue;
     }
-    const files = new Map();
-    for (const relative of collectFiles(outDir)) {
-        const normalized = relative.replaceAll('\\', '/');
-        if (normalized === HASH_FILE) {
-            continue;
-        }
-        files.set(normalized, readFileSync(join(outDir, relative)));
-    }
-    return files;
+    files.set(normalized, readFileSync(join(outDir, relative)));
+  }
+  return files;
 }
 
 /** Проверка одного плагина; список расхождений. */
 function check(plugin) {
-    const expected = expectedFiles(plugin);
-    const outDir = targetDir(plugin.manifest, plugin.name);
-    const actual = deployedFiles(outDir);
-    if (!actual) {
-        return [`${plugin.name}: ресурсы не собраны (${outDir})`];
+  const expected = expectedFiles(plugin);
+  const outDir = targetDir(plugin.manifest, plugin.name);
+  const actual = deployedFiles(outDir);
+  if (!actual) {
+    return [`${plugin.name}: ресурсы не собраны (${outDir})`];
+  }
+  const problems = [];
+  for (const [relative, data] of expected) {
+    const found = actual.get(relative);
+    if (!found) {
+      problems.push(`${relative}: отсутствует`);
+    } else if (!found.equals(data)) {
+      problems.push(`${relative}: отличается от исходника`);
     }
-    const problems = [];
-    for (const [relative, data] of expected) {
-        const found = actual.get(relative);
-        if (!found) {
-            problems.push(`${relative}: отсутствует`);
-        } else if (!found.equals(data)) {
-            problems.push(`${relative}: отличается от исходника`);
-        }
+  }
+  for (const relative of actual.keys()) {
+    if (!expected.has(relative)) {
+      problems.push(`${relative}: лишний файл`);
     }
-    for (const relative of actual.keys()) {
-        if (!expected.has(relative)) {
-            problems.push(`${relative}: лишний файл`);
-        }
-    }
-    const hashPath = join(outDir, HASH_FILE);
-    const expectedHash = `${hashFiles(expected)}\n`;
-    if (!existsSync(hashPath)) {
-        problems.push(`${HASH_FILE}: отсутствует`);
-    } else if (readFileSync(hashPath, 'utf8') !== expectedHash) {
-        problems.push(`${HASH_FILE}: устарел`);
-    }
-    problems.push(...checkMirrors(plugin));
-    return problems;
+  }
+  const hashPath = join(outDir, HASH_FILE);
+  const expectedHash = `${hashFiles(expected)}\n`;
+  if (!existsSync(hashPath)) {
+    problems.push(`${HASH_FILE}: отсутствует`);
+  } else if (readFileSync(hashPath, 'utf8') !== expectedHash) {
+    problems.push(`${HASH_FILE}: устарел`);
+  }
+  problems.push(...checkMirrors(plugin));
+  return problems;
 }
 
 /** Проверка копий плагина в каталогах сборки приложения.
@@ -275,25 +278,25 @@ function check(plugin) {
  * актуальных ресурсах оставалась бы незамеченной в запущенном приложении.
  */
 function checkMirrors(plugin) {
-    const expected = expectedFiles(plugin);
-    const problems = [];
-    for (const buildDir of buildOutputDirs(plugin.manifest.level)) {
-        const destination = join(buildDir, plugin.name);
-        const deployed = deployedFiles(destination);
-        if (!deployed) {
-            problems.push(`${destination}: копия плагина отсутствует`);
-            continue;
-        }
-        for (const [relative, data] of expected) {
-            const found = deployed.get(relative);
-            if (!found) {
-                problems.push(`${destination}/${relative}: отсутствует`);
-            } else if (!found.equals(data)) {
-                problems.push(`${destination}/${relative}: устарел`);
-            }
-        }
+  const expected = expectedFiles(plugin);
+  const problems = [];
+  for (const buildDir of buildOutputDirs(plugin.manifest.level)) {
+    const destination = join(buildDir, plugin.name);
+    const deployed = deployedFiles(destination);
+    if (!deployed) {
+      problems.push(`${destination}: копия плагина отсутствует`);
+      continue;
     }
-    return problems;
+    for (const [relative, data] of expected) {
+      const found = deployed.get(relative);
+      if (!found) {
+        problems.push(`${destination}/${relative}: отсутствует`);
+      } else if (!found.equals(data)) {
+        problems.push(`${destination}/${relative}: устарел`);
+      }
+    }
+  }
+  return problems;
 }
 
 /**
@@ -309,20 +312,20 @@ function checkMirrors(plugin) {
  * раскладка повторяет ресурсную, иначе каркасный плагин искали бы не там.
  */
 function buildOutputDirs(level) {
-    const target = join(ROOT, 'src-tauri', 'target');
-    const dirs = [];
-    for (const profile of ['debug', 'release']) {
-        const dir = join(target, profile, targetDirName(level));
-        if (existsSync(join(target, profile))) {
-            dirs.push(dir);
-        }
+  const target = join(ROOT, 'src-tauri', 'target');
+  const dirs = [];
+  for (const profile of ['debug', 'release']) {
+    const dir = join(target, profile, targetDirName(level));
+    if (existsSync(join(target, profile))) {
+      dirs.push(dir);
     }
-    return dirs;
+  }
+  return dirs;
 }
 
 /** Имя каталога раскладки по уровню плагина. */
 function targetDirName(level) {
-    return level === 'framework' ? 'base-plugins' : PLUGINS_DIR_NAME;
+  return level === 'framework' ? 'base-plugins' : PLUGINS_DIR_NAME;
 }
 
 /** Каталоги, где лежат развёрнутые плагины: ресурсы и копии в сборке.
@@ -331,16 +334,16 @@ function targetDirName(level) {
  * `base-plugins`, прикладные — в `plugins`.
  */
 function deploymentDirs() {
-    const dirs = [
-        { path: PLUGINS_DIR, level: 'application' },
-        { path: BASE_PLUGINS_DIR, level: 'framework' },
-    ];
-    for (const level of ['framework', 'application']) {
-        for (const path of buildOutputDirs(level)) {
-            dirs.push({ path, level });
-        }
+  const dirs = [
+    { path: PLUGINS_DIR, level: 'application' },
+    { path: BASE_PLUGINS_DIR, level: 'framework' },
+  ];
+  for (const level of ['framework', 'application']) {
+    for (const path of buildOutputDirs(level)) {
+      dirs.push({ path, level });
     }
-    return dirs;
+  }
+  return dirs;
 }
 
 /** Удаление развёрнутых плагинов, которых больше нет в исходниках.
@@ -350,28 +353,28 @@ function deploymentDirs() {
  * Каталог считается плагином, если в нём есть манифест.
  */
 function removeStale(plugins) {
-    const levels = new Map(plugins.map((plugin) => [plugin.name, plugin.manifest.level]));
-    for (const { path: dir, level } of deploymentDirs()) {
-        if (!existsSync(dir)) {
-            continue;
-        }
-        for (const entry of readdirSync(dir, { withFileTypes: true })) {
-            if (!entry.isDirectory()) {
-                continue;
-            }
-            const location = join(dir, entry.name);
-            if (!existsSync(join(location, 'plugin-manifest.json'))) {
-                continue;
-            }
-            // Плагин не на своём уровне — тоже остаток: каркасный в `plugins`
-            // или прикладной в `base-plugins` загружался бы не оттуда.
-            if (levels.get(entry.name) === level) {
-                continue;
-            }
-            rmSync(location, { recursive: true, force: true });
-            console.log(`удалён устаревший плагин: ${location}`);
-        }
+  const levels = new Map(plugins.map((plugin) => [plugin.name, plugin.manifest.level]));
+  for (const { path: dir, level } of deploymentDirs()) {
+    if (!existsSync(dir)) {
+      continue;
     }
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const location = join(dir, entry.name);
+      if (!existsSync(join(location, 'plugin-manifest.json'))) {
+        continue;
+      }
+      // Плагин не на своём уровне — тоже остаток: каркасный в `plugins`
+      // или прикладной в `base-plugins` загружался бы не оттуда.
+      if (levels.get(entry.name) === level) {
+        continue;
+      }
+      rmSync(location, { recursive: true, force: true });
+      console.log(`удалён устаревший плагин: ${location}`);
+    }
+  }
 }
 
 /** Проверка отсутствия плагинов, которых больше нет в исходниках.
@@ -382,79 +385,79 @@ function removeStale(plugins) {
  * тоже остаток: раскладка следует уровню из манифеста.
  */
 function checkStale(plugins) {
-    const levels = new Map(plugins.map((plugin) => [plugin.name, plugin.manifest.level]));
-    const problems = [];
-    for (const { path: dir, level } of deploymentDirs()) {
-        if (!existsSync(dir)) {
-            continue;
-        }
-        for (const entry of readdirSync(dir, { withFileTypes: true })) {
-            if (!entry.isDirectory()) {
-                continue;
-            }
-            const location = join(dir, entry.name);
-            if (!existsSync(join(location, 'plugin-manifest.json'))) {
-                continue;
-            }
-            const pluginLevel = levels.get(entry.name);
-            if (pluginLevel === undefined) {
-                problems.push(`${location}: плагин удалён из исходников, но остался развёрнутым`);
-            } else if (pluginLevel !== level) {
-                problems.push(`${location}: плагин уровня ${pluginLevel} развёрнут в чужом каталоге`);
-            }
-        }
+  const levels = new Map(plugins.map((plugin) => [plugin.name, plugin.manifest.level]));
+  const problems = [];
+  for (const { path: dir, level } of deploymentDirs()) {
+    if (!existsSync(dir)) {
+      continue;
     }
-    return problems;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const location = join(dir, entry.name);
+      if (!existsSync(join(location, 'plugin-manifest.json'))) {
+        continue;
+      }
+      const pluginLevel = levels.get(entry.name);
+      if (pluginLevel === undefined) {
+        problems.push(`${location}: плагин удалён из исходников, но остался развёрнутым`);
+      } else if (pluginLevel !== level) {
+        problems.push(`${location}: плагин уровня ${pluginLevel} развёрнут в чужом каталоге`);
+      }
+    }
+  }
+  return problems;
 }
 
 /** Дублирование развёрнутого плагина в каталоги сборки приложения. */
 function mirrorToBuild(plugin, outDir) {
-    for (const buildDir of buildOutputDirs(plugin.manifest.level)) {
-        const destination = join(buildDir, plugin.name);
-        rmSync(destination, { recursive: true, force: true });
-        mkdirSync(destination, { recursive: true });
-        for (const relative of collectFiles(outDir)) {
-            if (relative === HASH_FILE) {
-                continue;
-            }
-            const target = join(destination, relative);
-            mkdirSync(dirname(target), { recursive: true });
-            copyFileSync(join(outDir, relative), target);
-        }
+  for (const buildDir of buildOutputDirs(plugin.manifest.level)) {
+    const destination = join(buildDir, plugin.name);
+    rmSync(destination, { recursive: true, force: true });
+    mkdirSync(destination, { recursive: true });
+    for (const relative of collectFiles(outDir)) {
+      if (relative === HASH_FILE) {
+        continue;
+      }
+      const target = join(destination, relative);
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(join(outDir, relative), target);
     }
+  }
 }
 
 /** Точка входа. */
 function main() {
-    const command = process.argv[2];
-    const plugins = listPlugins();
-    if (command === 'build') {
-        removeStale(plugins);
-        for (const plugin of plugins) {
-            deploy(plugin);
-            mirrorToBuild(plugin, targetDir(plugin.manifest, plugin.name));
-        }
-        return;
+  const command = process.argv[2];
+  const plugins = listPlugins();
+  if (command === 'build') {
+    removeStale(plugins);
+    for (const plugin of plugins) {
+      deploy(plugin);
+      mirrorToBuild(plugin, targetDir(plugin.manifest, plugin.name));
     }
-    if (command === 'check') {
-        const problems = [];
-        for (const plugin of plugins) {
-            problems.push(...check(plugin));
-        }
-        problems.push(...checkStale(plugins));
-        if (problems.length > 0) {
-            console.error('Артефакты плагинов устарели:');
-            for (const problem of problems) {
-                console.error(`  - ${problem}`);
-            }
-            console.error('Выполните `make plugins` и повторите.');
-            process.exit(1);
-        }
-        console.log(`Артефакты плагинов актуальны (${plugins.length} шт.).`);
-        return;
+    return;
+  }
+  if (command === 'check') {
+    const problems = [];
+    for (const plugin of plugins) {
+      problems.push(...check(plugin));
     }
-    console.error('Использование: node scripts/plugin-artifacts.mjs build|check');
-    process.exit(2);
+    problems.push(...checkStale(plugins));
+    if (problems.length > 0) {
+      console.error('Артефакты плагинов устарели:');
+      for (const problem of problems) {
+        console.error(`  - ${problem}`);
+      }
+      console.error('Выполните `make plugins` и повторите.');
+      process.exit(1);
+    }
+    console.log(`Артефакты плагинов актуальны (${plugins.length} шт.).`);
+    return;
+  }
+  console.error('Использование: node scripts/plugin-artifacts.mjs build|check');
+  process.exit(2);
 }
 
 main();

@@ -63,7 +63,9 @@ export async function loadCachedProperties(path: string): Promise<CachedProperti
   }
   const properties = (entry.properties ?? {}) as Record<string, unknown>;
   const pageCount = Number(properties.pageCount);
-  const annotations = Array.isArray((entry.annotations as Record<string, unknown> | undefined)?.annotations)
+  const annotations = Array.isArray(
+    (entry.annotations as Record<string, unknown> | undefined)?.annotations,
+  )
     ? ((entry.annotations as { annotations: unknown[] }).annotations as FileAnnotation[])
     : [];
   return {

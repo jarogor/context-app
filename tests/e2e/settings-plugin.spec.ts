@@ -73,7 +73,8 @@ test('диагностика не имеет настроек в разделе 
 test('журнал для разбора находится в сведениях о приложении', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
-  await page.getByRole('navigation', { name: 'Разделы настроек' })
+  await page
+    .getByRole('navigation', { name: 'Разделы настроек' })
     .getByRole('button', { name: 'Система' })
     .click();
 
@@ -136,9 +137,7 @@ test('кнопка сохранения внизу недоступна без �
   await expect(save).toBeDisabled();
 
   // Правка включает кнопку и подсвечивает изменённое поле, возврат — снимает.
-  const theme = settings
-    .locator('[data-testid="settings-group-body"] button')
-    .nth(1);
+  const theme = settings.locator('[data-testid="settings-group-body"] button').nth(1);
   // Подсветка — у той метки, чьё поле меняется, а не у первой в секции.
   const label = settings.locator('label[data-changed]', { hasText: 'Тема оформления' });
   const current = (await theme.textContent())?.trim() ?? '';
@@ -202,9 +201,7 @@ test('настройки открываются на всё окно без ме
   // Кнопка закрытия — в шапке настроек.
   await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
   // Внутреннее меню разделов настроек осталось.
-  await expect(
-    page.getByRole('navigation', { name: 'Разделы настроек' }),
-  ).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Разделы настроек' })).toBeVisible();
 });
 
 test('кнопка закрытия доступна с любой страницы настроек', async ({ page }) => {
@@ -268,6 +265,8 @@ test('у переключения темы нет описания: назван
   await page.getByTestId('nav-settings').click();
 
   // Описание на абзац дублировало поведение и мешало найти сам переключатель.
-  await expect(page.locator('main p').filter({ hasText: 'Светлая или тёмная тема' })).toHaveCount(0);
+  await expect(page.locator('main p').filter({ hasText: 'Светлая или тёмная тема' })).toHaveCount(
+    0,
+  );
   await expect(page.locator('main label', { hasText: 'Тема оформления' })).toBeVisible();
 });

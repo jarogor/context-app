@@ -105,7 +105,11 @@ describe('страница библиотеки', () => {
 
   it('называет рабочее место в действии чтения', async () => {
     render(LibraryPage, {
-      props: { initialActiveLibrary: null, targetWorkspaceName: 'Исследование', onOpenInWorkplace: vi.fn() },
+      props: {
+        initialActiveLibrary: null,
+        targetWorkspaceName: 'Исследование',
+        onOpenInWorkplace: vi.fn(),
+      },
     });
 
     await waitFor(() => expect(catalogChanged).toBeTruthy());

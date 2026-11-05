@@ -59,9 +59,7 @@ describe('кэш свойств файла', () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith('reader_cache_save', {
       path: '/lib/a.pdf',
-      thumbs: [
-        { page: 3, dataUrl: 'data:image/jpeg;base64,AAAA', width: 96, height: 128 },
-      ],
+      thumbs: [{ page: 3, dataUrl: 'data:image/jpeg;base64,AAAA', width: 96, height: 128 }],
     });
   });
 

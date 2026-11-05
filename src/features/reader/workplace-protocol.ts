@@ -9,10 +9,7 @@ import { t } from '@context/i18n';
 import type { NoteColor, NoteTool, NoteType, ShapeKind } from '../notes/notes';
 import type { QuoteAnchor } from './reader/anchor';
 import type { FileAnnotationBatch, FileBookmark, FileChapter } from './file-properties';
-import {
-  normalizeBookmarks,
-  parseFileAnnotationBatch,
-} from './file-properties';
+import { normalizeBookmarks, parseFileAnnotationBatch } from './file-properties';
 import {
   readerPageColors,
   readerThemeNoteTones,
@@ -202,10 +199,7 @@ export function isWorkplaceMessage(
  * берутся из активного инструмента как значения по умолчанию.
  */
 export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMessage | null {
-  const message = data as
-    | { type?: unknown; value?: unknown; message?: unknown }
-    | null
-    | undefined;
+  const message = data as { type?: unknown; value?: unknown; message?: unknown } | null | undefined;
   if (!message || typeof message.type !== 'string') {
     return null;
   }
@@ -311,7 +305,14 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
       };
     }
     case 'footnote': {
-      const value = (message.value as { html?: unknown; anchor?: unknown; left?: unknown; top?: unknown; bottom?: unknown }) ?? {};
+      const value =
+        (message.value as {
+          html?: unknown;
+          anchor?: unknown;
+          left?: unknown;
+          top?: unknown;
+          bottom?: unknown;
+        }) ?? {};
       return {
         type: 'footnote',
         value: {
@@ -338,9 +339,9 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
     }
     case 'error':
       return {
-      type: 'error',
-      message: String(message.message ?? t('app.reader.failedGeneric')),
-    };
+        type: 'error',
+        message: String(message.message ?? t('app.reader.failedGeneric')),
+      };
     case 'open-external':
       return { type: 'open-external' };
     case 'open-link': {

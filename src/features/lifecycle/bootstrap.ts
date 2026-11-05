@@ -54,62 +54,62 @@ import { activeLibrary } from '../../shared/base-plugin';
 
 /** Активная библиотека для шапки. */
 export interface ActiveLibrary {
-    /** Человекочитаемое имя провайдера. */
-    provider_name?: string;
-    /** Путь библиотеки. */
-    path?: string;
+  /** Человекочитаемое имя провайдера. */
+  provider_name?: string;
+  /** Путь библиотеки. */
+  path?: string;
 }
 
 /** Загруженное начальное состояние приложения. */
 export interface BootstrapState {
-    /** Снимок реестра рабочих мест из ядра (нормализует вызывающий). */
-    registry: unknown;
-    /** Активная библиотека или null, когда библиотека не открыта. */
-    activeLibrary: ActiveLibrary | null;
-    /** Оформление: применённые тема и палитра, загруженные до первого рендера. */
-    appearance: AppearanceBootstrap;
-    /** Декларации интерфейса настроек, загруженные до первого рендера. */
-    settings: SettingsBootstrap;
-    /** Каталог плагинов и сторов, загруженный до первого рендера. */
-    store: StoreBootstrap;
-    /** Лимит числа открытых вкладок рабочего места (значение по умолчанию при ошибке). */
-    openTabsLimit: number;
-    /** Состояние обновлений, прочитанное до первого рендера. */
-    update: UpdateBootstrap;
+  /** Снимок реестра рабочих мест из ядра (нормализует вызывающий). */
+  registry: unknown;
+  /** Активная библиотека или null, когда библиотека не открыта. */
+  activeLibrary: ActiveLibrary | null;
+  /** Оформление: применённые тема и палитра, загруженные до первого рендера. */
+  appearance: AppearanceBootstrap;
+  /** Декларации интерфейса настроек, загруженные до первого рендера. */
+  settings: SettingsBootstrap;
+  /** Каталог плагинов и сторов, загруженный до первого рендера. */
+  store: StoreBootstrap;
+  /** Лимит числа открытых вкладок рабочего места (значение по умолчанию при ошибке). */
+  openTabsLimit: number;
+  /** Состояние обновлений, прочитанное до первого рендера. */
+  update: UpdateBootstrap;
 }
 
 /** Оформление, прочитанное и применённое на бутстрапе. */
 export interface AppearanceBootstrap {
-    /** Предпочтение темы: светлая, тёмная или системная. */
-    theme: ThemePreference;
-    /** Активная палитра оформления. */
-    palette: PaletteId;
-    /** Тема области чтения (светлая или тёмная), независимая от интерфейса. */
-    readerTheme: ReaderThemeId;
-    /** Гарнитура книги: с засечками или без. */
-    readerFont: ReaderFontId;
-    /** Язык интерфейса, применённый до первого рендера. */
-    locale: Locale;
+  /** Предпочтение темы: светлая, тёмная или системная. */
+  theme: ThemePreference;
+  /** Активная палитра оформления. */
+  palette: PaletteId;
+  /** Тема области чтения (светлая или тёмная), независимая от интерфейса. */
+  readerTheme: ReaderThemeId;
+  /** Гарнитура книги: с засечками или без. */
+  readerFont: ReaderFontId;
+  /** Язык интерфейса, применённый до первого рендера. */
+  locale: Locale;
 }
 
 /** Декларации интерфейса настроек и ошибка их загрузки на бутстрапе. */
 export interface SettingsBootstrap {
-    /** Нормализованные декларации пространства «секция настроек». */
-    declarations: NormalizedDeclaration[];
-    /** Ошибка загрузки или несовместимой версии схемы, иначе пустая строка. */
-    error: string;
+  /** Нормализованные декларации пространства «секция настроек». */
+  declarations: NormalizedDeclaration[];
+  /** Ошибка загрузки или несовместимой версии схемы, иначе пустая строка. */
+  error: string;
 }
 
 /** Каталог плагинов и сторов на бутстрапе. */
 export interface StoreBootstrap {
-    /** Перечень отключаемых плагинов. */
-    plugins: PluginEntry[];
-    /** Реестр подключённых сторов. */
-    stores: Store[];
-    /** Есть ли неприменённые изменения активности плагинов. */
-    activationPending: boolean;
-    /** Ошибка загрузки каталога, иначе пустая строка. */
-    error: string;
+  /** Перечень отключаемых плагинов. */
+  plugins: PluginEntry[];
+  /** Реестр подключённых сторов. */
+  stores: Store[];
+  /** Есть ли неприменённые изменения активности плагинов. */
+  activationPending: boolean;
+  /** Ошибка загрузки каталога, иначе пустая строка. */
+  error: string;
 }
 
 /** Загрузка начального состояния приложения: реестр, библиотека, области.
@@ -125,54 +125,55 @@ export interface StoreBootstrap {
  * кадру. Их загружают области при соответствующем действии пользователя.
  */
 export async function loadBootstrap(): Promise<BootstrapState> {
-    const [registry, library, appearance, settings, store, openTabsLimit, update] =
-        await Promise.all([
-            invokeCommand('get_workspaces', {}),
-            loadActiveLibrary(),
-            applyAppearance(),
-            loadSettingsBootstrap(),
-            loadStoreBootstrap(),
-            loadOpenTabsLimit().catch(() => DEFAULT_OPEN_TABS_LIMIT),
-            loadUpdateBootstrap(),
-        ]);
-    // Обложки книг рабочих мест готовятся до первого кадра: список рисуется с
-    // ними сразу и не дорисовывает их по одной. Извлечение кэшируется в ядре,
-    // поэтому повторный запуск читает готовые обложки.
-    await loadWorkspaceCovers(registry).catch(() => {});
-    return {
-        registry,
-        activeLibrary: library,
-        appearance,
-        settings,
-        store,
-        openTabsLimit,
-        update,
-    };
+  const [registry, library, appearance, settings, store, openTabsLimit, update] = await Promise.all(
+    [
+      invokeCommand('get_workspaces', {}),
+      loadActiveLibrary(),
+      applyAppearance(),
+      loadSettingsBootstrap(),
+      loadStoreBootstrap(),
+      loadOpenTabsLimit().catch(() => DEFAULT_OPEN_TABS_LIMIT),
+      loadUpdateBootstrap(),
+    ],
+  );
+  // Обложки книг рабочих мест готовятся до первого кадра: список рисуется с
+  // ними сразу и не дорисовывает их по одной. Извлечение кэшируется в ядре,
+  // поэтому повторный запуск читает готовые обложки.
+  await loadWorkspaceCovers(registry).catch(() => {});
+  return {
+    registry,
+    activeLibrary: library,
+    appearance,
+    settings,
+    store,
+    openTabsLimit,
+    update,
+  };
 }
 
 /** Пути книг всех вкладок рабочих мест из непрозрачного реестра. */
 function workspaceBookPaths(registry: unknown): string[] {
-    const record = (registry ?? {}) as { workspaces?: unknown };
-    const workspaces = Array.isArray(record.workspaces) ? record.workspaces : [];
-    const paths: string[] = [];
-    for (const item of workspaces) {
-        const tabs = (item as { tabs?: unknown })?.tabs;
-        if (!Array.isArray(tabs)) {
-            continue;
-        }
-        for (const tab of tabs) {
-            const path = String((tab as { path?: unknown })?.path ?? '').trim();
-            if (path && !paths.includes(path)) {
-                paths.push(path);
-            }
-        }
+  const record = (registry ?? {}) as { workspaces?: unknown };
+  const workspaces = Array.isArray(record.workspaces) ? record.workspaces : [];
+  const paths: string[] = [];
+  for (const item of workspaces) {
+    const tabs = (item as { tabs?: unknown })?.tabs;
+    if (!Array.isArray(tabs)) {
+      continue;
     }
-    return paths;
+    for (const tab of tabs) {
+      const path = String((tab as { path?: unknown })?.path ?? '').trim();
+      if (path && !paths.includes(path)) {
+        paths.push(path);
+      }
+    }
+  }
+  return paths;
 }
 
 /** Загрузка обложек книг рабочих мест в кэш оболочки до первого рендера. */
 async function loadWorkspaceCovers(registry: unknown): Promise<void> {
-    await loadCovers(workspaceBookPaths(registry));
+  await loadCovers(workspaceBookPaths(registry));
 }
 
 /** Чтение и применение оформления до первого кадра.
@@ -182,70 +183,70 @@ async function loadWorkspaceCovers(registry: unknown): Promise<void> {
  * светлая область чтения) и не прерывает вход.
  */
 async function applyAppearance(): Promise<AppearanceBootstrap> {
-    const [theme, palette, readerTheme, readerFont, locale] = await Promise.all([
-        loadThemePreference().catch(() => 'system' as ThemePreference),
-        loadThemePalette().catch(() => DEFAULT_PALETTE),
-        loadReaderTheme().catch(() => DEFAULT_READER_THEME),
-        loadReaderFont().catch(() => DEFAULT_READER_FONT),
-        loadInterfaceLocale().catch(() => DEFAULT_LOCALE),
-    ]);
-    applyAppThemeTracked(theme);
-    applyAppPalette(palette);
-    applyAppReaderTheme(readerTheme);
-    applyAppReaderFont(readerFont);
-    // Язык применяется до первого кадра: экран загрузки и оболочка читают одни
-    // и те же словари, и подмена языка не видна пользователю.
-    applyAppLocale(locale);
-    // Зеркало оформления для статичного экрана загрузки следующего запуска.
-    persistBootAppearance({ theme, palette });
-    return { theme, palette, readerTheme, readerFont, locale };
+  const [theme, palette, readerTheme, readerFont, locale] = await Promise.all([
+    loadThemePreference().catch(() => 'system' as ThemePreference),
+    loadThemePalette().catch(() => DEFAULT_PALETTE),
+    loadReaderTheme().catch(() => DEFAULT_READER_THEME),
+    loadReaderFont().catch(() => DEFAULT_READER_FONT),
+    loadInterfaceLocale().catch(() => DEFAULT_LOCALE),
+  ]);
+  applyAppThemeTracked(theme);
+  applyAppPalette(palette);
+  applyAppReaderTheme(readerTheme);
+  applyAppReaderFont(readerFont);
+  // Язык применяется до первого кадра: экран загрузки и оболочка читают одни
+  // и те же словари, и подмена языка не видна пользователю.
+  applyAppLocale(locale);
+  // Зеркало оформления для статичного экрана загрузки следующего запуска.
+  persistBootAppearance({ theme, palette });
+  return { theme, palette, readerTheme, readerFont, locale };
 }
 
 /** Загрузка деклараций настроек; ошибка даёт пустое пространство с диагностикой. */
 async function loadSettingsBootstrap(): Promise<SettingsBootstrap> {
-    try {
-        return await loadSettingsUi();
-    } catch (error) {
-        return { declarations: [], error: String(error) };
-    }
+  try {
+    return await loadSettingsUi();
+  } catch (error) {
+    return { declarations: [], error: String(error) };
+  }
 }
 
 /** Загрузка каталога плагинов и сторов; ошибка даёт пустой каталог с диагностикой. */
 async function loadStoreBootstrap(): Promise<StoreBootstrap> {
-    let plugins: PluginEntry[] = [];
-    let stores: Store[] = [];
-    let activationPending = false;
-    let error = '';
-    try {
-        const catalog = await loadStoreCatalog();
-        plugins = catalog.plugins;
-        stores = catalog.stores;
-    } catch (cause) {
-        error = String(cause);
-    }
-    try {
-        activationPending = await loadActivationPending();
-    } catch {
-        // Отсутствие признака не мешает работе страницы.
-    }
-    return { plugins, stores, activationPending, error };
+  let plugins: PluginEntry[] = [];
+  let stores: Store[] = [];
+  let activationPending = false;
+  let error = '';
+  try {
+    const catalog = await loadStoreCatalog();
+    plugins = catalog.plugins;
+    stores = catalog.stores;
+  } catch (cause) {
+    error = String(cause);
+  }
+  try {
+    activationPending = await loadActivationPending();
+  } catch {
+    // Отсутствие признака не мешает работе страницы.
+  }
+  return { plugins, stores, activationPending, error };
 }
 
 /** Загрузка сведений об активной библиотеке; ошибка даёт «не открыта». */
 async function loadActiveLibrary(): Promise<ActiveLibrary | null> {
-    try {
-        const result = await activeLibrary();
-        return result as ActiveLibrary | null;
-    } catch {
-        return null;
-    }
+  try {
+    const result = await activeLibrary();
+    return result as ActiveLibrary | null;
+  } catch {
+    return null;
+  }
 }
 
 /** Загрузка состояния обновлений; ошибка не мешает входу в приложение. */
 async function loadUpdateBootstrap(): Promise<UpdateBootstrap> {
-    try {
-        return { status: await loadUpdateStatus(), error: '' };
-    } catch (cause) {
-        return { status: null, error: String(cause) };
-    }
+  try {
+    return { status: await loadUpdateStatus(), error: '' };
+  } catch (cause) {
+    return { status: null, error: String(cause) };
+  }
 }

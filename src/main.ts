@@ -19,7 +19,7 @@ const target = document.getElementById('app')!;
 target.replaceChildren();
 
 const app = mount(Root, {
-    target,
+  target,
 });
 
 // Окно создано скрытым: показываем его после первой отрисовки, чтобы белый кадр

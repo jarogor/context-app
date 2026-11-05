@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  VIEWER_FILE_GLOBAL,
-  VIEWER_FILES_GLOBAL,
-  buildViewerDocument,
-} from './viewer-bundle';
+import { VIEWER_FILE_GLOBAL, VIEWER_FILES_GLOBAL, buildViewerDocument } from './viewer-bundle';
 import type { ViewerFileContent } from './reader';
 
 /** Файлы модуля для тестов. */

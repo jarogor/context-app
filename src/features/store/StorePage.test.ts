@@ -51,9 +51,9 @@ describe('страница обновлений', () => {
     expect(screen.getByText('/stores/main')).toBeTruthy();
     expect(onPendingChange).toHaveBeenCalledWith(true);
     // Каталог передан бутстрапом: обращения к плагину за ним нет.
-    expect(
-      invoke.mock.calls.some(([command]) => command === 'invoke_base_plugin_operation'),
-    ).toBe(false);
+    expect(invoke.mock.calls.some(([command]) => command === 'invoke_base_plugin_operation')).toBe(
+      false,
+    );
   });
 
   it('показывает все плагины одним списком, без деления на виды', () => {

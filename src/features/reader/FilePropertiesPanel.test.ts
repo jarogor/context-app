@@ -2,7 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 
 import FilePropertiesPanel from './FilePropertiesPanel.svelte';
-import { emptyProperties, type FileAnnotation, type FilePropertiesSnapshot } from './file-properties';
+import {
+  emptyProperties,
+  type FileAnnotation,
+  type FilePropertiesSnapshot,
+} from './file-properties';
 
 /** Снимок свойств текучей книги с содержанием. */
 function flowingSnapshot(): FilePropertiesSnapshot {
@@ -84,8 +88,7 @@ describe('панель свойств файла', () => {
   it('переносит длинное название раздела, а не обрезает его', () => {
     // По обрезанному «…» нельзя понять, куда ведёт пункт: название переносится
     // на несколько строк, а иконка остаётся у первой строки.
-    const longTitle =
-      'Глава двенадцатая: о том, как долгий заголовок не помещается в одну строку';
+    const longTitle = 'Глава двенадцатая: о том, как долгий заголовок не помещается в одну строку';
     render(FilePropertiesPanel, {
       props: {
         snapshot: {
@@ -177,10 +180,7 @@ describe('панель свойств файла', () => {
 
     // Нажатие на строку показывает ровно эту пометку.
     await fireEvent.click(rows[0]);
-    expect(onToggleAnnotation).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'a1' }),
-      true,
-    );
+    expect(onToggleAnnotation).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1' }), true);
 
     // Галочка снимает показ.
     const toggle = screen.getAllByTestId('properties-annotation-toggle')[0];
@@ -261,8 +261,18 @@ describe('панель свойств файла', () => {
     expect(first).toBeGreaterThan(0);
     // Ни одна картинка не пришла: без запрета повторов панель заказывала бы те
     // же страницы на каждое обновление снимка — бесконечный цикл отрисовки.
-    await rerender({ snapshot: { ...pagedSnapshot() }, tab: 'pages', currentPage: 1, onRequestThumbs });
-    await rerender({ snapshot: { ...pagedSnapshot() }, tab: 'pages', currentPage: 1, onRequestThumbs });
+    await rerender({
+      snapshot: { ...pagedSnapshot() },
+      tab: 'pages',
+      currentPage: 1,
+      onRequestThumbs,
+    });
+    await rerender({
+      snapshot: { ...pagedSnapshot() },
+      tab: 'pages',
+      currentPage: 1,
+      onRequestThumbs,
+    });
     expect(onRequestThumbs.mock.calls.length).toBe(first);
   });
 

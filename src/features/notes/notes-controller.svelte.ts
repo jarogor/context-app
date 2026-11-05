@@ -101,9 +101,7 @@ export function createNotesController(
    * В текучем формате (EPUB) недоступные типы (текст, фигура) не показываются
    * ни в панели, ни в книге — те же элементы идут и в читалку. Данные сохраняются.
    */
-  const items = $derived(
-    noteList(notes.filter((note) => allowedTypesOf().includes(note.type))),
-  );
+  const items = $derived(noteList(notes.filter((note) => allowedTypesOf().includes(note.type))));
 
   /** Смена активного инструмента заметок. */
   function setTool(value: NoteTool) {
@@ -314,8 +312,7 @@ export function createNotesController(
       const remaining = { ...loadedNotesSets };
       delete remaining[removeId];
       loadedNotesSets = remaining;
-      const remembered =
-        activeSetByBook[key] === removeId ? null : (activeSetByBook[key] ?? null);
+      const remembered = activeSetByBook[key] === removeId ? null : (activeSetByBook[key] ?? null);
       const loaded = await listSets(key);
       if (bookKeyOf() !== key) {
         return;

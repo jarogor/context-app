@@ -87,7 +87,8 @@ export const en: Dictionary = {
   'app.settings.actionMustBeString': 'event action must be a string: {type}.{event}',
   'app.settings.noChildren': 'component does not accept children: {type}',
   'app.settings.spaceNotDeclared': 'space not declared: {space}',
-  'app.settings.schemaVersion': 'Incompatible interface schema version: {version} (supported {supported})',
+  'app.settings.schemaVersion':
+    'Incompatible interface schema version: {version} (supported {supported})',
   'app.settings.data.title': 'Application service data',
   'app.settings.data.note': 'Settings, plugins, cache and updates',
   'app.settings.logs.title': 'Logs',
@@ -142,13 +143,15 @@ export const en: Dictionary = {
   'app.hotkey.app.theme.title': 'Appearance theme',
   'app.hotkey.app.theme.description': 'Light, dark, system — in a cycle',
   'app.hotkey.app.dismiss.title': 'Close the top layer',
-  'app.hotkey.app.dismiss.description': 'Closes the open layer: settings, search, note menu, editing',
+  'app.hotkey.app.dismiss.description':
+    'Closes the open layer: settings, search, note menu, editing',
   'app.hotkey.workplace.books.title': 'Open books panel',
   'app.hotkey.workplace.books.description': 'Show or hide the list of open books',
   'app.hotkey.workplace.notes.title': 'Notes panel',
   'app.hotkey.workplace.notes.description': 'Show or hide notes of the open book',
   'app.hotkey.workplace.properties.title': 'File properties panel',
-  'app.hotkey.workplace.properties.description': 'Contents, bookmarks, pages and embedded annotations of the file',
+  'app.hotkey.workplace.properties.description':
+    'Contents, bookmarks, pages and embedded annotations of the file',
   'app.hotkey.workplace.focus.title': 'Focused reading',
   'app.hotkey.workplace.focus.description': 'Hide panels and read on the whole window',
   'app.hotkey.workplace.tab.next.title': 'Next tab',
@@ -181,7 +184,8 @@ export const en: Dictionary = {
   'app.settings.app.general.title': 'General',
   'app.settings.app.general.description': 'General application options',
   'app.settings.app.system.diagnostics.log_level.label': 'Log detail for investigating problems',
-  'app.settings.app.system.diagnostics.log_level.description': 'How much to write to the log attached to the support report. The normal level is always enough; the detailed one helps when a problem is hard to reproduce, and slows the application down',
+  'app.settings.app.system.diagnostics.log_level.description':
+    'How much to write to the log attached to the support report. The normal level is always enough; the detailed one helps when a problem is hard to reproduce, and slows the application down',
   'app.settings.app.system.diagnostics.log_level.option.error': 'Errors only',
   'app.settings.app.system.diagnostics.log_level.option.warn': 'Errors and warnings',
   'app.settings.app.system.diagnostics.log_level.option.info': 'Normal — recommended',
@@ -192,7 +196,8 @@ export const en: Dictionary = {
   'app.settings.app.general.appearance.theme.option.dark': 'Dark',
   'app.settings.app.general.appearance.theme.option.system': 'Follow system',
   'app.settings.app.general.appearance.palette.label': 'Appearance palette',
-  'app.settings.app.general.appearance.palette.description': 'A set of light and dark interface colors',
+  'app.settings.app.general.appearance.palette.description':
+    'A set of light and dark interface colors',
   'app.settings.app.general.appearance.palette.option.linen': 'Linen',
   'app.settings.app.general.appearance.palette.option.cobalt': 'Indigo',
   'app.settings.app.general.appearance.palette.option.gruvbox': 'Amber',
@@ -203,7 +208,8 @@ export const en: Dictionary = {
   'app.library.addBook': 'Add book',
   'app.search.newName.placeholder': 'New name',
   'app.settings.app.general.window.open_tabs_limit.label': 'Open tabs limit',
-  'app.settings.app.general.window.open_tabs_limit.description': 'Maximum number of open workspace tabs.',
+  'app.settings.app.general.window.open_tabs_limit.description':
+    'Maximum number of open workspace tabs.',
   'app.settings.app.owner': 'Application',
 
   'app.workspace.title': 'Workspace',
@@ -214,7 +220,8 @@ export const en: Dictionary = {
   'app.workspace.delete': 'Delete',
   'app.workspace.current': 'Current',
   'app.workspace.empty.title': 'No workspaces',
-  'app.workspace.empty.description': 'A workspace is a place of research: you open books in tabs and keep notes. Create the first one in the «New workspace» field above.',
+  'app.workspace.empty.description':
+    'A workspace is a place of research: you open books in tabs and keep notes. Create the first one in the «New workspace» field above.',
   'app.workspace.emptyShelf': 'Empty shelf',
   'app.workspace.moreBooks': 'More: {count}',
   'app.workspace.openNamed': 'Open «{name}»',
@@ -224,7 +231,8 @@ export const en: Dictionary = {
   'app.workspace.tabsCount': { one: '{count} tab', other: '{count} tabs' },
 
   'app.workplace.empty.title': 'The workspace is empty',
-  'app.workplace.empty.description': 'Use the «Add book» button in the tabs bar above: the book will appear here and meet your notes.',
+  'app.workplace.empty.description':
+    'Use the «Add book» button in the tabs bar above: the book will appear here and meet your notes.',
   'app.workplace.tabs': 'Tabs',
   'app.workplace.notes': 'Notes',
   'app.workplace.properties': 'File properties',
@@ -263,7 +271,8 @@ export const en: Dictionary = {
   'app.workplace.tab.book': 'Book: {book}',
   'app.workplace.limitReached': 'Open tabs limit reached',
   'app.workplace.limitExceeded': 'Open tabs limit exceeded',
-  'app.workplace.limitExceededMessage': 'Open tabs limit exceeded: {opened} open, limit {limit}. Close extra tabs or raise the limit in settings.',
+  'app.workplace.limitExceededMessage':
+    'Open tabs limit exceeded: {opened} open, limit {limit}. Close extra tabs or raise the limit in settings.',
 
   'app.picker.title': 'Open in a workspace',
   'app.picker.description': 'Choose the place the book will be added to, or create a new one.',
@@ -274,7 +283,8 @@ export const en: Dictionary = {
   'app.picker.notFound': 'Nothing found.',
 
   'app.library.libraries.empty.title': 'No open libraries',
-  'app.library.libraries.empty.description': 'Open a directory with books — it will appear in the list and a catalog will be built for it.',
+  'app.library.libraries.empty.description':
+    'Open a directory with books — it will appear in the list and a catalog will be built for it.',
   'app.library.libraries.add': 'Add library',
   'app.library.libraries.openFolder': 'Open folder',
   'app.library.libraries.search': 'Library search',
@@ -296,9 +306,11 @@ export const en: Dictionary = {
   'app.library.book.noDetails': 'No additional book details.',
   'app.library.book.title': 'Book page',
   'app.library.empty.noLibrary.title': 'Library is not open',
-  'app.library.empty.noLibrary.description': 'Open a directory with books in the «Libraries» section.',
+  'app.library.empty.noLibrary.description':
+    'Open a directory with books in the «Libraries» section.',
   'app.library.empty.noBooks.title': 'No books in the library yet',
-  'app.library.empty.noBooks.description': 'Add books to the library folder and they will appear here.',
+  'app.library.empty.noBooks.description':
+    'Add books to the library folder and they will appear here.',
   'app.library.empty.filtered.title': 'No books match the filter',
   'app.library.empty.filtered.description': 'Change the filter to see books.',
   'app.library.sort.title': 'By title',
@@ -314,11 +326,13 @@ export const en: Dictionary = {
 
   'app.reader.opening': 'Opening the book…',
   'app.reader.unavailable.title': 'The book is unavailable',
-  'app.reader.unavailable.description': 'The book is unavailable: the file may have been moved or renamed.',
+  'app.reader.unavailable.description':
+    'The book is unavailable: the file may have been moved or renamed.',
   'app.reader.pointFile': 'Choose file',
   'app.reader.removeTab': 'Remove tab',
   'app.reader.formatUnsupported.title': 'Format is not supported',
-  'app.reader.formatUnsupported.description': 'This book format is not yet supported by the built-in reader.',
+  'app.reader.formatUnsupported.description':
+    'This book format is not yet supported by the built-in reader.',
   'app.reader.open': 'Open',
   'app.reader.openFailed': 'Could not open the book: {error}',
   'app.reader.reading': 'Book reading',
@@ -386,7 +400,8 @@ export const en: Dictionary = {
 
   'app.update.available': 'Update available',
   'app.update.done': 'Update complete',
-  'app.update.installed': 'Update installed. Restart the application to continue in the new version.',
+  'app.update.installed':
+    'Update installed. Restart the application to continue in the new version.',
   'app.update.application': 'Application',
   'app.update.plugins': 'Plugins',
   'app.update.skip': 'Do not offer',
@@ -425,7 +440,8 @@ export const en: Dictionary = {
   'app.error.workspace': 'Workspace: {error}',
   'app.error.notes': 'Notes: {error}',
   'app.error.appearance': 'Appearance: {error}',
-  'app.error.pluginsRestart': 'Plugins: changes will apply after restarting the application or reopening the library',
+  'app.error.pluginsRestart':
+    'Plugins: changes will apply after restarting the application or reopening the library',
   'app.error.notesBookUnavailable': 'The set book is unavailable: the set has no file.',
 
   'app.dialog.books': 'Books',
@@ -463,8 +479,12 @@ export const en: Dictionary = {
   'app.properties.pages.regenerate': 'Refresh',
   'app.properties.bookmarks.untitled': 'Untitled',
   'app.properties.empty.title': 'Nothing to show in this file',
-  'app.properties.empty.description': 'This book has no contents, bookmarks, page previews or embedded annotations.',
-  'app.properties.annotations.found': { one: '{count} annotation found', other: '{count} annotations found' },
+  'app.properties.empty.description':
+    'This book has no contents, bookmarks, page previews or embedded annotations.',
+  'app.properties.annotations.found': {
+    one: '{count} annotation found',
+    other: '{count} annotations found',
+  },
   'app.properties.annotations.progress': 'Pages parsed: {processed} of {total}',
   'app.properties.annotations.ready': 'Parsing has not started yet',
   'app.properties.annotations.stop': 'Stop',
@@ -486,5 +506,4 @@ export const en: Dictionary = {
   'app.skeleton.loading': 'Loading',
   'app.unknownComponent': 'Unknown component: {type}',
   'app.modal.close': 'Close',
-
 };

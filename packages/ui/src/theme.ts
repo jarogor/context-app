@@ -17,7 +17,7 @@ export type UnsubscribeTheme = () => void;
 
 /** Проверка, что значение является допустимым предпочтением темы. */
 export function isThemePreference(value: unknown): value is ThemePreference {
-    return value === 'light' || value === 'dark' || value === 'system';
+  return value === 'light' || value === 'dark' || value === 'system';
 }
 
 /** Приведение произвольного значения к предпочтению темы.
@@ -26,7 +26,7 @@ export function isThemePreference(value: unknown): value is ThemePreference {
  * некорректные данные не оставляли интерфейс без темы.
  */
 export function normalizeThemePreference(value: unknown): ThemePreference {
-    return isThemePreference(value) ? value : 'system';
+  return isThemePreference(value) ? value : 'system';
 }
 
 /** Разрешение предпочтения в конкретную тему.
@@ -34,10 +34,10 @@ export function normalizeThemePreference(value: unknown): ThemePreference {
  * `system` следует теме операционной системы; явные значения её игнорируют.
  */
 export function resolveTheme(preference: ThemePreference, prefersDark: boolean): ResolvedTheme {
-    if (preference === 'system') {
-        return prefersDark ? 'dark' : 'light';
-    }
-    return preference;
+  if (preference === 'system') {
+    return prefersDark ? 'dark' : 'light';
+  }
+  return preference;
 }
 
 /** Противоположная сторона темы.
@@ -48,7 +48,7 @@ export function resolveTheme(preference: ThemePreference, prefersDark: boolean):
  * показана (в том числе когда интерфейс следует теме ОС).
  */
 export function oppositeTheme(theme: ResolvedTheme): ResolvedTheme {
-    return theme === 'dark' ? 'light' : 'dark';
+  return theme === 'dark' ? 'light' : 'dark';
 }
 
 /** Применение темы к корню документа.
@@ -58,21 +58,21 @@ export function oppositeTheme(theme: ResolvedTheme): ResolvedTheme {
  * снятия подписки; для явных тем она ничего не делает.
  */
 export function applyTheme(
-    preference: ThemePreference,
-    root: HTMLElement = document.documentElement,
-    media: MediaQueryList = window.matchMedia('(prefers-color-scheme: dark)'),
+  preference: ThemePreference,
+  root: HTMLElement = document.documentElement,
+  media: MediaQueryList = window.matchMedia('(prefers-color-scheme: dark)'),
 ): UnsubscribeTheme {
-    const apply = () => {
-        root.dataset.theme = resolveTheme(preference, media.matches);
-    };
-    apply();
-    if (preference !== 'system') {
-        return () => {};
-    }
-    if (typeof media.addEventListener === 'function') {
-        media.addEventListener('change', apply);
-        return () => media.removeEventListener('change', apply);
-    }
-    media.addListener(apply);
-    return () => media.removeListener(apply);
+  const apply = () => {
+    root.dataset.theme = resolveTheme(preference, media.matches);
+  };
+  apply();
+  if (preference !== 'system') {
+    return () => {};
+  }
+  if (typeof media.addEventListener === 'function') {
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }
+  media.addListener(apply);
+  return () => media.removeListener(apply);
 }

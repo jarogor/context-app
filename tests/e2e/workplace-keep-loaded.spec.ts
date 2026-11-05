@@ -21,156 +21,154 @@ const VIEWER_HTML = `<!doctype html><html lang="ru"><body>
 
 /** Каталог с книгой формата demo, обслуживаемого плагином рабочего места. */
 const DEMO_BOOKS = {
-    catalog: {
-        books: [
-            {
-                id: 'demo-workplace',
-                title: 'Демо-планшет',
-                authors: [],
-                tags: [],
-                series: [],
-                files: [{ kind: 'book', path: 'demo-workplace.demo', format: 'demo' }],
-            },
-        ],
-    },
+  catalog: {
+    books: [
+      {
+        id: 'demo-workplace',
+        title: 'Демо-планшет',
+        authors: [],
+        tags: [],
+        series: [],
+        files: [{ kind: 'book', path: 'demo-workplace.demo', format: 'demo' }],
+      },
+    ],
+  },
 };
 
 declare global {
-    interface Window {
-        /** Число порций книги, прочитанных ядром в этом сценарии. */
-        __BOOK_CHUNKS__?: number;
-    }
+  interface Window {
+    /** Число порций книги, прочитанных ядром в этом сценарии. */
+    __BOOK_CHUNKS__?: number;
+  }
 }
 
 test.beforeEach(async ({ page }) => {
-    await page.addInitScript(
-        (payload: { viewer: string; books: unknown }) => {
-            window.__BOOK_CHUNKS__ = 0;
-            (
-                window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }
-            ).__TEXTURE_MOCK_OVERRIDES__ = {
-                handlers: {
-                    active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
-                    reader_formats: () => ['demo'],
-                    reader_plugin_for_format: () => 'format-mock',
-                    reader_viewer: () => payload.viewer,
-                    reader_book_chunk: () => {
-                        window.__BOOK_CHUNKS__ = (window.__BOOK_CHUNKS__ ?? 0) + 1;
-                        return { chunk: 'AA==', next: 1, total: 1, done: true };
+  await page.addInitScript(
+    (payload: { viewer: string; books: unknown }) => {
+      window.__BOOK_CHUNKS__ = 0;
+      (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
+        handlers: {
+          active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
+          reader_formats: () => ['demo'],
+          reader_plugin_for_format: () => 'format-mock',
+          reader_viewer: () => payload.viewer,
+          reader_book_chunk: () => {
+            window.__BOOK_CHUNKS__ = (window.__BOOK_CHUNKS__ ?? 0) + 1;
+            return { chunk: 'AA==', next: 1, total: 1, done: true };
+          },
+          invoke_plugin_operation: () => payload.books,
+          get_workspaces: () => {
+            const raw = window.localStorage.getItem('workspaces');
+            return raw
+              ? JSON.parse(raw)
+              : {
+                  workspaces: [
+                    {
+                      id: 'ws-1',
+                      name: 'Рабочее место',
+                      created_at_millis: 1_700_000_000_000,
+                      tabs: [],
+                      active_tab_id: null,
                     },
-                    invoke_plugin_operation: () => payload.books,
-                    get_workspaces: () => {
-                        const raw = window.localStorage.getItem('workspaces');
-                        return raw
-                            ? JSON.parse(raw)
-                            : {
-                                  workspaces: [
-                                      {
-                                          id: 'ws-1',
-                                          name: 'Рабочее место',
-                                          created_at_millis: 1_700_000_000_000,
-                                          tabs: [],
-                                          active_tab_id: null,
-                                      },
-                                  ],
-                                  active_workspace_id: 'ws-1',
-                              };
-                    },
-                    save_workspaces: (value: unknown) => {
-                        const registry = (value as { workspaces?: unknown })?.workspaces;
-                        window.localStorage.setItem('workspaces', JSON.stringify(registry));
-                        return { ok: true };
-                    },
-                },
-            };
+                  ],
+                  active_workspace_id: 'ws-1',
+                };
+          },
+          save_workspaces: (value: unknown) => {
+            const registry = (value as { workspaces?: unknown })?.workspaces;
+            window.localStorage.setItem('workspaces', JSON.stringify(registry));
+            return { ok: true };
+          },
         },
-        { viewer: VIEWER_HTML, books: DEMO_BOOKS },
-    );
+      };
+    },
+    { viewer: VIEWER_HTML, books: DEMO_BOOKS },
+  );
 });
 
 /** Открытие текущего рабочего места из списка. */
 async function openCurrentWorkspace(page: import('@playwright/test').Page) {
-    const list = page.getByTestId('workspaces-page');
-    const tabs = page.getByTestId('workplace-tabs');
-    // Ждём, пока раздел определится с видом: список рабочих мест или уже
-    // открытые вкладки. Без ожидания проверка видимости списка могла пройти до
-    // его появления, и клик по месту не выполнялся.
-    await Promise.race([
-        list.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
-        tabs.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
-    ]);
-    if (await list.isVisible().catch(() => false)) {
-        const open = page.getByTestId('workspace-open').first();
-        await open.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
-        if (await open.isVisible().catch(() => false)) {
-            await open.click();
-        }
+  const list = page.getByTestId('workspaces-page');
+  const tabs = page.getByTestId('workplace-tabs');
+  // Ждём, пока раздел определится с видом: список рабочих мест или уже
+  // открытые вкладки. Без ожидания проверка видимости списка могла пройти до
+  // его появления, и клик по месту не выполнялся.
+  await Promise.race([
+    list.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
+    tabs.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
+  ]);
+  if (await list.isVisible().catch(() => false)) {
+    const open = page.getByTestId('workspace-open').first();
+    await open.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+    if (await open.isVisible().catch(() => false)) {
+      await open.click();
     }
-    await expect(tabs).toBeVisible();
+  }
+  await expect(tabs).toBeVisible();
 }
 
 /** Добавление книги вкладкой в текущее рабочее место. */
 async function addBook(page: import('@playwright/test').Page) {
-    await openCurrentWorkspace(page);
-    await page.getByRole('button', { name: /Добавить книгу/ }).click();
-    const library = page.locator('main');
-    const back = library.getByRole('button', { name: /К списку книг/ });
-    if ((await back.count()) > 0) {
-        await back.click();
-    }
-    await library.getByRole('button', { name: /Демо-планшет/ }).click();
-    await library.getByRole('button', { name: /Читать/ }).click();
-    await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-планшет');
-    // Книга действительно прочитана: одна порция содержимого.
-    await expect.poll(() => page.evaluate(() => window.__BOOK_CHUNKS__ ?? 0)).toBe(1);
+  await openCurrentWorkspace(page);
+  await page.getByRole('button', { name: /Добавить книгу/ }).click();
+  const library = page.locator('main');
+  const back = library.getByRole('button', { name: /К списку книг/ });
+  if ((await back.count()) > 0) {
+    await back.click();
+  }
+  await library.getByRole('button', { name: /Демо-планшет/ }).click();
+  await library.getByRole('button', { name: /Читать/ }).click();
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-планшет');
+  // Книга действительно прочитана: одна порция содержимого.
+  await expect.poll(() => page.evaluate(() => window.__BOOK_CHUNKS__ ?? 0)).toBe(1);
 }
 
 /** Число прочитанных порций книги. */
 function bookChunks(page: import('@playwright/test').Page) {
-    return page.evaluate(() => window.__BOOK_CHUNKS__ ?? 0);
+  return page.evaluate(() => window.__BOOK_CHUNKS__ ?? 0);
 }
 
 test('уход в «Библиотеки» и возврат не перечитывает книгу', async ({ page }) => {
-    await page.goto('/');
-    await addBook(page);
+  await page.goto('/');
+  await addBook(page);
 
-    // Уходим в раздел «Библиотека» и возвращаемся кнопкой рабочего места.
-    await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
-    await expect(page.getByTestId('app-context')).toContainText('Библиотека', { timeout: 10000 });
-    await page.getByRole('button', { name: 'Рабочее место', exact: true }).click();
+  // Уходим в раздел «Библиотека» и возвращаемся кнопкой рабочего места.
+  await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
+  await expect(page.getByTestId('app-context')).toContainText('Библиотека', { timeout: 10000 });
+  await page.getByRole('button', { name: 'Рабочее место', exact: true }).click();
 
-    // Возврат показывает список рабочих мест, а вкладки остаются смонтированными.
-    await expect(page.getByTestId('workspaces-page')).toBeVisible();
-    await expect(page.getByTestId('workplace-tabs-layer')).toHaveAttribute('data-shown', 'false');
-    await expect(page.getByTestId('workplace-tab-page')).toBeAttached();
-    // Книга не перечитана: новых порций не появилось.
-    expect(await bookChunks(page)).toBe(1);
+  // Возврат показывает список рабочих мест, а вкладки остаются смонтированными.
+  await expect(page.getByTestId('workspaces-page')).toBeVisible();
+  await expect(page.getByTestId('workplace-tabs-layer')).toHaveAttribute('data-shown', 'false');
+  await expect(page.getByTestId('workplace-tab-page')).toBeAttached();
+  // Книга не перечитана: новых порций не появилось.
+  expect(await bookChunks(page)).toBe(1);
 
-    // Открытие текущего места показывает уже загруженную книгу без индикатора.
-    await page.getByTestId('workspace-open').first().click();
-    await expect(page.getByTestId('workplace-tabs-layer')).toHaveAttribute('data-shown', 'true');
-    await expect(page.getByTestId('reader-loading')).toHaveCount(0);
-    await expect(
-        page.frameLocator('iframe[title="Содержимое книги"]').getByText('Книга открыта'),
-    ).toBeVisible();
-    expect(await bookChunks(page)).toBe(1);
+  // Открытие текущего места показывает уже загруженную книгу без индикатора.
+  await page.getByTestId('workspace-open').first().click();
+  await expect(page.getByTestId('workplace-tabs-layer')).toHaveAttribute('data-shown', 'true');
+  await expect(page.getByTestId('reader-loading')).toHaveCount(0);
+  await expect(
+    page.frameLocator('iframe[title="Содержимое книги"]').getByText('Книга открыта'),
+  ).toBeVisible();
+  expect(await bookChunks(page)).toBe(1);
 });
 
 test('уход в «Заметки» и возврат не перечитывает книгу', async ({ page }) => {
-    await page.goto('/');
-    await addBook(page);
+  await page.goto('/');
+  await addBook(page);
 
-    await page.getByTestId('nav-notes').click();
-    await expect(page.getByTestId('notes-library')).toBeVisible();
+  await page.getByTestId('nav-notes').click();
+  await expect(page.getByTestId('notes-library')).toBeVisible();
 
-    // Возврат к рабочему месту: раздел «Заметки» больше не переключается.
-    await page.getByTestId('nav-workspace').click();
+  // Возврат к рабочему месту: раздел «Заметки» больше не переключается.
+  await page.getByTestId('nav-workspace').click();
 
-    await expect(page.getByTestId('workspaces-page')).toBeVisible();
-    await expect(page.getByTestId('workplace-tab-page')).toBeAttached();
-    expect(await bookChunks(page)).toBe(1);
+  await expect(page.getByTestId('workspaces-page')).toBeVisible();
+  await expect(page.getByTestId('workplace-tab-page')).toBeAttached();
+  expect(await bookChunks(page)).toBe(1);
 
-    await page.getByTestId('workspace-open').first().click();
-    await expect(page.getByTestId('reader-loading')).toHaveCount(0);
-    expect(await bookChunks(page)).toBe(1);
+  await page.getByTestId('workspace-open').first().click();
+  await expect(page.getByTestId('reader-loading')).toHaveCount(0);
+  expect(await bookChunks(page)).toBe(1);
 });

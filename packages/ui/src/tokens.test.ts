@@ -27,7 +27,15 @@ describe('токены оформления', () => {
   });
 
   it('объявляет роли размера текста с размером, интервалом и насыщенностью', () => {
-    for (const role of ['role-display', 'role-title', 'role-subtitle', 'role-body', 'role-label', 'role-caption', 'role-mono']) {
+    for (const role of [
+      'role-display',
+      'role-title',
+      'role-subtitle',
+      'role-body',
+      'role-label',
+      'role-caption',
+      'role-mono',
+    ]) {
       expect(tokens, role).toContain(`@utility ${role}`);
     }
     // Размер и междустрочный интервал входят в каждую роль.
@@ -45,13 +53,20 @@ describe('токены оформления', () => {
   it('различает палитры фоном и акцентом', () => {
     // Каждая палитра обязана иметь свой характер: если у двух палитр совпадают
     // фон и акцент, они дубликаты, и подсветка в них неразличима.
-    const blocks = [...tokens.matchAll(/:root\[data-palette='([a-z]+)'\](?:\[data-theme='dark'\])?\s*\{([\s\S]*?)\n\}/g)];
+    const blocks = [
+      ...tokens.matchAll(
+        /:root\[data-palette='([a-z]+)'\](?:\[data-theme='dark'\])?\s*\{([\s\S]*?)\n\}/g,
+      ),
+    ];
     const seen = new Map<string, string>();
     for (const [, id, body] of blocks) {
       const value = (name: string) => body.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1].trim();
       const key = `${value('background')}|${value('primary')}`;
       const previous = seen.get(key);
-      expect(previous, `палитры «${previous}» и «${id}» совпадают фоном и акцентом`).toBeUndefined();
+      expect(
+        previous,
+        `палитры «${previous}» и «${id}» совпадают фоном и акцентом`,
+      ).toBeUndefined();
       seen.set(key, id);
     }
     expect(seen.size).toBeGreaterThan(0);

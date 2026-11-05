@@ -16,7 +16,14 @@ export {
   type Locale,
 } from './locale';
 export { currentLocale, setLocale } from './locale.svelte';
-export { RU, type Dictionary, type Message, type MessageKey, type MessageParams, type PluralForms } from './messages';
+export {
+  RU,
+  type Dictionary,
+  type Message,
+  type MessageKey,
+  type MessageParams,
+  type PluralForms,
+} from './messages';
 export { interpolate, isMessageKey, localize, pluralForm, t, translate } from './translate';
 export { formatDateTimeFor, formatTimeFor } from './format';
 export { en } from './dict/en';

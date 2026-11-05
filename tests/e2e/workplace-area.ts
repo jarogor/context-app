@@ -2,12 +2,12 @@ import { expect, type Page } from '@playwright/test';
 
 /** Кнопка-иконка рабочего места в верхней панели оболочки. */
 export function workspaceButton(page: Page) {
-    return page.getByLabel('Рабочее место', { exact: true });
+  return page.getByLabel('Рабочее место', { exact: true });
 }
 
 /** Область рабочего места: список рабочих мест или вкладки открытого места. */
 export function workspaceArea(page: Page) {
-    return page.getByTestId('workplace-area');
+  return page.getByTestId('workplace-area');
 }
 
 /**
@@ -18,7 +18,9 @@ export function workspaceArea(page: Page) {
  * открыт ли раздел вообще.
  */
 export async function workspaceAreaVisible(page: Page): Promise<boolean> {
-    return workspaceArea(page).isVisible().catch(() => false);
+  return workspaceArea(page)
+    .isVisible()
+    .catch(() => false);
 }
 
 /** Открытие раздела рабочего места, если он скрыт.
@@ -28,13 +30,13 @@ export async function workspaceAreaVisible(page: Page): Promise<boolean> {
  * ничего не меняет.
  */
 export async function openWorkspaceArea(page: Page) {
-    // Готовность оболочки: до её монтирования кнопки и области ещё нет,
-    // поэтому проверка видимости до готовности дала бы ложное «скрыто».
-    await workspaceButton(page).waitFor({ state: 'visible' });
-    if (!(await workspaceAreaVisible(page))) {
-        await workspaceButton(page).click();
-    }
-    await expect(workspaceArea(page)).toBeVisible();
+  // Готовность оболочки: до её монтирования кнопки и области ещё нет,
+  // поэтому проверка видимости до готовности дала бы ложное «скрыто».
+  await workspaceButton(page).waitFor({ state: 'visible' });
+  if (!(await workspaceAreaVisible(page))) {
+    await workspaceButton(page).click();
+  }
+  await expect(workspaceArea(page)).toBeVisible();
 }
 
 /** Показ списка книг библиотеки.
@@ -43,19 +45,19 @@ export async function openWorkspaceArea(page: Page) {
  * список библиотек. Выбираем библиотеку — раздел сразу показывает список книг.
  */
 export async function showLibraryBookList(page: Page) {
-    await page.getByLabel('Библиотека', { exact: true }).click();
-    const sources = page.getByTestId('libraries-page');
-    const books = page.getByTestId('library-page');
-    // Раздел показывает список библиотек; открытие библиотеки сменяет его списком
-    // книг. Ждём, пока раздел определится, и выбираем библиотеку, если виден список.
-    await Promise.race([
-        books.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
-        sources.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
-    ]);
-    if (await sources.isVisible().catch(() => false)) {
-        await page.getByRole('button', { name: /demo-library/ }).click();
-    }
-    await expect(books).toBeVisible();
+  await page.getByLabel('Библиотека', { exact: true }).click();
+  const sources = page.getByTestId('libraries-page');
+  const books = page.getByTestId('library-page');
+  // Раздел показывает список библиотек; открытие библиотеки сменяет его списком
+  // книг. Ждём, пока раздел определится, и выбираем библиотеку, если виден список.
+  await Promise.race([
+    books.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
+    sources.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
+  ]);
+  if (await sources.isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: /demo-library/ }).click();
+  }
+  await expect(books).toBeVisible();
 }
 
 /** Добавление книги вкладкой в текущее рабочее место.
@@ -65,18 +67,18 @@ export async function showLibraryBookList(page: Page) {
  * добавляет её вкладкой.
  */
 export async function addBookToWorkspace(page: Page, title: string | RegExp) {
-    await openWorkspaceArea(page);
-    const open = page.getByTestId('workspace-open').first();
-    if (await open.isVisible().catch(() => false)) {
-        await open.click();
-    }
-    await page.getByRole('button', { name: /Добавить книгу/ }).click();
-    const library = page.locator('main');
-    const back = library.getByRole('button', { name: /К списку книг/ });
-    if ((await back.count()) > 0) {
-        await back.click();
-    }
-    await library.getByRole('button', { name: title }).click();
-    await library.getByRole('button', { name: /Читать/ }).click();
-    await expect(page.getByTestId('workplace-area')).toBeVisible();
+  await openWorkspaceArea(page);
+  const open = page.getByTestId('workspace-open').first();
+  if (await open.isVisible().catch(() => false)) {
+    await open.click();
+  }
+  await page.getByRole('button', { name: /Добавить книгу/ }).click();
+  const library = page.locator('main');
+  const back = library.getByRole('button', { name: /К списку книг/ });
+  if ((await back.count()) > 0) {
+    await back.click();
+  }
+  await library.getByRole('button', { name: title }).click();
+  await library.getByRole('button', { name: /Читать/ }).click();
+  await expect(page.getByTestId('workplace-area')).toBeVisible();
 }

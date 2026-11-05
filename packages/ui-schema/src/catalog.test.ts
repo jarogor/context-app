@@ -41,7 +41,13 @@ describe('каталог декларативного интерфейса', () 
         { type: 'Textarea', props: { name: 'raw', label: 'JSON', description: 'Пояснение' } },
         {
           type: 'Select',
-          props: { name: 'mode', label: 'Режим', value: 'a', options: [], description: 'Пояснение' },
+          props: {
+            name: 'mode',
+            label: 'Режим',
+            value: 'a',
+            options: [],
+            description: 'Пояснение',
+          },
           on: { change: 'save' },
         },
       ]),
@@ -97,9 +103,7 @@ describe('каталог декларативного интерфейса', () 
   it('сохраняет компонент, запрещённый в конкретном пространстве', () => {
     // Card допустим, но проверим ограничение пространства на выдуманном случае:
     // пространство не содержит компонент — узел отклоняется.
-    const result = sanitizeDeclaration(
-      declaration([{ type: 'Text', props: { text: 'ок' } }]),
-    );
+    const result = sanitizeDeclaration(declaration([{ type: 'Text', props: { text: 'ок' } }]));
     expect(result.declaration?.nodes[0]).toMatchObject({ type: 'Text' });
   });
 });

@@ -15,9 +15,9 @@ import { invokeCommand } from './app-bridge';
  * при выбранной светлой теме на тёмной системе).
  */
 export async function showAppWindow(theme?: string): Promise<void> {
-    try {
-        await invokeCommand('show_window', { theme: theme ?? null });
-    } catch {
-        // Окно может быть уже показано ядром; отсутствие показа не ломает интерфейс.
-    }
+  try {
+    await invokeCommand('show_window', { theme: theme ?? null });
+  } catch {
+    // Окно может быть уже показано ядром; отсутствие показа не ломает интерфейс.
+  }
 }

@@ -31,7 +31,9 @@ describe('Dialog', () => {
   });
 
   it('без showClose не показывает встроенную кнопку закрытия', () => {
-    render(Dialog, { props: { open: true, title: 'Закрыть вкладку?', children, showClose: false } });
+    render(Dialog, {
+      props: { open: true, title: 'Закрыть вкладку?', children, showClose: false },
+    });
 
     expect(screen.queryByLabelText('Закрыть')).toBeNull();
   });

@@ -29,46 +29,46 @@ export const VIEWER_COMMAND_TYPE = 'command';
  * просты, а единственным источником привязок остаётся приложение.
  */
 export interface ViewerBinding {
-    /** Идентификатор действия приложения. */
-    id: string;
-    /** Физический код клавиши (`KeyboardEvent.code`). */
-    code: string;
-    /** Зажат ли Ctrl. */
-    ctrl: boolean;
-    /** Зажат ли Alt. */
-    alt: boolean;
-    /** Зажат ли Shift. */
-    shift: boolean;
-    /** Зажат ли Meta. */
-    meta: boolean;
+  /** Идентификатор действия приложения. */
+  id: string;
+  /** Физический код клавиши (`KeyboardEvent.code`). */
+  code: string;
+  /** Зажат ли Ctrl. */
+  ctrl: boolean;
+  /** Зажат ли Alt. */
+  alt: boolean;
+  /** Зажат ли Shift. */
+  shift: boolean;
+  /** Зажат ли Meta. */
+  meta: boolean;
 }
 
 /** Сообщение приложения плагину со списком привязок. */
 export interface ViewerBindingsMessage {
-    /** Канал обмена области содержимого. */
-    channel: string;
-    /** Тип сообщения. */
-    type: typeof VIEWER_BINDINGS_TYPE;
-    /** Привязки в порядке каталога. */
-    value: ViewerBinding[];
+  /** Канал обмена области содержимого. */
+  channel: string;
+  /** Тип сообщения. */
+  type: typeof VIEWER_BINDINGS_TYPE;
+  /** Привязки в порядке каталога. */
+  value: ViewerBinding[];
 }
 
 /** Сообщение приложению плагину с командой действия. */
 export interface ViewerCommandMessage {
-    /** Канал обмена области содержимого. */
-    channel: string;
-    /** Тип сообщения. */
-    type: typeof VIEWER_COMMAND_TYPE;
-    /** Значение: идентификатор действия. */
-    value: { id: string };
+  /** Канал обмена области содержимого. */
+  channel: string;
+  /** Тип сообщения. */
+  type: typeof VIEWER_COMMAND_TYPE;
+  /** Значение: идентификатор действия. */
+  value: { id: string };
 }
 
 /** Сообщение приложения плагину со списком привязок. */
 export function viewerBindingsMessage(bindings: readonly ViewerBinding[]): ViewerBindingsMessage {
-    return { channel: VIEWER_CHANNEL, type: VIEWER_BINDINGS_TYPE, value: [...bindings] };
+  return { channel: VIEWER_CHANNEL, type: VIEWER_BINDINGS_TYPE, value: [...bindings] };
 }
 
 /** Команда действия плагину. */
 export function viewerCommand(id: string): ViewerCommandMessage {
-    return { channel: VIEWER_CHANNEL, type: VIEWER_COMMAND_TYPE, value: { id } };
+  return { channel: VIEWER_CHANNEL, type: VIEWER_COMMAND_TYPE, value: { id } };
 }

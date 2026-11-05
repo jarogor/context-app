@@ -5,539 +5,540 @@ import { DEFAULT_NOTE_TOOL, normalizeNote, noteList } from '../notes/notes';
 import { emptyProperties } from '../reader/file-properties';
 
 vi.mock('../../shared/app-bridge', () => ({
-    invokeCommand: vi.fn(async () => null),
-    listenEvent: vi.fn(async () => () => {}),
-    openDialog: vi.fn(async () => null),
+  invokeCommand: vi.fn(async () => null),
+  listenEvent: vi.fn(async () => () => {}),
+  openDialog: vi.fn(async () => null),
 }));
 
 /** Обязательные обработчики области с заглушками. */
 function handlers() {
-    return {
-        openTabsLimit: 50,
-        tool: DEFAULT_NOTE_TOOL,
-        onToolChange: vi.fn(),
-        onSelectTab: vi.fn(),
-        onCloseTab: vi.fn(),
-        onDuplicateTab: vi.fn(),
-        onEditTabAppearance: vi.fn(),
-        onAddBook: vi.fn(),
-        onAddFile: vi.fn(),
-        onToggleBooks: vi.fn(),
-        onToggleNotes: vi.fn(),
-        onCloseNotes: vi.fn(),
-        onQuote: vi.fn(),
-        onTextNote: vi.fn(),
-        onEditNoteText: vi.fn(),
-        onShape: vi.fn(),
-        onDeleteNote: vi.fn(),
-        onChangeNoteColor: vi.fn(),
-        onEditNote: vi.fn(),
-        onGoToNote: vi.fn(),
-        onSelectNote: vi.fn(),
-        onSelectSet: vi.fn(),
-        onCreateSet: vi.fn(),
-        onRenameSet: vi.fn(),
-        onRemoveSet: vi.fn(),
-        onTabState: vi.fn(),
-        onRepointTab: vi.fn(),
-        onCreateWorkspace: vi.fn(),
-        onOpenWorkspace: vi.fn(),
-        onRenameWorkspace: vi.fn(),
-        onRemoveWorkspace: vi.fn(),
-    };
+  return {
+    openTabsLimit: 50,
+    tool: DEFAULT_NOTE_TOOL,
+    onToolChange: vi.fn(),
+    onSelectTab: vi.fn(),
+    onCloseTab: vi.fn(),
+    onDuplicateTab: vi.fn(),
+    onEditTabAppearance: vi.fn(),
+    onAddBook: vi.fn(),
+    onAddFile: vi.fn(),
+    onToggleBooks: vi.fn(),
+    onToggleNotes: vi.fn(),
+    onCloseNotes: vi.fn(),
+    onQuote: vi.fn(),
+    onTextNote: vi.fn(),
+    onEditNoteText: vi.fn(),
+    onShape: vi.fn(),
+    onDeleteNote: vi.fn(),
+    onChangeNoteColor: vi.fn(),
+    onEditNote: vi.fn(),
+    onGoToNote: vi.fn(),
+    onSelectNote: vi.fn(),
+    onSelectSet: vi.fn(),
+    onCreateSet: vi.fn(),
+    onRenameSet: vi.fn(),
+    onRemoveSet: vi.fn(),
+    onTabState: vi.fn(),
+    onRepointTab: vi.fn(),
+    onCreateWorkspace: vi.fn(),
+    onOpenWorkspace: vi.fn(),
+    onRenameWorkspace: vi.fn(),
+    onRemoveWorkspace: vi.fn(),
+  };
 }
 
 /** Значения панелей, общие для тестов. */
 function panels() {
-    return {
-        notesOpen: false,
-        notes: [],
-        noteSets: [],
-        activeSetId: null,
-        notesLoading: false,
-        hasBook: false,
-    };
+  return {
+    notesOpen: false,
+    notes: [],
+    noteSets: [],
+    activeSetId: null,
+    notesLoading: false,
+    hasBook: false,
+  };
 }
 
 /** Свойства области с текущим местом и одной открытой вкладкой. */
 function workplaceProps(overrides: { listMode: boolean }) {
-    return {
-        workspace: {
-            id: 'ws-1',
-            name: 'Первое',
-            createdAtMillis: 0,
-            tabs: [
-                {
-                    id: 't1',
-                    path: '/lib/book-1.epub',
-                    title: 'Книга',
-                    format: 'epub',
-                    zoom: 100,
-                    position: 0,
-                    mode: 'scroll',
-                },
-            ],
-            activeTabId: 't1',
+  return {
+    workspace: {
+      id: 'ws-1',
+      name: 'Первое',
+      createdAtMillis: 0,
+      tabs: [
+        {
+          id: 't1',
+          path: '/lib/book-1.epub',
+          title: 'Книга',
+          format: 'epub',
+          zoom: 100,
+          position: 0,
+          mode: 'scroll',
         },
-        workspaces: [],
-        currentWorkspaceId: 'ws-1',
+      ],
+      activeTabId: 't1',
+    },
+    workspaces: [],
+    currentWorkspaceId: 'ws-1',
+    booksOpen: false,
+    visible: true,
+    ...panels(),
+    ...handlers(),
+    ...overrides,
+  };
+}
+
+describe('область рабочего места: список и вкладки', () => {
+  it('показывает список при отсутствии активного рабочего места', () => {
+    render(WorkplaceArea, {
+      props: {
+        workspace: null,
+        workspaces: [
+          { id: 'ws-1', name: 'Первое', createdAtMillis: 0, tabs: [], activeTabId: null },
+        ],
+        currentWorkspaceId: null,
+        listMode: true,
         booksOpen: false,
         visible: true,
         ...panels(),
         ...handlers(),
-        ...overrides,
-    };
-}
+      },
+    });
 
-describe('область рабочего места: список и вкладки', () => {
-    it('показывает список при отсутствии активного рабочего места', () => {
-        render(WorkplaceArea, {
-            props: {
-                workspace: null,
-                workspaces: [
-                    { id: 'ws-1', name: 'Первое', createdAtMillis: 0, tabs: [], activeTabId: null },
-                ],
-                currentWorkspaceId: null,
-                listMode: true,
-                booksOpen: false,
-                visible: true,
-                ...panels(),
-                ...handlers(),
+    expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+    expect(screen.queryByTestId('workplace-tabs')).toBeNull();
+  });
+
+  it('показывает вкладки при активном рабочем месте', () => {
+    render(WorkplaceArea, {
+      props: {
+        workspace: {
+          id: 'ws-1',
+          name: 'Первое',
+          createdAtMillis: 0,
+          tabs: [
+            {
+              id: 't1',
+              path: '/lib/book-1.epub',
+              title: 'Книга',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
             },
-        });
-
-        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
-        expect(screen.queryByTestId('workplace-tabs')).toBeNull();
+          ],
+          activeTabId: 't1',
+        },
+        workspaces: [],
+        currentWorkspaceId: 'ws-1',
+        listMode: false,
+        booksOpen: false,
+        visible: true,
+        ...panels(),
+        ...handlers(),
+      },
     });
 
-    it('показывает вкладки при активном рабочем месте', () => {
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Первое',
-                    createdAtMillis: 0,
-                    tabs: [
-                        {
-                            id: 't1',
-                            path: '/lib/book-1.epub',
-                            title: 'Книга',
-                            format: 'epub',
-                            zoom: 100,
-                            position: 0,
-                            mode: 'scroll',
-                        },
-                    ],
-                    activeTabId: 't1',
-                },
-                workspaces: [],
-                currentWorkspaceId: 'ws-1',
-                listMode: false,
-                booksOpen: false,
-                visible: true,
-                ...panels(),
-                ...handlers(),
+    expect(screen.getByTestId('workplace-tabs')).toBeTruthy();
+    expect(screen.queryByTestId('workspaces-page')).toBeNull();
+  });
+
+  it('показывает список в режиме списка даже при активном рабочем месте', () => {
+    render(WorkplaceArea, {
+      props: {
+        workspace: {
+          id: 'ws-1',
+          name: 'Первое',
+          createdAtMillis: 0,
+          tabs: [],
+          activeTabId: null,
+        },
+        workspaces: [
+          { id: 'ws-1', name: 'Первое', createdAtMillis: 0, tabs: [], activeTabId: null },
+        ],
+        currentWorkspaceId: 'ws-1',
+        listMode: true,
+        booksOpen: false,
+        visible: true,
+        ...panels(),
+        ...handlers(),
+      },
+    });
+
+    expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+    expect(screen.getByTestId('workspace-current')).toBeTruthy();
+  });
+
+  it('оставляет вкладки смонтированными, когда показан список', () => {
+    render(WorkplaceArea, {
+      props: workplaceProps({ listMode: true }),
+    });
+
+    // Список показан, но слой вкладок не уничтожен: он скрыт, а не удалён,
+    // поэтому возврат к месту не пересоздаёт читалки и не читает книгу заново.
+    expect(screen.getByTestId('workspaces-page')).toBeTruthy();
+    expect(screen.getByTestId('workplace-tabs')).toBeTruthy();
+    expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('false');
+    expect(screen.getByTestId('workplace-tab-page')).toBeTruthy();
+  });
+
+  it('показывает слой вкладок после выхода из списка', async () => {
+    const { rerender } = render(WorkplaceArea, {
+      props: workplaceProps({ listMode: true }),
+    });
+    expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('false');
+
+    await rerender(workplaceProps({ listMode: false }));
+
+    expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('true');
+    // Вкладка осталась той же самой: состав и активная вкладка не изменились.
+    expect(screen.getByTestId('workplace-tab-page').getAttribute('data-active')).toBe('true');
+  });
+
+  it('показывает общую нижнюю панель при открытой вкладке', () => {
+    render(WorkplaceArea, {
+      props: {
+        workspace: {
+          id: 'ws-1',
+          name: 'Первое',
+          createdAtMillis: 0,
+          tabs: [
+            {
+              id: 't1',
+              path: '/lib/book-1.epub',
+              title: 'Книга',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
             },
-        });
-
-        expect(screen.getByTestId('workplace-tabs')).toBeTruthy();
-        expect(screen.queryByTestId('workspaces-page')).toBeNull();
+          ],
+          activeTabId: 't1',
+        },
+        workspaces: [],
+        currentWorkspaceId: 'ws-1',
+        listMode: false,
+        booksOpen: false,
+        visible: true,
+        ...panels(),
+        ...handlers(),
+      },
     });
 
-    it('показывает список в режиме списка даже при активном рабочем месте', () => {
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Первое',
-                    createdAtMillis: 0,
-                    tabs: [],
-                    activeTabId: null,
-                },
-                workspaces: [
-                    { id: 'ws-1', name: 'Первое', createdAtMillis: 0, tabs: [], activeTabId: null },
-                ],
-                currentWorkspaceId: 'ws-1',
-                listMode: true,
-                booksOpen: false,
-                visible: true,
-                ...panels(),
-                ...handlers(),
+    expect(screen.getByTestId('note-toolbar').contains(screen.getByTestId('reader-zoom'))).toBe(
+      true,
+    );
+    expect(screen.getByTestId('reader-zoom').textContent).toBe('100%');
+    expect(screen.getByTestId('reader-progress').textContent).toBe('0%');
+    // Прогресс есть у текучей книги; у постраничной он не показывается.
+    expect(screen.getByTestId('reader-progress')).toBeTruthy();
+  });
+
+  it('держит панель чтения внутри области чтения, а панели — рядом с ней', () => {
+    render(WorkplaceArea, {
+      props: {
+        workspace: {
+          id: 'ws-1',
+          name: 'Первое',
+          createdAtMillis: 0,
+          tabs: [
+            {
+              id: 't1',
+              path: '/lib/book-1.epub',
+              title: 'Книга',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
             },
-        });
-
-        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
-        expect(screen.getByTestId('workspace-current')).toBeTruthy();
+          ],
+          activeTabId: 't1',
+        },
+        workspaces: [],
+        currentWorkspaceId: 'ws-1',
+        listMode: false,
+        booksOpen: true,
+        visible: true,
+        ...panels(),
+        notesOpen: true,
+        ...handlers(),
+      },
     });
 
-    it('оставляет вкладки смонтированными, когда показан список', () => {
-        render(WorkplaceArea, {
-            props: workplaceProps({ listMode: true }),
-        });
+    // Панель чтения принадлежит области чтения, а не рабочему месту целиком.
+    const reading = screen.getByTestId('workplace-reading');
+    expect(reading.contains(screen.getByTestId('note-toolbar'))).toBe(true);
+    // Панели заметок и открытых вкладок стоят рядом с областью чтения, а не
+    // внутри неё: они идут от её верха до низа.
+    for (const panelId of ['notes-panel', 'open-books-panel']) {
+      const panel = screen.getByTestId(panelId);
+      expect(reading.contains(panel)).toBe(false);
+      expect(panel.parentElement?.contains(reading)).toBe(true);
+    }
+  });
 
-        // Список показан, но слой вкладок не уничтожен: он скрыт, а не удалён,
-        // поэтому возврат к месту не пересоздаёт читалки и не читает книгу заново.
-        expect(screen.getByTestId('workspaces-page')).toBeTruthy();
-        expect(screen.getByTestId('workplace-tabs')).toBeTruthy();
-        expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('false');
-        expect(screen.getByTestId('workplace-tab-page')).toBeTruthy();
-    });
-
-    it('показывает слой вкладок после выхода из списка', async () => {
-        const { rerender } = render(WorkplaceArea, {
-            props: workplaceProps({ listMode: true }),
-        });
-        expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('false');
-
-        await rerender(workplaceProps({ listMode: false }));
-
-        expect(screen.getByTestId('workplace-tabs-layer').getAttribute('data-shown')).toBe('true');
-        // Вкладка осталась той же самой: состав и активная вкладка не изменились.
-        expect(screen.getByTestId('workplace-tab-page').getAttribute('data-active')).toBe('true');
-    });
-
-    it('показывает общую нижнюю панель при открытой вкладке', () => {
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Первое',
-                    createdAtMillis: 0,
-                    tabs: [
-                        {
-                            id: 't1',
-                            path: '/lib/book-1.epub',
-                            title: 'Книга',
-                            format: 'epub',
-                            zoom: 100,
-                            position: 0,
-                            mode: 'scroll',
-                        },
-                    ],
-                    activeTabId: 't1',
-                },
-                workspaces: [],
-                currentWorkspaceId: 'ws-1',
-                listMode: false,
-                booksOpen: false,
-                visible: true,
-                ...panels(),
-                ...handlers(),
+  it('на узком окне переход к заметке закрывает панель заметок', async () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      media: '(max-width: 899px)',
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    } as unknown as MediaQueryList);
+    const base = handlers();
+    render(WorkplaceArea, {
+      props: {
+        workspace: {
+          id: 'ws-1',
+          name: 'Первое',
+          createdAtMillis: 0,
+          tabs: [
+            {
+              id: 't1',
+              path: '/lib/book-1.epub',
+              title: 'Книга',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
             },
-        });
-
-        expect(screen.getByTestId('note-toolbar').contains(screen.getByTestId('reader-zoom'))).toBe(
-            true,
-        );
-        expect(screen.getByTestId('reader-zoom').textContent).toBe('100%');
-        expect(screen.getByTestId('reader-progress').textContent).toBe('0%');
-        // Прогресс есть у текучей книги; у постраничной он не показывается.
-        expect(screen.getByTestId('reader-progress')).toBeTruthy();
+          ],
+          activeTabId: 't1',
+        },
+        workspaces: [],
+        currentWorkspaceId: 'ws-1',
+        listMode: false,
+        booksOpen: false,
+        visible: true,
+        notesOpen: true,
+        notes: noteList([normalizeNote({ id: 'note-1', quote: 'Цитата' })]),
+        noteSets: [],
+        activeSetId: null,
+        notesLoading: false,
+        hasBook: true,
+        ...base,
+      },
     });
 
-    it('держит панель чтения внутри области чтения, а панели — рядом с ней', () => {
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Первое',
-                    createdAtMillis: 0,
-                    tabs: [
-                        {
-                            id: 't1',
-                            path: '/lib/book-1.epub',
-                            title: 'Книга',
-                            format: 'epub',
-                            zoom: 100,
-                            position: 0,
-                            mode: 'scroll',
-                        },
-                    ],
-                    activeTabId: 't1',
-                },
-                workspaces: [],
-                currentWorkspaceId: 'ws-1',
-                listMode: false,
-                booksOpen: true,
-                visible: true,
-                ...panels(),
-                notesOpen: true,
-                ...handlers(),
+    await fireEvent.click(screen.getByTestId('notes-item-link'));
+
+    expect(base.onGoToNote).toHaveBeenCalled();
+    expect(base.onCloseNotes).toHaveBeenCalled();
+    matchMedia.mockRestore();
+  });
+
+  it('на узком окне выбор вкладки в панели закрывает панель вкладок', async () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      media: '(max-width: 899px)',
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    } as unknown as MediaQueryList);
+    const base = handlers();
+    render(WorkplaceArea, {
+      props: {
+        workspace: {
+          id: 'ws-1',
+          name: 'Первое',
+          createdAtMillis: 0,
+          tabs: [
+            {
+              id: 't1',
+              path: '/lib/book-1.epub',
+              title: 'Книга',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
             },
-        });
-
-        // Панель чтения принадлежит области чтения, а не рабочему месту целиком.
-        const reading = screen.getByTestId('workplace-reading');
-        expect(reading.contains(screen.getByTestId('note-toolbar'))).toBe(true);
-        // Панели заметок и открытых вкладок стоят рядом с областью чтения, а не
-        // внутри неё: они идут от её верха до низа.
-        for (const panelId of ['notes-panel', 'open-books-panel']) {
-            const panel = screen.getByTestId(panelId);
-            expect(reading.contains(panel)).toBe(false);
-            expect(panel.parentElement?.contains(reading)).toBe(true);
-        }
-    });
-
-    it('на узком окне переход к заметке закрывает панель заметок', async () => {        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
-            matches: true,
-            media: '(max-width: 899px)',
-            onchange: null,
-            addEventListener: () => {},
-            removeEventListener: () => {},
-            addListener: () => {},
-            removeListener: () => {},
-            dispatchEvent: () => false,
-        } as unknown as MediaQueryList);
-        const base = handlers();
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Первое',
-                    createdAtMillis: 0,
-                    tabs: [
-                        {
-                            id: 't1',
-                            path: '/lib/book-1.epub',
-                            title: 'Книга',
-                            format: 'epub',
-                            zoom: 100,
-                            position: 0,
-                            mode: 'scroll',
-                        },
-                    ],
-                    activeTabId: 't1',
-                },
-                workspaces: [],
-                currentWorkspaceId: 'ws-1',
-                listMode: false,
-                booksOpen: false,
-                visible: true,
-                notesOpen: true,
-                notes: noteList([normalizeNote({ id: 'note-1', quote: 'Цитата' })]),
-                noteSets: [],
-                activeSetId: null,
-                notesLoading: false,
-                hasBook: true,
-                ...base,
+            {
+              id: 't2',
+              path: '/lib/book-2.epub',
+              title: 'Вторая',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
             },
-        });
-
-        await fireEvent.click(screen.getByTestId('notes-item-link'));
-
-        expect(base.onGoToNote).toHaveBeenCalled();
-        expect(base.onCloseNotes).toHaveBeenCalled();
-        matchMedia.mockRestore();
+          ],
+          activeTabId: 't1',
+        },
+        workspaces: [],
+        currentWorkspaceId: 'ws-1',
+        listMode: false,
+        booksOpen: true,
+        visible: true,
+        ...panels(),
+        ...base,
+      },
     });
 
-    it('на узком окне выбор вкладки в панели закрывает панель вкладок', async () => {
-        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
-            matches: true,
-            media: '(max-width: 899px)',
-            onchange: null,
-            addEventListener: () => {},
-            removeEventListener: () => {},
-            addListener: () => {},
-            removeListener: () => {},
-            dispatchEvent: () => false,
-        } as unknown as MediaQueryList);
-        const base = handlers();
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Первое',
-                    createdAtMillis: 0,
-                    tabs: [
-                        {
-                            id: 't1',
-                            path: '/lib/book-1.epub',
-                            title: 'Книга',
-                            format: 'epub',
-                            zoom: 100,
-                            position: 0,
-                            mode: 'scroll',
-                        },
-                        {
-                            id: 't2',
-                            path: '/lib/book-2.epub',
-                            title: 'Вторая',
-                            format: 'epub',
-                            zoom: 100,
-                            position: 0,
-                            mode: 'scroll',
-                        },
-                    ],
-                    activeTabId: 't1',
-                },
-                workspaces: [],
-                currentWorkspaceId: 'ws-1',
-                listMode: false,
-                booksOpen: true,
-                visible: true,
-                ...panels(),
-                ...base,
+    // Вкладка — кнопка с названием внутри пункта панели.
+    const items = screen.getAllByTestId('open-books-item');
+    const target = items.find((item) => item.textContent?.includes('Вторая'));
+    expect(target).toBeTruthy();
+    await fireEvent.click(target!.querySelector('button')!);
+
+    expect(base.onSelectTab).toHaveBeenCalledWith('t2');
+    expect(base.onToggleBooks).toHaveBeenCalled();
+    matchMedia.mockRestore();
+  });
+
+  it('на широком окне выбор вкладки в панели оставляет панель открытой', async () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: false,
+      media: '(max-width: 899px)',
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    } as unknown as MediaQueryList);
+    const base = handlers();
+    render(WorkplaceArea, {
+      props: {
+        workspace: {
+          id: 'ws-1',
+          name: 'Первое',
+          createdAtMillis: 0,
+          tabs: [
+            {
+              id: 't1',
+              path: '/lib/book-1.epub',
+              title: 'Книга',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
             },
-        });
-
-        // Вкладка — кнопка с названием внутри пункта панели.
-        const items = screen.getAllByTestId('open-books-item');
-        const target = items.find((item) => item.textContent?.includes('Вторая'));
-        expect(target).toBeTruthy();
-        await fireEvent.click(target!.querySelector('button')!);
-
-        expect(base.onSelectTab).toHaveBeenCalledWith('t2');
-        expect(base.onToggleBooks).toHaveBeenCalled();
-        matchMedia.mockRestore();
+          ],
+          activeTabId: 't1',
+        },
+        workspaces: [],
+        currentWorkspaceId: 'ws-1',
+        listMode: false,
+        booksOpen: true,
+        visible: true,
+        ...panels(),
+        ...base,
+      },
     });
 
-    it('на широком окне выбор вкладки в панели оставляет панель открытой', async () => {
-        const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
-            matches: false,
-            media: '(max-width: 899px)',
-            onchange: null,
-            addEventListener: () => {},
-            removeEventListener: () => {},
-            addListener: () => {},
-            removeListener: () => {},
-            dispatchEvent: () => false,
-        } as unknown as MediaQueryList);
-        const base = handlers();
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Первое',
-                    createdAtMillis: 0,
-                    tabs: [
-                        {
-                            id: 't1',
-                            path: '/lib/book-1.epub',
-                            title: 'Книга',
-                            format: 'epub',
-                            zoom: 100,
-                            position: 0,
-                            mode: 'scroll',
-                        },
-                    ],
-                    activeTabId: 't1',
-                },
-                workspaces: [],
-                currentWorkspaceId: 'ws-1',
-                listMode: false,
-                booksOpen: true,
-                visible: true,
-                ...panels(),
-                ...base,
+    await fireEvent.click(screen.getByTestId('open-books-item').querySelector('button')!);
+
+    expect(base.onSelectTab).toHaveBeenCalledWith('t1');
+    expect(base.onToggleBooks).not.toHaveBeenCalled();
+    matchMedia.mockRestore();
+  });
+
+  it('передаёт правку оформления вкладки из панели открытых книг', async () => {
+    const base = handlers();
+    render(WorkplaceArea, {
+      props: {
+        workspace: {
+          id: 'ws-1',
+          name: 'Первое',
+          createdAtMillis: 0,
+          tabs: [
+            {
+              id: 't1',
+              path: '/lib/book-1.epub',
+              title: 'Книга',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
             },
-        });
-
-        await fireEvent.click(screen.getByTestId('open-books-item').querySelector('button')!);
-
-        expect(base.onSelectTab).toHaveBeenCalledWith('t1');
-        expect(base.onToggleBooks).not.toHaveBeenCalled();
-        matchMedia.mockRestore();
+          ],
+          activeTabId: 't1',
+        },
+        workspaces: [],
+        currentWorkspaceId: 'ws-1',
+        listMode: false,
+        booksOpen: true,
+        visible: true,
+        ...panels(),
+        ...base,
+      },
     });
 
-    it('передаёт правку оформления вкладки из панели открытых книг', async () => {
-        const base = handlers();
-        render(WorkplaceArea, {
-            props: {
-                workspace: {
-                    id: 'ws-1',
-                    name: 'Первое',
-                    createdAtMillis: 0,
-                    tabs: [
-                        {
-                            id: 't1',
-                            path: '/lib/book-1.epub',
-                            title: 'Книга',
-                            format: 'epub',
-                            zoom: 100,
-                            position: 0,
-                            mode: 'scroll',
-                        },
-                    ],
-                    activeTabId: 't1',
-                },
-                workspaces: [],
-                currentWorkspaceId: 'ws-1',
-                listMode: false,
-                booksOpen: true,
-                visible: true,
-                ...panels(),
-                ...base,
-            },
-        });
+    await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
+    await fireEvent.click(await screen.findByText('Сбросить все изменения'));
 
-        await fireEvent.click(screen.getByLabelText('Оформление вкладки'));
-        await fireEvent.click(await screen.findByText('Сбросить все изменения'));
-
-        expect(base.onEditTabAppearance).toHaveBeenCalledWith('t1', {
-            name: undefined,
-            description: undefined,
-            icon: undefined,
-            color: undefined,
-        });
-        // Состав вкладок и активная вкладка при правке оформления не меняются.
-        expect(base.onSelectTab).not.toHaveBeenCalled();
-        expect(base.onCloseTab).not.toHaveBeenCalled();
+    expect(base.onEditTabAppearance).toHaveBeenCalledWith('t1', {
+      name: undefined,
+      description: undefined,
+      icon: undefined,
+      color: undefined,
     });
+    // Состав вкладок и активная вкладка при правке оформления не меняются.
+    expect(base.onSelectTab).not.toHaveBeenCalled();
+    expect(base.onCloseTab).not.toHaveBeenCalled();
+  });
 });
 
 describe('область рабочего места: свойства файла', () => {
-    it('переключает панель свойств кнопкой полосы вкладок', async () => {
-        const base = handlers();
-        const onToggleProperties = vi.fn();
-        render(WorkplaceArea, {
-            props: {
-                ...workplaceProps({ listMode: false }),
-                ...base,
-                onToggleProperties,
-            },
-        });
-
-        await fireEvent.click(screen.getByTestId('workplace-properties-toggle'));
-        expect(onToggleProperties).toHaveBeenCalledTimes(1);
+  it('переключает панель свойств кнопкой полосы вкладок', async () => {
+    const base = handlers();
+    const onToggleProperties = vi.fn();
+    render(WorkplaceArea, {
+      props: {
+        ...workplaceProps({ listMode: false }),
+        ...base,
+        onToggleProperties,
+      },
     });
 
-    it('показывает свойства активной вкладки и передаёт выбор вкладки панели', async () => {
-        const base = handlers();
-        const onSelectPropertiesTab = vi.fn();
-        render(WorkplaceArea, {
-            props: {
-                ...workplaceProps({ listMode: false }),
-                ...base,
-                propertiesOpen: true,
-                propertiesByTab: {
-                    t1: {
-                        ...emptyProperties('epub'),
-                        flowing: true,
-                        chapters: [{ index: 0, title: 'Введение' }],
-                    },
-                },
-                onSelectPropertiesTab,
-            },
-        });
+    await fireEvent.click(screen.getByTestId('workplace-properties-toggle'));
+    expect(onToggleProperties).toHaveBeenCalledTimes(1);
+  });
 
-        expect(screen.getByTestId('properties-panel')).toBeTruthy();
-        expect(screen.getAllByTestId('properties-content-row')).toHaveLength(1);
-
-        await fireEvent.click(screen.getByTestId('properties-tab-contents'));
-        expect(onSelectPropertiesTab).toHaveBeenCalledWith('contents');
+  it('показывает свойства активной вкладки и передаёт выбор вкладки панели', async () => {
+    const base = handlers();
+    const onSelectPropertiesTab = vi.fn();
+    render(WorkplaceArea, {
+      props: {
+        ...workplaceProps({ listMode: false }),
+        ...base,
+        propertiesOpen: true,
+        propertiesByTab: {
+          t1: {
+            ...emptyProperties('epub'),
+            flowing: true,
+            chapters: [{ index: 0, title: 'Введение' }],
+          },
+        },
+        onSelectPropertiesTab,
+      },
     });
 
-    it('показывает пустое состояние, пока свойства вкладки не пришли', async () => {
-        render(WorkplaceArea, {
-            props: {
-                ...workplaceProps({ listMode: false }),
-                propertiesOpen: true,
-            },
-        });
+    expect(screen.getByTestId('properties-panel')).toBeTruthy();
+    expect(screen.getAllByTestId('properties-content-row')).toHaveLength(1);
 
-        // Снимок вкладки приходит от читалки; до него панель уже открыта и
-        // объясняет, что показывать нечего, а не исчезает без следа.
-        expect(screen.getByTestId('properties-panel')).toBeTruthy();
-        expect(await screen.findByTestId('properties-empty')).toBeTruthy();
+    await fireEvent.click(screen.getByTestId('properties-tab-contents'));
+    expect(onSelectPropertiesTab).toHaveBeenCalledWith('contents');
+  });
+
+  it('показывает пустое состояние, пока свойства вкладки не пришли', async () => {
+    render(WorkplaceArea, {
+      props: {
+        ...workplaceProps({ listMode: false }),
+        propertiesOpen: true,
+      },
     });
+
+    // Снимок вкладки приходит от читалки; до него панель уже открыта и
+    // объясняет, что показывать нечего, а не исчезает без следа.
+    expect(screen.getByTestId('properties-panel')).toBeTruthy();
+    expect(await screen.findByTestId('properties-empty')).toBeTruthy();
+  });
 });

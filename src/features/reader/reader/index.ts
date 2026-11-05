@@ -55,10 +55,7 @@ export async function selectWorkplacePlugin(
     return null;
   }
   const value = (await backend.invoke('reader_plugin_for_format', { format })) as
-    | { plugin_id?: unknown; flowing?: unknown }
-    | string
-    | null
-    | undefined;
+    { plugin_id?: unknown; flowing?: unknown } | string | null | undefined;
   if (!value) {
     return null;
   }

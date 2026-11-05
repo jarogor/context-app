@@ -10,7 +10,8 @@ import { expect, test } from '@playwright/test';
 test('логи экспортируются одним действием', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
-  await page.getByRole('navigation', { name: 'Разделы настроек' })
+  await page
+    .getByRole('navigation', { name: 'Разделы настроек' })
     .getByRole('button', { name: 'Система' })
     .click();
 
@@ -35,7 +36,8 @@ test('логи экспортируются одним действием', asyn
 test('журнал не настраивается: пользователю нечего в нём решать', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
-  await page.getByRole('navigation', { name: 'Разделы настроек' })
+  await page
+    .getByRole('navigation', { name: 'Разделы настроек' })
     .getByRole('button', { name: 'Система' })
     .click();
 

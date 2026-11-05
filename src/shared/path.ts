@@ -12,7 +12,7 @@
  * исходная строка — вызывающая сторона всегда получает осмысленное значение.
  */
 export function lastSegment(path: string, options: { stripExt?: boolean } = {}): string {
-    const segment = path.split(/[\\/]/).filter(Boolean).pop() ?? '';
-    const result = options.stripExt ? segment.replace(/\.[^.]+$/, '') : segment;
-    return result || path;
+  const segment = path.split(/[\\/]/).filter(Boolean).pop() ?? '';
+  const result = options.stripExt ? segment.replace(/\.[^.]+$/, '') : segment;
+  return result || path;
 }

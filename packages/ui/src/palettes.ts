@@ -84,9 +84,6 @@ export function normalizePaletteId(value: unknown): PaletteId {
  * Устанавливает атрибут `data-palette`; сторона темы (светлая/тёмная) задаётся
  * отдельно атрибутом `data-theme` модулем `theme.ts`.
  */
-export function applyPalette(
-  palette: unknown,
-  root: HTMLElement = document.documentElement,
-): void {
+export function applyPalette(palette: unknown, root: HTMLElement = document.documentElement): void {
   root.dataset.palette = normalizePaletteId(palette);
 }

@@ -15,20 +15,20 @@ import { comboId, formatCombo, parseCombo, type KeyCombo } from './key-combo';
 
 /** Привязка комбинации к действию. */
 export interface HotkeyBinding {
-    /** Канонический идентификатор комбинации (`Ctrl+Shift+F`). */
-    id: string;
-    /** Комбинация клавиш. */
-    combo: KeyCombo;
-    /** Действие, которое она вызывает. */
-    action: HotkeyAction;
+  /** Канонический идентификатор комбинации (`Ctrl+Shift+F`). */
+  id: string;
+  /** Комбинация клавиш. */
+  combo: KeyCombo;
+  /** Действие, которое она вызывает. */
+  action: HotkeyAction;
 }
 
 /** Собранный реестр привязок. */
 export interface HotkeyRegistry {
-    /** Все привязки в порядке каталога. */
-    bindings: readonly HotkeyBinding[];
-    /** Поиск привязки по каноническому идентификатору комбинации. */
-    byId: ReadonlyMap<string, HotkeyBinding>;
+  /** Все привязки в порядке каталога. */
+  bindings: readonly HotkeyBinding[];
+  /** Поиск привязки по каноническому идентификатору комбинации. */
+  byId: ReadonlyMap<string, HotkeyBinding>;
 }
 
 /** Переопределения привязок: идентификатор действия → список комбинаций.
@@ -45,43 +45,43 @@ export type HotkeyOverrides = Readonly<Record<string, readonly string[]>>;
  * неоднозначными, поэтому реестр не собирается вовсе.
  */
 export function createHotkeyRegistry(
-    actions: readonly HotkeyAction[] = HOTKEY_ACTIONS,
-    overrides: HotkeyOverrides = {},
+  actions: readonly HotkeyAction[] = HOTKEY_ACTIONS,
+  overrides: HotkeyOverrides = {},
 ): HotkeyRegistry {
-    const actionsById = new Map<string, HotkeyAction>();
-    for (const action of actions) {
-        if (actionsById.has(action.id)) {
-            throw new Error(`повторяющийся идентификатор действия комбинаций клавиш: ${action.id}`);
-        }
-        actionsById.set(action.id, action);
+  const actionsById = new Map<string, HotkeyAction>();
+  for (const action of actions) {
+    if (actionsById.has(action.id)) {
+      throw new Error(`повторяющийся идентификатор действия комбинаций клавиш: ${action.id}`);
     }
-    for (const id of Object.keys(overrides)) {
-        if (!actionsById.has(id)) {
-            throw new Error(`переопределение привязки для неизвестного действия: ${id}`);
-        }
+    actionsById.set(action.id, action);
+  }
+  for (const id of Object.keys(overrides)) {
+    if (!actionsById.has(id)) {
+      throw new Error(`переопределение привязки для неизвестного действия: ${id}`);
     }
-    const bindings: HotkeyBinding[] = [];
-    const byId = new Map<string, HotkeyBinding>();
-    for (const action of actions) {
-        const texts = overrides[action.id] ?? action.bindings;
-        if (texts.length === 0) {
-            throw new Error(`действие комбинаций клавиш без привязки: ${action.id}`);
-        }
-        for (const text of texts) {
-            const combo = parseCombo(text);
-            const id = comboId(combo);
-            const existing = byId.get(id);
-            if (existing) {
-                throw new Error(
-                    `комбинация ${formatCombo(combo)} назначена двум действиям: ${existing.action.id} и ${action.id}`,
-                );
-            }
-            const binding: HotkeyBinding = { id, combo, action };
-            byId.set(id, binding);
-            bindings.push(binding);
-        }
+  }
+  const bindings: HotkeyBinding[] = [];
+  const byId = new Map<string, HotkeyBinding>();
+  for (const action of actions) {
+    const texts = overrides[action.id] ?? action.bindings;
+    if (texts.length === 0) {
+      throw new Error(`действие комбинаций клавиш без привязки: ${action.id}`);
     }
-    return { bindings, byId };
+    for (const text of texts) {
+      const combo = parseCombo(text);
+      const id = comboId(combo);
+      const existing = byId.get(id);
+      if (existing) {
+        throw new Error(
+          `комбинация ${formatCombo(combo)} назначена двум действиям: ${existing.action.id} и ${action.id}`,
+        );
+      }
+      const binding: HotkeyBinding = { id, combo, action };
+      byId.set(id, binding);
+      bindings.push(binding);
+    }
+  }
+  return { bindings, byId };
 }
 
 /** Реестр привязок по умолчанию. */
@@ -94,10 +94,10 @@ export const HOTKEYS: HotkeyRegistry = createHotkeyRegistry();
  * одна комбинация.
  */
 export function findHotkey(
-    combo: KeyCombo,
-    registry: HotkeyRegistry = HOTKEYS,
+  combo: KeyCombo,
+  registry: HotkeyRegistry = HOTKEYS,
 ): HotkeyBinding | null {
-    return registry.byId.get(comboId(combo)) ?? null;
+  return registry.byId.get(comboId(combo)) ?? null;
 }
 
 /** Подпись комбинаций действия для подсказки или списка.
@@ -106,10 +106,10 @@ export function findHotkey(
  * в подписи они перечисляются через запятую.
  */
 export function hotkeyLabel(actionId: string, registry: HotkeyRegistry = HOTKEYS): string {
-    return registry.bindings
-        .filter((binding) => binding.action.id === actionId)
-        .map((binding) => formatCombo(binding.combo))
-        .join(', ');
+  return registry.bindings
+    .filter((binding) => binding.action.id === actionId)
+    .map((binding) => formatCombo(binding.combo))
+    .join(', ');
 }
 
 /** Подсказка кнопки с комбинацией: назначение и клавиша в скобках.
@@ -118,6 +118,6 @@ export function hotkeyLabel(actionId: string, registry: HotkeyRegistry = HOTKEYS
  * называет обе возможности. Действие без привязки остаётся с одним назначением.
  */
 export function hotkeyHint(actionId: string, title: string): string {
-    const label = hotkeyLabel(actionId);
-    return label ? `${title} (${label})` : title;
+  const label = hotkeyLabel(actionId);
+  return label ? `${title} (${label})` : title;
 }

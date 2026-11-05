@@ -35,7 +35,9 @@ function workplaceBackend(overrides: Partial<Record<string, unknown>> = {}): Rea
     invoke: async (command, payload) => {
       if (command in overrides) {
         const value = overrides[command];
-        return typeof value === 'function' ? (value as (input: unknown) => unknown)(payload) : value;
+        return typeof value === 'function'
+          ? (value as (input: unknown) => unknown)(payload)
+          : value;
       }
       if (command === 'reader_formats') {
         return ['pdf'];

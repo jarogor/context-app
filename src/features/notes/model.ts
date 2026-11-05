@@ -7,11 +7,11 @@
 
 import { t } from '@context/i18n';
 import {
-    DEFAULT_PALETTE,
-    DEFAULT_READER_THEME,
-    readerThemeNoteTones,
-    type PaletteId,
-    type ReaderThemeId,
+  DEFAULT_PALETTE,
+  DEFAULT_READER_THEME,
+  readerThemeNoteTones,
+  type PaletteId,
+  type ReaderThemeId,
 } from '@context/ui';
 
 /** Идентификатор активной библиотеки в ключе книги. */
@@ -22,27 +22,21 @@ const NO_LIBRARY = 'no-library';
  * создаётся уже на языке интерфейса, выбранном в момент создания.
  */
 export function defaultSetName(): string {
-    return t('app.note.defaultSet');
+  return t('app.note.defaultSet');
 }
 
 /** Цвет подсветки заметки по умолчанию. */
 export const DEFAULT_NOTE_COLOR = 'yellow';
 
 /** Доступные цвета подсветки заметки. */
-export const NOTE_COLORS = [
-    'yellow',
-    'green',
-    'blue',
-    'red',
-    'purple',
-] as const;
+export const NOTE_COLORS = ['yellow', 'green', 'blue', 'red', 'purple'] as const;
 
 /** Идентификатор цвета подсветки заметки. */
 export type NoteColor = (typeof NOTE_COLORS)[number];
 
 /** Названия цветов подсветки для интерфейса на активном языке. */
 export function noteColorLabel(color: NoteColor): string {
-    return t(`app.note.color.${color}`);
+  return t(`app.note.color.${color}`);
 }
 
 /** Насыщенные акценты палитры: образцы выбора цвета (панель, меню, список).
@@ -52,11 +46,11 @@ export function noteColorLabel(color: NoteColor): string {
  * (`NOTE_COLOR_HIGHLIGHTS`), а не этот акцент.
  */
 export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
-    yellow: '#eab308',
-    green: '#16a34a',
-    blue: '#2563eb',
-    red: '#dc2626',
-    purple: '#9333ea',
+  yellow: '#eab308',
+  green: '#16a34a',
+  blue: '#2563eb',
+  red: '#dc2626',
+  purple: '#9333ea',
 };
 
 /** Мягкие тона заметок: фон цитаты, заливка фигуры и карточки, метка списка.
@@ -69,10 +63,10 @@ export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
  * области чтения: цвет заметки следует выбранной теме, как и оформление чтения книги.
  */
 export function noteHighlights(
-    readerTheme: ReaderThemeId = DEFAULT_READER_THEME,
-    palette: PaletteId = DEFAULT_PALETTE,
+  readerTheme: ReaderThemeId = DEFAULT_READER_THEME,
+  palette: PaletteId = DEFAULT_PALETTE,
 ): Record<NoteColor, string> {
-    return readerThemeNoteTones(palette, readerTheme);
+  return readerThemeNoteTones(palette, readerTheme);
 }
 
 /** Мягкие тона заметок светлой стороны: значения по умолчанию для совместимости. */
@@ -85,11 +79,11 @@ export const NOTE_COLOR_HIGHLIGHTS: Record<NoteColor, string> = noteHighlights()
  * одинакова в списке и в книге. Тон берётся из темы области чтения.
  */
 export function noteMarkerColor(
-    note: { color: NoteColor },
-    readerTheme: ReaderThemeId = DEFAULT_READER_THEME,
-    palette: PaletteId = DEFAULT_PALETTE,
+  note: { color: NoteColor },
+  readerTheme: ReaderThemeId = DEFAULT_READER_THEME,
+  palette: PaletteId = DEFAULT_PALETTE,
 ): string {
-    return noteHighlights(readerTheme, palette)[note.color];
+  return noteHighlights(readerTheme, palette)[note.color];
 }
 
 /** Тип заметки по умолчанию: цитата. */
@@ -103,7 +97,7 @@ export type NoteType = (typeof NOTE_TYPES)[number];
 
 /** Названия типов заметок для интерфейса на активном языке. */
 export function noteTypeLabel(type: NoteType): string {
-    return t(`app.note.type.${type}`);
+  return t(`app.note.type.${type}`);
 }
 
 /** Вид фигуры по умолчанию: линия. */
@@ -117,19 +111,19 @@ export type ShapeKind = (typeof SHAPE_KINDS)[number];
 
 /** Активный инструмент создания заметок: тип, вид фигуры и цвет. */
 export interface NoteTool {
-    /** Тип создаваемой заметки. */
-    type: NoteType;
-    /** Вид фигуры для типа `shape`. */
-    shape: ShapeKind;
-    /** Цвет создаваемой заметки. */
-    color: NoteColor;
+  /** Тип создаваемой заметки. */
+  type: NoteType;
+  /** Вид фигуры для типа `shape`. */
+  shape: ShapeKind;
+  /** Цвет создаваемой заметки. */
+  color: NoteColor;
 }
 
 /** Инструмент заметок по умолчанию: цитата жёлтого цвета. */
 export const DEFAULT_NOTE_TOOL: NoteTool = {
-    type: DEFAULT_NOTE_TYPE,
-    shape: DEFAULT_SHAPE_KIND,
-    color: DEFAULT_NOTE_COLOR,
+  type: DEFAULT_NOTE_TYPE,
+  shape: DEFAULT_SHAPE_KIND,
+  color: DEFAULT_NOTE_COLOR,
 };
 
 /** Типы заметок, доступные **текучему** режиму чтения.
@@ -143,7 +137,7 @@ export const FLOWING_NOTE_TYPES: readonly NoteType[] = ['quote'];
 
 /** Доступные типы заметок по режиму чтения: страничный — все три, текучий — цитата. */
 export function allowedNoteTypes(paged: boolean): readonly NoteType[] {
-    return paged ? NOTE_TYPES : FLOWING_NOTE_TYPES;
+  return paged ? NOTE_TYPES : FLOWING_NOTE_TYPES;
 }
 
 /** Приведение инструмента к доступным типам режима.
@@ -153,10 +147,10 @@ export function allowedNoteTypes(paged: boolean): readonly NoteType[] {
  * фигуры сохраняются.
  */
 export function normalizeNoteTool(tool: NoteTool, types: readonly NoteType[]): NoteTool {
-    if (types.includes(tool.type)) {
-        return tool;
-    }
-    return { ...tool, type: DEFAULT_NOTE_TYPE };
+  if (types.includes(tool.type)) {
+    return tool;
+  }
+  return { ...tool, type: DEFAULT_NOTE_TYPE };
 }
 
 /** Сброс типа инструмента на «цитату» после создания заметки.
@@ -166,10 +160,10 @@ export function normalizeNoteTool(tool: NoteTool, types: readonly NoteType[]): N
  * цитатой. Выбранный цвет и вид фигуры сохраняются: их пользователь задал явно.
  */
 export function resetToolTypeAfterCreate(tool: NoteTool): NoteTool {
-    if (tool.type === DEFAULT_NOTE_TYPE) {
-        return tool;
-    }
-    return { ...tool, type: DEFAULT_NOTE_TYPE };
+  if (tool.type === DEFAULT_NOTE_TYPE) {
+    return tool;
+  }
+  return { ...tool, type: DEFAULT_NOTE_TYPE };
 }
 
 /** Русские названия видов фигур для интерфейса.
@@ -179,65 +173,65 @@ export function resetToolTypeAfterCreate(tool: NoteTool): NoteTool {
  * соседние инструменты. «Рамка» — то же действие: обвести область по контуру.
  */
 export function shapeKindLabel(kind: ShapeKind): string {
-    return t(`app.note.shape.${kind}`);
+  return t(`app.note.shape.${kind}`);
 }
 
 /** Приведение значения к доступному цвету; неизвестное даёт цвет по умолчанию. */
 export function normalizeColor(value: unknown): NoteColor {
-    const candidate = String(value ?? '').trim();
-    return (NOTE_COLORS as readonly string[]).includes(candidate)
-        ? (candidate as NoteColor)
-        : DEFAULT_NOTE_COLOR;
+  const candidate = String(value ?? '').trim();
+  return (NOTE_COLORS as readonly string[]).includes(candidate)
+    ? (candidate as NoteColor)
+    : DEFAULT_NOTE_COLOR;
 }
 
 /** Приведение значения к известному типу; неизвестное даёт цитату. */
 export function normalizeType(value: unknown): NoteType {
-    const candidate = String(value ?? '').trim();
-    return (NOTE_TYPES as readonly string[]).includes(candidate)
-        ? (candidate as NoteType)
-        : DEFAULT_NOTE_TYPE;
+  const candidate = String(value ?? '').trim();
+  return (NOTE_TYPES as readonly string[]).includes(candidate)
+    ? (candidate as NoteType)
+    : DEFAULT_NOTE_TYPE;
 }
 
 /** Приведение значения к известному виду фигуры; неизвестное даёт линию. */
 export function normalizeShapeKind(value: unknown): ShapeKind {
-    const candidate = String(value ?? '').trim();
-    return (SHAPE_KINDS as readonly string[]).includes(candidate)
-        ? (candidate as ShapeKind)
-        : DEFAULT_SHAPE_KIND;
+  const candidate = String(value ?? '').trim();
+  return (SHAPE_KINDS as readonly string[]).includes(candidate)
+    ? (candidate as ShapeKind)
+    : DEFAULT_SHAPE_KIND;
 }
 
 /** Заметка к книге: цитата, текстовая карточка или фигура. */
 export interface Note {
-    /** Идентификатор заметки. */
-    id: string;
-    /** Тип заметки. */
-    type: NoteType;
-    /** Непрозрачный якорь места в книге. */
-    anchor: string;
-    /** Выделенный текст цитаты. */
-    quote: string;
-    /** Метка главы или раздела места в книге. */
-    chapter: string;
-    /** Пользовательское название заметки; пустое, если не задано. */
-    title: string;
-    /** Пользовательский комментарий к заметке; пустой, если не задан. */
-    comment: string;
-    /** Цвет подсветки заметки. */
-    color: NoteColor;
-    /** Доля позиции выделения в книге в процентах. */
-    percent: number | null;
-    /** Номер страницы для страничных форматов; может отсутствовать. */
-    page: number | null;
-    /** Текст текстовой карточки. */
-    text: string;
-    /** Вид фигуры для заметки типа `shape`. */
-    shape: ShapeKind;
-    /** Непрозрачная геометрия фигуры. */
-    geometry: string;
-    /** Время создания (Unix, мс). */
-    createdAtMillis: number;
-    /** Время последнего изменения (Unix, мс). */
-    updatedAtMillis: number;
+  /** Идентификатор заметки. */
+  id: string;
+  /** Тип заметки. */
+  type: NoteType;
+  /** Непрозрачный якорь места в книге. */
+  anchor: string;
+  /** Выделенный текст цитаты. */
+  quote: string;
+  /** Метка главы или раздела места в книге. */
+  chapter: string;
+  /** Пользовательское название заметки; пустое, если не задано. */
+  title: string;
+  /** Пользовательский комментарий к заметке; пустой, если не задан. */
+  comment: string;
+  /** Цвет подсветки заметки. */
+  color: NoteColor;
+  /** Доля позиции выделения в книге в процентах. */
+  percent: number | null;
+  /** Номер страницы для страничных форматов; может отсутствовать. */
+  page: number | null;
+  /** Текст текстовой карточки. */
+  text: string;
+  /** Вид фигуры для заметки типа `shape`. */
+  shape: ShapeKind;
+  /** Непрозрачная геометрия фигуры. */
+  geometry: string;
+  /** Время создания (Unix, мс). */
+  createdAtMillis: number;
+  /** Время последнего изменения (Unix, мс). */
+  updatedAtMillis: number;
 }
 
 /** Набор заметок книги вместе с заметками.
@@ -246,32 +240,32 @@ export interface Note {
  * книг целиком, поэтому отдельного «агрегатного» типа нет.
  */
 export interface NoteSet {
-    /** Идентификатор набора. */
-    id: string;
-    /** Ключ книги, которой принадлежит набор. */
-    bookKey: string;
-    /** Отображаемое имя книги; пустое, если не задано. */
-    bookTitle: string;
-    /** Человекочитаемое имя набора. */
-    name: string;
-    /** Время создания (Unix, мс). */
-    createdAtMillis: number;
-    /** Заметки набора. */
-    notes: Note[];
+  /** Идентификатор набора. */
+  id: string;
+  /** Ключ книги, которой принадлежит набор. */
+  bookKey: string;
+  /** Отображаемое имя книги; пустое, если не задано. */
+  bookTitle: string;
+  /** Человекочитаемое имя набора. */
+  name: string;
+  /** Время создания (Unix, мс). */
+  createdAtMillis: number;
+  /** Заметки набора. */
+  notes: Note[];
 }
 
 /** Краткое описание набора в списке. */
 export interface NoteSetSummary {
-    /** Идентификатор набора. */
-    id: string;
-    /** Ключ книги. */
-    bookKey: string;
-    /** Отображаемое имя книги; пустое, если не задано. */
-    bookTitle: string;
-    /** Человекочитаемое имя набора. */
-    name: string;
-    /** Число заметок в наборе. */
-    noteCount: number;
+  /** Идентификатор набора. */
+  id: string;
+  /** Ключ книги. */
+  bookKey: string;
+  /** Отображаемое имя книги; пустое, если не задано. */
+  bookTitle: string;
+  /** Человекочитаемое имя набора. */
+  name: string;
+  /** Число заметок в наборе. */
+  noteCount: number;
 }
 
 /** Ключ книги по пути к её файлу (вложению вкладки).
@@ -281,69 +275,69 @@ export interface NoteSetSummary {
  * а рабочее место при этом не знает, откуда книга.
  */
 export function bookKey(path: string | null): string {
-    const value = (path ?? '').trim();
-    return value || NO_LIBRARY;
+  const value = (path ?? '').trim();
+  return value || NO_LIBRARY;
 }
 
 /** Число из значения или значение по умолчанию. */
 function toNumber(value: unknown, fallback: number): number {
-    const result = Number(value);
-    return Number.isFinite(result) ? result : fallback;
+  const result = Number(value);
+  return Number.isFinite(result) ? result : fallback;
 }
 
 /** Необязательное число: отсутствие и нечисло дают null. */
 function toOptionalNumber(value: unknown): number | null {
-    if (value === null || value === undefined || value === '') {
-        return null;
-    }
-    const result = Number(value);
-    return Number.isFinite(result) ? result : null;
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const result = Number(value);
+  return Number.isFinite(result) ? result : null;
 }
 
 /** Нормализация заметки из ответа плагина. */
 export function normalizeNote(value: unknown): Note {
-    const record = (value ?? {}) as Record<string, unknown>;
-    return {
-        id: String(record.id ?? ''),
-        type: normalizeType(record.type),
-        anchor: String(record.anchor ?? ''),
-        quote: String(record.quote ?? ''),
-        chapter: String(record.chapter ?? ''),
-        title: String(record.title ?? ''),
-        comment: String(record.comment ?? ''),
-        color: normalizeColor(record.color),
-        percent: toOptionalNumber(record.percent),
-        page: toOptionalNumber(record.page),
-        text: String(record.text ?? ''),
-        shape: normalizeShapeKind(record.shape),
-        geometry: String(record.geometry ?? ''),
-        createdAtMillis: toNumber(record.created_at_millis, 0),
-        updatedAtMillis: toNumber(record.updated_at_millis, 0),
-    };
+  const record = (value ?? {}) as Record<string, unknown>;
+  return {
+    id: String(record.id ?? ''),
+    type: normalizeType(record.type),
+    anchor: String(record.anchor ?? ''),
+    quote: String(record.quote ?? ''),
+    chapter: String(record.chapter ?? ''),
+    title: String(record.title ?? ''),
+    comment: String(record.comment ?? ''),
+    color: normalizeColor(record.color),
+    percent: toOptionalNumber(record.percent),
+    page: toOptionalNumber(record.page),
+    text: String(record.text ?? ''),
+    shape: normalizeShapeKind(record.shape),
+    geometry: String(record.geometry ?? ''),
+    createdAtMillis: toNumber(record.created_at_millis, 0),
+    updatedAtMillis: toNumber(record.updated_at_millis, 0),
+  };
 }
 
 /** Нормализация набора с заметками из ответа плагина. */
 export function normalizeSet(value: unknown): NoteSet {
-    const record = (value ?? {}) as Record<string, unknown>;
-    const notes = Array.isArray(record.notes) ? record.notes.map(normalizeNote) : [];
-    return {
-        id: String(record.id ?? ''),
-        bookKey: String(record.book_key ?? ''),
-        bookTitle: String(record.book_title ?? ''),
-        name: String(record.name ?? ''),
-        createdAtMillis: toNumber(record.created_at_millis, 0),
-        notes,
-    };
+  const record = (value ?? {}) as Record<string, unknown>;
+  const notes = Array.isArray(record.notes) ? record.notes.map(normalizeNote) : [];
+  return {
+    id: String(record.id ?? ''),
+    bookKey: String(record.book_key ?? ''),
+    bookTitle: String(record.book_title ?? ''),
+    name: String(record.name ?? ''),
+    createdAtMillis: toNumber(record.created_at_millis, 0),
+    notes,
+  };
 }
 
 /** Нормализация краткого описания набора. */
 export function normalizeSetSummary(value: unknown): NoteSetSummary {
-    const record = (value ?? {}) as Record<string, unknown>;
-    return {
-        id: String(record.id ?? ''),
-        bookKey: String(record.book_key ?? ''),
-        bookTitle: String(record.book_title ?? ''),
-        name: String(record.name ?? ''),
-        noteCount: toNumber(record.note_count, 0),
-    };
+  const record = (value ?? {}) as Record<string, unknown>;
+  return {
+    id: String(record.id ?? ''),
+    bookKey: String(record.book_key ?? ''),
+    bookTitle: String(record.book_title ?? ''),
+    name: String(record.name ?? ''),
+    noteCount: toNumber(record.note_count, 0),
+  };
 }

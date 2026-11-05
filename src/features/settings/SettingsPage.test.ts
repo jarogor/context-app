@@ -197,7 +197,12 @@ describe('страница настроек из декларации', () => {
     };
     invoke.mockResolvedValue({
       version: 1,
-      spaces: [{ ...declaration, nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } }] }],
+      spaces: [
+        {
+          ...declaration,
+          nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } }],
+        },
+      ],
     });
 
     render(SettingsPage, {
@@ -219,9 +224,9 @@ describe('страница настроек из декларации', () => {
       });
     });
     await waitFor(() => {
-      expect((screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled).toBe(
-        true,
-      );
+      expect(
+        (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled,
+      ).toBe(true);
     });
   });
 
@@ -238,7 +243,12 @@ describe('страница настроек из декларации', () => {
     };
     invoke.mockResolvedValue({
       version: 1,
-      spaces: [{ ...declaration, nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } }] }],
+      spaces: [
+        {
+          ...declaration,
+          nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } }],
+        },
+      ],
     });
 
     render(SettingsPage, {
@@ -303,9 +313,9 @@ describe('страница настроек из декларации', () => {
       );
     });
     await waitFor(() => {
-      expect((screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled).toBe(
-        true,
-      );
+      expect(
+        (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled,
+      ).toBe(true);
     });
     // Правка на месте: ответ сохранения не переписал контрол.
     expect(screen.getByRole('checkbox').getAttribute('aria-checked')).toBe('true');

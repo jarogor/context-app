@@ -17,7 +17,7 @@ export const LOCALES: readonly Locale[] = ['ru', 'en'];
 
 /** Проверка, что значение — поддерживаемый язык. */
 export function isLocale(value: unknown): value is Locale {
-    return LOCALES.includes(value as Locale);
+  return LOCALES.includes(value as Locale);
 }
 
 /** Приведение произвольного значения к поддерживаемому языку.
@@ -26,12 +26,12 @@ export function isLocale(value: unknown): value is Locale {
  * чтобы некорректные данные не оставляли интерфейс без текстов.
  */
 export function normalizeLocale(value: unknown): Locale {
-    return isLocale(value) ? value : DEFAULT_LOCALE;
+  return isLocale(value) ? value : DEFAULT_LOCALE;
 }
 
 /** Код языка для `Intl` (локаль форматирования дат и чисел). */
 export function localeTag(locale: Locale = DEFAULT_LOCALE): string {
-    return locale === 'en' ? 'en-US' : 'ru-RU';
+  return locale === 'en' ? 'en-US' : 'ru-RU';
 }
 
 /** Применение языка к корню документа.
@@ -40,6 +40,6 @@ export function localeTag(locale: Locale = DEFAULT_LOCALE): string {
  * тестам. Атрибуты живут на корне, как тема и палитра.
  */
 export function applyLocale(locale: Locale, root: HTMLElement = document.documentElement): void {
-    root.lang = locale;
-    root.dataset.locale = locale;
+  root.lang = locale;
+  root.dataset.locale = locale;
 }

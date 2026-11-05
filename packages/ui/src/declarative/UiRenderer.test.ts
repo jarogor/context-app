@@ -11,9 +11,7 @@ function declaration(): UiSpaceDeclaration {
     id: 'app.general',
     title: 'Общие',
     description: 'Общие параметры',
-    nodes: [
-      { type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } },
-    ],
+    nodes: [{ type: 'Checkbox', props: { name: 'flag', label: 'Флаг', checked: true } }],
   };
 }
 
@@ -104,7 +102,11 @@ describe('UiRenderer', () => {
 
   it('показывает диагностику отклонённых узлов', () => {
     render(UiRenderer, {
-      props: { declaration: declaration(), onintent: vi.fn(), diagnostics: ['компонент не разрешён: Mega'] },
+      props: {
+        declaration: declaration(),
+        onintent: vi.fn(),
+        diagnostics: ['компонент не разрешён: Mega'],
+      },
     });
 
     expect(screen.getByRole('status').textContent).toContain('компонент не разрешён: Mega');
@@ -159,17 +161,17 @@ describe('UiRenderer', () => {
     // Пояснение стоит в одном блоке с полем после него, а не отдельным абзацем выше.
     const container = descriptionNode.closest('div');
     expect(container?.querySelector('input')).toBeTruthy();
-    expect(descriptionNode.compareDocumentPosition(container!.querySelector('input')!) &
-      Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(
+      descriptionNode.compareDocumentPosition(container!.querySelector('input')!) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
   });
 
   it('раскладывает поле двумя колонками на широком контейнере', () => {
     const withDescription: UiSpaceDeclaration = {
       space: 'settings.section',
       id: 'app.general',
-      nodes: [
-        { type: 'Input', props: { name: 'count', label: 'Количество', value: '5' } },
-      ],
+      nodes: [{ type: 'Input', props: { name: 'count', label: 'Количество', value: '5' } }],
     };
     render(UiRenderer, { props: { declaration: withDescription, onintent: vi.fn() } });
 

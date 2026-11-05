@@ -87,7 +87,8 @@ export const ru = {
   'app.settings.actionMustBeString': 'действие события должно быть строкой: {type}.{event}',
   'app.settings.noChildren': 'компонент не принимает дочерние узлы: {type}',
   'app.settings.spaceNotDeclared': 'пространство не объявлено: {space}',
-  'app.settings.schemaVersion': 'Несовместимая версия схемы интерфейса: {version} (поддерживается {supported})',
+  'app.settings.schemaVersion':
+    'Несовместимая версия схемы интерфейса: {version} (поддерживается {supported})',
   'app.settings.data.title': 'Служебные данные приложения',
   'app.settings.data.note': 'Настройки, плагины, кеш и обновления',
   'app.settings.logs.title': 'Логи',
@@ -124,7 +125,12 @@ export const ru = {
   'app.note.defaultSet': 'Основные',
   'app.note.name': 'Заметка {index}',
   'app.note.page': 'Стр. {page}',
-  'app.note.count': { one: '{count} заметка', few: '{count} заметки', many: '{count} заметок', other: '{count} заметки' },
+  'app.note.count': {
+    one: '{count} заметка',
+    few: '{count} заметки',
+    many: '{count} заметок',
+    other: '{count} заметки',
+  },
 
   'app.hotkey.space': 'Пробел',
   'app.hotkey.sections': 'Разделы и оболочка',
@@ -133,7 +139,8 @@ export const ru = {
   'app.hotkey.layers': 'Слои',
 
   'app.hotkey.app.section.workspace.title': 'Рабочее место',
-  'app.hotkey.app.section.workspace.description': 'Переход к рабочему месту, не меняя открытые вкладки',
+  'app.hotkey.app.section.workspace.description':
+    'Переход к рабочему месту, не меняя открытые вкладки',
   'app.hotkey.app.section.library.title': 'Библиотека',
   'app.hotkey.app.section.library.description': 'Переход к библиотеке',
   'app.hotkey.app.section.notes.title': 'Заметки',
@@ -143,13 +150,15 @@ export const ru = {
   'app.hotkey.app.theme.title': 'Тема оформления',
   'app.hotkey.app.theme.description': 'Светлая, тёмная, как в системе — по кругу',
   'app.hotkey.app.dismiss.title': 'Закрыть верхний слой',
-  'app.hotkey.app.dismiss.description': 'Закрывает открытый слой: настройки, поиск, меню заметки, правку',
+  'app.hotkey.app.dismiss.description':
+    'Закрывает открытый слой: настройки, поиск, меню заметки, правку',
   'app.hotkey.workplace.books.title': 'Панель открытых книг',
   'app.hotkey.workplace.books.description': 'Показ и скрытие списка открытых книг рабочего места',
   'app.hotkey.workplace.notes.title': 'Панель заметок',
   'app.hotkey.workplace.notes.description': 'Показ и скрытие заметок открытой книги',
   'app.hotkey.workplace.properties.title': 'Панель свойств файла',
-  'app.hotkey.workplace.properties.description': 'Содержание, закладки, страницы и встроенные пометки файла',
+  'app.hotkey.workplace.properties.description':
+    'Содержание, закладки, страницы и встроенные пометки файла',
   'app.hotkey.workplace.focus.title': 'Сосредоточенное чтение',
   'app.hotkey.workplace.focus.description': 'Скрытие панелей и чтение на всё окно',
   'app.hotkey.workplace.tab.next.title': 'Следующая вкладка',
@@ -185,17 +194,29 @@ export const ru = {
   'app.workspace.delete': 'Удалить',
   'app.workspace.current': 'Текущее',
   'app.workspace.empty.title': 'Рабочих мест нет',
-  'app.workspace.empty.description': 'Рабочее место — это место исследования: в нём вы откроете книги вкладками и будете вести заметки. Создайте первое в поле «Новое рабочее место» выше.',
+  'app.workspace.empty.description':
+    'Рабочее место — это место исследования: в нём вы откроете книги вкладками и будете вести заметки. Создайте первое в поле «Новое рабочее место» выше.',
   'app.workspace.emptyShelf': 'Пустая полка',
   'app.workspace.moreBooks': 'Ещё {count}',
   'app.workspace.openNamed': 'Открыть «{name}»',
   'app.workspace.actionsLabel': 'Действия с рабочим местом',
   'app.workspace.renameEyebrow': 'Переименование',
-  'app.workspace.count': { one: '{count} книга', few: '{count} книги', many: '{count} книг', other: '{count} книги' },
-  'app.workspace.tabsCount': { one: '{count} вкладка', few: '{count} вкладки', many: '{count} вкладок', other: '{count} вкладки' },
+  'app.workspace.count': {
+    one: '{count} книга',
+    few: '{count} книги',
+    many: '{count} книг',
+    other: '{count} книги',
+  },
+  'app.workspace.tabsCount': {
+    one: '{count} вкладка',
+    few: '{count} вкладки',
+    many: '{count} вкладок',
+    other: '{count} вкладки',
+  },
 
   'app.workplace.empty.title': 'Рабочее место пусто',
-  'app.workplace.empty.description': 'Воспользуйтесь кнопкой «Добавить книгу» в полосе вкладок выше: книга появится здесь и встретится с заметками.',
+  'app.workplace.empty.description':
+    'Воспользуйтесь кнопкой «Добавить книгу» в полосе вкладок выше: книга появится здесь и встретится с заметками.',
   'app.workplace.tabs': 'Вкладки',
   'app.workplace.notes': 'Заметки',
   'app.workplace.properties': 'Свойства файла',
@@ -234,7 +255,8 @@ export const ru = {
   'app.workplace.tab.book': 'Книга: {book}',
   'app.workplace.limitReached': 'Достигнут лимит открытых вкладок',
   'app.workplace.limitExceeded': 'Превышен лимит открытых вкладок',
-  'app.workplace.limitExceededMessage': 'Превышен лимит открытых вкладок: открыто {opened}, лимит {limit}. Закройте лишние вкладки или увеличьте лимит в настройках.',
+  'app.workplace.limitExceededMessage':
+    'Превышен лимит открытых вкладок: открыто {opened}, лимит {limit}. Закройте лишние вкладки или увеличьте лимит в настройках.',
 
   'app.picker.title': 'Открыть в рабочем месте',
   'app.picker.description': 'Выберите место, в которое добавится книга, или создайте новое.',
@@ -245,7 +267,8 @@ export const ru = {
   'app.picker.notFound': 'Ничего не найдено.',
 
   'app.library.libraries.empty.title': 'Нет открытых библиотек',
-  'app.library.libraries.empty.description': 'Откройте директорию с книгами — она появится в списке, и по ней построится каталог.',
+  'app.library.libraries.empty.description':
+    'Откройте директорию с книгами — она появится в списке, и по ней построится каталог.',
   'app.library.libraries.add': 'Добавить библиотеку',
   'app.library.libraries.openFolder': 'Открыть папку',
   'app.library.libraries.search': 'Поиск библиотеки',
@@ -267,9 +290,11 @@ export const ru = {
   'app.library.book.noDetails': 'Дополнительных сведений о книге нет.',
   'app.library.book.title': 'Страница книги',
   'app.library.empty.noLibrary.title': 'Библиотека не открыта',
-  'app.library.empty.noLibrary.description': 'Откройте директорию с книгами в разделе «Библиотеки».',
+  'app.library.empty.noLibrary.description':
+    'Откройте директорию с книгами в разделе «Библиотеки».',
   'app.library.empty.noBooks.title': 'В библиотеке пока нет книг',
-  'app.library.empty.noBooks.description': 'Добавьте книги в папку библиотеки, и они появятся здесь.',
+  'app.library.empty.noBooks.description':
+    'Добавьте книги в папку библиотеки, и они появятся здесь.',
   'app.library.empty.filtered.title': 'Книг по фильтру нет',
   'app.library.empty.filtered.description': 'Измените фильтр, чтобы увидеть книги.',
   'app.library.sort.title': 'По названию',
@@ -286,11 +311,13 @@ export const ru = {
 
   'app.reader.opening': 'Открытие книги…',
   'app.reader.unavailable.title': 'Книга недоступна',
-  'app.reader.unavailable.description': 'Книга недоступна: возможно, файл перемещён или переименован.',
+  'app.reader.unavailable.description':
+    'Книга недоступна: возможно, файл перемещён или переименован.',
   'app.reader.pointFile': 'Указать файл',
   'app.reader.removeTab': 'Убрать вкладку',
   'app.reader.formatUnsupported.title': 'Формат не поддерживается',
-  'app.reader.formatUnsupported.description': 'Формат этой книги пока не поддерживается встроенным чтением.',
+  'app.reader.formatUnsupported.description':
+    'Формат этой книги пока не поддерживается встроенным чтением.',
   'app.reader.open': 'Открыть',
   'app.reader.openFailed': 'Не удалось открыть книгу: {error}',
   'app.reader.reading': 'Чтение книги',
@@ -354,11 +381,17 @@ export const ru = {
   'app.notes.library.noNotesInSet': 'В наборе нет заметок.',
   'app.notes.library.changed': 'Изменён {date}',
   'app.notes.library.created': 'Создан {date}',
-  'app.notes.library.setCount': { one: '{count} набор', few: '{count} набора', many: '{count} наборов', other: '{count} набора' },
+  'app.notes.library.setCount': {
+    one: '{count} набор',
+    few: '{count} набора',
+    many: '{count} наборов',
+    other: '{count} набора',
+  },
 
   'app.update.available': 'Доступно обновление',
   'app.update.done': 'Обновление готово',
-  'app.update.installed': 'Обновление установлено. Перезапустите приложение, чтобы продолжить работу в новой версии.',
+  'app.update.installed':
+    'Обновление установлено. Перезапустите приложение, чтобы продолжить работу в новой версии.',
   'app.update.application': 'Приложение',
   'app.update.plugins': 'Плагины',
   'app.update.skip': 'Не предлагать',
@@ -397,7 +430,8 @@ export const ru = {
   'app.error.workspace': 'Рабочее место: {error}',
   'app.error.notes': 'Заметки: {error}',
   'app.error.appearance': 'Оформление: {error}',
-  'app.error.pluginsRestart': 'Плагины: изменения применятся после перезапуска приложения или переоткрытия библиотеки',
+  'app.error.pluginsRestart':
+    'Плагины: изменения применятся после перезапуска приложения или переоткрытия библиотеки',
   'app.error.notesBookUnavailable': 'Книга набора недоступна: у набора нет файла.',
 
   'app.dialog.books': 'Книги',
@@ -435,8 +469,14 @@ export const ru = {
   'app.properties.pages.regenerate': 'Обновить',
   'app.properties.bookmarks.untitled': 'Без названия',
   'app.properties.empty.title': 'В файле нечего показать',
-  'app.properties.empty.description': 'У этой книги нет содержания, закладок, превью страниц или встроенных пометок.',
-  'app.properties.annotations.found': { one: 'Найдена {count} пометка', few: 'Найдено {count} пометки', many: 'Найдено {count} пометок', other: 'Найдено {count} пометки' },
+  'app.properties.empty.description':
+    'У этой книги нет содержания, закладок, превью страниц или встроенных пометок.',
+  'app.properties.annotations.found': {
+    one: 'Найдена {count} пометка',
+    few: 'Найдено {count} пометки',
+    many: 'Найдено {count} пометок',
+    other: 'Найдено {count} пометки',
+  },
   'app.properties.annotations.progress': 'Разобрано страниц: {processed} из {total}',
   'app.properties.annotations.ready': 'Разбор ещё не начинался',
   'app.properties.annotations.stop': 'Остановить',
@@ -464,18 +504,21 @@ export const ru = {
   'app.settings.app.general.title': 'Общие',
   'app.settings.app.general.description': 'Общие параметры приложения',
   'app.settings.app.system.diagnostics.log_level.label': 'Подробность журнала для разбора проблем',
-  'app.settings.app.system.diagnostics.log_level.description': 'Сколько записывать в журнал, который прикладывается к отчёту для поддержки. Обычный режим подходит всегда; подробный нужен, если проблему не удаётся повторить, и замедляет работу',
+  'app.settings.app.system.diagnostics.log_level.description':
+    'Сколько записывать в журнал, который прикладывается к отчёту для поддержки. Обычный режим подходит всегда; подробный нужен, если проблему не удаётся повторить, и замедляет работу',
   'app.settings.app.system.diagnostics.log_level.option.error': 'Только ошибки',
   'app.settings.app.system.diagnostics.log_level.option.warn': 'Ошибки и предупреждения',
   'app.settings.app.system.diagnostics.log_level.option.info': 'Обычный — рекомендуемый',
   'app.settings.app.system.diagnostics.log_level.option.debug': 'Подробный',
-  'app.settings.app.system.diagnostics.log_level.option.trace': 'Максимально подробный — для сложного случая',
+  'app.settings.app.system.diagnostics.log_level.option.trace':
+    'Максимально подробный — для сложного случая',
   'app.settings.app.general.appearance.theme.label': 'Тема оформления',
   'app.settings.app.general.appearance.theme.option.light': 'Светлая',
   'app.settings.app.general.appearance.theme.option.dark': 'Тёмная',
   'app.settings.app.general.appearance.theme.option.system': 'Как в системе',
   'app.settings.app.general.appearance.palette.label': 'Палитра оформления',
-  'app.settings.app.general.appearance.palette.description': 'Набор светлых и тёмных цветов интерфейса',
+  'app.settings.app.general.appearance.palette.description':
+    'Набор светлых и тёмных цветов интерфейса',
   'app.settings.app.general.appearance.palette.option.linen': 'Лён',
   'app.settings.app.general.appearance.palette.option.cobalt': 'Индиго',
   'app.settings.app.general.appearance.palette.option.gruvbox': 'Янтарь',
@@ -484,5 +527,6 @@ export const ru = {
   'app.settings.app.general.appearance.language.option.ru': 'Русский',
   'app.settings.app.general.appearance.language.option.en': 'English',
   'app.settings.app.general.window.open_tabs_limit.label': 'Лимит открытых вкладок',
-  'app.settings.app.general.window.open_tabs_limit.description': 'Наибольшее число одновременно открытых вкладок рабочего места.',
+  'app.settings.app.general.window.open_tabs_limit.description':
+    'Наибольшее число одновременно открытых вкладок рабочего места.',
 } as const;

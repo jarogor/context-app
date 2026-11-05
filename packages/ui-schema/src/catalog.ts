@@ -78,11 +78,7 @@ export interface UiSanitizedDeclaration {
 }
 
 /** Проверка и очистка дерева узлов от недопустимых элементов. */
-function sanitizeNodes(
-  nodes: UiNode[],
-  space: UiSpaceSpec,
-  diagnostics: string[],
-): UiNode[] {
+function sanitizeNodes(nodes: UiNode[], space: UiSpaceSpec, diagnostics: string[]): UiNode[] {
   const result: UiNode[] = [];
   for (const node of nodes) {
     const sanitized = sanitizeNode(node, space, diagnostics);
@@ -94,11 +90,7 @@ function sanitizeNodes(
 }
 
 /** Проверка и очистка одного узла; `null` означает отклонение узла. */
-function sanitizeNode(
-  node: UiNode,
-  space: UiSpaceSpec,
-  diagnostics: string[],
-): UiNode | null {
+function sanitizeNode(node: UiNode, space: UiSpaceSpec, diagnostics: string[]): UiNode | null {
   if (isUiText(node)) {
     return { type: '#text', value: String(node.value ?? '') };
   }

@@ -42,6 +42,7 @@ run-release: ## Собрать release без упаковки и запусти
 
 check: ## Проверки фронтенда: типы и форматирование
 	npm run check
+	npm run check:ts
 
 test: ## Модульные и компонентные тесты (Rust + фронтенд)
 	cargo test --manifest-path src-tauri/Cargo.toml

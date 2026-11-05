@@ -82,8 +82,7 @@ export function normalizeRegistry(value: unknown): WorkspaceRegistry {
         id,
         name: String(entry.name ?? '').trim() || defaultWorkspaceName(),
         createdAtMillis:
-          Number.isFinite(Number(entry.created_at_millis)) &&
-          Number(entry.created_at_millis) >= 0
+          Number.isFinite(Number(entry.created_at_millis)) && Number(entry.created_at_millis) >= 0
             ? Number(entry.created_at_millis)
             : 0,
         tabs: tabs.tabs,
@@ -145,7 +144,9 @@ export function renameWorkspace(
   }
   return {
     ...registry,
-    workspaces: registry.workspaces.map((item) => (item.id === id ? { ...item, name: trimmed } : item)),
+    workspaces: registry.workspaces.map((item) =>
+      item.id === id ? { ...item, name: trimmed } : item,
+    ),
   };
 }
 
@@ -174,7 +175,9 @@ export function updateWorkspaceTabs(
   return {
     ...registry,
     workspaces: registry.workspaces.map((item) =>
-      item.id === id ? { ...item, ...reduce({ tabs: item.tabs, activeTabId: item.activeTabId }) } : item,
+      item.id === id
+        ? { ...item, ...reduce({ tabs: item.tabs, activeTabId: item.activeTabId }) }
+        : item,
     ),
   };
 }

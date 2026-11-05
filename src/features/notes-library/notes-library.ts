@@ -12,19 +12,13 @@
  * потребует правки реестра.
  */
 
-import {
-    noteList,
-    notePlace,
-    type NoteSet,
-    type Note,
-    type NoteListItem,
-} from '../notes/notes';
+import { noteList, notePlace, type NoteSet, type Note, type NoteListItem } from '../notes/notes';
 import { t } from '@context/i18n';
 import { lastSegment } from '../../shared/path';
 
 /** Число заметок словами: «3 заметки», «1 заметка», «3 notes». */
 export function noteCountLabel(count: number): string {
-    return t('app.note.count', { count });
+  return t('app.note.count', { count });
 }
 
 /** Резервное имя книги по ключу: имя файла без расширения.
@@ -33,39 +27,39 @@ export function noteCountLabel(count: number): string {
  * остаётся непрозрачным — имя выводится только для показа и не сохраняется.
  */
 export function fallbackBookTitle(bookKey: string): string {
-    return lastSegment(bookKey, { stripExt: true }) || bookKey;
+  return lastSegment(bookKey, { stripExt: true }) || bookKey;
 }
 
 /** Отображаемое имя книги набора: сохранённое имя или резервное по ключу. */
 export function bookTitleOf(set: NoteSet): string {
-    const title = set.bookTitle.trim();
-    return title || fallbackBookTitle(set.bookKey);
+  const title = set.bookTitle.trim();
+  return title || fallbackBookTitle(set.bookKey);
 }
 
 /** Набор реестра, готовый к показу: книга-подпись, имя и заметки. */
 export interface LibrarySetView {
-    /** Идентификатор набора. */
-    id: string;
-    /** Непрозрачный ключ книги набора. */
-    bookKey: string;
-    /** Отображаемое имя книги (сохранённое или резервное). */
-    bookTitle: string;
-    /** Человекочитаемое имя набора. */
-    name: string;
-    /** Заметки набора для показа (в порядке хода текста). */
-    noteItems: NoteListItem[];
-    /** Дата создания набора (Unix, мс). */
-    createdAtMillis: number;
-    /** Дата последнего изменения набора (Unix, мс); 0, если заметок нет. */
-    updatedAtMillis: number;
+  /** Идентификатор набора. */
+  id: string;
+  /** Непрозрачный ключ книги набора. */
+  bookKey: string;
+  /** Отображаемое имя книги (сохранённое или резервное). */
+  bookTitle: string;
+  /** Человекочитаемое имя набора. */
+  name: string;
+  /** Заметки набора для показа (в порядке хода текста). */
+  noteItems: NoteListItem[];
+  /** Дата создания набора (Unix, мс). */
+  createdAtMillis: number;
+  /** Дата последнего изменения набора (Unix, мс); 0, если заметок нет. */
+  updatedAtMillis: number;
 }
 
 /** Дата последнего изменения набора по времени правки его заметок. */
 function lastUpdatedAt(notes: Note[]): number {
-    return notes.reduce(
-        (latest, note) => Math.max(latest, note.updatedAtMillis || note.createdAtMillis),
-        0,
-    );
+  return notes.reduce(
+    (latest, note) => Math.max(latest, note.updatedAtMillis || note.createdAtMillis),
+    0,
+  );
 }
 
 /** Совпадает ли заметка с запросом: название, комментарий, цитата, текст, место. */
@@ -75,16 +69,14 @@ function lastUpdatedAt(notes: Note[]): number {
  * находит набор и по началу имени.
  */
 function noteMatches(note: Note, needle: string): boolean {
-    return [note.title, note.comment, note.quote, note.text, note.chapter, notePlace(note)].some(
-        (value) => value.toLowerCase().includes(needle),
-    );
+  return [note.title, note.comment, note.quote, note.text, note.chapter, notePlace(note)].some(
+    (value) => value.toLowerCase().includes(needle),
+  );
 }
 
 /** Подходит ли набор под запрос: имя набора или имя книги. */
 function setMatches(set: NoteSet, needle: string): boolean {
-    return (
-        set.name.toLowerCase().includes(needle) || bookTitleOf(set).toLowerCase().includes(needle)
-    );
+  return set.name.toLowerCase().includes(needle) || bookTitleOf(set).toLowerCase().includes(needle);
 }
 
 /** Наборы реестра, готовые к показу, с учётом поиска.
@@ -95,24 +87,24 @@ function setMatches(set: NoteSet, needle: string): boolean {
  * одними подходящими заметками; без совпадений набор отбрасывается.
  */
 export function librarySets(sets: NoteSet[], query: string): LibrarySetView[] {
-    const needle = query.trim().toLowerCase();
-    const filtered = sets
-        .map((set) => {
-            if (!needle || setMatches(set, needle)) {
-                return set;
-            }
-            const notes = set.notes.filter((note) => noteMatches(note, needle));
-            return notes.length > 0 ? { ...set, notes } : null;
-        })
-        .filter((set): set is NoteSet => set !== null);
+  const needle = query.trim().toLowerCase();
+  const filtered = sets
+    .map((set) => {
+      if (!needle || setMatches(set, needle)) {
+        return set;
+      }
+      const notes = set.notes.filter((note) => noteMatches(note, needle));
+      return notes.length > 0 ? { ...set, notes } : null;
+    })
+    .filter((set): set is NoteSet => set !== null);
 
-    return filtered.map((set) => ({
-        id: set.id,
-        bookKey: set.bookKey,
-        bookTitle: bookTitleOf(set),
-        name: set.name,
-        noteItems: noteList(set.notes),
-        createdAtMillis: set.createdAtMillis,
-        updatedAtMillis: lastUpdatedAt(set.notes),
-    }));
+  return filtered.map((set) => ({
+    id: set.id,
+    bookKey: set.bookKey,
+    bookTitle: bookTitleOf(set),
+    name: set.name,
+    noteItems: noteList(set.notes),
+    createdAtMillis: set.createdAtMillis,
+    updatedAtMillis: lastUpdatedAt(set.notes),
+  }));
 }

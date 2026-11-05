@@ -44,9 +44,7 @@ describe('сведения о приложении', () => {
 
     render(AppInfoPage);
 
-    await waitFor(() =>
-      expect(screen.getByText('Служебные данные приложения')).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText('Служебные данные приложения')).toBeTruthy());
     expect(screen.getByText('/data/context')).toBeTruthy();
     // Деления плагинов и уровней в интерфейсе нет.
     expect(screen.queryByText('Плагины')).toBeNull();
@@ -96,7 +94,9 @@ describe('сведения о приложении', () => {
     });
 
     render(AppInfoPage);
-    await waitFor(() => expect(screen.getByText('/data/context/app-state/diagnostics.log')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('/data/context/app-state/diagnostics.log')).toBeTruthy(),
+    );
     // Журнал — второй файл в том же списке, со своими действиями.
     expect(screen.getByText('Логи')).toBeTruthy();
 
@@ -104,7 +104,9 @@ describe('сведения о приложении', () => {
 
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('support_report', {}));
     await waitFor(() =>
-      expect(screen.getByTestId('support-report-saved').textContent).toContain('/home/user/logs.txt'),
+      expect(screen.getByTestId('support-report-saved').textContent).toContain(
+        '/home/user/logs.txt',
+      ),
     );
   });
 
@@ -116,9 +118,7 @@ describe('сведения о приложении', () => {
 
     await fireEvent.click(screen.getByRole('button', { name: 'Открыть' }));
 
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('diagnostics_open_folder', {}),
-    );
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('diagnostics_open_folder', {}));
   });
 
   it('показывает состояние ошибки вместо пустого экрана', async () => {
