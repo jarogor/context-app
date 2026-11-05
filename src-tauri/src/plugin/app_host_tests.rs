@@ -842,7 +842,8 @@ fn ensures_plugin_source_once() {
     };
 
     let mut host = AppPluginHost::load(&directories, storage.join("storage")).expect("runtime");
-    host.ensure_plugin_source(source.clone()).expect("источник добавлен");
+    host.ensure_plugin_source(source.clone())
+        .expect("источник добавлен");
     host.ensure_plugin_source(source).expect("повтор безвреден");
 
     let listed = host

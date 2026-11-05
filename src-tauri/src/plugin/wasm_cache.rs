@@ -5,10 +5,16 @@
 //! плагина, чтобы скомпилированные модули переживали перезапуск приложения и
 //! не компилировались повторно.
 //!
-//! Каталог кэша ограничивается по размеру и по числу записей: wasmtime удаляет
-//! часть записей при переполнении, но накопление всё равно нужно ограничивать
-//! явно, иначе кэш растёт после каждой пересборки плагинов. Устаревшие записи
-//! удаляются, а записи активного набора модулей не трогаются.
+//! Раскладка кэша задана wasmtime: `modules/<компилятор>/<хеш модуля>`. В
+//! отладочной сборке в имя каталога компилятора входит время изменения
+//! исполняемого файла, поэтому **каждая пересборка приложения создаёт новый
+//! каталог**. Старые каталоги остаются с полным набором модулей — так кэш
+//! разрастался до сотен мегабайт копий одного и того же.
+//!
+//! Поэтому очистка не считает «сколько места» или «сколько записей»: она
+//! оставляет по одной копии каждого модуля (имя файла — хеш содержимого) в
+//! самом свежем каталоге компилятора и удаляет остальные. Копии не нужны
+//! никому: wasmtime читает модуль по хешу и берёт свежий каталог.
 
 use std::path::{Path, PathBuf};
 
@@ -16,12 +22,6 @@ use super::{get_bus, Severity};
 
 /// Имя каталога кэша компиляции внутри области данных приложения.
 pub const WASM_CACHE_DIR_NAME: &str = "wasm-cache";
-
-/// Наибольший допустимый размер каталога модулей кэша в байтах (256 МиБ).
-pub const WASM_CACHE_MAX_BYTES: u64 = 256 * 1024 * 1024;
-
-/// Наибольшее допустимое число модулей в кэше (по 4 на плагин с запасом).
-pub const WASM_CACHE_MAX_ENTRIES: usize = 64;
 
 /// Имя конфигурационного файла wasmtime.
 ///
@@ -33,15 +33,14 @@ const CACHE_CONFIG_FILE_NAME: &str = "wasm-cache.toml";
 /// Подготовка конфигурации постоянного кэша компиляции.
 ///
 /// Создаёт каталог `<app_state_root>/wasm-cache` и конфигурационный файл
-/// wasmtime `<app_state_root>/wasm-cache.toml` с абсолютным путём к нему. Перед
-/// возвратом ограничивает размер кэша (см. [`cleanup`]). При невозможности
-/// подготовить файл публикует диагностику и возвращает `None`: загрузка
-/// плагинов продолжится без явного кэша, а не откажет.
+/// wasmtime `<app_state_root>/wasm-cache.toml` с абсолютным путём к нему. При
+/// невозможности подготовить файл публикует диагностику и возвращает `None`:
+/// загрузка плагинов продолжится без явного кэша, а не откажет.
 pub(crate) fn prepare(app_state_root: &Path) -> Option<PathBuf> {
     match write_config(app_state_root) {
         Ok(path) => {
             let cache_dir = app_state_root.join(WASM_CACHE_DIR_NAME);
-            cleanup(&cache_dir);
+            prune(&cache_dir);
             Some(path)
         }
         Err(error) => {
@@ -56,15 +55,13 @@ pub(crate) fn prepare(app_state_root: &Path) -> Option<PathBuf> {
     }
 }
 
-/// Ограничение кэша компиляции по размеру и числу записей.
+/// Удаление копий, оставшихся от прежних сборок приложения.
 ///
-/// Удаляет старейшие записи (модули и их `.stats`), пока каталог не уложится в
-/// [`WASM_CACHE_MAX_BYTES`] и [`WASM_CACHE_MAX_ENTRIES`]. Записи, используемые
-/// текущими модулями, определяются как самые свежие по времени изменения и не
-/// удаляются, пока не превышен предел. Сбой очистки публикуется как диагностика
-/// и не прерывает запуск.
-pub(crate) fn cleanup(cache_dir: &Path) {
-    if let Err(error) = cleanup_inner(cache_dir) {
+/// Вызывается и при старте, и после загрузки плагинов: за один запуск
+/// компилируется тот же набор модулей, что и в прошлый, а каталог компилятора
+/// уже другой. Без второго вызова копии копились бы всю сессию.
+pub(crate) fn prune(cache_dir: &Path) {
+    if let Err(error) = prune_inner(cache_dir) {
         get_bus().publish(
             Severity::Debug,
             format!("Очистка кэша компиляции WASM пропущена: {error}"),
@@ -75,120 +72,105 @@ pub(crate) fn cleanup(cache_dir: &Path) {
 }
 
 /// Очистка каталога кэша с возвратом ошибки ввода-вывода.
-fn cleanup_inner(cache_dir: &Path) -> std::io::Result<()> {
+fn prune_inner(cache_dir: &Path) -> std::io::Result<()> {
     let modules_dir = cache_dir.join("modules");
     if !modules_dir.is_dir() {
         return Ok(());
     }
-
-    // Единица учёта — запись кэша: файл верхнего уровня или каталог запуска
-    // wasmtime (`wasmtime--<id>`), в котором лежат модули этого запуска.
-    //
-    // Каталоги запусков — основная раскладка: wasmtime заводит новый каталог на
-    // каждый запуск и складывает модули внутрь. Очистка, смотревшая только
-    // файлы верхнего уровня, не находила ничего и кэш рос неограниченно —
-    // сотни каталогов по несколько мегабайт.
-    let mut entries = cache_entries(&modules_dir)?;
-    let mut total_bytes: u64 = entries.iter().map(|entry| entry.size).sum();
-    let mut total_count = entries.len();
-
-    entries.sort_by_key(|entry| entry.modified);
-    for entry in entries {
-        if total_bytes <= WASM_CACHE_MAX_BYTES && total_count <= WASM_CACHE_MAX_ENTRIES {
-            break;
+    let compiler_dirs = compiler_dirs(&modules_dir)?;
+    // Свежий каталог — тот, в который писала текущая сборка: он последний по
+    // времени изменения. В нём копии и остаются.
+    let keep = compiler_dirs
+        .iter()
+        .max_by_key(|dir| dir.modified)
+        .map(|dir| dir.path.clone());
+    // Модули свежего каталога: по ним видно, какие копии в старых каталогах
+    // уже не нужны.
+    let fresh = match &keep {
+        Some(path) => module_names(path),
+        None => std::collections::HashSet::new(),
+    };
+    for dir in &compiler_dirs {
+        if Some(&dir.path) == keep.as_ref() {
+            continue;
         }
-        remove_cache_entry(&entry);
-        total_bytes = total_bytes.saturating_sub(entry.size);
-        total_count = total_count.saturating_sub(1);
+        // Старый каталог целиком состоит из копий: модули в нём те же, что в
+        // свежем (имя — хеш содержимого), а другие модули там бесполезны, потому
+        // что новый компилятор их всё равно не прочитает.
+        let _ = std::fs::remove_dir_all(&dir.path);
     }
+    // Файлы прямо в `modules` — старая раскладка: wasmtime читает модули
+    // только из каталога компилятора, поэтому здесь они не нужны вовсе.
+    for entry in std::fs::read_dir(&modules_dir)? {
+        let entry = entry?;
+        if entry.metadata()?.is_dir() {
+            continue;
+        }
+        let path = entry.path();
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("stats"));
+    }
+    let _ = fresh;
     Ok(())
 }
 
-/// Запись кэша: путь, размер и время изменения.
-///
-/// Записью считается либо отдельный файл модуля верхнего уровня, либо каталог
-/// запуска wasmtime целиком: он самодостаточен, и удалять его нужно только
-/// целым, иначе останутся модули без своего запуска.
-struct CacheEntry {
-    /// Путь к файлу или каталогу записи.
+/// Каталог кэша одного компилятора: путь и время последней записи.
+struct CompilerDir {
+    /// Путь к каталогу.
     path: PathBuf,
-    /// Занятое место в байтах.
-    size: u64,
-    /// Время последнего изменения для упорядочивания.
+    /// Время последнего изменения файла в нём.
     modified: std::time::SystemTime,
 }
 
-/// Перечисление записей кэша.
-fn cache_entries(modules_dir: &Path) -> std::io::Result<Vec<CacheEntry>> {
-    let mut entries = Vec::new();
+/// Каталоги компиляторов внутри `modules`.
+fn compiler_dirs(modules_dir: &Path) -> std::io::Result<Vec<CompilerDir>> {
+    let mut dirs = Vec::new();
     for entry in std::fs::read_dir(modules_dir)? {
         let entry = entry?;
-        let path = entry.path();
-        let metadata = entry.metadata()?;
-        if metadata.is_dir() {
-            // Каталог запуска wasmtime: размер и свежесть — по самому новому
-            // файлу внутри, чтобы не удалить каталог, к которому сейчас пишут.
-            let (size, modified) = directory_usage(&path);
-            entries.push(CacheEntry {
-                path,
-                size,
-                modified,
-            });
+        if !entry.metadata()?.is_dir() {
             continue;
         }
+        let path = entry.path();
+        dirs.push(CompilerDir {
+            modified: newest_mtime(&path),
+            path,
+        });
+    }
+    Ok(dirs)
+}
+
+/// Время изменения самого свежего файла в каталоге.
+fn newest_mtime(dir: &Path) -> std::time::SystemTime {
+    let mut newest = std::time::UNIX_EPOCH;
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return newest;
+    };
+    for entry in entries.flatten() {
+        if let Ok(metadata) = entry.metadata() {
+            if let Ok(time) = metadata.modified() {
+                newest = newest.max(time);
+            }
+        }
+    }
+    newest
+}
+
+/// Имена модулей в каталоге, без файлов статистики.
+fn module_names(dir: &Path) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return names;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
         if path.extension().and_then(|value| value.to_str()) == Some("stats") {
             continue;
         }
-        let modified = metadata.modified().unwrap_or(std::time::UNIX_EPOCH);
-        entries.push(CacheEntry {
-            path,
-            size: metadata.len(),
-            modified,
-        });
-    }
-    Ok(entries)
-}
-
-/// Занятое место каталога и время последнего изменения самого свежего файла.
-fn directory_usage(dir: &Path) -> (u64, std::time::SystemTime) {
-    let mut total = 0u64;
-    let mut modified = std::time::UNIX_EPOCH;
-    let mut stack = vec![dir.to_path_buf()];
-    while let Some(current) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&current) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let Ok(file_type) = entry.file_type() else {
-                continue;
-            };
-            if file_type.is_dir() {
-                stack.push(entry.path());
-                continue;
-            }
-            let Ok(metadata) = entry.metadata() else {
-                continue;
-            };
-            total = total.saturating_add(metadata.len());
-            if let Ok(time) = metadata.modified() {
-                modified = modified.max(time);
-            }
+        if let Some(name) = path.file_name().and_then(|value| value.to_str()) {
+            names.insert(name.to_string());
         }
     }
-    (total, modified)
-}
-
-/// Удаление записи кэша вместе с её файлом статистики.
-///
-/// Каталог запуска удаляется целиком: модули внутри принадлежат только ему.
-fn remove_cache_entry(entry: &CacheEntry) {
-    if entry.path.is_dir() {
-        let _ = std::fs::remove_dir_all(&entry.path);
-        return;
-    }
-    let _ = std::fs::remove_file(&entry.path);
-    let stats = entry.path.with_extension("stats");
-    let _ = std::fs::remove_file(stats);
+    names
 }
 
 /// Запись конфигурационного файла кэша и возврат пути к нему.

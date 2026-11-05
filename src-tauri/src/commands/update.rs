@@ -106,9 +106,7 @@ pub async fn update_apply(
 
 /// Возврат встроенного источника обновлений плагинов.
 #[tauri::command]
-pub async fn plugin_source_clear(
-    state: tauri::State<'_, Mutex<AppState>>,
-) -> Result<(), String> {
+pub async fn plugin_source_clear(state: tauri::State<'_, Mutex<AppState>>) -> Result<(), String> {
     let default = crate::update::default_plugin_source();
     crate::commands::with_app_host(state.inner(), |host| {
         host.reset_plugin_source(default)

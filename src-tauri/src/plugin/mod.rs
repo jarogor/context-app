@@ -23,6 +23,7 @@ pub mod shared_runtime;
 pub mod viewer;
 pub(crate) mod warmup;
 pub(crate) mod wasm_cache;
+pub mod webview_cache;
 
 pub use app_host::AppPluginHost;
 pub use app_info::AppInfo;

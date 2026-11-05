@@ -70,6 +70,15 @@ impl AppHostConfig {
         // «источников нет», хотя приложение задаёт их само.
         let _ = host.ensure_plugin_source(crate::update::default_plugin_source());
         let _ = host.refresh_settings_registry(&[]);
+        // Текущая сборка только что скомпилировала модули в новый каталог
+        // компилятора: копии от прошлых запусков больше не нужны.
+        if let Some(config) = self.cache.as_deref() {
+            if let Some(root) = config.parent() {
+                crate::plugin::wasm_cache::prune(
+                    &root.join(crate::plugin::wasm_cache::WASM_CACHE_DIR_NAME),
+                );
+            }
+        }
         crate::startup::mark("фон: базовые плагины собраны");
         Ok(host)
     }

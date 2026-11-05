@@ -5,6 +5,7 @@ pub mod atomic_file;
 pub mod commands;
 pub mod constants;
 pub mod library_history;
+pub mod library_identity;
 pub mod paths;
 pub mod plugin;
 pub mod reader_cache;
@@ -54,6 +55,8 @@ pub fn run() {
             // создания окна.
             let webview_root = resolve_webview_root(&app_state_root);
             std::fs::create_dir_all(&webview_root).ok();
+            // Кэш движка растёт без предела; старые записи не нужны никому.
+            crate::plugin::webview_cache::prune(&webview_root);
 
             // Тяжёлая загрузка и компиляция WASM базовых плагинов намеренно НЕ
             // выполняется синхронно здесь: иначе окно остаётся белым, пока

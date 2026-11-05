@@ -3,17 +3,17 @@
 use std::fs;
 use std::path::PathBuf;
 
-use sha2::{Digest, Sha256};
-
 use extism::{CurrentPlugin, UserData, Val};
 
 use super::super::host_state::HostState;
 
 /// Разрешение пути к SQLite-базе плагина в служебной области приложения.
 ///
-/// База изолирована на библиотеку и провайдера:
-/// `<storage_root>/<plugin_id>/<sha256(канонический корень)>/index.sqlite`.
-/// Файл лежит вне директории библиотеки, что сохраняет read-only источника.
+/// База изолирована на библиотеку и провайдера. Ключом служит устойчивый
+/// идентификатор библиотеки (том носителя, а не точка монтирования): иначе
+/// съёмный диск, смонтированный в другом месте, давал вторую базу с теми же
+/// данными. Файл лежит вне директории библиотеки, что сохраняет read-only
+/// источника.
 pub(crate) fn sqlite_database_path(state: &HostState) -> Result<PathBuf, String> {
     let storage = state.storage_root()?;
     let sandbox = state
@@ -22,9 +22,7 @@ pub(crate) fn sqlite_database_path(state: &HostState) -> Result<PathBuf, String>
         .lock()
         .map_err(|_| "песочный корень недоступен".to_string())?
         .canonical_or_self();
-    let mut hasher = Sha256::new();
-    hasher.update(sandbox.to_string_lossy().as_bytes());
-    let digest = format!("{:x}", hasher.finalize());
+    let digest = crate::library_identity::identify(&sandbox).key();
     Ok(storage
         .join(&state.plugin_id)
         .join(digest)
