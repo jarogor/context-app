@@ -5,6 +5,17 @@
     id: string;
     /** Отображаемая подпись. */
     label: string;
+    /** Значок слева от подписи; подпись остаётся главным носителем смысла. */
+    icon?: IconName;
+    /** Отделить пункт от предыдущих: делит меню на смысловые группы. */
+    separatorBefore?: boolean;
+    /**
+     * Значок опасного действия: красный цвет темы.
+     *
+     * Подпись остаётся обычной, предупреждает именно значок — так пункт не
+     * читается как недоступный и при этом привлекает внимание к последствиям.
+     */
+    dangerIcon?: boolean;
     /** Опасное действие (удаление). */
     destructive?: boolean;
     /** Недоступность пункта. */
@@ -40,7 +51,7 @@
   import { cn } from '../utils';
   import { buttonVariants } from './Button.svelte';
   import ColorPicker from './ColorPicker.svelte';
-  import Icon from './Icon.svelte';
+  import Icon, { type IconName } from './Icon.svelte';
   import IconPicker from './IconPicker.svelte';
 
   interface Props {
@@ -68,6 +79,16 @@
     disabled?: boolean;
     /** Дополнительные классы триггера. */
     class?: string;
+    /** Идентификатор триггера для тестов. */
+    testId?: string;
+    /**
+     * Триггер без собственной плашки: видна только иконка и подсветка при
+     * наведении и нажатии.
+     *
+     * Нужно там, где меню стоит внутри элемента со своим фоном (например, на
+     * цветной вкладке): рамка и заливка кнопки спорили бы с ним.
+     */
+    plain?: boolean;
   }
 
   let {
@@ -83,6 +104,8 @@
     title,
     disabled = false,
     class: className = '',
+    testId,
+    plain = false,
   }: Props = $props();
 
   /** Состояние раскрытия меню: закрываем после выбора цвета. */
@@ -123,14 +146,24 @@
   const triggerClass = $derived(
     cn(
       buttonVariants({ variant: 'secondary', size: 'icon' }),
-      'text-[var(--muted-foreground)]',
+      // Без плашки кнопка наследует и фон, и цвет владельца: на цветной вкладке
+      // значок остаётся контрастным ей, а не спорит с ней собственной заливкой.
+      plain
+        ? 'border-transparent bg-transparent text-current shadow-none hover:bg-[var(--surface-hover)] data-[state=open]:bg-[var(--surface-selected)]'
+        : 'text-[var(--muted-foreground)]',
       className,
     ),
   );
 </script>
 
 <DropdownMenu.Root bind:open>
-  <DropdownMenu.Trigger {disabled} {title} aria-label={ariaLabel} class={triggerClass}>
+  <DropdownMenu.Trigger
+    {disabled}
+    {title}
+    aria-label={ariaLabel}
+    data-testid={testId}
+    class={triggerClass}
+  >
     <Icon name="more" />
   </DropdownMenu.Trigger>
   <!-- Всплывающий слой приподнимается мягкой тенью: меню читается отрывом от
@@ -165,6 +198,9 @@
         <div class="bg-[var(--border)] -mx-1 my-1 h-px"></div>
       {/if}
       {#each items as item (item.id)}
+        {#if item.separatorBefore && item.id !== items[0]?.id}
+          <div class="bg-[var(--border)] -mx-1 my-1 h-px" aria-hidden="true"></div>
+        {/if}
         <DropdownMenu.Item
           disabled={item.disabled}
           onSelect={() => onselect?.(item.id)}
@@ -174,6 +210,17 @@
               'text-destructive data-[highlighted]:bg-destructive-soft data-[highlighted]:text-destructive',
           )}
         >
+          {#if item.icon}
+            <!-- Значок стоит слева в своей колонке: подписи пунктов выровнены
+                 друг по другу независимо от того, есть ли у пункта значок. -->
+            <Icon
+              name={item.icon}
+              class={cn(
+                'mr-2 size-4 shrink-0',
+                item.dangerIcon ? 'text-[var(--destructive)] opacity-100' : 'opacity-70',
+              )}
+            />
+          {/if}
           {item.label}
         </DropdownMenu.Item>
       {/each}

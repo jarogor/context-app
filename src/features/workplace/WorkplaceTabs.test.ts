@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import WorkplaceTabs from './WorkplaceTabs.svelte';
 import { logEvent } from '../../shared/app-log';
 import type { WorkspaceTab } from './workplace';
+import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
 
 vi.mock('../../shared/app-log', () => ({
   logEvent: vi.fn(async () => undefined),
@@ -558,5 +559,294 @@ describe('панель вкладок: место кнопок панелей', 
       button.getAttribute('aria-label'),
     );
     expect(labels).toEqual(['Вкладки', 'Заметки', 'Свойства файла']);
+  });
+});
+
+/**
+ * Включение узкого окна (телефон, планшет): сначала измеряется ширина окна,
+ * затем подписка на её изменение.
+ *
+ * Режим определяется размером окна, поэтому проверка подменяет `matchMedia`, а
+ * не передаёт флаг: так тест ловит и сам порог.
+ */
+function mockNarrowWindow(narrow: boolean) {
+  vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => {
+    return {
+      matches: narrow && query === NARROW_MAX_WIDTH,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    } as unknown as MediaQueryList;
+  });
+}
+
+describe('панель вкладок: узкое окно', () => {
+  it('у единственной вкладки вместо кнопок стоит меню действий', () => {
+    mockNarrowWindow(true);
+    mockWidth(400);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(3),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    // Видна одна активная вкладка.
+    expect(screen.getAllByTestId('workplace-tab-item')).toHaveLength(1);
+    // Отдельных кнопок дублирования и закрытия на узком окне нет.
+    expect(screen.queryByTestId('workplace-tab-close')).toBeNull();
+    expect(screen.queryByLabelText('Дублировать вкладку')).toBeNull();
+    // Вместо них — одно меню действий вкладки.
+    expect(screen.getByTestId('workplace-tab-menu')).toBeTruthy();
+  });
+
+  it('в меню вкладки входят только дублирование и закрытие', async () => {
+    mockNarrowWindow(true);
+    mockWidth(400);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    await fireEvent.click(screen.getByTestId('workplace-tab-menu'));
+
+    // Собственные действия вкладки: дублирование и закрытие.
+    expect(await screen.findByText('Дублировать вкладку')).toBeTruthy();
+    expect(screen.getByText('Закрыть вкладку')).toBeTruthy();
+    // Открытие книги — в меню панелей, а не здесь.
+    expect(screen.queryByText('Добавить книгу')).toBeNull();
+    expect(screen.queryByText('Открыть файл с диска')).toBeNull();
+
+    // У каждого пункта есть свой значок: он помогает узнать действие, не
+    // читая подпись.
+    const menu = screen.getByRole('menu');
+    for (const label of ['Дублировать вкладку', 'Закрыть вкладку']) {
+      const item = within(menu).getByText(label).closest('[role="menuitem"]');
+      expect(item, `пункт «${label}» найден`).not.toBeNull();
+      // Значок — именно элемент иконки, а не что-то ещё внутри пункта.
+      expect(item?.innerHTML, `пункт «${label}»`).toContain('<svg');
+    }
+  });
+
+  it('значок закрытия окрашен цветом опасности', async () => {
+    // Закрытие вкладки необратимо: цвет значка предупреждает о последствии.
+    mockNarrowWindow(true);
+    mockWidth(400);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    await fireEvent.click(screen.getByTestId('workplace-tab-menu'));
+    const menu = screen.getByRole('menu');
+    const closeItem = within(menu).getByText('Закрыть вкладку').closest('[role="menuitem"]');
+    const icon = closeItem?.querySelector('svg');
+    expect(icon).not.toBeNull();
+    expect(icon?.getAttribute('class') ?? '').toContain('text-[var(--destructive)]');
+  });
+
+  it('пункт меню выполняет своё действие', async () => {
+    // Меню не декорация: пункт закрытия должен закрывать именно эту вкладку.
+    mockNarrowWindow(true);
+    mockWidth(400);
+    const props = handlers();
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...props,
+      },
+    });
+
+    await fireEvent.click(screen.getByTestId('workplace-tab-menu'));
+    await fireEvent.click(await screen.findByText('Закрыть вкладку'));
+
+    expect(screen.getByTestId('workplace-tab-close-question')).toBeTruthy();
+  });
+
+  it('меню панелей: три панели и открытие книги отдельной группой', async () => {
+    mockNarrowWindow(true);
+    mockWidth(400);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    await fireEvent.click(screen.getByTestId('workplace-panel-menu'));
+
+    const menu = screen.getByRole('menu');
+    for (const label of [
+      'Вкладки',
+      'Заметки',
+      'Свойства файла',
+      'Добавить книгу',
+      'Открыть файл с диска',
+    ]) {
+      const item = within(menu).getByText(label).closest('[role="menuitem"]');
+      expect(item, `пункт «${label}» найден`).not.toBeNull();
+      expect(item?.innerHTML, `значок пункта «${label}»`).toContain('<svg');
+    }
+
+    // Перед открытием книги стоит разделитель: это другая группа действий.
+    const dividers = menu.querySelectorAll('[aria-hidden="true"].h-px');
+    expect(dividers.length).toBeGreaterThan(0);
+  });
+
+  it('меню панелей открывает библиотеку', async () => {
+    mockNarrowWindow(true);
+    mockWidth(400);
+    const props = handlers();
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...props,
+      },
+    });
+
+    await fireEvent.click(screen.getByTestId('workplace-panel-menu'));
+    await fireEvent.click(await screen.findByText('Добавить книгу'));
+
+    expect(props.onAdd).toHaveBeenCalled();
+  });
+
+  it('на узком окне кнопки открытия книги не дублируются в полосе', () => {
+    mockNarrowWindow(true);
+    mockWidth(400);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    // Эти действия живут в меню панелей: в полосе их кнопок нет.
+    expect(screen.queryByLabelText('Добавить книгу')).toBeNull();
+    expect(screen.queryByLabelText('Открыть файл с диска')).toBeNull();
+    expect(screen.getByTestId('workplace-panel-menu')).toBeTruthy();
+  });
+
+  it('на широком окне кнопки остаются как были', () => {
+    mockNarrowWindow(false);
+    mockWidth(1200);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(2),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    expect(screen.getAllByTestId('workplace-tab-close')).toHaveLength(2);
+    expect(screen.getByLabelText('Добавить книгу')).toBeTruthy();
+    expect(screen.getByLabelText('Открыть файл с диска')).toBeTruthy();
+    // Меню панелей — только для узкого окна: на широком кнопки стоят в полосе.
+    expect(screen.queryByTestId('workplace-panel-menu')).toBeNull();
+    expect(screen.queryByTestId('workplace-tab-menu')).toBeNull();
+  });
+});
+
+describe('панель вкладок: узкое окно без вкладок', () => {
+  it('без вкладок открытие книги доступно из меню панелей', () => {
+    // Меню вкладки без вкладки не существует, но меню панелей есть всегда:
+    // первую книгу добавляют из него.
+    mockNarrowWindow(true);
+    mockWidth(400);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: [],
+        activeTabId: null,
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    expect(screen.getByTestId('workplace-panel-menu')).toBeTruthy();
+    // Меню самой вкладки действительно нет — вкладок ещё ноль.
+    expect(screen.queryByTestId('workplace-tab-menu')).toBeNull();
+  });
+});
+
+describe('панель вкладок: вид меню и высота вкладки', () => {
+  it('кнопка меню без своей плашки: проявляется только откликом', () => {
+    // На цветной вкладке плашка кнопки спорила с её цветом: значок должен
+    // наследовать цвет текста вкладки, а фон появляться только при наведении.
+    mockNarrowWindow(true);
+    mockWidth(400);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    const menu = screen.getByTestId('workplace-tab-menu');
+    expect(menu).toBeTruthy();
+    expect(menu.className).toContain('bg-transparent');
+  });
+
+  it('на узком окне нет разделителя перед вкладкой', () => {
+    // Делить нечего: кнопок открытия книги в полосе нет, их действия — в меню.
+    mockNarrowWindow(true);
+    mockWidth(400);
+    const { container } = render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    const dividers = container.querySelectorAll('[aria-hidden="true"].w-px');
+    expect(dividers).toHaveLength(0);
+  });
+
+  it('на широком окне разделитель между группами кнопок остаётся', () => {
+    mockNarrowWindow(false);
+    mockWidth(1200);
+    const { container } = render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+
+    expect(container.querySelectorAll('[aria-hidden="true"].w-px').length).toBeGreaterThan(0);
   });
 });

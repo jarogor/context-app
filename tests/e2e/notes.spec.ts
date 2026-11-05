@@ -52,7 +52,14 @@ async function openWorkspace(page: import('@playwright/test').Page) {
 /** Добавление книги вкладкой в рабочее место. */
 async function addBook(page: import('@playwright/test').Page, title: string) {
   await openWorkspace(page);
-  await page.getByRole('button', { name: /Добавить книгу/ }).click();
+  // На узком окне кнопки открытия книги живут в меню панелей: в полосе их нет.
+  const addButton = page.getByRole('button', { name: /Добавить книгу/ });
+  if ((await addButton.count()) > 0 && (await addButton.first().isVisible())) {
+    await addButton.first().click();
+  } else {
+    await page.getByTestId('workplace-panel-menu').first().click();
+    await page.getByRole('menuitem', { name: /Добавить книгу/ }).click();
+  }
   const library = page.locator('main');
   const back = library.getByRole('button', { name: /К списку книг/ });
   if ((await back.count()) > 0) {
@@ -63,9 +70,26 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
   await expect(page.getByTestId('workplace-area')).toBeVisible();
 }
 
+/** Открытие панели рабочего места (заметки, вкладки, свойства).
+ *
+ * На широком окне панель открывается своей кнопкой в полосе, на узком — из
+ * меню панелей слева от вкладки: там отдельных кнопок нет.
+ */
+async function openPanel(page: import('@playwright/test').Page, label: string) {
+  // Поиск только в полосе вкладок: в навигации есть одноимённые разделы.
+  const bar = page.getByTestId('workplace-tabs');
+  const direct = bar.getByRole('button', { name: label, exact: true });
+  if ((await direct.count()) > 0 && (await direct.first().isVisible())) {
+    await direct.first().click();
+    return;
+  }
+  await page.getByTestId('workplace-panel-menu').first().click();
+  await page.getByRole('menuitem', { name: label, exact: true }).click();
+}
+
 /** Открытие панели заметок в рабочем месте. */
 async function openNotes(page: import('@playwright/test').Page) {
-  await page.getByTestId('workplace-notes-toggle').click();
+  await openPanel(page, 'Заметки');
   await expect(page.getByTestId('notes-panel')).toBeVisible();
 }
 
@@ -585,12 +609,10 @@ test('на узком окне полоса вкладок показывает 
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
+  // На узком окне дублирование живёт в меню вкладки: отдельных кнопок нет.
   for (let index = 0; index < 3; index += 1) {
-    await page
-      .locator('[data-testid="workplace-tab-item"]:has([aria-pressed="true"])')
-      .getByLabel('Дублировать вкладку')
-      .first()
-      .click();
+    await page.getByTestId('workplace-tab-menu').first().click();
+    await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
   }
 
   // Видна одна вкладка — активная; навигации по диапазону и счётчика нет.
@@ -599,8 +621,9 @@ test('на узком окне полоса вкладок показывает 
   await expect(page.getByLabel('Следующие вкладки')).toHaveCount(0);
   await expect(page.getByTestId('workplace-tabs-counter')).toHaveCount(0);
 
-  // Остальные вкладки доступны в панели вкладок.
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  // Остальные вкладки доступны в панели вкладок: на узком окне её открывают
+  // из меню панелей, отдельной кнопки в полосе нет.
+  await openPanel(page, 'Вкладки');
   await expect(page.getByTestId('open-books-panel').getByTestId('open-books-item')).toHaveCount(4);
 });
 

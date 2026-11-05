@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '@context/i18n';
     import { untrack } from 'svelte';
-  import { Button, Dialog, Icon } from '@context/ui';
+  import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { logEvent } from '../../shared/app-log';
@@ -110,8 +110,17 @@
   /** Промежуток между вкладками в пикселях (класс `gap-[0.125rem]`). */
   const TAB_GAP_PX = 2;
 
-  /** Высота и ширина вкладки в rem: весь элемент вместе с кнопками действий. */
-  const TAB_ROW_REM = 1.85;
+  /**
+   * Высота вкладки в rem — та же, что у иконочных кнопок полосы.
+   *
+   * Вкладка стоит в одном ряду с кнопками и не должна быть ниже: иначе полоса
+   * выглядит рваной. Значение повторяет `size-9` кнопки (`2.25rem`) и её
+   * сенсорную высоту `pointer-coarse:size-11` (`2.75rem`).
+   */
+  const TAB_ROW_REM = 2.25;
+
+  /** Высота вкладки на сенсорном указателе. */
+  const TAB_ROW_TOUCH_REM = 2.75;
 
   /** Ширина вкладки в rem. */
   const TAB_WIDTH_REM = 9;
@@ -131,6 +140,7 @@
   /** Узкое окно (телефон, планшет): показывается одна активная вкладка. */
   let compactTabs = $state(false);
 
+
   /** Слежение за телефонной шириной: на ней полоса вкладок не листается. */
   $effect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -144,6 +154,98 @@
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
   });
+
+  /**
+   * Пункты меню вкладки на узком окне.
+   *
+   * В полосе видна одна вкладка, поэтому её собственные действия собраны в
+   * меню: отдельные кнопки занимали бы почти всё место подписи.
+   */
+  const compactTabActions = $derived<MenuAction[]>([
+    {
+      id: 'duplicate',
+      label: t('app.workplace.tab.duplicate'),
+      icon: 'duplicate',
+      disabled: openBlocked,
+    },
+    {
+      id: 'close',
+      label: t('app.workplace.tab.close'),
+      icon: 'close',
+      // Закрытие необратимо: значок предупреждает цветом опасности.
+      dangerIcon: true,
+    },
+  ]);
+
+  /** Выполнение пункта меню вкладки. */
+  function runCompactTabAction(id: string, tabId: string) {
+    switch (id) {
+      case 'duplicate':
+        onDuplicate(tabId);
+        break;
+      case 'close':
+        askCloseTab(tabId);
+        break;
+    }
+  }
+
+  /**
+   * Пункты меню панелей и открытия книги на узком окне.
+   *
+   * В полосе видна одна вкладка, и кнопки панелей, добавления книги и открытия
+   * файла уезжают сюда целиком: рядом с вкладкой для них нет места.
+   */
+  const compactPanelActions = $derived<MenuAction[]>([
+    {
+      id: 'books',
+      label: t('app.workplace.tabs'),
+      icon: 'tabs',
+    },
+    {
+      id: 'notes',
+      label: t('app.workplace.notes'),
+      icon: 'note',
+    },
+    {
+      id: 'properties',
+      label: t('app.workplace.properties'),
+      icon: 'layers',
+    },
+    {
+      id: 'add-book',
+      label: t('app.workplace.addBook'),
+      icon: 'plus',
+      separatorBefore: true,
+      disabled: openBlocked,
+    },
+    {
+      id: 'add-file',
+      label: t('app.workplace.addFile'),
+      icon: 'folder',
+      disabled: openBlocked,
+    },
+  ]);
+
+  /** Выполнение пункта меню панелей и открытия книги. */
+  function runCompactPanelAction(id: string) {
+    switch (id) {
+      case 'books':
+        onToggleBooks();
+        break;
+      case 'notes':
+        onToggleNotes();
+        break;
+      case 'properties':
+        onToggleProperties?.();
+        break;
+      case 'add-book':
+        onAdd();
+        break;
+      case 'add-file':
+        onAddFile();
+        break;
+    }
+  }
 
   /** Элемент списка вкладок для измерения ширины. */
   let listEl: HTMLDivElement | undefined = $state();
@@ -349,9 +451,15 @@
   -->
   <!--
     Панели вкладок, заметок и свойств открываются слева, рядом с содержимым
-    места. Порядок один на всех ширинах: отдельного меню на телефоне нет.
+    места. На узком окне их кнопки заменены меню там же, слева от вкладки.
   -->
-  <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-panels">    <Button
+  {#if !compactTabs}
+    <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-panels">
+      <!--
+        На узком окне эта группа заменена меню слева от вкладки: там кнопок
+        панелей нет, а действия те же и живут в меню.
+      -->
+    <Button
       variant={booksOpen ? 'primary' : 'ghost'}
       size="icon"
       title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
@@ -389,33 +497,62 @@
       <Icon name="layers" />
     </Button>
   </div>
-  <span class="mx-[0.25rem] h-4 w-px flex-none bg-[var(--divider)]" aria-hidden="true"></span>
-    <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
-      <Button
-        size="icon"
-        variant={overLimit ? 'ghost-danger' : 'ghost'}
-        ariaLabel={t('app.workplace.addBook')}
-        disabled={openBlocked}
-        onclick={onAdd}
+  {/if}
+  {#if !compactTabs}
+    <!--
+      Разделитель делит группу кнопок панелей и группу открытия книги. На
+      телефоне и планшете кнопок открытия в полосе нет, делить нечего.
+    -->
+    <span class="mx-[0.25rem] h-4 w-px flex-none bg-[var(--divider)]" aria-hidden="true"></span>
+  {/if}
+    <!--
+      На узком окне эти действия живут в меню вкладки. Но если вкладок нет,
+      меню тоже нет — тогда кнопки остаются: иначе первую книгу было бы не
+      добавить.
+    -->
+    {#if !compactTabs}
+      <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
+        <Button
+          size="icon"
+          variant={overLimit ? 'ghost-danger' : 'ghost'}
+          ariaLabel={t('app.workplace.addBook')}
+          disabled={openBlocked}
+          onclick={onAdd}
+        >
+          <Icon name="plus" />
+        </Button>
+      </span>
+      <span
+        class="flex"
+        title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
       >
-        <Icon name="plus" />
-      </Button>
-    </span>
-    <span
-      class="flex"
-      title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
-    >
-      <Button
-        size="icon"
-        variant={overLimit ? 'ghost-danger' : 'ghost'}
-        ariaLabel={t('app.workplace.addFile')}
-        disabled={openBlocked}
-        onclick={onAddFile}
-      >
-        <Icon name="folder" />
-      </Button>
-    </span>
+        <Button
+          size="icon"
+          variant={overLimit ? 'ghost-danger' : 'ghost'}
+          ariaLabel={t('app.workplace.addFile')}
+          disabled={openBlocked}
+          onclick={onAddFile}
+        >
+          <Icon name="folder" />
+        </Button>
+      </span>
+    {/if}
   <div class="flex min-w-0 flex-1 items-center gap-2">
+    {#if compactTabs}
+      <!--
+        Меню панелей стоит слева от вкладки — там же, где были кнопки панелей.
+        В нём три панели, затем открытие книги отдельной группой.
+      -->
+      <span class="flex">
+        <ActionMenu
+          items={compactPanelActions}
+          onselect={runCompactPanelAction}
+          ariaLabel={t('app.workplace.panelActions')}
+          title={t('app.workplace.panelActions')}
+          testId="workplace-panel-menu"
+        />
+      </span>
+    {/if}
     {#if overflowing}
       <Button
         size="icon"
@@ -437,8 +574,12 @@
         <div
           class="relative flex items-center overflow-hidden rounded-[var(--radius)] {stretched
             ? 'min-w-0 flex-1'
-            : 'flex-none'} {tabFillClass(tab)}"
-          style="{stretched ? '' : `width: ${TAB_WIDTH_REM}rem;`}height: {TAB_ROW_REM}rem;{tabFill(tab)}"
+            : 'flex-none'} {tabFillClass(tab)} h-[var(--tab-height)] pointer-coarse:h-[var(--tab-height-touch)]"
+          style="{stretched
+            ? ''
+            : `width: ${TAB_WIDTH_REM}rem;`}--tab-height: {TAB_ROW_REM}rem; --tab-height-touch: {TAB_ROW_TOUCH_REM}rem;{tabFill(
+            tab,
+          )}"
           data-testid="workplace-tab-item"
         >
           <!--
@@ -464,29 +605,52 @@
             {/if}
             <span class="min-w-0 flex-1 truncate">{tabLabel(tab)}</span>
           </button>
-          <span class="flex" title={openButtonTitle(t('app.workplace.tab.duplicate'))}>
+          {#if compactTabs}
+            <!--
+              На телефоне и планшете у единственной видимой вкладки отдельные
+              кнопки занимали бы почти всё место. Поэтому дублирование,
+              закрытие и открытие книги собраны в одно меню.
+            -->
+            <!--
+              Кнопка 1.75rem в полосе 2.25rem: сверху и снизу по 0.25rem, значит
+              и справа столько же — отступ одинаков со всех сторон.
+            -->
+            <span class="flex pr-1">
+              <ActionMenu
+                items={compactTabActions}
+                onselect={(id) => runCompactTabAction(id, tab.id)}
+                ariaLabel={t('app.workplace.tab.actions')}
+                title={t('app.workplace.tab.actions')}
+                testId="workplace-tab-menu"
+                plain
+                class="size-7"
+              />
+            </span>
+          {:else}
+            <span class="flex" title={openButtonTitle(t('app.workplace.tab.duplicate'))}>
+              <button
+                type="button"
+                aria-label={t('app.workplace.tab.duplicate')}
+                disabled={openBlocked}
+                class="flex-none cursor-pointer px-[0.1875rem] opacity-60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
+                  ? 'text-destructive'
+                  : ''}"
+                onclick={() => onDuplicate(tab.id)}
+              >
+                <Icon name="duplicate" class="h-[0.85em] w-[0.85em]" />
+              </button>
+            </span>
             <button
               type="button"
-              aria-label={t('app.workplace.tab.duplicate')}
-              disabled={openBlocked}
-              class="flex-none cursor-pointer px-[0.1875rem] opacity-60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
-                ? 'text-destructive'
-                : ''}"
-              onclick={() => onDuplicate(tab.id)}
+              data-testid="workplace-tab-close"
+              title={t('app.workplace.tab.close')}
+              aria-label={t('app.workplace.tab.close')}
+              class="flex-none cursor-pointer px-[0.1875rem] pr-2 opacity-60 hover:opacity-100"
+              onclick={() => askCloseTab(tab.id)}
             >
-              <Icon name="duplicate" class="h-[0.85em] w-[0.85em]" />
+              <Icon name="close" class="h-[0.85em] w-[0.85em]" />
             </button>
-          </span>
-          <button
-            type="button"
-            data-testid="workplace-tab-close"
-            title={t('app.workplace.tab.close')}
-            aria-label={t('app.workplace.tab.close')}
-            class="flex-none cursor-pointer px-[0.1875rem] pr-2 opacity-60 hover:opacity-100"
-            onclick={() => askCloseTab(tab.id)}
-          >
-            <Icon name="close" class="h-[0.85em] w-[0.85em]" />
-          </button>
+          {/if}
         </div>
       {/each}
     </div>

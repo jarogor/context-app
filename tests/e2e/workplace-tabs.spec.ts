@@ -66,7 +66,14 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
       await open.click();
     }
   }
-  await page.getByRole('button', { name: /Добавить книгу/ }).click();
+  // На узком окне кнопки открытия книги живут в меню панелей: в полосе их нет.
+  const addButton = page.getByRole('button', { name: /Добавить книгу/ });
+  if ((await addButton.count()) > 0 && (await addButton.first().isVisible())) {
+    await addButton.first().click();
+  } else {
+    await page.getByTestId('workplace-panel-menu').first().click();
+    await page.getByRole('menuitem', { name: /Добавить книгу/ }).click();
+  }
   const library = page.locator('main');
   const back = library.getByRole('button', { name: /К списку книг/ });
   if ((await back.count()) > 0) {
@@ -634,10 +641,9 @@ test('в списке вкладок формат книги виден вмес
   await expect(item.getByTestId('open-books-item-path')).toContainText('/');
 });
 
-test('на телефоне полоса вкладок без контекстного меню и в одном порядке', async ({ page }) => {
-  // На телефоне не должно быть ни собственного меню действий, ни отдельной
-  // раскладки: слева направо идут открытие книги, вкладка, панели и
-  // сосредоточенное чтение — так же, как на планшете и в широком окне.
+test('на телефоне меню панелей стоит слева от вкладки, у вкладки своё меню', async ({ page }) => {
+  // На узком окне видна одна вкладка. Панели и открытие книги — в меню слева от
+  // неё, собственные действия вкладки — в её меню справа.
   await page.setViewportSize({ width: 390, height: 780 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
@@ -645,32 +651,27 @@ test('на телефоне полоса вкладок без контекст�
   const bar = page.getByTestId('workplace-tabs');
   await expect(bar).toBeVisible();
 
-  // Меню действий рабочего места больше нет.
-  await expect(page.getByLabel('Действия рабочего места')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Действия' })).toHaveCount(0);
+  // Ни кнопок панелей, ни кнопки открытия книги в полосе нет.
+  await expect(page.getByTestId('workplace-notes-toggle')).toHaveCount(0);
+  await expect(page.getByTestId('workplace-properties-toggle')).toHaveCount(0);
+  await expect(bar.getByLabel('Добавить книгу')).toHaveCount(0);
 
-  // Все элементы полосы на месте, включая кнопки панелей и чтения.
-  await expect(page.getByLabel('Добавить книгу')).toBeVisible();
-  await expect(page.getByLabel('Открыть файл с диска')).toBeVisible();
-  await expect(page.getByLabel('Вкладки')).toBeVisible();
-  await expect(page.getByTestId('workplace-notes-toggle')).toBeVisible();
-  await expect(page.getByTestId('workplace-properties-toggle')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Сосредоточенное чтение' })).toBeVisible();
+  // Вместо них — меню слева от вкладки; у вкладки — своё меню.
+  await expect(page.getByTestId('workplace-panel-menu')).toBeVisible();
+  await expect(page.getByTestId('workplace-tab-menu')).toBeVisible();
+  await expect(page.getByTestId('workplace-tab-close')).toHaveCount(0);
 
-  // Порядок слева направо: книга, файл, вкладка, затем кнопки панелей.
-  const xs = await Promise.all([
-    page.getByLabel('Добавить книгу').boundingBox(),
-    page.getByLabel('Открыть файл с диска').boundingBox(),
+  // Порядок слева направо: меню панелей, окно вкладки, затем меню вкладки.
+  const [panelMenu, tabWindow, tabMenu] = await Promise.all([
+    page.getByTestId('workplace-panel-menu').boundingBox(),
     page.getByTestId('workplace-tabs-window').boundingBox(),
-    page.getByTestId('workplace-tabs-panels').boundingBox(),
-    page.getByRole('button', { name: 'Сосредоточенное чтение' }).boundingBox(),
+    page.getByTestId('workplace-tab-menu').boundingBox(),
   ]);
-  for (const box of xs) {
-    expect(box).not.toBeNull();
-  }
-  for (let index = 1; index < xs.length; index += 1) {
-    expect(xs[index]!.x).toBeGreaterThan(xs[index - 1]!.x);
-  }
+  expect(panelMenu).not.toBeNull();
+  expect(tabWindow).not.toBeNull();
+  expect(tabMenu).not.toBeNull();
+  expect(tabWindow!.x).toBeGreaterThan(panelMenu!.x);
+  expect(tabMenu!.x).toBeGreaterThan(tabWindow!.x - 1);
 });
 
 test('вкладка занимает всю доступную ширину полосы', async ({ page }) => {
@@ -696,4 +697,42 @@ test('вкладка занимает всю доступную ширину п�
   expect(items).toBeLessThan(7);
   const first = await page.getByTestId('workplace-tab-item').first().boundingBox();
   expect(first!.width).toBeLessThan(windowBox!.width / 2);
+});
+
+test('на узком окне действия вкладки собраны в меню', async ({ page }) => {
+  // Режим определяется размером окна: телефон/планшет — до 900px.
+  await page.setViewportSize({ width: 820, height: 900 });
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+
+  // В полосе видна одна вкладка, отдельных кнопок закрытия и дублирования нет.
+  await expect(page.getByTestId('workplace-tab-item')).toHaveCount(1);
+  await expect(page.getByTestId('workplace-tab-close')).toHaveCount(0);
+
+  // У вкладки — только её собственные действия.
+  await page.getByTestId('workplace-tab-menu').click();
+  await expect(page.getByRole('menuitem', { name: 'Закрыть вкладку' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Дублировать вкладку' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Добавить книгу' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // Панели и открытие книги — в отдельном меню слева от вкладки.
+  await page.getByTestId('workplace-panel-menu').click();
+  await expect(page.getByRole('menuitem', { name: 'Вкладки' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Заметки' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Свойства файла' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Добавить книгу' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Открыть файл с диска' })).toBeVisible();
+});
+
+test('на широком окне кнопки вкладки остаются на месте', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+
+  // До 900px меню нет, кнопки закрытия и открытия книги — как прежде.
+  await expect(page.getByTestId('workplace-tab-menu')).toHaveCount(0);
+  await expect(page.getByTestId('workplace-panel-menu')).toHaveCount(0);
+  await expect(page.getByTestId('workplace-tab-close').first()).toBeVisible();
+  await expect(page.getByLabel('Добавить книгу').first()).toBeVisible();
 });

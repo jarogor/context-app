@@ -228,6 +228,8 @@ export const ru = {
   'app.workplace.addFile': 'Открыть файл с диска',
   'app.workplace.addBookTarget': 'Добавить в «{name}»',
   'app.workplace.addBookNoTarget': 'Добавить в рабочее место',
+  'app.workplace.panelActions': 'Панели и книги',
+  'app.workplace.tab.actions': 'Действия вкладки',
   'app.workplace.tab.duplicate': 'Дублировать вкладку',
   'app.workplace.tab.openExternal': 'Открыть в другой программе',
   'app.workplace.tab.close': 'Закрыть вкладку',
