@@ -503,3 +503,60 @@ describe('панель вкладок: лимит открытых вкладо�
     expect(relaxed.className).not.toContain('text-destructive');
   });
 });
+
+describe('панель вкладок: место кнопок панелей', () => {
+  /** Порядок дочерних блоков полосы вкладок. */
+  function rowChildren(): Element[] {
+    const row = screen.getByTestId('workplace-tabs');
+    return Array.from(row.children);
+  }
+
+  it('кнопки панелей стоят слева, до окна вкладок', () => {
+    // Кнопки «Вкладки», «Заметки» и «Свойства» относятся к панелям, которые
+    // открываются слева, и стоят там же. Перенос их вправо ломал привычное
+    // место и отрывал кнопку от содержимого.
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        ...handlers(),
+        booksOpen: false,
+        notesOpen: false,
+        propertiesOpen: false,
+      },
+    });
+
+    const children = rowChildren();
+    const panelsIndex = children.findIndex(
+      (child) => child.getAttribute('data-testid') === 'workplace-tabs-panels',
+    );
+    const windowIndex = children.findIndex(
+      (child) => child.querySelector('[data-testid="workplace-tabs-window"]') !== null,
+    );
+
+    expect(panelsIndex).toBeGreaterThanOrEqual(0);
+    expect(windowIndex).toBeGreaterThan(panelsIndex);
+    // Кнопки панелей идут первыми в полосе: перед ними нет других блоков.
+    expect(panelsIndex).toBe(0);
+  });
+
+  it('порядок кнопок панелей: вкладки, заметки, свойства', () => {
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        ...handlers(),
+        booksOpen: false,
+        notesOpen: false,
+        propertiesOpen: false,
+        onToggleProperties: vi.fn(),
+      },
+    });
+
+    const panels = screen.getByTestId('workplace-tabs-panels');
+    const labels = Array.from(panels.querySelectorAll('button')).map((button) =>
+      button.getAttribute('aria-label'),
+    );
+    expect(labels).toEqual(['Вкладки', 'Заметки', 'Свойства файла']);
+  });
+});

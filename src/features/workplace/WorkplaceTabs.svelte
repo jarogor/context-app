@@ -347,6 +347,49 @@
     Кнопки «К списку рабочих мест» здесь нет: к списку возвращает кнопка раздела
     в верхней панели, и вторая точка входа только дублировала бы её.
   -->
+  <!--
+    Панели вкладок, заметок и свойств открываются слева, рядом с содержимым
+    места. Порядок один на всех ширинах: отдельного меню на телефоне нет.
+  -->
+  <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-panels">    <Button
+      variant={booksOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
+      ariaLabel={t('app.workplace.tabs')}
+      ariaPressed={booksOpen}
+      onclick={onToggleBooks}
+    >
+      <Icon name="tabs" />
+    </Button>
+    <Button
+      variant={notesOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
+      ariaLabel={t('app.workplace.notes')}
+      testId="workplace-notes-toggle"
+      ariaPressed={notesOpen}
+      onclick={onToggleNotes}
+    >
+      <Icon name="note" />
+    </Button>
+    <!--
+      Свойства файла — содержание, закладки, страницы и встроенные пометки.
+      Кнопка стоит рядом с заметками: это второй способ увидеть книгу, кроме
+      её текста, и он тоже относится к открытой книге.
+    -->
+    <Button
+      variant={propertiesOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
+      ariaLabel={t('app.workplace.properties')}
+      testId="workplace-properties-toggle"
+      ariaPressed={propertiesOpen}
+      onclick={onToggleProperties}
+    >
+      <Icon name="layers" />
+    </Button>
+  </div>
+  <span class="mx-[0.25rem] h-4 w-px flex-none bg-[var(--divider)]" aria-hidden="true"></span>
     <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
       <Button
         size="icon"
@@ -466,48 +509,6 @@
         <Icon name="chevron-right" />
       </Button>
     {/if}
-  </div>
-  <!--
-    Кнопки панелей — справа от окна вкладок, рядом с содержимым, которое они
-    показывают. Порядок один на всех ширинах: отдельного меню на телефоне нет.
-  -->
-  <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-panels">    <Button
-      variant={booksOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
-      ariaLabel={t('app.workplace.tabs')}
-      ariaPressed={booksOpen}
-      onclick={onToggleBooks}
-    >
-      <Icon name="tabs" />
-    </Button>
-    <Button
-      variant={notesOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
-      ariaLabel={t('app.workplace.notes')}
-      testId="workplace-notes-toggle"
-      ariaPressed={notesOpen}
-      onclick={onToggleNotes}
-    >
-      <Icon name="note" />
-    </Button>
-    <!--
-      Свойства файла — содержание, закладки, страницы и встроенные пометки.
-      Кнопка стоит рядом с заметками: это второй способ увидеть книгу, кроме
-      её текста, и он тоже относится к открытой книге.
-    -->
-    <Button
-      variant={propertiesOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
-      ariaLabel={t('app.workplace.properties')}
-      testId="workplace-properties-toggle"
-      ariaPressed={propertiesOpen}
-      onclick={onToggleProperties}
-    >
-      <Icon name="layers" />
-    </Button>
   </div>
   {#if onToggleFocus}
     <Button
