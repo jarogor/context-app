@@ -25,13 +25,12 @@ export const en: Dictionary = {
 
   'app.settings': 'Settings',
   'app.settings.short': 'Settings',
+  'app.settings.attention': 'Settings: something needs attention',
   'app.settings.close': 'Close settings',
   'app.settings.sections': 'Settings sections',
   'app.settings.general': 'General',
   'app.settings.updates': 'System',
 
-  'app.alerts': 'Issues: {count}',
-  'app.alerts.short': 'Issues',
   'app.theme.switch': 'Switch theme',
   'app.theme.short': 'Theme',
   'app.theme.toDark': 'Switch to the dark theme',
@@ -48,6 +47,7 @@ export const en: Dictionary = {
   'app.action.edit': 'Edit',
   'app.action.rename': 'Rename',
   'app.action.open': 'Open',
+  'app.action.refresh': 'Refresh',
   'app.action.retry': 'Retry',
   'app.action.undo': 'Undo',
   'app.action.clear': 'Clear',
@@ -429,6 +429,8 @@ export const en: Dictionary = {
   'app.store.updateAvailable': 'Version {version} is available',
   'app.store.updateAll': 'Update all',
   'app.store.installFromFile': 'Install from file',
+  'app.store.restartRequiredShort': 'Restart needed',
+  'app.store.restartRequired': 'Plugin on/off changes will apply after the application restarts.',
   'app.store.noPlugins': 'No plugins',
   'app.store.update': 'Update',
   'app.store.deletePlugin': 'Delete plugin',
@@ -439,11 +441,6 @@ export const en: Dictionary = {
   'app.store.noUpdates': 'No updates',
   'app.store.installed': 'Version {version} installed. Restart the application.',
 
-  'app.error.workspace': 'Workspace: {error}',
-  'app.error.notes': 'Notes: {error}',
-  'app.error.appearance': 'Appearance: {error}',
-  'app.error.pluginsRestart':
-    'Plugins: changes will apply after restarting the application or reopening the library',
   'app.error.notesBookUnavailable': 'The set book is unavailable: the set has no file.',
 
   'app.dialog.books': 'Books',

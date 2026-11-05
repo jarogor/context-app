@@ -23,12 +23,13 @@
     notesActive: boolean;
     /** Открыт ли раздел настроек (телефонная компоновка). */
     settingsOpen?: boolean;
-    /** Число замечаний (телефонная компоновка). */
-    alertCount?: number;
-    /** Тексты замечаний для подсказки индикатора (телефонная компоновка). */
-    alertTitles?: string;
-    /** Есть ли замечания-ошибки (телефонная компоновка). */
-    alertError?: boolean;
+    /**
+     * В настройках есть важное, что ждёт внимания.
+     *
+     * Точка на кнопке настроек — единственный сигнал об этом: отдельного
+     * индикатора замечаний в шапке нет, а сведения живут на самой странице.
+     */
+    settingsAlert?: boolean;
     /** Показанная сейчас сторона темы (телефонная компоновка). */
     theme?: 'light' | 'dark';
     /** Сторона, которую поставит нажатие кнопки темы (телефонная компоновка). */
@@ -54,9 +55,7 @@
     libraryActive,
     notesActive,
     settingsOpen = false,
-    alertCount = 0,
-    alertTitles = '',
-    alertError = false,
+    settingsAlert = false,
     theme = 'light',
     themeNext = 'dark',
     mobile,
@@ -144,6 +143,7 @@
   title: string;
   icon: IconName;
   active: boolean;
+  alert?: boolean;
   onClick: () => void;
 })}
   <button
@@ -157,7 +157,20 @@
     data-testid={`nav-${item.id}`}
     onclick={item.onClick}
   >
-    <Icon name={item.icon} class="h-[1.375rem] w-[1.375rem]" />
+    <!--
+      Точка привязана к значку, а не к кнопке: кнопка растянута на всю ячейку,
+      и точка в её углу оказывалась в стороне от самого действия.
+    -->
+    <span class="relative flex">
+      <Icon name={item.icon} class="h-[1.375rem] w-[1.375rem]" />
+      {#if item.alert}
+        <span
+          class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-[var(--destructive)]"
+          aria-hidden="true"
+          data-testid="settings-alert-dot"
+        ></span>
+      {/if}
+    </span>
     <span class="hidden min-[34rem]:inline role-caption leading-none">{item.label}</span>
   </button>
 {/snippet}
@@ -187,22 +200,6 @@
       })}
     {/each}
 
-    {#if alertCount > 0}
-      <span
-        class="relative flex min-h-[var(--touch-target)] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--radius)] px-1 py-1"
-        role="status"
-        data-testid="header-alerts"
-        title={alertTitles}
-        aria-label={t('app.alerts', { count: alertCount })}
-        style:color={alertError ? 'var(--destructive)' : 'var(--warning)'}
-      >
-        <span class="flex h-[1.375rem] items-center justify-center role-title">{alertCount}</span>
-        <span class="hidden min-[34rem]:inline role-caption leading-none"
-          >{t('app.alerts.short')}</span
-        >
-      </span>
-    {/if}
-
     {@render mobileTab({
       id: 'theme',
       label: t('app.theme.short'),
@@ -215,9 +212,10 @@
     {@render mobileTab({
       id: 'settings',
       label: t('app.settings.short'),
-      title: t('app.settings'),
+      title: settingsAlert ? t('app.settings.attention') : t('app.settings'),
       icon: 'menu',
       active: settingsOpen,
+      alert: settingsAlert,
       onClick: () => onSettings?.(),
     })}
   </nav>

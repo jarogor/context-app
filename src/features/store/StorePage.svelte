@@ -115,8 +115,18 @@
   // Ошибка, переданная с бутстрапа, показывается сразу при монтировании.
   asyncState.error = untrack(() => initialError ?? '');
 
-  /** Сообщение оболочке о наличии неприменённых изменений активности. */
-  function publishPending(pending: boolean) {
+  /**
+   * Есть ли изменения активности, которые применятся после перезапуска.
+   *
+   * Сообщение живёт здесь, на странице настроек: плагины включают и выключают
+   * в этом разделе, и требование перезапуска относится к тому же месту. В шапке
+   * индикатора замечаний нет — она не место для настроек плагинов.
+   */
+  let activationPending = $state(untrack(() => initialPending ?? false));
+
+  /** Обновление признака неприменённых изменений. */
+  function setPending(pending: boolean) {
+    activationPending = pending;
     onPendingChange?.(pending);
   }
 
@@ -404,7 +414,7 @@
       stores = catalog.stores;
     }
     try {
-      publishPending(await loadActivationPending());
+      setPending(await loadActivationPending());
     } catch {
       // Отсутствие признака не мешает работе страницы.
     }
@@ -430,9 +440,8 @@
 
   onMount(() => {
     let unlisten: (() => void) | undefined;
-    // Признак изменений сообщаем оболочке синхронно: он рисуется в шапке.
     if (initialPending !== undefined) {
-      publishPending(initialPending);
+      setPending(initialPending);
     }
     void (async () => {
       unlisten = await listenEvent('plugin-store:changed', () => {
@@ -473,18 +482,17 @@
             {appMessage || (appErrors.length > 0 ? appErrors[0] : '')}
           </span>
         </div>
-        <div class="flex flex-none items-center gap-3">
-          <!-- Сначала настройка, затем действие: кнопка стоит справа. -->
-          <label class="flex cursor-pointer items-center gap-2">
-            <Checkbox
-              checked={checkOnStartup}
-              onchange={(event) => toggleCheckOnStartup(event.currentTarget.checked)}
-            />
-            <span class="role-body">{t('app.store.checkOnStartup')}</span>
-          </label>
-          <Button variant="primary" size="sm" onclick={checkAppUpdates}>
-            {t('app.store.check')}
-          </Button>
+        <!--
+          Проверка — иконочная кнопка: на телефоне подпись не помещается и
+          выталкивала соседние элементы за край окна.
+        -->
+        <div class="flex flex-none items-center gap-2">
+          <IconButton
+            action="refresh"
+            title={t('app.store.check')}
+            ariaLabel={t('app.store.check')}
+            onclick={checkAppUpdates}
+          />
         </div>
       </div>
 
@@ -492,6 +500,15 @@
         {#if updateStatus}
           <Badge variant="outline">{updateStatus.current_version}</Badge>
         {/if}
+        <!-- Проверка при запуске стоит при версии: это свойство обновлений,
+             а не отдельное действие в заголовке. -->
+        <label class="flex cursor-pointer items-center gap-2">
+          <Checkbox
+            checked={checkOnStartup}
+            onchange={(event) => toggleCheckOnStartup(event.currentTarget.checked)}
+          />
+          <span class="role-caption text-[var(--muted-foreground)]">{t('app.store.checkOnStartup')}</span>
+        </label>
         {#if availableCore}
           <span class="role-caption text-[var(--muted-foreground)]">→</span>
           <Badge variant="outline">{availableCore.version}</Badge>
@@ -555,14 +572,14 @@
               {t('app.store.updateAll')}
             </Button>
           {/if}
-          <Button variant="secondary" size="sm" disabled={installing} onclick={installFromFile}>
-            <Icon name="plus" />
-            {t('app.store.installFromFile')}
-          </Button>
-          <!-- Кнопка проверки крайняя справа — так же, как в разделе приложения. -->
-          <Button variant="primary" size="sm" onclick={checkPluginUpdates}>
-            {t('app.store.check')}
-          </Button>
+          <!-- Проверка — иконочная кнопка, как и у приложения: подпись на
+               телефоне не помещалась и вылезала за край. -->
+          <IconButton
+            action="refresh"
+            title={t('app.store.check')}
+            ariaLabel={t('app.store.check')}
+            onclick={checkPluginUpdates}
+          />
         </div>
       </div>
 
@@ -578,7 +595,14 @@
           onSave={(location, kind) => saveDefaultPluginSource(location, kind)}
           onChooseFolder={chooseDefaultPluginFolder}
           onReset={() => resetDefaultPluginSource()}
-        />
+        >
+          {#snippet extra()}
+            <Button variant="secondary" size="sm" disabled={installing} onclick={installFromFile}>
+              <Icon name="plus" />
+              {t('app.store.installFromFile')}
+            </Button>
+          {/snippet}
+        </SourceEditor>
 
         {#if extraPluginSources.length > 0}
           <div class="flex flex-col gap-2">

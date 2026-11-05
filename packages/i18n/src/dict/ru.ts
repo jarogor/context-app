@@ -25,13 +25,12 @@ export const ru = {
 
   'app.settings': 'Настройки',
   'app.settings.short': 'Настройки',
+  'app.settings.attention': 'Настройки: есть важное',
   'app.settings.close': 'Закрыть настройки',
   'app.settings.sections': 'Разделы настроек',
   'app.settings.general': 'Общие',
   'app.settings.updates': 'Система',
 
-  'app.alerts': 'Замечания: {count}',
-  'app.alerts.short': 'Замечания',
   'app.theme.switch': 'Переключить тему',
   'app.theme.short': 'Тема',
   'app.theme.toDark': 'Переключить на тёмную тему',
@@ -48,6 +47,7 @@ export const ru = {
   'app.action.edit': 'Изменить',
   'app.action.rename': 'Переименовать',
   'app.action.open': 'Открыть',
+  'app.action.refresh': 'Обновить',
   'app.action.retry': 'Повторить',
   'app.action.undo': 'Отменить',
   'app.action.clear': 'Очистить',
@@ -419,6 +419,9 @@ export const ru = {
   'app.store.updateAvailable': 'Есть версия {version}',
   'app.store.updateAll': 'Обновить все',
   'app.store.installFromFile': 'Установить из файла',
+  'app.store.restartRequiredShort': 'Нужен перезапуск',
+  'app.store.restartRequired':
+    'Изменения включения плагинов применятся после перезапуска приложения.',
   'app.store.noPlugins': 'Нет плагинов',
   'app.store.update': 'Обновить',
   'app.store.deletePlugin': 'Удалить плагин',
@@ -429,11 +432,6 @@ export const ru = {
   'app.store.noUpdates': 'Обновлений нет',
   'app.store.installed': 'Версия {version} установлена. Перезапустите приложение.',
 
-  'app.error.workspace': 'Рабочее место: {error}',
-  'app.error.notes': 'Заметки: {error}',
-  'app.error.appearance': 'Оформление: {error}',
-  'app.error.pluginsRestart':
-    'Плагины: изменения применятся после перезапуска приложения или переоткрытия библиотеки',
   'app.error.notesBookUnavailable': 'Книга набора недоступна: у набора нет файла.',
 
   'app.dialog.books': 'Книги',

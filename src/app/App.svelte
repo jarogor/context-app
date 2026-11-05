@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, Icon, Menu, MenuItem } from '@context/ui';
+  import { Badge, Button, Icon, Menu, MenuItem } from '@context/ui';
   import AppBar from './AppBar.svelte';
   import SectionNav from './SectionNav.svelte';
   import SettingsPage from '../features/settings/SettingsPage.svelte';
@@ -47,6 +47,7 @@
     updateCurrentWorkspaceTabs,
     type WorkspaceRegistry,
   } from '../features/workplace/workspace-registry';
+  import { logEvent } from '../shared/app-log';
   import type { ActiveLibrary } from '../features/lifecycle/bootstrap';
   import type { AppearanceBootstrap } from '../features/lifecycle/bootstrap';
   import type { SettingsBootstrap } from '../features/lifecycle/bootstrap';
@@ -185,7 +186,6 @@
   let mobileWindow = $state(false);
 
   /** Есть ли неприменённые изменения активности плагинов. */
-  let activationPending = $state(untrack(() => initialStore.activationPending));
 
   /** Открыт ли диалог доступных обновлений. */
   let updateDialogOpen = $state(false);
@@ -273,7 +273,6 @@
   );
 
   /** Ошибка смены темы из шапки. */
-  let appearanceError = $state<string | null>(null);
 
   /** Тема области чтения: общая настройка, независимая от темы интерфейса. */
   let readerTheme = $state<ReaderThemeId>(
@@ -420,34 +419,19 @@
     return { section: sectionTitle, selection: null };
   });
 
+  /**
+   * В настройках есть важное, что ждёт внимания.
+   *
+   * Сейчас это неприменённые изменения плагинов: они применятся после
+   * перезапуска, и узнать об этом можно только в настройках. Точка на кнопке
+   * настроек подсказывает заглянуть туда, не открывая раздел.
+   */
+  let settingsNeedsAttention = $state(untrack(() => initialStore.activationPending));
+
   /** Название текущей страницы настроек для их шапки. */
   const settingsSectionTitle = $derived(
     settingsSection === 'system' ? t('app.settings.updates') : t('app.settings.general'),
   );
-
-  /** Замечания, показываемые в шапке одним индикатором.
-   *
-   * Раньше каждое замечание рисовалось отдельной плашкой и при нескольких
-   * ошибках разом выдавливало кнопки разделов. Теперь шапка держит один
-   * индикатор, а полные тексты видны в его подсказке.
-   */
-  const headerAlerts = $derived.by(() => {
-    const alerts: { text: string; warning: boolean }[] = [];
-    if (registryError) {
-      alerts.push({ text: t('app.error.workspace', { error: registryError }), warning: false });
-    }
-    if (notesController.error) {
-      alerts.push({ text: t('app.error.notes', { error: notesController.error }), warning: false });
-    }
-    if (appearanceError) {
-      alerts.push({ text: t('app.error.appearance', { error: appearanceError }), warning: false });
-    }
-    if (activationPending) {
-      alerts.push({ text: t('app.error.pluginsRestart'), warning: true });
-    }
-    return alerts;
-  });
-
 
   /** Переключение раздела настроек как модального окна.
    *
@@ -591,9 +575,14 @@
   async function saveAppearance(values: Record<string, unknown>) {
     try {
       await saveSettingsValues(APP_SETTINGS_SECTION, values);
-      appearanceError = null;
     } catch (error) {
-      appearanceError = String(error);
+      // Отдельного индикатора в шапке нет: сбой сохранения остаётся в журнале
+      // диагностики, откуда его берёт отчёт поддержки.
+      void logEvent({
+        message: `Оформление не сохранено: ${String(error)}`,
+        severity: 'error',
+        source: 'core',
+      }).catch(() => undefined);
     }
   }
 
@@ -1199,7 +1188,6 @@
   });
 
   /** Сообщение об ошибке загрузки или сохранения реестра. */
-  let registryError = $state<string | null>(null);
   /** Сохранение реестра рабочих мест с небольшой задержкой.
    *
    * Глубокий снимок берётся лениво — уже в момент сохранения, а не на каждое
@@ -1218,9 +1206,13 @@
   async function saveRegistry(snapshot: WorkspaceRegistry) {
     try {
       await invokeCommand('save_workspaces', { workspaces: serializeRegistry(snapshot) });
-      registryError = null;
     } catch (error) {
-      registryError = String(error);
+      // Сбой записи реестра остаётся в журнале: индикатора замечаний в шапке нет.
+      void logEvent({
+        message: `Реестр рабочих мест не сохранён: ${String(error)}`,
+        severity: 'error',
+        source: 'core',
+      }).catch(() => undefined);
     }
   }
 
@@ -1286,9 +1278,7 @@
       libraryActive={librariesVisible}
       notesActive={notesLibraryVisible}
       {settingsOpen}
-      alertCount={headerAlerts.length}
-      alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
-      alertError={headerAlerts.some((alert) => !alert.warning)}
+      settingsAlert={settingsNeedsAttention}
       theme={resolvedTheme}
       themeNext={oppositeTheme(resolvedTheme)}
       mobile={mobileWindow}
@@ -1420,6 +1410,22 @@
           <span class="min-w-0 flex-1 truncate role-heading text-[var(--foreground)]"
             >{settingsSectionTitle}</span
           >
+          <!--
+            Требование перезапуска стоит в шапке настроек: оно относится ко всем
+            настройкам, а не к разделу плагинов, и должно быть видно сразу.
+            Место под значок занято постоянной обёрткой: появление сообщения
+            ничего не сдвигает, а сам значок монтируется целиком и сразу в
+            окончательном виде.
+          -->
+          <!-- Показывается на всех ширинах, включая телефон и планшет: это
+               важное сообщение, и прятать его на узком окне нельзя. -->
+          <span class="flex h-[1.375rem] flex-none items-center" aria-live="polite">
+            {#if settingsNeedsAttention}
+              <Badge variant="warning" title={t('app.store.restartRequired')} testId="plugins-restart-note">
+                {t('app.store.restartRequiredShort')}
+              </Badge>
+            {/if}
+          </span>
           <Button
             variant="secondary"
             size="icon"
@@ -1458,11 +1464,11 @@
               <StorePage
                 initialPlugins={initialStore.plugins}
                 initialStores={initialStore.stores}
-                initialPending={initialStore.activationPending}
                 initialError={initialStore.error}
+                initialPending={initialStore.activationPending}
                 initialUpdate={initialUpdate.status}
                 initialPluginUpdates={updatePlugins}
-                onPendingChange={(pending) => (activationPending = pending)}
+                onPendingChange={(pending) => (settingsNeedsAttention = pending)}
               />
             </div>
           </div>
@@ -1513,9 +1519,7 @@
         libraryActive={librariesVisible}
         notesActive={notesLibraryVisible}
         {settingsOpen}
-        alertCount={headerAlerts.length}
-        alertTitles={headerAlerts.map((alert) => alert.text).join('\n')}
-        alertError={headerAlerts.some((alert) => !alert.warning)}
+        settingsAlert={settingsNeedsAttention}
         theme={resolvedTheme}
         themeNext={oppositeTheme(resolvedTheme)}
         mobile

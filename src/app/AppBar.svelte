@@ -27,12 +27,9 @@
     notesActive: boolean;
     /** Открыт ли раздел настроек. */
     settingsOpen: boolean;
+    /** В настройках есть важное, что ждёт внимания: точка на кнопке. */
+    settingsAlert?: boolean;
     /** Число замечаний (неприменённые изменения, ошибки работы). */
-    alertCount: number;
-    /** Тексты замечаний для подсказки индикатора. */
-    alertTitles: string;
-    /** Есть ли замечания-ошибки (иначе замечания помечаются как предупреждение). */
-    alertError: boolean;
     /** Показанная сейчас сторона темы. */
     theme: ResolvedTheme;
     /** Сторона, которую поставит нажатие кнопки. */
@@ -58,9 +55,7 @@
     libraryActive,
     notesActive,
     settingsOpen,
-    alertCount,
-    alertTitles,
-    alertError,
+    settingsAlert = false,
     theme,
     themeNext,
     mobile,
@@ -154,20 +149,6 @@
       />
 
       <div class="flex shrink-0 items-center gap-1">
-        {#if alertCount > 0}
-          <span
-            class="flex h-8 min-w-8 items-center justify-center rounded-full px-2 role-caption"
-            role="status"
-            data-testid="header-alerts"
-            title={alertTitles}
-            aria-label={t('app.alerts', { count: alertCount })}
-            style:background={alertError ? 'var(--destructive)' : 'var(--warning)'}
-            style:color={alertError ? 'var(--destructive-foreground)' : 'var(--primary-foreground)'}
-          >
-            {alertCount}
-          </span>
-        {/if}
-
         <button
           type="button"
           class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
@@ -181,15 +162,23 @@
 
         <button
           type="button"
-          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
           class:bg-[var(--primary-soft)]={settingsOpen}
-          title={t('app.settings')}
+          title={settingsAlert ? t('app.settings.attention') : t('app.settings')}
           aria-label={t('app.settings')}
           aria-pressed={settingsOpen}
           data-testid="nav-settings"
           onclick={onSettings}
         >
           <Icon name="menu" class="h-[1.15rem] w-[1.15rem]" />
+          {#if settingsAlert}
+            <!-- Точка в углу кнопки: в настройках есть важное, не открывая их. -->
+            <span
+              class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[var(--destructive)]"
+              aria-hidden="true"
+              data-testid="settings-alert-dot"
+            ></span>
+          {/if}
         </button>
       </div>
     </div>

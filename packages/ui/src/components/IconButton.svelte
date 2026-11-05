@@ -1,6 +1,6 @@
 <script lang="ts" module>
   /** Действие иконочной кнопки; определяет иконку, вариант и подпись по умолчанию. */
-  export type IconButtonAction = 'add' | 'delete' | 'edit';
+  export type IconButtonAction = 'add' | 'delete' | 'edit' | 'refresh';
 </script>
 
 <script lang="ts">
@@ -33,6 +33,7 @@
     add: { variant: 'primary', title: 'app.action.add', icon: 'plus' },
     delete: { variant: 'ghost-danger', title: 'app.action.delete', icon: 'trash' },
     edit: { variant: 'secondary', title: 'app.action.edit', icon: 'pencil' },
+    refresh: { variant: 'secondary', title: 'app.action.refresh', icon: 'refresh' },
   };
 
   let {

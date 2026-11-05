@@ -9,6 +9,8 @@
   import { t } from '@context/i18n';
   import { Button, Icon, IconButton, Input } from '@context/ui';
 
+  import type { Snippet } from 'svelte';
+
   /** Режим формы: просмотр, правка текущего адреса или добавление нового. */
   type Mode = 'view' | 'edit' | 'add';
 
@@ -44,6 +46,8 @@
     onAdd?: (location: string, kind: 'file' | 'network') => void;
     /** Подпись действия добавления. */
     addLabel?: string;
+    /** Дополнительные кнопки в строке подписи, рядом с добавлением и правкой. */
+    extra?: Snippet;
   }
 
   let {
@@ -57,6 +61,7 @@
     onReset,
     onAdd,
     addLabel = '',
+    extra,
   }: Props = $props();
 
   /** Текущий режим формы. */
@@ -132,6 +137,9 @@
   <div class="flex flex-wrap items-center justify-between gap-2">
     <span class="role-body">{label}</span>
     <div class="flex items-center gap-2">
+      {#if extra}
+        {@render extra()}
+      {/if}
       {#if onAdd}
         <Button
           variant="secondary"

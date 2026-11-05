@@ -94,6 +94,14 @@ const SETTINGS_FIELDS: Record<
 };
 
 /** Изменяемое состояние настроек в моке: значения переживают интенты. */
+/**
+ * Есть ли изменения активности плагинов, ждущие перезапуска.
+ *
+ * Мок повторяет поведение ядра: переключение плагина оставляет изменения
+ * неприменёнными, и страница показывает требование перезапуска.
+ */
+let activationPending = false;
+
 const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
   'app.general': {
     'appearance.theme': 'system',
@@ -256,6 +264,7 @@ function baseOperation(payload: unknown): unknown {
     };
   }
   if (message.capability === 'plugin-store@1' && message.operation === 'set_enabled') {
+    activationPending = true;
     return { enabled: true };
   }
   if (message.capability === 'plugin-store@1' && message.operation === 'stores_list') {
@@ -771,7 +780,9 @@ export function defaultMockConfig(): MockBridgeConfig {
           },
         ],
       }),
-      plugin_activation_pending: () => ({ pending: false }),
+      // Изменения активности плагинов: переключатель включает признак, как в
+      // ядре, чтобы страница показала требование перезапуска.
+      plugin_activation_pending: () => ({ pending: activationPending }),
       plugin_source_clear: () => null,
       update_status: () => ({
         current_version: '0.1.0',

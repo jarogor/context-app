@@ -10,9 +10,6 @@ function props(overrides: Record<string, unknown> = {}) {
     libraryActive: false,
     notesActive: false,
     settingsOpen: false,
-    alertCount: 0,
-    alertTitles: '',
-    alertError: false,
     theme: 'light' as const,
     themeNext: 'dark' as const,
     mobile: false,
@@ -114,11 +111,27 @@ describe('SectionNav', () => {
     expect(onSettings).toHaveBeenCalledTimes(1);
   });
 
-  it('на телефоне показывает замечания отдельным пунктом', () => {
-    render(SectionNav, { props: props({ mobile: true, alertCount: 2, alertError: true }) });
+  it('на телефоне точка на настройках говорит о важном', () => {
+    // Отдельного индикатора замечаний нет: важное показывает точка на кнопке
+    // настроек, где эти сведения и лежат.
+    render(SectionNav, { props: props({ mobile: true, settingsAlert: true }) });
 
-    // Замечания видны и без верхней панели: индикатор живёт в нижней полосе.
-    expect(screen.getByTestId('header-alerts')).toBeTruthy();
-    expect(screen.getByLabelText('Замечания: 2')).toBeTruthy();
+    expect(screen.getByTestId('settings-alert-dot')).toBeTruthy();
+    // Доступное имя тоже говорит о важном, а не только значок.
+    expect(screen.getByTestId('nav-settings').getAttribute('title')).toBe('Настройки: есть важное');
+  });
+
+  it('без важного в настройках точки нет', () => {
+    render(SectionNav, { props: props({ mobile: true, settingsAlert: false }) });
+
+    expect(screen.queryByTestId('settings-alert-dot')).toBeNull();
+  });
+
+  it('на телефоне нет индикатора замечаний', () => {
+    // Ленты уведомлений нет: сведения о неприменённых изменениях плагинов
+    // живут на странице настроек, а не в полосе разделов.
+    render(SectionNav, { props: props({ mobile: true }) });
+
+    expect(screen.queryByTestId('header-alerts')).toBeNull();
   });
 });
