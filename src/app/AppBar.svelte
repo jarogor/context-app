@@ -88,7 +88,7 @@
 </script>
 
 <header
-  class="flex flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 md:gap-4 md:px-4"
+  class="flex flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 md:gap-4 md:px-6"
   style="min-height: var(--app-bar-height); padding-top: var(--safe-top);"
   data-testid="app-bar"
 >
@@ -100,11 +100,11 @@
     Логотип вставляется разметкой, а не картинкой: его контуры рисуются
     `currentColor` и берут цвет активной темы (`--primary`), поэтому знак
     согласован с выделением раздела и виден на светлой и тёмной стороне. Размер
-    задан в `rem` (1.75rem) и остаётся меньше высоты шапки, поэтому знак
+    задан в `rem` (2.25rem) и остаётся меньше высоты шапки, поэтому знак
     заметный, но высоту шапки не меняет.
   -->
   <span
-    class="text-[var(--primary)] flex size-7 shrink-0 items-center justify-center [&>svg]:size-full"
+    class="text-[var(--primary)] flex size-9 shrink-0 items-center justify-center [&>svg]:size-full"
     data-testid="app-name"
     role="img"
     aria-label={t('app.name')}

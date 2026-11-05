@@ -123,9 +123,9 @@
   -->
   <button
     type="button"
-    class="flex min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] {item.active
+    class="flex h-9 min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 {item.active
       ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-      : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} px-2 py-1.5 md:px-3"
+      : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} px-2 md:px-3"
     aria-pressed={item.active}
     aria-label={item.label}
     title={item.label}
