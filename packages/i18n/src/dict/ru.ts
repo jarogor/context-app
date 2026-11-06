@@ -188,6 +188,7 @@ export const ru = {
 
   'app.workspace.title': 'Рабочее место',
   'app.workspace.defaultName': 'Рабочее место',
+  'app.workspace.createShort': 'Создать',
   'app.workspace.create': 'Создать рабочее место',
   'app.workspace.newNameLabel': 'Новое имя рабочего места',
   'app.workspace.rename': 'Переименовать',

@@ -276,7 +276,13 @@
       </span>
     </div>
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
-      <Button variant="primary" disabled={opening} onclick={pickLibrary}>
+      <Button
+        variant="primary"
+        size="sm"
+        disabled={opening}
+        ariaLabel={t('app.library.libraries.add')}
+        onclick={pickLibrary}
+      >
         {#if openingNew}
           <Spinner class="h-4 w-4" />
         {/if}

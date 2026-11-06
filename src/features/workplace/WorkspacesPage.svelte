@@ -374,9 +374,14 @@
             <Icon name="close" />
           </Button>
         {:else}
-          <Button variant="primary" size="sm" onclick={openComposer}>
+          <Button
+            variant="primary"
+            size="sm"
+            ariaLabel={t('app.workspace.create')}
+            onclick={openComposer}
+          >
             <Icon name="plus" />
-            {t('app.workspace.create')}
+            {t('app.workspace.createShort')}
           </Button>
         {/if}
       </div>

@@ -214,6 +214,7 @@ export const en: Dictionary = {
 
   'app.workspace.title': 'Workspace',
   'app.workspace.defaultName': 'Workspace',
+  'app.workspace.createShort': 'Create',
   'app.workspace.create': 'Create workspace',
   'app.workspace.newNameLabel': 'New workspace name',
   'app.workspace.rename': 'Rename',
