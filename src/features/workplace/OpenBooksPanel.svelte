@@ -109,31 +109,6 @@
   /** Список вкладок: по нему прокручивается активная. */
   let listEl = $state<HTMLUListElement | undefined>();
 
-  /**
-   * Показ активной вкладки при открытии панели.
-   *
-   * Панель размонтируется при закрытии, поэтому собственное состояние прокрутки
-   * не переживает закрытие. Вместо этого при открытии список ставит активную
-   * вкладку к верху видимой части: в длинном составе она иначе остаётся за
-   * пределами видимости, и её приходится искать вручную. Scroll-контейнер при
-   * этом не сбрасывается в начало — прокрутка сразу идёт к нужному месту.
-   */
-  $effect(() => {
-    // Эффект выполняется после отрисовки, когда список и его строки уже есть.
-    const el = untrack(() => listEl);
-    if (!el) {
-      return;
-    }
-    const active = el.querySelector<HTMLElement>(
-      '[data-testid="open-books-item"][data-active="true"]',
-    );
-    if (!active) {
-      return;
-    }
-    // Верх активной вкладки встаёт к верху видимой части списка.
-    el.scrollTop = active.offsetTop - el.offsetTop;
-  });
-
   /** Вкладки, отфильтрованные поиском по имени, названию книги и описанию. */
   const visible = $derived.by(() => {
     const needle = query.trim().toLowerCase();
@@ -146,6 +121,44 @@
         tab.title.toLowerCase().includes(needle) ||
         (tab.description ?? '').toLowerCase().includes(needle),
     );
+  });
+
+  /**
+   * Показ активной вкладки в списке.
+   *
+   * Вкладку переключают и в полосе сверху, а не только в самой панели. Если
+   * выбранная вкладка оказалась за пределами видимой части списка, прокрутка
+   * подводится к ней. Список при этом сдвигается ровно настолько, насколько
+   * нужно: полностью видимая строка остаётся на месте, и при каждом
+   * переключении список не «дёргается». Фильтр поиска может скрыть активную
+   * вкладку: тогда строки нет, и прокручивать нечего.
+   */
+  $effect(() => {
+    // Активная вкладка и состав видимых строк — зависимости эффекта.
+    const id = activeTabId;
+    const shown = visible;
+    const el = untrack(() => listEl);
+    if (id === null || !el || shown.length === 0) {
+      return;
+    }
+    // Эффект выполняется после отрисовки, когда строки уже в списке.
+    untrack(() => {
+      const active = Array.from(
+        el.querySelectorAll<HTMLElement>('[data-testid="open-books-item"]'),
+      ).find((item) => item.dataset.tabId === id);
+      if (!active) {
+        return;
+      }
+      // Сдвиг считается по границам видимой части списка и самой строки:
+      // прокручивается только список, а не страница целиком.
+      const list = el.getBoundingClientRect();
+      const row = active.getBoundingClientRect();
+      if (row.top < list.top) {
+        el.scrollTop += row.top - list.top;
+      } else if (row.bottom > list.bottom) {
+        el.scrollTop += row.bottom - list.bottom;
+      }
+    });
   });
 
   /** Номер вкладки в составе рабочего места (с единицы).
@@ -377,6 +390,7 @@
         )}"
         style={itemFill(tab)}
         data-testid="open-books-item"
+        data-tab-id={tab.id}
         data-active={tab.id === activeTabId ? 'true' : 'false'}
       >
         <div class="flex items-start gap-2">

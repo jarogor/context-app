@@ -166,6 +166,40 @@ test('дублирование вкладки доступно пунктом м
   await expect(page.getByTestId('workplace-tab').nth(1)).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('переключение вкладки в полосе прокручивает список панели к ней', async ({ page }) => {
+  // Дефект: вкладку переключали в полосе сверху, а список панели оставался на
+  // прежнем месте, и выбранной вкладки в нём не было видно.
+  await page.setViewportSize({ width: 920, height: 600 });
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+  await duplicateActive(page, 8);
+
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  const panel = page.getByTestId('open-books-panel');
+  const list = page.getByTestId('open-books-list');
+  await expect(list).toBeVisible();
+
+  // При открытии панель показывает активную (последнюю) вкладку: список сдвинут.
+  await expect.poll(async () => await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+
+  // Переключение на первую вкладку в полосе: строка в панели выше видимой части.
+  await page.getByTestId('workplace-tab-item').first().getByTestId('workplace-tab').click();
+
+  // Список панели подводит выбранную строку в видимую часть.
+  await expect
+    .poll(async () => {
+      const row = await panel
+        .locator('[data-testid="open-books-item"][data-active="true"]')
+        .boundingBox();
+      const view = await list.boundingBox();
+      if (!row || !view) {
+        return false;
+      }
+      return row.y >= view.y - 1 && row.y + row.height <= view.y + view.height + 1;
+    })
+    .toBe(true);
+});
+
 test('закрытие последней вкладки показывает пустое состояние', async ({ page }) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');

@@ -399,6 +399,102 @@ describe('панель открытых книг: открытие книги в
   });
 });
 
+describe('панель открытых книг: активная вкладка остаётся видимой', () => {
+  /** Прямоугольник элемента с заданными границами. */
+  function rect(top: number, bottom: number): DOMRect {
+    return {
+      top,
+      bottom,
+      left: 0,
+      right: 100,
+      width: 100,
+      height: bottom - top,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    } as DOMRect;
+  }
+
+  /** Список и его строки с искусственными границами: высота списка 100px. */
+  function mockGeometry() {
+    const list = screen.getByTestId('open-books-list');
+    list.getBoundingClientRect = () => rect(0, 100);
+    const items = screen.getAllByTestId('open-books-item');
+    // Каждая строка высотой 40px идёт подряд: первая — 0–40, вторая — 40–80,
+    // третья — 80–120 (частично видна), четвёртая — 120–160 (не видна).
+    items.forEach((item, index) => {
+      item.getBoundingClientRect = () => rect(index * 40, index * 40 + 40);
+    });
+    return { list, items };
+  }
+
+  it('прокручивает список к вкладке, выбранной снаружи панели', async () => {
+    // Дефект: вкладку переключали в полосе сверху, а список панели оставался
+    // на прежнем месте, и выбранной вкладки не было видно.
+    const { rerender } = render(OpenBooksPanel, {
+      props: {
+        tabs: [tab('t1'), tab('t2'), tab('t3'), tab('t4')],
+        activeTabId: 't1',
+        ...handlers(),
+      },
+    });
+    const { list } = mockGeometry();
+
+    await rerender({
+      tabs: [tab('t1'), tab('t2'), tab('t3'), tab('t4')],
+      activeTabId: 't4',
+      ...handlers(),
+    });
+
+    // Четвёртая строка кончается на 160px при высоте списка 100px.
+    expect(list.scrollTop).toBe(60);
+  });
+
+  it('не двигает список, если выбранная вкладка уже видна', async () => {
+    const { rerender } = render(OpenBooksPanel, {
+      props: {
+        tabs: [tab('t1'), tab('t2'), tab('t3'), tab('t4')],
+        activeTabId: 't1',
+        ...handlers(),
+      },
+    });
+    const { list } = mockGeometry();
+    list.scrollTop = 40;
+
+    await rerender({
+      tabs: [tab('t1'), tab('t2'), tab('t3'), tab('t4')],
+      activeTabId: 't2',
+      ...handlers(),
+    });
+
+    // Вторая строка (40–80) целиком внутри видимой части 40–140.
+    expect(list.scrollTop).toBe(40);
+  });
+
+  it('не ищет вкладку, скрытую поиском', async () => {
+    const { rerender } = render(OpenBooksPanel, {
+      props: {
+        tabs: [tab('t1'), tab('t2'), tab('t3'), tab('t4')],
+        activeTabId: 't1',
+        ...handlers(),
+      },
+    });
+    const { list } = mockGeometry();
+    await fireEvent.input(screen.getByLabelText('Поиск по вкладкам'), {
+      target: { value: 't1' },
+    });
+
+    await rerender({
+      tabs: [tab('t1'), tab('t2'), tab('t3'), tab('t4')],
+      activeTabId: 't4',
+      ...handlers(),
+    });
+
+    // Четвёртой строки в отфильтрованном списке нет — прокручивать не к чему.
+    expect(list.scrollTop).toBe(0);
+  });
+});
+
 describe('панель открытых книг: лимит открытых вкладок', () => {
   it('оставляет пункт дублирования доступным ниже лимита', async () => {
     render(OpenBooksPanel, {
