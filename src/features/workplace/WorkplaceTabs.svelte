@@ -312,7 +312,7 @@
 
   /** Подсказка счётчика видимого диапазона. */
   const rangeTitle = $derived(
-    t('app.workplace.range', { from: rangeFrom, to: rangeTo, total: tabs.length }),
+    t('app.workplace.rangeTitle', { from: rangeFrom, to: rangeTo, total: tabs.length }),
   );
 
   /** Слежение за шириной списка вкладок и масштабом интерфейса. */
