@@ -13,6 +13,8 @@
     value: string;
     /** Выделить значение (например, «текущее»). */
     strong?: boolean;
+    /** Показать значение моноширинным шрифтом как целое (путь к файлу). */
+    mono?: boolean;
     /** Подсказка; по умолчанию совпадает со значением. */
     title?: string;
     /** Метка значения для тестов. */
@@ -62,7 +64,13 @@
         <span class="shrink-0">{item.label}</span>
       {/if}
       <span
-        class={cn('min-w-0 truncate', item.strong ? 'font-medium text-[var(--foreground)]' : '')}
+        class={cn(
+          'min-w-0 truncate',
+          item.strong ? 'font-medium text-[var(--foreground)]' : '',
+          item.mono
+            ? 'rounded-[calc(var(--radius)*0.5)] bg-[var(--surface-inset)] px-1 font-mono text-[0.95em]'
+            : '',
+        )}
         data-testid={item.testId}
       >
         {item.value}

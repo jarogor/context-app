@@ -6,6 +6,7 @@
 //! Прежнее одиночное состояние (`workspace.json`) переносится в рабочее место по
 //! умолчанию при первом чтении реестра.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
@@ -88,6 +89,9 @@ pub struct WorkspacesFile {
     /// Идентификатор активного рабочего места.
     #[serde(default)]
     pub active_workspace_id: Option<String>,
+    /// Где открывали наборы заметок: набор → места (свежие первыми).
+    #[serde(default)]
+    pub note_set_workspaces: BTreeMap<String, Vec<String>>,
 }
 
 /// Прежнее одиночное состояние рабочего места для переноса.
@@ -148,6 +152,7 @@ fn migrate_legacy(root: &Path) -> WorkspacesFile {
             active_tab_id: legacy.active_tab_id,
         }],
         active_workspace_id: Some(DEFAULT_WORKSPACE_ID.to_string()),
+        note_set_workspaces: BTreeMap::new(),
     }
 }
 

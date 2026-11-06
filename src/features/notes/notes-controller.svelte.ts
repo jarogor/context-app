@@ -52,16 +52,21 @@ type AllowedTypesGetter = () => readonly NoteType[];
 /** Функция-геттер отображаемого имени книги активной вкладки. */
 type BookTitleGetter = () => string;
 
+/** Обработчик показа набора в открытой книге: место набора запоминает оболочка. */
+type SetShownHandler = (setId: string) => void;
+
 /** Создание контроллера заметок активной книги.
  *
  * @param bookKeyOf Ключ книги активной вкладки (для набора и хранилища).
  * @param allowedTypesOf Доступные типы заметок текущего формата.
  * @param bookTitleOf Отображаемое имя книги для создаваемого набора.
+ * @param onSetShown Уведомление о показе набора в книге: оболочка запоминает место.
  */
 export function createNotesController(
   bookKeyOf: BookKeyGetter,
   allowedTypesOf: AllowedTypesGetter,
   bookTitleOf: BookTitleGetter,
+  onSetShown: SetShownHandler = () => {},
 ) {
   /** Заметки набора активной книги. */
   let notes: Note[] = $state([]);
@@ -129,6 +134,12 @@ export function createNotesController(
       void setActiveSet(key, nextSetId).catch((cause) => {
         error = String(cause);
       });
+    }
+    // Набор виден в открытой книге — значит, он открыт в этом рабочем месте:
+    // оболочка запоминает место, чтобы реестр вёл сюда и старые наборы получали
+    // привязку при первом открытии книги, а не только при переходе из реестра.
+    if (key && bookKeyOf() === key) {
+      onSetShown(nextSetId);
     }
   }
 
@@ -575,13 +586,18 @@ export function createNotesController(
   /** Запоминание активного набора книги до загрузки её заметок.
    *
    * Используется при переходе из реестра заметок: набор становится активным для
-   * книги ещё до появления вкладки, поэтому `load` выберет именно его.
+   * книги ещё до появления вкладки, поэтому `load` выберет именно его. Если
+   * книга уже открыта и показан другой набор, выбор применяется сразу — иначе
+   * переход к заметке ждал бы смены набора, которой не будет.
    */
   function rememberActiveSet(key: string, setId: string) {
     activeSetByBook = { ...activeSetByBook, [key]: setId };
     void setActiveSet(key, setId).catch((cause) => {
       error = String(cause);
     });
+    if (bookKeyOf() === key) {
+      void selectSet(setId);
+    }
   }
 
   return {

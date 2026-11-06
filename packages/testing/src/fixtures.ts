@@ -323,8 +323,11 @@ function loadMockNotes(): MockNoteSet[] {
   try {
     const raw = window.localStorage.getItem(NOTES_STORAGE_KEY);
     const sets = raw ? (JSON.parse(raw) as MockNoteSet[]) : [];
-    // Наборы прежнего формата не несли отображаемого имени книги.
-    return sets.map((set) => ({ ...set, bookTitle: set.bookTitle ?? '' }));
+    // Наборы прежнего формата не несли отображаемого имени книги и рабочего места.
+    return sets.map((set) => ({
+      ...set,
+      bookTitle: set.bookTitle ?? '',
+    }));
   } catch {
     return [];
   }

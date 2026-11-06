@@ -143,7 +143,7 @@ describe('раздел «Заметки» в оболочке', () => {
     await fireEvent.click(screen.getByTestId('nav-notes'));
 
     await waitFor(() => expect(screen.getByTestId('notes-library-book')).toBeTruthy());
-    expect(screen.getByText('Книга A')).toBeTruthy();
+    expect(screen.getByTestId('notes-library-book').textContent).toContain('a.epub');
   });
 
   it('перечитывает реестр по событию notes:changed', async () => {
@@ -152,10 +152,12 @@ describe('раздел «Заметки» в оболочке', () => {
     await waitFor(() => expect(screen.getByTestId('notes-library')).toBeTruthy());
     expect(screen.getByTestId('notes-library-empty')).toBeTruthy();
 
-    notesSets = [aggregateSet({ book_title: 'Обновлённая книга' })];
+    notesSets = [aggregateSet({ book_key: '/lib/updated.epub' })];
     notesChanged?.({ book_key: '/lib/a.epub', set_id: 'ns-1' });
 
-    await waitFor(() => expect(screen.getByText('Обновлённая книга')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId('notes-library-book').textContent).toContain('updated.epub'),
+    );
   });
 
   it('передаёт интенты перехода в реестр', async () => {
@@ -165,19 +167,22 @@ describe('раздел «Заметки» в оболочке', () => {
     await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
     const registry = screen.getByTestId('notes-library');
     const section = within(registry).getByTestId('notes-library-set');
-    await fireEvent.click(within(section).getByTestId('notes-library-set-toggle'));
+    await fireEvent.click(within(section).getByLabelText('Действия с набором заметок'));
+    await fireEvent.click(await screen.findByText('Показать заметки'));
     expect(within(section).getByTestId('notes-library-set-empty')).toBeTruthy();
   });
 
-  it('открывает книгу набора в рабочем месте и запоминает активный набор', async () => {
+  it('открывает книгу набора в выбранном рабочем месте и запоминает место', async () => {
     const registry = createWorkspace(emptyRegistry(), 'Моё место');
     const calls: Array<Record<string, unknown>> = [];
+    const saved: Array<Record<string, unknown>> = [];
     invoke.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === 'save_workspaces') {
+        saved.push((args ?? {}) as Record<string, unknown>);
+        return { ok: true };
+      }
       if (command === 'invoke_base_plugin_operation') {
-        const payload = (args ?? {}) as {
-          capability?: string;
-          operation?: string;
-        };
+        const payload = (args ?? {}) as { capability?: string; operation?: string };
         calls.push(payload as Record<string, unknown>);
         if (payload.capability === 'notes.store@1' && payload.operation === 'list_all_sets') {
           return { sets: [aggregateSet()] };
@@ -186,25 +191,20 @@ describe('раздел «Заметки» в оболочке', () => {
       return null;
     });
 
-    render(App, {
-      props: {
-        ...appProps(),
-        initialRegistry: registry,
-      },
-    });
+    render(App, { props: { ...appProps(), initialRegistry: registry } });
 
     await fireEvent.click(screen.getByTestId('nav-notes'));
     await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
-    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
-    await fireEvent.click(await screen.findByText('Открыть книгу'));
+    // Клик по набору открывает панель выбора места, а не открывает книгу молча.
+    await fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    const panel = screen.getByTestId('notes-set-panel');
+    await fireEvent.click(within(panel).getByTestId('notes-set-workspace-item'));
 
-    // Раздел реестра закрылся, рабочее место показывает вкладку книги.
     await waitFor(() => expect(screen.queryByTestId('notes-library')).toBeNull());
     expect(screen.getByTestId('workplace-area')).toBeTruthy();
     expect(
       within(screen.getByTestId('workplace-area')).getAllByText('Книга A').length,
     ).toBeGreaterThan(0);
-    // Активный набор книги сохранён до загрузки заметок.
     await waitFor(() =>
       expect(
         calls.some(
@@ -214,17 +214,126 @@ describe('раздел «Заметки» в оболочке', () => {
         ),
       ).toBe(true),
     );
+    // Место открытия сохранено в реестре приложения, а не в заметках.
+    await waitFor(() => expect(saved.length).toBeGreaterThan(0));
+    const stored = saved.at(-1)?.workspaces as {
+      note_set_workspaces?: Record<string, string[]>;
+    };
+    expect(stored.note_set_workspaces?.['ns-1']).toEqual([registry.currentWorkspaceId]);
+  });
+
+  /** Реестр: текущее место пустое, в истории набора — место с книгой. */
+  function recordedWorkspaceRegistry(): WorkspaceRegistry {
+    return {
+      workspaces: [
+        { id: 'ws-1', name: 'Текущее', createdAtMillis: 0, tabs: [], activeTabId: null },
+        {
+          id: 'ws-2',
+          name: 'Исследование',
+          createdAtMillis: 0,
+          tabs: [
+            {
+              id: 't1',
+              path: '/lib/a.epub',
+              title: 'Книга A',
+              format: 'epub',
+              zoom: 100,
+              position: 0,
+              mode: 'scroll',
+            },
+          ],
+          activeTabId: 't1',
+        },
+      ],
+      currentWorkspaceId: 'ws-1',
+      noteSetWorkspaces: { 'ns-1': ['ws-2'] },
+    };
+  }
+
+  /** Запросы к плагину заметок: реестр наборов. */
+  function recordedSetCalls() {
+    const calls: Array<Record<string, unknown>> = [];
+    invoke.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === 'invoke_base_plugin_operation') {
+        const payload = (args ?? {}) as { capability?: string; operation?: string };
+        calls.push(payload as Record<string, unknown>);
+        if (payload.capability === 'notes.store@1' && payload.operation === 'list_all_sets') {
+          return { sets: [aggregateSet()] };
+        }
+      }
+      return null;
+    });
+    return calls;
+  }
+
+  it('ставит места из истории первыми и открывает набор по выбору', async () => {
+    recordedSetCalls();
+    render(App, { props: { ...appProps(), initialRegistry: recordedWorkspaceRegistry() } });
+
+    await fireEvent.click(screen.getByTestId('nav-notes'));
+    await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
+    await fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+
+    const panel = screen.getByTestId('notes-set-panel');
+    expect(within(panel).getByTestId('notes-set-history-item').textContent).toContain(
+      'Исследование',
+    );
+    expect(within(panel).getByTestId('notes-set-workspace-item').textContent).toContain('Текущее');
+
+    // Выбор места из истории: книга уже открыта там, вкладка не дублируется.
+    await fireEvent.click(within(panel).getByTestId('notes-set-history-item'));
+    await waitFor(() => expect(screen.queryByTestId('notes-library')).toBeNull());
+    expect(screen.getAllByTestId('workplace-tab')).toHaveLength(1);
+    expect(screen.getByTestId('app-context').textContent).toContain('Исследование');
+  });
+
+  it('открывает набор в другом месте, выбранном пользователем', async () => {
+    recordedSetCalls();
+    render(App, { props: { ...appProps(), initialRegistry: recordedWorkspaceRegistry() } });
+
+    await fireEvent.click(screen.getByTestId('nav-notes'));
+    await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
+    await fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    const panel = screen.getByTestId('notes-set-panel');
+    await fireEvent.click(within(panel).getByTestId('notes-set-workspace-item'));
+
+    await waitFor(() => expect(screen.queryByTestId('notes-library')).toBeNull());
+    expect(screen.getByTestId('workplace-tab').textContent).toContain('Книга A');
+    expect(screen.getByTestId('app-context').textContent).toContain('Текущее');
+  });
+
+  it('создаёт рабочее место из панели и открывает в нём набор', async () => {
+    recordedSetCalls();
+    render(App, { props: appProps() });
+
+    await fireEvent.click(screen.getByTestId('nav-notes'));
+    await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
+    await fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    // Формы создания по умолчанию нет — она за кнопкой.
+    expect(screen.queryByPlaceholderText('Новое рабочее место')).toBeNull();
+    await fireEvent.click(screen.getByTestId('notes-set-create-workspace'));
+    await fireEvent.input(screen.getByPlaceholderText('Новое рабочее место'), {
+      target: { value: 'Новое место' },
+    });
+    await fireEvent.click(screen.getByLabelText('Создать'));
+
+    await waitFor(() => expect(screen.queryByTestId('notes-library')).toBeNull());
+    expect(screen.getByTestId('workplace-area')).toBeTruthy();
+    expect(screen.getByTestId('workplace-tab').textContent).toContain('Книга A');
   });
 
   it('сообщает о книге набора без файла', async () => {
     render(App, {
-      props: appProps([aggregateSet({ book_key: 'no-library', book_title: 'Без книги' })]),
+      props: {
+        ...appProps([aggregateSet({ book_key: 'no-library', book_title: 'Без книги' })]),
+        initialRegistry: createWorkspace(emptyRegistry(), 'Моё место'),
+      },
     });
 
     await fireEvent.click(screen.getByTestId('nav-notes'));
     await waitFor(() => expect(screen.getByTestId('notes-library-set')).toBeTruthy());
-    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
-    await fireEvent.click(await screen.findByText('Открыть книгу'));
+    await fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    await fireEvent.click(screen.getByTestId('notes-set-workspace-item'));
 
     // Раздел остаётся открытым и показывает диагностику недоступности.
     expect(screen.getByTestId('notes-library-error').textContent).toContain('недоступна');
@@ -276,6 +385,7 @@ describe('тема области чтения в оболочке', () => {
         },
       ],
       currentWorkspaceId: 'ws-1',
+      noteSetWorkspaces: {},
     };
     render(App, { props: { ...appProps(), initialRegistry: registry } });
     await fireEvent.click(screen.getByTestId('nav-workspace'));
@@ -367,6 +477,7 @@ describe('активность кнопки рабочего места', () => 
         },
       ],
       currentWorkspaceId: 'ws-1',
+      noteSetWorkspaces: {},
     };
   }
 
@@ -512,6 +623,7 @@ describe('текущее рабочее место остаётся загруж
         },
       ],
       currentWorkspaceId: 'ws-1',
+      noteSetWorkspaces: {},
     };
   }
 
@@ -613,6 +725,7 @@ describe('текущее рабочее место остаётся загруж
         },
       ],
       currentWorkspaceId: 'ws-1',
+      noteSetWorkspaces: {},
     };
     render(App, { props: { ...appProps(), initialRegistry: registry } });
 
@@ -662,6 +775,7 @@ describe('комбинации клавиш в оболочке', () => {
         },
       ],
       currentWorkspaceId: 'ws-1',
+      noteSetWorkspaces: {},
     };
   }
 

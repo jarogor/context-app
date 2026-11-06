@@ -430,7 +430,11 @@ describe('операции плагина заметок', () => {
     expect(invoke).toHaveBeenCalledWith('invoke_base_plugin_operation', {
       capability: 'notes.store@1',
       operation: 'create_set',
-      payload: { book_key: 'lib::book-1', book_title: '', name: 'Основные' },
+      payload: {
+        book_key: 'lib::book-1',
+        book_title: '',
+        name: 'Основные',
+      },
     });
 
     const set = await getSet('ns-1');

@@ -233,6 +233,24 @@ export function openBook(state: WorkspaceState, book: BookRef, limit?: number): 
   return { tabs: [...state.tabs, tab], activeTabId: tab.id };
 }
 
+/** Открытие книги вкладкой без дубликата.
+ *
+ * Уже открытая книга активируется, а не открывается второй раз: переход к книге
+ * из реестра заметок не должен заводить новый экземпляр того же файла. Лимит
+ * открытых вкладок на активацию не влияет — новая вкладка не создаётся.
+ */
+export function openOrActivateBook(
+  state: WorkspaceState,
+  book: BookRef,
+  limit?: number,
+): WorkspaceState {
+  const existing = state.tabs.find((tab) => tab.path === book.path);
+  if (existing) {
+    return activateTab(state, existing.id);
+  }
+  return openBook(state, book, limit);
+}
+
 /** Закрытие вкладки; активность переходит соседней. */
 export function closeTab(state: WorkspaceState, tabId: string): WorkspaceState {
   const index = state.tabs.findIndex((tab) => tab.id === tabId);

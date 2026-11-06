@@ -9,6 +9,7 @@ import {
   normalizeWorkspace,
   openAvailability,
   openBook,
+  openOrActivateBook,
   replaceTabBook,
   serializeTab,
   updateTab,
@@ -22,6 +23,28 @@ describe('рабочее место', () => {
     expect(state.tabs[0].zoom).toBe(100);
     expect(state.tabs[0].position).toBe(0);
     expect(state.activeTabId).toBe(state.tabs[0].id);
+  });
+
+  it('активирует уже открытую книгу, а не заводит вторую вкладку', () => {
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    const first = state.activeTabId;
+    state = openBook(state, { path: '/lib/b.epub', title: 'B' });
+
+    state = openOrActivateBook(state, { path: '/lib/a.epub', title: 'A' });
+
+    expect(state.tabs).toHaveLength(2);
+    expect(state.activeTabId).toBe(first);
+  });
+
+  it('повторный переход к книге работает и при достигнутом лимите вкладок', () => {
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    const first = state.activeTabId;
+    state = openBook(state, { path: '/lib/b.epub', title: 'B' });
+
+    // Лимит в одну вкладку превышен, но новая вкладка не нужна: книга открыта.
+    state = openOrActivateBook(state, { path: '/lib/a.epub', title: 'A' }, 1);
+    expect(state.tabs).toHaveLength(2);
+    expect(state.activeTabId).toBe(first);
   });
 
   it('переводит активность соседней вкладке при закрытии активной', () => {

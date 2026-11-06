@@ -33,6 +33,8 @@
     controls?: Snippet;
     /** Содержимое страницы, когда нет состояний загрузки, ошибки или пустоты. */
     children?: Snippet;
+    /** Боковая область страницы: справа от содержимого, под шапкой и полосой управления. */
+    side?: Snippet;
     /** Идёт загрузка содержимого. */
     loading?: boolean;
     /** Ошибка загрузки содержимого (пустая строка — ошибки нет). */
@@ -76,6 +78,7 @@
     actions,
     controls,
     children,
+    side,
     loading = false,
     error = '',
     onRetry,
@@ -167,11 +170,14 @@
     </div>
   {/if}
 
-  <ScrollArea class={className}>
-    <div
-      class="flex w-full max-w-[var(--content-max-width)] flex-col gap-4 px-4 py-4 md:px-6 md:py-5"
-    >
-      {@render content()}
-    </div>
-  </ScrollArea>
+  <div class="relative flex min-h-0 min-w-0 flex-1">
+    <ScrollArea class={className}>
+      <div
+        class="flex w-full max-w-[var(--content-max-width)] flex-col gap-4 px-4 py-4 md:px-6 md:py-5"
+      >
+        {@render content()}
+      </div>
+    </ScrollArea>
+    {@render side?.()}
+  </div>
 </div>

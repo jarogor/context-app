@@ -49,12 +49,21 @@ fn saves_and_loads_registry() {
             workspace("ws-2", "Второе"),
         ],
         active_workspace_id: Some("ws-2".to_string()),
+        note_set_workspaces: std::collections::BTreeMap::from([(
+            "ns-1".to_string(),
+            vec!["ws-2".to_string(), "ws-1".to_string()],
+        )]),
     };
 
     save(&root, &file).expect("сохранение");
     let loaded = load(&root).expect("загрузка");
 
     assert_eq!(loaded, file);
+    assert_eq!(
+        loaded.note_set_workspaces.get("ns-1").map(Vec::as_slice),
+        Some(["ws-2".to_string(), "ws-1".to_string()].as_slice()),
+        "история мест набора переживает перезапуск"
+    );
     test_util::cleanup(&root);
 }
 
@@ -70,6 +79,7 @@ fn keeps_workspaces_tabs_independent() {
     let file = WorkspacesFile {
         workspaces: vec![first, second],
         active_workspace_id: Some("ws-1".to_string()),
+        ..Default::default()
     };
 
     save(&root, &file).expect("сохранение");
@@ -117,6 +127,7 @@ fn saves_and_loads_tab_appearance() {
             ..workspace("ws-1", "Первое")
         }],
         active_workspace_id: Some("ws-1".to_string()),
+        ..Default::default()
     };
 
     save(&root, &file).expect("сохранение");
@@ -129,6 +140,7 @@ fn saves_and_loads_tab_appearance() {
         &WorkspacesFile {
             workspaces: vec![workspace("ws-2", "Второе")],
             active_workspace_id: None,
+            ..Default::default()
         },
     )
     .expect("сохранение без оформления");
@@ -193,6 +205,7 @@ fn saved_registry_wins_over_legacy() {
     let file = WorkspacesFile {
         workspaces: vec![workspace("ws-2", "Новое")],
         active_workspace_id: Some("ws-2".to_string()),
+        ..Default::default()
     };
     save(&root, &file).expect("сохранение");
 

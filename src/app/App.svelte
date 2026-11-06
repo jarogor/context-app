@@ -31,10 +31,12 @@
     closeTab,
     duplicateTab,
     openBook,
+    openOrActivateBook,
     replaceTabBook,
     updateTab,
     activateTab,
     activeTab,
+    type BookRef,
     type TabAppearancePatch,
   } from '../features/workplace/workplace';
   import {
@@ -45,6 +47,8 @@
     selectWorkspace,
     serializeRegistry,
     updateCurrentWorkspaceTabs,
+    updateWorkspaceTabs,
+    rememberSetWorkspace,
     type WorkspaceRegistry,
   } from '../features/workplace/workspace-registry';
   import { logEvent } from '../shared/app-log';
@@ -363,6 +367,7 @@
     () => notesBookKey,
     () => currentNoteTypes,
     () => currentTab?.title ?? '',
+    (setId) => rememberShownSetWorkspace(setId),
   );
 
   /** Вкладка, для которой выбирается новая книга (переуказание файла). */
@@ -909,42 +914,58 @@
     }
   }
 
-  /** Переход из реестра заметок к книге набора.
-   *
-   * Книга открывается вкладкой в рабочем месте, набор становится активным, а
-   * переход к конкретной заметке запоминается как отложенная цель: вкладка
-   * появляется асинхронно, поэтому `reader.goto` вызывается, когда заметки книги
-   * уже загружены.
-   */
-  function openNotesLibrarySet(set: NoteSet) {
-    openNotesTarget(set, null);
+  /** Открытие набора в выбранном рабочем месте (кнопка панели реестра). */
+  function openNotesLibrarySet(set: NoteSet, workspaceId: string) {
+    openNotesSetInWorkspace(set, null, workspaceId);
   }
 
-  /** Переход из реестра заметок к конкретной заметке набора. */
-  function openNotesLibraryNote(set: NoteSet, note: Note) {
-    openNotesTarget(set, note.id);
+  /** Открытие заметки набора в выбранном рабочем месте. */
+  function openNotesLibraryNote(set: NoteSet, note: Note, workspaceId: string) {
+    openNotesSetInWorkspace(set, note.id, workspaceId);
   }
 
-  /** Общий переход из реестра: книга, активный набор и цель по заметке. */
-  function openNotesTarget(set: NoteSet, noteId: string | null) {
+  /** Создание рабочего места из панели реестра и открытие в нём набора. */
+  function createWorkspaceForNotes(set: NoteSet, name: string, note: Note | null) {
+    registry = createWorkspace(registry, name);
+    const id = registry.currentWorkspaceId;
+    if (id) {
+      openNotesSetInWorkspace(set, note?.id ?? null, id);
+    }
+  }
+
+  /** Открытие набора в рабочем месте: книга активируется, а не дублируется. */
+  function openNotesSetInWorkspace(set: NoteSet, noteId: string | null, workspaceId: string) {
     const key = set.bookKey.trim();
     if (!key || key === 'no-library') {
       notesLibraryError = t('app.error.notesBookUnavailable');
+      return;
+    }
+    const target = registry.workspaces.find((item) => item.id === workspaceId);
+    if (!target) {
       return;
     }
     // Активный набор запоминается до загрузки заметок: `load` выберет его,
     // когда вкладка книги появится.
     notesController.rememberActiveSet(key, set.id);
     pendingNoteTarget = { bookKey: key, setId: set.id, noteId };
-    notesLibraryOpen = false;
-    const book = {
-      path: key,
-      title: bookTitleOf(set),
-      format: formatFromPath(key),
-    };
-    if (placeBook(book)) {
-      showWorkspaceArea();
+    const book = { path: key, title: bookTitleOf(set), format: formatFromPath(key) };
+    registry = rememberSetWorkspace(
+      selectWorkspace(registry, workspaceId),
+      set.id,
+      workspaceId,
+    );
+    registry = updateWorkspaceTabs(registry, workspaceId, (state) =>
+      openOrActivateBook(state, book, openTabsLimit),
+    );
+    showWorkspaceArea();
+  }
+
+  /** Запоминание места набора, показанного в открытой книге. */
+  function rememberShownSetWorkspace(setId: string) {
+    if (!workspace) {
+      return;
     }
+    registry = rememberSetWorkspace(registry, setId, workspace.id);
   }
 
   /** Выбор рабочего места из диалога: книга открывается вкладкой в нём. */
@@ -952,12 +973,9 @@
     registry = selectWorkspace(registry, id);
     pickerOpen = false;
     if (pendingBook) {
+      const book = pendingBook as BookRef;
       registry = updateCurrentWorkspaceTabs(registry, (state) =>
-        openBook(
-          state,
-          pendingBook as { path: string; title: string; format: string },
-          openTabsLimit,
-        ),
+        openBook(state, book, openTabsLimit),
       );
       pendingBook = null;
     }
@@ -1298,12 +1316,15 @@
         <div class="flex min-h-0 min-w-0 flex-1">
           <NotesLibraryPage
             sets={notesLibrarySets}
+            workspaces={registry.workspaces}
+            workspaceHistory={registry.noteSetWorkspaces}
             loading={notesLibraryLoading}
             error={notesLibraryError}
             {readerTheme}
             {palette}
             onOpenSet={openNotesLibrarySet}
             onOpenNote={openNotesLibraryNote}
+            onCreateWorkspace={createWorkspaceForNotes}
           />
         </div>
       {/if}

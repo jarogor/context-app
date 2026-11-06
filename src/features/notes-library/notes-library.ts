@@ -1,15 +1,14 @@
 /** Реестр заметок: наборы всех книг, поиск и представление для показа.
  *
  * Область реестра получает агрегат всех наборов (`list_all_sets`).
- * **Заметки — первичны, книга — подпись:** пользователь приходит в реестр за
- * заметками, поэтому основное здесь — заметки и их наборы, а книга — компактный
- * контекст под именем набора (её имя берётся из сохранённого `book_title`, а для
- * старых наборов — резервно из ключа).
+ * **Заметки — первичны, файл книги — подпись:** пользователь приходит в реестр за
+ * заметками, поэтому основное здесь — заметки и их наборы, а книга показывается
+ * полным ключом с расширением. Где набор открывали, приложение помнит отдельно
+ * (в реестре рабочих мест), поэтому сами заметки ссылок на места не несут.
  *
  * Ключ книги непрозрачен: модуль группирует по его значению и не разбирает его
- * как путь, кроме резервного отображаемого имени. Это задел под будущую
- * устойчивую идентификацию книги (`book-identity`): смена источника ключа не
- * потребует правки реестра.
+ * как путь. Это задел под будущую устойчивую идентификацию книги
+ * (`book-identity`): смена источника ключа не потребует правки реестра.
  */
 
 import { noteList, notePlace, type NoteSet, type Note, type NoteListItem } from '../notes/notes';
@@ -30,6 +29,11 @@ export function fallbackBookTitle(bookKey: string): string {
   return lastSegment(bookKey, { stripExt: true }) || bookKey;
 }
 
+/** Имя файла книги набора: последний сегмент ключа с расширением. */
+export function bookFileName(bookKey: string): string {
+  return lastSegment(bookKey.trim(), { stripExt: false }) || bookKey.trim();
+}
+
 /** Отображаемое имя книги набора: сохранённое имя или резервное по ключу. */
 export function bookTitleOf(set: NoteSet): string {
   const title = set.bookTitle.trim();
@@ -40,10 +44,10 @@ export function bookTitleOf(set: NoteSet): string {
 export interface LibrarySetView {
   /** Идентификатор набора. */
   id: string;
-  /** Непрозрачный ключ книги набора. */
+  /** Непрозрачный ключ книги набора (показывается как есть). */
   bookKey: string;
-  /** Отображаемое имя книги (сохранённое или резервное). */
-  bookTitle: string;
+  /** Имя файла книги с расширением (без пути). */
+  bookName: string;
   /** Человекочитаемое имя набора. */
   name: string;
   /** Заметки набора для показа (в порядке хода текста). */
@@ -74,9 +78,13 @@ function noteMatches(note: Note, needle: string): boolean {
   );
 }
 
-/** Подходит ли набор под запрос: имя набора или имя книги. */
+/** Подходит ли набор под запрос: имя набора, путь книги или имя книги. */
 function setMatches(set: NoteSet, needle: string): boolean {
-  return set.name.toLowerCase().includes(needle) || bookTitleOf(set).toLowerCase().includes(needle);
+  return (
+    set.name.toLowerCase().includes(needle) ||
+    set.bookKey.toLowerCase().includes(needle) ||
+    bookTitleOf(set).toLowerCase().includes(needle)
+  );
 }
 
 /** Наборы реестра, готовые к показу, с учётом поиска.
@@ -101,7 +109,7 @@ export function librarySets(sets: NoteSet[], query: string): LibrarySetView[] {
   return filtered.map((set) => ({
     id: set.id,
     bookKey: set.bookKey,
-    bookTitle: bookTitleOf(set),
+    bookName: bookFileName(set.bookKey),
     name: set.name,
     noteItems: noteList(set.notes),
     createdAtMillis: set.createdAtMillis,

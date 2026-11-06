@@ -14,55 +14,52 @@ describe('библиотека заметок', () => {
     expect(screen.getByTestId('notes-library-empty').textContent).toContain('пока нет');
   });
 
-  it('справа показывает только число заметок и выравнивает его вправо', () => {
-    // Число наборов уже видно в счётчике рядом с поиском: второй раз его не
-    // дублируем. Оставшаяся статистика стоит справа и на любой ширине.
+  it('справа показывает только число заметок', () => {
     render(NotesLibraryPage, {
       props: {
-        sets: [set({ id: 'ns-1', book_key: '/a.pdf', book_title: 'Книга A', name: 'Основные' })],
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'Основные' })],
       },
     });
-
     const counters = screen.getByText('Заметок').closest('dl');
     expect(counters?.className).toContain('ml-auto');
-    expect(counters?.className).not.toContain('sm:ml-auto');
-    // Подписи наборов здесь больше нет.
     expect(screen.queryByText('Наборов')).toBeNull();
   });
 
-  it('показывает наборы свёрнутыми: имя набора и книга-подпись без заметок', () => {
+  it('показывает набор, а книгу — полным путём моноширинным', () => {
     render(NotesLibraryPage, {
       props: {
-        sets: [
-          set({ id: 'ns-1', book_key: '/a.pdf', book_title: 'Книга A', name: 'Основные' }),
-          set({
-            id: 'ns-2',
-            book_key: '/b.pdf',
-            book_title: 'Книга B',
-            name: 'Черновики',
-            notes: [{ id: 'n1', quote: 'цитата' }],
-          }),
-        ],
+        sets: [set({ id: 'ns-1', book_key: '/lib/Книга A.pdf', name: 'Основные' })],
       },
     });
-
-    const sections = screen.getAllByTestId('notes-library-set');
-    expect(sections).toHaveLength(2);
-    // Имя набора — акцент; книга — подпись рядом.
-    expect(within(sections[0]).getByTestId('notes-library-set-name').textContent).toBe('Основные');
-    expect(within(sections[0]).getByTestId('notes-library-book').textContent).toBe('Книга A');
-    // Заметки свёрнуты: списка заметок в свёрнутом наборе нет.
-    expect(within(sections[1]).queryByTestId('notes-library-notes')).toBeNull();
+    expect(screen.getByTestId('notes-library-set-name').textContent).toBe('Основные');
+    const book = screen.getByTestId('notes-library-book');
+    expect(book.textContent).toContain('Книга A.pdf');
+    expect(book.className).toContain('font-mono');
+    // Пометки «не записано» больше нет.
+    expect(screen.queryByTestId('notes-library-workspace')).toBeNull();
   });
 
-  it('раскрывает заметки набора по клику', async () => {
+  it('выводит последнее место открытия из истории', () => {
+    render(NotesLibraryPage, {
+      props: {
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'A' })],
+        workspaces: [
+          { id: 'ws-1', name: 'Первое' },
+          { id: 'ws-2', name: 'Второе' },
+        ],
+        workspaceHistory: { 'ns-1': ['ws-2', 'ws-1'] },
+      },
+    });
+    expect(screen.getByTestId('notes-library-workspace').textContent).toBe('Второе');
+  });
+
+  it('раскрывает заметки набором пунктом меню', async () => {
     render(NotesLibraryPage, {
       props: {
         sets: [
           set({
             id: 'ns-1',
             book_key: '/a.pdf',
-            book_title: 'Книга A',
             name: 'Основные',
             notes: [{ id: 'n1', quote: 'цитата' }],
           }),
@@ -70,120 +67,76 @@ describe('библиотека заметок', () => {
       },
     });
 
-    const section = screen.getByTestId('notes-library-set');
-    expect(within(section).queryByTestId('notes-library-notes')).toBeNull();
+    expect(screen.queryByTestId('notes-library-notes')).toBeNull();
+    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
+    await fireEvent.click(await screen.findByText('Показать заметки'));
+    expect(
+      within(screen.getByTestId('notes-library-set')).getByTestId('notes-item-link'),
+    ).toBeTruthy();
 
-    await fireEvent.click(within(section).getByTestId('notes-library-set-toggle'));
-
-    const notes = within(section).getByTestId('notes-library-notes');
-    expect(within(notes).getByTestId('notes-item-link').textContent).toContain('цитата');
-
-    // Повторный клик сворачивает набор обратно.
-    await fireEvent.click(within(section).getByTestId('notes-library-set-toggle'));
-    expect(within(section).queryByTestId('notes-library-notes')).toBeNull();
+    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
+    await fireEvent.click(await screen.findByText('Скрыть заметки'));
+    expect(screen.queryByTestId('notes-library-notes')).toBeNull();
   });
 
-  it('выводит резервное имя книги без сохранённого', () => {
-    render(NotesLibraryPage, {
-      props: { sets: [set({ id: 'ns-1', book_key: '/home/user/Downloads/book.pdf' })] },
-    });
-    expect(screen.getByTestId('notes-library-book').textContent).toContain('book');
-  });
-
-  it('показывает пустой набор информативно после раскрытия', async () => {
-    render(NotesLibraryPage, {
-      props: { sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'A' })] },
-    });
-    const section = screen.getByTestId('notes-library-set');
-    expect(within(section).queryByTestId('notes-library-set-empty')).toBeNull();
-    await fireEvent.click(within(section).getByTestId('notes-library-set-toggle'));
-    expect(within(section).getByTestId('notes-library-set-empty').textContent).toContain(
-      'нет заметок',
-    );
-  });
-
-  it('показывает число заметок словами', () => {
+  it('открывает панель выбора и показывает два списка мест', () => {
     render(NotesLibraryPage, {
       props: {
-        sets: [
-          set({
-            id: 'ns-1',
-            book_key: '/a.pdf',
-            name: 'A',
-            notes: [{ id: 'n1' }, { id: 'n2' }, { id: 'n3' }],
-          }),
+        sets: [set({ id: 'ns-1', book_key: '/lib/book.epub', name: 'A' })],
+        workspaces: [
+          { id: 'ws-1', name: 'Первое' },
+          { id: 'ws-2', name: 'Второе' },
+          { id: 'ws-3', name: 'Третье' },
         ],
-      },
-    });
-    expect(screen.getByTestId('notes-library-set').textContent).toContain('3 заметки');
-  });
-
-  it('при поиске раскрывает только подходящие заметки', async () => {
-    render(NotesLibraryPage, {
-      props: {
-        sets: [
-          set({
-            id: 'ns-1',
-            book_key: '/a.pdf',
-            book_title: 'Книга A',
-            name: 'A',
-            notes: [{ id: 'n1', quote: 'другое' }],
-          }),
-          set({
-            id: 'ns-2',
-            book_key: '/b.pdf',
-            book_title: 'Книга B',
-            name: 'B',
-            notes: [{ id: 'n2', quote: 'Хайдеггер' }],
-          }),
-        ],
+        workspaceHistory: { 'ns-1': ['ws-2'] },
       },
     });
 
-    await fireEvent.input(screen.getByPlaceholderText('Поиск по заметкам'), {
-      target: { value: 'хайдеггер' },
-    });
+    expect(screen.queryByTestId('notes-set-panel')).toBeNull();
+    fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
 
-    const sections = screen.getAllByTestId('notes-library-set');
-    expect(sections).toHaveLength(1);
-    expect(within(sections[0]).getByTestId('notes-library-book').textContent).toBe('Книга B');
-    // Найденная заметка видна без отдельного раскрытия.
-    const notes = within(sections[0]).getByTestId('notes-library-notes');
-    expect(within(notes).getByTestId('notes-item-link').textContent).toContain('Хайдеггер');
+    const panel = screen.getByTestId('notes-set-panel');
+    expect(within(panel).getByTestId('notes-set-book').textContent).toContain('book.epub');
+    // Где открывалось — первым, затем остальные.
+    expect(within(panel).getByText('Последнее открытие:')).toBeTruthy();
+    expect(within(panel).getByTestId('notes-set-history-item').textContent).toContain('Второе');
+    const others = within(panel).getAllByTestId('notes-set-workspace-item');
+    expect(others.map((item) => item.textContent?.trim())).toEqual(['Первое', 'Третье']);
+    // Форма создания не показывается по умолчанию.
+    expect(within(panel).queryByPlaceholderText('Новое рабочее место')).toBeNull();
   });
 
-  it('сообщает об отсутствии результатов поиска', async () => {
+  it('скрывает места, которых уже нет на устройстве', () => {
     render(NotesLibraryPage, {
-      props: { sets: [set({ id: 'ns-1', book_key: '/a.pdf', book_title: 'Книга A' })] },
+      props: {
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'A' })],
+        workspaces: [{ id: 'ws-1', name: 'Первое' }],
+        workspaceHistory: { 'ns-1': ['ws-gone', 'ws-1'] },
+      },
     });
-    await fireEvent.input(screen.getByPlaceholderText('Поиск по заметкам'), {
-      target: { value: 'нет такого' },
-    });
-    expect(screen.getByTestId('notes-library-empty').textContent).toContain('ничего не найдено');
+    fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    const panel = screen.getByTestId('notes-set-panel');
+    expect(within(panel).getAllByTestId('notes-set-history-item')).toHaveLength(1);
+    expect(within(panel).getByTestId('notes-set-history-item').textContent).toContain('Первое');
+    expect(within(panel).queryAllByTestId('notes-set-workspace-item')).toHaveLength(0);
   });
 
-  it('сообщает об ошибке загрузки', () => {
-    render(NotesLibraryPage, { props: { sets: [], error: 'сбой' } });
-    expect(screen.getByTestId('notes-library-error').textContent).toContain('сбой');
-  });
-
-  it('отдаёт интент перехода к книге из меню набора', async () => {
+  it('отдаёт интент открытия набора в выбранном месте', async () => {
     const onOpenSet = vi.fn();
     render(NotesLibraryPage, {
       props: {
-        sets: [set({ id: 'ns-1', book_key: '/a.pdf', book_title: 'Книга A', name: 'A' })],
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'A' })],
+        workspaces: [{ id: 'ws-1', name: 'Первое' }],
         onOpenSet,
       },
     });
-
-    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
-    await fireEvent.click(await screen.findByText('Открыть книгу'));
-
+    fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    await fireEvent.click(screen.getByTestId('notes-set-workspace-item'));
     expect(onOpenSet).toHaveBeenCalledTimes(1);
-    expect(onOpenSet.mock.calls[0][0].id).toBe('ns-1');
+    expect(onOpenSet.mock.calls[0][1]).toBe('ws-1');
   });
 
-  it('отдаёт интент перехода к заметке', async () => {
+  it('запоминает выбранную заметку и открывает её в выбранном месте', async () => {
     const onOpenNote = vi.fn();
     render(NotesLibraryPage, {
       props: {
@@ -191,18 +144,81 @@ describe('библиотека заметок', () => {
           set({
             id: 'ns-1',
             book_key: '/a.pdf',
-            book_title: 'Книга A',
-            notes: [{ id: 'n1', quote: 'Мысль' }],
+            name: 'A',
+            notes: [{ id: 'n1', quote: 'цитата' }],
           }),
         ],
+        workspaces: [{ id: 'ws-1', name: 'Первое' }],
         onOpenNote,
       },
     });
-
-    await fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
+    await fireEvent.click(await screen.findByText('Показать заметки'));
     await fireEvent.click(screen.getByTestId('notes-item-link'));
-
+    expect(screen.getByTestId('notes-item').getAttribute('data-selected')).toBe('true');
+    await fireEvent.click(screen.getByTestId('notes-set-workspace-item'));
     expect(onOpenNote).toHaveBeenCalledTimes(1);
     expect(onOpenNote.mock.calls[0][1].id).toBe('n1');
+    expect(onOpenNote.mock.calls[0][2]).toBe('ws-1');
+  });
+
+  it('показывает форму создания только по кнопке и создаёт место', async () => {
+    const onCreateWorkspace = vi.fn();
+    render(NotesLibraryPage, {
+      props: {
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'A' })],
+        workspaces: [{ id: 'ws-1', name: 'Первое' }],
+        onCreateWorkspace,
+      },
+    });
+    fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    expect(screen.queryByPlaceholderText('Новое рабочее место')).toBeNull();
+
+    await fireEvent.click(screen.getByTestId('notes-set-create-workspace'));
+    await fireEvent.input(screen.getByPlaceholderText('Новое рабочее место'), {
+      target: { value: 'Новое' },
+    });
+    await fireEvent.click(screen.getByLabelText('Создать'));
+    expect(onCreateWorkspace).toHaveBeenCalledTimes(1);
+    expect(onCreateWorkspace.mock.calls[0][1]).toBe('Новое');
+    expect(onCreateWorkspace.mock.calls[0][2]).toBeNull();
+  });
+
+  it('фильтрует места поиском панели', async () => {
+    render(NotesLibraryPage, {
+      props: {
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'A' })],
+        workspaces: [
+          { id: 'ws-1', name: 'Альфа' },
+          { id: 'ws-2', name: 'Бета' },
+        ],
+      },
+    });
+    fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    await fireEvent.input(screen.getByPlaceholderText('Поиск рабочего места'), {
+      target: { value: 'бета' },
+    });
+    const items = screen.getAllByTestId('notes-set-workspace-item');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain('Бета');
+  });
+
+  it('закрывает панель и оставляет реестр', async () => {
+    render(NotesLibraryPage, {
+      props: {
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'A' })],
+        workspaces: [{ id: 'ws-1', name: 'Первое' }],
+      },
+    });
+    fireEvent.click(screen.getByTestId('notes-library-set-toggle'));
+    expect(screen.getByTestId('notes-set-panel')).toBeTruthy();
+    await fireEvent.click(screen.getByTestId('side-panel-close'));
+    expect(screen.queryByTestId('notes-set-panel')).toBeNull();
+    expect(screen.getByTestId('notes-library')).toBeTruthy();
+  });
+
+  it('сообщает об ошибке загрузки', () => {
+    render(NotesLibraryPage, { props: { sets: [], error: 'сбой' } });
+    expect(screen.getByTestId('notes-library-error').textContent).toContain('сбой');
   });
 });

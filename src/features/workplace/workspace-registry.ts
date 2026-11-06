@@ -39,6 +39,8 @@ export interface WorkspaceRegistry {
   workspaces: WorkspaceRecord[];
   /** Идентификатор текущего (открытого) рабочего места или null. */
   currentWorkspaceId: string | null;
+  /** Где открывали наборы заметок: набор → места, свежие первыми. */
+  noteSetWorkspaces: Record<string, string[]>;
 }
 
 /** Имя рабочего места, создаваемого с пустым именем, на активном языке. */
@@ -57,7 +59,30 @@ export function newWorkspaceId(): string {
 
 /** Пустой реестр (используется тестами реестра и оболочки). */
 export function emptyRegistry(): WorkspaceRegistry {
-  return { workspaces: [], currentWorkspaceId: null };
+  return { workspaces: [], currentWorkspaceId: null, noteSetWorkspaces: {} };
+}
+
+/** История наборов: разбор карты «набор → места» с чисткой значений. */
+function normalizeNoteSetWorkspaces(value: unknown): Record<string, string[]> {
+  const record = (value ?? {}) as Record<string, unknown>;
+  const result: Record<string, string[]> = {};
+  for (const [rawId, rawPlaces] of Object.entries(record)) {
+    const setId = rawId.trim();
+    if (!setId || !Array.isArray(rawPlaces)) {
+      continue;
+    }
+    const places: string[] = [];
+    for (const item of rawPlaces) {
+      const place = String(item ?? '').trim();
+      if (place && !places.includes(place)) {
+        places.push(place);
+      }
+    }
+    if (places.length > 0) {
+      result[setId] = places;
+    }
+  }
+  return result;
 }
 
 /** Приведение загруженного реестра к модели с безопасными значениями.
@@ -91,7 +116,13 @@ export function normalizeRegistry(value: unknown): WorkspaceRegistry {
     })
     .filter((item): item is WorkspaceRecord => item !== null);
 
-  return { workspaces, currentWorkspaceId: null };
+  return {
+    workspaces,
+    currentWorkspaceId: null,
+    noteSetWorkspaces: normalizeNoteSetWorkspaces(
+      (value as { note_set_workspaces?: unknown } | null)?.note_set_workspaces,
+    ),
+  };
 }
 
 /** Текущее (открытое) рабочее место. */
@@ -121,6 +152,7 @@ export function addWorkspace(
   return {
     workspaces: [...registry.workspaces, workspace],
     currentWorkspaceId: workspace.id,
+    noteSetWorkspaces: registry.noteSetWorkspaces,
   };
 }
 
@@ -160,10 +192,18 @@ export function removeWorkspace(registry: WorkspaceRegistry, id: string): Worksp
     return registry;
   }
   const workspaces = registry.workspaces.filter((item) => item.id !== id);
-  if (registry.currentWorkspaceId !== id) {
-    return { workspaces, currentWorkspaceId: registry.currentWorkspaceId };
+  // Место удалено — убираем его и из истории наборов.
+  const noteSetWorkspaces: Record<string, string[]> = {};
+  for (const [setId, places] of Object.entries(registry.noteSetWorkspaces)) {
+    const rest = places.filter((place) => place !== id);
+    if (rest.length > 0) {
+      noteSetWorkspaces[setId] = rest;
+    }
   }
-  return { workspaces, currentWorkspaceId: null };
+  if (registry.currentWorkspaceId !== id) {
+    return { workspaces, currentWorkspaceId: registry.currentWorkspaceId, noteSetWorkspaces };
+  }
+  return { workspaces, currentWorkspaceId: null, noteSetWorkspaces };
 }
 
 /** Применение операции над вкладками к выбранному рабочему месту. */
@@ -198,6 +238,35 @@ export function updateCurrentWorkspaceTabs(
   return updateWorkspaceTabs(registry, current.id, reduce);
 }
 
+/** Где открывали набор: идентификаторы мест, свежие первыми. */
+export function workspacesOfSet(registry: WorkspaceRegistry, setId: string): string[] {
+  return registry.noteSetWorkspaces[setId] ?? [];
+}
+
+/** Запоминание места, в котором открыли набор: место поднимается в начало. */
+export function rememberSetWorkspace(
+  registry: WorkspaceRegistry,
+  setId: string,
+  workspaceId: string,
+): WorkspaceRegistry {
+  const trimmedSet = setId.trim();
+  const trimmedWorkspace = workspaceId.trim();
+  if (!trimmedSet || !trimmedWorkspace) {
+    return registry;
+  }
+  const places = registry.noteSetWorkspaces[trimmedSet] ?? [];
+  if (places[0] === trimmedWorkspace) {
+    return registry;
+  }
+  return {
+    ...registry,
+    noteSetWorkspaces: {
+      ...registry.noteSetWorkspaces,
+      [trimmedSet]: [trimmedWorkspace, ...places.filter((place) => place !== trimmedWorkspace)],
+    },
+  };
+}
+
 /** Сериализация реестра к контракту ядра (`snake_case`).
  *
  * Модель оболочки использует camelCase, а ядро ожидает `snake_case`;
@@ -212,6 +281,7 @@ export function serializeRegistry(registry: WorkspaceRegistry): Record<string, u
       ...serializeWorkspace({ tabs: workspace.tabs, activeTabId: workspace.activeTabId }),
     })),
     active_workspace_id: registry.currentWorkspaceId,
+    note_set_workspaces: registry.noteSetWorkspaces,
   };
 }
 

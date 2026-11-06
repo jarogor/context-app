@@ -73,11 +73,11 @@ describe('наборы реестра', () => {
 
     expect(rows).toHaveLength(3);
     expect(rows[0].name).toBe('Основные');
-    expect(rows[0].bookTitle).toBe('Книга A');
+    expect(rows[0].bookName).toBe('a.pdf');
     expect(rows[0].noteItems).toHaveLength(1);
     expect(rows[0].updatedAtMillis).toBeGreaterThan(0);
     expect(rows[1].noteItems).toHaveLength(0);
-    expect(rows[2].bookTitle).toBe('b');
+    expect(rows[2].bookName).toBe('b.pdf');
   });
 
   it('книга — подпись: группировка не выделяет её отдельным блоком', () => {

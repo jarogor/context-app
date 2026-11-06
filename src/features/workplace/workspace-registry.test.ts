@@ -12,6 +12,8 @@ import {
   serializeRegistry,
   updateCurrentWorkspaceTabs,
   updateWorkspaceTabs,
+  rememberSetWorkspace,
+  workspacesOfSet,
 } from './workspace-registry';
 import { openBook, updateTab } from './workplace';
 
@@ -187,5 +189,48 @@ describe('реестр рабочих мест', () => {
     expect(tab.description).toBe('сравнение глав');
     expect(tab.icon).toBe('star');
     expect(tab.color).toBe('blue');
+  });
+
+  it('хранит все места набора, поднимая свежее в начало', () => {
+    let registry = addWorkspace(emptyRegistry(), 'Первое', 'ws-1', 1);
+    registry = addWorkspace(registry, 'Второе', 'ws-2', 2);
+    registry = rememberSetWorkspace(registry, 'ns-1', 'ws-1');
+    registry = rememberSetWorkspace(registry, 'ns-1', 'ws-2');
+
+    expect(workspacesOfSet(registry, 'ns-1')).toEqual(['ws-2', 'ws-1']);
+
+    // Повтор того же места ничего не меняет и не дублирует его.
+    const repeated = rememberSetWorkspace(registry, 'ns-1', 'ws-2');
+    expect(repeated).toBe(registry);
+    expect(workspacesOfSet(repeated, 'ns-1')).toEqual(['ws-2', 'ws-1']);
+  });
+
+  it('убирает удалённое место из истории наборов', () => {
+    let registry = addWorkspace(emptyRegistry(), 'Первое', 'ws-1', 1);
+    registry = addWorkspace(registry, 'Второе', 'ws-2', 2);
+    registry = rememberSetWorkspace(registry, 'ns-1', 'ws-2');
+    registry = rememberSetWorkspace(registry, 'ns-1', 'ws-1');
+
+    registry = removeWorkspace(registry, 'ws-2');
+
+    expect(workspacesOfSet(registry, 'ns-1')).toEqual(['ws-1']);
+  });
+
+  it('нормализует историю наборов и сериализует её', () => {
+    const registry = normalizeRegistry({
+      workspaces: [{ id: 'ws-1', name: 'Первое' }],
+      note_set_workspaces: {
+        ' ns-1 ': ['ws-1', ' ws-1 ', '', 'ws-2'],
+        'ns-2': [],
+      },
+    });
+
+    expect(workspacesOfSet(registry, 'ns-1')).toEqual(['ws-1', 'ws-2']);
+    expect(workspacesOfSet(registry, 'ns-2')).toEqual([]);
+
+    const serialized = serializeRegistry(registry) as {
+      note_set_workspaces: Record<string, string[]>;
+    };
+    expect(serialized.note_set_workspaces['ns-1']).toEqual(['ws-1', 'ws-2']);
   });
 });
