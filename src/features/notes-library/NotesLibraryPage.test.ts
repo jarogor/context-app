@@ -14,18 +14,20 @@ describe('библиотека заметок', () => {
     expect(screen.getByTestId('notes-library-empty').textContent).toContain('пока нет');
   });
 
-  it('выравнивает счётчики вправо на любой ширине', () => {
-    // На телефоне полоса управления переносит поиск и счётчики друг под
-    // друга; счётчики должны стоять справа, а не липнуть к левому краю.
+  it('справа показывает только число заметок и выравнивает его вправо', () => {
+    // Число наборов уже видно в счётчике рядом с поиском: второй раз его не
+    // дублируем. Оставшаяся статистика стоит справа и на любой ширине.
     render(NotesLibraryPage, {
       props: {
         sets: [set({ id: 'ns-1', book_key: '/a.pdf', book_title: 'Книга A', name: 'Основные' })],
       },
     });
 
-    const counters = screen.getByText('Наборов').closest('dl');
+    const counters = screen.getByText('Заметок').closest('dl');
     expect(counters?.className).toContain('ml-auto');
     expect(counters?.className).not.toContain('sm:ml-auto');
+    // Подписи наборов здесь больше нет.
+    expect(screen.queryByText('Наборов')).toBeNull();
   });
 
   it('показывает наборы свёрнутыми: имя набора и книга-подпись без заметок', () => {
