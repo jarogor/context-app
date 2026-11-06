@@ -1,12 +1,12 @@
 [package]
-name = "jarogor-context"
+name = "context_app"
 version = "0.1.0"
 description = "Контекст: персональная библиотека книг с портируемым хранением"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "jarogor_context_lib"
+name = "context_app_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
