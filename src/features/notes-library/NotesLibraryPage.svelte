@@ -159,14 +159,23 @@
   {/snippet}
 
   {#snippet controls()}
-    <Input
-      bind:value={query}
-      placeholder={t('app.search.notes.placeholder')}
-      ariaLabel={t('app.search.notes.placeholder')}
-      icon="search"
-      clearable
-      class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
-    />
+    <div class="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-none">
+      <Input
+        bind:value={query}
+        placeholder={t('app.search.notes.placeholder')}
+        ariaLabel={t('app.search.notes.placeholder')}
+        icon="search"
+        clearable
+        class="min-w-0 flex-1 sm:w-[24rem] sm:flex-none"
+      />
+      <!-- Счётчик рядом с поиском — тот же, что в списках мест и библиотек. -->
+      <span
+        class="flex-none role-caption text-[var(--muted-foreground)]"
+        data-testid="notes-filter-counter"
+      >
+        {t('app.search.filter', { shown: view.length, total: sets.length })}
+      </span>
+    </div>
     {#if sets.length > 0}
       <dl class="ml-auto flex items-center gap-4">
         <div class="flex items-baseline gap-1.5">

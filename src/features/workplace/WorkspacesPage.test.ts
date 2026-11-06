@@ -139,10 +139,10 @@ describe('экран списка рабочих мест', () => {
     render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
 
     // Поле открывается кнопкой создания, а кнопка меняет действие по вводу.
-    await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Создать рабочее место' }));
     const input = await screen.findByPlaceholderText('Новое рабочее место');
     await fireEvent.input(input, { target: { value: 'Новое' } });
-    await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Создать рабочее место' }));
 
     expect(base.onCreate).toHaveBeenCalledWith('Новое');
   });
@@ -151,7 +151,7 @@ describe('экран списка рабочих мест', () => {
     const base = handlers();
     render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
 
-    await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Создать рабочее место' }));
     await expect(await screen.findByPlaceholderText('Новое рабочее место')).toBeTruthy();
 
     // Пустое поле: кнопка становится закрытием и убирает поле.
@@ -165,7 +165,7 @@ describe('экран списка рабочих мест', () => {
     render(WorkspacesPage, { props: { workspaces: [], currentId: null, ...base } });
 
     // Кнопка не переезжает: меняется только её действие.
-    const before = screen.getByLabelText('Создать рабочее место');
+    const before = screen.getByRole('button', { name: 'Создать рабочее место' });
     expect(before.className).toContain('inline-flex');
     await fireEvent.click(before);
     expect(await screen.findByPlaceholderText('Новое рабочее место')).toBeTruthy();
@@ -189,12 +189,12 @@ describe('экран списка рабочих мест', () => {
 
     // Поля нет: на его месте только кнопка создания.
     expect(screen.queryByPlaceholderText('Новое рабочее место')).toBeNull();
-    await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Создать рабочее место' }));
 
     // Нажатие открывает поле, ввод и подтверждение создают место.
     const input = await screen.findByPlaceholderText('Новое рабочее место');
     await fireEvent.input(input, { target: { value: 'С телефона' } });
-    await fireEvent.click(screen.getByLabelText('Создать рабочее место'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Создать рабочее место' }));
     expect(base.onCreate).toHaveBeenCalledWith('С телефона');
 
     vi.unstubAllGlobals();

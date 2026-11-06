@@ -1404,8 +1404,7 @@
           месте.
         -->
         <header
-          class="flex flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 md:gap-4 md:px-6"
-          style="min-height: var(--app-bar-height);"
+          class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 md:min-h-14 md:gap-4 md:px-6"
           data-testid="settings-header"
         >
           <span class="min-w-0 flex-1 truncate role-heading text-[var(--foreground)]"

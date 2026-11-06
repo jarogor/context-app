@@ -374,12 +374,10 @@
             <Icon name="close" />
           </Button>
         {:else}
-          <IconButton
-            action="add"
-            title={t('app.workspace.create')}
-            ariaLabel={t('app.workspace.create')}
-            onclick={openComposer}
-          />
+          <Button variant="primary" size="sm" onclick={openComposer}>
+            <Icon name="plus" />
+            {t('app.workspace.create')}
+          </Button>
         {/if}
       </div>
     </div>

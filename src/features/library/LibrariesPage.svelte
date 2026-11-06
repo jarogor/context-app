@@ -258,21 +258,30 @@
   {/snippet}
 
   {#snippet controls()}
-    <Input
-      bind:value={query}
-      placeholder={t('app.search.library.placeholder')}
-      ariaLabel={t('app.search.library.placeholder')}
-      icon="search"
-      clearable
-      class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
-    />
+    <div class="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-none">
+      <Input
+        bind:value={query}
+        placeholder={t('app.search.library.placeholder')}
+        ariaLabel={t('app.search.library.placeholder')}
+        icon="search"
+        clearable
+        class="min-w-0 flex-1 sm:w-[24rem] sm:flex-none"
+      />
+      <!-- Счётчик рядом с поиском — тот же, что в списке рабочих мест. -->
+      <span
+        class="flex-none role-caption text-[var(--muted-foreground)]"
+        data-testid="libraries-filter-counter"
+      >
+        {t('app.search.filter', { shown: filtered.length, total: entries.length })}
+      </span>
+    </div>
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
       <Button variant="primary" disabled={opening} onclick={pickLibrary}>
         {#if openingNew}
           <Spinner class="h-4 w-4" />
         {/if}
         <Icon name="folder" />
-        {t('app.library.libraries.add')}
+        {t('app.library.libraries.addShort')}
       </Button>
     </div>
   {/snippet}

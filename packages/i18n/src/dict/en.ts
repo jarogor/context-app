@@ -287,6 +287,7 @@ export const en: Dictionary = {
   'app.library.libraries.empty.title': 'No open libraries',
   'app.library.libraries.empty.description':
     'Open a directory with books — it will appear in the list and a catalog will be built for it.',
+  'app.library.libraries.addShort': 'Add',
   'app.library.libraries.add': 'Add library',
   'app.library.libraries.openFolder': 'Open folder',
   'app.library.libraries.search': 'Library search',

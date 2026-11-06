@@ -42,7 +42,7 @@ describe('список библиотек', () => {
 
     await waitFor(() => expect(screen.getByTestId('library-item')).toBeTruthy());
     // Кнопка добавляет новую библиотеку в список, а не открывает выбранную.
-    expect(screen.getByRole('button', { name: /Добавить библиотеку/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Добавить/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Открыть библиотеку/ })).toBeNull();
   });
 
@@ -59,5 +59,43 @@ describe('список библиотек', () => {
       expect(invoke).toHaveBeenCalledWith('open_folder', { path: '/demo-library' }),
     );
     expect(invoke).not.toHaveBeenCalledWith('select_source_library', expect.anything());
+  });
+});
+
+describe('счётчик найденных библиотек', () => {
+  it('показывает, сколько найдено из всего', async () => {
+    // Тот же счётчик, что в списке рабочих мест: без него поиск не говорит,
+    // сколько записей он отсеял.
+    invoke.mockResolvedValue({
+      entries: [
+        {
+          path: '/lib/a',
+          provider: 'p1',
+          provider_name: 'books-source',
+          added_at_millis: 1,
+          available: true,
+        },
+        {
+          path: '/lib/b',
+          provider: 'p1',
+          provider_name: 'books-source',
+          added_at_millis: 2,
+          available: true,
+        },
+      ],
+    });
+
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getByTestId('libraries-filter-counter')).toBeTruthy());
+    expect(screen.getByTestId('libraries-filter-counter').textContent).toContain('2 из 2');
+
+    // Поиск отсеивает записи, и счётчик это показывает.
+    await fireEvent.input(screen.getByPlaceholderText('Поиск библиотеки'), {
+      target: { value: 'a' },
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('libraries-filter-counter').textContent).toContain('1 из 2'),
+    );
   });
 });

@@ -28,11 +28,11 @@ test.beforeEach(async ({ page }) => {
  * месте и меняет действие: с введённым именем сохраняет, с пустым — закрывает.
  */
 async function createWorkspace(page: import('@playwright/test').Page, name: string) {
-  await page.getByLabel('Создать рабочее место').click();
+  await page.getByRole('button', { name: 'Создать рабочее место' }).click();
   const field = page.getByPlaceholder('Новое рабочее место');
   await field.fill(name);
   // С введённым именем кнопка сохраняет рабочее место.
-  await page.getByLabel('Создать рабочее место').click();
+  await page.getByRole('button', { name: 'Создать рабочее место' }).click();
   await expect(page.getByTestId('workplace-tabs')).toBeVisible();
 }
 
@@ -309,11 +309,11 @@ test('кнопка создания не переезжает при вводе 
   for (const width of [390, 1400]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/');
-    await page.getByLabel('Создать рабочее место').click();
+    await page.getByRole('button', { name: 'Создать рабочее место' }).click();
 
     const before = await page.getByLabel('Отменить создание').boundingBox();
     await page.getByPlaceholder('Новое рабочее место').fill('Новое');
-    const after = await page.getByLabel('Создать рабочее место').boundingBox();
+    const after = await page.getByRole('button', { name: 'Создать рабочее место' }).boundingBox();
     expect(before).not.toBeNull();
     expect(after).not.toBeNull();
     expect(Math.abs(before!.x - after!.x)).toBeLessThan(2);
@@ -331,7 +331,7 @@ test('кнопка создания не переезжает при вводе 
     const expected = width < 900 ? controls!.width - 44 : 240;
     expect(Math.abs(field!.width - expected)).toBeLessThan(24);
 
-    await page.getByLabel('Создать рабочее место').click();
+    await page.getByRole('button', { name: 'Создать рабочее место' }).click();
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
   }
 });
@@ -351,7 +351,7 @@ test('список рабочих мест адаптивен к ширине о
   // Поиск и кнопка создания стоят в одной полосе: поле поиска и кнопка
   // создания на одной высоте, а не двумя отдельными рядами.
   const search = await page.getByPlaceholder('Поиск рабочего места').boundingBox();
-  const create = await page.getByLabel('Создать рабочее место').boundingBox();
+  const create = await page.getByRole('button', { name: 'Создать рабочее место' }).boundingBox();
   expect(search).not.toBeNull();
   expect(create).not.toBeNull();
   expect(Math.abs(search!.y - create!.y)).toBeLessThan(4);

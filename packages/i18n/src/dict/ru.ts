@@ -271,6 +271,7 @@ export const ru = {
   'app.library.libraries.empty.title': 'Нет открытых библиотек',
   'app.library.libraries.empty.description':
     'Откройте директорию с книгами — она появится в списке, и по ней построится каталог.',
+  'app.library.libraries.addShort': 'Добавить',
   'app.library.libraries.add': 'Добавить библиотеку',
   'app.library.libraries.openFolder': 'Открыть папку',
   'app.library.libraries.search': 'Поиск библиотеки',
