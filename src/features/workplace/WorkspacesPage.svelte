@@ -340,7 +340,7 @@
         data-testid="workspace-composer"
       >
         {#if composerOpen}
-          <div class="relative min-w-0 flex-1 sm:w-[15rem] sm:flex-none">
+          <div class="relative min-w-0 flex-1 sm:w-[24rem] sm:flex-none">
             <Input
               bind:element={composerField}
               bind:value={newName}

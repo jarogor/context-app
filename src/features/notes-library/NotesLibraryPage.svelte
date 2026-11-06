@@ -177,15 +177,13 @@
       </span>
     </div>
     {#if sets.length > 0}
-      <dl class="ml-auto flex items-center gap-4">
-        <div class="flex items-baseline gap-1.5">
-          <dt class="role-caption text-[var(--muted-foreground)]">{t('app.notes.library.sets')}</dt>
-          <dd class="role-title">{sets.length}</dd>
-        </div>
-        <div class="flex items-baseline gap-1.5">
-          <dt class="role-caption text-[var(--muted-foreground)]">{t('app.notes.library.notes')}</dt>
-          <dd class="role-title">{totalNotes}</dd>
-        </div>
+      <!--
+        Здесь только число заметок: сколько наборов, уже видно в счётчике
+        рядом с поиском, и второй раз это не нужно.
+      -->
+      <dl class="ml-auto flex items-center gap-1.5 role-caption text-[var(--muted-foreground)]">
+        <dt>{t('app.notes.library.notes')}</dt>
+        <dd>{totalNotes}</dd>
       </dl>
     {/if}
   {/snippet}
