@@ -459,84 +459,45 @@
         На узком окне эта группа заменена меню слева от вкладки: там кнопок
         панелей нет, а действия те же и живут в меню.
       -->
-    <Button
-      variant={booksOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
-      ariaLabel={t('app.workplace.tabs')}
-      ariaPressed={booksOpen}
-      onclick={onToggleBooks}
-    >
-      <Icon name="tabs" />
-    </Button>
-    <Button
-      variant={notesOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
-      ariaLabel={t('app.workplace.notes')}
-      testId="workplace-notes-toggle"
-      ariaPressed={notesOpen}
-      onclick={onToggleNotes}
-    >
-      <Icon name="note" />
-    </Button>
-    <!--
-      Свойства файла — содержание, закладки, страницы и встроенные пометки.
-      Кнопка стоит рядом с заметками: это второй способ увидеть книгу, кроме
-      её текста, и он тоже относится к открытой книге.
-    -->
-    <Button
-      variant={propertiesOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
-      ariaLabel={t('app.workplace.properties')}
-      testId="workplace-properties-toggle"
-      ariaPressed={propertiesOpen}
-      onclick={onToggleProperties}
-    >
-      <Icon name="layers" />
-    </Button>
-  </div>
-  {/if}
-  {#if !compactTabs}
-    <!--
-      Разделитель делит группу кнопок панелей и группу открытия книги. На
-      телефоне и планшете кнопок открытия в полосе нет, делить нечего.
-    -->
-    <span class="mx-[0.25rem] h-4 w-px flex-none bg-[var(--divider)]" aria-hidden="true"></span>
-  {/if}
-    <!--
-      На узком окне эти действия живут в меню вкладки. Но если вкладок нет,
-      меню тоже нет — тогда кнопки остаются: иначе первую книгу было бы не
-      добавить.
-    -->
-    {#if !compactTabs}
-      <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
-        <Button
-          size="icon"
-          variant={overLimit ? 'ghost-danger' : 'ghost'}
-          ariaLabel={t('app.workplace.addBook')}
-          disabled={openBlocked}
-          onclick={onAdd}
-        >
-          <Icon name="plus" />
-        </Button>
-      </span>
-      <span
-        class="flex"
-        title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
+      <Button
+        variant={booksOpen ? 'primary' : 'ghost'}
+        size="icon"
+        title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
+        ariaLabel={t('app.workplace.tabs')}
+        ariaPressed={booksOpen}
+        onclick={onToggleBooks}
       >
-        <Button
-          size="icon"
-          variant={overLimit ? 'ghost-danger' : 'ghost'}
-          ariaLabel={t('app.workplace.addFile')}
-          disabled={openBlocked}
-          onclick={onAddFile}
-        >
-          <Icon name="folder" />
-        </Button>
-      </span>
-    {/if}
+        <Icon name="tabs" />
+      </Button>
+      <Button
+        variant={notesOpen ? 'primary' : 'ghost'}
+        size="icon"
+        title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
+        ariaLabel={t('app.workplace.notes')}
+        testId="workplace-notes-toggle"
+        ariaPressed={notesOpen}
+        onclick={onToggleNotes}
+      >
+        <Icon name="note" />
+      </Button>
+      <!--
+        Свойства файла — содержание, закладки, страницы и встроенные пометки.
+        Кнопка стоит рядом с заметками: это второй способ увидеть книгу, кроме
+        её текста, и он тоже относится к открытой книге.
+      -->
+      <Button
+        variant={propertiesOpen ? 'primary' : 'ghost'}
+        size="icon"
+        title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
+        ariaLabel={t('app.workplace.properties')}
+        testId="workplace-properties-toggle"
+        ariaPressed={propertiesOpen}
+        onclick={onToggleProperties}
+      >
+        <Icon name="layers" />
+      </Button>
+    </div>
+  {/if}
   <div class="flex min-w-0 flex-1 items-center gap-2">
     {#if compactTabs}
       <!--
@@ -674,6 +635,40 @@
       </Button>
     {/if}
   </div>
+  <!--
+    Справа — действия над книгой: добавить, открыть файл, а за ними —
+    сосредоточенное чтение. Панели слева, действия книги справа: окно вкладок
+    разделяет группы само, без черты между ними.
+  -->
+  {#if !compactTabs}
+    <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-actions">
+      <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
+        <Button
+          size="icon"
+          variant={overLimit ? 'ghost-danger' : 'ghost'}
+          ariaLabel={t('app.workplace.addBook')}
+          disabled={openBlocked}
+          onclick={onAdd}
+        >
+          <Icon name="plus" />
+        </Button>
+      </span>
+      <span
+        class="flex"
+        title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
+      >
+        <Button
+          size="icon"
+          variant={overLimit ? 'ghost-danger' : 'ghost'}
+          ariaLabel={t('app.workplace.addFile')}
+          disabled={openBlocked}
+          onclick={onAddFile}
+        >
+          <Icon name="folder" />
+        </Button>
+      </span>
+    </div>
+  {/if}
   {#if onToggleFocus}
     <Button
       variant={focusMode ? 'primary' : 'ghost'}
@@ -684,6 +679,7 @@
       )}
       ariaLabel={focusMode ? t('app.workplace.focusExit') : t('app.workplace.focus')}
       ariaPressed={focusMode}
+      testId="workplace-focus-toggle"
       onclick={onToggleFocus}
     >
       <Icon name="focus" />

@@ -539,6 +539,47 @@ describe('панель вкладок: место кнопок панелей', 
     expect(windowIndex).toBeGreaterThan(panelsIndex);
     // Кнопки панелей идут первыми в полосе: перед ними нет других блоков.
     expect(panelsIndex).toBe(0);
+    // Разделителя между панелями и вкладками нет: групп кнопок справа он не касается.
+    expect(
+      screen.getByTestId('workplace-tabs').querySelectorAll('[aria-hidden="true"].w-px'),
+    ).toHaveLength(0);
+  });
+
+  it('кнопки открытия книги стоят справа, перед сосредоточенным чтением', () => {
+    render(WorkplaceTabs, {
+      props: {
+        tabs: tabs(1),
+        activeTabId: 't1',
+        ...handlers(),
+        booksOpen: false,
+        notesOpen: false,
+        propertiesOpen: false,
+        onToggleFocus: vi.fn(),
+      },
+    });
+
+    const children = rowChildren();
+    const panelsIndex = children.findIndex(
+      (child) => child.getAttribute('data-testid') === 'workplace-tabs-panels',
+    );
+    const windowIndex = children.findIndex(
+      (child) => child.querySelector('[data-testid="workplace-tabs-window"]') !== null,
+    );
+    const actionsIndex = children.findIndex(
+      (child) => child.getAttribute('data-testid') === 'workplace-tabs-actions',
+    );
+    const focusIndex = children.findIndex(
+      (child) => child.getAttribute('data-testid') === 'workplace-focus-toggle',
+    );
+
+    // Слева три кнопки панелей, справа — «добавить», «открыть» и чтение.
+    expect(windowIndex).toBeLessThan(actionsIndex);
+    expect(actionsIndex).toBeLessThan(focusIndex);
+
+    const labels = Array.from(
+      screen.getByTestId('workplace-tabs-actions').querySelectorAll('button'),
+    ).map((button) => button.getAttribute('aria-label'));
+    expect(labels).toEqual(['Добавить книгу', 'Открыть файл с диска']);
   });
 
   it('порядок кнопок панелей: вкладки, заметки, свойства', () => {
@@ -834,7 +875,9 @@ describe('панель вкладок: вид меню и высота вкла�
     expect(dividers).toHaveLength(0);
   });
 
-  it('на широком окне разделитель между группами кнопок остаётся', () => {
+  it('на широком окне разделителя между группами кнопок нет', () => {
+    // Кнопки панелей слева и действия книги справа разделены самим окном
+    // вкладок: черта между ними только дробила полосу.
     mockNarrowWindow(false);
     mockWidth(1200);
     const { container } = render(WorkplaceTabs, {
@@ -847,6 +890,6 @@ describe('панель вкладок: вид меню и высота вкла�
       },
     });
 
-    expect(container.querySelectorAll('[aria-hidden="true"].w-px').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[aria-hidden="true"].w-px')).toHaveLength(0);
   });
 });

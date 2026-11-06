@@ -735,4 +735,13 @@ test('на широком окне кнопки вкладки остаются 
   await expect(page.getByTestId('workplace-panel-menu')).toHaveCount(0);
   await expect(page.getByTestId('workplace-tab-close').first()).toBeVisible();
   await expect(page.getByLabel('Добавить книгу').first()).toBeVisible();
+
+  // Слева три кнопки панелей, справа — «добавить», «открыть», сосредоточенное
+  // чтение; разделителя между панелями и вкладками нет.
+  const panels = await page.getByTestId('workplace-tabs-panels').boundingBox();
+  const add = await page.getByTestId('workplace-tabs-actions').boundingBox();
+  const focus = await page.getByTestId('workplace-focus-toggle').boundingBox();
+  expect(panels!.x).toBeLessThan(add!.x);
+  expect(add!.x).toBeLessThan(focus!.x);
+  await expect(page.getByTestId('workplace-tabs').locator('.w-px')).toHaveCount(0);
 });
