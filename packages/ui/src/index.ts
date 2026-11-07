@@ -14,6 +14,7 @@ export { default as ErrorState } from './components/ErrorState.svelte';
 export { default as EmptyState } from './components/EmptyState.svelte';
 export { default as Skeleton } from './components/Skeleton.svelte';
 export { default as SidePanel } from './components/SidePanel.svelte';
+export { default as Disclosure } from './components/Disclosure.svelte';
 export { default as Icon } from './components/Icon.svelte';
 export type { IconName } from './components/Icon.svelte';
 export { TAB_ICON_NAMES } from './components/Icon.svelte';

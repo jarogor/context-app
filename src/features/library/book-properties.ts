@@ -118,11 +118,7 @@ export async function saveBookProperties(
   return normalizeProperties(response);
 }
 
-/** Наложение правок на книги каталога.
- *
- * Правка перекрывает свойство источника; пользовательские теги добавляются
- * отдельным списком и источник не заменяют.
- */
+/** Наложение правок на книги каталога: правка перекрывает свойство файла. */
 export function applyBookProperties<T extends Book>(
   books: T[],
   properties: BookPropertyMap,
@@ -141,7 +137,8 @@ export function applyBookProperties<T extends Book>(
       published: entry.published ?? book.published,
       publisher: entry.publisher ?? book.publisher,
       identifier: entry.identifier ?? book.identifier,
-      userTags: entry.tags ?? book.userTags ?? [],
+      // Теги у книги одни: правка заменяет теги файла целиком.
+      tags: entry.tags ? entry.tags.map((name) => ({ name })) : book.tags,
     };
     return merged as T;
   });

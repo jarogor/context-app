@@ -140,8 +140,11 @@ export function sortBooks<T extends Book>(
   });
 }
 
+/** Состояние фильтра по обложке. */
+export type CoverFilter = 'all' | 'with' | 'without';
+
 /** Фасет фильтрации книг. */
-export type FacetId = 'authors' | 'formats' | 'languages' | 'series' | 'tags' | 'userTags';
+export type FacetId = 'authors' | 'formats' | 'languages' | 'series' | 'tags';
 
 /** Выбранные значения фасетов: внутри фасета «или», между фасетами «и». */
 export interface BookFilters {
@@ -153,21 +156,14 @@ export interface BookFilters {
   languages: string[];
   /** Серии. */
   series: string[];
-  /** Теги источника. */
+  /** Теги книги. */
   tags: string[];
-  /** Пользовательские теги. */
-  userTags: string[];
+  /** Наличие обложки. */
+  covers: CoverFilter;
 }
 
 /** Идентификаторы фасетов в порядке панели. */
-export const FACET_IDS: FacetId[] = [
-  'authors',
-  'formats',
-  'languages',
-  'series',
-  'tags',
-  'userTags',
-];
+export const FACET_IDS: FacetId[] = ['authors', 'formats', 'languages', 'series', 'tags'];
 
 /** Подписи фасетов. */
 export const FACET_LABELS: Record<FacetId, MessageKey> = {
@@ -176,17 +172,17 @@ export const FACET_LABELS: Record<FacetId, MessageKey> = {
   languages: 'app.library.facet.languages',
   series: 'app.library.facet.series',
   tags: 'app.library.facet.tags',
-  userTags: 'app.library.facet.userTags',
 };
 
 /** Пустой набор фильтров: показываются все книги. */
 export function emptyFilters(): BookFilters {
-  return { authors: [], formats: [], languages: [], series: [], tags: [], userTags: [] };
+  return { authors: [], formats: [], languages: [], series: [], tags: [], covers: 'all' };
 }
 
-/** Число активных фасетов (для счётчика на кнопке фильтров). */
+/** Число активных фильтров (для счётчика на кнопке). */
 export function activeFilterCount(filters: BookFilters): number {
-  return FACET_IDS.reduce((count, id) => count + (filters[id].length > 0 ? 1 : 0), 0);
+  const facets = FACET_IDS.reduce((count, id) => count + (filters[id].length > 0 ? 1 : 0), 0);
+  return facets + (filters.covers === 'all' ? 0 : 1);
 }
 
 /** Значения книги по фасету. */
@@ -205,23 +201,27 @@ function facetValues(book: Book, id: FacetId): string[] {
       return book.series.map((entry) => entry.series.name.trim()).filter(Boolean);
     case 'tags':
       return book.tags.map((tag) => tag.name.trim()).filter(Boolean);
-    case 'userTags':
-      return (book.userTags ?? []).map((tag) => tag.trim()).filter(Boolean);
   }
 }
 
 /** Применение фильтров к списку книг. */
 export function filterBooks<T extends Book>(books: T[], filters: BookFilters): T[] {
-  return books.filter((book) =>
-    FACET_IDS.every((id) => {
+  return books.filter((book) => {
+    if (filters.covers === 'with' && !book.coverUri) {
+      return false;
+    }
+    if (filters.covers === 'without' && book.coverUri) {
+      return false;
+    }
+    return FACET_IDS.every((id) => {
       const selected = filters[id];
       if (selected.length === 0) {
         return true;
       }
       const values = facetValues(book, id);
       return values.some((value) => selected.includes(value));
-    }),
-  );
+    });
+  });
 }
 
 /** Значение фасета: значение, подпись и число книг. */
@@ -242,7 +242,6 @@ export function bookFacets(books: Book[], locale: string): Record<FacetId, Facet
     languages: [],
     series: [],
     tags: [],
-    userTags: [],
   };
   for (const id of FACET_IDS) {
     const counts = new Map<string, number>();
@@ -269,4 +268,9 @@ export function toggleFacet(filters: BookFilters, id: FacetId, value: string): B
     ? selected.filter((item) => item !== value)
     : [...selected, value];
   return { ...filters, [id]: next };
+}
+
+/** Новый набор фильтров с другим состоянием обложки. */
+export function withCoverFilter(filters: BookFilters, covers: CoverFilter): BookFilters {
+  return { ...filters, covers };
 }

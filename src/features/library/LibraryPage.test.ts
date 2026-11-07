@@ -328,13 +328,16 @@ describe('сортировка и фильтры библиотеки', () => {
     await screen.findByText('Книга EPUB');
   }
 
-  it('фильтрует книги по формату из панели фильтров', async () => {
+  it('фильтрует книги по формату из боковой панели', async () => {
     await openLibrary();
 
     await fireEvent.click(screen.getByTestId('library-filters-open'));
     const panel = await screen.findByTestId('library-filters');
-    const checkboxes = within(panel).getAllByRole('checkbox');
-    // У книг этого каталога есть только формат: первым идёт он (EPUB, затем FB2).
+    // Раздел фасета раскрывается пользователем.
+    await fireEvent.click(within(panel).getByRole('button', { name: 'Формат' }));
+    const formats = await screen.findByTestId('library-facet-formats');
+    const checkboxes = within(formats).getAllByRole('checkbox');
+    // Значения фасета идут по алфавиту: EPUB, затем FB2.
     await fireEvent.click(checkboxes[1]);
 
     await waitFor(() => expect(screen.queryByText('Книга EPUB')).toBeNull());
@@ -347,15 +350,32 @@ describe('сортировка и фильтры библиотеки', () => {
     expect(screen.queryByTestId('library-filters-count')).toBeNull();
   });
 
-  it('переключает направление сортировки', async () => {
+  it('выбирает порядок книг в панели, а не выпадающим списком', async () => {
     await openLibrary();
 
-    const button = screen.getByTestId('library-sort-direction');
-    // При сортировке по возрастанию кнопка предлагает обратный порядок.
-    expect(button.getAttribute('aria-label')).toBe('По убыванию');
+    await fireEvent.click(screen.getByTestId('library-filters-open'));
+    const panel = await screen.findByTestId('library-filters');
+    // В полосе управления выпадающих списков нет.
+    expect(within(screen.getByTestId('library-controls')).queryAllByRole('combobox')).toHaveLength(
+      0,
+    );
 
-    await fireEvent.click(button);
+    const byAuthor = within(panel).getByRole('button', { name: 'По автору' });
+    await fireEvent.click(byAuthor);
 
-    await waitFor(() => expect(button.getAttribute('aria-label')).toBe('По возрастанию'));
+    await waitFor(() => expect(byAuthor.getAttribute('aria-pressed')).toBe('true'));
+  });
+
+  it('фильтр обложки живёт в панели и считается среди фильтров', async () => {
+    await openLibrary();
+
+    await fireEvent.click(screen.getByTestId('library-filters-open'));
+    const panel = await screen.findByTestId('library-filters');
+    await fireEvent.click(within(panel).getByRole('button', { name: 'Обложка' }));
+    await fireEvent.click(within(panel).getByRole('button', { name: 'Без обложки' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('library-filters-count').textContent).toContain('1'),
+    );
   });
 });

@@ -4,13 +4,13 @@
     BookCover,
     Button,
     Checkbox,
-    Dialog,
+    Disclosure,
     EmptyState,
     ErrorState,
     Icon,
     Input,
     ScrollArea,
-    Select,
+    SidePanel,
     Skeleton,
   } from '@context/ui';
   import BookPage from './BookPage.svelte';
@@ -34,7 +34,9 @@
     SORT_FIELDS,
     sortField as sortFieldInfo,
     toggleFacet,
+    withCoverFilter,
     type BookFilters,
+    type CoverFilter,
     type FacetId,
     type SortDirection,
     type SortField,
@@ -44,7 +46,6 @@
     activeLibraryPath,
     LIBRARY_PAGE_SIZE,
     listBooks,
-    loadCovers,
     openBookFile,
     openBookFolder,
     readerFormats,
@@ -53,6 +54,7 @@
     type BookFormatInfo,
     type BookWithCover,
   } from './library';
+  import { cachedCovers, loadCovers } from './covers';
   import type { ActiveLibrary } from '../lifecycle/bootstrap';
 
   interface Props {
@@ -121,8 +123,11 @@
   /** Открыта ли панель фильтров. */
   let filtersOpen = $state(false);
 
-  /** Фильтр по наличию обложки: все книги или только без обложки. */
-  let coverFilter = $state<'all' | 'without-cover'>('all');
+  /** Открыт ли раздел сортировки в панели. */
+  let sortOpen = $state(true);
+
+  /** Открыт ли раздел обложки в панели. */
+  let coverOpen = $state(false);
 
   /** Номер показанной страницы списка (с единицы). */
   let page = $state(1);
@@ -130,13 +135,11 @@
   /** Элемент начала списка: после смены страницы список возвращается наверх. */
   let listTop: HTMLElement | null = $state(null);
 
-  /** Варианты порядка книг. */
-  const sortOptions = $derived(SORT_FIELDS.map((field) => ({ value: field.id, label: t(field.labelKey) })));
-
   /** Варианты фильтра по обложке. */
-  const coverOptions = $derived([
-    { value: 'all', label: t('app.library.filter.all') },
-    { value: 'without-cover', label: t('app.library.filter.withoutCover') },
+  const coverChoices = $derived([
+    { value: 'all' as CoverFilter, label: t('app.library.filter.all') },
+    { value: 'with' as CoverFilter, label: t('app.library.cover.with') },
+    { value: 'without' as CoverFilter, label: t('app.library.filter.withoutCover') },
   ]);
 
   /** Имена авторов книги строкой. */
@@ -153,17 +156,8 @@
   /** Число активных фасетов для счётчика на кнопке фильтров. */
   const filterCount = $derived(activeFilterCount(filters));
 
-  /** Есть ли по каталогу хоть одно значение для фильтра. */
-  const hasFacets = $derived(FACET_IDS.some((id) => facets[id].length > 0));
-
-  /** Книги с учётом фильтров, фильтра обложки и выбранного порядка. */
-  const viewBooks = $derived.by(() => {
-    let list = filterBooks(mergedBooks, filters);
-    if (coverFilter === 'without-cover') {
-      list = list.filter((book) => !book.coverUri);
-    }
-    return sortBooks(list, sortField, sortDirection, currentLocale());
-  });
+  /** Книги с учётом фильтров и выбранного порядка. */
+  const viewBooks = $derived(sortBooks(filterBooks(mergedBooks, filters), sortField, sortDirection, currentLocale()));
 
   /** Число страниц списка (не меньше одной). */
   const totalPages = $derived(Math.max(1, Math.ceil(viewBooks.length / LIBRARY_PAGE_SIZE)));
@@ -209,9 +203,9 @@
   }
 
   /** Смена поля сортировки: направление по умолчанию задаёт само поле. */
-  function chooseSort(value: string) {
-    sortField = value as SortField;
-    sortDirection = sortFieldInfo(sortField).defaultDirection;
+  function chooseSort(field: SortField) {
+    sortField = field;
+    sortDirection = sortFieldInfo(field).defaultDirection;
     page = 1;
   }
 
@@ -226,10 +220,15 @@
     page = 1;
   }
 
-  /** Сброс фильтров панели и фильтра по обложке. */
+  /** Выбор фильтра по обложке. */
+  function chooseCover(value: CoverFilter) {
+    filters = withCoverFilter(filters, value);
+    page = 1;
+  }
+
+  /** Сброс всех фильтров. */
   function resetFilters() {
     filters = emptyFilters();
-    coverFilter = 'all';
     page = 1;
   }
 
@@ -250,7 +249,10 @@
     }
     const path = bookPath(openedBook);
     properties = await saveBookProperties(path, entry);
-    openedBook = applyBookProperties([openedBook], properties, bookPath)[0];
+    // Карточка собирается заново из книги источника: снятая правка возвращает
+    // значения файла, а не оставляет прежние.
+    const source = books.find((book) => book.id === openedBook?.id) ?? openedBook;
+    openedBook = applyBookProperties([source], properties, bookPath)[0];
   }
 
   /** Возврат открытой книги к значениям файла. */
@@ -311,15 +313,23 @@
 
   /** Загрузка обложек списка одним пакетным вызовом источника. */
   async function loadCoverUris(list: Book[]) {
-    let covers: Record<string, string | null> = {};
-    try {
-      covers = await loadCovers(list.map((book) => book.id));
-    } catch {
-      // Обложки не должны блокировать каталог: список показывается без них.
+    const paths = list.map((book) => bookPath(book)).filter(Boolean);
+    if (paths.length === 0) {
+      return;
+    }
+    // Известные обложки ставятся сразу, без второго кадра.
+    applyCovers(cachedCovers(paths));
+    await loadCovers(paths);
+    applyCovers(cachedCovers(paths));
+  }
+
+  /** Подстановка известных обложек в список по пути книги. */
+  function applyCovers(covers: Record<string, string | null>) {
+    if (Object.keys(covers).length === 0) {
       return;
     }
     books = books.map((current) => {
-      const coverUri = covers[current.id];
+      const coverUri = covers[bookPath(current)];
       return coverUri ? { ...current, coverUri } : current;
     });
   }
@@ -514,7 +524,7 @@
     canRead={canRead(openedBook)}
     {openingFormat}
     {openError}
-    userTags={openedBook.userTags ?? []}
+    userEntry={properties[bookPath(openedBook)] ?? {}}
     onClose={closeBook}
     onOpenFolder={() => void openBookFolder(bookPath(openedBook as BookWithCover))}
     onSaveProperties={(entry) => void saveProperties(entry)}
@@ -523,129 +533,303 @@
     onOpen={(format) => openFormatFile(openedBook as BookWithCover, format)}
   />
 {:else}
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-    {#if librarySelected}
-      <!--
-        Полоса управления каталогом: поиск с лупой и справа — порядок, фильтр и
-        режим показа. Идёт отдельной строкой под панелью раздела и не
-        прокручивается вместе со списком.
-      -->
-      <div
-        class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
-        data-testid="library-controls"
-      >
-        <Input
-          bind:value={searchQuery}
-          placeholder={t('app.search.books.placeholder')}
-          ariaLabel={t('app.search.books.placeholder')}
-          icon="search"
-          clearable
-          class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
-          oninput={onSearchInput}
-        />
-        <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <span class="mr-auto role-caption text-[var(--muted-foreground)] sm:mr-0">
-            {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
-          </span>
-          <Select
-            value={sortField}
-            items={sortOptions}
-            ariaLabel={t('app.library.orderLabel')}
-            size="sm"
-            class="w-[10.5rem]"
-            onchange={chooseSort}
+  <div class="flex min-h-0 min-w-0 flex-1">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      {#if librarySelected}
+        <!--
+          Полоса управления каталогом: поиск с лупой, кнопка фильтров и режим
+          показа. Сортировка и фильтры живут в боковой панели: выпадающих списков
+          в полосе нет, и её высота не меняется.
+        -->
+        <div
+          class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
+          data-testid="library-controls"
+        >
+          <Input
+            bind:value={searchQuery}
+            placeholder={t('app.search.books.placeholder')}
+            ariaLabel={t('app.search.books.placeholder')}
+            icon="search"
+            clearable
+            class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
+            oninput={onSearchInput}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            title={sortDirection === 'asc' ? t('app.library.sort.desc') : t('app.library.sort.asc')}
-            ariaLabel={sortDirection === 'asc'
-              ? t('app.library.sort.desc')
-              : t('app.library.sort.asc')}
-            testId="library-sort-direction"
-            onclick={toggleDirection}
-          >
-            <Icon name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} />
-          </Button>
-          <Select
-            bind:value={coverFilter}
-            items={coverOptions}
-            ariaLabel={t('app.library.filterLabel')}
-            size="sm"
-            class="w-[9.5rem]"
-            onchange={() => {
-              // Другой фильтр — другой список: показываем его с начала.
-              page = 1;
-            }}
-          />
-          <Button
-            variant="secondary"
-            size="sm"
-            testId="library-filters-open"
-            ariaLabel={t('app.library.filters.open')}
-            onclick={() => (filtersOpen = true)}
-          >
-            <Icon name="layers" />
-            {t('app.library.filters.open')}
-            {#if filterCount > 0}
-              <span
-                class="role-caption text-[var(--muted-foreground)]"
-                data-testid="library-filters-count">{filterCount}</span>
-            {/if}
-          </Button>
-          <div
-            class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
-            role="group"
-            aria-label={t('app.library.modeLabel')}
-          >
+          <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <span class="mr-auto role-caption text-[var(--muted-foreground)] sm:mr-0">
+              {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
+            </span>
             <Button
-              variant={viewMode === 'grid' ? 'primary' : 'ghost'}
-              size="icon"
-              title={t('app.library.mode.tiles')}
-              ariaLabel={t('app.library.mode.tiles')}
-              ariaPressed={viewMode === 'grid'}
-              onclick={() => chooseViewMode('grid')}
+              variant="secondary"
+              size="sm"
+              testId="library-filters-open"
+              ariaLabel={t('app.library.filters.open')}
+              onclick={() => (filtersOpen = true)}
             >
-              <Icon name="grid" />
+              <Icon name="layers" />
+              {t('app.library.filters.open')}
+              {#if filterCount > 0}
+                <span
+                  class="role-caption text-[var(--muted-foreground)]"
+                  data-testid="library-filters-count">{filterCount}</span>
+              {/if}
             </Button>
-            <Button
-              variant={viewMode === 'list' ? 'primary' : 'ghost'}
-              size="icon"
-              title={t('app.library.mode.list')}
-              ariaLabel={t('app.library.mode.list')}
-              ariaPressed={viewMode === 'list'}
-              onclick={() => chooseViewMode('list')}
+            <div
+              class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
+              role="group"
+              aria-label={t('app.library.modeLabel')}
             >
-              <Icon name="list" />
-            </Button>
+              <Button
+                variant={viewMode === 'grid' ? 'primary' : 'ghost'}
+                size="icon"
+                title={t('app.library.mode.tiles')}
+                ariaLabel={t('app.library.mode.tiles')}
+                ariaPressed={viewMode === 'grid'}
+                onclick={() => chooseViewMode('grid')}
+              >
+                <Icon name="grid" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'primary' : 'ghost'}
+                size="icon"
+                title={t('app.library.mode.list')}
+                ariaLabel={t('app.library.mode.list')}
+                ariaPressed={viewMode === 'list'}
+                onclick={() => chooseViewMode('list')}
+              >
+                <Icon name="list" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    {/if}
+      {/if}
 
-    <!--
-      Панель фильтров: фасеты каталога с числом книг. Внутри фасета значения
-      складываются «или», между фасетами действует «и».
-    -->
-    <Dialog
-      bind:open={filtersOpen}
-      title={t('app.library.filters.title')}
-      class="w-[min(30rem,calc(100vw-1.5rem))]"
-    >
-      <div class="flex min-h-0 flex-col gap-3" data-testid="library-filters">
-        {#if !hasFacets}
-          <p class="m-0 role-body text-[var(--muted-foreground)]">
-            {t('app.library.filters.empty')}
-          </p>
+
+      <ScrollArea testId="library-page" class="p-4 md:p-6">
+        <div bind:this={listTop} aria-hidden="true"></div>
+        {#if !librarySelected}
+          <EmptyState
+            icon="library"
+            title={t('app.library.empty.noLibrary.title')}
+            description={t('app.library.empty.noLibrary.description')}
+            testId="library-not-selected"
+          />
+        {:else if loading && books.length === 0}
+          <Skeleton rows={3} rowClass="h-[16rem]" />
+        {:else if error}
+          <ErrorState message={error} testId="library-error" />
+        {:else if books.length === 0}
+          <EmptyState
+            icon="book"
+            title={t('app.library.empty.noBooks.title')}
+            description={t('app.library.empty.noBooks.description')}
+            testId="library-empty"
+          />
+        {:else if viewBooks.length === 0}
+          <EmptyState
+            icon="book"
+            title={t('app.library.empty.filtered.title')}
+            description={t('app.library.empty.filtered.description')}
+            testId="library-filtered-empty"
+          />
+        {:else if viewMode === 'grid'}
+          <ul
+            class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]"
+            data-testid="library-grid"
+          >
+            {#each pageBooks as book (book.id)}
+              <li>
+                <button
+                  class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                  type="button"
+                  title={book.title}
+                  onclick={() => openBook(book)}
+                >
+                  <span
+                    class="block overflow-hidden rounded-[var(--radius)]"
+                  >
+                    <BookCover
+                      src={book.coverUri ?? null}
+                      imgClass="transition-transform duration-200 group-hover:scale-[1.02]"
+                    />
+                  </span>
+                  <div class="min-w-0">
+                    <h2 class="line-clamp-2 role-subtitle" title={book.title}>{book.title}</h2>
+                    <p class="mt-1 truncate role-caption text-[var(--muted-foreground)]">
+                      {authorNames(book)}
+                    </p>
+                  </div>
+                </button>
+              </li>
+            {/each}
+          </ul>
         {:else}
-          <div class="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <ul
+            class="m-0 flex list-none flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0"
+            data-testid="library-list"
+          >
+            {#each pageBooks as book (book.id)}
+              <li
+                class="border-b border-[var(--divider)] last:border-b-0 even:bg-[var(--surface-inset)]"
+              >
+                <button
+                  class="flex w-full cursor-pointer items-center gap-3 p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                  type="button"
+                  title={book.title}
+                  onclick={() => openBook(book)}
+                >
+                  <span class="block h-[4.5rem] w-[3rem] shrink-0">
+                    <BookCover src={book.coverUri ?? null} class="h-full w-[3rem] rounded-sm" />
+                  </span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate role-title">{book.title}</span>
+                    <span class="mt-0.5 block truncate role-caption text-[var(--muted-foreground)]">
+                      {authorNames(book)}
+                    </span>
+                  </span>
+                  <Icon name="chevron-right" class="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </ScrollArea>
+
+      <!--
+        Постраничность списка: отдельная полоса под областью прокрутки, чтобы
+        перелистывание было доступно без прокрутки до конца списка и не сдвигало
+        полосу управления каталогом.
+      -->
+      {#if librarySelected && totalPages > 1}
+        <nav
+          class="flex flex-none flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 md:px-6"
+          aria-label={t('app.library.page.label')}
+          data-testid="library-pagination"
+        >
+          <span class="role-caption text-[var(--muted-foreground)]">
+            {t('app.library.page.status', { page: currentPage, total: totalPages })}
+          </span>
+          <div class="flex flex-wrap items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              title={t('app.library.page.prev')}
+              ariaLabel={t('app.library.page.prev')}
+              disabled={currentPage <= 1}
+              onclick={() => goToPage(currentPage - 1)}
+            >
+              <Icon name="chevron-left" />
+            </Button>
+            {#each pageItems as item, index (index)}
+              {#if item === 'gap'}
+                <span class="px-1 role-caption text-[var(--muted-foreground)]" aria-hidden="true">
+                  …
+                </span>
+              {:else}
+                <Button
+                  variant={item === currentPage ? 'primary' : 'ghost'}
+                  size="sm"
+                  class="w-[2.25rem] px-0"
+                  title={t('app.library.page.go', { page: item })}
+                  ariaLabel={t('app.library.page.go', { page: item })}
+                  ariaCurrent={item === currentPage ? 'page' : undefined}
+                  onclick={() => goToPage(item)}
+                >
+                  {item}
+                </Button>
+              {/if}
+            {/each}
+            <Button
+              variant="ghost"
+              size="icon"
+              title={t('app.library.page.next')}
+              ariaLabel={t('app.library.page.next')}
+              disabled={currentPage >= totalPages}
+              onclick={() => goToPage(currentPage + 1)}
+            >
+              <Icon name="chevron-right" />
+            </Button>
+          </div>
+        </nav>
+      {/if}
+    </div>
+
+    {#if filtersOpen}
+      <SidePanel
+        title={t('app.library.filters.title')}
+        testId="library-filters"
+        class="w-full lg:w-[19rem]"
+        onClose={() => (filtersOpen = false)}
+      >
+        <div class="flex min-h-0 flex-1 flex-col">
+          <div
+            class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-2"
+            data-testid="library-filter-sections"
+          >
+            <Disclosure bind:open={sortOpen} title={t('app.library.filters.sort')}>
+              <div class="flex flex-col">
+                {#each SORT_FIELDS as field (field.id)}
+                  <button
+                    type="button"
+                    class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                    aria-pressed={sortField === field.id}
+                    onclick={() => chooseSort(field.id)}
+                  >
+                    <span class="min-w-0 flex-1 truncate role-body">{t(field.labelKey)}</span>
+                    {#if sortField === field.id}
+                      <Icon name="check" class="h-4 w-4 shrink-0" />
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+              <div class="mt-1 flex items-center gap-1 px-1">
+                <Button
+                  variant={sortDirection === 'asc' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  ariaPressed={sortDirection === 'asc'}
+                  onclick={() => (sortDirection = 'asc')}
+                >
+                  {t('app.library.sort.asc')}
+                </Button>
+                <Button
+                  variant={sortDirection === 'desc' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  ariaPressed={sortDirection === 'desc'}
+                  onclick={() => (sortDirection = 'desc')}
+                >
+                  {t('app.library.sort.desc')}
+                </Button>
+              </div>
+            </Disclosure>
+
+            <Disclosure bind:open={coverOpen} title={t('app.library.filters.cover')}>
+              <div class="flex flex-col">
+                {#each coverChoices as choice (choice.value)}
+                  <button
+                    type="button"
+                    class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                    aria-pressed={filters.covers === choice.value}
+                    onclick={() => chooseCover(choice.value)}
+                  >
+                    <span class="min-w-0 flex-1 truncate role-body">{choice.label}</span>
+                    {#if filters.covers === choice.value}
+                      <Icon name="check" class="h-4 w-4 shrink-0" />
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+            </Disclosure>
+
             {#each FACET_IDS as id (id)}
               {@const values = facets[id]}
               {#if values.length > 0}
-                <section class="flex flex-col gap-1">
-                  <h3 class="role-caption text-[var(--muted-foreground)]">
-                    {t(FACET_LABELS[id])}
-                  </h3>
+                <Disclosure title={t(FACET_LABELS[id])} testId="library-facet-{id}">
+                  {#snippet badge()}
+                    {#if filters[id].length > 0}
+                      <span class="role-caption text-[var(--muted-foreground)]">
+                        {filters[id].length}
+                      </span>
+                    {/if}
+                  {/snippet}
                   <div class="flex flex-col">
                     {#each values as item (item.value)}
                       <label
@@ -660,176 +844,24 @@
                       </label>
                     {/each}
                   </div>
-                </section>
+                </Disclosure>
               {/if}
             {/each}
           </div>
-        {/if}
-        <div class="flex items-center justify-between gap-2 border-t border-[var(--divider)] pt-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={filterCount === 0 && coverFilter === 'all'}
-            onclick={resetFilters}
+          <div
+            class="flex flex-none items-center gap-2 border-t border-[var(--divider)] px-3 py-2"
           >
-            {t('app.library.filters.reset')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            testId="library-filters-done"
-            onclick={() => (filtersOpen = false)}
-          >
-            {t('app.library.filters.done')}
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={filterCount === 0}
+              onclick={resetFilters}
+            >
+              {t('app.library.filters.reset')}
+            </Button>
+          </div>
         </div>
-      </div>
-    </Dialog>
-
-    <ScrollArea testId="library-page" class="p-4 md:p-6">
-      <div bind:this={listTop} aria-hidden="true"></div>
-      {#if !librarySelected}
-        <EmptyState
-          icon="library"
-          title={t('app.library.empty.noLibrary.title')}
-          description={t('app.library.empty.noLibrary.description')}
-          testId="library-not-selected"
-        />
-      {:else if loading && books.length === 0}
-        <Skeleton rows={3} rowClass="h-[16rem]" />
-      {:else if error}
-        <ErrorState message={error} testId="library-error" />
-      {:else if books.length === 0}
-        <EmptyState
-          icon="book"
-          title={t('app.library.empty.noBooks.title')}
-          description={t('app.library.empty.noBooks.description')}
-          testId="library-empty"
-        />
-      {:else if viewBooks.length === 0}
-        <EmptyState
-          icon="book"
-          title={t('app.library.empty.filtered.title')}
-          description={t('app.library.empty.filtered.description')}
-          testId="library-filtered-empty"
-        />
-      {:else if viewMode === 'grid'}
-        <ul
-          class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]"
-          data-testid="library-grid"
-        >
-          {#each pageBooks as book (book.id)}
-            <li>
-              <button
-                class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
-                type="button"
-                title={t('app.library.book.title')}
-                onclick={() => openBook(book)}
-              >
-                <span
-                  class="block overflow-hidden rounded-[var(--radius)]"
-                >
-                  <BookCover
-                    src={book.coverUri ?? null}
-                    imgClass="transition-transform duration-200 group-hover:scale-[1.02]"
-                  />
-                </span>
-                <div class="min-w-0">
-                  <h2 class="line-clamp-2 role-subtitle" title={book.title}>{book.title}</h2>
-                  <p class="mt-1 truncate role-caption text-[var(--muted-foreground)]">
-                    {authorNames(book)}
-                  </p>
-                </div>
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <ul
-          class="m-0 flex list-none flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0"
-          data-testid="library-list"
-        >
-          {#each pageBooks as book (book.id)}
-            <li class="border-b border-[var(--divider)] last:border-b-0">
-              <button
-                class="flex w-full cursor-pointer items-center gap-3 p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
-                type="button"
-                title={t('app.library.book.title')}
-                onclick={() => openBook(book)}
-              >
-                <span class="block h-[4.5rem] w-[3rem] shrink-0">
-                  <BookCover src={book.coverUri ?? null} class="h-full w-[3rem] rounded-sm" />
-                </span>
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate role-title">{book.title}</span>
-                  <span class="mt-0.5 block truncate role-caption text-[var(--muted-foreground)]">
-                    {authorNames(book)}
-                  </span>
-                </span>
-                <Icon name="chevron-right" class="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </ScrollArea>
-
-    <!--
-      Постраничность списка: отдельная полоса под областью прокрутки, чтобы
-      перелистывание было доступно без прокрутки до конца списка и не сдвигало
-      полосу управления каталогом.
-    -->
-    {#if librarySelected && totalPages > 1}
-      <nav
-        class="flex flex-none flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 md:px-6"
-        aria-label={t('app.library.page.label')}
-        data-testid="library-pagination"
-      >
-        <span class="role-caption text-[var(--muted-foreground)]">
-          {t('app.library.page.status', { page: currentPage, total: totalPages })}
-        </span>
-        <div class="flex flex-wrap items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            title={t('app.library.page.prev')}
-            ariaLabel={t('app.library.page.prev')}
-            disabled={currentPage <= 1}
-            onclick={() => goToPage(currentPage - 1)}
-          >
-            <Icon name="chevron-left" />
-          </Button>
-          {#each pageItems as item, index (index)}
-            {#if item === 'gap'}
-              <span class="px-1 role-caption text-[var(--muted-foreground)]" aria-hidden="true">
-                …
-              </span>
-            {:else}
-              <Button
-                variant={item === currentPage ? 'primary' : 'ghost'}
-                size="sm"
-                class="w-[2.25rem] px-0"
-                title={t('app.library.page.go', { page: item })}
-                ariaLabel={t('app.library.page.go', { page: item })}
-                ariaCurrent={item === currentPage ? 'page' : undefined}
-                onclick={() => goToPage(item)}
-              >
-                {item}
-              </Button>
-            {/if}
-          {/each}
-          <Button
-            variant="ghost"
-            size="icon"
-            title={t('app.library.page.next')}
-            ariaLabel={t('app.library.page.next')}
-            disabled={currentPage >= totalPages}
-            onclick={() => goToPage(currentPage + 1)}
-          >
-            <Icon name="chevron-right" />
-          </Button>
-        </div>
-      </nav>
+      </SidePanel>
     {/if}
   </div>
 {/if}

@@ -692,7 +692,7 @@ async function viewerFile(pluginId: string, path: string): Promise<{ path: strin
 function pluginOperation(payload: unknown): unknown {
   const message = (payload ?? {}) as {
     operation?: string;
-    payload?: { query?: string; book_id?: string; book_ids?: string[] };
+    payload?: { query?: string; book_id?: string };
   };
   const books = [
     {
@@ -729,14 +729,6 @@ function pluginOperation(payload: unknown): unknown {
     return message.payload?.book_id === 'demo-1'
       ? { data: TINY_PNG, format: 'png' }
       : { data: null };
-  }
-  if (message.operation === 'covers') {
-    // Пакетный ответ: обложка есть только у первой книги.
-    const covers: Record<string, { data: string | null; format?: string }> = {};
-    for (const id of message.payload?.book_ids ?? []) {
-      covers[id] = id === 'demo-1' ? { data: TINY_PNG, format: 'png' } : { data: null };
-    }
-    return { covers };
   }
   if (message.operation === 'content') {
     const paragraphs = Array.from(
@@ -812,12 +804,13 @@ export function defaultMockConfig(): MockBridgeConfig {
         return null;
       },
       reader_open_external: () => ({ opened: true }),
-      // Обложки книг рабочего места приходят одним вызовом: путь → данные.
+      // Обложки книг приходят одним вызовом: путь → данные. Обложка есть
+      // только у первой демо-книги — остальные показываются заглушкой.
       workspace_covers: (payload: unknown) => {
         const paths = ((payload as { paths?: unknown } | null)?.paths ?? []) as string[];
         const covers: Record<string, unknown> = {};
         for (const path of paths) {
-          covers[path] = path.toLowerCase().endsWith('.epub')
+          covers[path] = path.toLowerCase().includes('demo-1')
             ? { data: TINY_PNG, format: 'png' }
             : { data: null };
         }

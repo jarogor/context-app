@@ -29,7 +29,6 @@ pub fn invoke(input: String) -> FnResult<String> {
         "catalog" | "list" => handlers::catalog(&request),
         "search" => handlers::search(&request),
         "read" => handlers::read(&request),
-        "covers" => handlers::covers(&request),
         "cover" => handlers::cover(&request),
         "open_external" => handlers::open_external(&request),
         "sync" => handlers::sync(&request),

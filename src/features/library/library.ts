@@ -47,12 +47,12 @@ export interface Book {
   size?: number;
   /** Когда книга появилась в библиотеке (Unix, мс). */
   addedAtMillis?: number;
-  /** Пользовательские теги книги (правка приложения, не источника). */
-  userTags?: string[];
+  /** Обложка книги в виде data URI (заполняет оболочка). */
+  coverUri?: string;
 }
 
 /** Книга с извлечённой обложкой (data URI). */
-export type BookWithCover = Book & { coverUri?: string };
+export type BookWithCover = Book;
 
 /** Книг на странице списка библиотеки.
  *
@@ -144,26 +144,6 @@ export async function listBooks(query: string): Promise<Book[]> {
     : await operation<Response>('list');
   const rawBooks = response.books ?? response.catalog?.books ?? [];
   return rawBooks.map(normalizeBook);
-}
-
-/** Обложки книг пакетом: идентификатор → data URI либо `null`.
- *
- * Один вызов плагина на страницу списка: обложки выбираются одним запросом к
- * индексу источника, а не вызовом на книгу.
- */
-export async function loadCovers(bookIds: string[]): Promise<Record<string, string | null>> {
-  if (bookIds.length === 0) {
-    return {};
-  }
-  const response = await operation<{
-    covers?: Record<string, { data?: string | null; format?: string } | null>;
-  }>('covers', { book_ids: bookIds });
-  const result: Record<string, string | null> = {};
-  for (const id of bookIds) {
-    const cover = response.covers?.[id];
-    result[id] = cover ? coverDataUri(cover) : null;
-  }
-  return result;
 }
 
 /** Извлечение обложки книги как data URI (или `null`, если её нет). */

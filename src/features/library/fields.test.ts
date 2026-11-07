@@ -81,7 +81,6 @@ describe('фильтры книг', () => {
       authors: [{ name: 'Антон' }],
       language: 'ru',
       tags: [{ name: 'история' }],
-      userTags: ['мой тег'],
     }),
     book({
       id: 'two',
@@ -125,12 +124,27 @@ describe('фильтры книг', () => {
     expect(titles(filterBooks(catalog, filters))).toEqual(['Книга 3']);
   });
 
+  it('фильтр обложки отбирает книги с обложкой и без', () => {
+    const catalogWithCovers = [
+      { ...book({ id: 'with', title: 'С обложкой' }), coverUri: 'data:image/png;base64,AA' },
+      book({ id: 'without', title: 'Без обложки' }),
+    ];
+
+    expect(titles(filterBooks(catalogWithCovers, { ...emptyFilters(), covers: 'with' }))).toEqual([
+      'С обложкой',
+    ]);
+    expect(
+      titles(filterBooks(catalogWithCovers, { ...emptyFilters(), covers: 'without' })),
+    ).toEqual(['Без обложки']);
+  });
+
   it('считает активные фасеты и переключает значения', () => {
     const filters = toggleFacet(emptyFilters(), 'formats', 'epub');
 
     expect(filters.formats).toEqual(['epub']);
     expect(activeFilterCount(filters)).toBe(1);
     expect(toggleFacet(filters, 'formats', 'epub').formats).toEqual([]);
+    expect(activeFilterCount({ ...filters, covers: 'without' })).toBe(2);
   });
 
   it('собирает значения фасетов с числом книг', () => {
@@ -147,7 +161,5 @@ describe('фильтры книг', () => {
     ]);
     expect(facets.languages.map((item) => item.value)).toEqual(['en', 'ru']);
     expect(facets.tags).toEqual([{ value: 'история', label: 'история', count: 1 }]);
-    // Пользовательские теги — отдельный фасет: источник их не знает.
-    expect(facets.userTags).toEqual([{ value: 'мой тег', label: 'мой тег', count: 1 }]);
   });
 });

@@ -104,24 +104,6 @@ pub(crate) fn load_cover(fs: &impl Fs, id: &str) -> Result<Option<(String, Strin
     source_index::index::load_cover(fs, id)
 }
 
-/// Обложки книг пакетом: идентификатор → обложка либо `null`.
-///
-/// Список книг показывает обложки сразу для всех книг страницы, поэтому они
-/// выбираются одним запросом к индексу, а не вызовом на книгу.
-pub(crate) fn load_covers(fs: &impl Fs, ids: &[String]) -> Result<serde_json::Value, String> {
-    ensure_schema(fs, CATALOG_MIGRATIONS, LEGACY_STATE_KEY)?;
-    let covers = source_index::index::load_covers(fs, ids)?;
-    let mut result = serde_json::Map::new();
-    for id in ids {
-        let value = match covers.get(id) {
-            Some(cover) => serde_json::json!({ "data": cover.data, "format": cover.format }),
-            None => serde_json::Value::Null,
-        };
-        result.insert(id.clone(), value);
-    }
-    Ok(serde_json::Value::Object(result))
-}
-
 /// Загрузка признаков изменений книг: идентификатор и подпись папки.
 fn load_rows(fs: &impl Fs) -> Result<HashMap<String, ChangeRow>, String> {
     let raw = fs.sql_query("SELECT id, signature FROM books", "[]")?;
