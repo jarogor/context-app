@@ -27,8 +27,6 @@ export interface Book {
   title: string;
   /** Авторы. */
   authors: { name: string }[];
-  /** Серии. */
-  series: { series: { name: string } }[];
   /** Теги. */
   tags: { name: string }[];
   /** Файлы книги. */
@@ -110,19 +108,11 @@ function normalizeBook(book: Record<string, unknown>): Book {
         } satisfies BookFile;
       })
     : [];
-  // Серия приходит парой «имя, номер»; прежний ответ мог прислать строку.
-  const series = Array.isArray(book.series)
-    ? book.series.flatMap((entry) => {
-        const name = Array.isArray(entry) ? String(entry[0] ?? '') : String(entry ?? '');
-        return name ? [{ series: { name } }] : [];
-      })
-    : [];
   const tags = Array.isArray(book.tags) ? book.tags.map((tag) => ({ name: String(tag) })) : [];
   return {
     id,
     title: String(book.title ?? ''),
     authors,
-    series,
     tags,
     files,
     language: optionalText(book.language),

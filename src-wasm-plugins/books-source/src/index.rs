@@ -171,7 +171,6 @@ fn record_to_book(
         title: record.title,
         authors: serde_json::from_str(&record.authors).unwrap_or_default(),
         tags: serde_json::from_str(&record.tags).unwrap_or_default(),
-        series: serde_json::from_str(&record.series).unwrap_or_default(),
         files: serde_json::from_str(&record.files).unwrap_or_default(),
         language: record.language,
         published: record.published,
@@ -195,7 +194,6 @@ fn write_book(
         title: book.title.clone(),
         authors: serde_json::to_string(&book.authors).map_err(|error| error.to_string())?,
         tags: serde_json::to_string(&book.tags).map_err(|error| error.to_string())?,
-        series: serde_json::to_string(&book.series).map_err(|error| error.to_string())?,
         files: serde_json::to_string(&book.files).map_err(|error| error.to_string())?,
         format: book
             .files

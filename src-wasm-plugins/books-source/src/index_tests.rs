@@ -109,7 +109,6 @@ fn write_catalog_and_load_roundtrip() {
         title: "Книга".to_string(),
         authors: vec!["Автор".to_string()],
         tags: vec!["тег".to_string()],
-        series: vec![("Серия".to_string(), 2)],
         files: vec![ExternalFile {
             kind: ExternalFileKind::Book,
             path: "books/Книга.epub".to_string(),

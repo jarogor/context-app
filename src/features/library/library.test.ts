@@ -98,7 +98,6 @@ describe('разбор книги каталога', () => {
             title: 'Книга',
             authors: ['Автор'],
             tags: ['тег'],
-            series: [['Серия', 1]],
             files: [{ kind: 'book', path: 'a.epub', format: 'epub' }],
             language: 'ru',
             published: '2019-05-01',
@@ -124,7 +123,6 @@ describe('разбор книги каталога', () => {
       addedAtMillis: 1000,
     });
     expect(book.tags).toEqual([{ name: 'тег' }]);
-    expect(book.series).toEqual([{ series: { name: 'Серия' } }]);
   });
 
   it('не падает на ответе прежнего источника без новых полей', async () => {

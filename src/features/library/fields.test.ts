@@ -16,7 +16,6 @@ function book(overrides: Partial<Book> & { id: string }): Book {
   return {
     title: overrides.id,
     authors: [],
-    series: [],
     tags: [],
     files: [{ kind: 'book', path: `${overrides.id}.epub`, format: 'epub' }],
     ...overrides,
@@ -124,17 +123,14 @@ describe('фильтры книг', () => {
     expect(titles(filterBooks(catalog, filters))).toEqual(['Книга 3']);
   });
 
-  it('фильтр обложки отбирает книги с обложкой и без', () => {
+  it('флажок «без обложки» оставляет только книги без неё', () => {
     const catalogWithCovers = [
       book({ id: 'with', title: 'С обложкой', hasCover: true }),
       book({ id: 'without', title: 'Без обложки', hasCover: false }),
     ];
 
-    expect(titles(filterBooks(catalogWithCovers, { ...emptyFilters(), covers: 'with' }))).toEqual([
-      'С обложкой',
-    ]);
     expect(
-      titles(filterBooks(catalogWithCovers, { ...emptyFilters(), covers: 'without' })),
+      titles(filterBooks(catalogWithCovers, { ...emptyFilters(), withoutCover: true })),
     ).toEqual(['Без обложки']);
   });
 
@@ -144,7 +140,7 @@ describe('фильтры книг', () => {
     expect(filters.formats).toEqual(['epub']);
     expect(activeFilterCount(filters)).toBe(1);
     expect(toggleFacet(filters, 'formats', 'epub').formats).toEqual([]);
-    expect(activeFilterCount({ ...filters, covers: 'without' })).toBe(2);
+    expect(activeFilterCount({ ...filters, withoutCover: true })).toBe(2);
   });
 
   it('собирает значения фасетов с числом книг', () => {

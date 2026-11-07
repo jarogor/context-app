@@ -97,7 +97,6 @@ pub(crate) fn read_book(fs: &impl Fs, relative: &str) -> (ExternalBook, Option<(
         title,
         authors: metadata.authors,
         tags: Vec::new(),
-        series: Vec::new(),
         files: vec![ExternalFile {
             kind: ExternalFileKind::Book,
             path: relative.to_string(),

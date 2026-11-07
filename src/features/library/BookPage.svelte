@@ -4,7 +4,6 @@
     BookCover,
     Button,
     Dialog,
-    Disclosure,
     ErrorState,
     Icon,
     IconButton,
@@ -14,6 +13,9 @@
   import { formatBytes, formatDateTime } from '../../shared/format';
   import type { BookPropertyEntry } from './book-properties';
   import { formatPublishedDate, type BookFormatInfo, type BookWithCover } from './library';
+
+  /** Свойство книги, по которому можно перейти к списку с фильтром. */
+  export type BookPropertyKind = 'author' | 'format' | 'language' | 'tag';
 
   interface Props {
     /** Открытая книга. */
@@ -42,6 +44,8 @@
     onAdd: (format: string) => void;
     /** Открытие файла заданного формата. */
     onOpen: (format: string) => void;
+    /** Переход к списку книг с фильтром по свойству. */
+    onFilterBy: (kind: BookPropertyKind, value: string) => void;
   }
 
   let {
@@ -58,136 +62,25 @@
     onResetProperties,
     onAdd,
     onOpen,
+    onFilterBy,
   }: Props = $props();
 
-  /** Строка свойств: подпись и значение (только заполненные строки). */
-  interface PropertyRow {
-    /** Идентификатор свойства (метка для тестов). */
-    id: string;
-    /** Подпись свойства. */
-    label: string;
-    /** Значение. */
-    text: string;
-    /** Моноширинный текст (путь к файлу). */
-    mono?: boolean;
-  }
+  /** Авторы книги списком. */
+  const authorList = $derived(book.authors.map((author) => author.name).join(', '));
 
-  /** Группа свойств, которую можно править. */
-  type EditGroup = 'main' | 'edition' | 'tags';
+  /** Теги книги. */
+  const tags = $derived(book.tags.map((tag) => tag.name));
 
-  /** Раздел свойств: заголовок и заполненные строки. */
-  interface PropertySection {
-    /** Идентификатор раздела. */
-    id: 'main' | 'edition' | 'tags' | 'file';
-    /** Заголовок раздела. */
-    title: string;
-    /** Строки с заполненными значениями. */
-    rows: PropertyRow[];
-  }
-
-  /** Авторы одной строкой. */
-  const authors = $derived(book.authors.map((author) => author.name).join(', '));
-
-  /** Авторы списком (для правки). */
-  const authorList = $derived(book.authors.map((author) => author.name));
-
-  /** Серии одной строкой. */
-  const series = $derived(book.series.map((entry) => entry.series.name).join(', '));
-
-  /** Теги книги одной строкой. */
-  const tags = $derived(book.tags.map((tag) => tag.name).join(', '));
-
-  /** Форматы файлов книги списком. */
-  const formatsText = $derived(
-    [...new Set(book.files.filter((file) => file.kind === 'book').map((file) => file.format))]
-      .filter(Boolean)
-      .map((format) => format.toUpperCase())
-      .join(', '),
-  );
-
-  /** Дата выхода книги для показа. */
+  /** Дата выхода книги. */
   const published = $derived(formatPublishedDate(book.published));
 
   /** Дата добавления файла в библиотеку. */
   const added = $derived(book.addedAtMillis ? formatDateTime(book.addedAtMillis) : '');
 
-  /** Описание книги: это текст, а не строка таблицы. */
+  /** Описание книги. */
   const description = $derived(book.description?.trim() ?? '');
 
-  /** Разделы свойств: пустые строки и пустые разделы не показываются. */
-  const sections = $derived(
-    ([
-      {
-        id: 'main',
-        title: t('app.library.book.section.main'),
-        rows: [
-          authors && { id: 'authors', label: t('app.library.book.authors'), text: authors },
-          formatsText && { id: 'format', label: t('app.library.book.format'), text: formatsText },
-          series && { id: 'series', label: t('app.library.book.series'), text: series },
-        ].filter((row): row is PropertyRow => Boolean(row)),
-      },
-      {
-        id: 'edition',
-        title: t('app.library.book.section.edition'),
-        rows: [
-          published && {
-            id: 'published',
-            label: t('app.library.book.published'),
-            text: published,
-          },
-          book.language && {
-            id: 'language',
-            label: t('app.library.book.language'),
-            text: book.language,
-          },
-          book.publisher && {
-            id: 'publisher',
-            label: t('app.library.book.publisher'),
-            text: book.publisher,
-          },
-          book.identifier && {
-            id: 'identifier',
-            label: t('app.library.book.identifier'),
-            text: book.identifier,
-          },
-        ].filter((row): row is PropertyRow => Boolean(row)),
-      },
-      {
-        id: 'tags',
-        title: t('app.library.book.section.tags'),
-        rows: tags
-          ? [{ id: 'tags', label: t('app.library.book.tags'), text: tags } as PropertyRow]
-          : [],
-      },
-      {
-        id: 'file',
-        title: t('app.library.book.section.file'),
-        rows: [
-          book.size !== undefined && {
-            id: 'size',
-            label: t('app.library.book.size'),
-            text: formatBytes(book.size),
-          },
-          path && { id: 'path', label: t('app.library.book.path'), text: path, mono: true },
-          added && { id: 'added', label: t('app.library.book.added'), text: added },
-        ].filter((row): row is PropertyRow => Boolean(row)),
-      },
-    ] as PropertySection[]).filter((section) => section.rows.length > 0),
-  );
-
-  /** Открытые разделы: закрыты, пока пользователь сам не раскроет. */
-  let openSections = $state<Record<string, boolean>>({
-    main: false,
-    edition: false,
-    tags: false,
-    file: false,
-    description: false,
-  });
-
-  /** Открытая группа правки. */
-  let editGroup = $state<EditGroup | null>(null);
-
-  /** Открыт ли диалог правки. */
+  /** Открыт ли диалог правки сведений. */
   let editing = $state(false);
 
   /** Поля диалога правки. */
@@ -205,29 +98,15 @@
   /** Теги через запятую. */
   let editTags = $state('');
 
-  /** Заголовок диалога правки — название группы. */
-  const editTitleText = $derived(
-    editGroup === 'edition'
-      ? t('app.library.book.section.edition')
-      : editGroup === 'tags'
-        ? t('app.library.book.section.tags')
-        : t('app.library.book.section.main'),
-  );
-
-  /** Открытие правки группы свойств. */
-  function openGroup(group: EditGroup) {
-    editGroup = group;
-    if (group === 'main') {
-      editTitle = book.title;
-      editAuthors = authorList.join(', ');
-    } else if (group === 'edition') {
-      editLanguage = book.language ?? '';
-      editPublished = book.published ?? '';
-      editPublisher = book.publisher ?? '';
-      editIdentifier = book.identifier ?? '';
-    } else {
-      editTags = tags;
-    }
+  /** Открытие диалога правки с текущими значениями. */
+  function startEditing() {
+    editTitle = book.title;
+    editAuthors = authorList;
+    editLanguage = book.language ?? '';
+    editPublished = book.published ?? '';
+    editPublisher = book.publisher ?? '';
+    editIdentifier = book.identifier ?? '';
+    editTags = tags.join(', ');
     editing = true;
   }
 
@@ -245,23 +124,18 @@
     return trimmed ? trimmed : undefined;
   }
 
-  /** Сохранение правки: меняются только поля открытой группы. */
-  function submitGroup() {
-    const entry: BookPropertyEntry = { ...userEntry };
-    if (editGroup === 'main') {
-      entry.title = fieldText(editTitle);
-      const editedAuthors = splitList(editAuthors);
-      entry.authors = editedAuthors.length > 0 ? editedAuthors : undefined;
-    } else if (editGroup === 'edition') {
-      entry.language = fieldText(editLanguage);
-      entry.published = fieldText(editPublished);
-      entry.publisher = fieldText(editPublisher);
-      entry.identifier = fieldText(editIdentifier);
-    } else if (editGroup === 'tags') {
-      const editedTags = splitList(editTags);
-      entry.tags = editedTags.length > 0 ? editedTags : undefined;
-    }
-    onSaveProperties(entry);
+  /** Сохранение правки сведений. */
+  function submitEdit() {
+    const editedTags = splitList(editTags);
+    onSaveProperties({
+      title: fieldText(editTitle),
+      authors: splitList(editAuthors),
+      language: fieldText(editLanguage),
+      published: fieldText(editPublished),
+      publisher: fieldText(editPublisher),
+      identifier: fieldText(editIdentifier),
+      tags: editedTags.length > 0 ? editedTags : undefined,
+    });
     editing = false;
   }
 
@@ -274,9 +148,8 @@
 
 <div class="@container flex min-h-0 min-w-0 flex-1 flex-col" data-testid="book-page">
   <!--
-    Шапка страницы книги: возврат к списку слева. Имя книги не дублируется
-    здесь: оно и есть заголовок карточки. Правка — в шапках разделов свойств:
-    правится группа, а не вся страница.
+    Шапка страницы книги: возврат к списку слева, правка сведений справа.
+    Одно действие на страницу: правится карточка целиком, а не её части.
   -->
   <header
     class="flex flex-none items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-2.5 md:px-6"
@@ -285,6 +158,15 @@
       <Icon name="chevron-left" />
       {t('app.library.book.back')}
     </Button>
+    <div class="ml-auto">
+      <IconButton
+        action="edit"
+        size="sm"
+        title={t('app.library.book.edit')}
+        ariaLabel={t('app.library.book.edit')}
+        onclick={startEditing}
+      />
+    </div>
   </header>
 
   <div class="min-h-0 flex-1 overflow-y-auto">
@@ -301,197 +183,272 @@
       </div>
     {/if}
 
-    <div
-      class="mx-auto grid w-full max-w-[56rem] gap-6 px-4 py-6 @min-[44rem]:grid-cols-[13rem_minmax(0,1fr)] md:px-6"
-    >
-      <!-- Обложка-«корешок»: слева на широком окне, сверху на узком. -->
-      <div class="flex flex-col gap-3">
-        <div class="w-[11.25rem] flex-none self-start">
+    <div class="mx-auto flex w-full max-w-[56rem] flex-col gap-6 px-4 py-6 md:px-6">
+      <div class="flex flex-col gap-5 @min-[40rem]:flex-row @min-[40rem]:items-start">
+        <div class="w-[8.5rem] shrink-0 self-start">
           <BookCover src={book.coverUri ?? null} class="rounded-[var(--radius)]" />
         </div>
-      </div>
 
-      <div class="min-w-0 flex flex-col gap-5">
-        <div class="flex flex-col gap-2">
+        <div class="flex min-w-0 flex-1 flex-col gap-3">
           <h1 class="role-display text-[var(--foreground)]" data-testid="book-title">
             {book.title}
           </h1>
-          {#if authors}
-            <p class="role-subtitle text-[var(--muted-foreground)]">{authors}</p>
+
+          <!--
+            Автор — ссылка на список его книг. Отдельного свойства «автор» нет:
+            он уже назван здесь, дублировать нечего.
+          -->
+          {#if authorList}
+            <p class="role-subtitle text-[var(--muted-foreground)]">
+              <button
+                type="button"
+                class="cursor-pointer bg-transparent text-left underline-offset-2 hover:text-[var(--primary)] hover:underline [font:inherit]"
+                title={t('app.library.book.filterBy', { value: authorList })}
+                data-testid="book-author-link"
+                onclick={() => onFilterBy('author', book.authors[0]?.name ?? authorList)}
+              >
+                {authorList}
+              </button>
+            </p>
           {/if}
-        </div>
 
-        <!--
-          Формат книги и действия: «Читать» открывает файл этого формата
-          вкладкой, «Открыть» — файлом. Без пояснений и общей панели.
-        -->
-        {#if formats.length > 0}
-          <div class="flex flex-col gap-2" data-testid="book-formats">
-            {#each formats as entry (entry.format)}
-              <div
-                class="flex flex-wrap items-center gap-2"
-                data-testid="book-format-{entry.format}"
-              >
-                <Badge variant={entry.readable ? 'outline' : 'muted'}>
-                  {entry.format.toUpperCase()}
-                </Badge>
-                {#if entry.readable}
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    testId="book-read-{entry.format}"
-                    onclick={() => onAdd(entry.format)}
-                  >
-                    {t('app.library.book.read')}
-                  </Button>
-                {/if}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={openingFormat === entry.format}
-                  testId="book-open-{entry.format}"
-                  onclick={() => onOpen(entry.format)}
+          <!--
+            Формат и действия: «Читать» открывает файл этого формата вкладкой,
+            «Открыть» — файлом. Метка формата ведёт к книгам того же формата.
+          -->
+          {#if formats.length > 0}
+            <div class="flex flex-col gap-2" data-testid="book-formats">
+              {#each formats as entry (entry.format)}
+                <div
+                  class="flex flex-wrap items-center gap-2"
+                  data-testid="book-format-{entry.format}"
                 >
-                  {openingFormat === entry.format
-                    ? t('app.library.book.opening')
-                    : t('app.action.open')}
-                </Button>
-              </div>
-            {/each}
-          </div>
-        {/if}
-
-        <!--
-          Свойства книги: разделы закрыты, пока пользователь сам не раскроет.
-          Показываются только заполненные строки — пустых заглушек нет, а
-          правится группа целиком, а не вся страница.
-        -->
-        <div class="flex flex-col gap-1" data-testid="book-properties">
-          {#each sections as section (section.id)}
-            <Disclosure
-              bind:open={openSections[section.id]}
-              title={section.title}
-              testId="book-section-{section.id}"
-            >
-              {#snippet actions()}
-                {#if section.id !== 'file'}
-                  <IconButton
-                    action="edit"
-                    size="sm"
-                    title={t('app.library.book.edit')}
-                    ariaLabel={t('app.library.book.edit')}
-                    onclick={() => openGroup(section.id as EditGroup)}
-                  />
-                {/if}
-              {/snippet}
-              <dl
-                class="m-0 flex flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]"
-              >
-                {#each section.rows as row (row.id)}
-                  <div
-                    class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
+                  <button
+                    type="button"
+                    class="cursor-pointer bg-transparent p-0 [font:inherit]"
+                    title={t('app.library.book.filterBy', { value: entry.format.toUpperCase() })}
+                    data-testid="book-format-link-{entry.format}"
+                    onclick={() => onFilterBy('format', entry.format)}
                   >
-                    <dt class="w-[7.5rem] shrink-0 role-caption text-[var(--muted-foreground)]">
-                      {row.label}
-                    </dt>
-                    <dd
-                      class="m-0 min-w-0 flex-1 break-words role-body"
-                      class:font-mono={row.mono}
-                      data-testid="book-property-{row.id}"
+                    <Badge variant={entry.readable ? 'outline' : 'muted'}>
+                      {entry.format.toUpperCase()}
+                    </Badge>
+                  </button>
+                  {#if entry.readable}
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      testId="book-read-{entry.format}"
+                      onclick={() => onAdd(entry.format)}
                     >
-                      {row.text}
-                    </dd>
-                    {#if row.mono}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title={t('app.library.book.openFolder')}
-                        ariaLabel={t('app.library.book.openFolder')}
-                        testId="book-open-folder"
-                        onclick={onOpenFolder}
-                      >
-                        <Icon name="folder" />
-                      </Button>
-                    {/if}
-                  </div>
-                {/each}
-              </dl>
-            </Disclosure>
-          {/each}
+                      {t('app.library.book.read')}
+                    </Button>
+                  {/if}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={openingFormat === entry.format}
+                    testId="book-open-{entry.format}"
+                    onclick={() => onOpen(entry.format)}
+                  >
+                    {openingFormat === entry.format
+                      ? t('app.library.book.opening')
+                      : t('app.action.open')}
+                  </Button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          <!-- Теги — ссылки на список книг с тем же тегом. -->
+          {#if tags.length > 0}
+            <div
+              class="flex flex-wrap items-center gap-1.5"
+              aria-label={t('app.library.book.tags')}
+              data-testid="book-tags"
+            >
+              {#each tags as tag (tag)}
+                <button
+                  type="button"
+                  class="cursor-pointer rounded-full border border-[var(--border)] bg-[var(--card)] px-2.5 py-0.5 role-caption text-[var(--muted-foreground)] transition-colors [font:inherit] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  title={t('app.library.book.filterBy', { value: tag })}
+                  onclick={() => onFilterBy('tag', tag)}
+                >
+                  {tag}
+                </button>
+              {/each}
+            </div>
+          {/if}
+
+          <!-- Сведения об издании: только заполненные строки. -->
+          {#if published || book.language || book.publisher || book.identifier}
+            <dl
+              class="m-0 flex flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]"
+              data-testid="book-properties"
+            >
+              {#if published}
+                <div
+                  class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2 last:border-b-0 sm:flex-row sm:gap-4"
+                >
+                  <dt class="w-[9rem] shrink-0 role-caption text-[var(--muted-foreground)]">
+                    {t('app.library.book.published')}
+                  </dt>
+                  <dd class="m-0 min-w-0 role-body" data-testid="book-property-published">
+                    {published}
+                  </dd>
+                </div>
+              {/if}
+              {#if book.language}
+                <div
+                  class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2 last:border-b-0 sm:flex-row sm:gap-4"
+                >
+                  <dt class="w-[9rem] shrink-0 role-caption text-[var(--muted-foreground)]">
+                    {t('app.library.book.language')}
+                  </dt>
+                  <dd class="m-0 min-w-0 role-body">
+                    <button
+                      type="button"
+                      class="cursor-pointer bg-transparent text-left underline-offset-2 hover:text-[var(--primary)] hover:underline [font:inherit]"
+                      title={t('app.library.book.filterBy', { value: book.language })}
+                      data-testid="book-property-language"
+                      onclick={() => onFilterBy('language', book.language as string)}
+                    >
+                      {book.language}
+                    </button>
+                  </dd>
+                </div>
+              {/if}
+              {#if book.publisher}
+                <div
+                  class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2 last:border-b-0 sm:flex-row sm:gap-4"
+                >
+                  <dt class="w-[9rem] shrink-0 role-caption text-[var(--muted-foreground)]">
+                    {t('app.library.book.publisher')}
+                  </dt>
+                  <dd class="m-0 min-w-0 role-body" data-testid="book-property-publisher">
+                    {book.publisher}
+                  </dd>
+                </div>
+              {/if}
+              {#if book.identifier}
+                <div
+                  class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2 last:border-b-0 sm:flex-row sm:gap-4"
+                >
+                  <dt class="w-[9rem] shrink-0 role-caption text-[var(--muted-foreground)]">
+                    {t('app.library.book.identifier')}
+                  </dt>
+                  <dd class="m-0 min-w-0 role-body" data-testid="book-property-identifier">
+                    {book.identifier}
+                  </dd>
+                </div>
+              {/if}
+            </dl>
+          {/if}
 
           {#if description}
-            <Disclosure
-              bind:open={openSections.description}
-              title={t('app.library.book.description')}
-              testId="book-section-description"
-            >
-              <p
-                class="m-0 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 role-body"
-                data-testid="book-description"
-              >
-                {description}
-              </p>
-            </Disclosure>
+            <p class="m-0 role-body" data-testid="book-description">{description}</p>
+          {/if}
+
+          {#if openError}
+            <ErrorState message={openError} />
           {/if}
         </div>
-
-        {#if openError}
-          <ErrorState message={openError} />
-        {/if}
       </div>
+
+      <!--
+        Технические сведения о файле — в самом низу: путь, размер и дата
+        добавления нужны редко, и им не место среди свойств книги.
+      -->
+      {#if path || book.size !== undefined || added}
+        <dl
+          class="m-0 flex flex-col gap-1 border-t border-[var(--divider)] pt-4 role-caption text-[var(--muted-foreground)]"
+          data-testid="book-file"
+        >
+          {#if path}
+            <div class="flex flex-wrap items-center gap-2">
+              <dt class="w-[9rem] shrink-0">{t('app.library.book.path')}</dt>
+              <dd class="m-0 min-w-0 break-all font-mono" data-testid="book-property-path">
+                {path}
+              </dd>
+              <Button
+                variant="ghost"
+                size="icon"
+                title={t('app.library.book.openFolder')}
+                ariaLabel={t('app.library.book.openFolder')}
+                testId="book-open-folder"
+                onclick={onOpenFolder}
+              >
+                <Icon name="folder" />
+              </Button>
+            </div>
+          {/if}
+          {#if book.size !== undefined}
+            <div class="flex flex-wrap items-center gap-2">
+              <dt class="w-[9rem] shrink-0">{t('app.library.book.size')}</dt>
+              <dd class="m-0 min-w-0" data-testid="book-property-size">{formatBytes(book.size)}</dd>
+            </div>
+          {/if}
+          {#if added}
+            <div class="flex flex-wrap items-center gap-2">
+              <dt class="w-[9rem] shrink-0">{t('app.library.book.added')}</dt>
+              <dd class="m-0 min-w-0" data-testid="book-property-added">{added}</dd>
+            </div>
+          {/if}
+        </dl>
+      {/if}
     </div>
   </div>
 
   <!--
-    Правка выбранной группы: пустое поле оставляет значение из файла,
-    «Взять из файла» убирает правку книги целиком. Файл не меняется.
+    Правка сведений: пустое поле оставляет значение из файла, «Взять из файла»
+    убирает правку книги целиком. Файл не меняется.
   -->
-  <Dialog bind:open={editing} title={editTitleText}>
+  <Dialog bind:open={editing} title={t('app.library.book.edit')}>
     <div class="flex flex-col gap-3" data-testid="book-edit-form">
-      {#if editGroup === 'main'}
-        <Input
-          bind:value={editTitle}
-          placeholder={t('app.library.book.field.title')}
-          ariaLabel={t('app.library.book.field.title')}
-        />
-        <Input
-          bind:value={editAuthors}
-          placeholder={t('app.library.book.field.authors')}
-          ariaLabel={t('app.library.book.field.authors')}
-        />
-      {:else if editGroup === 'edition'}
+      <Input
+        bind:value={editTitle}
+        placeholder={t('app.library.book.field.title')}
+        ariaLabel={t('app.library.book.field.title')}
+      />
+      <Input
+        bind:value={editAuthors}
+        placeholder={t('app.library.book.field.authors')}
+        ariaLabel={t('app.library.book.field.authors')}
+      />
+      <div class="flex flex-col gap-2 sm:flex-row">
         <Input
           bind:value={editLanguage}
           placeholder={t('app.library.book.field.language')}
           ariaLabel={t('app.library.book.field.language')}
+          class="sm:flex-1"
         />
         <Input
           bind:value={editPublished}
           placeholder={t('app.library.book.field.published')}
           ariaLabel={t('app.library.book.field.published')}
+          class="sm:flex-1"
         />
-        <Input
-          bind:value={editPublisher}
-          placeholder={t('app.library.book.field.publisher')}
-          ariaLabel={t('app.library.book.field.publisher')}
-        />
-        <Input
-          bind:value={editIdentifier}
-          placeholder={t('app.library.book.field.identifier')}
-          ariaLabel={t('app.library.book.field.identifier')}
-        />
-      {:else}
-        <Input
-          bind:value={editTags}
-          placeholder={t('app.library.book.field.tags')}
-          ariaLabel={t('app.library.book.field.tags')}
-        />
-      {/if}
+      </div>
+      <Input
+        bind:value={editPublisher}
+        placeholder={t('app.library.book.field.publisher')}
+        ariaLabel={t('app.library.book.field.publisher')}
+      />
+      <Input
+        bind:value={editIdentifier}
+        placeholder={t('app.library.book.field.identifier')}
+        ariaLabel={t('app.library.book.field.identifier')}
+      />
+      <Input
+        bind:value={editTags}
+        placeholder={t('app.library.book.field.tags')}
+        ariaLabel={t('app.library.book.field.tags')}
+      />
       <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
         <Button variant="ghost" size="sm" testId="book-edit-reset" onclick={resetToFile}>
           {t('app.library.book.reset')}
         </Button>
-        <Button variant="primary" size="sm" testId="book-edit-save" onclick={submitGroup}>
+        <Button variant="primary" size="sm" testId="book-edit-save" onclick={submitEdit}>
           {t('app.library.book.save')}
         </Button>
       </div>

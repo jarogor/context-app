@@ -1,16 +1,14 @@
 use super::extract;
 
-/// `metadata.opf` с названием, авторами и серией.
+/// `metadata.opf` с названием и авторами.
 #[test]
-fn extracts_title_creators_and_series() {
+fn extracts_title_and_creators() {
     let xml = r#"<?xml version='1.0' encoding='utf-8'?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
     <dc:title>Исследование о природе и причинах богатства народов</dc:title>
     <dc:creator opf:role="aut">Адам Смит</dc:creator>
     <dc:creator opf:role="aut">Второй Автор</dc:creator>
-    <meta name="calibre:series" content="Классика"/>
-    <meta name="calibre:series_index" content="3"/>
   </metadata>
 </package>"#;
 
@@ -21,7 +19,6 @@ fn extracts_title_creators_and_series() {
         Some("Исследование о природе и причинах богатства народов")
     );
     assert_eq!(metadata.authors, vec!["Адам Смит", "Второй Автор"]);
-    assert_eq!(metadata.series, Some(("Классика".to_string(), 3)));
 }
 
 /// Не-OPF даёт пустые метаданные.
@@ -31,7 +28,6 @@ fn falls_back_without_metadata() {
 
     assert!(metadata.title.is_none());
     assert!(metadata.authors.is_empty());
-    assert!(metadata.series.is_none());
 }
 
 /// Свойства издания и теги из `metadata.opf`.

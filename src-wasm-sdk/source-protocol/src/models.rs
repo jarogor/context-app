@@ -27,9 +27,6 @@ pub struct ExternalBook {
     /// Теги книги (принадлежат источнику: `dc:subject`, теги Calibre).
     #[serde(default)]
     pub tags: Vec<String>,
-    /// Серии книги с порядковыми номерами.
-    #[serde(default)]
-    pub series: Vec<(String, i64)>,
     /// Файлы книги: содержимое и обложка.
     pub files: Vec<ExternalFile>,
     /// Язык книги (BCP-47 либо значение из файла).

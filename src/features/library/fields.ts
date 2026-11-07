@@ -12,7 +12,7 @@ import type { Book } from './library';
 export type SortValue = string | number | null;
 
 /** Поле сортировки. */
-export type SortField = 'title' | 'author' | 'series' | 'published' | 'added' | 'size' | 'format';
+export type SortField = 'title' | 'author' | 'published' | 'added' | 'size' | 'format';
 
 /** Направление сортировки. */
 export type SortDirection = 'asc' | 'desc';
@@ -34,11 +34,6 @@ function firstAuthor(book: Book): SortValue {
   return book.authors[0]?.name.trim() || null;
 }
 
-/** Имя первой серии книги. */
-function firstSeries(book: Book): SortValue {
-  return book.series[0]?.series.name.trim() || null;
-}
-
 /** Формат файла содержимого книги. */
 export function bookFormat(book: Book): string {
   const file = book.files.find((entry) => entry.kind === 'book' && entry.format);
@@ -58,12 +53,6 @@ export const SORT_FIELDS: SortFieldInfo[] = [
     labelKey: 'app.library.sort.author',
     defaultDirection: 'asc',
     value: firstAuthor,
-  },
-  {
-    id: 'series',
-    labelKey: 'app.library.sort.series',
-    defaultDirection: 'asc',
-    value: firstSeries,
   },
   {
     id: 'published',
@@ -141,10 +130,8 @@ export function sortBooks<T extends Book>(
 }
 
 /** Состояние фильтра по обложке. */
-export type CoverFilter = 'all' | 'with' | 'without';
-
 /** Фасет фильтрации книг. */
-export type FacetId = 'authors' | 'formats' | 'languages' | 'series' | 'tags';
+export type FacetId = 'authors' | 'formats' | 'languages' | 'tags';
 
 /** Выбранные значения фасетов: внутри фасета «или», между фасетами «и». */
 export interface BookFilters {
@@ -154,35 +141,32 @@ export interface BookFilters {
   formats: string[];
   /** Языки книги. */
   languages: string[];
-  /** Серии. */
-  series: string[];
   /** Теги книги. */
   tags: string[];
-  /** Наличие обложки. */
-  covers: CoverFilter;
+  /** Показывать только книги без обложки. */
+  withoutCover: boolean;
 }
 
 /** Идентификаторы фасетов в порядке панели. */
-export const FACET_IDS: FacetId[] = ['authors', 'formats', 'languages', 'series', 'tags'];
+export const FACET_IDS: FacetId[] = ['authors', 'formats', 'languages', 'tags'];
 
 /** Подписи фасетов. */
 export const FACET_LABELS: Record<FacetId, MessageKey> = {
   authors: 'app.library.facet.authors',
   formats: 'app.library.facet.formats',
   languages: 'app.library.facet.languages',
-  series: 'app.library.facet.series',
   tags: 'app.library.facet.tags',
 };
 
 /** Пустой набор фильтров: показываются все книги. */
 export function emptyFilters(): BookFilters {
-  return { authors: [], formats: [], languages: [], series: [], tags: [], covers: 'all' };
+  return { authors: [], formats: [], languages: [], tags: [], withoutCover: false };
 }
 
 /** Число активных фильтров (для счётчика на кнопке). */
 export function activeFilterCount(filters: BookFilters): number {
   const facets = FACET_IDS.reduce((count, id) => count + (filters[id].length > 0 ? 1 : 0), 0);
-  return facets + (filters.covers === 'all' ? 0 : 1);
+  return facets + (filters.withoutCover ? 1 : 0);
 }
 
 /** Значения книги по фасету. */
@@ -197,8 +181,6 @@ function facetValues(book: Book, id: FacetId): string[] {
         .filter(Boolean);
     case 'languages':
       return book.language?.trim() ? [book.language.trim()] : [];
-    case 'series':
-      return book.series.map((entry) => entry.series.name.trim()).filter(Boolean);
     case 'tags':
       return book.tags.map((tag) => tag.name.trim()).filter(Boolean);
   }
@@ -209,10 +191,7 @@ export function filterBooks<T extends Book>(books: T[], filters: BookFilters): T
   return books.filter((book) => {
     // Признак обложки известен по всему каталогу, а сами обложки грузятся
     // только для видимых книг.
-    if (filters.covers === 'with' && book.hasCover !== true) {
-      return false;
-    }
-    if (filters.covers === 'without' && book.hasCover === true) {
+    if (filters.withoutCover && book.hasCover === true) {
       return false;
     }
     return FACET_IDS.every((id) => {
@@ -242,7 +221,6 @@ export function bookFacets(books: Book[], locale: string): Record<FacetId, Facet
     authors: [],
     formats: [],
     languages: [],
-    series: [],
     tags: [],
   };
   for (const id of FACET_IDS) {
@@ -273,6 +251,6 @@ export function toggleFacet(filters: BookFilters, id: FacetId, value: string): B
 }
 
 /** Новый набор фильтров с другим состоянием обложки. */
-export function withCoverFilter(filters: BookFilters, covers: CoverFilter): BookFilters {
-  return { ...filters, covers };
+export function withWithoutCover(filters: BookFilters, withoutCover: boolean): BookFilters {
+  return { ...filters, withoutCover };
 }

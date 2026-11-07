@@ -22,7 +22,6 @@ const CATALOG = {
         id: 'demo-1',
         title: 'Демо-книга',
         authors: ['Тестовый автор'],
-        series: [],
         tags: [],
         files: [{ kind: 'book', path: 'demo-1.epub', format: 'epub' }],
       },
@@ -43,7 +42,6 @@ function catalogOf(count: number) {
           id: `book-${index + 1}`,
           title,
           authors: [],
-          series: [],
           tags: [],
           files: [{ kind: 'book', path: `book-${index + 1}.epub`, format: 'epub' }],
         };
@@ -158,7 +156,6 @@ describe('страница библиотеки', () => {
                 id: 'two-formats',
                 title: 'Демо-книга',
                 authors: [],
-                series: [],
                 tags: [],
                 files: [
                   { kind: 'book', path: 'two-formats.fb2', format: 'fb2' },
@@ -286,7 +283,6 @@ const FORMAT_CATALOG = {
         id: 'epub-1',
         title: 'Книга EPUB',
         authors: [],
-        series: [],
         tags: [],
         files: [{ kind: 'book', path: 'epub-1.epub', format: 'epub' }],
       },
@@ -294,7 +290,6 @@ const FORMAT_CATALOG = {
         id: 'fb2-1',
         title: 'Книга FB2',
         authors: [],
-        series: [],
         tags: [],
         files: [{ kind: 'book', path: 'fb2-1.fb2', format: 'fb2' }],
       },
@@ -332,9 +327,6 @@ describe('сортировка и фильтры библиотеки', () => {
     await openLibrary();
 
     await fireEvent.click(screen.getByTestId('library-filters-open'));
-    const panel = await screen.findByTestId('library-filters');
-    // Раздел фасета раскрывается пользователем.
-    await fireEvent.click(within(panel).getByRole('button', { name: 'Формат' }));
     const formats = await screen.findByTestId('library-facet-formats');
     const checkboxes = within(formats).getAllByRole('checkbox');
     // Значения фасета идут по алфавиту: EPUB, затем FB2.
@@ -366,13 +358,12 @@ describe('сортировка и фильтры библиотеки', () => {
     await waitFor(() => expect(byAuthor.getAttribute('aria-pressed')).toBe('true'));
   });
 
-  it('фильтр обложки живёт в панели и считается среди фильтров', async () => {
+  it('флажок «без обложки» считается среди фильтров', async () => {
     await openLibrary();
 
     await fireEvent.click(screen.getByTestId('library-filters-open'));
     const panel = await screen.findByTestId('library-filters');
-    await fireEvent.click(within(panel).getByRole('button', { name: 'Обложка' }));
-    await fireEvent.click(within(panel).getByRole('button', { name: 'Без обложки' }));
+    await fireEvent.click(within(panel).getByRole('checkbox', { name: 'Без обложки' }));
 
     await waitFor(() =>
       expect(screen.getByTestId('library-filters-count').textContent).toContain('1'),

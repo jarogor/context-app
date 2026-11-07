@@ -16,8 +16,6 @@ pub(crate) struct OpfMetadata {
     pub title: Option<String>,
     /// Авторы книги.
     pub authors: Vec<String>,
-    /// Серия и её номер.
-    pub series: Option<(String, i64)>,
     /// Теги книги (`dc:subject`).
     pub tags: Vec<String>,
     /// Язык книги.
@@ -40,8 +38,6 @@ pub(crate) fn extract(bytes: &[u8]) -> OpfMetadata {
     let mut metadata = OpfMetadata::default();
     let mut active = String::new();
     let mut text = String::new();
-    let mut series: Option<String> = None;
-    let mut series_index: Option<i64> = None;
 
     loop {
         match reader.read_event_into(&mut buffer) {
@@ -52,15 +48,6 @@ pub(crate) fn extract(bytes: &[u8]) -> OpfMetadata {
                     | "subject" | "identifier" => {
                         active = name;
                         text.clear();
-                    }
-                    "meta" => {
-                        if let Some((key, value)) = meta_entry(&event) {
-                            match key.as_ref() {
-                                "calibre:series" => series = Some(value),
-                                "calibre:series_index" => series_index = value.parse().ok(),
-                                _ => {}
-                            }
-                        }
                     }
                     _ => {}
                 }
@@ -108,9 +95,6 @@ pub(crate) fn extract(bytes: &[u8]) -> OpfMetadata {
         buffer.clear();
     }
 
-    if let Some(name) = series {
-        metadata.series = Some((name, series_index.unwrap_or(0)));
-    }
     metadata
 }
 
@@ -135,24 +119,6 @@ fn local_name(name: &[u8]) -> String {
         .next()
         .unwrap_or(&value)
         .to_ascii_lowercase()
-}
-
-/// Пара `name`/`content` элемента `meta`.
-fn meta_entry(event: &quick_xml::events::BytesStart<'_>) -> Option<(String, String)> {
-    let mut name = None;
-    let mut content = None;
-    for entry in event.attributes().flatten() {
-        let key = String::from_utf8_lossy(entry.key.as_ref());
-        let Ok(value) = entry.unescape_value() else {
-            continue;
-        };
-        match key.as_ref() {
-            "name" => name = Some(value.into_owned()),
-            "content" => content = Some(value.into_owned()),
-            _ => {}
-        }
-    }
-    Some((name?, content?))
 }
 
 #[cfg(test)]

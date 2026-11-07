@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS books (
   title TEXT NOT NULL,
   authors TEXT NOT NULL,
   tags TEXT NOT NULL,
-  series TEXT NOT NULL,
   files TEXT NOT NULL,
   format TEXT NOT NULL,
   size INTEGER,
@@ -69,7 +68,7 @@ pub struct CoverRow {
 
 /// Запись книги в общей схеме каталога source-плагина.
 ///
-/// Поля-списки (`authors`, `tags`, `series`, `files`) хранятся JSON-массивами:
+/// Поля-списки (`authors`, `tags`, `files`) хранятся JSON-массивами:
 /// их форма принадлежит контракту источника, а не схеме SQL. Плагин заполняет
 /// то, что умеет извлечь; незаполненное остаётся `None`.
 #[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -82,8 +81,6 @@ pub struct BookRecord {
     pub authors: String,
     /// Теги источника в виде JSON-массива строк.
     pub tags: String,
-    /// Серии в виде JSON-массива пар «имя, номер».
-    pub series: String,
     /// Файлы книги в виде JSON-массива.
     pub files: String,
     /// Формат файла содержимого.
@@ -277,7 +274,6 @@ pub fn upsert_book(fs: &impl Fs, book: &BookRecord) -> Result<(), String> {
         book.title,
         book.authors,
         book.tags,
-        book.series,
         book.files,
         book.format,
         book.size,
@@ -292,15 +288,14 @@ pub fn upsert_book(fs: &impl Fs, book: &BookRecord) -> Result<(), String> {
     ])
     .to_string();
     fs.sql_execute(
-        "INSERT INTO books (id, title, authors, tags, series, files, format, size, mtime_ms,
+        "INSERT INTO books (id, title, authors, tags, files, format, size, mtime_ms,
                             added_at_ms, language, published, publisher, description,
                             identifier, signature)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
          ON CONFLICT(id) DO UPDATE SET
            title = excluded.title,
            authors = excluded.authors,
            tags = excluded.tags,
-           series = excluded.series,
            files = excluded.files,
            format = excluded.format,
            size = excluded.size,

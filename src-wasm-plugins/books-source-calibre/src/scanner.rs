@@ -151,7 +151,6 @@ pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
     } else {
         vec![listing.author.clone()]
     };
-    let mut series = Vec::new();
     let mut tags = Vec::new();
     let mut language: Option<String> = None;
     let mut published: Option<String> = None;
@@ -168,9 +167,6 @@ pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
             }
             if !metadata.authors.is_empty() {
                 authors = metadata.authors;
-            }
-            if let Some(value) = metadata.series {
-                series.push(value);
             }
             tags = metadata.tags;
             language = metadata.language;
@@ -207,7 +203,6 @@ pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
         title,
         authors,
         tags,
-        series,
         files: listing.files.clone(),
         language,
         published,

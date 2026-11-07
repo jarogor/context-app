@@ -4,7 +4,7 @@
     BookCover,
     Button,
     Checkbox,
-    Disclosure,
+    FilterList,
     EmptyState,
     ErrorState,
     Icon,
@@ -34,9 +34,8 @@
     SORT_FIELDS,
     sortField as sortFieldInfo,
     toggleFacet,
-    withCoverFilter,
+    withWithoutCover,
     type BookFilters,
-    type CoverFilter,
     type FacetId,
     type SortDirection,
     type SortField,
@@ -130,24 +129,12 @@
   /** Открыта ли панель фильтров. */
   let filtersOpen = $state(false);
 
-  /** Открыт ли раздел сортировки в панели. */
-  let sortOpen = $state(true);
-
-  /** Открыт ли раздел обложки в панели. */
-  let coverOpen = $state(false);
 
   /** Номер показанной страницы списка (с единицы). */
   let page = $state(1);
 
   /** Элемент начала списка: после смены страницы список возвращается наверх. */
   let listTop: HTMLElement | null = $state(null);
-
-  /** Варианты фильтра по обложке. */
-  const coverChoices = $derived([
-    { value: 'all' as CoverFilter, label: t('app.library.filter.all') },
-    { value: 'with' as CoverFilter, label: t('app.library.cover.with') },
-    { value: 'without' as CoverFilter, label: t('app.library.filter.withoutCover') },
-  ]);
 
   /** Имена авторов книги строкой. */
   function authorNames(book: Book): string {
@@ -234,9 +221,9 @@
     page = 1;
   }
 
-  /** Выбор фильтра по обложке. */
-  function chooseCover(value: CoverFilter) {
-    filters = withCoverFilter(filters, value);
+  /** Фильтр «только без обложки». */
+  function chooseWithoutCover(value: boolean) {
+    filters = withWithoutCover(filters, value);
     page = 1;
   }
 
@@ -267,6 +254,21 @@
     // значения файла, а не оставляет прежние.
     const source = books.find((book) => book.id === openedBook?.id) ?? openedBook;
     openedBook = applyBookProperties([source], properties, bookPath)[0];
+  }
+
+  /** Переход к списку книг с фильтром по свойству открытой книги. */
+  function filterBy(kind: 'author' | 'format' | 'language' | 'tag', value: string) {
+    openedBook = null;
+    const facet =
+      kind === 'author'
+        ? 'authors'
+        : kind === 'format'
+          ? 'formats'
+          : kind === 'language'
+            ? 'languages'
+            : 'tags';
+    filters = { ...emptyFilters(), [facet]: [kind === 'format' ? value.toLowerCase() : value] };
+    page = 1;
   }
 
   /** Возврат открытой книги к значениям файла. */
@@ -543,6 +545,7 @@
     onOpenFolder={() => void openBookFolder(bookPath(openedBook as BookWithCover))}
     onSaveProperties={(entry) => void saveProperties(entry)}
     onResetProperties={() => void resetProperties()}
+    onFilterBy={filterBy}
     onAdd={(format) => startReading(openedBook as BookWithCover, format)}
     onOpen={(format) => openFormatFile(openedBook as BookWithCover, format)}
   />
@@ -558,6 +561,22 @@
         class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
         data-testid="library-controls"
       >
+        <Button
+          variant={filtersOpen ? 'primary' : 'secondary'}
+          size="sm"
+          testId="library-filters-open"
+          ariaLabel={t('app.library.filters.open')}
+          ariaPressed={filtersOpen}
+          onclick={() => (filtersOpen = !filtersOpen)}
+        >
+          <Icon name="layers" />
+          {t('app.library.filters.open')}
+          {#if filterCount > 0}
+            <span
+              class="role-caption text-[var(--muted-foreground)]"
+              data-testid="library-filters-count">{filterCount}</span>
+          {/if}
+        </Button>
         <Input
           bind:value={searchQuery}
           placeholder={t('app.search.books.placeholder')}
@@ -571,21 +590,6 @@
           <span class="mr-auto role-caption text-[var(--muted-foreground)] sm:mr-0">
             {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
           </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            testId="library-filters-open"
-            ariaLabel={t('app.library.filters.open')}
-            onclick={() => (filtersOpen = true)}
-          >
-            <Icon name="layers" />
-            {t('app.library.filters.open')}
-            {#if filterCount > 0}
-              <span
-                class="role-caption text-[var(--muted-foreground)]"
-                data-testid="library-filters-count">{filterCount}</span>
-            {/if}
-          </Button>
           <div
             class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
             role="group"
@@ -618,6 +622,107 @@
 
 
     <div class="relative flex min-h-0 min-w-0 flex-1">
+      {#if filtersOpen}
+        <SidePanel
+          title={t('app.library.filters.title')}
+          testId="library-filters"
+          side="left"
+          class="w-full lg:w-[19rem]"
+          onClose={() => (filtersOpen = false)}
+        >
+          <div class="flex min-h-0 flex-1 flex-col">
+            <div
+              class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-2"
+              data-testid="library-filter-sections"
+            >
+              <!-- Сортировка: короткий список полей и направление. -->
+              <section class="flex flex-col gap-1">
+                <h3 class="px-2 role-caption text-[var(--muted-foreground)]">
+                  {t('app.library.filters.sort')}
+                </h3>
+                <div class="flex flex-col">
+                  {#each SORT_FIELDS as field (field.id)}
+                    <button
+                      type="button"
+                      class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                      aria-pressed={sortField === field.id}
+                      onclick={() => chooseSort(field.id)}
+                    >
+                      <span class="min-w-0 flex-1 truncate role-body">{t(field.labelKey)}</span>
+                      {#if sortField === field.id}
+                        <Icon name="check" class="h-4 w-4 shrink-0" />
+                      {/if}
+                    </button>
+                  {/each}
+                </div>
+                <div class="flex items-center gap-1 px-1">
+                  <Button
+                    variant={sortDirection === 'asc' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    ariaPressed={sortDirection === 'asc'}
+                    onclick={() => (sortDirection = 'asc')}
+                  >
+                    {t('app.library.sort.asc')}
+                  </Button>
+                  <Button
+                    variant={sortDirection === 'desc' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    ariaPressed={sortDirection === 'desc'}
+                    onclick={() => (sortDirection = 'desc')}
+                  >
+                    {t('app.library.sort.desc')}
+                  </Button>
+                </div>
+              </section>
+
+              <!-- Обложка — обычный флажок: сворачивать нечего. -->
+              <label
+                class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 hover:bg-[var(--surface-hover)]"
+              >
+                <Checkbox
+                  checked={filters.withoutCover}
+                  onchange={() => chooseWithoutCover(!filters.withoutCover)}
+                />
+                <span class="min-w-0 flex-1 truncate role-body">
+                  {t('app.library.filters.withoutCover')}
+                </span>
+              </label>
+
+              {#each FACET_IDS as id (id)}
+                {@const values = facets[id]}
+                {#if values.length > 0}
+                  <section class="flex flex-col gap-1">
+                    <h3 class="px-2 role-caption text-[var(--muted-foreground)]">
+                      {t(FACET_LABELS[id])}
+                    </h3>
+                    <FilterList
+                      items={values}
+                      selected={filters[id]}
+                      onToggle={(value) => onFacetToggle(id, value)}
+                      searchPlaceholder={t('app.library.filters.search')}
+                      emptyText={t('app.library.filters.notFound')}
+                      testId="library-facet-{id}"
+                    />
+                  </section>
+                {/if}
+              {/each}
+            </div>
+            <div
+              class="flex flex-none items-center gap-2 border-t border-[var(--divider)] px-3 py-2"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={filterCount === 0}
+                onclick={resetFilters}
+              >
+                {t('app.library.filters.reset')}
+              </Button>
+            </div>
+          </div>
+        </SidePanel>
+      {/if}
+
       <ScrollArea testId="library-page" class="p-4 md:p-6">
         <div bind:this={listTop} aria-hidden="true"></div>
         {#if !librarySelected}
@@ -708,116 +813,6 @@
         {/if}
       </ScrollArea>
 
-      {#if filtersOpen}
-        <SidePanel
-          title={t('app.library.filters.title')}
-          testId="library-filters"
-          class="w-full lg:w-[19rem]"
-          onClose={() => (filtersOpen = false)}
-        >
-          <div class="flex min-h-0 flex-1 flex-col">
-            <div
-              class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-2"
-              data-testid="library-filter-sections"
-            >
-              <Disclosure bind:open={sortOpen} title={t('app.library.filters.sort')}>
-                <div class="flex flex-col">
-                  {#each SORT_FIELDS as field (field.id)}
-                    <button
-                      type="button"
-                      class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
-                      aria-pressed={sortField === field.id}
-                      onclick={() => chooseSort(field.id)}
-                    >
-                      <span class="min-w-0 flex-1 truncate role-body">{t(field.labelKey)}</span>
-                      {#if sortField === field.id}
-                        <Icon name="check" class="h-4 w-4 shrink-0" />
-                      {/if}
-                    </button>
-                  {/each}
-                </div>
-                <div class="mt-1 flex items-center gap-1 px-1">
-                  <Button
-                    variant={sortDirection === 'asc' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    ariaPressed={sortDirection === 'asc'}
-                    onclick={() => (sortDirection = 'asc')}
-                  >
-                    {t('app.library.sort.asc')}
-                  </Button>
-                  <Button
-                    variant={sortDirection === 'desc' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    ariaPressed={sortDirection === 'desc'}
-                    onclick={() => (sortDirection = 'desc')}
-                  >
-                    {t('app.library.sort.desc')}
-                  </Button>
-                </div>
-              </Disclosure>
-
-              <Disclosure bind:open={coverOpen} title={t('app.library.filters.cover')}>
-                <div class="flex flex-col">
-                  {#each coverChoices as choice (choice.value)}
-                    <button
-                      type="button"
-                      class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
-                      aria-pressed={filters.covers === choice.value}
-                      onclick={() => chooseCover(choice.value)}
-                    >
-                      <span class="min-w-0 flex-1 truncate role-body">{choice.label}</span>
-                      {#if filters.covers === choice.value}
-                        <Icon name="check" class="h-4 w-4 shrink-0" />
-                      {/if}
-                    </button>
-                  {/each}
-                </div>
-              </Disclosure>
-
-              {#each FACET_IDS as id (id)}
-                {@const values = facets[id]}
-                {#if values.length > 0}
-                  <Disclosure title={t(FACET_LABELS[id])} testId="library-facet-{id}">
-                    {#snippet badge()}
-                      {#if filters[id].length > 0}
-                        <span class="role-caption text-[var(--muted-foreground)]">
-                          {filters[id].length}
-                        </span>
-                      {/if}
-                    {/snippet}
-                    <div class="flex flex-col">
-                      {#each values as item (item.value)}
-                        <label
-                          class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 hover:bg-[var(--surface-hover)]"
-                        >
-                          <Checkbox
-                            checked={filters[id].includes(item.value)}
-                            onchange={() => onFacetToggle(id, item.value)}
-                          />
-                          <span class="min-w-0 flex-1 truncate role-body">{item.label}</span>
-                          <span class="role-caption text-[var(--muted-foreground)]">{item.count}</span>
-                        </label>
-                      {/each}
-                    </div>
-                  </Disclosure>
-                {/if}
-              {/each}
-            </div>
-            <div
-              class="flex flex-none items-center gap-2 border-t border-[var(--divider)] px-3 py-2"
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={filterCount === 0}
-                onclick={resetFilters}
-              >
-                {t('app.library.filters.reset')}
-              </Button>
-            </div>
-          </div>
-        </SidePanel>
-      {/if}
     </div>
 
     <!--

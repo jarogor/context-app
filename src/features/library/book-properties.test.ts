@@ -17,7 +17,6 @@ function book(overrides: Partial<Book> = {}): Book {
     id: 'a',
     title: 'Старое название',
     authors: [{ name: 'Автор' }],
-    series: [],
     tags: [{ name: 'тег' }],
     files: [{ kind: 'book', path: 'a.epub', format: 'epub' }],
     language: 'ru',

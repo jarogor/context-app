@@ -20,7 +20,6 @@ pub(crate) fn import_book(fs: &impl Fs, path: &str) -> Result<ExternalBook, Stri
         title,
         authors,
         tags: Vec::new(),
-        series: Vec::new(),
         files: vec![ExternalFile {
             kind: ExternalFileKind::Book,
             path: book_path.clone(),
