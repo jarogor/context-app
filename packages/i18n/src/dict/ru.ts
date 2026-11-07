@@ -293,6 +293,7 @@ export const ru = {
   'app.library.book.tags': 'Теги',
   'app.library.book.filterBy': 'Показать книги: {value}',
   'app.library.book.edit': 'Редактировать',
+  'app.library.book.editTitle': 'Редактирование сведений',
   'app.library.book.openFile': 'Открыть файл',
   'app.library.book.formats': 'Форматы',
   'app.library.book.details': 'Сведения',

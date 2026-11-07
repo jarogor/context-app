@@ -309,6 +309,7 @@ export const en: Dictionary = {
   'app.library.book.tags': 'Tags',
   'app.library.book.filterBy': 'Show books: {value}',
   'app.library.book.edit': 'Edit',
+  'app.library.book.editTitle': 'Editing details',
   'app.library.book.openFile': 'Open file',
   'app.library.book.formats': 'Formats',
   'app.library.book.details': 'Details',
