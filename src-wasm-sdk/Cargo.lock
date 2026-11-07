@@ -586,6 +586,7 @@ dependencies = [
  "serde_json",
  "source-protocol",
  "sqlite-migrations",
+ "sqlite-test-harness",
 ]
 
 [[package]]

@@ -35,3 +35,14 @@ fn falls_back_without_metadata() {
     assert!(metadata.authors.is_empty());
     assert!(metadata.cover.is_none());
 }
+
+/// Язык берётся из `/Lang`; дата файла не выдаётся за дату издания.
+#[test]
+fn extracts_language_without_publication_date() {
+    let pdf = b"<< /Lang (ru-RU) /CreationDate (D:20190101000000) /Title (T) >>";
+
+    let metadata = extract(pdf);
+
+    assert_eq!(metadata.language.as_deref(), Some("ru-RU"));
+    assert!(metadata.published.is_none(), "CreationDate — не дата издания");
+}

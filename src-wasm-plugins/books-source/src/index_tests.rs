@@ -115,6 +115,7 @@ fn write_catalog_and_load_roundtrip() {
             path: "books/Книга.epub".to_string(),
             format: "epub".to_string(),
         }],
+        ..ExternalBook::default()
     };
 
     let revision = write_catalog(&fs, std::slice::from_ref(&book)).expect("запись каталога");

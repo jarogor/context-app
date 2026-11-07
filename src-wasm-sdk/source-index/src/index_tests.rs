@@ -1,0 +1,222 @@
+//! Тесты общей схемы каталога, миграций и хелперов индекса.
+//!
+//! SQL исполняет настоящее SQLite (`sqlite-test-harness`), поэтому проверяются
+//! именно те выражения, которые формирует каркас.
+
+use std::cell::Cell;
+use std::path::PathBuf;
+
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use source_protocol::fs::Fs;
+use source_protocol::models::DirEntry;
+
+use super::{ensure_schema, load_book, load_books, upsert_book, BookRecord, CATALOG_MIGRATIONS};
+
+/// Счётчик уникальных хранилищ каждого теста.
+static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
+
+/// Тестовое окружение каркаса: настоящее SQLite и подставное время.
+struct TestDb {
+    /// Ключ хранилища в тестовом SQL-движке.
+    root: PathBuf,
+    /// Текущее время, которое «видит» плагин.
+    now: Cell<i64>,
+}
+
+impl TestDb {
+    /// Создание отдельного пустого хранилища.
+    fn new() -> Self {
+        let seed = NEXT_ROOT.fetch_add(1, Ordering::Relaxed);
+        Self {
+            root: std::env::temp_dir().join(format!("source-index-{seed}")),
+            now: Cell::new(1_000),
+        }
+    }
+
+    /// Исполнение SQL без параметров.
+    fn execute(&self, sql: &str) -> Result<(), String> {
+        sqlite_test_harness::test_sql::execute(&self.root, sql, "[]")
+    }
+
+    /// Чтение строк запроса.
+    fn query(&self, sql: &str) -> Result<Vec<serde_json::Value>, String> {
+        let raw = sqlite_test_harness::test_sql::query(&self.root, sql, "[]")?;
+        serde_json::from_str(&raw).map_err(|error| error.to_string())
+    }
+}
+
+impl Fs for TestDb {
+    fn list_dir(&self, _path: &str) -> Result<Vec<DirEntry>, String> {
+        Ok(Vec::new())
+    }
+
+    fn read_bytes(&self, _path: &str) -> Result<Vec<u8>, String> {
+        Err("файлов нет".to_string())
+    }
+
+    fn open_file(&self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn state_delete(&self, _key: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn sql_execute(&self, sql: &str, params: &str) -> Result<(), String> {
+        sqlite_test_harness::test_sql::execute(&self.root, sql, params)
+    }
+
+    fn sql_query(&self, sql: &str, params: &str) -> Result<String, String> {
+        sqlite_test_harness::test_sql::query(&self.root, sql, params)
+    }
+
+    fn emit_event(&self, _name: &str, _payload: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn now_millis(&self) -> Option<i64> {
+        Some(self.now.get())
+    }
+}
+
+/// Запись книги со всеми полями общей схемы.
+fn record(id: &str, added_at_ms: Option<i64>) -> BookRecord {
+    BookRecord {
+        id: id.to_string(),
+        title: format!("Книга {id}"),
+        authors: r#"["Автор"]"#.to_string(),
+        tags: r#"["тег"]"#.to_string(),
+        series: r#"[["Серия",1]]"#.to_string(),
+        files: format!(r#"[{{"kind":"book","path":"{id}.epub","format":"epub"}}]"#),
+        format: "epub".to_string(),
+        size: Some(1024),
+        mtime_ms: Some(5),
+        added_at_ms,
+        language: Some("ru".to_string()),
+        published: Some("2019-05-01".to_string()),
+        publisher: Some("Издатель".to_string()),
+        description: Some("Описание".to_string()),
+        identifier: Some("978-1".to_string()),
+        signature: None,
+    }
+}
+
+#[test]
+fn old_schema_is_rebuilt_and_covers_survive() {
+    let db = TestDb::new();
+    db.execute(
+        "CREATE TABLE books (
+           id TEXT PRIMARY KEY, title TEXT NOT NULL, authors TEXT NOT NULL,
+           tags TEXT NOT NULL, series TEXT NOT NULL, format TEXT NOT NULL,
+           size INTEGER, mtime_ms INTEGER);
+         CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+         CREATE TABLE covers (
+           book_id TEXT PRIMARY KEY, format TEXT NOT NULL,
+           mtime_ms INTEGER, data TEXT NOT NULL);
+         INSERT INTO books (id, title, authors, tags, series, format)
+           VALUES ('a.epub', 'Книга', '[]', '[]', '[]', 'epub');
+         INSERT INTO covers (book_id, format, data) VALUES ('a.epub', 'png', 'AAA');
+         PRAGMA user_version = 1;",
+    )
+    .expect("старая схема");
+
+    ensure_schema(&db, CATALOG_MIGRATIONS, "library-state.json").expect("миграция");
+
+    // Таблица книг пересобрана: строки перечитает следующая синхронизация.
+    let books = db
+        .query("SELECT COUNT(*) AS count FROM books")
+        .expect("счётчик книг");
+    assert_eq!(books[0]["count"], 0, "книги пересобираются при смене схемы");
+
+    // Обложки не теряются: их извлечение дорого и от схемы книг не зависит.
+    let covers = db
+        .query("SELECT format FROM covers WHERE book_id = 'a.epub'")
+        .expect("обложка");
+    assert_eq!(covers[0]["format"], "png", "обложка переживает миграцию");
+
+    let version = db.query("PRAGMA user_version").expect("версия схемы");
+    assert_eq!(version[0]["user_version"], 3, "схема на последней версии");
+
+    let columns = db
+        .query("PRAGMA table_info(books)")
+        .expect("столбцы таблицы книг");
+    let names: Vec<String> = columns
+        .iter()
+        .map(|column| column["name"].as_str().unwrap_or_default().to_string())
+        .collect();
+    for expected in [
+        "language",
+        "published",
+        "publisher",
+        "description",
+        "identifier",
+        "added_at_ms",
+        "signature",
+        "files",
+    ] {
+        assert!(
+            names.contains(&expected.to_string()),
+            "нет столбца {expected}"
+        );
+    }
+}
+
+#[test]
+fn newer_schema_forces_rebuild() {
+    let db = TestDb::new();
+    db.execute("PRAGMA user_version = 99;").expect("версия");
+
+    ensure_schema(&db, CATALOG_MIGRATIONS, "library-state.json").expect("пересборка");
+
+    let version = db.query("PRAGMA user_version").expect("версия схемы");
+    assert_eq!(version[0]["user_version"], 3, "схема пересобрана");
+    upsert_book(&db, &record("a", Some(1))).expect("запись после пересборки");
+    assert_eq!(load_books(&db).expect("загрузка").len(), 1);
+}
+
+#[test]
+fn book_properties_roundtrip() {
+    let db = TestDb::new();
+    ensure_schema(&db, CATALOG_MIGRATIONS, "library-state.json").expect("схема");
+    let mut book = record("a", Some(100));
+    book.signature = Some("1:2:3".to_string());
+
+    upsert_book(&db, &book).expect("запись");
+
+    let loaded = load_book(&db, "a").expect("загрузка").expect("книга");
+    assert_eq!(loaded.title, book.title);
+    assert_eq!(loaded.language.as_deref(), Some("ru"));
+    assert_eq!(loaded.published.as_deref(), Some("2019-05-01"));
+    assert_eq!(loaded.publisher.as_deref(), Some("Издатель"));
+    assert_eq!(loaded.description.as_deref(), Some("Описание"));
+    assert_eq!(loaded.identifier.as_deref(), Some("978-1"));
+    assert_eq!(loaded.size, Some(1024));
+    assert_eq!(loaded.added_at_ms, Some(100));
+    assert_eq!(loaded.signature.as_deref(), Some("1:2:3"));
+    assert_eq!(
+        load_book(&db, "b").expect("загрузка"),
+        None,
+        "неизвестная книга не находится"
+    );
+}
+
+#[test]
+fn added_at_is_kept_when_book_is_updated() {
+    let db = TestDb::new();
+    ensure_schema(&db, CATALOG_MIGRATIONS, "library-state.json").expect("схема");
+    upsert_book(&db, &record("a", Some(100))).expect("первая запись");
+
+    // Файл изменился: время добавления не перезаписывается.
+    let mut changed = record("a", Some(900));
+    changed.title = "Новое название".to_string();
+    upsert_book(&db, &changed).expect("обновление");
+
+    let loaded = load_book(&db, "a").expect("загрузка").expect("книга");
+    assert_eq!(loaded.title, "Новое название");
+    assert_eq!(
+        loaded.added_at_ms,
+        Some(100),
+        "правка файла не переносит книгу в начало списка"
+    );
+}

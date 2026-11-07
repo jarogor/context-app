@@ -419,3 +419,33 @@ fn no_cover_when_absent() {
         "обложки нет — null, а не ошибка"
     );
 }
+
+#[test]
+fn extracts_publication_properties() {
+    let opf = r#"<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <metadata>
+  <dc:title>Книга</dc:title>
+  <dc:creator>Автор</dc:creator>
+  <dc:language>ru</dc:language>
+  <dc:date>2019-05-01</dc:date>
+  <dc:publisher>Издательство</dc:publisher>
+  <dc:description>&lt;p&gt;Описание книги&lt;/p&gt;</dc:description>
+  <dc:identifier>uuid:1234</dc:identifier>
+  <dc:identifier>urn:isbn:978-5-00000-000-0</dc:identifier>
+ </metadata>
+</package>"#;
+    let bytes = build_epub_with_opf(opf, &[]);
+
+    let metadata = extract(&bytes).expect("метаданные");
+
+    // Свойства издания берутся из OPF, а ISBN предпочитается прочим идентификаторам.
+    assert_eq!(metadata.language.as_deref(), Some("ru"));
+    assert_eq!(metadata.published.as_deref(), Some("2019-05-01"));
+    assert_eq!(metadata.publisher.as_deref(), Some("Издательство"));
+    assert_eq!(metadata.description.as_deref(), Some("Описание книги"));
+    assert_eq!(
+        metadata.identifier.as_deref(),
+        Some("urn:isbn:978-5-00000-000-0")
+    );
+}

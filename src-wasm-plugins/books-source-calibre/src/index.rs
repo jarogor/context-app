@@ -11,40 +11,20 @@
 
 use std::collections::{HashMap, HashSet};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use source_index::index::{
-    delete_book, delete_cover, emit_progress, ensure_schema, progress_stride, read_revision,
-    store_cover, write_revision,
+    delete_book, delete_cover, emit_progress, ensure_schema, load_books, progress_stride,
+    read_revision, store_cover, upsert_book, write_revision, BookRecord, CATALOG_MIGRATIONS,
 };
 use source_protocol::fs::Fs;
-use source_protocol::models::{
-    ExternalBook, ExternalFile, ExternalFileKind, SourceCatalog, SOURCE_PROTOCOL_VERSION,
-};
+use source_protocol::models::{ExternalBook, ExternalFileKind, SourceCatalog, SOURCE_PROTOCOL_VERSION};
 
-use super::migrations::MIGRATIONS;
 use super::models::BookListing;
 use super::scanner;
 
 /// Ключ устаревшего JSON-состояния, подлежащего удалению.
 const LEGACY_STATE_KEY: &str = "calibre-state.json";
-
-/// Строка таблицы `books`.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct BookRow {
-    /// Идентификатор книги (путь папки книги).
-    id: String,
-    /// Название книги.
-    title: String,
-    /// Авторы в виде JSON-массива.
-    authors: String,
-    /// Теги в виде JSON-массива.
-    tags: String,
-    /// Серии в виде JSON-массива пар.
-    series: String,
-    /// Файлы книги в виде JSON-массива.
-    files: String,
-}
 
 /// Строка индекса, нужная проверке изменений: идентификатор и подпись папки.
 #[derive(Deserialize)]
@@ -57,7 +37,7 @@ struct ChangeRow {
 
 /// Актуализация индекса по текущему содержимому библиотеки.
 pub(crate) fn sync(fs: &impl Fs) -> Result<SourceCatalog, String> {
-    ensure_schema(fs, MIGRATIONS, LEGACY_STATE_KEY)?;
+    ensure_schema(fs, CATALOG_MIGRATIONS, LEGACY_STATE_KEY)?;
     let existing = load_rows(fs)?;
     let listings = scanner::list_books(fs)?;
     let mut present = HashSet::new();
@@ -85,7 +65,9 @@ pub(crate) fn sync(fs: &impl Fs) -> Result<SourceCatalog, String> {
     let stride = progress_stride(total);
     for (index, listing) in pending.iter().enumerate() {
         let book = scanner::build_book(fs, listing);
-        upsert(fs, &book, &listing.signature)?;
+        // Подпись папки хранится отдельно от свойств книги: по ней решается,
+        // перечитывать ли папку при следующей синхронизации.
+        write_book(fs, &book, Some(&listing.signature), listing.mtime_ms)?;
         store_cover(fs, &book.id, read_cover(fs, listing).as_ref(), None)?;
         let done = index + 1;
         if done % stride == 0 || done == total {
@@ -100,7 +82,7 @@ pub(crate) fn sync(fs: &impl Fs) -> Result<SourceCatalog, String> {
     Ok(SourceCatalog {
         protocol_version: SOURCE_PROTOCOL_VERSION,
         revision: revision.max(0) as u64,
-        books: load_books(fs)?,
+        books: catalog_books(fs)?,
     })
 }
 
@@ -116,7 +98,7 @@ fn read_cover(fs: &impl Fs, listing: &BookListing) -> Option<(Vec<u8>, String)> 
 
 /// Чтение сохранённой обложки книги из индекса.
 pub(crate) fn load_cover(fs: &impl Fs, id: &str) -> Result<Option<(String, String)>, String> {
-    ensure_schema(fs, MIGRATIONS, LEGACY_STATE_KEY)?;
+    ensure_schema(fs, CATALOG_MIGRATIONS, LEGACY_STATE_KEY)?;
     source_index::index::load_cover(fs, id)
 }
 
@@ -127,60 +109,62 @@ fn load_rows(fs: &impl Fs) -> Result<HashMap<String, ChangeRow>, String> {
     Ok(rows.into_iter().map(|row| (row.id.clone(), row)).collect())
 }
 
-/// Загрузка каталога книг в порядке идентификаторов.
-fn load_books(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
-    let raw = fs.sql_query(
-        "SELECT id, title, authors, tags, series, files FROM books ORDER BY id",
-        "[]",
-    )?;
-    let rows: Vec<BookRow> = serde_json::from_str(&raw).map_err(|error| error.to_string())?;
-    rows.into_iter().map(row_to_book).collect()
+/// Каталог книг индекса в нейтральном представлении, в порядке идентификаторов.
+fn catalog_books(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
+    load_books(fs)?.into_iter().map(record_to_book).collect()
 }
 
-/// Преобразование строки индекса в книгу нейтрального каталога.
-fn row_to_book(row: BookRow) -> Result<ExternalBook, String> {
+/// Преобразование записи индекса в книгу нейтрального каталога.
+fn record_to_book(record: BookRecord) -> Result<ExternalBook, String> {
     Ok(ExternalBook {
-        id: row.id,
-        title: row.title,
-        authors: serde_json::from_str(&row.authors).unwrap_or_default(),
-        tags: serde_json::from_str(&row.tags).unwrap_or_default(),
-        series: serde_json::from_str(&row.series).unwrap_or_default(),
-        files: serde_json::from_str::<Vec<ExternalFile>>(&row.files).unwrap_or_default(),
+        id: record.id.clone(),
+        title: record.title,
+        authors: serde_json::from_str(&record.authors).unwrap_or_default(),
+        tags: serde_json::from_str(&record.tags).unwrap_or_default(),
+        series: serde_json::from_str(&record.series).unwrap_or_default(),
+        files: serde_json::from_str(&record.files).unwrap_or_default(),
+        language: record.language,
+        published: record.published,
+        publisher: record.publisher,
+        description: record.description,
+        identifier: record.identifier,
+        size: record.size.map(|value| value as u64),
+        added_at_ms: record.added_at_ms,
     })
 }
 
-/// Добавление или обновление строки книги в индексе.
-fn upsert(fs: &impl Fs, book: &ExternalBook, signature: &str) -> Result<(), String> {
-    let params = serde_json::to_string(&vec![
-        serde_json::Value::String(book.id.clone()),
-        serde_json::Value::String(book.title.clone()),
-        serde_json::Value::String(
-            serde_json::to_string(&book.authors).map_err(|error| error.to_string())?,
-        ),
-        serde_json::Value::String(
-            serde_json::to_string(&book.tags).map_err(|error| error.to_string())?,
-        ),
-        serde_json::Value::String(
-            serde_json::to_string(&book.series).map_err(|error| error.to_string())?,
-        ),
-        serde_json::Value::String(
-            serde_json::to_string(&book.files).map_err(|error| error.to_string())?,
-        ),
-        serde_json::Value::String(signature.to_string()),
-    ])
-    .map_err(|error| error.to_string())?;
-    fs.sql_execute(
-        "INSERT INTO books (id, title, authors, tags, series, files, signature)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-         ON CONFLICT(id) DO UPDATE SET
-           title = excluded.title,
-           authors = excluded.authors,
-           tags = excluded.tags,
-           series = excluded.series,
-           files = excluded.files,
-           signature = excluded.signature",
-        &params,
-    )
+/// Запись книги в индекс: свойства, файлы и подпись папки.
+fn write_book(
+    fs: &impl Fs,
+    book: &ExternalBook,
+    signature: Option<&str>,
+    mtime_ms: Option<i64>,
+) -> Result<(), String> {
+    let record = BookRecord {
+        id: book.id.clone(),
+        title: book.title.clone(),
+        authors: serde_json::to_string(&book.authors).map_err(|error| error.to_string())?,
+        tags: serde_json::to_string(&book.tags).map_err(|error| error.to_string())?,
+        series: serde_json::to_string(&book.series).map_err(|error| error.to_string())?,
+        files: serde_json::to_string(&book.files).map_err(|error| error.to_string())?,
+        format: book
+            .files
+            .first()
+            .map(|file| file.format.clone())
+            .unwrap_or_default(),
+        size: book.size.map(|value| value as i64),
+        mtime_ms,
+        // Время добавления ставится при первой вставке: `upsert_book` его не
+        // перезаписывает.
+        added_at_ms: book.added_at_ms.or_else(|| fs.now_millis()),
+        language: book.language.clone(),
+        published: book.published.clone(),
+        publisher: book.publisher.clone(),
+        description: book.description.clone(),
+        identifier: book.identifier.clone(),
+        signature: signature.map(str::to_string),
+    };
+    upsert_book(fs, &record)
 }
 
 #[cfg(test)]

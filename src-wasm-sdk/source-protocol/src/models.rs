@@ -9,10 +9,14 @@
 use serde::{Deserialize, Serialize};
 
 /// Версия протокола source lifecycle.
-pub const SOURCE_PROTOCOL_VERSION: u32 = 1;
+///
+/// Версия 2 добавила свойства книги (язык, дата выхода, издатель, описание,
+/// идентификатор, размер и время добавления) и разрешила источнику быть
+/// отложенным: поле `files` без размеров допустимо.
+pub const SOURCE_PROTOCOL_VERSION: u32 = 2;
 
 /// Книга, обнаруженная при сканировании директории.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ExternalBook {
     /// Стабильный идентификатор книги внутри source-плагина.
     pub id: String,
@@ -20,12 +24,35 @@ pub struct ExternalBook {
     pub title: String,
     /// Авторы книги.
     pub authors: Vec<String>,
-    /// Теги книги.
+    /// Теги книги (принадлежат источнику: `dc:subject`, теги Calibre).
+    #[serde(default)]
     pub tags: Vec<String>,
     /// Серии книги с порядковыми номерами.
+    #[serde(default)]
     pub series: Vec<(String, i64)>,
     /// Файлы книги: содержимое и обложка.
     pub files: Vec<ExternalFile>,
+    /// Язык книги (BCP-47 либо значение из файла).
+    #[serde(default)]
+    pub language: Option<String>,
+    /// Дата выхода в виде строки ISO (`2019-05-01` либо с точностью до года).
+    #[serde(default)]
+    pub published: Option<String>,
+    /// Издатель.
+    #[serde(default)]
+    pub publisher: Option<String>,
+    /// Описание книги.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Идентификатор издания (ISBN и подобное).
+    #[serde(default)]
+    pub identifier: Option<String>,
+    /// Суммарный размер файлов содержимого в байтах.
+    #[serde(default)]
+    pub size: Option<u64>,
+    /// Когда книга впервые появилась в библиотеке (Unix, мс).
+    #[serde(default)]
+    pub added_at_ms: Option<i64>,
 }
 
 /// Файл, обнаруженный при сканировании папки книги.
@@ -85,6 +112,16 @@ pub struct BookMetadata {
     pub authors: Vec<String>,
     /// Обложка: байты и формат (`jpeg`, `png`, …).
     pub cover: Option<(Vec<u8>, String)>,
+    /// Язык книги.
+    pub language: Option<String>,
+    /// Дата выхода.
+    pub published: Option<String>,
+    /// Издатель.
+    pub publisher: Option<String>,
+    /// Описание.
+    pub description: Option<String>,
+    /// Идентификатор издания (ISBN).
+    pub identifier: Option<String>,
 }
 
 /// Возможности source-плагина.

@@ -48,4 +48,12 @@ pub trait Fs {
     fn write_bytes(&self, _path: &str, _bytes: &[u8]) -> Result<(), String> {
         Err("запись файла не поддерживается".to_string())
     }
+
+    /// Текущее время Unix в миллисекундах.
+    ///
+    /// Внутри `wasm32-unknown-unknown` системного времени нет: его отдаёт
+    /// приложение. Источники, которым время не нужно, получают `None`.
+    fn now_millis(&self) -> Option<i64> {
+        None
+    }
 }

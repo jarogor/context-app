@@ -73,6 +73,8 @@ fn list_book(
     let mut opf = None;
     let mut signature_parts = Vec::new();
     let mut reliable = true;
+    let mut content_size: Option<u64> = Some(0);
+    let mut content_mtime_ms: Option<i64> = None;
     for entry in &entries {
         if entry.kind != EntryKind::File {
             continue;
@@ -98,6 +100,11 @@ fn list_book(
                 path: file_path.clone(),
                 format: extension,
             });
+            content_size = match (content_size, entry.size) {
+                (Some(total), Some(size)) => Some(total + size),
+                _ => None,
+            };
+            content_mtime_ms = content_mtime_ms.max(entry.mtime_ms);
         } else if Path::new(name).file_stem().and_then(|value| value.to_str()) == Some("cover")
             && COVER_FORMATS.contains(&extension.as_str())
         {
@@ -126,6 +133,8 @@ fn list_book(
         opf,
         signature: signature_parts.join("|"),
         reliable,
+        size: content_size,
+        mtime_ms: content_mtime_ms,
     }))
 }
 
@@ -143,6 +152,12 @@ pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
         vec![listing.author.clone()]
     };
     let mut series = Vec::new();
+    let mut tags = Vec::new();
+    let mut language: Option<String> = None;
+    let mut published: Option<String> = None;
+    let mut publisher: Option<String> = None;
+    let mut description: Option<String> = None;
+    let mut identifier: Option<String> = None;
 
     // Основной источник метаданных Calibre — `metadata.opf` в папке книги.
     if let Some(opf_name) = &listing.opf {
@@ -157,6 +172,12 @@ pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
             if let Some(value) = metadata.series {
                 series.push(value);
             }
+            tags = metadata.tags;
+            language = metadata.language;
+            published = metadata.published;
+            publisher = metadata.publisher;
+            description = metadata.description;
+            identifier = metadata.identifier;
         }
     } else if let Some(epub_file) = listing
         .files
@@ -165,13 +186,18 @@ pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
     {
         // Фолбэк: метаданные из EPUB, если `metadata.opf` отсутствует.
         if let Ok(bytes) = fs.read_bytes(&epub_file.path) {
-            if let Ok((epub_title, epub_authors)) = epub::parse_epub_metadata(&bytes) {
-                if !epub_title.is_empty() {
-                    title = epub_title;
+            if let Ok(metadata) = epub::extract(&bytes) {
+                if let Some(value) = metadata.title.filter(|value| !value.is_empty()) {
+                    title = value;
                 }
-                if !epub_authors.is_empty() {
-                    authors = epub_authors;
+                if !metadata.authors.is_empty() {
+                    authors = metadata.authors;
                 }
+                language = metadata.language;
+                published = metadata.published;
+                publisher = metadata.publisher;
+                description = metadata.description;
+                identifier = metadata.identifier;
             }
         }
     }
@@ -180,9 +206,16 @@ pub(crate) fn build_book(fs: &impl Fs, listing: &BookListing) -> ExternalBook {
         id: listing.id.clone(),
         title,
         authors,
-        tags: Vec::new(),
+        tags,
         series,
         files: listing.files.clone(),
+        language,
+        published,
+        publisher,
+        description,
+        identifier,
+        size: listing.size,
+        ..ExternalBook::default()
     }
 }
 

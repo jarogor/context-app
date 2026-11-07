@@ -56,7 +56,8 @@ pub fn all_text_between(bytes: &[u8], tag: &str) -> Vec<String> {
                 current.clear();
             }
             Ok(Event::Text(event)) if active => {
-                current.push_str(&String::from_utf8_lossy(event.as_ref()));
+                // Сущности (`&amp;`, `&lt;`) раскрываются: текст в OPF экранирован.
+                current.push_str(&event.unescape().unwrap_or_default());
             }
             Ok(Event::End(_)) if active => {
                 if !current.is_empty() {

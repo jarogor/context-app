@@ -26,6 +26,8 @@ extern "ExtismHost" {
     fn open_file(path: String) -> String;
     /// Удаление служебного состояния source-плагина.
     fn state_delete(key: String) -> String;
+    /// Текущее время Unix в миллисекундах (число в строке).
+    fn now_millis() -> String;
     /// Исполнение SQL в хранилище активной библиотеки.
     fn sql_execute(sql: String, params: String) -> String;
     /// Чтение строк SQL-запроса в хранилище активной библиотеки.
@@ -103,5 +105,9 @@ impl Fs for HostFs {
         unsafe { fs_write_bytes(path.to_string(), encoded) }
             .map(|_| ())
             .map_err(|error| error.to_string())
+    }
+
+    fn now_millis(&self) -> Option<i64> {
+        unsafe { now_millis() }.ok()?.trim().parse().ok()
     }
 }

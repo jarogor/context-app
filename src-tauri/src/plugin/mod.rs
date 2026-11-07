@@ -20,6 +20,7 @@ pub mod relay;
 pub mod runtime;
 pub mod session;
 pub mod shared_runtime;
+pub mod source_contract;
 pub mod viewer;
 pub(crate) mod warmup;
 pub(crate) mod wasm_cache;

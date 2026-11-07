@@ -28,7 +28,7 @@ pub(crate) fn extract(bytes: &[u8]) -> BookMetadata {
     BookMetadata {
         title,
         authors,
-        cover: None,
+        ..BookMetadata::default()
     }
 }
 

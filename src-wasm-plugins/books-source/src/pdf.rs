@@ -12,7 +12,9 @@ pub(crate) fn extract(bytes: &[u8]) -> BookMetadata {
         authors: find_text(bytes, b"/Author")
             .map(|value| split_authors(&value))
             .unwrap_or_default(),
-        cover: None,
+        // Дата файла (`/CreationDate`) — не дата издания, поэтому не берётся.
+        language: find_text(bytes, b"/Lang").filter(|value| !value.trim().is_empty()),
+        ..BookMetadata::default()
     }
 }
 

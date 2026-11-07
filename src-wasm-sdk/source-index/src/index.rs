@@ -29,6 +29,44 @@ CREATE TABLE IF NOT EXISTS covers (
 );",
 };
 
+/// Общая схема таблицы книг и служебных метаданных индекса.
+///
+/// Схема — одна для всех source-плагинов: свойства книги (`язык`, `дата
+/// выхода`, `издатель`, `описание`, `идентификатор`, `размер`, `время
+/// добавления`) добавляются здесь, а плагины лишь заполняют то, что умеют.
+/// Таблица пересобирается: индекс — производные данные, а обложки (`v2`)
+/// остаются на месте.
+pub const CATALOG_BOOKS_MIGRATION: Migration = Migration {
+    version: 3,
+    sql: "
+DROP TABLE IF EXISTS books;
+CREATE TABLE books (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  authors TEXT NOT NULL,
+  tags TEXT NOT NULL,
+  series TEXT NOT NULL,
+  files TEXT NOT NULL,
+  format TEXT NOT NULL,
+  size INTEGER,
+  mtime_ms INTEGER,
+  added_at_ms INTEGER,
+  language TEXT,
+  published TEXT,
+  publisher TEXT,
+  description TEXT,
+  identifier TEXT,
+  signature TEXT
+);
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);",
+};
+
+/// Упорядоченный список миграций общей схемы каталога source-плагина.
+pub const CATALOG_MIGRATIONS: &[Migration] = &[COVERS_MIGRATION, CATALOG_BOOKS_MIGRATION];
+
 /// Имя прикладного события прогресса построения индекса.
 pub const PROGRESS_EVENT: &str = "library-index-progress";
 
@@ -39,6 +77,56 @@ pub struct CoverRow {
     pub data: String,
     /// Формат обложки.
     pub format: String,
+}
+
+/// Запись книги в общей схеме каталога source-плагина.
+///
+/// Поля-списки (`authors`, `tags`, `series`, `files`) хранятся JSON-массивами:
+/// их форма принадлежит контракту источника, а не схеме SQL. Плагин заполняет
+/// то, что умеет извлечь; незаполненное остаётся `None`.
+#[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct BookRecord {
+    /// Идентификатор книги внутри источника.
+    pub id: String,
+    /// Название книги.
+    pub title: String,
+    /// Авторы в виде JSON-массива строк.
+    pub authors: String,
+    /// Теги источника в виде JSON-массива строк.
+    pub tags: String,
+    /// Серии в виде JSON-массива пар «имя, номер».
+    pub series: String,
+    /// Файлы книги в виде JSON-массива.
+    pub files: String,
+    /// Формат файла содержимого.
+    pub format: String,
+    /// Суммарный размер файлов содержимого в байтах.
+    #[serde(default)]
+    pub size: Option<i64>,
+    /// Время изменения файлов содержимого (Unix, мс).
+    #[serde(default)]
+    pub mtime_ms: Option<i64>,
+    /// Когда книга впервые попала в индекс (Unix, мс).
+    #[serde(default)]
+    pub added_at_ms: Option<i64>,
+    /// Язык книги.
+    #[serde(default)]
+    pub language: Option<String>,
+    /// Дата выхода.
+    #[serde(default)]
+    pub published: Option<String>,
+    /// Издатель.
+    #[serde(default)]
+    pub publisher: Option<String>,
+    /// Описание книги.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Идентификатор издания (ISBN).
+    #[serde(default)]
+    pub identifier: Option<String>,
+    /// Подпись содержимого папки книги (источник с раскладкой папок).
+    #[serde(default)]
+    pub signature: Option<String>,
 }
 
 /// Проверка и актуализация схемы индекса миграциями.
@@ -129,6 +217,69 @@ pub fn delete_book(fs: &impl Fs, id: &str) -> Result<(), String> {
     fs.sql_execute("DELETE FROM books WHERE id = ?1", &params)
 }
 
+/// Добавление или обновление книги в индексе.
+///
+/// Время добавления (`added_at_ms`) фиксируется при первой вставке: правка
+/// файла не переносит книгу в начало списка.
+pub fn upsert_book(fs: &impl Fs, book: &BookRecord) -> Result<(), String> {
+    let params = serde_json::json!([
+        book.id,
+        book.title,
+        book.authors,
+        book.tags,
+        book.series,
+        book.files,
+        book.format,
+        book.size,
+        book.mtime_ms,
+        book.added_at_ms,
+        book.language,
+        book.published,
+        book.publisher,
+        book.description,
+        book.identifier,
+        book.signature,
+    ])
+    .to_string();
+    fs.sql_execute(
+        "INSERT INTO books (id, title, authors, tags, series, files, format, size, mtime_ms,
+                            added_at_ms, language, published, publisher, description,
+                            identifier, signature)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+         ON CONFLICT(id) DO UPDATE SET
+           title = excluded.title,
+           authors = excluded.authors,
+           tags = excluded.tags,
+           series = excluded.series,
+           files = excluded.files,
+           format = excluded.format,
+           size = excluded.size,
+           mtime_ms = excluded.mtime_ms,
+           language = excluded.language,
+           published = excluded.published,
+           publisher = excluded.publisher,
+           description = excluded.description,
+           identifier = excluded.identifier,
+           signature = excluded.signature,
+           added_at_ms = COALESCE(books.added_at_ms, excluded.added_at_ms)",
+        &params,
+    )
+}
+
+/// Загрузка всех книг индекса в порядке идентификаторов.
+pub fn load_books(fs: &impl Fs) -> Result<Vec<BookRecord>, String> {
+    let raw = fs.sql_query("SELECT * FROM books ORDER BY id", "[]")?;
+    serde_json::from_str(&raw).map_err(|error| error.to_string())
+}
+
+/// Загрузка одной книги индекса по идентификатору.
+pub fn load_book(fs: &impl Fs, id: &str) -> Result<Option<BookRecord>, String> {
+    let params = serde_json::to_string(&[id]).map_err(|error| error.to_string())?;
+    let raw = fs.sql_query("SELECT * FROM books WHERE id = ?1", &params)?;
+    let rows: Vec<BookRecord> = serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+    Ok(rows.into_iter().next())
+}
+
 /// Публикация прогресса построения индекса.
 pub fn emit_progress(fs: &impl Fs, done: usize, total: usize) {
     if total == 0 {
@@ -173,3 +324,8 @@ pub fn write_revision(fs: &impl Fs, revision: i64) -> Result<(), String> {
         &params,
     )
 }
+
+#[cfg(test)]
+#[path = "index_tests.rs"]
+mod tests;
+

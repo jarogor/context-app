@@ -33,6 +33,20 @@ export interface Book {
   tags: { name: string }[];
   /** Файлы книги. */
   files: BookFile[];
+  /** Язык книги. */
+  language?: string;
+  /** Дата выхода (строка ISO либо год). */
+  published?: string;
+  /** Издатель. */
+  publisher?: string;
+  /** Описание книги. */
+  description?: string;
+  /** Идентификатор издания (ISBN и подобное). */
+  identifier?: string;
+  /** Суммарный размер файлов содержимого в байтах. */
+  size?: number;
+  /** Когда книга появилась в библиотеке (Unix, мс). */
+  addedAtMillis?: number;
 }
 
 /** Книга с извлечённой обложкой (data URI). */
@@ -62,6 +76,20 @@ async function operation<T>(action: string, payload: unknown = {}): Promise<T> {
   })) as T;
 }
 
+/** Непустая строка из необязательного поля ответа источника. */
+function optionalText(value: unknown): string | undefined {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text ? text : undefined;
+}
+
+/** Неотрицательное число из необязательного поля ответа источника. */
+function optionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
+  }
+  return undefined;
+}
+
 /** Преобразование нейтральной записи книги в модель оболочки. */
 function normalizeBook(book: Record<string, unknown>): Book {
   const id = String(book.id ?? '');
@@ -78,8 +106,12 @@ function normalizeBook(book: Record<string, unknown>): Book {
         } satisfies BookFile;
       })
     : [];
+  // Серия приходит парой «имя, номер»; прежний ответ мог прислать строку.
   const series = Array.isArray(book.series)
-    ? book.series.map((entry) => ({ series: { name: String(entry) } }))
+    ? book.series.flatMap((entry) => {
+        const name = Array.isArray(entry) ? String(entry[0] ?? '') : String(entry ?? '');
+        return name ? [{ series: { name } }] : [];
+      })
     : [];
   const tags = Array.isArray(book.tags) ? book.tags.map((tag) => ({ name: String(tag) })) : [];
   return {
@@ -89,6 +121,13 @@ function normalizeBook(book: Record<string, unknown>): Book {
     series,
     tags,
     files,
+    language: optionalText(book.language),
+    published: optionalText(book.published),
+    publisher: optionalText(book.publisher),
+    description: optionalText(book.description),
+    identifier: optionalText(book.identifier),
+    size: optionalNumber(book.size),
+    addedAtMillis: optionalNumber(book.added_at_ms),
   };
 }
 

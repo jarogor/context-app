@@ -26,6 +26,7 @@ pub(crate) fn import_book(fs: &impl Fs, path: &str) -> Result<ExternalBook, Stri
             path: book_path.clone(),
             format: "epub".to_string(),
         }],
+        ..ExternalBook::default()
     };
     fs.write_bytes(&book_path, &bytes)?;
     let mut catalog = lifecycle::catalog()

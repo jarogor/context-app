@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { absoluteBookPath, bookChoices } from './library';
+import { absoluteBookPath, bookChoices, listBooks } from './library';
 import { invokeCommand } from '../../shared/app-bridge';
 
 vi.mock('../../shared/app-bridge', () => ({
@@ -78,5 +78,58 @@ describe('книги для выбора', () => {
     await expect(bookChoices()).resolves.toEqual([
       { key: '/tmp/a.epub', name: 'a.epub', title: 'Книга' },
     ]);
+  });
+});
+
+describe('разбор книги каталога', () => {
+  it('читает свойства книги из ответа источника', async () => {
+    invoke.mockResolvedValue({
+      catalog: {
+        books: [
+          {
+            id: 'a',
+            title: 'Книга',
+            authors: ['Автор'],
+            tags: ['тег'],
+            series: [['Серия', 1]],
+            files: [{ kind: 'book', path: 'a.epub', format: 'epub' }],
+            language: 'ru',
+            published: '2019-05-01',
+            publisher: 'Издатель',
+            description: 'Описание',
+            identifier: 'urn:isbn:978-5-00000-000-0',
+            size: 2048,
+            added_at_ms: 1000,
+          },
+        ],
+      },
+    });
+
+    const [book] = await listBooks('');
+
+    expect(book).toMatchObject({
+      language: 'ru',
+      published: '2019-05-01',
+      publisher: 'Издатель',
+      description: 'Описание',
+      identifier: 'urn:isbn:978-5-00000-000-0',
+      size: 2048,
+      addedAtMillis: 1000,
+    });
+    expect(book.tags).toEqual([{ name: 'тег' }]);
+    expect(book.series).toEqual([{ series: { name: 'Серия' } }]);
+  });
+
+  it('не падает на ответе прежнего источника без новых полей', async () => {
+    invoke.mockResolvedValue({
+      catalog: { books: [{ id: 'a', title: 'Книга', files: [] }] },
+    });
+
+    const [book] = await listBooks('');
+
+    expect(book.language).toBeUndefined();
+    expect(book.published).toBeUndefined();
+    expect(book.size).toBeUndefined();
+    expect(book.addedAtMillis).toBeUndefined();
   });
 });

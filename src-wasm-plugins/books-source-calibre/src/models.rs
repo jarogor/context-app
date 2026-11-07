@@ -31,4 +31,8 @@ pub(crate) struct BookListing {
     pub signature: String,
     /// Доступны ли для всех файлов размер и время изменения.
     pub reliable: bool,
+    /// Суммарный размер файлов содержимого в байтах.
+    pub size: Option<u64>,
+    /// Самое позднее время изменения файлов содержимого (Unix, мс).
+    pub mtime_ms: Option<i64>,
 }

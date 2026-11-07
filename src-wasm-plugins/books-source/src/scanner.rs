@@ -103,6 +103,12 @@ pub(crate) fn read_book(fs: &impl Fs, relative: &str) -> (ExternalBook, Option<(
             path: relative.to_string(),
             format,
         }],
+        language: metadata.language,
+        published: metadata.published,
+        publisher: metadata.publisher,
+        description: metadata.description,
+        identifier: metadata.identifier,
+        ..ExternalBook::default()
     };
     (book, metadata.cover)
 }

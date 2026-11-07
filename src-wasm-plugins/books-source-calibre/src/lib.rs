@@ -7,7 +7,6 @@ pub(crate) mod epub;
 pub(crate) mod fs;
 pub(crate) mod index;
 pub(crate) mod lifecycle;
-pub(crate) mod migrations;
 pub(crate) mod models;
 pub(crate) mod opf;
 pub(crate) mod scanner;

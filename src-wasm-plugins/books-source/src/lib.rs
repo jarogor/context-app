@@ -13,7 +13,6 @@ pub(crate) mod fs;
 pub(crate) mod index;
 pub(crate) mod lifecycle;
 pub(crate) mod metadata;
-pub(crate) mod migrations;
 pub(crate) mod models;
 pub(crate) mod pdf;
 pub(crate) mod portable;

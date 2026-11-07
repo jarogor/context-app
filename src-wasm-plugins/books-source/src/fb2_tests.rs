@@ -36,3 +36,29 @@ fn falls_back_without_metadata() {
     assert!(metadata.authors.is_empty());
     assert!(metadata.cover.is_none());
 }
+
+/// Свойства издания: язык, дата, издатель, ISBN и описание из аннотации.
+#[test]
+fn extracts_publication_properties() {
+    let xml = r#"<?xml version="1.0"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+ <description>
+  <title-info>
+   <book-title>Книга</book-title>
+   <annotation><p>Краткое <emphasis>описание</emphasis>.</p></annotation>
+   <date>2001</date>
+   <lang>ru</lang>
+  </title-info>
+  <document-info><isbn>978-5-00000-000-0</isbn></document-info>
+  <publish-info><publisher>Издательство</publisher></publish-info>
+ </description>
+</FictionBook>"#;
+
+    let metadata = extract(xml.as_bytes());
+
+    assert_eq!(metadata.language.as_deref(), Some("ru"));
+    assert_eq!(metadata.published.as_deref(), Some("2001"));
+    assert_eq!(metadata.publisher.as_deref(), Some("Издательство"));
+    assert_eq!(metadata.identifier.as_deref(), Some("978-5-00000-000-0"));
+    assert_eq!(metadata.description.as_deref(), Some("Краткое описание."));
+}

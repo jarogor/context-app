@@ -7,6 +7,8 @@
 use quick_xml::events::Event;
 use quick_xml::Reader;
 
+use format_parsers::xml::strip_markup;
+
 /// Метаданные, извлечённые из `metadata.opf`.
 #[derive(Debug, Default, PartialEq)]
 pub(crate) struct OpfMetadata {
@@ -16,6 +18,18 @@ pub(crate) struct OpfMetadata {
     pub authors: Vec<String>,
     /// Серия и её номер.
     pub series: Option<(String, i64)>,
+    /// Теги книги (`dc:subject`).
+    pub tags: Vec<String>,
+    /// Язык книги.
+    pub language: Option<String>,
+    /// Дата выхода.
+    pub published: Option<String>,
+    /// Издатель.
+    pub publisher: Option<String>,
+    /// Описание книги.
+    pub description: Option<String>,
+    /// Идентификатор издания; предпочитается ISBN.
+    pub identifier: Option<String>,
 }
 
 /// Извлечение метаданных из содержимого `metadata.opf`.
@@ -34,7 +48,8 @@ pub(crate) fn extract(bytes: &[u8]) -> OpfMetadata {
             Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
                 let name = local_name(event.name().as_ref());
                 match name.as_str() {
-                    "title" | "creator" => {
+                    "title" | "creator" | "language" | "date" | "publisher" | "description"
+                    | "subject" | "identifier" => {
                         active = name;
                         text.clear();
                     }
@@ -65,6 +80,21 @@ pub(crate) fn extract(bytes: &[u8]) -> OpfMetadata {
                                 metadata.title = Some(value.to_string())
                             }
                             "creator" => metadata.authors.push(value.to_string()),
+                            "language" => metadata.language = Some(value.to_string()),
+                            "date" => metadata.published = Some(value.to_string()),
+                            "publisher" => metadata.publisher = Some(value.to_string()),
+                            "description" => {
+                                let description = strip_markup(value);
+                                if !description.is_empty() {
+                                    metadata.description = Some(description);
+                                }
+                            }
+                            "subject" => {
+                                if !metadata.tags.iter().any(|tag| tag == value) {
+                                    metadata.tags.push(value.to_string());
+                                }
+                            }
+                            "identifier" => set_identifier(&mut metadata.identifier, value),
                             _ => {}
                         }
                     }
@@ -82,6 +112,19 @@ pub(crate) fn extract(bytes: &[u8]) -> OpfMetadata {
         metadata.series = Some((name, series_index.unwrap_or(0)));
     }
     metadata
+}
+
+/// Запись идентификатора издания: ISBN предпочитается прочим значениям.
+fn set_identifier(target: &mut Option<String>, value: &str) {
+    if target
+        .as_deref()
+        .is_some_and(|current| current.to_ascii_lowercase().contains("isbn"))
+    {
+        return;
+    }
+    if value.to_ascii_lowercase().contains("isbn") || target.is_none() {
+        *target = Some(value.to_string());
+    }
 }
 
 /// Локальное имя элемента без префикса.

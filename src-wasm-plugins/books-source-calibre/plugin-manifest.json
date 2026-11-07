@@ -15,6 +15,7 @@
     "state_delete",
     "sql_execute",
     "sql_query",
+    "now_millis",
     "emit_event",
     "log"
   ],

@@ -46,13 +46,17 @@ pub async fn select_source_library(
         .map_err(|error| error.to_string())?;
     let provider_name = session.plugin_name(&provider).unwrap_or_default();
 
-    session
+    let opened = session
         .invoke(
             "open",
             serde_json::json!({ "mode": "external", "path": path }),
         )
         .map_err(|error| error.to_string())?;
     drop(session);
+
+    // Каталог, созданный более новой версией, не читается: интерфейс не должен
+    // получать незнакомую форму данных.
+    crate::plugin::source_contract::ensure_supported(&opened)?;
 
     let history_root = {
         let state = crate::commands::lock_state(state.inner())?;
