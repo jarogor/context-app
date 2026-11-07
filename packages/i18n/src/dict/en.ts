@@ -328,6 +328,11 @@ export const en: Dictionary = {
   'app.library.modeLabel': 'Display mode',
   'app.library.mode.tiles': 'Tiles',
   'app.library.mode.list': 'List',
+  'app.library.page.label': 'Book list pages',
+  'app.library.page.status': 'Page {page} of {total}',
+  'app.library.page.prev': 'Previous page',
+  'app.library.page.next': 'Next page',
+  'app.library.page.go': 'Page {page}',
 
   'app.reader.opening': 'Opening the book…',
   'app.reader.unavailable.title': 'The book is unavailable',

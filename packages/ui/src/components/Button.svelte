@@ -60,6 +60,8 @@
     testId?: string;
     /** Состояние нажатой (активной) кнопки. */
     ariaPressed?: boolean;
+    /** Признак текущего элемента набора (`aria-current`). */
+    ariaCurrent?: 'page';
     /** Обработчик нажатия. */
     onclick?: (event: MouseEvent) => void;
     /** Содержимое кнопки. */
@@ -76,6 +78,7 @@
     ariaLabel,
     testId,
     ariaPressed,
+    ariaCurrent,
     onclick,
     children,
   }: Props = $props();
@@ -87,6 +90,7 @@
   {title}
   aria-label={ariaLabel}
   aria-pressed={ariaPressed}
+  aria-current={ariaCurrent}
   data-testid={testId}
   {onclick}
   class={cn(buttonVariants({ variant, size }), className)}

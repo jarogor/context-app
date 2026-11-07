@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LibraryPage from './LibraryPage.svelte';
+import { LIBRARY_PAGE_SIZE } from './library';
 import { invokeCommand, listenEvent } from '../../shared/app-bridge';
 
 vi.mock('../../shared/app-bridge', () => ({
@@ -31,6 +32,25 @@ const CATALOG = {
 
 /** Обработчик события смены активной библиотеки. */
 let catalogChanged: ((value: unknown) => void) | undefined;
+
+/** Каталог из заданного числа книг; названия дополнены нулями, чтобы порядок был очевиден. */
+function catalogOf(count: number) {
+  return {
+    catalog: {
+      books: Array.from({ length: count }, (_, index) => {
+        const title = `Книга ${String(index + 1).padStart(3, '0')}`;
+        return {
+          id: `book-${index + 1}`,
+          title,
+          authors: [],
+          series: [],
+          tags: [],
+          files: [{ kind: 'book', path: `book-${index + 1}.epub`, format: 'epub' }],
+        };
+      }),
+    },
+  };
+}
 
 beforeEach(() => {
   catalogChanged = undefined;
@@ -209,5 +229,51 @@ describe('страница библиотеки', () => {
         ),
       ).toHaveLength(1),
     );
+  });
+
+  it('листает книги страницами и начинает список с начала при новом поиске', async () => {
+    const total = LIBRARY_PAGE_SIZE + 1;
+    invoke.mockImplementation(async (command) => {
+      if (command === 'reader_formats') {
+        return ['epub'];
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      if (command === 'invoke_plugin_operation') {
+        return catalogOf(total);
+      }
+      return null;
+    });
+
+    render(LibraryPage, {
+      props: { initialActiveLibrary: null, onOpenInWorkplace: vi.fn() },
+    });
+
+    await waitFor(() => expect(catalogChanged).toBeTruthy());
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'books-source' });
+    await screen.findByText('Книга 001');
+
+    // Каталог длиннее страницы: показывается её начало, а не весь список.
+    const lastTitle = `Книга ${String(total).padStart(3, '0')}`;
+    expect(screen.getByText('Страница 1 из 2')).toBeTruthy();
+    expect(screen.queryByText(lastTitle)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Страница 1' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Следующая страница' }));
+    await screen.findByText(lastTitle);
+
+    // Вторая страница — остаток каталога: первой книги на ней нет.
+    expect(screen.getByText('Страница 2 из 2')).toBeTruthy();
+    expect(screen.queryByText('Книга 001')).toBeNull();
+
+    // Новый запрос перечитывает каталог и показывает его с первой страницы.
+    await fireEvent.input(screen.getByPlaceholderText('Название или автор'), {
+      target: { value: 'Книга' },
+    });
+    await waitFor(() => expect(screen.getByText('Страница 1 из 2')).toBeTruthy());
+    expect(screen.getByText('Книга 001')).toBeTruthy();
   });
 });

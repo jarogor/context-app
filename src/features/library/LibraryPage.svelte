@@ -17,6 +17,7 @@
   import {
     absoluteBookPath,
     activeLibraryPath,
+    LIBRARY_PAGE_SIZE,
     listBooks,
     loadCover,
     openBookFile,
@@ -85,6 +86,12 @@
   /** Фильтр по наличию обложки: все книги или только без обложки. */
   let coverFilter = $state<'all' | 'without-cover'>('all');
 
+  /** Номер показанной страницы списка (с единицы). */
+  let page = $state(1);
+
+  /** Элемент начала списка: после смены страницы список возвращается наверх. */
+  let listTop: HTMLElement | null = $state(null);
+
   /** Варианты порядка книг. */
   const sortOptions = $derived([
     { value: 'title', label: t('app.library.sort.title') },
@@ -117,6 +124,49 @@
     }
     return sorted;
   });
+
+  /** Число страниц списка (не меньше одной). */
+  const totalPages = $derived(Math.max(1, Math.ceil(viewBooks.length / LIBRARY_PAGE_SIZE)));
+
+  /** Номер страницы в границах списка: фильтр может сократить число страниц. */
+  const currentPage = $derived(Math.min(page, totalPages));
+
+  /** Книги текущей страницы. */
+  const pageBooks = $derived(
+    viewBooks.slice((currentPage - 1) * LIBRARY_PAGE_SIZE, currentPage * LIBRARY_PAGE_SIZE),
+  );
+
+  /** Номера страниц для перехода: при длинном списке — крайние и окно у текущей. */
+  const pageItems = $derived.by((): (number | 'gap')[] => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+    const items: (number | 'gap')[] = [];
+    for (let number = 1; number <= totalPages; number += 1) {
+      const edge = number === 1 || number === totalPages;
+      const near = Math.abs(number - currentPage) <= 1;
+      if (!edge && !near) {
+        if (items[items.length - 1] !== 'gap') {
+          items.push('gap');
+        }
+        continue;
+      }
+      items.push(number);
+    }
+    return items;
+  });
+
+  /** Переход на страницу списка с возвратом прокрутки к началу списка. */
+  function goToPage(next: number) {
+    const target = Math.min(Math.max(1, next), totalPages);
+    if (target === currentPage) {
+      return;
+    }
+    page = target;
+    // Прокрутка возвращается к началу: иначе следующая страница открывается
+    // с середины, где стоял пользователь.
+    listTop?.scrollIntoView?.({ block: 'start' });
+  }
 
   /** Выбор режима показа. */
   function chooseViewMode(mode: 'grid' | 'list') {
@@ -156,6 +206,8 @@
     }
     loading = true;
     error = null;
+    // Новый набор книг открывается с первой страницы.
+    page = 1;
     try {
       const list = await listBooks(searchQuery);
       books = list;
@@ -416,6 +468,10 @@
             ariaLabel={t('app.library.orderLabel')}
             size="sm"
             class="w-[9.5rem]"
+            onchange={() => {
+              // Другой порядок — другой список: показываем его с начала.
+              page = 1;
+            }}
           />
           <Select
             bind:value={coverFilter}
@@ -423,6 +479,10 @@
             ariaLabel={t('app.library.filterLabel')}
             size="sm"
             class="w-[9.5rem]"
+            onchange={() => {
+              // Другой фильтр — другой список: показываем его с начала.
+              page = 1;
+            }}
           />
           <div
             class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
@@ -455,6 +515,7 @@
     {/if}
 
     <ScrollArea testId="library-page" class="p-4 md:p-6">
+      <div bind:this={listTop} aria-hidden="true"></div>
       {#if !librarySelected}
         <EmptyState
           icon="library"
@@ -485,7 +546,7 @@
           class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]"
           data-testid="library-grid"
         >
-          {#each viewBooks as book (book.id)}
+          {#each pageBooks as book (book.id)}
             <li>
               <button
                 class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
@@ -516,7 +577,7 @@
           class="m-0 flex list-none flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0"
           data-testid="library-list"
         >
-          {#each viewBooks as book (book.id)}
+          {#each pageBooks as book (book.id)}
             <li class="border-b border-[var(--divider)] last:border-b-0">
               <button
                 class="flex w-full cursor-pointer items-center gap-3 p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
@@ -540,5 +601,63 @@
         </ul>
       {/if}
     </ScrollArea>
+
+    <!--
+      Постраничность списка: отдельная полоса под областью прокрутки, чтобы
+      перелистывание было доступно без прокрутки до конца списка и не сдвигало
+      полосу управления каталогом.
+    -->
+    {#if librarySelected && totalPages > 1}
+      <nav
+        class="flex flex-none flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 md:px-6"
+        aria-label={t('app.library.page.label')}
+        data-testid="library-pagination"
+      >
+        <span class="role-caption text-[var(--muted-foreground)]">
+          {t('app.library.page.status', { page: currentPage, total: totalPages })}
+        </span>
+        <div class="flex flex-wrap items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t('app.library.page.prev')}
+            ariaLabel={t('app.library.page.prev')}
+            disabled={currentPage <= 1}
+            onclick={() => goToPage(currentPage - 1)}
+          >
+            <Icon name="chevron-left" />
+          </Button>
+          {#each pageItems as item, index (index)}
+            {#if item === 'gap'}
+              <span class="px-1 role-caption text-[var(--muted-foreground)]" aria-hidden="true">
+                …
+              </span>
+            {:else}
+              <Button
+                variant={item === currentPage ? 'primary' : 'ghost'}
+                size="sm"
+                class="w-[2.25rem] px-0"
+                title={t('app.library.page.go', { page: item })}
+                ariaLabel={t('app.library.page.go', { page: item })}
+                ariaCurrent={item === currentPage ? 'page' : undefined}
+                onclick={() => goToPage(item)}
+              >
+                {item}
+              </Button>
+            {/if}
+          {/each}
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t('app.library.page.next')}
+            ariaLabel={t('app.library.page.next')}
+            disabled={currentPage >= totalPages}
+            onclick={() => goToPage(currentPage + 1)}
+          >
+            <Icon name="chevron-right" />
+          </Button>
+        </div>
+      </nav>
+    {/if}
   </div>
 {/if}

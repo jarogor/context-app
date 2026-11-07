@@ -312,6 +312,11 @@ export const ru = {
   'app.library.modeLabel': 'Режим показа',
   'app.library.mode.tiles': 'Плитка',
   'app.library.mode.list': 'Список',
+  'app.library.page.label': 'Страницы списка книг',
+  'app.library.page.status': 'Страница {page} из {total}',
+  'app.library.page.prev': 'Предыдущая страница',
+  'app.library.page.next': 'Следующая страница',
+  'app.library.page.go': 'Страница {page}',
   'app.library.addBook': 'Добавить книгу',
 
   'app.reader.opening': 'Открытие книги…',
