@@ -10,6 +10,7 @@
     Icon,
     Input,
     ScrollArea,
+    Select,
     SidePanel,
     Skeleton,
   } from '@context/ui';
@@ -135,6 +136,11 @@
 
   /** Элемент начала списка: после смены страницы список возвращается наверх. */
   let listTop: HTMLElement | null = $state(null);
+
+  /** Варианты порядка книг для выпадающего списка. */
+  const sortOptions = $derived(
+    SORT_FIELDS.map((field) => ({ value: field.id, label: t(field.labelKey) })),
+  );
 
   /** Имена авторов книги строкой. */
   function authorNames(book: Book): string {
@@ -632,45 +638,36 @@
         >
           <div class="flex min-h-0 flex-1 flex-col">
             <div
-              class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-2"
+              class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-2"
               data-testid="library-filter-sections"
             >
-              <!-- Сортировка: короткий список полей и направление. -->
-              <section class="flex flex-col gap-1">
-                <h3 class="px-2 role-caption text-[var(--muted-foreground)]">
+              <!-- Сортировка — компактный список с переключателем направления. -->
+              <section class="flex flex-col gap-1.5">
+                <h3 class="px-1 role-caption text-[var(--muted-foreground)]">
                   {t('app.library.filters.sort')}
                 </h3>
-                <div class="flex flex-col">
-                  {#each SORT_FIELDS as field (field.id)}
-                    <button
-                      type="button"
-                      class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
-                      aria-pressed={sortField === field.id}
-                      onclick={() => chooseSort(field.id)}
-                    >
-                      <span class="min-w-0 flex-1 truncate role-body">{t(field.labelKey)}</span>
-                      {#if sortField === field.id}
-                        <Icon name="check" class="h-4 w-4 shrink-0" />
-                      {/if}
-                    </button>
-                  {/each}
-                </div>
-                <div class="flex items-center gap-1 px-1">
-                  <Button
-                    variant={sortDirection === 'asc' ? 'secondary' : 'ghost'}
+                <div class="flex items-center gap-1">
+                  <Select
+                    value={sortField}
+                    items={sortOptions}
+                    ariaLabel={t('app.library.filters.sort')}
                     size="sm"
-                    ariaPressed={sortDirection === 'asc'}
-                    onclick={() => (sortDirection = 'asc')}
-                  >
-                    {t('app.library.sort.asc')}
-                  </Button>
+                    class="min-w-0 flex-1"
+                    onchange={(value) => chooseSort(value as SortField)}
+                  />
                   <Button
-                    variant={sortDirection === 'desc' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    ariaPressed={sortDirection === 'desc'}
-                    onclick={() => (sortDirection = 'desc')}
+                    variant="ghost"
+                    size="icon"
+                    title={sortDirection === 'asc'
+                      ? t('app.library.sort.desc')
+                      : t('app.library.sort.asc')}
+                    ariaLabel={sortDirection === 'asc'
+                      ? t('app.library.sort.desc')
+                      : t('app.library.sort.asc')}
+                    testId="library-sort-direction"
+                    onclick={toggleDirection}
                   >
-                    {t('app.library.sort.desc')}
+                    <Icon name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} />
                   </Button>
                 </div>
               </section>

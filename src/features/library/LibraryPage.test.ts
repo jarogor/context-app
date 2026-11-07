@@ -342,20 +342,24 @@ describe('сортировка и фильтры библиотеки', () => {
     expect(screen.queryByTestId('library-filters-count')).toBeNull();
   });
 
-  it('выбирает порядок книг в панели, а не выпадающим списком', async () => {
+  it('сортировка в панели — компактный список с переключателем направления', async () => {
     await openLibrary();
 
     await fireEvent.click(screen.getByTestId('library-filters-open'));
     const panel = await screen.findByTestId('library-filters');
-    // В полосе управления выпадающих списков нет.
+    // В полосе управления выпадающих списков нет, в панели — ровно один.
     expect(within(screen.getByTestId('library-controls')).queryAllByRole('combobox')).toHaveLength(
       0,
     );
+    expect(within(panel).getAllByRole('button', { name: 'Сортировка' })).toHaveLength(1);
 
-    const byAuthor = within(panel).getByRole('button', { name: 'По автору' });
-    await fireEvent.click(byAuthor);
+    const direction = within(panel).getByTestId('library-sort-direction');
+    // При сортировке по возрастанию кнопка предлагает обратный порядок.
+    expect(direction.getAttribute('aria-label')).toBe('По убыванию');
 
-    await waitFor(() => expect(byAuthor.getAttribute('aria-pressed')).toBe('true'));
+    await fireEvent.click(direction);
+
+    await waitFor(() => expect(direction.getAttribute('aria-label')).toBe('По возрастанию'));
   });
 
   it('флажок «без обложки» считается среди фильтров', async () => {
