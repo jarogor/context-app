@@ -547,77 +547,77 @@
     onOpen={(format) => openFormatFile(openedBook as BookWithCover, format)}
   />
 {:else}
-  <div class="flex min-h-0 min-w-0 flex-1">
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-      {#if librarySelected}
-        <!--
-          Полоса управления каталогом: поиск с лупой, кнопка фильтров и режим
-          показа. Сортировка и фильтры живут в боковой панели: выпадающих списков
-          в полосе нет, и её высота не меняется.
-        -->
-        <div
-          class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
-          data-testid="library-controls"
-        >
-          <Input
-            bind:value={searchQuery}
-            placeholder={t('app.search.books.placeholder')}
-            ariaLabel={t('app.search.books.placeholder')}
-            icon="search"
-            clearable
-            class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
-            oninput={onSearchInput}
-          />
-          <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
-            <span class="mr-auto role-caption text-[var(--muted-foreground)] sm:mr-0">
-              {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
-            </span>
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+    {#if librarySelected}
+      <!--
+        Полоса управления каталогом: поиск с лупой, кнопка фильтров и режим
+        показа. Сортировка и фильтры живут в боковой панели: выпадающих списков
+        в полосе нет, и её высота не меняется.
+      -->
+      <div
+        class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
+        data-testid="library-controls"
+      >
+        <Input
+          bind:value={searchQuery}
+          placeholder={t('app.search.books.placeholder')}
+          ariaLabel={t('app.search.books.placeholder')}
+          icon="search"
+          clearable
+          class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
+          oninput={onSearchInput}
+        />
+        <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
+          <span class="mr-auto role-caption text-[var(--muted-foreground)] sm:mr-0">
+            {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            testId="library-filters-open"
+            ariaLabel={t('app.library.filters.open')}
+            onclick={() => (filtersOpen = true)}
+          >
+            <Icon name="layers" />
+            {t('app.library.filters.open')}
+            {#if filterCount > 0}
+              <span
+                class="role-caption text-[var(--muted-foreground)]"
+                data-testid="library-filters-count">{filterCount}</span>
+            {/if}
+          </Button>
+          <div
+            class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
+            role="group"
+            aria-label={t('app.library.modeLabel')}
+          >
             <Button
-              variant="secondary"
-              size="sm"
-              testId="library-filters-open"
-              ariaLabel={t('app.library.filters.open')}
-              onclick={() => (filtersOpen = true)}
+              variant={viewMode === 'grid' ? 'primary' : 'ghost'}
+              size="icon"
+              title={t('app.library.mode.tiles')}
+              ariaLabel={t('app.library.mode.tiles')}
+              ariaPressed={viewMode === 'grid'}
+              onclick={() => chooseViewMode('grid')}
             >
-              <Icon name="layers" />
-              {t('app.library.filters.open')}
-              {#if filterCount > 0}
-                <span
-                  class="role-caption text-[var(--muted-foreground)]"
-                  data-testid="library-filters-count">{filterCount}</span>
-              {/if}
+              <Icon name="grid" />
             </Button>
-            <div
-              class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
-              role="group"
-              aria-label={t('app.library.modeLabel')}
+            <Button
+              variant={viewMode === 'list' ? 'primary' : 'ghost'}
+              size="icon"
+              title={t('app.library.mode.list')}
+              ariaLabel={t('app.library.mode.list')}
+              ariaPressed={viewMode === 'list'}
+              onclick={() => chooseViewMode('list')}
             >
-              <Button
-                variant={viewMode === 'grid' ? 'primary' : 'ghost'}
-                size="icon"
-                title={t('app.library.mode.tiles')}
-                ariaLabel={t('app.library.mode.tiles')}
-                ariaPressed={viewMode === 'grid'}
-                onclick={() => chooseViewMode('grid')}
-              >
-                <Icon name="grid" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'primary' : 'ghost'}
-                size="icon"
-                title={t('app.library.mode.list')}
-                ariaLabel={t('app.library.mode.list')}
-                ariaPressed={viewMode === 'list'}
-                onclick={() => chooseViewMode('list')}
-              >
-                <Icon name="list" />
-              </Button>
-            </div>
+              <Icon name="list" />
+            </Button>
           </div>
         </div>
-      {/if}
+      </div>
+    {/if}
 
 
+    <div class="relative flex min-h-0 min-w-0 flex-1">
       <ScrollArea testId="library-page" class="p-4 md:p-6">
         <div bind:this={listTop} aria-hidden="true"></div>
         {#if !librarySelected}
@@ -708,174 +708,174 @@
         {/if}
       </ScrollArea>
 
-      <!--
-        Постраничность списка: отдельная полоса под областью прокрутки, чтобы
-        перелистывание было доступно без прокрутки до конца списка и не сдвигало
-        полосу управления каталогом.
-      -->
-      {#if librarySelected && totalPages > 1}
-        <nav
-          class="flex flex-none flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 md:px-6"
-          aria-label={t('app.library.page.label')}
-          data-testid="library-pagination"
+      {#if filtersOpen}
+        <SidePanel
+          title={t('app.library.filters.title')}
+          testId="library-filters"
+          class="w-full lg:w-[19rem]"
+          onClose={() => (filtersOpen = false)}
         >
-          <span class="role-caption text-[var(--muted-foreground)]">
-            {t('app.library.page.status', { page: currentPage, total: totalPages })}
-          </span>
-          <div class="flex flex-wrap items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              title={t('app.library.page.prev')}
-              ariaLabel={t('app.library.page.prev')}
-              disabled={currentPage <= 1}
-              onclick={() => goToPage(currentPage - 1)}
+          <div class="flex min-h-0 flex-1 flex-col">
+            <div
+              class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-2"
+              data-testid="library-filter-sections"
             >
-              <Icon name="chevron-left" />
-            </Button>
-            {#each pageItems as item, index (index)}
-              {#if item === 'gap'}
-                <span class="px-1 role-caption text-[var(--muted-foreground)]" aria-hidden="true">
-                  …
-                </span>
-              {:else}
-                <Button
-                  variant={item === currentPage ? 'primary' : 'ghost'}
-                  size="sm"
-                  class="w-[2.25rem] px-0"
-                  title={t('app.library.page.go', { page: item })}
-                  ariaLabel={t('app.library.page.go', { page: item })}
-                  ariaCurrent={item === currentPage ? 'page' : undefined}
-                  onclick={() => goToPage(item)}
-                >
-                  {item}
-                </Button>
-              {/if}
-            {/each}
-            <Button
-              variant="ghost"
-              size="icon"
-              title={t('app.library.page.next')}
-              ariaLabel={t('app.library.page.next')}
-              disabled={currentPage >= totalPages}
-              onclick={() => goToPage(currentPage + 1)}
+              <Disclosure bind:open={sortOpen} title={t('app.library.filters.sort')}>
+                <div class="flex flex-col">
+                  {#each SORT_FIELDS as field (field.id)}
+                    <button
+                      type="button"
+                      class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                      aria-pressed={sortField === field.id}
+                      onclick={() => chooseSort(field.id)}
+                    >
+                      <span class="min-w-0 flex-1 truncate role-body">{t(field.labelKey)}</span>
+                      {#if sortField === field.id}
+                        <Icon name="check" class="h-4 w-4 shrink-0" />
+                      {/if}
+                    </button>
+                  {/each}
+                </div>
+                <div class="mt-1 flex items-center gap-1 px-1">
+                  <Button
+                    variant={sortDirection === 'asc' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    ariaPressed={sortDirection === 'asc'}
+                    onclick={() => (sortDirection = 'asc')}
+                  >
+                    {t('app.library.sort.asc')}
+                  </Button>
+                  <Button
+                    variant={sortDirection === 'desc' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    ariaPressed={sortDirection === 'desc'}
+                    onclick={() => (sortDirection = 'desc')}
+                  >
+                    {t('app.library.sort.desc')}
+                  </Button>
+                </div>
+              </Disclosure>
+
+              <Disclosure bind:open={coverOpen} title={t('app.library.filters.cover')}>
+                <div class="flex flex-col">
+                  {#each coverChoices as choice (choice.value)}
+                    <button
+                      type="button"
+                      class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                      aria-pressed={filters.covers === choice.value}
+                      onclick={() => chooseCover(choice.value)}
+                    >
+                      <span class="min-w-0 flex-1 truncate role-body">{choice.label}</span>
+                      {#if filters.covers === choice.value}
+                        <Icon name="check" class="h-4 w-4 shrink-0" />
+                      {/if}
+                    </button>
+                  {/each}
+                </div>
+              </Disclosure>
+
+              {#each FACET_IDS as id (id)}
+                {@const values = facets[id]}
+                {#if values.length > 0}
+                  <Disclosure title={t(FACET_LABELS[id])} testId="library-facet-{id}">
+                    {#snippet badge()}
+                      {#if filters[id].length > 0}
+                        <span class="role-caption text-[var(--muted-foreground)]">
+                          {filters[id].length}
+                        </span>
+                      {/if}
+                    {/snippet}
+                    <div class="flex flex-col">
+                      {#each values as item (item.value)}
+                        <label
+                          class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 hover:bg-[var(--surface-hover)]"
+                        >
+                          <Checkbox
+                            checked={filters[id].includes(item.value)}
+                            onchange={() => onFacetToggle(id, item.value)}
+                          />
+                          <span class="min-w-0 flex-1 truncate role-body">{item.label}</span>
+                          <span class="role-caption text-[var(--muted-foreground)]">{item.count}</span>
+                        </label>
+                      {/each}
+                    </div>
+                  </Disclosure>
+                {/if}
+              {/each}
+            </div>
+            <div
+              class="flex flex-none items-center gap-2 border-t border-[var(--divider)] px-3 py-2"
             >
-              <Icon name="chevron-right" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={filterCount === 0}
+                onclick={resetFilters}
+              >
+                {t('app.library.filters.reset')}
+              </Button>
+            </div>
           </div>
-        </nav>
+        </SidePanel>
       {/if}
     </div>
 
-    {#if filtersOpen}
-      <SidePanel
-        title={t('app.library.filters.title')}
-        testId="library-filters"
-        class="w-full lg:w-[19rem]"
-        onClose={() => (filtersOpen = false)}
+    <!--
+      Постраничность списка: отдельная полоса под областью прокрутки, чтобы
+      перелистывание было доступно без прокрутки до конца списка и не сдвигало
+      полосу управления каталогом.
+    -->
+    {#if librarySelected && totalPages > 1}
+      <nav
+        class="flex flex-none flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 md:px-6"
+        aria-label={t('app.library.page.label')}
+        data-testid="library-pagination"
       >
-        <div class="flex min-h-0 flex-1 flex-col">
-          <div
-            class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-2"
-            data-testid="library-filter-sections"
+        <span class="role-caption text-[var(--muted-foreground)]">
+          {t('app.library.page.status', { page: currentPage, total: totalPages })}
+        </span>
+        <div class="flex flex-wrap items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t('app.library.page.prev')}
+            ariaLabel={t('app.library.page.prev')}
+            disabled={currentPage <= 1}
+            onclick={() => goToPage(currentPage - 1)}
           >
-            <Disclosure bind:open={sortOpen} title={t('app.library.filters.sort')}>
-              <div class="flex flex-col">
-                {#each SORT_FIELDS as field (field.id)}
-                  <button
-                    type="button"
-                    class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
-                    aria-pressed={sortField === field.id}
-                    onclick={() => chooseSort(field.id)}
-                  >
-                    <span class="min-w-0 flex-1 truncate role-body">{t(field.labelKey)}</span>
-                    {#if sortField === field.id}
-                      <Icon name="check" class="h-4 w-4 shrink-0" />
-                    {/if}
-                  </button>
-                {/each}
-              </div>
-              <div class="mt-1 flex items-center gap-1 px-1">
-                <Button
-                  variant={sortDirection === 'asc' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  ariaPressed={sortDirection === 'asc'}
-                  onclick={() => (sortDirection = 'asc')}
-                >
-                  {t('app.library.sort.asc')}
-                </Button>
-                <Button
-                  variant={sortDirection === 'desc' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  ariaPressed={sortDirection === 'desc'}
-                  onclick={() => (sortDirection = 'desc')}
-                >
-                  {t('app.library.sort.desc')}
-                </Button>
-              </div>
-            </Disclosure>
-
-            <Disclosure bind:open={coverOpen} title={t('app.library.filters.cover')}>
-              <div class="flex flex-col">
-                {#each coverChoices as choice (choice.value)}
-                  <button
-                    type="button"
-                    class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
-                    aria-pressed={filters.covers === choice.value}
-                    onclick={() => chooseCover(choice.value)}
-                  >
-                    <span class="min-w-0 flex-1 truncate role-body">{choice.label}</span>
-                    {#if filters.covers === choice.value}
-                      <Icon name="check" class="h-4 w-4 shrink-0" />
-                    {/if}
-                  </button>
-                {/each}
-              </div>
-            </Disclosure>
-
-            {#each FACET_IDS as id (id)}
-              {@const values = facets[id]}
-              {#if values.length > 0}
-                <Disclosure title={t(FACET_LABELS[id])} testId="library-facet-{id}">
-                  {#snippet badge()}
-                    {#if filters[id].length > 0}
-                      <span class="role-caption text-[var(--muted-foreground)]">
-                        {filters[id].length}
-                      </span>
-                    {/if}
-                  {/snippet}
-                  <div class="flex flex-col">
-                    {#each values as item (item.value)}
-                      <label
-                        class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 hover:bg-[var(--surface-hover)]"
-                      >
-                        <Checkbox
-                          checked={filters[id].includes(item.value)}
-                          onchange={() => onFacetToggle(id, item.value)}
-                        />
-                        <span class="min-w-0 flex-1 truncate role-body">{item.label}</span>
-                        <span class="role-caption text-[var(--muted-foreground)]">{item.count}</span>
-                      </label>
-                    {/each}
-                  </div>
-                </Disclosure>
-              {/if}
-            {/each}
-          </div>
-          <div
-            class="flex flex-none items-center gap-2 border-t border-[var(--divider)] px-3 py-2"
+            <Icon name="chevron-left" />
+          </Button>
+          {#each pageItems as item, index (index)}
+            {#if item === 'gap'}
+              <span class="px-1 role-caption text-[var(--muted-foreground)]" aria-hidden="true">
+                …
+              </span>
+            {:else}
+              <Button
+                variant={item === currentPage ? 'primary' : 'ghost'}
+                size="sm"
+                class="w-[2.25rem] px-0"
+                title={t('app.library.page.go', { page: item })}
+                ariaLabel={t('app.library.page.go', { page: item })}
+                ariaCurrent={item === currentPage ? 'page' : undefined}
+                onclick={() => goToPage(item)}
+              >
+                {item}
+              </Button>
+            {/if}
+          {/each}
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t('app.library.page.next')}
+            ariaLabel={t('app.library.page.next')}
+            disabled={currentPage >= totalPages}
+            onclick={() => goToPage(currentPage + 1)}
           >
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={filterCount === 0}
-              onclick={resetFilters}
-            >
-              {t('app.library.filters.reset')}
-            </Button>
-          </div>
+            <Icon name="chevron-right" />
+          </Button>
         </div>
-      </SidePanel>
+      </nav>
     {/if}
   </div>
 {/if}
