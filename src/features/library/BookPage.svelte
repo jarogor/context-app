@@ -1,11 +1,14 @@
 <script lang="ts">
   import { Badge, BookCover, Button, ErrorState, Icon } from '@context/ui';
   import { t } from '@context/i18n';
-  import type { BookFormatInfo, BookWithCover } from './library';
+  import { formatBytes } from '../../shared/format';
+  import { formatPublishedDate, type BookFormatInfo, type BookWithCover } from './library';
 
   interface Props {
     /** Открытая книга. */
     book: BookWithCover;
+    /** Абсолютный путь файла книги. */
+    path: string;
     /** Файлы-содержимое книги: формат и поддерживается ли он чтением. */
     formats: BookFormatInfo[];
     /** Читается ли книга здесь хотя бы в одном формате. */
@@ -16,6 +19,8 @@
     openError: string | null;
     /** Возврат к списку книг. */
     onClose: () => void;
+    /** Открытие папки с файлом книги. */
+    onOpenFolder: () => void;
     /** Открытие файла заданного формата вкладкой рабочего места. */
     onAdd: (format: string) => void;
     /** Открытие файла заданного формата. */
@@ -24,11 +29,13 @@
 
   let {
     book,
+    path,
     formats,
     canRead,
     openingFormat,
     openError,
     onClose,
+    onOpenFolder,
     onAdd,
     onOpen,
   }: Props = $props();
@@ -39,15 +46,94 @@
   /** Серии одной строкой. */
   const series = $derived(book.series.map((entry) => entry.series.name).join(', '));
 
-  /** Теги одной строкой. */
+  /** Теги источника одной строкой. */
   const tags = $derived(book.tags.map((tag) => tag.name).join(', '));
 
-  /** Строки дополнительных сведений с переведёнными подписями. */
-  const detailRows = $derived([
-    { label: t('app.library.book.series'), value: series },
-    { label: t('app.library.book.tags'), value: tags },
+  /** Форматы файлов книги списком. */
+  const formatsText = $derived(
+    [...new Set(book.files.filter((file) => file.kind === 'book').map((file) => file.format))]
+      .filter(Boolean)
+      .map((format) => format.toUpperCase())
+      .join(', '),
+  );
+
+  /** Подпись значения: пустое свойство читается как «не указано». */
+  const value = (text: string | undefined): string =>
+    text && text.trim() ? text.trim() : t('app.library.book.notSpecified');
+
+  /** Строка свойств: подпись, значение и признак пустоты. */
+  interface PropertyRow {
+    /** Идентификатор свойства (метка для тестов). */
+    id: string;
+    /** Подпись свойства. */
+    label: string;
+    /** Значение либо «не указано». */
+    text: string;
+    /** Свойство не заполнено источником. */
+    empty: boolean;
+    /** Моноширинный текст (путь к файлу). */
+    mono?: boolean;
+  }
+
+  /** Секция свойств книги. */
+  interface PropertySection {
+    /** Заголовок секции. */
+    title: string;
+    /** Строки секции. */
+    rows: PropertyRow[];
+  }
+
+  /** Свойства книги по секциям: основное, файл, издание. */
+  const sections = $derived<PropertySection[]>([
+    {
+      title: t('app.library.book.section.main'),
+      rows: [
+        { id: 'authors', label: t('app.library.book.authors'), text: value(authors), empty: !authors },
+        { id: 'format', label: t('app.library.book.format'), text: value(formatsText), empty: !formatsText },
+        { id: 'series', label: t('app.library.book.series'), text: value(series), empty: !series },
+        { id: 'tags', label: t('app.library.book.tags'), text: value(tags), empty: !tags },
+      ],
+    },
+    {
+      title: t('app.library.book.section.file'),
+      rows: [
+        {
+          id: 'size',
+          label: t('app.library.book.size'),
+          text: value(formatBytes(book.size)),
+          empty: book.size === undefined,
+        },
+        { id: 'path', label: t('app.library.book.path'), text: value(path), empty: !path, mono: true },
+      ],
+    },
+    {
+      title: t('app.library.book.section.edition'),
+      rows: [
+        {
+          id: 'published',
+          label: t('app.library.book.published'),
+          text: value(formatPublishedDate(book.published)),
+          empty: !book.published,
+        },
+        { id: 'language', label: t('app.library.book.language'), text: value(book.language), empty: !book.language },
+        {
+          id: 'publisher',
+          label: t('app.library.book.publisher'),
+          text: value(book.publisher),
+          empty: !book.publisher,
+        },
+        {
+          id: 'identifier',
+          label: t('app.library.book.identifier'),
+          text: value(book.identifier),
+          empty: !book.identifier,
+        },
+      ],
+    },
   ]);
 
+  /** Описание книги отдельным блоком: это текст, а не строка таблицы. */
+  const description = $derived(book.description?.trim() ?? '');
 </script>
 
 <div class="@container flex min-h-0 min-w-0 flex-1 flex-col" data-testid="book-page">
@@ -138,27 +224,64 @@
           </div>
         {/if}
 
-        <dl
-          class="flex flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]"
-        >
-          {#each detailRows as row (row.label)}
-            {#if row.value}
-              <div
-                class="flex flex-col gap-1 border-b border-[var(--border)] px-4 py-3 last:border-b-0 sm:flex-row sm:gap-4"
+        <!--
+          Свойства книги: источник наполняет то, что умеет извлечь из файла, а
+          незаполненное честно читается как «не указано» — пустых обещаний нет.
+        -->
+        <div class="flex flex-col gap-4" data-testid="book-properties">
+          {#each sections as section (section.title)}
+            <section class="flex flex-col gap-1.5">
+              <h2 class="role-caption text-[var(--muted-foreground)]">{section.title}</h2>
+              <dl
+                class="m-0 flex flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]"
               >
-                <dt class="w-[6rem] shrink-0 role-caption text-[var(--muted-foreground)]">
-                  {row.label}
-                </dt>
-                <dd class="min-w-0 role-body">{row.value}</dd>
-              </div>
-            {/if}
+                {#each section.rows as row (row.id)}
+                  <div
+                    class="flex flex-col gap-1 border-b border-[var(--divider)] px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
+                  >
+                    <dt class="w-[7.5rem] shrink-0 role-caption text-[var(--muted-foreground)]">
+                      {row.label}
+                    </dt>
+                    <dd
+                      class="m-0 min-w-0 flex-1 break-words role-body"
+                      class:text-[var(--muted-foreground)]={row.empty}
+                      class:font-mono={row.mono}
+                      data-testid="book-property-{row.id}"
+                    >
+                      {row.text}
+                    </dd>
+                    {#if row.mono && !row.empty}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title={t('app.library.book.openFolder')}
+                        ariaLabel={t('app.library.book.openFolder')}
+                        testId="book-open-folder"
+                        onclick={onOpenFolder}
+                      >
+                        <Icon name="folder" />
+                      </Button>
+                    {/if}
+                  </div>
+                {/each}
+              </dl>
+            </section>
           {/each}
-          {#if !series && !tags}
-            <div class="px-4 py-3 role-body text-[var(--muted-foreground)]">
-              {t('app.library.book.noDetails')}
-            </div>
+
+          {#if description}
+            <section class="flex flex-col gap-1.5">
+              <h2 class="role-caption text-[var(--muted-foreground)]">
+                {t('app.library.book.description')}
+              </h2>
+              <p
+                class="m-0 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 role-body"
+                data-testid="book-description"
+              >
+                {description}
+              </p>
+            </section>
           {/if}
-        </dl>
+        </div>
 
         {#if openError}
           <ErrorState message={openError} />

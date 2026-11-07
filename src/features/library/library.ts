@@ -177,6 +177,26 @@ export async function openBookFile(path: string): Promise<void> {
   await invokeCommand('reader_open_external', { path });
 }
 
+/** Открытие папки с файлом книги системным файловым менеджером. */
+export async function openBookFolder(path: string): Promise<void> {
+  const folder = path.replace(/[\\/][^\\/]*$/, '');
+  await invokeCommand('open_folder', { path: folder || path });
+}
+
+/** Дата выхода для показа: у полной даты ISO остаётся только дата.
+ *
+ * Calibre пишет время (`2019-05-01T00:00:00+00:00`), а в карточке книги нужен
+ * день издания; год и неполные значения показываются как есть.
+ */
+export function formatPublishedDate(value: string | undefined): string {
+  const text = value?.trim() ?? '';
+  if (!text) {
+    return '';
+  }
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(text);
+  return match ? match[1] : text;
+}
+
 /** Форматы, поддерживаемые встроенным чтением. */
 export async function readerFormats(): Promise<string[]> {
   const formats = (await invokeCommand('reader_formats', {})) as string[] | null;

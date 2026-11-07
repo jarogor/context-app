@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { absoluteBookPath, bookChoices, listBooks } from './library';
+import {
+  absoluteBookPath,
+  bookChoices,
+  formatPublishedDate,
+  listBooks,
+  openBookFolder,
+} from './library';
 import { invokeCommand } from '../../shared/app-bridge';
 
 vi.mock('../../shared/app-bridge', () => ({
@@ -131,5 +137,22 @@ describe('разбор книги каталога', () => {
     expect(book.published).toBeUndefined();
     expect(book.size).toBeUndefined();
     expect(book.addedAtMillis).toBeUndefined();
+  });
+});
+
+describe('дата выхода', () => {
+  it('оставляет от полной даты ISO только дату', () => {
+    expect(formatPublishedDate('2019-05-01T00:00:00+00:00')).toBe('2019-05-01');
+    expect(formatPublishedDate('2001')).toBe('2001');
+    expect(formatPublishedDate('  2019-05-01 ')).toBe('2019-05-01');
+    expect(formatPublishedDate(undefined)).toBe('');
+  });
+});
+
+describe('папка книги', () => {
+  it('открывает папку с файлом', async () => {
+    await openBookFolder('/lib/Автор/Книга.epub');
+
+    expect(invoke).toHaveBeenCalledWith('open_folder', { path: '/lib/Автор' });
   });
 });

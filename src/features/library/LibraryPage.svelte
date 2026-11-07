@@ -21,6 +21,7 @@
     listBooks,
     loadCover,
     openBookFile,
+    openBookFolder,
     readerFormats,
     type Book,
     type BookFile,
@@ -429,11 +430,13 @@
 {#if openedBook}
   <BookPage
     book={openedBook}
+    path={bookPath(openedBook)}
     formats={bookFormats(openedBook)}
     canRead={canRead(openedBook)}
     {openingFormat}
     {openError}
     onClose={closeBook}
+    onOpenFolder={() => void openBookFolder(bookPath(openedBook as BookWithCover))}
     onAdd={(format) => startReading(openedBook as BookWithCover, format)}
     onOpen={(format) => openFormatFile(openedBook as BookWithCover, format)}
   />
