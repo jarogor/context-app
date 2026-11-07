@@ -131,6 +131,11 @@ pub fn invoke(input: String) -> FnResult<String> {
                 base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
             serde_json::to_string(&json!({ "data": encoded, "size": bytes.len() }))?
         }
+        "covers" => {
+            let ids = book_ids(&request.payload);
+            let covers = crate::index::load_covers(&fs, &ids).map_err(extism_pdk::Error::msg)?;
+            serde_json::to_string(&json!({ "covers": covers }))?
+        }
         "cover" => {
             if let Some(id) = request
                 .payload
@@ -209,6 +214,20 @@ fn current_catalog() -> SourceCatalog {
             revision: 0,
             books: Vec::new(),
         })
+}
+
+/// Идентификаторы книг из payload пакетного запроса.
+fn book_ids(payload: &serde_json::Value) -> Vec<String> {
+    payload
+        .get("book_ids")
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Путь и формат файла книги из opaque идентификатора или явного пути.

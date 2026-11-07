@@ -44,7 +44,7 @@
     activeLibraryPath,
     LIBRARY_PAGE_SIZE,
     listBooks,
-    loadCover,
+    loadCovers,
     openBookFile,
     openBookFolder,
     readerFormats,
@@ -301,7 +301,7 @@
     try {
       const list = await listBooks(searchQuery);
       books = list;
-      void loadCovers(list);
+      void loadCoverUris(list);
     } catch (e) {
       error = String(e);
     } finally {
@@ -309,28 +309,17 @@
     }
   }
 
-  /** Параллельная загрузка обложек с однократным применением к списку по id. */
-  async function loadCovers(list: Book[]) {
-    const results = await Promise.all(
-      list.map(async (book) => {
-        try {
-          return { id: book.id, coverUri: await loadCover(book.id) };
-        } catch {
-          // Отсутствие обложки не должно блокировать каталог.
-          return { id: book.id, coverUri: null };
-        }
-      }),
-    );
-    const covers = new Map(
-      results
-        .filter((entry): entry is { id: string; coverUri: string } => entry.coverUri !== null)
-        .map((entry) => [entry.id, entry.coverUri]),
-    );
-    if (covers.size === 0) {
+  /** Загрузка обложек списка одним пакетным вызовом источника. */
+  async function loadCoverUris(list: Book[]) {
+    let covers: Record<string, string | null> = {};
+    try {
+      covers = await loadCovers(list.map((book) => book.id));
+    } catch {
+      // Обложки не должны блокировать каталог: список показывается без них.
       return;
     }
     books = books.map((current) => {
-      const coverUri = covers.get(current.id);
+      const coverUri = covers[current.id];
       return coverUri ? { ...current, coverUri } : current;
     });
   }

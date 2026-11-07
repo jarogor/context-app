@@ -266,6 +266,53 @@ pub fn upsert_book(fs: &impl Fs, book: &BookRecord) -> Result<(), String> {
     )
 }
 
+/// Загрузка обложек книг пакетом: идентификатор → обложка.
+///
+/// Список адресуется одним запросом: список книг показывает десятки обложек
+/// сразу, и вызов на книгу был бы дороже самого каталога.
+pub fn load_covers(
+    fs: &impl Fs,
+    ids: &[String],
+) -> Result<std::collections::BTreeMap<String, CoverRow>, String> {
+    if ids.is_empty() {
+        return Ok(std::collections::BTreeMap::new());
+    }
+    let placeholders = (1..=ids.len())
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let params = serde_json::to_string(ids).map_err(|error| error.to_string())?;
+    let raw = fs.sql_query(
+        &format!("SELECT book_id, data, format FROM covers WHERE book_id IN ({placeholders})"),
+        &params,
+    )?;
+    let rows: Vec<CoverRowWithId> =
+        serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            (
+                row.book_id,
+                CoverRow {
+                    data: row.data,
+                    format: row.format,
+                },
+            )
+        })
+        .collect())
+}
+
+/// Строка таблицы `covers` вместе с идентификатором книги.
+#[derive(Debug, Clone, serde::Deserialize)]
+struct CoverRowWithId {
+    /// Идентификатор книги.
+    book_id: String,
+    /// Обложка в base64.
+    data: String,
+    /// Формат обложки.
+    format: String,
+}
+
 /// Загрузка всех книг индекса в порядке идентификаторов.
 pub fn load_books(fs: &impl Fs) -> Result<Vec<BookRecord>, String> {
     let raw = fs.sql_query("SELECT * FROM books ORDER BY id", "[]")?;

@@ -692,7 +692,7 @@ async function viewerFile(pluginId: string, path: string): Promise<{ path: strin
 function pluginOperation(payload: unknown): unknown {
   const message = (payload ?? {}) as {
     operation?: string;
-    payload?: { query?: string; book_id?: string };
+    payload?: { query?: string; book_id?: string; book_ids?: string[] };
   };
   const books = [
     {
@@ -729,6 +729,14 @@ function pluginOperation(payload: unknown): unknown {
     return message.payload?.book_id === 'demo-1'
       ? { data: TINY_PNG, format: 'png' }
       : { data: null };
+  }
+  if (message.operation === 'covers') {
+    // Пакетный ответ: обложка есть только у первой книги.
+    const covers: Record<string, { data: string | null; format?: string }> = {};
+    for (const id of message.payload?.book_ids ?? []) {
+      covers[id] = id === 'demo-1' ? { data: TINY_PNG, format: 'png' } : { data: null };
+    }
+    return { covers };
   }
   if (message.operation === 'content') {
     const paragraphs = Array.from(

@@ -25,7 +25,8 @@ test('клик по книге открывает страницу книги с
   await library.getByRole('button', { name: /Демо-книга/ }).click();
 
   await expect(library.getByTestId('book-title')).toHaveText('Демо-книга');
-  await expect(library.getByTestId('book-page').getByText('Тестовый автор')).toBeVisible();
+  // Автор показан свойством книги, а не только подзаголовком.
+  await expect(library.getByTestId('book-property-authors')).toHaveText('Тестовый автор');
 });
 
 test('страница книги предлагает чтение и открытие', async ({ page }) => {
