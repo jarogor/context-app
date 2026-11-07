@@ -106,40 +106,14 @@ fn record(id: &str, added_at_ms: Option<i64>) -> BookRecord {
 }
 
 #[test]
-fn old_schema_is_rebuilt_and_covers_survive() {
+fn fresh_schema_has_all_catalog_tables() {
     let db = TestDb::new();
-    db.execute(
-        "CREATE TABLE books (
-           id TEXT PRIMARY KEY, title TEXT NOT NULL, authors TEXT NOT NULL,
-           tags TEXT NOT NULL, series TEXT NOT NULL, format TEXT NOT NULL,
-           size INTEGER, mtime_ms INTEGER);
-         CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-         CREATE TABLE covers (
-           book_id TEXT PRIMARY KEY, format TEXT NOT NULL,
-           mtime_ms INTEGER, data TEXT NOT NULL);
-         INSERT INTO books (id, title, authors, tags, series, format)
-           VALUES ('a.epub', 'Книга', '[]', '[]', '[]', 'epub');
-         INSERT INTO covers (book_id, format, data) VALUES ('a.epub', 'png', 'AAA');
-         PRAGMA user_version = 1;",
-    )
-    .expect("старая схема");
 
-    ensure_schema(&db, CATALOG_MIGRATIONS, "library-state.json").expect("миграция");
+    ensure_schema(&db, CATALOG_MIGRATIONS, "library-state.json").expect("схема");
 
-    // Таблица книг пересобрана: строки перечитает следующая синхронизация.
-    let books = db
-        .query("SELECT COUNT(*) AS count FROM books")
-        .expect("счётчик книг");
-    assert_eq!(books[0]["count"], 0, "книги пересобираются при смене схемы");
-
-    // Обложки не теряются: их извлечение дорого и от схемы книг не зависит.
-    let covers = db
-        .query("SELECT format FROM covers WHERE book_id = 'a.epub'")
-        .expect("обложка");
-    assert_eq!(covers[0]["format"], "png", "обложка переживает миграцию");
-
+    // Схема сразу версия 1: цепочек версий приложение пока не ведёт.
     let version = db.query("PRAGMA user_version").expect("версия схемы");
-    assert_eq!(version[0]["user_version"], 3, "схема на последней версии");
+    assert_eq!(version[0]["user_version"], 1, "схема каталога — версия 1");
 
     let columns = db
         .query("PRAGMA table_info(books)")
@@ -149,31 +123,52 @@ fn old_schema_is_rebuilt_and_covers_survive() {
         .map(|column| column["name"].as_str().unwrap_or_default().to_string())
         .collect();
     for expected in [
+        "id",
+        "title",
+        "authors",
+        "tags",
+        "series",
+        "files",
+        "format",
+        "size",
+        "mtime_ms",
+        "added_at_ms",
         "language",
         "published",
         "publisher",
         "description",
         "identifier",
-        "added_at_ms",
         "signature",
-        "files",
     ] {
         assert!(
             names.contains(&expected.to_string()),
             "нет столбца {expected}"
         );
     }
+
+    let tables = db
+        .query("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .expect("таблицы");
+    let table_names: Vec<&str> = tables
+        .iter()
+        .filter_map(|row| row["name"].as_str())
+        .collect();
+    assert!(table_names.contains(&"meta"), "таблица meta");
+    assert!(table_names.contains(&"covers"), "таблица обложек");
 }
 
 #[test]
-fn newer_schema_forces_rebuild() {
+fn schema_from_newer_build_forces_rebuild() {
     let db = TestDb::new();
     db.execute("PRAGMA user_version = 99;").expect("версия");
 
     ensure_schema(&db, CATALOG_MIGRATIONS, "library-state.json").expect("пересборка");
 
     let version = db.query("PRAGMA user_version").expect("версия схемы");
-    assert_eq!(version[0]["user_version"], 3, "схема пересобрана");
+    assert_eq!(
+        version[0]["user_version"], 1,
+        "схема пересобрана в текущую версию"
+    );
     upsert_book(&db, &record("a", Some(1))).expect("запись после пересборки");
     assert_eq!(load_books(&db).expect("загрузка").len(), 1);
 }

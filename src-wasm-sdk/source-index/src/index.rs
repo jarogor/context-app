@@ -13,34 +13,16 @@ use source_protocol::fs::Fs;
 /// Ключ ревизии каталога в таблице `meta`.
 pub const REVISION_KEY: &str = "revision";
 
-/// Таблица обложек книг (base64 и формат), общая для source-плагинов.
+/// Схема каталога source-плагина: книги, служебные метаданные и обложки.
 ///
-/// Миграция схемы индекса добавляет неизменяемую для источников таблицу
-/// обложек; уникальные для источника таблицы описываются в его собственных
-/// миграциях.
-pub const COVERS_MIGRATION: Migration = Migration {
-    version: 2,
+/// Схема — одна для всех source-плагинов и сразу версия 1: приложение ещё не в
+/// продакшне, цепочек версий и совместимости между ними нет. Свойства книги
+/// (`язык`, `дата выхода`, `издатель`, `описание`, `идентификатор`, `размер`,
+/// `время добавления`) добавлены в неё с самого начала.
+pub const CATALOG_MIGRATION: Migration = Migration {
+    version: 1,
     sql: "
-CREATE TABLE IF NOT EXISTS covers (
-  book_id TEXT PRIMARY KEY,
-  format TEXT NOT NULL,
-  mtime_ms INTEGER,
-  data TEXT NOT NULL
-);",
-};
-
-/// Общая схема таблицы книг и служебных метаданных индекса.
-///
-/// Схема — одна для всех source-плагинов: свойства книги (`язык`, `дата
-/// выхода`, `издатель`, `описание`, `идентификатор`, `размер`, `время
-/// добавления`) добавляются здесь, а плагины лишь заполняют то, что умеют.
-/// Таблица пересобирается: индекс — производные данные, а обложки (`v2`)
-/// остаются на месте.
-pub const CATALOG_BOOKS_MIGRATION: Migration = Migration {
-    version: 3,
-    sql: "
-DROP TABLE IF EXISTS books;
-CREATE TABLE books (
+CREATE TABLE IF NOT EXISTS books (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   authors TEXT NOT NULL,
@@ -61,11 +43,17 @@ CREATE TABLE books (
 CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS covers (
+  book_id TEXT PRIMARY KEY,
+  format TEXT NOT NULL,
+  mtime_ms INTEGER,
+  data TEXT NOT NULL
 );",
 };
 
 /// Упорядоченный список миграций общей схемы каталога source-плагина.
-pub const CATALOG_MIGRATIONS: &[Migration] = &[COVERS_MIGRATION, CATALOG_BOOKS_MIGRATION];
+pub const CATALOG_MIGRATIONS: &[Migration] = &[CATALOG_MIGRATION];
 
 /// Имя прикладного события прогресса построения индекса.
 pub const PROGRESS_EVENT: &str = "library-index-progress";
