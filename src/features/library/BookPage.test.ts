@@ -53,17 +53,25 @@ describe('страница книги', () => {
     render(BookPage, { props: pageProps() });
 
     expect(screen.getByTestId('book-title').textContent).toContain('Книга');
-    expect(screen.getByTestId('book-authors').textContent).toContain('Автор');
     expect(screen.getByTestId('book-authors').textContent).toContain('Соавтор');
     expect(screen.getByTestId('book-formats').textContent).toContain('EPUB');
-    expect(screen.getByTestId('book-edit-tags').textContent).toContain('тег');
+    expect(screen.getByTestId('book-tags').textContent).toContain('тег');
+    expect(screen.getByTestId('book-property-published').textContent).toContain('2019-05-01');
+    expect(screen.getByTestId('book-property-language').textContent).toContain('ru');
+    expect(screen.getByTestId('book-property-publisher').textContent).toContain('Издатель');
     expect(screen.getByTestId('book-description').textContent).toContain('Описание книги');
 
     const file = screen.getByTestId('book-file');
     expect(file.textContent).toContain('/lib/a.epub');
     expect(file.textContent).toContain('2 КБ');
     expect(file.textContent).toContain('2024');
-    // Кнопка папки — с подписью, а не безымянный значок.
+  });
+
+  it('подписывает действия с форматом', () => {
+    render(BookPage, { props: pageProps() });
+
+    expect(screen.getByRole('button', { name: 'Читать' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Открыть файл' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Открыть папку с файлом' })).toBeTruthy();
   });
 
@@ -85,8 +93,8 @@ describe('страница книги', () => {
     expect(screen.queryByTestId('book-properties')).toBeNull();
     expect(screen.queryByTestId('book-description')).toBeNull();
     expect(screen.queryByTestId('book-property-size')).toBeNull();
-    // Теги показываются, чтобы их можно было добавить.
-    expect(screen.getByTestId('book-edit-tags')).toBeTruthy();
+    // Теги видны всегда: их можно добавить правкой.
+    expect(screen.getByTestId('book-tags').textContent).toContain('—');
   });
 
   it('ведёт к списку книг по автору, формату, языку и тегу', async () => {
@@ -104,40 +112,45 @@ describe('страница книги', () => {
     expect(onFilterBy).toHaveBeenNthCalledWith(4, 'tag', 'тег');
   });
 
-  it('правит значение по месту и сохраняет его', async () => {
+  it('переключает страницу в режим редактирования и сохраняет', async () => {
     const onSaveProperties = vi.fn();
     render(BookPage, { props: pageProps({ onSaveProperties }) });
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Язык' }));
-    await fireEvent.input(screen.getByLabelText('Язык'), { target: { value: 'en' } });
-    await fireEvent.click(screen.getByTestId('book-edit-language-save'));
+    await fireEvent.click(screen.getByTestId('book-edit-start'));
 
-    expect(onSaveProperties).toHaveBeenCalledWith({ language: 'en' });
-  });
-
-  it('берёт значение из файла по кнопке очистки', async () => {
-    const onSaveProperties = vi.fn();
-    render(BookPage, {
-      props: pageProps({
-        userEntry: { language: 'ru' } as BookPropertyEntry,
-        onSaveProperties,
-      }),
+    // В режиме правки значения полей — это поля ввода с подписями.
+    await fireEvent.input(screen.getByLabelText('Название'), {
+      target: { value: 'Новое название' },
     });
+    await fireEvent.input(screen.getByLabelText('Авторы (через запятую)'), {
+      target: { value: 'Автор, Второй' },
+    });
+    await fireEvent.click(screen.getByTestId('book-edit-save'));
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Язык' }));
-    await fireEvent.click(screen.getByTestId('book-edit-language-clear'));
-
-    // Правка снимается: запись остаётся без поля языка.
-    expect(onSaveProperties).toHaveBeenCalledWith({});
+    expect(onSaveProperties).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Новое название',
+        authors: ['Автор', 'Второй'],
+        language: 'ru',
+        tags: ['тег'],
+      }),
+    );
   });
 
-  it('отменяет правку без сохранения', async () => {
+  it('отменяет редактирование и умеет вернуть значения файла', async () => {
     const onSaveProperties = vi.fn();
-    render(BookPage, { props: pageProps({ onSaveProperties }) });
+    const onResetProperties = vi.fn();
+    render(BookPage, { props: pageProps({ onSaveProperties, onResetProperties }) });
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Язык' }));
-    await fireEvent.click(screen.getByTestId('book-edit-language-cancel'));
+    await fireEvent.click(screen.getByTestId('book-edit-start'));
+    await fireEvent.click(screen.getByTestId('book-edit-cancel'));
 
     expect(onSaveProperties).not.toHaveBeenCalled();
+    expect(screen.getByTestId('book-title')).toBeTruthy();
+
+    await fireEvent.click(screen.getByTestId('book-edit-start'));
+    await fireEvent.click(screen.getByTestId('book-edit-reset'));
+
+    expect(onResetProperties).toHaveBeenCalledTimes(1);
   });
 });
