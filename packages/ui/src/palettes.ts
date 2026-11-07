@@ -10,7 +10,7 @@
 import { t } from '@context/i18n';
 
 /** Идентификатор палитры оформления. */
-export type PaletteId = 'linen' | 'cobalt' | 'gruvbox' | 'mist';
+export type PaletteId = 'linen' | 'frost' | 'amber' | 'mist';
 
 /** Палитра оформления: идентификатор и человекочитаемое название. */
 export interface Palette {
@@ -46,21 +46,21 @@ export const PALETTES: readonly Palette[] = [
     },
   },
   {
-    id: 'cobalt',
+    id: 'frost',
     get title() {
-      return t('app.palette.cobalt');
+      return t('app.palette.frost');
     },
     get description() {
-      return t('app.palette.cobalt.description');
+      return t('app.palette.frost.description');
     },
   },
   {
-    id: 'gruvbox',
+    id: 'amber',
     get title() {
-      return t('app.palette.gruvbox');
+      return t('app.palette.amber');
     },
     get description() {
-      return t('app.palette.gruvbox.description');
+      return t('app.palette.amber.description');
     },
   },
 ];
@@ -70,12 +70,27 @@ export function isPaletteId(value: unknown): value is PaletteId {
   return PALETTES.some((palette) => palette.id === value);
 }
 
+/** Прежние идентификаторы палитр: сохранённое старое значение приводится к текущему.
+ *
+ * Идентификатор палитры попадает в настройки и в зеркало оформления, поэтому
+ * переименование не должно сбрасывать выбор пользователя: файл прежней версии
+ * читается новой программой.
+ */
+const LEGACY_IDS: Record<string, PaletteId> = {
+  cobalt: 'frost',
+  gruvbox: 'amber',
+};
+
 /** Приведение произвольного значения к известному идентификатору палитры.
  *
  * Неизвестное или отсутствующее значение трактуется как палитра по умолчанию,
- * чтобы некорректные данные не оставляли интерфейс без оформления.
+ * чтобы некорректные данные не оставляли интерфейс без оформления; прежний
+ * идентификатор палитры приводится к её новому имени.
  */
 export function normalizePaletteId(value: unknown): PaletteId {
+  if (typeof value === 'string' && value in LEGACY_IDS) {
+    return LEGACY_IDS[value];
+  }
   return isPaletteId(value) ? value : DEFAULT_PALETTE;
 }
 

@@ -154,9 +154,9 @@ const LINEN_DARK_NOTE_TONES: ReaderNoteTones = {
   purple: 'rgba(150, 96, 196, 0.45)',
 };
 
-/** Тёмные тона заметок палитры «Индиго»: те же верные оттенки, приглушённые
+/** Тёмные тона заметок палитры «Иней»: те же верные оттенки, приглушённые
  * полупрозрачностью — тот же приём, что и у «Льна». */
-const COBALT_DARK_NOTE_TONES: ReaderNoteTones = {
+const FROST_DARK_NOTE_TONES: ReaderNoteTones = {
   yellow: 'rgba(202, 150, 40, 0.4)',
   green: 'rgba(74, 158, 96, 0.45)',
   blue: 'rgba(70, 120, 190, 0.5)',
@@ -165,7 +165,7 @@ const COBALT_DARK_NOTE_TONES: ReaderNoteTones = {
 };
 
 /** Тёмные тона заметок палитры «Янтарь»: тёплые, как сама палитра. */
-const GRUVBOX_DARK_NOTE_TONES: ReaderNoteTones = {
+const AMBER_DARK_NOTE_TONES: ReaderNoteTones = {
   yellow: 'rgba(250, 189, 47, 0.4)',
   green: 'rgba(184, 187, 38, 0.4)',
   blue: 'rgba(131, 165, 152, 0.45)',
@@ -187,11 +187,11 @@ export function readerThemeNoteTones(palette: PaletteId, id: ReaderThemeId): Rea
   if (id !== 'dark') {
     return LIGHT_NOTE_TONES;
   }
-  if (palette === 'cobalt') {
-    return COBALT_DARK_NOTE_TONES;
+  if (palette === 'frost') {
+    return FROST_DARK_NOTE_TONES;
   }
-  if (palette === 'gruvbox') {
-    return GRUVBOX_DARK_NOTE_TONES;
+  if (palette === 'amber') {
+    return AMBER_DARK_NOTE_TONES;
   }
   if (palette === 'mist') {
     return MIST_DARK_NOTE_TONES;
@@ -326,7 +326,7 @@ export function readerOverlayTokens(palette: PaletteId, id: ReaderThemeId): Read
  *
  * PDF — изображение листа: чтобы он не оставался белым, растр перекрашивается
  * по яркости. Куда уходит белая бумага (`paper`) и чёрный текст (`ink`) задаёт
- * палитра: у «Льна» бумага тёплая, у «Индиго» — холодная, поэтому и страница
+ * палитра: у «Льна» бумага тёплая, у «Инея» — холодная, поэтому и страница
  * сохраняет оттенок темы. Текст мягче чистого белого — так контраст ниже.
  */
 export interface ReaderPageColors {
@@ -342,15 +342,15 @@ const LINEN_DARK_PAGE: ReaderPageColors = {
   ink: '#d5c4a1',
 };
 
-/** Холодная бумага и мягкий текст «Индиго» для страницы в тёмной теме. */
-/** Холодная синяя бумага и мягкий текст «Индиго» для страницы в тёмной теме. */
-const COBALT_DARK_PAGE: ReaderPageColors = {
+/** Холодная бумага и мягкий текст «Инея» для страницы в тёмной теме. */
+/** Холодная синяя бумага и мягкий текст «Инея» для страницы в тёмной теме. */
+const FROST_DARK_PAGE: ReaderPageColors = {
   paper: '#1b2946',
   ink: '#e4e9f4',
 };
 
 /** Тёплая бумага и мягкий текст «Янтаря» для страницы в тёмной теме. */
-const GRUVBOX_DARK_PAGE: ReaderPageColors = {
+const AMBER_DARK_PAGE: ReaderPageColors = {
   // Ночная бумага с красноватым сдвигом — та же тёплая палитра, что и фон.
   paper: '#2b2523',
   ink: '#d5c4a1',
@@ -365,14 +365,14 @@ const MIST_DARK_PAGE: ReaderPageColors = {
 
 /** Цвета перекраски страницы по палитре (для тёмной стороны темы). */
 export function readerPageColors(palette: PaletteId): ReaderPageColors {
-  if (palette === 'cobalt') {
-    return COBALT_DARK_PAGE;
+  if (palette === 'frost') {
+    return FROST_DARK_PAGE;
   }
   if (palette === 'mist') {
     return MIST_DARK_PAGE;
   }
-  if (palette === 'gruvbox') {
-    return GRUVBOX_DARK_PAGE;
+  if (palette === 'amber') {
+    return AMBER_DARK_PAGE;
   }
   return LINEN_DARK_PAGE;
 }
@@ -395,17 +395,17 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     selectionEdge: 'rgba(60, 100, 145, 0.9)',
     selectionEdgeWidth: 1,
   },
-  cobalt: {
+  frost: {
     background: '#ffffff',
     text: '#16191f',
     muted: '#616a77',
     link: '#1d47a8',
-    // Выделение «Индиго» — привычный синеватый цвет.
+    // Выделение «Инея» — привычный синеватый цвет.
     selection: 'rgba(59, 130, 246, 0.28)',
     selectionEdge: 'rgba(37, 99, 235, 0.9)',
     selectionEdgeWidth: 1,
   },
-  gruvbox: {
+  amber: {
     // Тёплая бумага с янтарным акцентом: выделение тоже янтарное, а не
     // стально-синее — страница и интерфейс держат одну палитру.
     background: '#f8e7c5',
@@ -421,7 +421,7 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     text: '#1c2125',
     muted: '#6b7280',
     link: '#454b52',
-    // «Туман» — нейтральная палитра: выделение серое, без синевы «Индиго».
+    // «Туман» — нейтральная палитра: выделение серое, без синевы «Инея».
     selection: 'rgba(120, 130, 140, 0.32)',
     selectionEdge: 'rgba(70, 78, 86, 0.9)',
     selectionEdgeWidth: 1,
@@ -441,7 +441,7 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     selectionEdge: 'rgba(150, 190, 220, 0.9)',
     selectionEdgeWidth: 1,
   },
-  cobalt: {
+  frost: {
     background: '#0c1526',
     text: '#e4e9f4',
     muted: '#90a0bd',
@@ -450,7 +450,7 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     selectionEdge: 'rgba(147, 197, 253, 0.9)',
     selectionEdgeWidth: 1,
   },
-  gruvbox: {
+  amber: {
     background: '#2b2523',
     text: '#ebdbb2',
     muted: '#b3a08c',
@@ -464,7 +464,7 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     text: '#eceef0',
     muted: '#9aa0a6',
     link: '#b4bbc3',
-    // Нейтральные серые тона выделения: без синевы «Индиго».
+    // Нейтральные серые тона выделения: без синевы «Инея».
     selection: 'rgba(150, 158, 166, 0.3)',
     selectionEdge: 'rgba(200, 206, 212, 0.9)',
     selectionEdgeWidth: 1,

@@ -31,11 +31,17 @@ describe('реестр палитр', () => {
     expect(normalizePaletteId(undefined)).toBe(DEFAULT_PALETTE);
   });
 
+  it('приводит прежний идентификатор палитры к новому имени', () => {
+    // Палитра «Иней» раньше называлась `cobalt`: сохранённый выбор не сбрасывается.
+    expect(normalizePaletteId('cobalt')).toBe('frost');
+    expect(isPaletteId('cobalt')).toBe(false);
+  });
+
   it('называет палитры по-русски, одним складом', () => {
     // Названия — короткие русские существительные одного рода и склада, как
     // «Лён»: латиница в подписях выбивалась из остального интерфейса.
     const titles = PALETTES.map((palette) => palette.title);
-    expect(titles).toEqual(['Туман (по умолчанию)', 'Лён', 'Индиго', 'Янтарь']);
+    expect(titles).toEqual(['Туман (по умолчанию)', 'Лён', 'Иней', 'Янтарь']);
     for (const title of titles) {
       // Пометка «по умолчанию» — приписка к названию, само название односложно.
       const [name] = title.split(' (');
@@ -56,8 +62,8 @@ describe('applyPalette', () => {
   it('выставляет атрибут data-palette', () => {
     const root = { dataset: {} } as unknown as HTMLElement;
 
-    applyPalette('cobalt', root);
-    expect(root.dataset.palette).toBe('cobalt');
+    applyPalette('frost', root);
+    expect(root.dataset.palette).toBe('frost');
   });
 
   it('неизвестную палитру заменяет значением по умолчанию', () => {

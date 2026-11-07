@@ -66,12 +66,12 @@ export const en: Dictionary = {
   'app.searchCreate.add': 'Add',
 
   'app.palette.linen': 'Linen',
-  'app.palette.cobalt': 'Indigo',
-  'app.palette.gruvbox': 'Amber',
+  'app.palette.frost': 'Frost',
+  'app.palette.amber': 'Amber',
   'app.palette.mist': 'Mist (default)',
   'app.palette.linen.description': 'Warm paper with a resin-green accent',
-  'app.palette.cobalt.description': 'Cool blue paper with a deep blue accent',
-  'app.palette.gruvbox.description': 'Warm contrast palette with an amber accent',
+  'app.palette.frost.description': 'Cool blue paper with a deep blue accent',
+  'app.palette.amber.description': 'Warm contrast palette with an amber accent',
   'app.palette.mist.description': 'Calm neutral palette without a colored background',
 
   'app.settings.dirty': 'Unsaved changes',
@@ -199,8 +199,8 @@ export const en: Dictionary = {
   'app.settings.app.general.appearance.palette.description':
     'A set of light and dark interface colors',
   'app.settings.app.general.appearance.palette.option.linen': 'Linen',
-  'app.settings.app.general.appearance.palette.option.cobalt': 'Indigo',
-  'app.settings.app.general.appearance.palette.option.gruvbox': 'Amber',
+  'app.settings.app.general.appearance.palette.option.frost': 'Frost',
+  'app.settings.app.general.appearance.palette.option.amber': 'Amber',
   'app.settings.app.general.appearance.palette.option.mist': 'Mist (default)',
   'app.settings.app.general.appearance.language.label': 'Interface language',
   'app.settings.app.general.appearance.language.option.ru': 'Русский',

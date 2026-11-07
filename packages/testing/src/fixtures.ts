@@ -82,8 +82,8 @@ const SETTINGS_FIELDS: Record<
           title: 'app.settings.app.general.appearance.palette.option.linen',
         },
         {
-          value: 'cobalt',
-          title: 'app.settings.app.general.appearance.palette.option.cobalt',
+          value: 'frost',
+          title: 'app.settings.app.general.appearance.palette.option.frost',
         },
       ],
     },

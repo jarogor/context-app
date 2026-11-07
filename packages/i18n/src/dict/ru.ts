@@ -66,12 +66,12 @@ export const ru = {
   'app.searchCreate.add': 'Добавить',
 
   'app.palette.linen': 'Лён',
-  'app.palette.cobalt': 'Индиго',
-  'app.palette.gruvbox': 'Янтарь',
+  'app.palette.frost': 'Иней',
+  'app.palette.amber': 'Янтарь',
   'app.palette.mist': 'Туман (по умолчанию)',
   'app.palette.linen.description': 'Тёплая бумага со смолистым зелёным акцентом',
-  'app.palette.cobalt.description': 'Голубая бумага с насыщенным синим акцентом',
-  'app.palette.gruvbox.description': 'Тёплая контрастная палитра с янтарным акцентом',
+  'app.palette.frost.description': 'Голубая бумага с насыщенным синим акцентом',
+  'app.palette.amber.description': 'Тёплая контрастная палитра с янтарным акцентом',
   'app.palette.mist.description': 'Спокойная нейтральная палитра без цветного фона',
 
   'app.settings.dirty': 'Есть несохранённые изменения',
@@ -549,8 +549,8 @@ export const ru = {
   'app.settings.app.general.appearance.palette.description':
     'Набор светлых и тёмных цветов интерфейса',
   'app.settings.app.general.appearance.palette.option.linen': 'Лён',
-  'app.settings.app.general.appearance.palette.option.cobalt': 'Индиго',
-  'app.settings.app.general.appearance.palette.option.gruvbox': 'Янтарь',
+  'app.settings.app.general.appearance.palette.option.frost': 'Иней',
+  'app.settings.app.general.appearance.palette.option.amber': 'Янтарь',
   'app.settings.app.general.appearance.palette.option.mist': 'Туман (по умолчанию)',
   'app.settings.app.general.appearance.language.label': 'Язык интерфейса',
   'app.settings.app.general.appearance.language.option.ru': 'Русский',

@@ -50,8 +50,8 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "options": [
             { "value": "mist", "title": "app.settings.app.general.appearance.palette.option.mist" },
             { "value": "linen", "title": "app.settings.app.general.appearance.palette.option.linen" },
-            { "value": "cobalt", "title": "app.settings.app.general.appearance.palette.option.cobalt" },
-            { "value": "gruvbox", "title": "app.settings.app.general.appearance.palette.option.gruvbox" }
+            { "value": "frost", "title": "app.settings.app.general.appearance.palette.option.frost" },
+            { "value": "amber", "title": "app.settings.app.general.appearance.palette.option.amber" }
           ]
         },
         {

@@ -588,13 +588,13 @@ fn theme_palette_reads_setting() {
         "set",
         serde_json::json!({
             "section": "app.general",
-            "values": { "appearance.palette": "cobalt" }
+            "values": { "appearance.palette": "frost" }
         }),
     )
     .expect("сохранение палитры");
     assert_eq!(
         host.theme_palette(),
-        "cobalt",
+        "frost",
         "палитра прочитана из настроек"
     );
     cleanup(&storage);

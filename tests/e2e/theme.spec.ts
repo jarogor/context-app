@@ -110,9 +110,9 @@ test('выбор палитры в настройках меняет цвета 
     .locator('body')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 
-  await chooseAndSave(page, 'Палитра оформления', 'Индиго');
+  await chooseAndSave(page, 'Палитра оформления', 'Иней');
 
-  await expect(page.locator('html')).toHaveAttribute('data-palette', 'cobalt');
+  await expect(page.locator('html')).toHaveAttribute('data-palette', 'frost');
   await expect
     .poll(async () =>
       page.locator('body').evaluate((element) => getComputedStyle(element).backgroundColor),

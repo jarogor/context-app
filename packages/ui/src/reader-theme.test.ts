@@ -109,7 +109,7 @@ describe('readerThemeTokens', () => {
       const lightTokens = readerThemeTokens(palette.id, 'light');
       const darkTokens = readerThemeTokens(palette.id, 'dark');
       // Выделение в тон палитры видно на бумаге своей стороны: у «Янтаря» оно
-      // тёплое, у «Индиго» — синее, у «Тумана» — серое; общее у них только то,
+      // тёплое, у «Инея» — синее, у «Тумана» — серое; общее у них только то,
       // что заливка заметна на фоне.
       for (const tokens of [lightTokens, darkTokens]) {
         expect(visibility(tokens.selection, tokens.background)).toBeGreaterThan(10);
@@ -177,10 +177,10 @@ describe('readerPageColors', () => {
 
   it('бумага темнее текста и палитры различаются', () => {
     const linen = readerPageColors('linen');
-    const cobalt = readerPageColors('cobalt');
-    expect(linen.paper).not.toBe(cobalt.paper);
+    const frost = readerPageColors('frost');
+    expect(linen.paper).not.toBe(frost.paper);
     // Бумага темнее текста, теплее/холоднее нейтрального и не «почти чёрная».
-    for (const colors of [linen, cobalt]) {
+    for (const colors of [linen, frost]) {
       const paper = Number.parseInt(colors.paper.slice(1), 16);
       const ink = Number.parseInt(colors.ink.slice(1), 16);
       const paperLum =
@@ -202,7 +202,7 @@ describe('readerThemeNoteTones', () => {
     expect(tones.blue).toBe('#84adf0');
     expect(tones.red).toBe('#ef817b');
     expect(tones.purple).toBe('#bba0e8');
-    expect(readerThemeNoteTones('cobalt', 'light')).toEqual(tones);
+    expect(readerThemeNoteTones('frost', 'light')).toEqual(tones);
   });
 
   it('тёмная сторона отличается и задана для всех цветов', () => {

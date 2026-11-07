@@ -179,7 +179,7 @@ describe('протокол рабочего места: тема области 
   });
 
   it('для светлой стороны отдаёт светлые токены и тона', () => {
-    const light = buildReaderThemeMessage('cobalt', 'light');
+    const light = buildReaderThemeMessage('frost', 'light');
     expect(light.value.id).toBe('light');
     expect(light.value.tokens.background).toBe('#ffffff');
     expect(light.value.notes.yellow).toBe('#f2cd52');

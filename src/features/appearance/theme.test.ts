@@ -69,9 +69,9 @@ describe('loadThemePreference', () => {
 
 describe('loadThemePalette', () => {
   it('возвращает сохранённую палитру', async () => {
-    invoke.mockResolvedValue('cobalt');
+    invoke.mockResolvedValue('frost');
 
-    await expect(loadThemePalette()).resolves.toBe('cobalt');
+    await expect(loadThemePalette()).resolves.toBe('frost');
     expect(invoke).toHaveBeenCalledWith('theme_palette', {});
   });
 
@@ -119,9 +119,9 @@ describe('applyAppPalette', () => {
   it('выставляет data-palette', () => {
     const root = { dataset: {} } as unknown as HTMLElement;
 
-    applyAppPalette('cobalt', root);
+    applyAppPalette('frost', root);
 
-    expect(root.dataset.palette).toBe('cobalt');
+    expect(root.dataset.palette).toBe('frost');
   });
 
   it('неизвестную палитру заменяет значением по умолчанию', () => {
@@ -195,16 +195,16 @@ describe('paletteFromSettingsEvent', () => {
   it('извлекает палитру из события секции приложения', () => {
     const value = paletteFromSettingsEvent({
       section: APP_SETTINGS_SECTION,
-      values: { 'appearance.palette': 'cobalt' },
+      values: { 'appearance.palette': 'frost' },
     });
 
-    expect(value).toBe('cobalt');
+    expect(value).toBe('frost');
   });
 
   it('игнорирует события других секций', () => {
     const value = paletteFromSettingsEvent({
       section: 'books-source.catalog',
-      values: { 'appearance.palette': 'cobalt' },
+      values: { 'appearance.palette': 'frost' },
     });
 
     expect(value).toBeNull();

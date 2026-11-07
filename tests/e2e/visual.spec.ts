@@ -68,13 +68,13 @@ test('список рабочих мест читается в светлой п
   // Регрессия: в Gruvbox карточка почти совпадала с фоном, и список сливался.
   await page.addInitScript(() => {
     (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
-      handlers: { theme_palette: () => 'gruvbox' },
+      handlers: { theme_palette: () => 'amber' },
     };
   });
   await page.goto('/');
-  await expect(page.locator('html')).toHaveAttribute('data-palette', 'gruvbox');
+  await expect(page.locator('html')).toHaveAttribute('data-palette', 'amber');
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
-  await expect(page).toHaveScreenshot('workspaces-gruvbox.png');
+  await expect(page).toHaveScreenshot('workspaces-amber.png');
 });
 
 test('снимок страницы книги с несколькими форматами', async ({ page }) => {

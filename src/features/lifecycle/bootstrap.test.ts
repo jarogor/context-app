@@ -154,7 +154,7 @@ describe('загрузка начального состояния', () => {
         return 'dark';
       }
       if (command === 'theme_palette') {
-        return 'cobalt';
+        return 'frost';
       }
       if (command === 'reader_theme') {
         return 'dark';
@@ -172,20 +172,20 @@ describe('загрузка начального состояния', () => {
 
     expect(state.appearance).toEqual({
       theme: 'dark',
-      palette: 'cobalt',
+      palette: 'frost',
       readerTheme: 'dark',
       readerFont: 'sans',
       locale: 'en',
     });
     expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(document.documentElement.dataset.palette).toBe('cobalt');
+    expect(document.documentElement.dataset.palette).toBe('frost');
     expect(document.documentElement.dataset.readerTheme).toBe('dark');
     expect(document.documentElement.dataset.readerFont).toBe('sans');
   });
 
   it('оставляет оформление по умолчанию, если чтение не удалось', async () => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    document.documentElement.setAttribute('data-palette', 'cobalt');
+    document.documentElement.setAttribute('data-palette', 'frost');
     invoke.mockImplementation(async (command: string) => {
       if (command === 'get_workspaces') {
         return { workspaces: [] };

@@ -20,7 +20,7 @@ test('статичный экран загрузки следует сохран
     // Зеркало оформления, которое оболочка оставила от прошлого запуска.
     window.localStorage.setItem(
       'context.appearance',
-      JSON.stringify({ theme: 'dark', palette: 'cobalt' }),
+      JSON.stringify({ theme: 'dark', palette: 'frost' }),
     );
   });
   // Модули не загружаются: проверяется именно статичный экран из index.html,
@@ -30,7 +30,7 @@ test('статичный экран загрузки следует сохран
   await page.goto('/');
   // Скрипт экрана загрузки выставляет тему и палитру до первого кадра.
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('html')).toHaveAttribute('data-palette', 'cobalt');
+  await expect(page.locator('html')).toHaveAttribute('data-palette', 'frost');
   await expect(page.locator('#boot')).toBeVisible();
 });
 

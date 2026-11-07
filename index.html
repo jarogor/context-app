@@ -23,8 +23,14 @@
         } catch (error) {
           appearance = null;
         }
-        var known = ['mist', 'linen', 'cobalt', 'gruvbox'];
-        var palette = known.indexOf(appearance && appearance.palette) >= 0 ? appearance.palette : 'mist';
+        var known = ['mist', 'linen', 'frost', 'amber'];
+        // Прежнее имя палитры «Иней»: сохранённое значение не сбрасывается.
+        var legacy = { cobalt: 'frost', gruvbox: 'amber' };
+        var stored = appearance && appearance.palette;
+        if (stored && legacy[stored]) {
+          stored = legacy[stored];
+        }
+        var palette = known.indexOf(stored) >= 0 ? stored : 'mist';
         var preference = appearance && appearance.theme ? appearance.theme : 'system';
         var dark =
           preference === 'dark' ||
@@ -66,22 +72,22 @@
         --boot-foreground: #e7e2d7;
         --boot-muted-foreground: #9d968a;
       }
-      :root[data-palette='cobalt'] {
+      :root[data-palette='frost'] {
         --boot-background: #e6ecf7;
         --boot-foreground: #0f1622;
         --boot-muted-foreground: #495a78;
       }
-      :root[data-palette='cobalt'][data-theme='dark'] {
+      :root[data-palette='frost'][data-theme='dark'] {
         --boot-background: #0c1526;
         --boot-foreground: #e4e9f4;
         --boot-muted-foreground: #90a0bd;
       }
-      :root[data-palette='gruvbox'] {
+      :root[data-palette='amber'] {
         --boot-background: #f8e7c5;
         --boot-foreground: #3c3836;
         --boot-muted-foreground: #715e49;
       }
-      :root[data-palette='gruvbox'][data-theme='dark'] {
+      :root[data-palette='amber'][data-theme='dark'] {
         --boot-background: #2b2523;
         --boot-foreground: #ebdbb2;
         --boot-muted-foreground: #b3a08c;
