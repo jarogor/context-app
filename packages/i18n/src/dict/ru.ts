@@ -300,7 +300,6 @@ export const ru = {
   'app.library.book.field.publisher': 'Издатель',
   'app.library.book.field.identifier': 'Идентификатор',
   'app.library.book.field.tags': 'Теги (через запятую)',
-  'app.library.book.save': 'Сохранить',
   'app.library.book.reset': 'Взять из файла',
   'app.library.book.language': 'Язык',
   'app.library.book.published': 'Дата выхода книги',
@@ -312,6 +311,8 @@ export const ru = {
   'app.library.book.description': 'Описание',
   'app.library.book.openFolder': 'Открыть папку с файлом',
   'app.library.book.title': 'Страница книги',
+  'app.library.book.file': 'Файл',
+  'app.library.book.authors': 'Автор',
   'app.library.empty.noLibrary.title': 'Библиотека не открыта',
   'app.library.empty.noLibrary.description':
     'Откройте директорию с книгами в разделе «Библиотеки».',

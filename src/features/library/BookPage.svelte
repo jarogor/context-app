@@ -1,14 +1,5 @@
 <script lang="ts">
-  import {
-    Badge,
-    BookCover,
-    Button,
-    Dialog,
-    ErrorState,
-    Icon,
-    IconButton,
-    Input,
-  } from '@context/ui';
+  import { BookCover, Button, EditableValue, ErrorState, Icon } from '@context/ui';
   import { t } from '@context/i18n';
   import { formatBytes, formatDateTime } from '../../shared/format';
   import type { BookPropertyEntry } from './book-properties';
@@ -16,6 +7,9 @@
 
   /** Свойство книги, по которому можно перейти к списку с фильтром. */
   export type BookPropertyKind = 'author' | 'format' | 'language' | 'tag';
+
+  /** Свойство книги, которое можно править по месту. */
+  type EditableField = 'title' | 'authors' | 'language' | 'published' | 'publisher' | 'identifier' | 'tags';
 
   interface Props {
     /** Открытая книга. */
@@ -65,8 +59,8 @@
     onFilterBy,
   }: Props = $props();
 
-  /** Авторы книги списком. */
-  const authorList = $derived(book.authors.map((author) => author.name).join(', '));
+  /** Авторы книги. */
+  const authors = $derived(book.authors.map((author) => author.name));
 
   /** Теги книги. */
   const tags = $derived(book.tags.map((tag) => tag.name));
@@ -80,34 +74,42 @@
   /** Описание книги. */
   const description = $derived(book.description?.trim() ?? '');
 
-  /** Открыт ли диалог правки сведений. */
-  let editing = $state(false);
+  /** Поле, которое сейчас правится, либо `null`. */
+  let editingField = $state<EditableField | null>(null);
 
-  /** Поля диалога правки. */
-  let editTitle = $state('');
-  /** Авторы через запятую. */
-  let editAuthors = $state('');
-  /** Язык книги. */
-  let editLanguage = $state('');
-  /** Дата выхода книги. */
-  let editPublished = $state('');
-  /** Издатель. */
-  let editPublisher = $state('');
-  /** Идентификатор издания. */
-  let editIdentifier = $state('');
-  /** Теги через запятую. */
-  let editTags = $state('');
+  /** Черновик значения правимого поля. */
+  let draft = $state('');
 
-  /** Открытие диалога правки с текущими значениями. */
-  function startEditing() {
-    editTitle = book.title;
-    editAuthors = authorList;
-    editLanguage = book.language ?? '';
-    editPublished = book.published ?? '';
-    editPublisher = book.publisher ?? '';
-    editIdentifier = book.identifier ?? '';
-    editTags = tags.join(', ');
-    editing = true;
+  /** Текущее значение поля в том виде, в каком оно правится. */
+  function fieldValue(field: EditableField): string {
+    switch (field) {
+      case 'title':
+        return book.title;
+      case 'authors':
+        return authors.join(', ');
+      case 'tags':
+        return tags.join(', ');
+      case 'language':
+        return book.language ?? '';
+      case 'published':
+        return book.published ?? '';
+      case 'publisher':
+        return book.publisher ?? '';
+      case 'identifier':
+        return book.identifier ?? '';
+    }
+  }
+
+  /** Начало правки поля: в поле попадает текущее значение. */
+  function startEdit(field: EditableField) {
+    editingField = field;
+    draft = fieldValue(field);
+  }
+
+  /** Отмена правки без изменений. */
+  function cancelEdit() {
+    editingField = null;
+    draft = '';
   }
 
   /** Список значений из строки через запятую. */
@@ -118,39 +120,67 @@
       .filter(Boolean);
   }
 
-  /** Непустое значение поля. */
-  function fieldText(value: string): string | undefined {
-    const trimmed = value.trim();
-    return trimmed ? trimmed : undefined;
+  /** Сохранение правки поля: пустое значение означает «как в файле». */
+  function saveEdit() {
+    if (!editingField) {
+      return;
+    }
+    const entry: BookPropertyEntry = { ...userEntry };
+    const text = draft.trim();
+    if (editingField === 'authors') {
+      const list = splitList(text);
+      entry.authors = list.length > 0 ? list : undefined;
+    } else if (editingField === 'tags') {
+      const list = splitList(text);
+      entry.tags = list.length > 0 ? list : undefined;
+    } else if (editingField === 'title') {
+      entry.title = text || undefined;
+    } else {
+      entry[editingField] = text || undefined;
+    }
+    onSaveProperties(entry);
+    editingField = null;
+    draft = '';
   }
 
-  /** Сохранение правки сведений. */
-  function submitEdit() {
-    const editedTags = splitList(editTags);
-    onSaveProperties({
-      title: fieldText(editTitle),
-      authors: splitList(editAuthors),
-      language: fieldText(editLanguage),
-      published: fieldText(editPublished),
-      publisher: fieldText(editPublisher),
-      identifier: fieldText(editIdentifier),
-      tags: editedTags.length > 0 ? editedTags : undefined,
-    });
-    editing = false;
+  /** Снятие правки поля: значение снова берётся из файла. */
+  function clearEdit() {
+    if (!editingField) {
+      return;
+    }
+    const entry: BookPropertyEntry = { ...userEntry };
+    delete entry[editingField];
+    onSaveProperties(entry);
+    editingField = null;
+    draft = '';
   }
 
-  /** Возврат к значениям файла. */
-  function resetToFile() {
-    onResetProperties();
-    editing = false;
+  /** Есть ли у поля сохранённая правка (что снимать). */
+  function canClear(field: EditableField): boolean {
+    switch (field) {
+      case 'authors':
+        return (userEntry.authors?.length ?? 0) > 0;
+      case 'tags':
+        return (userEntry.tags?.length ?? 0) > 0;
+      default:
+        return userEntry[field] !== undefined;
+    }
   }
 </script>
 
+{#snippet filterLink(text: string, kind: BookPropertyKind, value: string)}
+  <button
+    type="button"
+    class="cursor-pointer bg-transparent text-left underline decoration-[var(--border)] decoration-dotted underline-offset-2 transition-colors [font:inherit] hover:text-[var(--primary)] hover:decoration-[var(--primary)]"
+    title={t('app.library.book.filterBy', { value: text })}
+    onclick={() => onFilterBy(kind, value)}
+  >
+    {text}
+  </button>
+{/snippet}
+
 <div class="@container flex min-h-0 min-w-0 flex-1 flex-col" data-testid="book-page">
-  <!--
-    Шапка страницы книги: возврат к списку слева, правка сведений справа.
-    Одно действие на страницу: правится карточка целиком, а не её части.
-  -->
+  <!-- Шапка страницы книги: возврат к списку. Правка — у каждого свойства. -->
   <header
     class="flex flex-none items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-2.5 md:px-6"
   >
@@ -158,22 +188,9 @@
       <Icon name="chevron-left" />
       {t('app.library.book.back')}
     </Button>
-    <div class="ml-auto">
-      <IconButton
-        action="edit"
-        size="sm"
-        title={t('app.library.book.edit')}
-        ariaLabel={t('app.library.book.edit')}
-        onclick={startEditing}
-      />
-    </div>
   </header>
 
   <div class="min-h-0 flex-1 overflow-y-auto">
-    <!--
-      Предупреждение о неподдерживаемом формате — вверху, над сведениями о книге:
-      внизу его никто не замечает.
-    -->
     {#if !canRead}
       <div
         class="flex-none border-b border-[var(--warning)] bg-[var(--card)] px-4 py-2.5 role-body md:px-6"
@@ -189,33 +206,51 @@
           <BookCover src={book.coverUri ?? null} class="rounded-[var(--radius)]" />
         </div>
 
-        <div class="flex min-w-0 flex-1 flex-col gap-3">
-          <h1 class="role-display text-[var(--foreground)]" data-testid="book-title">
-            {book.title}
-          </h1>
+        <div class="flex min-w-0 flex-1 flex-col gap-4">
+          <EditableValue
+            label={t('app.library.book.field.title')}
+            editing={editingField === 'title'}
+            bind:draft
+            canClear={canClear('title')}
+            onStart={() => startEdit('title')}
+            onSave={saveEdit}
+            onCancel={cancelEdit}
+            onClear={clearEdit}
+            testId="book-edit-title"
+          >
+            {#snippet display()}
+              <h1 class="min-w-0 role-display text-[var(--foreground)]" data-testid="book-title">
+                {book.title}
+              </h1>
+            {/snippet}
+          </EditableValue>
 
-          <!--
-            Автор — ссылка на список его книг. Отдельного свойства «автор» нет:
-            он уже назван здесь, дублировать нечего.
-          -->
-          {#if authorList}
-            <p class="role-subtitle text-[var(--muted-foreground)]">
-              <button
-                type="button"
-                class="cursor-pointer bg-transparent text-left underline-offset-2 hover:text-[var(--primary)] hover:underline [font:inherit]"
-                title={t('app.library.book.filterBy', { value: authorList })}
-                data-testid="book-author-link"
-                onclick={() => onFilterBy('author', book.authors[0]?.name ?? authorList)}
-              >
-                {authorList}
-              </button>
-            </p>
+          {#if authors.length > 0}
+            <EditableValue
+              label={t('app.library.book.field.authors')}
+              editing={editingField === 'authors'}
+              bind:draft
+              canClear={canClear('authors')}
+              onStart={() => startEdit('authors')}
+              onSave={saveEdit}
+              onCancel={cancelEdit}
+              onClear={clearEdit}
+              testId="book-edit-authors"
+            >
+              {#snippet display()}
+                <span
+                  class="flex min-w-0 flex-wrap items-center gap-x-1 role-subtitle text-[var(--muted-foreground)]"
+                  data-testid="book-authors"
+                >
+                  {#each authors as author, index (author)}
+                    {#if index > 0}<span>,</span>{/if}
+                    {@render filterLink(author, 'author', author)}
+                  {/each}
+                </span>
+              {/snippet}
+            </EditableValue>
           {/if}
 
-          <!--
-            Формат и действия: «Читать» открывает файл этого формата вкладкой,
-            «Открыть» — файлом. Метка формата ведёт к книгам того же формата.
-          -->
           {#if formats.length > 0}
             <div class="flex flex-col gap-2" data-testid="book-formats">
               {#each formats as entry (entry.format)}
@@ -223,17 +258,9 @@
                   class="flex flex-wrap items-center gap-2"
                   data-testid="book-format-{entry.format}"
                 >
-                  <button
-                    type="button"
-                    class="cursor-pointer bg-transparent p-0 [font:inherit]"
-                    title={t('app.library.book.filterBy', { value: entry.format.toUpperCase() })}
-                    data-testid="book-format-link-{entry.format}"
-                    onclick={() => onFilterBy('format', entry.format)}
-                  >
-                    <Badge variant={entry.readable ? 'outline' : 'muted'}>
-                      {entry.format.toUpperCase()}
-                    </Badge>
-                  </button>
+                  <span class="min-w-[3rem] role-caption">
+                    {@render filterLink(entry.format.toUpperCase(), 'format', entry.format)}
+                  </span>
                   {#if entry.readable}
                     <Button
                       variant="primary"
@@ -260,89 +287,120 @@
             </div>
           {/if}
 
-          <!-- Теги — ссылки на список книг с тем же тегом. -->
-          {#if tags.length > 0}
-            <div
-              class="flex flex-wrap items-center gap-1.5"
-              aria-label={t('app.library.book.tags')}
-              data-testid="book-tags"
-            >
-              {#each tags as tag (tag)}
-                <button
-                  type="button"
-                  class="cursor-pointer rounded-full border border-[var(--border)] bg-[var(--card)] px-2.5 py-0.5 role-caption text-[var(--muted-foreground)] transition-colors [font:inherit] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-                  title={t('app.library.book.filterBy', { value: tag })}
-                  onclick={() => onFilterBy('tag', tag)}
-                >
-                  {tag}
-                </button>
-              {/each}
-            </div>
-          {/if}
+          <EditableValue
+            label={t('app.library.book.field.tags')}
+            editing={editingField === 'tags'}
+            bind:draft
+            canClear={canClear('tags')}
+            onStart={() => startEdit('tags')}
+            onSave={saveEdit}
+            onCancel={cancelEdit}
+            onClear={clearEdit}
+            testId="book-edit-tags"
+          >
+            {#snippet display()}
+              <span class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                <span class="role-caption text-[var(--muted-foreground)]">
+                  {t('app.library.book.tags')}:
+                </span>
+                {#if tags.length === 0}
+                  <span class="role-caption text-[var(--muted-foreground)]">—</span>
+                {:else}
+                  {#each tags as tag, index (tag)}
+                    {#if index > 0}<span class="text-[var(--muted-foreground)]">,</span>{/if}
+                    {@render filterLink(tag, 'tag', tag)}
+                  {/each}
+                {/if}
+              </span>
+            {/snippet}
+          </EditableValue>
 
-          <!-- Сведения об издании: только заполненные строки. -->
+          <!--
+            Сведения об издании: короткие значения идут подряд с подписями —
+            таблица из двух колонок заняла бы больше места, чем сами значения.
+          -->
           {#if published || book.language || book.publisher || book.identifier}
-            <dl
-              class="m-0 flex flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]"
-              data-testid="book-properties"
-            >
+            <div class="flex flex-wrap items-start gap-x-6 gap-y-2" data-testid="book-properties">
               {#if published}
-                <div
-                  class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2 last:border-b-0 sm:flex-row sm:gap-4"
-                >
-                  <dt class="w-[9rem] shrink-0 role-caption text-[var(--muted-foreground)]">
-                    {t('app.library.book.published')}
-                  </dt>
-                  <dd class="m-0 min-w-0 role-body" data-testid="book-property-published">
-                    {published}
-                  </dd>
-                </div>
+                <span class="flex items-center gap-1">
+                  <span class="role-caption text-[var(--muted-foreground)]">
+                    {t('app.library.book.published')}:
+                  </span>
+                  <EditableValue
+                    value={published}
+                    label={t('app.library.book.field.published')}
+                    editing={editingField === 'published'}
+                    bind:draft
+                    canClear={canClear('published')}
+                    onStart={() => startEdit('published')}
+                    onSave={saveEdit}
+                    onCancel={cancelEdit}
+                    onClear={clearEdit}
+                    testId="book-edit-published"
+                  />
+                </span>
               {/if}
               {#if book.language}
-                <div
-                  class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2 last:border-b-0 sm:flex-row sm:gap-4"
-                >
-                  <dt class="w-[9rem] shrink-0 role-caption text-[var(--muted-foreground)]">
-                    {t('app.library.book.language')}
-                  </dt>
-                  <dd class="m-0 min-w-0 role-body">
-                    <button
-                      type="button"
-                      class="cursor-pointer bg-transparent text-left underline-offset-2 hover:text-[var(--primary)] hover:underline [font:inherit]"
-                      title={t('app.library.book.filterBy', { value: book.language })}
-                      data-testid="book-property-language"
-                      onclick={() => onFilterBy('language', book.language as string)}
-                    >
-                      {book.language}
-                    </button>
-                  </dd>
-                </div>
+                <span class="flex items-center gap-1">
+                  <span class="role-caption text-[var(--muted-foreground)]">
+                    {t('app.library.book.language')}:
+                  </span>
+                  <EditableValue
+                    label={t('app.library.book.field.language')}
+                    editing={editingField === 'language'}
+                    bind:draft
+                    canClear={canClear('language')}
+                    onStart={() => startEdit('language')}
+                    onSave={saveEdit}
+                    onCancel={cancelEdit}
+                    onClear={clearEdit}
+                    testId="book-edit-language"
+                  >
+                    {#snippet display()}
+                      {@render filterLink(book.language as string, 'language', book.language as string)}
+                    {/snippet}
+                  </EditableValue>
+                </span>
               {/if}
               {#if book.publisher}
-                <div
-                  class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2 last:border-b-0 sm:flex-row sm:gap-4"
-                >
-                  <dt class="w-[9rem] shrink-0 role-caption text-[var(--muted-foreground)]">
-                    {t('app.library.book.publisher')}
-                  </dt>
-                  <dd class="m-0 min-w-0 role-body" data-testid="book-property-publisher">
-                    {book.publisher}
-                  </dd>
-                </div>
+                <span class="flex items-center gap-1">
+                  <span class="role-caption text-[var(--muted-foreground)]">
+                    {t('app.library.book.publisher')}:
+                  </span>
+                  <EditableValue
+                    value={book.publisher}
+                    label={t('app.library.book.field.publisher')}
+                    editing={editingField === 'publisher'}
+                    bind:draft
+                    canClear={canClear('publisher')}
+                    onStart={() => startEdit('publisher')}
+                    onSave={saveEdit}
+                    onCancel={cancelEdit}
+                    onClear={clearEdit}
+                    testId="book-edit-publisher"
+                  />
+                </span>
               {/if}
               {#if book.identifier}
-                <div
-                  class="flex flex-col gap-1 border-b border-[var(--divider)] px-3 py-2 last:border-b-0 sm:flex-row sm:gap-4"
-                >
-                  <dt class="w-[9rem] shrink-0 role-caption text-[var(--muted-foreground)]">
-                    {t('app.library.book.identifier')}
-                  </dt>
-                  <dd class="m-0 min-w-0 role-body" data-testid="book-property-identifier">
-                    {book.identifier}
-                  </dd>
-                </div>
+                <span class="flex items-center gap-1">
+                  <span class="role-caption text-[var(--muted-foreground)]">
+                    {t('app.library.book.identifier')}:
+                  </span>
+                  <EditableValue
+                    value={book.identifier}
+                    label={t('app.library.book.field.identifier')}
+                    editing={editingField === 'identifier'}
+                    bind:draft
+                    canClear={canClear('identifier')}
+                    onStart={() => startEdit('identifier')}
+                    onSave={saveEdit}
+                    onCancel={cancelEdit}
+                    onClear={clearEdit}
+                    testId="book-edit-identifier"
+                  />
+                </span>
               {/if}
-            </dl>
+            </div>
           {/if}
 
           {#if description}
@@ -356,102 +414,45 @@
       </div>
 
       <!--
-        Технические сведения о файле — в самом низу: путь, размер и дата
-        добавления нужны редко, и им не место среди свойств книги.
+        Файл: путь и размер с датой добавления. Кнопка папки — обычная кнопка с
+        подписью, а не значок: по одному значку непонятно, что это действие.
       -->
       {#if path || book.size !== undefined || added}
-        <dl
-          class="m-0 flex flex-col gap-1 border-t border-[var(--divider)] pt-4 role-caption text-[var(--muted-foreground)]"
+        <div
+          class="flex flex-col gap-2 border-t border-[var(--divider)] pt-4"
           data-testid="book-file"
         >
+          <span class="role-caption text-[var(--muted-foreground)]">
+            {t('app.library.book.file')}
+          </span>
           {#if path}
-            <div class="flex flex-wrap items-center gap-2">
-              <dt class="w-[9rem] shrink-0">{t('app.library.book.path')}</dt>
-              <dd class="m-0 min-w-0 break-all font-mono" data-testid="book-property-path">
-                {path}
-              </dd>
-              <Button
-                variant="ghost"
-                size="icon"
-                title={t('app.library.book.openFolder')}
-                ariaLabel={t('app.library.book.openFolder')}
-                testId="book-open-folder"
-                onclick={onOpenFolder}
-              >
+            <div class="flex flex-wrap items-center gap-3">
+              <Button variant="secondary" size="sm" testId="book-open-folder" onclick={onOpenFolder}>
                 <Icon name="folder" />
+                {t('app.library.book.openFolder')}
               </Button>
+              <span
+                class="min-w-0 break-all font-mono role-caption text-[var(--muted-foreground)]"
+                data-testid="book-property-path">{path}</span
+              >
             </div>
           {/if}
-          {#if book.size !== undefined}
-            <div class="flex flex-wrap items-center gap-2">
-              <dt class="w-[9rem] shrink-0">{t('app.library.book.size')}</dt>
-              <dd class="m-0 min-w-0" data-testid="book-property-size">{formatBytes(book.size)}</dd>
-            </div>
-          {/if}
-          {#if added}
-            <div class="flex flex-wrap items-center gap-2">
-              <dt class="w-[9rem] shrink-0">{t('app.library.book.added')}</dt>
-              <dd class="m-0 min-w-0" data-testid="book-property-added">{added}</dd>
-            </div>
-          {/if}
-        </dl>
+          <div
+            class="flex flex-wrap items-center gap-x-6 gap-y-1 role-caption text-[var(--muted-foreground)]"
+          >
+            {#if book.size !== undefined}
+              <span data-testid="book-property-size">
+                {t('app.library.book.size')}: {formatBytes(book.size)}
+              </span>
+            {/if}
+            {#if added}
+              <span data-testid="book-property-added">
+                {t('app.library.book.added')}: {added}
+              </span>
+            {/if}
+          </div>
+        </div>
       {/if}
     </div>
   </div>
-
-  <!--
-    Правка сведений: пустое поле оставляет значение из файла, «Взять из файла»
-    убирает правку книги целиком. Файл не меняется.
-  -->
-  <Dialog bind:open={editing} title={t('app.library.book.edit')}>
-    <div class="flex flex-col gap-3" data-testid="book-edit-form">
-      <Input
-        bind:value={editTitle}
-        placeholder={t('app.library.book.field.title')}
-        ariaLabel={t('app.library.book.field.title')}
-      />
-      <Input
-        bind:value={editAuthors}
-        placeholder={t('app.library.book.field.authors')}
-        ariaLabel={t('app.library.book.field.authors')}
-      />
-      <div class="flex flex-col gap-2 sm:flex-row">
-        <Input
-          bind:value={editLanguage}
-          placeholder={t('app.library.book.field.language')}
-          ariaLabel={t('app.library.book.field.language')}
-          class="sm:flex-1"
-        />
-        <Input
-          bind:value={editPublished}
-          placeholder={t('app.library.book.field.published')}
-          ariaLabel={t('app.library.book.field.published')}
-          class="sm:flex-1"
-        />
-      </div>
-      <Input
-        bind:value={editPublisher}
-        placeholder={t('app.library.book.field.publisher')}
-        ariaLabel={t('app.library.book.field.publisher')}
-      />
-      <Input
-        bind:value={editIdentifier}
-        placeholder={t('app.library.book.field.identifier')}
-        ariaLabel={t('app.library.book.field.identifier')}
-      />
-      <Input
-        bind:value={editTags}
-        placeholder={t('app.library.book.field.tags')}
-        ariaLabel={t('app.library.book.field.tags')}
-      />
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-        <Button variant="ghost" size="sm" testId="book-edit-reset" onclick={resetToFile}>
-          {t('app.library.book.reset')}
-        </Button>
-        <Button variant="primary" size="sm" testId="book-edit-save" onclick={submitEdit}>
-          {t('app.library.book.save')}
-        </Button>
-      </div>
-    </div>
-  </Dialog>
 </div>

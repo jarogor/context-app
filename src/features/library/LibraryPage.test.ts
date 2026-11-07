@@ -342,24 +342,21 @@ describe('сортировка и фильтры библиотеки', () => {
     expect(screen.queryByTestId('library-filters-count')).toBeNull();
   });
 
-  it('сортировка в панели — компактный список с переключателем направления', async () => {
+  it('сортировка стоит в полосе управления, а не в панели фильтров', async () => {
     await openLibrary();
 
-    await fireEvent.click(screen.getByTestId('library-filters-open'));
-    const panel = await screen.findByTestId('library-filters');
-    // В полосе управления выпадающих списков нет, в панели — ровно один.
-    expect(within(screen.getByTestId('library-controls')).queryAllByRole('combobox')).toHaveLength(
-      0,
-    );
-    expect(within(panel).getAllByRole('button', { name: 'Сортировка' })).toHaveLength(1);
-
-    const direction = within(panel).getByTestId('library-sort-direction');
-    // При сортировке по возрастанию кнопка предлагает обратный порядок.
+    const controls = screen.getByTestId('library-controls');
+    // Список сортировки и переключатель направления — в полосе.
+    expect(within(controls).getByRole('button', { name: 'Сортировка' })).toBeTruthy();
+    const direction = within(controls).getByTestId('library-sort-direction');
     expect(direction.getAttribute('aria-label')).toBe('По убыванию');
 
     await fireEvent.click(direction);
-
     await waitFor(() => expect(direction.getAttribute('aria-label')).toBe('По возрастанию'));
+
+    await fireEvent.click(screen.getByTestId('library-filters-open'));
+    const panel = await screen.findByTestId('library-filters');
+    expect(within(panel).queryByRole('button', { name: 'Сортировка' })).toBeNull();
   });
 
   it('флажок «без обложки» считается среди фильтров', async () => {

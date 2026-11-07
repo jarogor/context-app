@@ -569,7 +569,6 @@
       >
         <Button
           variant={filtersOpen ? 'primary' : 'secondary'}
-          size="sm"
           testId="library-filters-open"
           ariaLabel={t('app.library.filters.open')}
           ariaPressed={filtersOpen}
@@ -592,10 +591,32 @@
           class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
           oninput={onSearchInput}
         />
+        <span class="role-caption text-[var(--muted-foreground)]">
+          {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
+        </span>
         <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <span class="mr-auto role-caption text-[var(--muted-foreground)] sm:mr-0">
-            {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
-          </span>
+          <!-- Сортировка — компактный список с переключателем направления. -->
+          <Select
+            value={sortField}
+            items={sortOptions}
+            ariaLabel={t('app.library.filters.sort')}
+            class="w-[11rem]"
+            onchange={(value) => chooseSort(value as SortField)}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            title={sortDirection === 'asc'
+              ? t('app.library.sort.desc')
+              : t('app.library.sort.asc')}
+            ariaLabel={sortDirection === 'asc'
+              ? t('app.library.sort.desc')
+              : t('app.library.sort.asc')}
+            testId="library-sort-direction"
+            onclick={toggleDirection}
+          >
+            <Icon name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} />
+          </Button>
           <div
             class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
             role="group"
@@ -641,37 +662,6 @@
               class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-2"
               data-testid="library-filter-sections"
             >
-              <!-- Сортировка — компактный список с переключателем направления. -->
-              <section class="flex flex-col gap-1.5">
-                <h3 class="px-1 role-caption text-[var(--muted-foreground)]">
-                  {t('app.library.filters.sort')}
-                </h3>
-                <div class="flex items-center gap-1">
-                  <Select
-                    value={sortField}
-                    items={sortOptions}
-                    ariaLabel={t('app.library.filters.sort')}
-                    size="sm"
-                    class="min-w-0 flex-1"
-                    onchange={(value) => chooseSort(value as SortField)}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    title={sortDirection === 'asc'
-                      ? t('app.library.sort.desc')
-                      : t('app.library.sort.asc')}
-                    ariaLabel={sortDirection === 'asc'
-                      ? t('app.library.sort.desc')
-                      : t('app.library.sort.asc')}
-                    testId="library-sort-direction"
-                    onclick={toggleDirection}
-                  >
-                    <Icon name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} />
-                  </Button>
-                </div>
-              </section>
-
               <!-- Обложка — обычный флажок: сворачивать нечего. -->
               <label
                 class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 hover:bg-[var(--surface-hover)]"

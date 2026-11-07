@@ -26,7 +26,7 @@ test('клик по книге открывает страницу книги с
 
   await expect(library.getByTestId('book-title')).toHaveText('Демо-книга');
   // Автор — ссылка на список его книг, отдельного свойства «автор» нет.
-  await expect(library.getByTestId('book-author-link')).toHaveText('Тестовый автор');
+  await expect(library.getByTestId('book-authors')).toContainText('Тестовый автор');
 });
 
 test('страница книги предлагает чтение и открытие', async ({ page }) => {

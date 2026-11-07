@@ -316,7 +316,6 @@ export const en: Dictionary = {
   'app.library.book.field.publisher': 'Publisher',
   'app.library.book.field.identifier': 'Identifier',
   'app.library.book.field.tags': 'Tags (comma separated)',
-  'app.library.book.save': 'Save',
   'app.library.book.reset': 'Take from the file',
   'app.library.book.language': 'Language',
   'app.library.book.published': 'Book publication date',
@@ -328,6 +327,8 @@ export const en: Dictionary = {
   'app.library.book.description': 'Description',
   'app.library.book.openFolder': 'Open the folder with the file',
   'app.library.book.title': 'Book page',
+  'app.library.book.file': 'File',
+  'app.library.book.authors': 'Author',
   'app.library.empty.noLibrary.title': 'Library is not open',
   'app.library.empty.noLibrary.description':
     'Open a directory with books in the «Libraries» section.',
