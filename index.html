@@ -23,8 +23,8 @@
         } catch (error) {
           appearance = null;
         }
-        var known = ['linen', 'cobalt', 'gruvbox', 'mist'];
-        var palette = known.indexOf(appearance && appearance.palette) >= 0 ? appearance.palette : 'linen';
+        var known = ['mist', 'linen', 'cobalt', 'gruvbox'];
+        var palette = known.indexOf(appearance && appearance.palette) >= 0 ? appearance.palette : 'mist';
         var preference = appearance && appearance.theme ? appearance.theme : 'system';
         var dark =
           preference === 'dark' ||

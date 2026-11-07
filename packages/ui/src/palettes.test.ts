@@ -13,6 +13,11 @@ describe('реестр палитр', () => {
     expect(PALETTES.some((palette) => palette.id === DEFAULT_PALETTE)).toBe(true);
   });
 
+  it('ставит палитру по умолчанию первой', () => {
+    // Порядок реестра — порядок выбора: умолчание читается первым.
+    expect(PALETTES[0].id).toBe(DEFAULT_PALETTE);
+  });
+
   it('распознаёт известные идентификаторы', () => {
     for (const palette of PALETTES) {
       expect(isPaletteId(palette.id)).toBe(true);
@@ -30,10 +35,12 @@ describe('реестр палитр', () => {
     // Названия — короткие русские существительные одного рода и склада, как
     // «Лён»: латиница в подписях выбивалась из остального интерфейса.
     const titles = PALETTES.map((palette) => palette.title);
-    expect(titles).toEqual(['Лён', 'Индиго', 'Янтарь', 'Графит']);
+    expect(titles).toEqual(['Туман (по умолчанию)', 'Лён', 'Индиго', 'Янтарь']);
     for (const title of titles) {
-      expect(title).toMatch(/^[А-ЯЁ][а-яё]+$/);
-      expect(title.length).toBeLessThanOrEqual(8);
+      // Пометка «по умолчанию» — приписка к названию, само название односложно.
+      const [name] = title.split(' (');
+      expect(name).toMatch(/^[А-ЯЁ][а-яё]+$/);
+      expect(name.length).toBeLessThanOrEqual(8);
     }
   });
 

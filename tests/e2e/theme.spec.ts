@@ -105,7 +105,7 @@ test('тема оформления есть и кнопкой, и настро�
 test('выбор палитры в настройках меняет цвета интерфейса', async ({ page }) => {
   await openSettings(page);
 
-  await expect(page.locator('html')).toHaveAttribute('data-palette', 'linen');
+  await expect(page.locator('html')).toHaveAttribute('data-palette', 'mist');
   const background = await page
     .locator('body')
     .evaluate((element) => getComputedStyle(element).backgroundColor);

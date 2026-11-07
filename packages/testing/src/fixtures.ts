@@ -70,9 +70,13 @@ const SETTINGS_FIELDS: Record<
       key: 'appearance.palette',
       title: 'app.settings.app.general.appearance.palette.label',
       type: 'select',
-      default: 'linen',
+      default: 'mist',
       description: 'app.settings.app.general.appearance.palette.description',
       options: [
+        {
+          value: 'mist',
+          title: 'app.settings.app.general.appearance.palette.option.mist',
+        },
         {
           value: 'linen',
           title: 'app.settings.app.general.appearance.palette.option.linen',
@@ -105,7 +109,7 @@ let activationPending = false;
 const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
   'app.general': {
     'appearance.theme': 'system',
-    'appearance.palette': 'linen',
+    'appearance.palette': 'mist',
     'appearance.language': 'ru',
     'reader.theme': 'light',
     'reader.font': 'serif',

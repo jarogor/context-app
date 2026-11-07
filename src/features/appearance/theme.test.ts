@@ -78,7 +78,7 @@ describe('loadThemePalette', () => {
   it('приводит неизвестное значение к палитре по умолчанию', async () => {
     invoke.mockResolvedValue('solarized');
 
-    await expect(loadThemePalette()).resolves.toBe('linen');
+    await expect(loadThemePalette()).resolves.toBe('mist');
   });
 });
 
@@ -129,7 +129,7 @@ describe('applyAppPalette', () => {
 
     applyAppPalette('неизвестно', root);
 
-    expect(root.dataset.palette).toBe('linen');
+    expect(root.dataset.palette).toBe('mist');
   });
 });
 

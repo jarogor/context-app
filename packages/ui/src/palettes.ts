@@ -22,11 +22,20 @@ export interface Palette {
   description: string;
 }
 
-/** Палитра по умолчанию — тёплый «Лён». */
-export const DEFAULT_PALETTE: PaletteId = 'linen';
+/** Палитра по умолчанию — спокойный «Туман». */
+export const DEFAULT_PALETTE: PaletteId = 'mist';
 
 /** Реестр палитр дизайн-системы. */
 export const PALETTES: readonly Palette[] = [
+  {
+    id: 'mist',
+    get title() {
+      return t('app.palette.mist');
+    },
+    get description() {
+      return t('app.palette.mist.description');
+    },
+  },
   {
     id: 'linen',
     get title() {
@@ -52,15 +61,6 @@ export const PALETTES: readonly Palette[] = [
     },
     get description() {
       return t('app.palette.gruvbox.description');
-    },
-  },
-  {
-    id: 'mist',
-    get title() {
-      return t('app.palette.mist');
-    },
-    get description() {
-      return t('app.palette.mist.description');
     },
   },
 ];

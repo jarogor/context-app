@@ -212,13 +212,13 @@ describe('загрузка начального состояния', () => {
 
     expect(state.appearance).toEqual({
       theme: 'system',
-      palette: 'linen',
+      palette: 'mist',
       readerTheme: 'light',
       readerFont: 'serif',
       locale: 'ru',
     });
     expect(document.documentElement.dataset.theme).toBe('light');
-    expect(document.documentElement.dataset.palette).toBe('linen');
+    expect(document.documentElement.dataset.palette).toBe('mist');
     expect(document.documentElement.dataset.readerTheme).toBe('light');
     expect(document.documentElement.dataset.readerFont).toBe('serif');
   });

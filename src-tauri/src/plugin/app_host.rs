@@ -46,12 +46,12 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "title": "app.settings.app.general.appearance.palette.label",
           "type": "select",
           "description": "app.settings.app.general.appearance.palette.description",
-          "default": "linen",
+          "default": "mist",
           "options": [
+            { "value": "mist", "title": "app.settings.app.general.appearance.palette.option.mist" },
             { "value": "linen", "title": "app.settings.app.general.appearance.palette.option.linen" },
             { "value": "cobalt", "title": "app.settings.app.general.appearance.palette.option.cobalt" },
-            { "value": "gruvbox", "title": "app.settings.app.general.appearance.palette.option.gruvbox" },
-            { "value": "mist", "title": "app.settings.app.general.appearance.palette.option.mist" }
+            { "value": "gruvbox", "title": "app.settings.app.general.appearance.palette.option.gruvbox" }
           ]
         },
         {
@@ -335,10 +335,10 @@ impl AppPluginHost {
     ///
     /// Возвращается как есть (реестр палитр принадлежит дизайн-системе, ядро
     /// его не знает); отсутствующее значение заменяется палитрой по умолчанию
-    /// `linen`.
+    /// `mist` («Туман»).
     pub fn theme_palette(&mut self) -> String {
         self.app_setting_string("appearance.palette")
-            .unwrap_or_else(|| "linen".to_string())
+            .unwrap_or_else(|| "mist".to_string())
     }
 
     /// Язык интерфейса из настроек приложения.
