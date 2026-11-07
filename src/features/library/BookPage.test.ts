@@ -10,7 +10,7 @@ function book(overrides: Partial<Book> = {}): Book {
   return {
     id: 'a',
     title: 'Книга',
-    authors: [{ name: 'Автор' }, { name: 'Соавтор' }],
+    authors: [{ name: 'Автор' }],
     tags: [{ name: 'тег' }],
     files: [{ kind: 'book', path: 'a.epub', format: 'epub' }],
     language: 'ru',
@@ -49,30 +49,27 @@ function pageProps(overrides: Record<string, unknown> = {}) {
 }
 
 describe('страница книги', () => {
-  it('показывает сведения книги и файла', () => {
+  it('показывает сведения без раскрытия разделов', () => {
     render(BookPage, { props: pageProps() });
 
     expect(screen.getByTestId('book-title').textContent).toContain('Книга');
-    expect(screen.getByTestId('book-authors').textContent).toContain('Соавтор');
-    expect(screen.getByTestId('book-formats').textContent).toContain('EPUB');
+    expect(screen.getByTestId('book-author-link').textContent).toContain('Автор');
+    expect(screen.getByTestId('book-format-link-epub')).toBeTruthy();
     expect(screen.getByTestId('book-tags').textContent).toContain('тег');
     expect(screen.getByTestId('book-property-published').textContent).toContain('2019-05-01');
     expect(screen.getByTestId('book-property-language').textContent).toContain('ru');
     expect(screen.getByTestId('book-property-publisher').textContent).toContain('Издатель');
+    expect(screen.getByTestId('book-property-identifier').textContent).toContain('urn:isbn');
     expect(screen.getByTestId('book-description').textContent).toContain('Описание книги');
+  });
+
+  it('держит технические сведения о файле внизу', () => {
+    render(BookPage, { props: pageProps() });
 
     const file = screen.getByTestId('book-file');
     expect(file.textContent).toContain('/lib/a.epub');
     expect(file.textContent).toContain('2 КБ');
     expect(file.textContent).toContain('2024');
-  });
-
-  it('подписывает действия с форматом', () => {
-    render(BookPage, { props: pageProps() });
-
-    expect(screen.getByRole('button', { name: 'Читать' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Открыть файл' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Открыть папку' })).toBeTruthy();
   });
 
   it('не показывает пустых сведений', () => {
@@ -90,20 +87,22 @@ describe('страница книги', () => {
       }),
     });
 
-    expect(screen.queryByTestId('book-properties')).toBeNull();
+    expect(screen.queryByTestId('book-tags')).toBeNull();
+    expect(screen.queryByTestId('book-property-published')).toBeNull();
+    expect(screen.queryByTestId('book-property-language')).toBeNull();
+    expect(screen.queryByTestId('book-property-publisher')).toBeNull();
+    expect(screen.queryByTestId('book-property-identifier')).toBeNull();
     expect(screen.queryByTestId('book-description')).toBeNull();
     expect(screen.queryByTestId('book-property-size')).toBeNull();
-    // Теги видны всегда: их можно добавить правкой.
-    expect(screen.getByTestId('book-tags').textContent).toContain('—');
   });
 
   it('ведёт к списку книг по автору, формату, языку и тегу', async () => {
     const onFilterBy = vi.fn();
     render(BookPage, { props: pageProps({ onFilterBy }) });
 
-    await fireEvent.click(screen.getByRole('button', { name: /^Автор$/ }));
-    await fireEvent.click(screen.getByRole('button', { name: 'EPUB' }));
-    await fireEvent.click(screen.getByRole('button', { name: 'ru' }));
+    await fireEvent.click(screen.getByTestId('book-author-link'));
+    await fireEvent.click(screen.getByTestId('book-format-link-epub'));
+    await fireEvent.click(screen.getByTestId('book-property-language'));
     await fireEvent.click(screen.getByRole('button', { name: 'тег' }));
 
     expect(onFilterBy).toHaveBeenNthCalledWith(1, 'author', 'Автор');
@@ -112,49 +111,26 @@ describe('страница книги', () => {
     expect(onFilterBy).toHaveBeenNthCalledWith(4, 'tag', 'тег');
   });
 
-  it('переключает страницу в режим редактирования и сохраняет', async () => {
+  it('правит сведения одним действием на странице', async () => {
     const onSaveProperties = vi.fn();
     render(BookPage, { props: pageProps({ onSaveProperties }) });
 
-    await fireEvent.click(screen.getByTestId('book-edit-start'));
-
-    // В режиме правки значения полей — это поля ввода с подписями.
+    await fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
     await fireEvent.input(screen.getByLabelText('Название'), {
       target: { value: 'Новое название' },
-    });
-    await fireEvent.input(screen.getByLabelText('Авторы (через запятую)'), {
-      target: { value: 'Автор, Второй' },
     });
     await fireEvent.click(screen.getByTestId('book-edit-save'));
 
     expect(onSaveProperties).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Новое название',
-        authors: ['Автор', 'Второй'],
-        language: 'ru',
-        tags: ['тег'],
-      }),
+      expect.objectContaining({ title: 'Новое название', authors: ['Автор'], tags: ['тег'] }),
     );
   });
 
-  it('отменяет редактирование и умеет вернуть значения файла', async () => {
-    const onSaveProperties = vi.fn();
+  it('возвращает значения файла', async () => {
     const onResetProperties = vi.fn();
-    render(BookPage, {
-      props: pageProps({
-        userEntry: { title: 'Своё название' } as BookPropertyEntry,
-        onSaveProperties,
-        onResetProperties,
-      }),
-    });
+    render(BookPage, { props: pageProps({ onResetProperties }) });
 
-    await fireEvent.click(screen.getByTestId('book-edit-start'));
-    await fireEvent.click(screen.getByTestId('book-edit-cancel'));
-
-    expect(onSaveProperties).not.toHaveBeenCalled();
-    expect(screen.getByTestId('book-title')).toBeTruthy();
-
-    await fireEvent.click(screen.getByTestId('book-edit-start'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
     await fireEvent.click(screen.getByTestId('book-edit-reset'));
 
     expect(onResetProperties).toHaveBeenCalledTimes(1);
