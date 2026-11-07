@@ -123,7 +123,14 @@ fn write_catalog_and_load_roundtrip() {
 
     assert_eq!(revision, 1);
     assert_eq!(catalog.revision, 1);
-    assert_eq!(catalog.books, vec![book]);
+    // Признак обложки — свойство индекса: у записанной книги обложки нет.
+    assert_eq!(
+        catalog.books,
+        vec![ExternalBook {
+            has_cover: Some(false),
+            ..book
+        }]
+    );
 }
 
 #[test]

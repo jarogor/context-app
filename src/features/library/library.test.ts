@@ -4,6 +4,7 @@ import {
   bookChoices,
   formatPublishedDate,
   listBooks,
+  loadCovers,
   openBookFolder,
 } from './library';
 import { invokeCommand } from '../../shared/app-bridge';
@@ -154,5 +155,25 @@ describe('папка книги', () => {
     await openBookFolder('/lib/Автор/Книга.epub');
 
     expect(invoke).toHaveBeenCalledWith('open_folder', { path: '/lib/Автор' });
+  });
+});
+
+describe('обложки книг', () => {
+  it('запрашивает обложки видимых книг одним пакетным вызовом', async () => {
+    invoke.mockResolvedValue({ covers: { a: { data: 'AAA', format: 'png' }, b: null } });
+
+    const covers = await loadCovers(['a', 'b']);
+
+    expect(invoke).toHaveBeenCalledWith(
+      'invoke_plugin_operation',
+      expect.objectContaining({ operation: 'covers', payload: { book_ids: ['a', 'b'] } }),
+    );
+    expect(covers).toEqual({ a: 'data:image/png;base64,AAA', b: null });
+  });
+
+  it('не обращается к плагину с пустым списком', async () => {
+    await expect(loadCovers([])).resolves.toEqual({});
+
+    expect(invoke).not.toHaveBeenCalled();
   });
 });

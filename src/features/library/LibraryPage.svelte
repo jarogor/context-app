@@ -46,6 +46,7 @@
     activeLibraryPath,
     LIBRARY_PAGE_SIZE,
     listBooks,
+    loadCovers,
     openBookFile,
     openBookFolder,
     readerFormats,
@@ -54,8 +55,7 @@
     type BookFormatInfo,
     type BookWithCover,
   } from './library';
-  import { cachedCovers, loadCovers } from './covers';
-  import type { ActiveLibrary } from '../lifecycle/bootstrap';
+    import type { ActiveLibrary } from '../lifecycle/bootstrap';
 
   interface Props {
     /** Активная библиотека, загруженная до первого рендера. */
@@ -83,6 +83,13 @@
 
   /** Пользовательские правки и теги книг по абсолютному пути. */
   let properties: BookPropertyMap = $state({});
+
+  /** Известные обложки книг: идентификатор → data URI либо `null`.
+   *
+   * Обложки грузятся только для видимых книг; `null` — обложки нет, чтобы
+   * повторно не запрашивать её при каждом показе страницы.
+   */
+  let coverUris = $state<Record<string, string | null>>({});
 
   /** Идёт ли загрузка каталога. */
   let loading = $state(false);
@@ -168,6 +175,13 @@
   /** Книги текущей страницы. */
   const pageBooks = $derived(
     viewBooks.slice((currentPage - 1) * LIBRARY_PAGE_SIZE, currentPage * LIBRARY_PAGE_SIZE),
+  );
+
+  /** Книги страницы с уже известными обложками. */
+  const pageBooksWithCovers = $derived(
+    pageBooks.map((book) =>
+      coverUris[book.id] ? { ...book, coverUri: coverUris[book.id] as string } : book,
+    ),
   );
 
   /** Номера страниц для перехода: при длинном списке — крайние и окно у текущей. */
@@ -303,7 +317,6 @@
     try {
       const list = await listBooks(searchQuery);
       books = list;
-      void loadCoverUris(list);
     } catch (e) {
       error = String(e);
     } finally {
@@ -311,27 +324,14 @@
     }
   }
 
-  /** Загрузка обложек списка одним пакетным вызовом источника. */
-  async function loadCoverUris(list: Book[]) {
-    const paths = list.map((book) => bookPath(book)).filter(Boolean);
-    if (paths.length === 0) {
-      return;
+  /** Загрузка обложек видимых книг одним вызовом источника. */
+  async function loadPageCovers(ids: string[]) {
+    try {
+      const covers = await loadCovers(ids);
+      coverUris = { ...coverUris, ...covers };
+    } catch {
+      // Обложки не должны мешать списку: он показывается без них.
     }
-    // Известные обложки ставятся сразу, без второго кадра.
-    applyCovers(cachedCovers(paths));
-    await loadCovers(paths);
-    applyCovers(cachedCovers(paths));
-  }
-
-  /** Подстановка известных обложек в список по пути книги. */
-  function applyCovers(covers: Record<string, string | null>) {
-    if (Object.keys(covers).length === 0) {
-      return;
-    }
-    books = books.map((current) => {
-      const coverUri = covers[bookPath(current)];
-      return coverUri ? { ...current, coverUri } : current;
-    });
   }
 
   /** Загрузка форматов, поддерживаемых чтением.
@@ -379,6 +379,9 @@
     }
     libraryRootUsed = libraryRoot;
     librarySelected = true;
+    // Другая библиотека — другие обложки: прежние по тем же идентификаторам
+    // показывать нельзя.
+    coverUris = {};
     searchQuery = '';
     clearTimeout(searchTimer);
     openedBook = null;
@@ -505,6 +508,17 @@
       clearTimeout(searchTimer);
       unlisten?.();
     };
+  });
+
+  // Обложки запрашиваются только для видимых книг: base64 на весь каталог —
+  // мегабайты, и список ждал бы их вместо первой отрисовки.
+  $effect(() => {
+    const missing = pageBooks
+      .filter((book) => book.hasCover !== false && coverUris[book.id] === undefined)
+      .map((book) => book.id);
+    if (missing.length > 0) {
+      void loadPageCovers(missing);
+    }
   });
 
   // Форматы запрашиваются, когда область библиотеки становится видимой:
@@ -636,7 +650,7 @@
             class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]"
             data-testid="library-grid"
           >
-            {#each pageBooks as book (book.id)}
+            {#each pageBooksWithCovers as book (book.id)}
               <li>
                 <button
                   class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
@@ -667,7 +681,7 @@
             class="m-0 flex list-none flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0"
             data-testid="library-list"
           >
-            {#each pageBooks as book (book.id)}
+            {#each pageBooksWithCovers as book (book.id)}
               <li
                 class="border-b border-[var(--divider)] last:border-b-0 even:bg-[var(--surface-inset)]"
               >

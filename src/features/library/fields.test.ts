@@ -126,8 +126,8 @@ describe('фильтры книг', () => {
 
   it('фильтр обложки отбирает книги с обложкой и без', () => {
     const catalogWithCovers = [
-      { ...book({ id: 'with', title: 'С обложкой' }), coverUri: 'data:image/png;base64,AA' },
-      book({ id: 'without', title: 'Без обложки' }),
+      book({ id: 'with', title: 'С обложкой', hasCover: true }),
+      book({ id: 'without', title: 'Без обложки', hasCover: false }),
     ];
 
     expect(titles(filterBooks(catalogWithCovers, { ...emptyFilters(), covers: 'with' }))).toEqual([

@@ -47,7 +47,9 @@ export interface Book {
   size?: number;
   /** Когда книга появилась в библиотеке (Unix, мс). */
   addedAtMillis?: number;
-  /** Обложка книги в виде data URI (заполняет оболочка). */
+  /** Есть ли у книги обложка (признак из индекса источника). */
+  hasCover?: boolean;
+  /** Обложка книги в виде data URI (заполняет оболочка для видимых книг). */
   coverUri?: string;
 }
 
@@ -130,6 +132,7 @@ function normalizeBook(book: Record<string, unknown>): Book {
     identifier: optionalText(book.identifier),
     size: optionalNumber(book.size),
     addedAtMillis: optionalNumber(book.added_at_ms),
+    hasCover: typeof book.has_cover === 'boolean' ? book.has_cover : undefined,
   };
 }
 
@@ -144,6 +147,26 @@ export async function listBooks(query: string): Promise<Book[]> {
     : await operation<Response>('list');
   const rawBooks = response.books ?? response.catalog?.books ?? [];
   return rawBooks.map(normalizeBook);
+}
+
+/** Обложки книг пакетом: идентификатор → data URI либо `null`.
+ *
+ * Запрашиваются только для видимых книг: base64 всех обложек — это мегабайты,
+ * и список ждал бы их вместо первой отрисовки.
+ */
+export async function loadCovers(bookIds: string[]): Promise<Record<string, string | null>> {
+  if (bookIds.length === 0) {
+    return {};
+  }
+  const response = await operation<{
+    covers?: Record<string, { data?: string | null; format?: string } | null>;
+  }>('covers', { book_ids: bookIds });
+  const result: Record<string, string | null> = {};
+  for (const id of bookIds) {
+    const cover = response.covers?.[id];
+    result[id] = cover ? coverDataUri(cover) : null;
+  }
+  return result;
 }
 
 /** Извлечение обложки книги как data URI (или `null`, если её нет). */

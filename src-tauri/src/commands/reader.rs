@@ -158,16 +158,21 @@ pub async fn workspace_covers(
     let extracted = handle.with_ready(|runtime| {
         let mut values: Vec<(String, Option<Value>)> = Vec::new();
         for path in &missing {
-            let value = AppState::reader_cover_of(runtime, path)
-                .unwrap_or_else(|_| serde_json::json!({ "data": null }));
-            values.push((path.clone(), Some(value)));
+            // Ошибка извлечения — не «обложки нет»: такой ответ не кэшируется,
+            // иначе книга навсегда осталась бы без обложки.
+            let value = AppState::reader_cover_of(runtime, path).ok();
+            values.push((path.clone(), value));
         }
         values
     })?;
     {
         let mut guard = crate::commands::lock_state(state.inner())?;
         for (path, value) in extracted {
-            let value = value.unwrap_or_else(|| serde_json::json!({ "data": null }));
+            let Some(value) = value else {
+                // Извлечение не удалось: отвечаем «нет обложки», но не кэшируем.
+                result.insert(path, serde_json::json!({ "data": null }));
+                continue;
+            };
             let (size, mtime_ms) = AppState::file_fingerprint(&path);
             let cover = AppState::cover_data_from_value(&value);
             guard.cover_cache_store(&path, size, mtime_ms, cover);

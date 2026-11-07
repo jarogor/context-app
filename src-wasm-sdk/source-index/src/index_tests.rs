@@ -11,7 +11,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use source_protocol::fs::Fs;
 use source_protocol::models::DirEntry;
 
-use super::{ensure_schema, load_book, load_books, upsert_book, BookRecord, CATALOG_MIGRATIONS};
+use super::{
+    ensure_schema, load_book, load_books, load_covered_ids, load_covers, store_cover, upsert_book,
+    BookRecord, CATALOG_MIGRATIONS,
+};
 
 /// Счётчик уникальных хранилищ каждого теста.
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
@@ -214,4 +217,21 @@ fn added_at_is_kept_when_book_is_updated() {
         Some(100),
         "правка файла не переносит книгу в начало списка"
     );
+}
+
+#[test]
+fn covers_flag_and_batch_are_read_from_index() {
+    let db = TestDb::new();
+    ensure_schema(&db, CATALOG_MIGRATIONS, "library-state.json").expect("схема");
+    upsert_book(&db, &record("a", Some(1))).expect("книга a");
+    upsert_book(&db, &record("b", Some(2))).expect("книга b");
+    store_cover(&db, "a", Some(&(vec![1, 2, 3], "png".to_string())), None).expect("обложка");
+
+    let covered = load_covered_ids(&db).expect("признак обложки");
+    assert!(covered.contains("a"), "у книги a есть обложка");
+    assert!(!covered.contains("b"), "у книги b обложки нет");
+
+    let covers = load_covers(&db, &["a".to_string(), "c".to_string()]).expect("обложки");
+    assert_eq!(covers.len(), 1, "обложка есть только у известной книги");
+    assert_eq!(covers["a"].format, "png");
 }

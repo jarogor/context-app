@@ -134,6 +134,24 @@ pub(crate) fn read(request: &Request) -> Result<String, String> {
 /// обложка ищется в самой папке книги: у Calibre это отдельный файл `cover.jpg`
 /// рядом с файлом книги (встроенной обложки у PDF/DjVu нет). Если соседнего
 /// файла нет, обложки нет: возвращается `null`, а не сам файл книги.
+/// Обложки книг пакетом: идентификатор → обложка либо `null`.
+pub(crate) fn covers(request: &Request) -> Result<String, String> {
+    let fs = HostFs;
+    let ids: Vec<String> = request
+        .payload
+        .get("book_ids")
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    let covers = crate::index::covers(&fs, &ids)?;
+    serde_json::to_string(&json!({ "covers": covers })).map_err(|error| error.to_string())
+}
+
 pub(crate) fn cover(request: &Request) -> Result<String, String> {
     let fs = HostFs;
     if let Some(id) = request

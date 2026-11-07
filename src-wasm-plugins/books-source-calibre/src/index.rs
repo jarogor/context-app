@@ -14,8 +14,9 @@ use std::collections::{HashMap, HashSet};
 use serde::Deserialize;
 
 use source_index::index::{
-    delete_book, delete_cover, emit_progress, ensure_schema, load_books, progress_stride,
-    read_revision, store_cover, upsert_book, write_revision, BookRecord, CATALOG_MIGRATIONS,
+    delete_book, delete_cover, emit_progress, ensure_schema, load_books, load_covered_ids,
+    load_covers as load_cover_rows, progress_stride, read_revision, store_cover, upsert_book,
+    write_revision, BookRecord, CATALOG_MIGRATIONS,
 };
 use source_protocol::fs::Fs;
 use source_protocol::models::{
@@ -113,12 +114,40 @@ fn load_rows(fs: &impl Fs) -> Result<HashMap<String, ChangeRow>, String> {
 
 /// Каталог книг индекса в нейтральном представлении, в порядке идентификаторов.
 fn catalog_books(fs: &impl Fs) -> Result<Vec<ExternalBook>, String> {
-    load_books(fs)?.into_iter().map(record_to_book).collect()
+    // Признак обложки берётся из индекса: списку нужен флаг, а не base64.
+    let covered = load_covered_ids(fs)?;
+    load_books(fs)?
+        .into_iter()
+        .map(|record| record_to_book(record, &covered))
+        .collect()
+}
+
+/// Обложки книг пакетом: идентификатор → обложка либо `null`.
+///
+/// Список запрашивает обложки только для видимых книг: base64 не тянется на
+/// весь каталог.
+pub(crate) fn covers(fs: &impl Fs, ids: &[String]) -> Result<serde_json::Value, String> {
+    ensure_schema(fs, CATALOG_MIGRATIONS, LEGACY_STATE_KEY)?;
+    let covers = load_cover_rows(fs, ids)?;
+    let mut result = serde_json::Map::new();
+    for id in ids {
+        let value = match covers.get(id) {
+            Some(cover) => serde_json::json!({ "data": cover.data, "format": cover.format }),
+            None => serde_json::Value::Null,
+        };
+        result.insert(id.clone(), value);
+    }
+    Ok(serde_json::Value::Object(result))
 }
 
 /// Преобразование записи индекса в книгу нейтрального каталога.
-fn record_to_book(record: BookRecord) -> Result<ExternalBook, String> {
+fn record_to_book(
+    record: BookRecord,
+    covered: &std::collections::HashSet<String>,
+) -> Result<ExternalBook, String> {
+    let has_cover = Some(covered.contains(&record.id));
     Ok(ExternalBook {
+        has_cover,
         id: record.id.clone(),
         title: record.title,
         authors: serde_json::from_str(&record.authors).unwrap_or_default(),

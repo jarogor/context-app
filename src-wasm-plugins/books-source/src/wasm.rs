@@ -131,6 +131,21 @@ pub fn invoke(input: String) -> FnResult<String> {
                 base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
             serde_json::to_string(&json!({ "data": encoded, "size": bytes.len() }))?
         }
+        "covers" => {
+            let ids: Vec<String> = request
+                .payload
+                .get("book_ids")
+                .and_then(|value| value.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str().map(str::to_string))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let covers = crate::index::covers(&fs, &ids).map_err(extism_pdk::Error::msg)?;
+            serde_json::to_string(&json!({ "covers": covers }))?
+        }
         "cover" => {
             if let Some(id) = request
                 .payload

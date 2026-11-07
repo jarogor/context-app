@@ -692,7 +692,7 @@ async function viewerFile(pluginId: string, path: string): Promise<{ path: strin
 function pluginOperation(payload: unknown): unknown {
   const message = (payload ?? {}) as {
     operation?: string;
-    payload?: { query?: string; book_id?: string };
+    payload?: { query?: string; book_id?: string; book_ids?: string[] };
   };
   const books = [
     {
@@ -700,18 +700,21 @@ function pluginOperation(payload: unknown): unknown {
       title: 'Демо-книга',
       authors: ['Тестовый автор'],
       files: [{ kind: 'book', path: 'demo-1.epub', format: 'epub' }],
+      has_cover: true,
     },
     {
       id: 'demo-2',
       title: 'Вторая книга',
       authors: [],
       files: [{ kind: 'book', path: 'demo-2.fb2', format: 'fb2' }],
+      has_cover: false,
     },
     {
       id: 'demo-3',
       title: 'Третья книга',
       authors: ['Ещё автор'],
       files: [{ kind: 'book', path: 'demo-3.epub', format: 'epub' }],
+      has_cover: false,
     },
   ];
   if (message.operation === 'list' || message.operation === 'search') {
@@ -729,6 +732,14 @@ function pluginOperation(payload: unknown): unknown {
     return message.payload?.book_id === 'demo-1'
       ? { data: TINY_PNG, format: 'png' }
       : { data: null };
+  }
+  if (message.operation === 'covers') {
+    // Обложки видимых книг: она есть только у первой демо-книги.
+    const covers: Record<string, unknown> = {};
+    for (const id of message.payload?.book_ids ?? []) {
+      covers[id] = id === 'demo-1' ? { data: TINY_PNG, format: 'png' } : { data: null };
+    }
+    return { covers };
   }
   if (message.operation === 'content') {
     const paragraphs = Array.from(

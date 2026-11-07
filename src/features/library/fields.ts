@@ -207,10 +207,12 @@ function facetValues(book: Book, id: FacetId): string[] {
 /** Применение фильтров к списку книг. */
 export function filterBooks<T extends Book>(books: T[], filters: BookFilters): T[] {
   return books.filter((book) => {
-    if (filters.covers === 'with' && !book.coverUri) {
+    // Признак обложки известен по всему каталогу, а сами обложки грузятся
+    // только для видимых книг.
+    if (filters.covers === 'with' && book.hasCover !== true) {
       return false;
     }
-    if (filters.covers === 'without' && book.coverUri) {
+    if (filters.covers === 'without' && book.hasCover === true) {
       return false;
     }
     return FACET_IDS.every((id) => {
