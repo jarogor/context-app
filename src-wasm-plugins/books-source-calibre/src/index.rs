@@ -18,7 +18,9 @@ use source_index::index::{
     read_revision, store_cover, upsert_book, write_revision, BookRecord, CATALOG_MIGRATIONS,
 };
 use source_protocol::fs::Fs;
-use source_protocol::models::{ExternalBook, ExternalFileKind, SourceCatalog, SOURCE_PROTOCOL_VERSION};
+use source_protocol::models::{
+    ExternalBook, ExternalFileKind, SourceCatalog, SOURCE_PROTOCOL_VERSION,
+};
 
 use super::models::BookListing;
 use super::scanner;

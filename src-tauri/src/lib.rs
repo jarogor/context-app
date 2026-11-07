@@ -2,6 +2,7 @@
 pub mod test_util;
 
 pub mod atomic_file;
+pub mod book_properties;
 pub mod commands;
 pub mod constants;
 pub mod documents;
@@ -159,6 +160,8 @@ pub fn run() {
             commands::save_text_file,
             commands::select_source_library,
             commands::active_library,
+            commands::book_properties_get,
+            commands::book_properties_set,
             commands::library_history_list,
             commands::library_history_forget,
             commands::get_workspaces,

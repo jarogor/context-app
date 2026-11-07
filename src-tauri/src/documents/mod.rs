@@ -155,7 +155,18 @@ pub static NOTES_SET: DocumentKind = DocumentKind {
     )],
 };
 
-pub static ALL: [&DocumentKind; 12] = [
+/// Пользовательские свойства книг: правки и теги поверх источника.
+pub static BOOK_PROPERTIES: DocumentKind = DocumentKind {
+    format: "context.book-properties",
+    schema_name: "book-properties",
+    owner: Owner::Core,
+    versions: &[DocumentVersion::only(
+        1,
+        include_str!("../../../schemas/v1/book-properties.schema.json"),
+    )],
+};
+
+pub static ALL: [&DocumentKind; 13] = [
     &WORKSPACES,
     &LIBRARY_HISTORY,
     &COVER_CACHE,
@@ -168,6 +179,7 @@ pub static ALL: [&DocumentKind; 12] = [
     &SETTINGS_STATE,
     &PLUGIN_STORE_STATE,
     &NOTES_SET,
+    &BOOK_PROPERTIES,
 ];
 
 #[cfg(test)]

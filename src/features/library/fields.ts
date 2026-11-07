@@ -12,14 +12,7 @@ import type { Book } from './library';
 export type SortValue = string | number | null;
 
 /** Поле сортировки. */
-export type SortField =
-  | 'title'
-  | 'author'
-  | 'series'
-  | 'published'
-  | 'added'
-  | 'size'
-  | 'format';
+export type SortField = 'title' | 'author' | 'series' | 'published' | 'added' | 'size' | 'format';
 
 /** Направление сортировки. */
 export type SortDirection = 'asc' | 'desc';
@@ -148,7 +141,7 @@ export function sortBooks<T extends Book>(
 }
 
 /** Фасет фильтрации книг. */
-export type FacetId = 'authors' | 'formats' | 'languages' | 'series' | 'tags';
+export type FacetId = 'authors' | 'formats' | 'languages' | 'series' | 'tags' | 'userTags';
 
 /** Выбранные значения фасетов: внутри фасета «или», между фасетами «и». */
 export interface BookFilters {
@@ -162,10 +155,19 @@ export interface BookFilters {
   series: string[];
   /** Теги источника. */
   tags: string[];
+  /** Пользовательские теги. */
+  userTags: string[];
 }
 
 /** Идентификаторы фасетов в порядке панели. */
-export const FACET_IDS: FacetId[] = ['authors', 'formats', 'languages', 'series', 'tags'];
+export const FACET_IDS: FacetId[] = [
+  'authors',
+  'formats',
+  'languages',
+  'series',
+  'tags',
+  'userTags',
+];
 
 /** Подписи фасетов. */
 export const FACET_LABELS: Record<FacetId, MessageKey> = {
@@ -174,11 +176,12 @@ export const FACET_LABELS: Record<FacetId, MessageKey> = {
   languages: 'app.library.facet.languages',
   series: 'app.library.facet.series',
   tags: 'app.library.facet.tags',
+  userTags: 'app.library.facet.userTags',
 };
 
 /** Пустой набор фильтров: показываются все книги. */
 export function emptyFilters(): BookFilters {
-  return { authors: [], formats: [], languages: [], series: [], tags: [] };
+  return { authors: [], formats: [], languages: [], series: [], tags: [], userTags: [] };
 }
 
 /** Число активных фасетов (для счётчика на кнопке фильтров). */
@@ -202,6 +205,8 @@ function facetValues(book: Book, id: FacetId): string[] {
       return book.series.map((entry) => entry.series.name.trim()).filter(Boolean);
     case 'tags':
       return book.tags.map((tag) => tag.name.trim()).filter(Boolean);
+    case 'userTags':
+      return (book.userTags ?? []).map((tag) => tag.trim()).filter(Boolean);
   }
 }
 
@@ -237,6 +242,7 @@ export function bookFacets(books: Book[], locale: string): Record<FacetId, Facet
     languages: [],
     series: [],
     tags: [],
+    userTags: [],
   };
   for (const id of FACET_IDS) {
     const counts = new Map<string, number>();
@@ -264,4 +270,3 @@ export function toggleFacet(filters: BookFilters, id: FacetId, value: string): B
     : [...selected, value];
   return { ...filters, [id]: next };
 }
-

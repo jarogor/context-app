@@ -9,6 +9,7 @@ pub mod app_info;
 pub mod app_log;
 pub mod app_title_set;
 pub mod base_plugin_operation;
+pub mod book_properties;
 pub mod get_workspaces;
 pub mod interface_locale;
 pub mod library_history_forget;
@@ -34,6 +35,13 @@ pub mod window_open_tabs_limit;
 pub use active_library::__cmd__active_library;
 pub use active_library::__tauri_command_name_active_library;
 pub use active_library::active_library;
+
+pub use book_properties::__cmd__book_properties_get;
+pub use book_properties::__cmd__book_properties_set;
+pub use book_properties::__tauri_command_name_book_properties_get;
+pub use book_properties::__tauri_command_name_book_properties_set;
+pub use book_properties::book_properties_get;
+pub use book_properties::book_properties_set;
 
 pub use app_info::__cmd__app_info;
 pub use app_info::__cmd__app_name_set;

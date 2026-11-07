@@ -328,4 +328,3 @@ pub fn write_revision(fs: &impl Fs, revision: i64) -> Result<(), String> {
 #[cfg(test)]
 #[path = "index_tests.rs"]
 mod tests;
-

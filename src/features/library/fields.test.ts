@@ -81,6 +81,7 @@ describe('фильтры книг', () => {
       authors: [{ name: 'Антон' }],
       language: 'ru',
       tags: [{ name: 'история' }],
+      userTags: ['мой тег'],
     }),
     book({
       id: 'two',
@@ -146,5 +147,7 @@ describe('фильтры книг', () => {
     ]);
     expect(facets.languages.map((item) => item.value)).toEqual(['en', 'ru']);
     expect(facets.tags).toEqual([{ value: 'история', label: 'история', count: 1 }]);
+    // Пользовательские теги — отдельный фасет: источник их не знает.
+    expect(facets.userTags).toEqual([{ value: 'мой тег', label: 'мой тег', count: 1 }]);
   });
 });

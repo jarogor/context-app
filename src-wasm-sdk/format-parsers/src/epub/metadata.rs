@@ -27,7 +27,9 @@ pub fn extract(bytes: &[u8]) -> Result<BookMetadata, String> {
         language: non_empty(text_between(&opf, "dc:language")),
         published: non_empty(text_between(&opf, "dc:date")),
         publisher: non_empty(text_between(&opf, "dc:publisher")),
-        description: non_empty(text_between(&opf, "dc:description").map(|value| strip_markup(&value))),
+        description: non_empty(
+            text_between(&opf, "dc:description").map(|value| strip_markup(&value)),
+        ),
         identifier: identifier_from(all_text_between(&opf, "dc:identifier")),
     })
 }

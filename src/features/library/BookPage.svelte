@@ -1,7 +1,17 @@
 <script lang="ts">
-  import { Badge, BookCover, Button, ErrorState, Icon } from '@context/ui';
+  import {
+    Badge,
+    BookCover,
+    Button,
+    Dialog,
+    ErrorState,
+    Icon,
+    IconButton,
+    Input,
+  } from '@context/ui';
   import { t } from '@context/i18n';
   import { formatBytes } from '../../shared/format';
+  import type { BookPropertyEntry } from './book-properties';
   import { formatPublishedDate, type BookFormatInfo, type BookWithCover } from './library';
 
   interface Props {
@@ -17,10 +27,16 @@
     openingFormat: string | null;
     /** Ошибка открытия файла книги. */
     openError: string | null;
+    /** Пользовательские теги книги. */
+    userTags: string[];
     /** Возврат к списку книг. */
     onClose: () => void;
     /** Открытие папки с файлом книги. */
     onOpenFolder: () => void;
+    /** Сохранение правок свойств книги. */
+    onSaveProperties: (entry: BookPropertyEntry) => void;
+    /** Возврат к значениям файла: правка книги удаляется. */
+    onResetProperties: () => void;
     /** Открытие файла заданного формата вкладкой рабочего места. */
     onAdd: (format: string) => void;
     /** Открытие файла заданного формата. */
@@ -34,8 +50,11 @@
     canRead,
     openingFormat,
     openError,
+    userTags,
     onClose,
     onOpenFolder,
+    onSaveProperties,
+    onResetProperties,
     onAdd,
     onOpen,
   }: Props = $props();
@@ -92,6 +111,12 @@
         { id: 'format', label: t('app.library.book.format'), text: value(formatsText), empty: !formatsText },
         { id: 'series', label: t('app.library.book.series'), text: value(series), empty: !series },
         { id: 'tags', label: t('app.library.book.tags'), text: value(tags), empty: !tags },
+        {
+          id: 'userTags',
+          label: t('app.library.book.userTags'),
+          text: value(userTags.join(', ')),
+          empty: userTags.length === 0,
+        },
       ],
     },
     {
@@ -132,6 +157,96 @@
     },
   ]);
 
+  /** Открыт ли диалог правки сведений. */
+  let editing = $state(false);
+
+  /** Поля диалога правки. */
+  let editTitle = $state('');
+  /** Авторы через запятую. */
+  let editAuthors = $state('');
+  /** Язык книги. */
+  let editLanguage = $state('');
+  /** Дата выхода. */
+  let editPublished = $state('');
+  /** Издатель. */
+  let editPublisher = $state('');
+  /** Идентификатор издания. */
+  let editIdentifier = $state('');
+  /** Пользовательские теги через запятую. */
+  let editTags = $state('');
+
+  /** Авторы книги списком (без строки для показа). */
+  const authorList = $derived(book.authors.map((author) => author.name));
+
+  /** Открытие диалога с текущими значениями. */
+  function startEditing() {
+    editTitle = book.title;
+    editAuthors = authorList.join(', ');
+    editLanguage = book.language ?? '';
+    editPublished = book.published ?? '';
+    editPublisher = book.publisher ?? '';
+    editIdentifier = book.identifier ?? '';
+    editTags = userTags.join(', ');
+    editing = true;
+  }
+
+  /** Список значений из строки через запятую. */
+  function splitList(value: string): string[] {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  /** Непустое значение поля. */
+  function fieldText(value: string): string | undefined {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+
+  /** Список разделён одинаково — по содержимому, а не по строке. */
+  function sameList(left: string[], right: string[]): boolean {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+  }
+
+  /** Сохранение правки: в документ попадает только отличие от файла. */
+  function submitEdit() {
+    const entry: BookPropertyEntry = {};
+    const title = fieldText(editTitle);
+    if (title !== book.title) {
+      entry.title = title;
+    }
+    const editedAuthors = splitList(editAuthors);
+    if (!sameList(editedAuthors, authorList)) {
+      entry.authors = editedAuthors;
+    }
+    const language = fieldText(editLanguage);
+    if (language !== book.language) {
+      entry.language = language;
+    }
+    const published = fieldText(editPublished);
+    if (published !== book.published) {
+      entry.published = published;
+    }
+    const publisher = fieldText(editPublisher);
+    if (publisher !== book.publisher) {
+      entry.publisher = publisher;
+    }
+    const identifier = fieldText(editIdentifier);
+    if (identifier !== book.identifier) {
+      entry.identifier = identifier;
+    }
+    entry.tags = splitList(editTags);
+    onSaveProperties(entry);
+    editing = false;
+  }
+
+  /** Возврат к значениям файла. */
+  function resetToFile() {
+    onResetProperties();
+    editing = false;
+  }
+
   /** Описание книги отдельным блоком: это текст, а не строка таблицы. */
   const description = $derived(book.description?.trim() ?? '');
 </script>
@@ -148,6 +263,15 @@
       <Icon name="chevron-left" />
       {t('app.library.book.back')}
     </Button>
+    <div class="ml-auto">
+      <IconButton
+        action="edit"
+        size="sm"
+        title={t('app.library.book.edit')}
+        ariaLabel={t('app.library.book.edit')}
+        onclick={startEditing}
+      />
+    </div>
   </header>
 
   <div class="min-h-0 flex-1 overflow-y-auto">
@@ -289,4 +413,63 @@
       </div>
     </div>
   </div>
+
+  <!--
+    Правка сведений: пустое поле оставляет значение из файла, «Как в файле»
+    удаляет правку целиком. Источник при этом не меняется.
+  -->
+  <Dialog bind:open={editing} title={t('app.library.book.editTitle')}>
+    <div class="flex flex-col gap-3" data-testid="book-edit-form">
+      <p class="m-0 role-caption text-[var(--muted-foreground)]">
+        {t('app.library.book.editHint')}
+      </p>
+      <Input
+        bind:value={editTitle}
+        placeholder={t('app.library.book.field.title')}
+        ariaLabel={t('app.library.book.field.title')}
+      />
+      <Input
+        bind:value={editAuthors}
+        placeholder={t('app.library.book.field.authors')}
+        ariaLabel={t('app.library.book.field.authors')}
+      />
+      <div class="flex flex-col gap-2 sm:flex-row">
+        <Input
+          bind:value={editLanguage}
+          placeholder={t('app.library.book.field.language')}
+          ariaLabel={t('app.library.book.field.language')}
+          class="sm:flex-1"
+        />
+        <Input
+          bind:value={editPublished}
+          placeholder={t('app.library.book.field.published')}
+          ariaLabel={t('app.library.book.field.published')}
+          class="sm:flex-1"
+        />
+      </div>
+      <Input
+        bind:value={editPublisher}
+        placeholder={t('app.library.book.field.publisher')}
+        ariaLabel={t('app.library.book.field.publisher')}
+      />
+      <Input
+        bind:value={editIdentifier}
+        placeholder={t('app.library.book.field.identifier')}
+        ariaLabel={t('app.library.book.field.identifier')}
+      />
+      <Input
+        bind:value={editTags}
+        placeholder={t('app.library.book.field.tags')}
+        ariaLabel={t('app.library.book.field.tags')}
+      />
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <Button variant="ghost" size="sm" testId="book-edit-reset" onclick={resetToFile}>
+          {t('app.library.book.reset')}
+        </Button>
+        <Button variant="primary" size="sm" testId="book-edit-save" onclick={submitEdit}>
+          {t('app.library.book.save')}
+        </Button>
+      </div>
+    </div>
+  </Dialog>
 </div>

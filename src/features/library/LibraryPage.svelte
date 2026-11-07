@@ -14,6 +14,13 @@
     Skeleton,
   } from '@context/ui';
   import BookPage from './BookPage.svelte';
+  import {
+    applyBookProperties,
+    loadBookProperties,
+    saveBookProperties,
+    type BookPropertyEntry,
+    type BookPropertyMap,
+  } from './book-properties';
   import { currentLocale, t } from '@context/i18n';
   import { listenEvent } from '../../shared/app-bridge';
   import {
@@ -71,6 +78,9 @@
 
   /** Книги библиотеки с обложками. */
   let books: BookWithCover[] = $state([]);
+
+  /** Пользовательские правки и теги книг по абсолютному пути. */
+  let properties: BookPropertyMap = $state({});
 
   /** Идёт ли загрузка каталога. */
   let loading = $state(false);
@@ -134,8 +144,11 @@
     return book.authors.map((author) => author.name).join(', ');
   }
 
+  /** Каталог с наложенными правками: правка перекрывает источник. */
+  const mergedBooks = $derived(applyBookProperties(books, properties, bookPath));
+
   /** Значения фасетов фильтра по всему каталогу. */
-  const facets = $derived(bookFacets(books, currentLocale()));
+  const facets = $derived(bookFacets(mergedBooks, currentLocale()));
 
   /** Число активных фасетов для счётчика на кнопке фильтров. */
   const filterCount = $derived(activeFilterCount(filters));
@@ -145,7 +158,7 @@
 
   /** Книги с учётом фильтров, фильтра обложки и выбранного порядка. */
   const viewBooks = $derived.by(() => {
-    let list = filterBooks(books, filters);
+    let list = filterBooks(mergedBooks, filters);
     if (coverFilter === 'without-cover') {
       list = list.filter((book) => !book.coverUri);
     }
@@ -218,6 +231,31 @@
     filters = emptyFilters();
     coverFilter = 'all';
     page = 1;
+  }
+
+  /** Чтение правок свойств книг. */
+  async function refreshProperties() {
+    try {
+      properties = await loadBookProperties();
+    } catch {
+      // Без правок список показывает то, что дал источник.
+      properties = {};
+    }
+  }
+
+  /** Сохранение правки открытой книги: список и карточка обновляются сразу. */
+  async function saveProperties(entry: BookPropertyEntry) {
+    if (!openedBook) {
+      return;
+    }
+    const path = bookPath(openedBook);
+    properties = await saveBookProperties(path, entry);
+    openedBook = applyBookProperties([openedBook], properties, bookPath)[0];
+  }
+
+  /** Возврат открытой книги к значениям файла. */
+  async function resetProperties() {
+    await saveProperties({});
   }
 
   /** Выбор режима показа. */
@@ -463,6 +501,7 @@
         await load();
       }
     })();
+    void refreshProperties();
     return () => {
       clearTimeout(searchTimer);
       unlisten?.();
@@ -486,8 +525,11 @@
     canRead={canRead(openedBook)}
     {openingFormat}
     {openError}
+    userTags={openedBook.userTags ?? []}
     onClose={closeBook}
     onOpenFolder={() => void openBookFolder(bookPath(openedBook as BookWithCover))}
+    onSaveProperties={(entry) => void saveProperties(entry)}
+    onResetProperties={() => void resetProperties()}
     onAdd={(format) => startReading(openedBook as BookWithCover, format)}
     onOpen={(format) => openFormatFile(openedBook as BookWithCover, format)}
   />

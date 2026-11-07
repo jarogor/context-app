@@ -37,8 +37,11 @@ describe('страница книги', () => {
         canRead: true,
         openingFormat: null,
         openError: null,
+        userTags: [],
         onClose: vi.fn(),
         onOpenFolder: vi.fn(),
+        onSaveProperties: vi.fn(),
+        onResetProperties: vi.fn(),
         onAdd: vi.fn(),
         onOpen: vi.fn(),
       },
@@ -76,8 +79,11 @@ describe('страница книги', () => {
         canRead: true,
         openingFormat: null,
         openError: null,
+        userTags: [],
         onClose: vi.fn(),
         onOpenFolder: vi.fn(),
+        onSaveProperties: vi.fn(),
+        onResetProperties: vi.fn(),
         onAdd: vi.fn(),
         onOpen: vi.fn(),
       },
@@ -108,8 +114,11 @@ describe('страница книги', () => {
         canRead: true,
         openingFormat: null,
         openError: null,
+        userTags: [],
         onClose: vi.fn(),
         onOpenFolder,
+        onSaveProperties: vi.fn(),
+        onResetProperties: vi.fn(),
         onAdd: vi.fn(),
         onOpen: vi.fn(),
       },
@@ -118,5 +127,63 @@ describe('страница книги', () => {
     await fireEvent.click(screen.getByTestId('book-open-folder'));
 
     expect(onOpenFolder).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('правка сведений о книге', () => {
+  /** Пропсы страницы книги с подписями обработчиков. */
+  function pageProps(overrides: Record<string, unknown> = {}) {
+    return {
+      book: book(),
+      path: '/lib/a.epub',
+      formats: FORMATS,
+      canRead: true,
+      openingFormat: null,
+      openError: null,
+      userTags: [],
+      onClose: vi.fn(),
+      onOpenFolder: vi.fn(),
+      onSaveProperties: vi.fn(),
+      onResetProperties: vi.fn(),
+      onAdd: vi.fn(),
+      onOpen: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it('показывает пользовательские теги отдельным свойством', () => {
+    render(BookPage, { props: pageProps({ userTags: ['мой тег'] }) });
+
+    expect(screen.getByTestId('book-property-userTags').textContent).toContain('мой тег');
+  });
+
+  it('сохраняет только отличие от файла', async () => {
+    const onSaveProperties = vi.fn();
+    render(BookPage, { props: pageProps({ onSaveProperties }) });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Изменить сведения' }));
+    await fireEvent.input(screen.getByLabelText('Название'), {
+      target: { value: 'Новое название' },
+    });
+    await fireEvent.input(screen.getByLabelText('Мои теги (через запятую)'), {
+      target: { value: 'тег, ещё тег' },
+    });
+    await fireEvent.click(screen.getByTestId('book-edit-save'));
+
+    // Автор, язык и дата не менялись — в правку они не попадают.
+    expect(onSaveProperties).toHaveBeenCalledWith({
+      title: 'Новое название',
+      tags: ['тег', 'ещё тег'],
+    });
+  });
+
+  it('возвращает значения файла', async () => {
+    const onResetProperties = vi.fn();
+    render(BookPage, { props: pageProps({ onResetProperties }) });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Изменить сведения' }));
+    await fireEvent.click(screen.getByTestId('book-edit-reset'));
+
+    expect(onResetProperties).toHaveBeenCalledTimes(1);
   });
 });

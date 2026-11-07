@@ -47,6 +47,8 @@ export interface Book {
   size?: number;
   /** Когда книга появилась в библиотеке (Unix, мс). */
   addedAtMillis?: number;
+  /** Пользовательские теги книги (правка приложения, не источника). */
+  userTags?: string[];
 }
 
 /** Книга с извлечённой обложкой (data URI). */

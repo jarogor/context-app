@@ -44,5 +44,8 @@ fn extracts_language_without_publication_date() {
     let metadata = extract(pdf);
 
     assert_eq!(metadata.language.as_deref(), Some("ru-RU"));
-    assert!(metadata.published.is_none(), "CreationDate — не дата издания");
+    assert!(
+        metadata.published.is_none(),
+        "CreationDate — не дата издания"
+    );
 }

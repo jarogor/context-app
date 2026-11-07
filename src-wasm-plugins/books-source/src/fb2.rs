@@ -60,7 +60,8 @@ pub(crate) fn extract(bytes: &[u8]) -> BookMetadata {
                         }
                         "binary" => {
                             let id = attribute(&event, "id").unwrap_or_default();
-                            let content_type = attribute(&event, "content-type").unwrap_or_default();
+                            let content_type =
+                                attribute(&event, "content-type").unwrap_or_default();
                             active_text.clear();
                             binary = Some((id, content_type));
                         }
