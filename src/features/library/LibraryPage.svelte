@@ -3,6 +3,8 @@
   import {
     BookCover,
     Button,
+    Checkbox,
+    Dialog,
     EmptyState,
     ErrorState,
     Icon,
@@ -12,8 +14,24 @@
     Skeleton,
   } from '@context/ui';
   import BookPage from './BookPage.svelte';
-  import { t } from '@context/i18n';
+  import { currentLocale, t } from '@context/i18n';
   import { listenEvent } from '../../shared/app-bridge';
+  import {
+    activeFilterCount,
+    bookFacets,
+    emptyFilters,
+    FACET_IDS,
+    FACET_LABELS,
+    filterBooks,
+    sortBooks,
+    SORT_FIELDS,
+    sortField as sortFieldInfo,
+    toggleFacet,
+    type BookFilters,
+    type FacetId,
+    type SortDirection,
+    type SortField,
+  } from './fields';
   import {
     absoluteBookPath,
     activeLibraryPath,
@@ -81,8 +99,17 @@
   /** Режим показа книг: плитка или список. */
   let viewMode = $state<'grid' | 'list'>('grid');
 
-  /** Порядок книг: по названию, автору или времени добавления. */
-  let sortMode = $state<'title' | 'author' | 'added'>('title');
+  /** Поле сортировки списка книг. */
+  let sortField = $state<SortField>('title');
+
+  /** Направление сортировки. */
+  let sortDirection = $state<SortDirection>('asc');
+
+  /** Выбранные значения фасетов. */
+  let filters = $state<BookFilters>(emptyFilters());
+
+  /** Открыта ли панель фильтров. */
+  let filtersOpen = $state(false);
 
   /** Фильтр по наличию обложки: все книги или только без обложки. */
   let coverFilter = $state<'all' | 'without-cover'>('all');
@@ -94,11 +121,7 @@
   let listTop: HTMLElement | null = $state(null);
 
   /** Варианты порядка книг. */
-  const sortOptions = $derived([
-    { value: 'title', label: t('app.library.sort.title') },
-    { value: 'author', label: t('app.library.sort.author') },
-    { value: 'added', label: t('app.library.sort.added') },
-  ]);
+  const sortOptions = $derived(SORT_FIELDS.map((field) => ({ value: field.id, label: t(field.labelKey) })));
 
   /** Варианты фильтра по обложке. */
   const coverOptions = $derived([
@@ -111,19 +134,22 @@
     return book.authors.map((author) => author.name).join(', ');
   }
 
-  /** Книги с учётом фильтра обложки и выбранного порядка. */
+  /** Значения фасетов фильтра по всему каталогу. */
+  const facets = $derived(bookFacets(books, currentLocale()));
+
+  /** Число активных фасетов для счётчика на кнопке фильтров. */
+  const filterCount = $derived(activeFilterCount(filters));
+
+  /** Есть ли по каталогу хоть одно значение для фильтра. */
+  const hasFacets = $derived(FACET_IDS.some((id) => facets[id].length > 0));
+
+  /** Книги с учётом фильтров, фильтра обложки и выбранного порядка. */
   const viewBooks = $derived.by(() => {
-    let list = books;
+    let list = filterBooks(books, filters);
     if (coverFilter === 'without-cover') {
       list = list.filter((book) => !book.coverUri);
     }
-    const sorted = [...list];
-    if (sortMode === 'author') {
-      sorted.sort((a, b) => authorNames(a).localeCompare(authorNames(b), 'ru'));
-    } else if (sortMode === 'title') {
-      sorted.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
-    }
-    return sorted;
+    return sortBooks(list, sortField, sortDirection, currentLocale());
   });
 
   /** Число страниц списка (не меньше одной). */
@@ -167,6 +193,31 @@
     // Прокрутка возвращается к началу: иначе следующая страница открывается
     // с середины, где стоял пользователь.
     listTop?.scrollIntoView?.({ block: 'start' });
+  }
+
+  /** Смена поля сортировки: направление по умолчанию задаёт само поле. */
+  function chooseSort(value: string) {
+    sortField = value as SortField;
+    sortDirection = sortFieldInfo(sortField).defaultDirection;
+    page = 1;
+  }
+
+  /** Переключение направления сортировки. */
+  function toggleDirection() {
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+  }
+
+  /** Переключение значения фасета: список начинается с начала. */
+  function onFacetToggle(id: FacetId, value: string) {
+    filters = toggleFacet(filters, id, value);
+    page = 1;
+  }
+
+  /** Сброс фильтров панели и фильтра по обложке. */
+  function resetFilters() {
+    filters = emptyFilters();
+    coverFilter = 'all';
+    page = 1;
   }
 
   /** Выбор режима показа. */
@@ -466,16 +517,25 @@
             {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
           </span>
           <Select
-            bind:value={sortMode}
+            value={sortField}
             items={sortOptions}
             ariaLabel={t('app.library.orderLabel')}
             size="sm"
-            class="w-[9.5rem]"
-            onchange={() => {
-              // Другой порядок — другой список: показываем его с начала.
-              page = 1;
-            }}
+            class="w-[10.5rem]"
+            onchange={chooseSort}
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            title={sortDirection === 'asc' ? t('app.library.sort.desc') : t('app.library.sort.asc')}
+            ariaLabel={sortDirection === 'asc'
+              ? t('app.library.sort.desc')
+              : t('app.library.sort.asc')}
+            testId="library-sort-direction"
+            onclick={toggleDirection}
+          >
+            <Icon name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} />
+          </Button>
           <Select
             bind:value={coverFilter}
             items={coverOptions}
@@ -487,6 +547,21 @@
               page = 1;
             }}
           />
+          <Button
+            variant="secondary"
+            size="sm"
+            testId="library-filters-open"
+            ariaLabel={t('app.library.filters.open')}
+            onclick={() => (filtersOpen = true)}
+          >
+            <Icon name="layers" />
+            {t('app.library.filters.open')}
+            {#if filterCount > 0}
+              <span
+                class="role-caption text-[var(--muted-foreground)]"
+                data-testid="library-filters-count">{filterCount}</span>
+            {/if}
+          </Button>
           <div
             class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
             role="group"
@@ -516,6 +591,69 @@
         </div>
       </div>
     {/if}
+
+    <!--
+      Панель фильтров: фасеты каталога с числом книг. Внутри фасета значения
+      складываются «или», между фасетами действует «и».
+    -->
+    <Dialog
+      bind:open={filtersOpen}
+      title={t('app.library.filters.title')}
+      class="w-[min(30rem,calc(100vw-1.5rem))]"
+    >
+      <div class="flex min-h-0 flex-col gap-3" data-testid="library-filters">
+        {#if !hasFacets}
+          <p class="m-0 role-body text-[var(--muted-foreground)]">
+            {t('app.library.filters.empty')}
+          </p>
+        {:else}
+          <div class="flex min-h-0 flex-col gap-3 overflow-y-auto">
+            {#each FACET_IDS as id (id)}
+              {@const values = facets[id]}
+              {#if values.length > 0}
+                <section class="flex flex-col gap-1">
+                  <h3 class="role-caption text-[var(--muted-foreground)]">
+                    {t(FACET_LABELS[id])}
+                  </h3>
+                  <div class="flex flex-col">
+                    {#each values as item (item.value)}
+                      <label
+                        class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 hover:bg-[var(--surface-hover)]"
+                      >
+                        <Checkbox
+                          checked={filters[id].includes(item.value)}
+                          onchange={() => onFacetToggle(id, item.value)}
+                        />
+                        <span class="min-w-0 flex-1 truncate role-body">{item.label}</span>
+                        <span class="role-caption text-[var(--muted-foreground)]">{item.count}</span>
+                      </label>
+                    {/each}
+                  </div>
+                </section>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+        <div class="flex items-center justify-between gap-2 border-t border-[var(--divider)] pt-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={filterCount === 0 && coverFilter === 'all'}
+            onclick={resetFilters}
+          >
+            {t('app.library.filters.reset')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            testId="library-filters-done"
+            onclick={() => (filtersOpen = false)}
+          >
+            {t('app.library.filters.done')}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
 
     <ScrollArea testId="library-page" class="p-4 md:p-6">
       <div bind:this={listTop} aria-hidden="true"></div>

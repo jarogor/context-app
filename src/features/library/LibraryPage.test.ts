@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LibraryPage from './LibraryPage.svelte';
@@ -275,5 +275,87 @@ describe('страница библиотеки', () => {
     });
     await waitFor(() => expect(screen.getByText('Страница 1 из 2')).toBeTruthy());
     expect(screen.getByText('Книга 001')).toBeTruthy();
+  });
+});
+
+/** Каталог из двух книг разных форматов и без других свойств. */
+const FORMAT_CATALOG = {
+  catalog: {
+    books: [
+      {
+        id: 'epub-1',
+        title: 'Книга EPUB',
+        authors: [],
+        series: [],
+        tags: [],
+        files: [{ kind: 'book', path: 'epub-1.epub', format: 'epub' }],
+      },
+      {
+        id: 'fb2-1',
+        title: 'Книга FB2',
+        authors: [],
+        series: [],
+        tags: [],
+        files: [{ kind: 'book', path: 'fb2-1.fb2', format: 'fb2' }],
+      },
+    ],
+  },
+};
+
+describe('сортировка и фильтры библиотеки', () => {
+  beforeEach(() => {
+    invoke.mockImplementation(async (command) => {
+      if (command === 'reader_formats') {
+        return ['epub', 'fb2'];
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      if (command === 'invoke_plugin_operation') {
+        return FORMAT_CATALOG;
+      }
+      return null;
+    });
+  });
+
+  /** Открытие библиотеки с каталогом двух форматов. */
+  async function openLibrary() {
+    render(LibraryPage, {
+      props: { initialActiveLibrary: null, onOpenInWorkplace: vi.fn() },
+    });
+    await waitFor(() => expect(catalogChanged).toBeTruthy());
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'books-source' });
+    await screen.findByText('Книга EPUB');
+  }
+
+  it('фильтрует книги по формату из панели фильтров', async () => {
+    await openLibrary();
+
+    await fireEvent.click(screen.getByTestId('library-filters-open'));
+    const panel = await screen.findByTestId('library-filters');
+    const checkboxes = within(panel).getAllByRole('checkbox');
+    // У книг этого каталога есть только формат: первым идёт он (EPUB, затем FB2).
+    await fireEvent.click(checkboxes[1]);
+
+    await waitFor(() => expect(screen.queryByText('Книга EPUB')).toBeNull());
+    expect(screen.getByText('Книга FB2')).toBeTruthy();
+    expect(screen.getByTestId('library-filters-count').textContent).toContain('1');
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
+
+    await waitFor(() => expect(screen.getByText('Книга EPUB')).toBeTruthy());
+    expect(screen.queryByTestId('library-filters-count')).toBeNull();
+  });
+
+  it('переключает направление сортировки', async () => {
+    await openLibrary();
+
+    const button = screen.getByTestId('library-sort-direction');
+    // При сортировке по возрастанию кнопка предлагает обратный порядок.
+    expect(button.getAttribute('aria-label')).toBe('По убыванию');
+
+    await fireEvent.click(button);
+
+    await waitFor(() => expect(button.getAttribute('aria-label')).toBe('По возрастанию'));
   });
 });
