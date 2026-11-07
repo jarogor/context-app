@@ -122,7 +122,7 @@ export function readerThemeTokens(palette: PaletteId, id: ReaderThemeId): Reader
   // плотный жёлтый и янтарный почти неразличимы.
   return id === 'dark'
     ? { ...base, search: 'rgba(96, 140, 200, 0.55)', searchActive: 'rgba(125, 190, 255, 0.95)' }
-    : { ...base, search: 'rgba(242, 205, 82, 0.95)', searchActive: 'rgba(238, 116, 12, 1)' };
+    : { ...base, search: 'rgba(236, 196, 66, 0.95)', searchActive: 'rgba(238, 116, 12, 1)' };
 }
 
 /** Светлые тона заметок: насыщенные, но среднесветлые оттенки.
@@ -351,7 +351,8 @@ const COBALT_DARK_PAGE: ReaderPageColors = {
 
 /** Тёплая бумага и мягкий текст «Янтаря» для страницы в тёмной теме. */
 const GRUVBOX_DARK_PAGE: ReaderPageColors = {
-  paper: '#26292a',
+  // Ночная бумага с красноватым сдвигом — та же тёплая палитра, что и фон.
+  paper: '#2b2523',
   ink: '#d5c4a1',
 };
 
@@ -405,12 +406,14 @@ const LIGHT_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     selectionEdgeWidth: 1,
   },
   gruvbox: {
-    background: '#fbf1c7',
+    // Тёплая бумага с янтарным акцентом: выделение тоже янтарное, а не
+    // стально-синее — страница и интерфейс держат одну палитру.
+    background: '#f8e7c5',
     text: '#3c3836',
-    muted: '#7c6f64',
-    link: '#076678',
-    selection: 'rgba(96, 140, 180, 0.35)',
-    selectionEdge: 'rgba(60, 100, 145, 0.9)',
+    muted: '#715e49',
+    link: '#9c4a08',
+    selection: 'rgba(196, 130, 60, 0.32)',
+    selectionEdge: 'rgba(150, 85, 20, 0.9)',
     selectionEdgeWidth: 1,
   },
   mist: {
@@ -448,12 +451,12 @@ const DARK_READER_TOKENS: Record<PaletteId, ReaderBaseTokens> = {
     selectionEdgeWidth: 1,
   },
   gruvbox: {
-    background: '#282828',
+    background: '#2b2523',
     text: '#ebdbb2',
-    muted: '#a89984',
-    link: '#83a598',
-    selection: 'rgba(120, 160, 195, 0.33)',
-    selectionEdge: 'rgba(150, 190, 220, 0.9)',
+    muted: '#b3a08c',
+    link: '#e3a24a',
+    selection: 'rgba(220, 165, 90, 0.3)',
+    selectionEdge: 'rgba(240, 200, 140, 0.9)',
     selectionEdgeWidth: 1,
   },
   mist: {

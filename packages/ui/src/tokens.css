@@ -11,11 +11,11 @@
  * атрибута выставляет модуль `theme.ts`/`palettes.ts`, компоненты о теме и
  * палитре не знают.
  *
- * Палитра по умолчанию — «Лён» (`linen`): тёплая бумага со смолистым зелёным
- * акцентом. Она лежит в `:root` (светлый набор) и `:root[data-theme='dark']`
+ * Палитра по умолчанию — «Туман» (`mist`): спокойная нейтральная бумага с
+ * синим акцентом. Она лежит в `:root` (светлый набор) и `:root[data-theme='dark']`
  * (тёмный), поэтому работает даже до установки атрибутов (статичный экран до
- * бандла). Кроме неё есть «Индиго» (`cobalt`), «Янтарь» (`gruvbox`) и «Туман»
- * (`mist`); подключаются атрибутом `data-palette`.
+ * бандла). Кроме неё есть «Лён» (`linen`), «Индиго» (`cobalt`) и «Янтарь»
+ * (`gruvbox`); подключаются атрибутом `data-palette`.
  *
  * Блок `@theme inline` превращает токены в утилиты Tailwind (`bg-background`,
  * `text-muted-foreground`, `border-border`, `rounded-lg`, …).
@@ -39,7 +39,7 @@
 
   /* Поверхности иерархии. Заливки-подсветки заданы **полупрозрачным акцентом
    * палитры**: `--primary` у каждой темы свой (смола зелёная у «Льна», синяя у
-   * «Индиго» и «Тумана», бирюзовая у «Янтаря»), поэтому подсветка наведения и
+   * «Индиго» и «Тумана», янтарная у «Янтаря»), поэтому подсветка наведения и
    * выбора не серая и не одинаковая между темами — она в тон палитре. Прозрачность
    * позволяет накладывать тон поверх любой подложки (страница, карточка,
    * всплывающий слой), так что отклик заметен и в тёмных наборах, где непрозрачный
@@ -60,7 +60,7 @@
   /* Счётчик непрочитанного — метка действия, а не статус: цвет берётся из
    * акцента активной палитры, поэтому в каждой теме он свой и согласован с
    * выделением раздела (у «Льна» смолистый зелёный, у «Индиго» глубокий синий,
-   * у «Янтаря» бирюзовый, у «Тумана» серый). Отдельный «успешный» зелёный на
+   * у «Янтаря» янтарный, у «Тумана» серый). Отдельный «успешный» зелёный на
    * эту роль не годится: он одинаков во всех палитрах и режет глаз рядом с
    * акцентом темы. */
   --counter: var(--primary);
@@ -273,71 +273,74 @@
   --warning: #dcae62;
 }
 
-/* Палитра «Янтарь», светлый набор. Прежняя палитра приложения; подключается
- * атрибутом `data-palette='gruvbox'`. */
+/* Палитра «Янтарь», светлый набор. Тёплая бумага с янтарным акцентом;
+ * подключается атрибутом `data-palette='gruvbox'`. */
 :root[data-palette='gruvbox'] {
-  --background: #fbf1c7;
+  /* Бумага сдвинута от жёлтой к оранжевой: палитра обещает янтарь, и фон
+   * держит это обещание — тёплый светлый оттенок, а не лимонный. */
+  --background: #f8e7c5;
   --foreground: #3c3836;
-  --card: #fdf9e6;
+  --card: #fbf0d8;
   --card-foreground: #3c3836;
-  --popover: #f9f5d7;
+  --popover: #f9edd7;
   --popover-foreground: #3c3836;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #fffbe8;
-  --primary: #005d74;
-  --primary-foreground: #fbf1c7;
-  --secondary: #ebdbb2;
+  --overlay-surface: #fff6e3;
+  --primary: #a84b07;
+  --primary-foreground: #fdf6e6;
+  --secondary: #f0ddb6;
   --secondary-foreground: #3c3836;
-  --muted: #ebdbb2;
-  --muted-foreground: #7c6f64;
+  --muted: #efdbb2;
+  --muted-foreground: #715e49;
   --destructive: #9d0006;
-  --destructive-foreground: #fbf1c7;
+  --destructive-foreground: #fdf6e6;
   --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
-  --ring: #005d74;
-  --sidebar: #f9f5d7;
+  --ring: #a84b07;
+  --sidebar: #f9edd7;
   --sidebar-foreground: #3c3836;
-  --sidebar-primary: #005d74;
-  --sidebar-primary-foreground: #fbf1c7;
-  --sidebar-accent: #ebdbb2;
+  --sidebar-primary: #a84b07;
+  --sidebar-primary-foreground: #fdf6e6;
+  --sidebar-accent: #f0ddb6;
   --sidebar-accent-foreground: #3c3836;
   --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
-  --sidebar-ring: #005d74;
+  --sidebar-ring: #a84b07;
   --success: #427b58;
   --warning: #b57614;
 }
 
-/* Палитра «Янтарь», тёмный набор. */
+/* Палитра «Янтарь», тёмный набор. Фон сдвинут от нейтрального серого к
+ * красноватому: та же тёплая бумага, только ночная. */
 :root[data-palette='gruvbox'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #282828;
+  --background: #2b2523;
   --foreground: #ebdbb2;
-  --card: #32302f;
+  --card: #342d2a;
   --card-foreground: #ebdbb2;
-  --popover: #32302f;
+  --popover: #342d2a;
   --popover-foreground: #ebdbb2;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #403d3a;
-  --primary: #62a590;
-  --primary-foreground: #282828;
-  --secondary: #3c3836;
+  --overlay-surface: #453b36;
+  --primary: #e3a24a;
+  --primary-foreground: #2b2523;
+  --secondary: #3c3430;
   --secondary-foreground: #ebdbb2;
-  --muted: #3c3836;
-  --muted-foreground: #a89984;
+  --muted: #3c3430;
+  --muted-foreground: #b3a08c;
   --destructive: #fb4934;
-  --destructive-foreground: #282828;
+  --destructive-foreground: #2b2523;
   --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
   --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
-  --ring: #62a590;
-  --sidebar: #32302f;
+  --ring: #e3a24a;
+  --sidebar: #342d2a;
   --sidebar-foreground: #ebdbb2;
-  --sidebar-primary: #62a590;
-  --sidebar-primary-foreground: #282828;
-  --sidebar-accent: #3c3836;
+  --sidebar-primary: #e3a24a;
+  --sidebar-primary-foreground: #2b2523;
+  --sidebar-accent: #3c3430;
   --sidebar-accent-foreground: #ebdbb2;
   --sidebar-border: color-mix(in oklab, var(--foreground) 13%, var(--background));
-  --sidebar-ring: #62a590;
+  --sidebar-ring: #e3a24a;
   --success: #8ec07c;
   --warning: #fabd2f;
 }
@@ -455,20 +458,20 @@
 }
 
 :root[data-palette='gruvbox'][data-reader-theme='light'] {
-  --reader-background: #fbf1c7;
+  --reader-background: #f8e7c5;
   --reader-foreground: #3c3836;
-  --reader-muted-foreground: #7c6f64;
-  --reader-link: #005d74;
-  --reader-selection: rgba(96, 140, 180, 0.35);
+  --reader-muted-foreground: #715e49;
+  --reader-link: #9c4a08;
+  --reader-selection: rgba(196, 130, 60, 0.32);
   --reader-note-mark: #f2cd52;
 }
 
 :root[data-palette='gruvbox'][data-reader-theme='dark'] {
-  --reader-background: #282828;
+  --reader-background: #2b2523;
   --reader-foreground: #ebdbb2;
-  --reader-muted-foreground: #a89984;
-  --reader-link: #62a590;
-  --reader-selection: rgba(120, 160, 195, 0.33);
+  --reader-muted-foreground: #b3a08c;
+  --reader-link: #e3a24a;
+  --reader-selection: rgba(220, 165, 90, 0.3);
   --reader-note-mark: rgba(214, 158, 46, 0.75);
 }
 

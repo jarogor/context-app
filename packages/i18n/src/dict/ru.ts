@@ -71,7 +71,7 @@ export const ru = {
   'app.palette.mist': 'Туман (по умолчанию)',
   'app.palette.linen.description': 'Тёплая бумага со смолистым зелёным акцентом',
   'app.palette.cobalt.description': 'Голубая бумага с насыщенным синим акцентом',
-  'app.palette.gruvbox.description': 'Тёплая контрастная палитра с бирюзовым акцентом',
+  'app.palette.gruvbox.description': 'Тёплая контрастная палитра с янтарным акцентом',
   'app.palette.mist.description': 'Спокойная нейтральная палитра без цветного фона',
 
   'app.settings.dirty': 'Есть несохранённые изменения',

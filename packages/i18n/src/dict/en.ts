@@ -71,7 +71,7 @@ export const en: Dictionary = {
   'app.palette.mist': 'Mist (default)',
   'app.palette.linen.description': 'Warm paper with a resin-green accent',
   'app.palette.cobalt.description': 'Cool blue paper with a deep blue accent',
-  'app.palette.gruvbox.description': 'Warm contrast palette with a teal accent',
+  'app.palette.gruvbox.description': 'Warm contrast palette with an amber accent',
   'app.palette.mist.description': 'Calm neutral palette without a colored background',
 
   'app.settings.dirty': 'Unsaved changes',

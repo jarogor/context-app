@@ -54,6 +54,35 @@ describe('applyReaderTheme', () => {
   });
 });
 
+/** Каналы цвета и прозрачность из `#rrggbb` или `rgba()`. */
+const parseColor = (value: string): number[] => {
+  const hex = /^#([0-9a-f]{6})$/i.exec(value.trim());
+  if (hex) {
+    const number = Number.parseInt(hex[1], 16);
+    return [(number >> 16) & 255, (number >> 8) & 255, number & 255, 1];
+  }
+  const match = value.match(/[\d.]+/g) ?? [];
+  return [Number(match[0]), Number(match[1]), Number(match[2]), Number(match[3] ?? 1)];
+};
+
+/** Видимый на бумаге цвет: полупрозрачный тон, положенный на фон. */
+const overBackground = (tone: string, background: string): number[] => {
+  const front = parseColor(tone);
+  const back = parseColor(background);
+  return [0, 1, 2].map((index) =>
+    Math.round(front[3] * front[index] + (1 - front[3]) * back[index]),
+  );
+};
+
+/** Заметность цвета на фоне: модуль разницы яркостей. */
+const visibility = (tone: string, background: string): number => {
+  const color = overBackground(tone, background);
+  const back = parseColor(background);
+  const backLuma = 0.299 * back[0] + 0.587 * back[1] + 0.114 * back[2];
+  const luma = 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2];
+  return Math.abs(luma - backLuma);
+};
+
 describe('readerThemeTokens', () => {
   it('для каждой палитры и стороны различает фон и текст', () => {
     for (const palette of PALETTES) {
@@ -77,15 +106,16 @@ describe('readerThemeTokens', () => {
 
   it('выделение различимо на обеих сторонах и различается между ними', () => {
     for (const palette of PALETTES) {
-      const light = readerThemeTokens(palette.id, 'light').selection;
-      const dark = readerThemeTokens(palette.id, 'dark').selection;
-      // Синеватый оттенок: канал синего заметно выше красного.
-      for (const value of [light, dark]) {
-        const channels = value.match(/[\d.]+/g)?.map(Number) ?? [];
-        expect(channels[2]).toBeGreaterThan(channels[0]);
+      const lightTokens = readerThemeTokens(palette.id, 'light');
+      const darkTokens = readerThemeTokens(palette.id, 'dark');
+      // Выделение в тон палитры видно на бумаге своей стороны: у «Янтаря» оно
+      // тёплое, у «Индиго» — синее, у «Тумана» — серое; общее у них только то,
+      // что заливка заметна на фоне.
+      for (const tokens of [lightTokens, darkTokens]) {
+        expect(visibility(tokens.selection, tokens.background)).toBeGreaterThan(10);
       }
       // Тёмная сторона задана отдельно: на тёмной бумаге нужен иной оттенок.
-      expect(dark).not.toBe(light);
+      expect(darkTokens.selection).not.toBe(lightTokens.selection);
     }
   });
 
@@ -106,32 +136,6 @@ describe('readerThemeTokens', () => {
     /** Каналы цвета в порядке красный, зелёный, синий. */
     const channels = (value: string): number[] =>
       (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
-    /** Каналы цвета и прозрачность из `#rrggbb` или `rgba()`. */
-    const parse = (value: string): number[] => {
-      const hex = /^#([0-9a-f]{6})$/i.exec(value.trim());
-      if (hex) {
-        const number = Number.parseInt(hex[1], 16);
-        return [(number >> 16) & 255, (number >> 8) & 255, number & 255, 1];
-      }
-      const match = value.match(/[\d.]+/g) ?? [];
-      return [Number(match[0]), Number(match[1]), Number(match[2]), Number(match[3] ?? 1)];
-    };
-    /** Видимый на бумаге цвет: полупрозрачный тон, положенный на фон. */
-    const overBackground = (tone: string, background: string): number[] => {
-      const front = parse(tone);
-      const back = parse(background);
-      return [0, 1, 2].map((index) =>
-        Math.round(front[3] * front[index] + (1 - front[3]) * back[index]),
-      );
-    };
-    /** Заметность цвета на фоне: модуль разницы яркостей. */
-    const visibility = (tone: string, background: string): number => {
-      const color = overBackground(tone, background);
-      const back = parse(background);
-      const backLuma = 0.299 * back[0] + 0.587 * back[1] + 0.114 * back[2];
-      const luma = 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2];
-      return Math.abs(luma - backLuma);
-    };
 
     for (const palette of PALETTES) {
       const light = readerThemeTokens(palette.id, 'light');
