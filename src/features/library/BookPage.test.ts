@@ -72,7 +72,7 @@ describe('страница книги', () => {
 
     expect(screen.getByRole('button', { name: 'Читать' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Открыть файл' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Открыть папку с файлом' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Открыть папку' })).toBeTruthy();
   });
 
   it('не показывает пустых сведений', () => {
@@ -140,7 +140,13 @@ describe('страница книги', () => {
   it('отменяет редактирование и умеет вернуть значения файла', async () => {
     const onSaveProperties = vi.fn();
     const onResetProperties = vi.fn();
-    render(BookPage, { props: pageProps({ onSaveProperties, onResetProperties }) });
+    render(BookPage, {
+      props: pageProps({
+        userEntry: { title: 'Своё название' } as BookPropertyEntry,
+        onSaveProperties,
+        onResetProperties,
+      }),
+    });
 
     await fireEvent.click(screen.getByTestId('book-edit-start'));
     await fireEvent.click(screen.getByTestId('book-edit-cancel'));
