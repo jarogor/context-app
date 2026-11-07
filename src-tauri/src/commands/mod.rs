@@ -21,6 +21,7 @@ pub mod reader_cache;
 pub mod reader_font;
 pub mod reader_open_link;
 pub mod reader_theme;
+pub mod save_text_file;
 pub mod save_workspaces;
 pub mod select_source_library;
 pub mod show_window;
@@ -59,6 +60,10 @@ pub use get_workspaces::get_workspaces;
 pub use save_workspaces::__cmd__save_workspaces;
 pub use save_workspaces::__tauri_command_name_save_workspaces;
 pub use save_workspaces::save_workspaces;
+
+pub use save_text_file::__cmd__save_text_file;
+pub use save_text_file::__tauri_command_name_save_text_file;
+pub use save_text_file::save_text_file;
 
 pub use base_plugin_operation::__cmd__invoke_base_plugin_operation;
 pub use base_plugin_operation::__tauri_command_name_invoke_base_plugin_operation;

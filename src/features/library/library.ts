@@ -6,6 +6,7 @@
  */
 
 import { invokeCommand } from '../../shared/app-bridge';
+import { lastSegment } from '../../shared/path';
 import appConfig from './app-config.json';
 
 /** Файл книги в каталоге источника. */
@@ -136,8 +137,71 @@ export async function readerFormats(): Promise<string[]> {
   return formats ?? [];
 }
 
+/** Расширения файлов книг, которые приложение умеет читать.
+ *
+ * Список берётся у ядра: он складывается из форматов, которые обслуживают
+ * плагины чтения. Книга, открытая произвольным файлом, — такая же книга, что и
+ * из библиотеки, поэтому выбор книги для набора ограничен этим списком.
+ */
+export async function readableBookExtensions(): Promise<string[]> {
+  const formats = (await readerFormats())
+    .map((format) => format.trim().toLowerCase().replace(/^\./, ''))
+    .filter(Boolean);
+  return formats.length > 0 ? formats : ['epub', 'fb2'];
+}
+
 /** Корень активной библиотеки (для сборки абсолютного пути книги). */
 export async function activeLibraryPath(): Promise<string> {
   const active = (await invokeCommand('active_library', {})) as { path?: string } | null;
   return active?.path ?? '';
+}
+
+/** Абсолютный путь файла книги по корню библиотеки и относительному пути.
+ *
+ * Относительный путь уже абсолютный (книга открыта извне библиотеки) — он
+ * возвращается как есть: источник может отдавать и такие записи.
+ */
+export function absoluteBookPath(root: string, relative: string): string {
+  const value = relative.trim();
+  if (!value) {
+    return '';
+  }
+  if (/^([a-z]+:)?[\\/]/i.test(value)) {
+    return value;
+  }
+  if (!root) {
+    return value;
+  }
+  return `${root.replace(/[\\/]+$/, '')}/${value}`;
+}
+
+/** Книга активной библиотеки для выбора: место хранения и подписи.
+ *
+ * Ключ книги — абсолютный путь её файла содержимого: так книга открывается и так
+ * к ней привязываются заметки. Он вычисляется здесь, чтобы диалоги выбора книги
+ * не собирали путь по-своему.
+ */
+export interface BookChoice {
+  /** Локальный ключ книги (абсолютный путь файла содержимого). */
+  key: string;
+  /** Имя файла книги с расширением. */
+  name: string;
+  /** Отображаемое название книги. */
+  title: string;
+}
+
+/** Книги активной библиотеки для выбора. */
+export async function bookChoices(): Promise<BookChoice[]> {
+  const [root, books] = await Promise.all([activeLibraryPath(), listBooks('')]);
+  return books.flatMap((book) => {
+    const file = book.files.find((entry) => entry.kind === 'book');
+    if (!file) {
+      return [];
+    }
+    const key = absoluteBookPath(root, file.path);
+    if (!key) {
+      return [];
+    }
+    return [{ key, name: lastSegment(file.path, { stripExt: false }), title: book.title }];
+  });
 }

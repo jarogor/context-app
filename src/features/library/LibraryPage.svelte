@@ -15,6 +15,7 @@
   import { t } from '@context/i18n';
   import { listenEvent } from '../../shared/app-bridge';
   import {
+    absoluteBookPath,
     activeLibraryPath,
     listBooks,
     loadCover,
@@ -303,17 +304,7 @@
 
   /** Абсолютный путь файла содержимого книги (вложение вкладки). */
   function bookPath(book: Book, format?: string): string {
-    const relative = bookFile(book, format)?.path ?? '';
-    if (!relative) {
-      return '';
-    }
-    if (/^([a-z]+:)?[\\/]/i.test(relative)) {
-      return relative;
-    }
-    if (!libraryRoot) {
-      return relative;
-    }
-    return `${libraryRoot.replace(/[\\/]+$/, '')}/${relative}`;
+    return absoluteBookPath(libraryRoot, bookFile(book, format)?.path ?? '');
   }
 
   /** Открытие книги вкладкой рабочего места. */

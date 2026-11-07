@@ -1442,3 +1442,117 @@ test('большая книга с устаревшими якорями отк�
   // Открытие укладывается в разумное время, а не зависает.
   expect(Date.now() - started).toBeLessThan(30000);
 });
+
+test('набор заметок выгружается в переносимый файл без пути книги', async ({ page }) => {
+  await page.goto('/');
+  await noteInBook(page, 'Демо-книга', 'Первый абзац книги.');
+  await openNotesRegistry(page);
+
+  // Экспорт — пункт меню набора: файл пишет ядро по выбору пользователя.
+  const set = page.getByTestId('notes-library-set').filter({ hasText: 'demo-1.epub' });
+  await set.getByLabel('Действия с набором заметок').click();
+  await page.getByRole('menuitem', { name: 'Экспорт' }).click();
+
+  await page.waitForFunction(() => {
+    const raw = window.localStorage.getItem('context-notes-files') ?? '{}';
+    return Object.keys(JSON.parse(raw) as Record<string, string>).length > 0;
+  });
+  const files = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('context-notes-files') ?? '{}';
+    return Object.entries(JSON.parse(raw) as Record<string, string>);
+  });
+  expect(files).toHaveLength(1);
+  const [path, content] = files[0];
+  expect(path).toContain('Основные');
+  const document = JSON.parse(content) as {
+    format?: string;
+    book?: { name?: string; title?: string };
+    set?: { name?: string; notes?: Array<{ quote?: string }> };
+  };
+  expect(document.format).toBe('context.notes-set');
+  // Книга описана, а не адресована: путь к файлу в документ не попадает.
+  expect(document.book?.name).toBe('demo-1.epub');
+  expect(document.set?.notes?.[0]?.quote).toContain('Первый абзац книги.');
+  expect(content).not.toContain('/demo-library');
+  expect(content).not.toContain('book_key');
+});
+
+test('импорт принимает набор без книги и позволяет привязать её потом', async ({ page }) => {
+  const path = '/tmp/Чужая-книга.notes.json';
+  await page.addInitScript((filePath) => {
+    const globals = window as unknown as {
+      __TEXTURE_MOCK_OVERRIDES__: { dialogResult?: unknown };
+    };
+    // Диалог выбора файла отвечает путём подготовленного файла: настоящего
+    // файла в моке нет, его место занимает виртуальное хранилище.
+    globals.__TEXTURE_MOCK_OVERRIDES__ = {
+      ...globals.__TEXTURE_MOCK_OVERRIDES__,
+      dialogResult: filePath,
+    };
+    window.localStorage.setItem(
+      'context-notes-files',
+      JSON.stringify({
+        [filePath]: JSON.stringify({
+          format: 'context.notes-set',
+          version: 1,
+          // Книга описана именем файла: у получателя свой путь к ней.
+          book: { name: 'demo-1.epub', title: 'Демо-книга' },
+          set: {
+            name: 'Поделились',
+            created_at_millis: 1_700_000_000_000,
+            notes: [
+              {
+                id: 'note-source',
+                type: 'quote',
+                quote: 'Цитата из чужого набора.',
+                chapter: 'Глава 1',
+                color: 'yellow',
+              },
+            ],
+          },
+        }),
+      }),
+    );
+  }, path);
+
+  await page.goto('/');
+  await openNotesRegistry(page);
+  await expect(page.getByTestId('notes-library-empty')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Импорт' }).click();
+
+  // Набор принят сразу: он виден, помечен «без книги» и не открывается.
+  const sets = page.getByTestId('notes-library-set');
+  await expect(sets).toHaveCount(1);
+  await expect(sets).toContainText('Поделились');
+  // Надпись о книге выделена: без неё набор не открыть.
+  await expect(page.getByTestId('notes-library-no-book')).toHaveText('Книга не указана');
+  await expect(page.getByTestId('notes-library-no-book')).toHaveClass(/font-medium/);
+  await expect(page.getByTestId('notes-library-set-toggle')).toBeDisabled();
+
+  // Заметки набора видны и находятся поиском, как у любого набора.
+  const imported = sets.filter({ hasText: 'Поделились' });
+  await imported.getByLabel('Действия с набором заметок').click();
+  await page.getByRole('menuitem', { name: 'Показать заметки' }).click();
+  await expect(imported.getByTestId('notes-item-link')).toContainText('Цитата из чужого набора.');
+  const search = page.getByTestId('notes-library').getByPlaceholder('Поиск по заметкам');
+  await search.fill('чужого набора');
+  await expect(page.getByTestId('notes-library-set')).toHaveCount(1);
+  await search.fill('');
+
+  // Привязка книги — пунктом меню: набор связывается с книгой этого хранилища.
+  await imported.getByLabel('Действия с набором заметок').click();
+  await page.getByRole('menuitem', { name: 'Указать книгу' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('bind-set-name')).toContainText('Поделились');
+  await expect(dialog.getByTestId('bind-set-hint')).toContainText('Демо-книга');
+  await dialog.getByTestId('bind-book-item').first().click();
+
+  // После привязки набор открывается как обычный и показывает книгу.
+  await expect(page.getByTestId('notes-library-no-book')).toHaveCount(0);
+  await expect(page.getByTestId('notes-library-book')).toContainText('demo-1.epub');
+  const bound = page.getByTestId('notes-library-set').filter({ hasText: 'demo-1.epub' });
+  await bound.getByTestId('notes-library-set-toggle').click();
+  await expect(page.getByTestId('notes-set-panel')).toBeVisible();
+});

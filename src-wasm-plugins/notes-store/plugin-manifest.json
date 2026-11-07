@@ -12,7 +12,8 @@
     "state_read",
     "state_write",
     "emit_event",
-    "now_millis"
+    "now_millis",
+    "import_read_bytes"
   ],
   "provides": [
     "notes.store@1"

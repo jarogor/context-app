@@ -6,6 +6,7 @@
 //! непрозрачна: набор адресуется ключом книги, заметка — непрозрачным якорем.
 
 pub mod models;
+pub mod portable;
 pub mod store;
 
 #[cfg(target_arch = "wasm32")]
@@ -46,6 +47,10 @@ pub fn handle(host: &impl Host, input: &str) -> Result<String, String> {
         "add_note" => add_note(host, &request.payload),
         "update_note" => update_note(host, &request.payload),
         "delete_note" => delete_note(host, &request.payload),
+        "export_set" => export_set(host, &request.payload),
+        "inspect_import" => inspect_import(host, &request.payload),
+        "import_set" => import_set(host, &request.payload),
+        "bind_set" => bind_set(host, &request.payload),
         other => Err(format!("неизвестное действие плагина заметок: {other}")),
     }
 }
@@ -179,6 +184,112 @@ fn delete_note(host: &impl Host, payload: &serde_json::Value) -> Result<String, 
     let set = current_set(&state, &set_id)?;
     emit_changed(host, &set.book_key, &set_id)?;
     Ok(json!({ "set": set }).to_string())
+}
+
+/// Документ экспорта набора: имя файла и текст в переносимом формате.
+///
+/// Чтение не меняет состояние и не публикует событие: файл записывает ядро по
+/// выбору пользователя, а плагин отвечает за формат и имя файла. Книга попадает
+/// в документ описанием (имя файла и название), а не путём: один и тот же файл
+/// книги может лежать по разным путям.
+fn export_set(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let set_id = set_id(payload);
+    let state = load(host)?;
+    let set = state
+        .find(&set_id)
+        .ok_or_else(|| format!("неизвестный набор заметок: {set_id}"))?;
+    let document = portable::document(set, &string_field(payload, "book_name"), host.now_millis())?;
+    Ok(json!({
+        "file_name": portable::export_file_name(&set.name),
+        "document": document,
+    })
+    .to_string())
+}
+
+/// Просмотр файла импорта без изменения состояния.
+///
+/// Оболочке нужно знать набор и книгу до привязки: набор показывается в диалоге,
+/// а книгу выбирает пользователь. Файл читает ядро по host-функции
+/// `import_read_bytes`, разбирает — владелец формата.
+fn inspect_import(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let document = read_document(host, payload)?;
+    Ok(json!({
+        "set": {
+            "name": document.set.name,
+            "note_count": document.set.notes.len(),
+        },
+        "book": document.book,
+    })
+    .to_string())
+}
+
+/// Импорт набора из файла; книга может быть неизвестна.
+///
+/// Набор принимается всегда — иначе чужой файл нельзя было бы даже посмотреть и
+/// найти в нём заметки. Книга выбирается вызывающей стороной, но её можно не
+/// указывать: тогда набор попадает в реестр без книги, а `book_title` из файла
+/// служит подсказкой. Привязать книгу можно позже (`bind_set`).
+fn import_set(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let document = read_document(host, payload)?;
+    let book_key = string_field(payload, "book_key");
+    let book_title = {
+        let chosen = string_field(payload, "book_title");
+        if !chosen.trim().is_empty() {
+            chosen
+        } else if !document.book.title.trim().is_empty() {
+            document.book.title.clone()
+        } else {
+            document.book.name.clone()
+        }
+    };
+    let now = host.now_millis();
+    let set_id = new_id(SET_ID_PREFIX, now);
+    let note_ids: Vec<String> = (0..document.set.notes.len())
+        .map(|_| new_id(NOTE_ID_PREFIX, now))
+        .collect();
+    let mut state = load(host)?;
+    let set = state.import_set(
+        document.set,
+        &book_key,
+        &book_title,
+        &set_id,
+        &note_ids,
+        now,
+    )?;
+    save(host, &state)?;
+    emit_changed(host, &set.book_key, &set.id)?;
+    Ok(json!({ "set": set }).to_string())
+}
+
+/// Привязка набора к книге, указанной пользователем.
+///
+/// Книга может быть как из библиотеки, так и открыта произвольным файлом
+/// разрешённого формата: плагину важен только её локальный ключ. Привязка не
+/// меняет заметки и не трогает активный набор книги.
+fn bind_set(host: &impl Host, payload: &serde_json::Value) -> Result<String, String> {
+    let set_id = set_id(payload);
+    let book_key = string_field(payload, "book_key");
+    let book_title = string_field(payload, "book_title");
+    let mut state = load(host)?;
+    let set = state.bind_set(&set_id, &book_key, &book_title)?;
+    save(host, &state)?;
+    emit_changed(host, &set.book_key, &set.id)?;
+    Ok(json!({ "set": set }).to_string())
+}
+
+/// Чтение и разбор файла импорта из payload.
+fn read_document(
+    host: &impl Host,
+    payload: &serde_json::Value,
+) -> Result<crate::models::PortableDocument, String> {
+    let path = string_field(payload, "path");
+    if path.trim().is_empty() {
+        return Err("не указан файл импорта".to_string());
+    }
+    let bytes = host.import_read_bytes(path.trim())?;
+    let text =
+        String::from_utf8(bytes).map_err(|_| "файл набора заметок не читается".to_string())?;
+    portable::parse_document(&text)
 }
 
 /// Текущий набор состояния или отказ, если он исчез.

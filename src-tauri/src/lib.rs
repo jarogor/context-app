@@ -155,6 +155,7 @@ pub fn run() {
             commands::open_folder,
             commands::support_report,
             commands::support_report_save,
+            commands::save_text_file,
             commands::select_source_library,
             commands::active_library,
             commands::library_history_list,

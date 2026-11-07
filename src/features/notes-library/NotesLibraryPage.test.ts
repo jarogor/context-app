@@ -1,7 +1,54 @@
-import { fireEvent, render, screen, within } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within, waitFor } from '@testing-library/svelte';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import NotesLibraryPage from './NotesLibraryPage.svelte';
-import { normalizeSet } from '../notes/notes';
+import {
+  bindNoteSetBook,
+  completeNoteSetImport,
+  exportNoteSet,
+  normalizeSet,
+  pickBookFile,
+  prepareNoteSetImport,
+  type NoteSetImport,
+} from '../notes/notes';
+import { bookChoices } from '../library/library';
+
+vi.mock('../notes/notes', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../notes/notes')>();
+  return {
+    ...actual,
+    exportNoteSet: vi.fn(async () => null),
+    prepareNoteSetImport: vi.fn(async () => null),
+    pickBookFile: vi.fn(async () => null),
+    completeNoteSetImport: vi.fn(async () => null),
+    bindNoteSetBook: vi.fn(async () => null),
+  };
+});
+
+vi.mock('../library/library', () => ({
+  bookChoices: vi.fn(async () => []),
+}));
+
+const prepare = vi.mocked(prepareNoteSetImport);
+const complete = vi.mocked(completeNoteSetImport);
+const exportSet = vi.mocked(exportNoteSet);
+const pickFile = vi.mocked(pickBookFile);
+const bindBook = vi.mocked(bindNoteSetBook);
+const choices = vi.mocked(bookChoices);
+
+beforeEach(() => {
+  prepare.mockReset().mockResolvedValue(null);
+  complete
+    .mockReset()
+    .mockResolvedValue(normalizeSet({ id: 'ns-mock', book_key: '/lib/a.epub', name: 'Набор' }));
+  exportSet.mockReset().mockResolvedValue(null);
+  pickFile.mockReset().mockResolvedValue(null);
+  bindBook
+    .mockReset()
+    .mockResolvedValue(
+      normalizeSet({ id: 'ns-9', book_key: '/lib/Книга.epub', name: 'Поделились' }),
+    );
+  choices.mockReset().mockResolvedValue([]);
+});
 
 /** Набор реестра из сырого ответа плагина. */
 function set(raw: Record<string, unknown>) {
@@ -14,15 +61,176 @@ describe('библиотека заметок', () => {
     expect(screen.getByTestId('notes-library-empty').textContent).toContain('пока нет');
   });
 
-  it('справа показывает только число заметок', () => {
+  it('ставит общее число заметок рядом со счётчиком наборов', () => {
+    render(NotesLibraryPage, {
+      props: {
+        sets: [
+          set({ id: 'ns-1', book_key: '/a.pdf', name: 'Основные', notes: [{ id: 'n1' }] }),
+          set({ id: 'ns-2', book_key: '/b.pdf', name: 'Дополнительные', notes: [{ id: 'n2' }] }),
+        ],
+      },
+    });
+    const filter = screen.getByTestId('notes-filter-counter');
+    const total = screen.getByTestId('notes-total-counter');
+    expect(total.textContent).toContain('Заметок');
+    expect(total.textContent).toContain('2');
+    // Оба счётчика стоят в одной полосе: число заметок не уезжает вправо.
+    expect(total.parentElement).toBe(filter.parentElement);
+    expect(total.className).not.toContain('ml-auto');
+    expect(screen.queryByText('Наборов')).toBeNull();
+  });
+
+  it('справа показывает кнопку импорта', async () => {
     render(NotesLibraryPage, {
       props: {
         sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'Основные' })],
       },
     });
-    const counters = screen.getByText('Заметок').closest('dl');
-    expect(counters?.className).toContain('ml-auto');
-    expect(screen.queryByText('Наборов')).toBeNull();
+    const button = screen.getByRole('button', { name: 'Импорт' });
+    expect(button.getAttribute('title')).toBe('Импортировать набор заметок из файла');
+    await fireEvent.click(button);
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it('принимает набор сразу, без вопроса о книге', async () => {
+    const pending: NoteSetImport = {
+      path: '/tmp/Чужая книга.notes.json',
+      name: 'Поделились',
+      noteCount: 1,
+      book: { name: 'Чужая книга.epub', title: 'Чужая книга' },
+    };
+    prepare.mockResolvedValue(pending);
+
+    render(NotesLibraryPage, { props: { sets: [] } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Импорт' }));
+
+    await waitFor(() => expect(complete).toHaveBeenCalledTimes(1));
+    // Набор принимается без книги: её можно указать позже.
+    expect(complete.mock.calls[0][0]).toEqual(pending);
+    expect(choices).not.toHaveBeenCalled();
+  });
+
+  it('помечает набор без книги и не даёт его открыть', async () => {
+    const onOpenSet = vi.fn();
+    render(NotesLibraryPage, {
+      props: {
+        sets: [
+          set({
+            id: 'ns-1',
+            book_key: '',
+            book_title: 'Чужая книга',
+            name: 'Поделились',
+            notes: [{ id: 'n1', quote: 'цитата' }],
+          }),
+        ],
+        workspaces: [{ id: 'ws-1', name: 'Место' }],
+        onOpenSet,
+      },
+    });
+
+    // Надпись о книге выделена: набор без книги не открыть, пока её не указали.
+    const noBook = screen.getByTestId('notes-library-no-book');
+    expect(noBook.textContent).toBe('Книга не указана');
+    expect(noBook.className).toContain('font-medium');
+    expect(noBook.parentElement?.getAttribute('title')).toBe(
+      'Набор без книги: укажите книгу в меню набора',
+    );
+
+    // Строка недоступна для открытия: панель выбора места не появляется.
+    const row = screen.getByTestId('notes-library-set-toggle');
+    expect(row).toHaveProperty('disabled', true);
+    await fireEvent.click(row);
+    expect(screen.queryByTestId('notes-set-panel')).toBeNull();
+    expect(onOpenSet).not.toHaveBeenCalled();
+  });
+
+  it('раскрывает заметки набора без книги: их видно и можно искать', async () => {
+    render(NotesLibraryPage, {
+      props: {
+        sets: [
+          set({
+            id: 'ns-1',
+            book_key: '',
+            name: 'Поделились',
+            notes: [{ id: 'n1', quote: 'цитата из файла' }],
+          }),
+        ],
+      },
+    });
+
+    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
+    await fireEvent.click(await screen.findByText('Показать заметки'));
+    expect(screen.getByTestId('notes-item-link').textContent).toContain('цитата из файла');
+  });
+
+  it('привязывает набор к книге, выбранной в диалоге', async () => {
+    choices.mockResolvedValue([
+      { key: '/lib/Чужая книга.epub', name: 'Чужая книга.epub', title: 'Чужая книга' },
+    ]);
+    render(NotesLibraryPage, {
+      props: {
+        sets: [set({ id: 'ns-1', book_key: '', book_title: 'Чужая книга', name: 'Поделились' })],
+      },
+    });
+
+    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
+    await fireEvent.click(await screen.findByText('Указать книгу'));
+
+    const book = await screen.findByTestId('bind-book-item');
+    await fireEvent.click(book);
+
+    expect(bindBook).toHaveBeenCalledTimes(1);
+    expect(bindBook.mock.calls[0][0]).toBe('ns-1');
+    expect(bindBook.mock.calls[0][1]).toEqual({
+      key: '/lib/Чужая книга.epub',
+      title: 'Чужая книга',
+    });
+  });
+
+  it('привязывает набор к книге, файл которой указан вручную', async () => {
+    pickFile.mockResolvedValue({ key: '/моя/книга.epub', title: '' });
+    render(NotesLibraryPage, {
+      props: { sets: [set({ id: 'ns-1', book_key: '', name: 'Поделились' })] },
+    });
+
+    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
+    await fireEvent.click(await screen.findByText('Указать книгу'));
+    await fireEvent.click(await screen.findByRole('button', { name: /Указать файл книги/ }));
+
+    expect(bindBook.mock.calls[0][1]).toEqual({ key: '/моя/книга.epub', title: '' });
+  });
+
+  it('у привязанного набора предлагает указать другую книгу', async () => {
+    render(NotesLibraryPage, {
+      props: { sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'Основные' })] },
+    });
+
+    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
+    expect(await screen.findByText('Указать другую книгу')).toBeTruthy();
+  });
+
+  it('экспортирует набор пунктом меню вместе с именем файла книги', async () => {
+    render(NotesLibraryPage, {
+      props: {
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'Основные' })],
+      },
+    });
+    await fireEvent.click(screen.getByLabelText('Действия с набором заметок'));
+    await fireEvent.click(await screen.findByText('Экспорт'));
+    expect(exportSet).toHaveBeenCalledTimes(1);
+    expect(exportSet).toHaveBeenCalledWith('ns-1', 'a.pdf');
+  });
+
+  it('сообщает об ошибке импорта всплывающим сообщением', async () => {
+    prepare.mockRejectedValue(new Error('файл набора заметок не читается'));
+    render(NotesLibraryPage, {
+      props: {
+        sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'Основные' })],
+      },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Импорт' }));
+    const toast = await screen.findByRole('alert');
+    expect(toast.textContent).toContain('файл набора заметок не читается');
   });
 
   it('показывает набор, а книгу — полным путём моноширинным', () => {

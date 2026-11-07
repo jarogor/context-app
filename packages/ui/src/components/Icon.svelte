@@ -51,6 +51,7 @@
     | 'menu'
     | 'monitor'
     | 'download'
+    | 'upload'
     | 'refresh';
 
   /** Иконки, предлагаемые для оформления вкладки рабочего места.
@@ -115,6 +116,9 @@
     <path d="M20 4v5h-5" />
   {:else if name === 'download'}
     <path d="M12 3v12M7.5 10.5 12 15l4.5-4.5" />
+    <path d="M4 17.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5" />
+  {:else if name === 'upload'}
+    <path d="M12 15V3M7.5 7.5 12 3l4.5 4.5" />
     <path d="M4 17.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5" />
   {:else if name === 'check'}
     <path d="M20 6 9 17l-5-5" stroke-width="2.4" />

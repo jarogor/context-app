@@ -1,21 +1,35 @@
 <script lang="ts">
   import { t } from '@context/i18n';
   import {
+    Button,
     EmptyState,
     EntityList,
     ErrorState,
+    ErrorToast,
     Icon,
     IconButton,
     Input,
     PageShell,
     SidePanel,
     Skeleton,
+    Spinner,
+    createAsyncState,
     type MenuAction,
     type MetaItem,
   } from '@context/ui';
   import { formatDateTime } from '../../shared/format';
   import NoteEntry from '../notes/NoteEntry.svelte';
-  import type { NoteSet, Note } from '../notes/notes';
+  import {
+    bindNoteSetBook,
+    completeNoteSetImport,
+    exportNoteSet,
+    pickBookFile,
+    prepareNoteSetImport,
+    type NoteSet,
+    type Note,
+  } from '../notes/notes';
+  import { bookChoices, type BookChoice } from '../library/library';
+  import SetBookDialog, { type SetBookTarget } from './SetBookDialog.svelte';
   import { bookFileName, librarySets, noteCountLabel } from './notes-library';
   import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@context/ui';
 
@@ -63,6 +77,21 @@
     onOpenNote,
     onCreateWorkspace,
   }: Props = $props();
+
+  /** Состояние импорта, экспорта и привязки книги. */
+  const fileState = createAsyncState();
+
+  /** Набор, которому пользователь указывает книгу (диалог открыт). */
+  let bindTarget = $state<SetBookTarget | null>(null);
+
+  /** Книги библиотеки для диалога выбора. */
+  let bindBooks = $state<BookChoice[]>([]);
+
+  /** Загружаются ли книги библиотеки. */
+  let booksLoading = $state(false);
+
+  /** Ошибка загрузки книг библиотеки, иначе пустая строка. */
+  let booksError = $state('');
 
   /** Запрос поиска по реестру. */
   let query = $state('');
@@ -152,8 +181,11 @@
       : [...expandedIds, id];
   }
 
-  /** Открытие панели выбора места для набора. */
+  /** Открытие панели выбора места для набора; набор без книги не открывается. */
   function selectSet(id: string) {
+    if (!bookBound(id)) {
+      return;
+    }
     selectedSetId = id;
     selectedNoteId = null;
     workspaceQuery = '';
@@ -163,9 +195,17 @@
 
   /** Выбор заметки: панель выбора места открывается для её набора. */
   function selectNote(setId: string, note: Note) {
+    if (!bookBound(setId)) {
+      return;
+    }
     selectedSetId = setId;
     selectedNoteId = note.id;
     creating = false;
+  }
+
+  /** Указана ли у набора книга: без неё набор нельзя открыть в рабочем месте. */
+  function bookBound(setId: string): boolean {
+    return view.some((set) => set.id === setId && set.hasBook);
   }
 
   /** Закрытие панели; пользователь остаётся в реестре. */
@@ -176,7 +216,7 @@
     newWorkspaceName = '';
   }
 
-  /** Пункты меню набора: раскрытие заметок. */
+  /** Пункты меню набора: заметки, книга и экспорт. */
   function actionsFor(set: (typeof view)[number]): MenuAction[] {
     return [
       {
@@ -185,7 +225,100 @@
           ? t('app.notes.library.hideNotes')
           : t('app.notes.library.showNotes'),
       },
+      {
+        id: 'bind',
+        label: set.hasBook
+          ? t('app.notes.library.rebindBook')
+          : t('app.notes.library.bindBook'),
+        icon: 'book',
+        separatorBefore: true,
+        disabled: fileState.loading,
+      },
+      {
+        id: 'export',
+        label: t('app.notes.library.export'),
+        icon: 'upload',
+        disabled: fileState.loading,
+      },
     ];
+  }
+
+  /** Выполнение пункта меню набора. */
+  function runSetAction(set: (typeof view)[number], action: string) {
+    if (action === 'export') {
+      void runExport(set);
+      return;
+    }
+    if (action === 'bind') {
+      void openBind(set);
+      return;
+    }
+    toggle(set.id);
+  }
+
+  /** Экспорт набора в файл: содержимое готовит плагин, сохраняет ядро. */
+  async function runExport(set: (typeof view)[number]) {
+    await fileState.run(() => exportNoteSet(set.id, set.bookName));
+  }
+
+  /** Импорт набора: набор принимается всегда, книга указывается позже. */
+  async function runImport() {
+    const prepared = await fileState.run(() => prepareNoteSetImport());
+    if (!prepared) {
+      return;
+    }
+    await fileState.run(() => completeNoteSetImport(prepared));
+  }
+
+  /** Открытие диалога указания книги для набора. */
+  async function openBind(set: (typeof view)[number]) {
+    bindTarget = {
+      id: set.id,
+      name: set.name,
+      noteCount: set.noteItems.length,
+      bookHint: set.bookHint || set.bookName,
+    };
+    await loadBooks();
+  }
+
+  /** Загрузка книг библиотеки для диалога выбора. */
+  async function loadBooks() {
+    booksLoading = true;
+    booksError = '';
+    try {
+      bindBooks = await bookChoices();
+    } catch (cause) {
+      booksError = String(cause);
+    } finally {
+      booksLoading = false;
+    }
+  }
+
+  /** Привязка набора к выбранной книге этого хранилища. */
+  async function acceptBind(book: { key: string; title: string }) {
+    const target = bindTarget;
+    if (!target) {
+      return;
+    }
+    const updated = await fileState.run(() => bindNoteSetBook(target.id, book));
+    if (updated) {
+      closeBind();
+    }
+  }
+
+  /** Указание файла книги, которой нет в библиотеке. */
+  async function pickBindBookFile() {
+    const book = await fileState.run(() => pickBookFile());
+    if (book) {
+      await acceptBind(book);
+    }
+  }
+
+  /** Закрытие диалога указания книги. */
+  function closeBind() {
+    bindTarget = null;
+    bindBooks = [];
+    booksError = '';
   }
 
   /** Открытие набора (и выбранной заметки) в указанном месте. */
@@ -245,10 +378,12 @@
     }
     items.push({
       icon: 'book',
-      value: set.bookName,
-      title: set.bookName,
-      mono: true,
-      testId: 'notes-library-book',
+      value: set.hasBook ? set.bookName : t('app.notes.library.noBook'),
+      title: set.hasBook ? set.bookName : t('app.notes.library.noBookHint'),
+      // Без книги набор не открыть: надпись выделена, чтобы это было видно сразу.
+      strong: !set.hasBook,
+      mono: set.hasBook,
+      testId: set.hasBook ? 'notes-library-book' : 'notes-library-no-book',
     });
     const workspace = lastWorkspaceName(set);
     if (workspace) {
@@ -311,13 +446,34 @@
         >
           {t('app.search.filter', { shown: view.length, total: sets.length })}
         </span>
+        {#if sets.length > 0}
+          <!-- Общее число заметок стоит рядом со счётчиком наборов: оба числа
+               говорят о том, что лежит в реестре, и читаются одним взглядом. -->
+          <dl
+            class="flex flex-none items-center gap-1.5 role-caption text-[var(--muted-foreground)]"
+            data-testid="notes-total-counter"
+          >
+            <dt>{t('app.notes.library.notes')}</dt>
+            <dd>{totalNotes}</dd>
+          </dl>
+        {/if}
       </div>
-      {#if sets.length > 0}
-        <dl class="ml-auto flex items-center gap-1.5 role-caption text-[var(--muted-foreground)]">
-          <dt>{t('app.notes.library.notes')}</dt>
-          <dd>{totalNotes}</dd>
-        </dl>
-      {/if}
+      <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={fileState.loading}
+          title={t('app.notes.library.importHint')}
+          ariaLabel={t('app.notes.library.import')}
+          onclick={runImport}
+        >
+          {#if fileState.loading}
+            <Spinner class="h-4 w-4" />
+          {/if}
+          <Icon name="download" />
+          {t('app.notes.library.import')}
+        </Button>
+      </div>
     {/snippet}
 
     <EntityList
@@ -328,12 +484,13 @@
       buttonTestId="notes-library-set-toggle"
       expanded={(set) => isExpanded(set.id)}
       selected={(set) => selectedSetId === set.id}
+      disabled={(set) => !set.hasBook}
       onSelect={(set) => selectSet(set.id)}
       metaItems={metaItems}
       metaTestId="notes-library-set-meta"
       actions={actionsFor}
       actionsLabel={t('app.notes.library.actionsLabel')}
-      onAction={(set) => toggle(set.id)}
+      onAction={(set, action) => runSetAction(set, action)}
     >
       {#snippet titleContent(set)}
         <span
@@ -508,3 +665,16 @@
       {/if}
   {/snippet}
 </PageShell>
+
+<SetBookDialog
+  open={bindTarget !== null}
+  target={bindTarget}
+  books={bindBooks}
+  loading={booksLoading}
+  error={booksError}
+  onSelect={acceptBind}
+  onPickFile={pickBindBookFile}
+  onClose={closeBind}
+/>
+
+<ErrorToast message={fileState.error} />

@@ -1,5 +1,6 @@
 use super::*;
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 
 /// Фейковые host-функции для нативных тестов.
 #[derive(Default)]
@@ -8,6 +9,19 @@ struct FakeHost {
     state: RefCell<Option<String>>,
     /// Опубликованные события.
     events: RefCell<Vec<(String, String)>>,
+    /// Файлы импорта по пути.
+    files: RefCell<BTreeMap<String, Vec<u8>>>,
+}
+
+impl FakeHost {
+    /// Окружение с одним файлом импорта по пути `/tmp/set.notes.json`.
+    fn with_import_file(text: &str) -> Self {
+        let host = Self::default();
+        host.files
+            .borrow_mut()
+            .insert(IMPORT_PATH.to_string(), text.as_bytes().to_vec());
+        host
+    }
 }
 
 impl Host for FakeHost {
@@ -30,7 +44,18 @@ impl Host for FakeHost {
     fn now_millis(&self) -> i64 {
         1_000
     }
+
+    fn import_read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
+        self.files
+            .borrow()
+            .get(path)
+            .cloned()
+            .ok_or_else(|| "файл импорта не читается".to_string())
+    }
 }
+
+/// Путь файла импорта в тестах.
+const IMPORT_PATH: &str = "/tmp/set.notes.json";
 
 /// Запрос по контракту.
 fn request(action: &str, payload: serde_json::Value) -> String {
@@ -605,4 +630,321 @@ fn set_active_rejects_foreign_set() {
         )
     )
     .is_err());
+}
+
+#[test]
+fn export_set_documents_book_description_without_path() {
+    let host = FakeHost::default();
+    let set_id = create(&host, "/home/отправитель/Книга.epub", "Мой набор");
+    handle(
+        &host,
+        &request(
+            "add_note",
+            json!({ "set_id": set_id, "note": { "text": "мысль", "quote": "цитата" } }),
+        ),
+    )
+    .expect("заметка");
+
+    let events_before = host.events.borrow().len();
+    let output = handle(
+        &host,
+        &request(
+            "export_set",
+            json!({ "set_id": set_id, "book_name": "Книга.epub" }),
+        ),
+    )
+    .expect("экспорт набора");
+    let parsed = parse(&output);
+    assert_eq!(parsed["file_name"], "Мой-набор.notes.json");
+    let document_text = parsed["document"].as_str().expect("текст документа");
+    let document: serde_json::Value =
+        serde_json::from_str(document_text).expect("документ разбирается");
+    assert_eq!(document["format"], "context.notes-set");
+    assert_eq!(document["version"], 1);
+    assert_eq!(document["book"]["name"], "Книга.epub");
+    assert_eq!(document["set"]["name"], "Мой набор");
+    assert_eq!(document["set"]["notes"][0]["text"], "мысль");
+    // Путь книги — принадлежность хранилища отправителя, а не книги.
+    assert!(
+        !document_text.contains("/home/отправитель"),
+        "путь книги не попадает в файл"
+    );
+    // Экспорт не меняет состояние и не публикует событие.
+    assert_eq!(
+        host.events.borrow().len(),
+        events_before,
+        "событие не опубликовано"
+    );
+}
+
+#[test]
+fn export_set_rejects_unknown_set() {
+    let host = FakeHost::default();
+    assert!(handle(
+        &host,
+        &request("export_set", json!({ "set_id": "ns-none" }))
+    )
+    .is_err());
+}
+
+#[test]
+fn inspect_import_returns_set_and_book_without_changes() {
+    let host = FakeHost::with_import_file(&import_document());
+    let output = handle(
+        &host,
+        &request("inspect_import", json!({ "path": IMPORT_PATH })),
+    )
+    .expect("просмотр файла");
+    let parsed = parse(&output);
+    assert_eq!(parsed["set"]["name"], "Чужой набор");
+    assert_eq!(parsed["set"]["note_count"], 1);
+    assert_eq!(parsed["book"]["name"], "Чужая книга.epub");
+    assert_eq!(parsed["book"]["title"], "Чужая книга");
+    assert!(host.state.borrow().is_none(), "состояние не изменилось");
+    assert!(host.events.borrow().is_empty(), "событие не опубликовано");
+}
+
+#[test]
+fn import_set_binds_set_to_chosen_book() {
+    let host = FakeHost::with_import_file(&import_document());
+    let output = handle(
+        &host,
+        &request(
+            "import_set",
+            json!({
+                "path": IMPORT_PATH,
+                "book_key": "/моя/библиотека/Чужая книга.epub",
+                "book_title": "Чужая книга",
+            }),
+        ),
+    )
+    .expect("импорт набора");
+    let parsed = parse(&output);
+    let set = &parsed["set"];
+    assert_eq!(set["name"], "Чужой набор");
+    // Ключ книги — локальный, выбранный при импорте, а не путь отправителя.
+    assert_eq!(set["book_key"], "/моя/библиотека/Чужая книга.epub");
+    assert_eq!(set["book_title"], "Чужая книга");
+    assert_eq!(set["created_at_millis"], 42, "время создания из файла");
+    let set_id = set["id"].as_str().expect("идентификатор набора");
+    assert!(set_id.starts_with("ns-"), "новый идентификатор набора");
+    let note = &set["notes"][0];
+    assert!(note["id"]
+        .as_str()
+        .expect("идентификатор заметки")
+        .starts_with("note-"));
+    assert_ne!(note["id"], "note-source");
+    assert_eq!(note["text"], "текст");
+    assert_eq!(note["quote"], "цитата источника");
+    assert_eq!(note["page"], 12);
+    assert_eq!(note["created_at_millis"], 43);
+
+    let stored = host.state.borrow().clone().expect("состояние записано");
+    let state: NotesState = serde_json::from_str(&stored).expect("состояние парсится");
+    assert!(state.find(set_id).is_some(), "набор в состоянии");
+    let events = host.events.borrow();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].0, "notes:changed");
+    assert_eq!(
+        parse(&events[0].1)["book_key"],
+        "/моя/библиотека/Чужая книга.epub"
+    );
+}
+
+#[test]
+fn import_set_takes_book_title_from_file_when_not_chosen() {
+    let host = FakeHost::with_import_file(&import_document());
+    let output = handle(
+        &host,
+        &request(
+            "import_set",
+            json!({ "path": IMPORT_PATH, "book_key": "/моя/книга.epub" }),
+        ),
+    )
+    .expect("импорт набора");
+    assert_eq!(parse(&output)["set"]["book_title"], "Чужая книга");
+}
+
+#[test]
+fn import_set_accepts_same_file_twice() {
+    let host = FakeHost::with_import_file(&import_document());
+    let import = || {
+        parse(
+            &handle(
+                &host,
+                &request(
+                    "import_set",
+                    json!({ "path": IMPORT_PATH, "book_key": "lib/b" }),
+                ),
+            )
+            .expect("импорт набора"),
+        )
+    };
+    let first = import();
+    let second = import();
+    assert_ne!(first["set"]["id"], second["set"]["id"]);
+    assert_ne!(
+        first["set"]["notes"][0]["id"],
+        second["set"]["notes"][0]["id"]
+    );
+}
+
+#[test]
+fn import_set_rejects_missing_file_and_broken_document() {
+    let empty = FakeHost::default();
+    assert!(handle(
+        &empty,
+        &request(
+            "import_set",
+            json!({ "path": IMPORT_PATH, "book_key": "lib/b" })
+        )
+    )
+    .is_err());
+    assert!(handle(
+        &empty,
+        &request("import_set", json!({ "book_key": "lib/b" }))
+    )
+    .is_err());
+    assert!(handle(
+        &empty,
+        &request("inspect_import", json!({ "path": IMPORT_PATH }))
+    )
+    .is_err());
+
+    let broken = FakeHost::with_import_file("не JSON");
+    assert!(handle(
+        &broken,
+        &request(
+            "import_set",
+            json!({ "path": IMPORT_PATH, "book_key": "lib/b" })
+        )
+    )
+    .is_err());
+}
+
+#[test]
+fn import_set_without_book_keeps_set_and_hint() {
+    let host = FakeHost::with_import_file(&import_document());
+    let output = handle(
+        &host,
+        &request("import_set", json!({ "path": IMPORT_PATH })),
+    )
+    .expect("набор принимается и без книги");
+    let set = &parse(&output)["set"];
+    assert_eq!(set["book_key"], "", "книга не выбрана");
+    // Подсказка, какую книгу указать: название из файла.
+    assert_eq!(set["book_title"], "Чужая книга");
+    assert_eq!(set["notes"].as_array().expect("заметки").len(), 1);
+}
+
+#[test]
+fn bind_set_links_existing_set_to_book() {
+    let host = FakeHost::with_import_file(&import_document());
+    let imported = parse(
+        &handle(
+            &host,
+            &request("import_set", json!({ "path": IMPORT_PATH })),
+        )
+        .expect("импорт"),
+    );
+    let set_id = imported["set"]["id"]
+        .as_str()
+        .expect("идентификатор набора");
+    let events_before = host.events.borrow().len();
+
+    let output = handle(
+        &host,
+        &request(
+            "bind_set",
+            json!({
+                "set_id": set_id,
+                "book_key": "/моя/библиотека/Книга.epub",
+                "book_title": "Моя книга",
+            }),
+        ),
+    )
+    .expect("привязка набора");
+    let set = &parse(&output)["set"];
+    assert_eq!(set["book_key"], "/моя/библиотека/Книга.epub");
+    assert_eq!(set["book_title"], "Моя книга");
+    assert_eq!(
+        set["notes"].as_array().expect("заметки").len(),
+        1,
+        "заметки целы"
+    );
+    // Привязка объявляется событием: реестр перечитывает набор.
+    let events = host.events.borrow();
+    assert_eq!(events.len(), events_before + 1);
+    assert_eq!(events.last().expect("событие").0, "notes:changed");
+    assert_eq!(
+        parse(&events.last().expect("событие").1)["book_key"],
+        "/моя/библиотека/Книга.epub"
+    );
+}
+
+#[test]
+fn bind_set_rejects_unknown_set_and_empty_book() {
+    let host = FakeHost::default();
+    assert!(handle(
+        &host,
+        &request(
+            "bind_set",
+            json!({ "set_id": "ns-none", "book_key": "lib/b" })
+        )
+    )
+    .is_err());
+
+    let set_id = create(&host, "lib/a", "A");
+    let error = handle(
+        &host,
+        &request("bind_set", json!({ "set_id": set_id, "book_key": "   " })),
+    )
+    .expect_err("пустая книга отклонена");
+    assert!(error.contains("не указана книга"), "{error}");
+}
+
+#[test]
+fn import_set_rejects_document_without_name() {
+    let host = FakeHost::with_import_file(&json!({ "set": { "notes": [] } }).to_string());
+    let error = handle(
+        &host,
+        &request(
+            "import_set",
+            json!({ "path": IMPORT_PATH, "book_key": "lib/b" }),
+        ),
+    )
+    .expect_err("набор без имени отклонён");
+    assert!(error.contains("нет имени набора"), "{error}");
+}
+
+/// Документ импорта с одной заметкой: книга описана, пути в файле нет.
+fn import_document() -> String {
+    json!({
+        "format": "context.notes-set",
+        "version": 1,
+        "exported_at_millis": 900,
+        "book": { "name": "Чужая книга.epub", "title": "Чужая книга" },
+        "set": {
+            "name": "Чужой набор",
+            "created_at_millis": 42,
+            "notes": [{
+                "id": "note-source",
+                "type": "text",
+                "anchor": "cfi",
+                "quote": "цитата источника",
+                "chapter": "Глава 1",
+                "title": "Мысль",
+                "comment": "комментарий",
+                "color": "blue",
+                "percent": 0.5,
+                "page": 12,
+                "text": "текст",
+                "shape": "line",
+                "geometry": "",
+                "created_at_millis": 43,
+                "updated_at_millis": 44
+            }]
+        }
+    })
+    .to_string()
 }

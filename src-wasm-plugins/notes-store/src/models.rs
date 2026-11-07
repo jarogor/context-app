@@ -68,6 +68,53 @@ fn default_shape() -> String {
     DEFAULT_SHAPE.to_string()
 }
 
+/// Метка формата переносимого файла набора заметок.
+pub const DOCUMENT_FORMAT: &str = "context.notes-set";
+
+/// Текущая версия формата переносимого файла набора заметок.
+pub const DOCUMENT_VERSION: u32 = 1;
+
+/// Расширение файла переносимого набора заметок.
+pub const DOCUMENT_EXTENSION: &str = ".notes.json";
+
+/// Книга в переносимом файле набора: описание, а не место хранения.
+///
+/// Путь к файлу книги в документ не попадает: один и тот же файл может лежать по
+/// разным путям, а набор принадлежит книге, а не месту. Локальный путь книги
+/// выбирается при импорте, поэтому привязка остаётся верной после переезда.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct BookRef {
+    /// Имя файла книги (последний сегмент пути в источнике).
+    #[serde(default)]
+    pub name: String,
+    /// Отображаемое название книги.
+    #[serde(default)]
+    pub title: String,
+}
+
+/// Набор в переносимом файле: имя, дата создания и заметки.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct PortableSet {
+    /// Человекочитаемое имя набора.
+    #[serde(default)]
+    pub name: String,
+    /// Время создания (Unix, мс).
+    #[serde(default)]
+    pub created_at_millis: i64,
+    /// Заметки набора в порядке хранения.
+    #[serde(default)]
+    pub notes: Vec<Note>,
+}
+
+/// Разобранный переносимый документ набора заметок.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PortableDocument {
+    /// Описание книги, к которой относится набор.
+    pub book: BookRef,
+    /// Набор заметок без локальных идентификаторов.
+    pub set: PortableSet,
+}
+
 /// Заметка к месту в книге.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Note {
@@ -120,7 +167,8 @@ pub struct Note {
 /// Набор заметок к одной книге.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NoteSet {
-    /// Идентификатор набора.
+    /// Идентификатор набора; в файле импорта его может не быть.
+    #[serde(default)]
     pub id: String,
     /// Непрозрачный ключ книги, которой принадлежит набор.
     #[serde(default)]

@@ -317,6 +317,67 @@ interface MockNoteSet {
 const NOTES_STORAGE_KEY = 'context-notes';
 /** Ключ мок-хранилища активного набора по книгам. */
 const NOTES_ACTIVE_STORAGE_KEY = 'context-notes-active';
+/** Ключ мок-файлов экспорта наборов: путь → текст документа. */
+const NOTES_FILES_STORAGE_KEY = 'context-notes-files';
+
+/** Файлы экспорта наборов, записанные моком: путь → текст документа. */
+function loadMockFiles(): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem(NOTES_FILES_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Сохранение файлов экспорта наборов мок-хранилища. */
+function saveMockFiles(files: Record<string, string>): void {
+  try {
+    window.localStorage.setItem(NOTES_FILES_STORAGE_KEY, JSON.stringify(files));
+  } catch {
+    // Отсутствие localStorage не мешает операции.
+  }
+}
+
+/** Разобранный документ файла набора в моке. */
+interface MockNotesDocument {
+  /** Описание книги из файла. */
+  book?: { name?: string; title?: string };
+  /** Набор из файла. */
+  set: { name?: string; notes?: Array<Record<string, unknown>> };
+}
+
+/** Чтение и разбор файла набора мок-хранилища. */
+function readMockDocument(path: string): MockNotesDocument {
+  const text = loadMockFiles()[path];
+  if (!text) {
+    throw new Error('файл набора заметок не читается');
+  }
+  const value = JSON.parse(text) as {
+    book?: MockNotesDocument['book'];
+    set?: MockNotesDocument['set'];
+  } & MockNotesDocument['set'];
+  // Файл без оболочки тоже принимается: тогда документом служит сам набор.
+  return { book: value.book, set: value.set ?? value };
+}
+
+/** Документ переносимого набора заметок для мока.
+ *
+ * Книга описывается именем файла и названием: места хранения в файле нет.
+ */
+function mockNotesDocument(set: MockNoteSet, bookName: string): string {
+  return JSON.stringify({
+    format: 'context.notes-set',
+    version: 1,
+    exported_at_millis: 1_700_000_002_000,
+    book: { name: bookName, title: set.bookTitle },
+    set: {
+      name: set.name,
+      created_at_millis: 1_700_000_000_000,
+      notes: set.notes,
+    },
+  });
+}
 
 /** Все наборы заметок мок-хранилища. */
 function loadMockNotes(): MockNoteSet[] {
@@ -367,9 +428,11 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
   const body = (payload ?? {}) as {
     book_key?: string;
     book_title?: string;
+    book_name?: string;
     set_id?: string;
     note_id?: string;
     name?: string;
+    path?: string;
     note?: Record<string, unknown>;
     patch?: Record<string, unknown>;
   };
@@ -497,6 +560,59 @@ function notesOperation(operation: string | undefined, payload: unknown): unknow
       emitMockEvent('notes:changed', { book_key: set.bookKey, set_id: set.id });
     }
     return { set: set ?? null };
+  }
+  if (operation === 'export_set') {
+    const set = sets.find((item) => item.id === body.set_id);
+    if (!set) {
+      throw new Error('неизвестный набор заметок');
+    }
+    return {
+      file_name: `${set.name}.notes.json`.replace(/[\s/\\:*?"<>|]+/g, '-'),
+      document: mockNotesDocument(set, body.book_name ?? ''),
+    };
+  }
+  if (operation === 'inspect_import') {
+    const document = readMockDocument(body.path ?? '');
+    return {
+      set: { name: document.set.name ?? '', note_count: (document.set.notes ?? []).length },
+      book: document.book ?? { name: '', title: '' },
+    };
+  }
+  if (operation === 'import_set') {
+    const document = readMockDocument(body.path ?? '');
+    // Идентификаторы выдаются заново: тот же файл можно принять дважды.
+    const issued = sets
+      .map((set) => Number(/^ns-mock-(\d+)$/.exec(set.id)?.[1] ?? 0))
+      .reduce((max, value) => Math.max(max, value), 0);
+    const created: MockNoteSet = {
+      id: `ns-mock-${issued + 1}`,
+      // Набор принимается и без книги: тогда её можно указать позже.
+      bookKey: body.book_key ?? '',
+      bookTitle: body.book_title || document.book?.title || document.book?.name || '',
+      name: document.set.name ?? '',
+      notes: (document.set.notes ?? []).map((note, index) => ({
+        ...note,
+        id: `note-mock-${issued + 1}-${index + 1}`,
+      })),
+    };
+    sets.push(created);
+    saveMockNotes(sets);
+    emitMockEvent('notes:changed', { book_key: created.bookKey, set_id: created.id });
+    return { set: created };
+  }
+  if (operation === 'bind_set') {
+    const set = sets.find((item) => item.id === body.set_id);
+    if (!set) {
+      throw new Error('неизвестный набор заметок');
+    }
+    if (!(body.book_key ?? '').trim()) {
+      throw new Error('не указана книга для набора заметок');
+    }
+    set.bookKey = body.book_key ?? '';
+    set.bookTitle = body.book_title ?? '';
+    saveMockNotes(sets);
+    emitMockEvent('notes:changed', { book_key: set.bookKey, set_id: set.id });
+    return { set };
   }
   return {};
 }
@@ -761,6 +877,16 @@ export function defaultMockConfig(): MockBridgeConfig {
         content: 'Отчёт «Контекст» для поддержки\n',
       }),
       support_report_save: () => '/tmp/context-report-test.txt',
+      // Сохранение текста в файл: мок держит файлы в памяти прогона, поэтому
+      // экспорт и импорт набора заметок проверяются настоящей парой.
+      save_text_file: (payload: unknown) => {
+        const value = (payload ?? {}) as { fileName?: string; content?: string };
+        const path = `/tmp/${value.fileName ?? 'export.txt'}`;
+        const files = loadMockFiles();
+        files[path] = value.content ?? '';
+        saveMockFiles(files);
+        return path;
+      },
       diagnostics_open_folder: () => null,
       open_folder: () => null,
       app_info: () => ({

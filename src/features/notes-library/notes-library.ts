@@ -48,6 +48,10 @@ export interface LibrarySetView {
   bookKey: string;
   /** Имя файла книги с расширением (без пути). */
   bookName: string;
+  /** Есть ли у набора книга: без неё набор нельзя открыть, но можно смотреть. */
+  hasBook: boolean;
+  /** Подсказка о книге: название книги набора или название из файла импорта. */
+  bookHint: string;
   /** Человекочитаемое имя набора. */
   name: string;
   /** Заметки набора для показа (в порядке хода текста). */
@@ -110,6 +114,8 @@ export function librarySets(sets: NoteSet[], query: string): LibrarySetView[] {
     id: set.id,
     bookKey: set.bookKey,
     bookName: bookFileName(set.bookKey),
+    hasBook: set.bookKey.trim().length > 0,
+    bookHint: set.bookTitle.trim(),
     name: set.name,
     noteItems: noteList(set.notes),
     createdAtMillis: set.createdAtMillis,
