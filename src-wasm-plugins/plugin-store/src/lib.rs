@@ -281,7 +281,9 @@ fn load_index(host: &impl Host, store: &Store) -> Result<StoreIndex, String> {
 /// обновлений внутри него, — иначе он числится подключённым, но ничего не
 /// предлагает.
 fn load_state(host: &impl Host) -> Result<StoreState, String> {
-    let mut state = state::load::<StoreState>(host, STATE_KEY)?;
+    // Метка и версия проставляются при загрузке: файл без них переписывается
+    // с меткой при следующем сохранении.
+    let mut state = state::load::<StoreState>(host, STATE_KEY)?.marked();
     if migrate_stores(host, &mut state) {
         save_state(host, &state)?;
     }

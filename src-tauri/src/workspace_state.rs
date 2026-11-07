@@ -12,7 +12,7 @@ use std::time::UNIX_EPOCH;
 
 use serde::{Deserialize, Serialize};
 
-use crate::atomic_file;
+use crate::documents::{self, WORKSPACES};
 
 /// Имя файла реестра рабочих мест в служебном каталоге.
 const WORKSPACES_FILE_NAME: &str = "workspaces.json";
@@ -115,16 +115,16 @@ fn default_zoom() -> u32 {
 /// Порядок чтения: реестр `workspaces.json`; при его отсутствии — перенос
 /// прежнего `workspace.json` в рабочее место по умолчанию; иначе — пустой реестр.
 pub fn load(root: &Path) -> Result<WorkspacesFile, String> {
-    match atomic_file::read_json::<WorkspacesFile>(&workspaces_path(root)) {
-        Ok(file) => Ok(file),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(migrate_legacy(root)),
+    match documents::read::<WorkspacesFile>(&workspaces_path(root), &WORKSPACES) {
+        Ok(Some(file)) => Ok(file),
+        Ok(None) => Ok(migrate_legacy(root)),
         Err(error) => Err(error.to_string()),
     }
 }
 
 /// Сохранение реестра рабочих мест атомарной записью.
 pub fn save(root: &Path, file: &WorkspacesFile) -> Result<(), String> {
-    atomic_file::write_json(&workspaces_path(root), file).map_err(|error| error.to_string())
+    documents::write(&workspaces_path(root), &WORKSPACES, file)
 }
 
 /// Перенос прежнего одиночного состояния в рабочее место по умолчанию.

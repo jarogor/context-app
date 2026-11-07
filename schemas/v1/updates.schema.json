@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/updates.schema.json",
+  "title": "Состояние обновлений",
+  "description": "Служебный файл app-state/updates.json: источник обновлений, проверка при запуске и результат последней проверки.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "context.updates",
+      "description": "Метка формата документа: по ней файл опознаётся как документ приложения."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Версия формата документа."
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "check_on_startup": {
+          "type": "boolean"
+        },
+        "skipped_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "last_check": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "core": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "current_version",
+            "version",
+            "notes",
+            "mode"
+          ],
+          "properties": {
+            "current_version": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "mode": {
+              "enum": [
+                "portable",
+                "appimage",
+                "installer"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "checked_at_millis": {
+          "type": "integer"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "source": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "kind",
+        "location"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "file",
+            "network"
+          ]
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

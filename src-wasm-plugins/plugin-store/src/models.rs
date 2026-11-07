@@ -87,10 +87,33 @@ pub struct StoreIndex {
     pub packages: Vec<Package>,
 }
 
+/// Метка формата файла состояния.
+pub const STATE_FORMAT: &str = "context.plugin-store-state";
+
+/// Текущая версия формата состояния.
+pub const STATE_VERSION: u32 = 1;
+
 /// Состояние плагина: реестр подключённых сторов.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StoreState {
+    /// Метка формата файла состояния.
+    #[serde(default)]
+    pub format: String,
+    /// Версия формата состояния.
+    #[serde(default)]
+    pub version: u32,
     /// Подключённые сторы.
     #[serde(default)]
     pub stores: Vec<Store>,
+}
+
+impl StoreState {
+    /// Состояние с меткой формата и текущей версией.
+    pub fn marked(mut self) -> Self {
+        self.format = STATE_FORMAT.to_string();
+        if self.version == 0 {
+            self.version = STATE_VERSION;
+        }
+        self
+    }
 }

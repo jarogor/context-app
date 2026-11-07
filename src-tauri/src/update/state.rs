@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::atomic_file;
+use crate::documents::{self, UPDATES};
 
 use super::models::{UpdateCheck, UpdateConfig};
 
@@ -38,8 +38,7 @@ impl PersistedUpdate {
 
 /// Загрузка состояния обновлений; отсутствие файла даёт пустое состояние.
 pub fn load(root: &Path) -> Result<PersistedUpdate, String> {
-    atomic_file::read_json_or_default::<PersistedUpdate>(&file_path(root))
-        .map_err(|error| error.to_string())
+    documents::read_or_default::<PersistedUpdate>(&file_path(root), &UPDATES)
 }
 
 /// Загрузка состояния с источником по умолчанию, если он не задан.
@@ -61,7 +60,7 @@ pub fn load_or_default(
 
 /// Сохранение состояния обновлений.
 pub fn save(root: &Path, state: &PersistedUpdate) -> Result<(), String> {
-    atomic_file::write_json(&file_path(root), state).map_err(|error| error.to_string())
+    documents::write(&file_path(root), &UPDATES, state)
 }
 
 /// Сохранение только настроек, с сохранением последней проверки.

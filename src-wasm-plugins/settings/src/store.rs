@@ -11,9 +11,21 @@ use serde::{Deserialize, Serialize};
 use crate::models::{FieldSchema, RegisteredSection};
 use crate::registry::Registry;
 
+/// Метка формата файла состояния.
+pub(crate) const STATE_FORMAT: &str = "context.settings-state";
+
+/// Текущая версия формата состояния.
+pub(crate) const STATE_VERSION: u32 = 1;
+
 /// Состояние настроек: реестр секций и сохранённые значения.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SettingsState {
+    /// Метка формата файла состояния.
+    #[serde(default)]
+    format: String,
+    /// Версия формата состояния.
+    #[serde(default)]
+    version: u32,
     /// Зарегистрированные секции настроек.
     #[serde(default)]
     registry: Vec<RegisteredSection>,
@@ -25,7 +37,16 @@ pub struct SettingsState {
 impl SettingsState {
     /// Создание пустого состояния.
     pub fn new() -> Self {
-        Self::default()
+        Self::default().marked()
+    }
+
+    /// Проставление метки формата и версии перед сохранением.
+    pub fn marked(mut self) -> Self {
+        self.format = STATE_FORMAT.to_string();
+        if self.version == 0 {
+            self.version = STATE_VERSION;
+        }
+        self
     }
 
     /// Замена реестра без изменения сохранённых значений.

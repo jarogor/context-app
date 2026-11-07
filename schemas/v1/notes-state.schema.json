@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/notes-state.schema.json",
+  "title": "Состояние плагина заметок",
+  "description": "Служебное состояние базового плагина заметок (notes.json в каталоге состояния плагина): наборы заметок и активный набор по книгам. Владелец формата — плагин заметок; ядро файл не интерпретирует.",
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "properties": {
+    "format": {
+      "const": "context.notes-state"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/set"
+      }
+    },
+    "active": {
+      "type": "object",
+      "description": "Активный набор по ключу книги: ключ книги → идентификатор набора.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "set": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "book_key": {
+          "type": "string"
+        },
+        "book_title": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "created_at_millis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "enum": [
+                  "quote",
+                  "text",
+                  "shape"
+                ]
+              },
+              "anchor": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "chapter": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "comment": {
+                "type": "string"
+              },
+              "color": {
+                "enum": [
+                  "yellow",
+                  "green",
+                  "blue",
+                  "red",
+                  "purple"
+                ]
+              },
+              "percent": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "page": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "text": {
+                "type": "string"
+              },
+              "shape": {
+                "enum": [
+                  "line",
+                  "rectangle",
+                  "ellipse"
+                ]
+              },
+              "geometry": {
+                "type": "string"
+              },
+              "created_at_millis": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "updated_at_millis": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "format": "context.workspaces",
+  "version": 1,
+  "workspaces": [
+    {
+      "id": "ws-1",
+      "name": "Рабочее место",
+      "created_at_millis": 1700000000000,
+      "tabs": [
+        {
+          "id": "tab-1",
+          "path": "/lib/Книга.epub",
+          "title": "Книга",
+          "format": "epub",
+          "zoom": 100,
+          "position": 0.5,
+          "mode": "flow",
+          "name": null,
+          "description": null,
+          "icon": "bookmark",
+          "color": "green"
+        }
+      ],
+      "active_tab_id": "tab-1"
+    }
+  ],
+  "active_workspace_id": "ws-1",
+  "note_set_workspaces": {
+    "ns-1": [
+      "ws-1"
+    ]
+  }
+}

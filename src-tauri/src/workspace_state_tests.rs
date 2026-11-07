@@ -215,3 +215,26 @@ fn saved_registry_wins_over_legacy() {
     assert_eq!(loaded.workspaces[0].id, "ws-2");
     test_util::cleanup(&root);
 }
+
+#[test]
+fn registry_without_marker_is_read_and_marked_on_save() {
+    let root = test_util::test_root("workspaces-legacy-registry");
+    std::fs::create_dir_all(&root).expect("каталог");
+    // Реестр прежней записи: ни метки, ни версии, путь книги — старым полем.
+    std::fs::write(
+        root.join("workspaces.json"),
+        r#"{"workspaces":[{"id":"ws-1","name":"Старое","tabs":[{"id":"t1","book_id":"/lib/Книга.epub","title":"Книга"}]}]}"#,
+    )
+    .expect("файл");
+
+    let file = load(&root).expect("загрузка прежнего реестра");
+    assert_eq!(file.workspaces[0].tabs[0].path, "/lib/Книга.epub");
+
+    save(&root, &file).expect("сохранение");
+    let stored: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join("workspaces.json")).expect("файл"))
+            .expect("JSON");
+    assert_eq!(stored["format"], "context.workspaces");
+    assert_eq!(stored["version"], 1);
+    test_util::cleanup(&root);
+}

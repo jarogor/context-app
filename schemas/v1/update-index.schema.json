@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/update-index.schema.json",
+  "title": "Индекс обновлений",
+  "description": "Файл update-index.json в источнике обновлений: выпуск ядра и артефакты по платформам. Версия контракта — `contract_version`; неизвестные поля ядро игнорирует, поэтому старые индексы продолжают разбираться.",
+  "type": "object",
+  "required": [
+    "contract_version"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "core": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "version"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": "string"
+        },
+        "platforms": {
+          "type": "object",
+          "description": "Артефакты по ключу `ОС-архитектура`.",
+          "additionalProperties": {
+            "$ref": "#/$defs/artifact"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": [
+        "location"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "portable",
+            "appimage",
+            "installer"
+          ]
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

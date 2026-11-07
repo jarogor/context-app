@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/disabled-plugins.schema.json",
+  "title": "Отключённые плагины",
+  "description": "Служебный файл app-state/disabled-plugins.json: идентификаторы отключённых плагинов. Реестр применяется при загрузке плагинов и меняется стором через host-функции.",
+  "type": "object",
+  "required": [
+    "disabled"
+  ],
+  "properties": {
+    "format": {
+      "const": "context.disabled-plugins",
+      "description": "Метка формата документа: по ней файл опознаётся как документ приложения."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Версия формата документа."
+    },
+    "disabled": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "additionalProperties": false
+}

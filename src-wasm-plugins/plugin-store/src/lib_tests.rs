@@ -225,10 +225,16 @@ fn stores_add_list_remove_persists() {
     });
     let response = call(&host, "stores_add", json!({ "store": store }));
     assert_eq!(response["stores"][0]["id"], "local");
-    assert!(
-        host.state.borrow().contains_key(STATE_KEY),
-        "реестр сохранён в служебном состоянии"
-    );
+    let stored = host
+        .state
+        .borrow()
+        .get(STATE_KEY)
+        .cloned()
+        .expect("реестр сохранён в служебном состоянии");
+    // Метка и версия состояния: по ним файл опознаётся при чтении.
+    let document: serde_json::Value = serde_json::from_str(&stored).expect("состояние — JSON");
+    assert_eq!(document["format"], "context.plugin-store-state");
+    assert_eq!(document["version"], 1);
 
     let listed = call(&host, "stores_list", json!({}));
     assert_eq!(listed["stores"].as_array().map(Vec::len), Some(1));

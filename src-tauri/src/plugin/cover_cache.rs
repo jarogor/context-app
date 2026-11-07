@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::atomic_file;
+use crate::documents::{self, COVER_CACHE};
 
 /// Имя файла кэша в служебном каталоге приложения.
 const COVER_CACHE_FILE_NAME: &str = "cover-cache.json";
@@ -51,12 +51,12 @@ pub struct CoverCache {
 impl CoverCache {
     /// Загрузка кэша из служебного каталога; отсутствие файла даёт пустой кэш.
     pub fn load(root: &Path) -> Self {
-        atomic_file::read_json_or_default(&cover_cache_path(root)).unwrap_or_default()
+        documents::read_or_default(&cover_cache_path(root), &COVER_CACHE).unwrap_or_default()
     }
 
     /// Сохранение кэша атомарной записью.
     pub fn save(&self, root: &Path) -> Result<(), String> {
-        atomic_file::write_json(&cover_cache_path(root), self).map_err(|error| error.to_string())
+        documents::write(&cover_cache_path(root), &COVER_CACHE, self)
     }
 
     /// Актуальная запись обложки: файл книги не изменился с момента извлечения.

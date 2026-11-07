@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::atomic_file;
+use crate::documents::{self, READER_CACHE};
 
 /// Имя каталога кэша в служебном каталоге приложения.
 const CACHE_DIR_NAME: &str = "reader-cache";
@@ -122,7 +123,7 @@ pub fn book_dir(root: &Path, path: &str) -> PathBuf {
 /// Чтение описания свойств книги; отсутствие или порча файла дают `None`.
 pub fn read_meta(root: &Path, path: &str) -> Option<ReaderCacheMeta> {
     let file = book_dir(root, path).join(META_FILE_NAME);
-    let meta: ReaderCacheMeta = atomic_file::read_json(&file).ok()?;
+    let meta: ReaderCacheMeta = documents::read(&file, &READER_CACHE).ok()??;
     if meta.size.is_none() || meta.mtime_ms.is_none() {
         return None;
     }
@@ -252,7 +253,7 @@ pub fn save(
             },
         );
     }
-    atomic_file::write_json(&dir.join(META_FILE_NAME), &meta).map_err(|error| error.to_string())
+    documents::write(&dir.join(META_FILE_NAME), &READER_CACHE, &meta)
 }
 
 /// Удаление кэша книги: свойств, пометок и картинок превью.

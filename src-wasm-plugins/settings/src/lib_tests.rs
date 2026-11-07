@@ -169,6 +169,10 @@ fn state_is_json_serializable() {
     )
     .expect("регистрация");
     let state = host.state.borrow().clone().expect("состояние записано");
+    let document: serde_json::Value = serde_json::from_str(&state).expect("состояние — JSON");
+    // Метка и версия состояния: по ним файл опознаётся при чтении.
+    assert_eq!(document["format"], "context.settings-state");
+    assert_eq!(document["version"], 1);
     let parsed: SettingsState = serde_json::from_str(&state).expect("состояние парсится");
     assert_eq!(parsed.registry().len(), 1);
 }

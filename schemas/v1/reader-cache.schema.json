@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/reader-cache.schema.json",
+  "title": "Кэш свойств открытого файла",
+  "description": "Служебный файл app-state/reader-cache/<sha256 пути>/meta.json: свойства файла, встроенные пометки и список превью. `properties` и `annotations` — opaque-данные плагина формата; ядро их не интерпретирует, поэтому их форма схемой не ограничена.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "context.reader-cache",
+      "description": "Метка формата документа: по ней файл опознаётся как документ приложения."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Версия формата документа."
+    },
+    "path": {
+      "type": "string"
+    },
+    "size": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "mtime_ms": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "properties": {
+      "description": "Opaque-свойства плагина формата."
+    },
+    "annotations": {
+      "description": "Opaque-результат разбора встроенных пометок."
+    },
+    "thumbs": {
+      "type": "object",
+      "description": "Превью страниц: номер страницы → описание файла картинки.",
+      "additionalProperties": {
+        "$ref": "#/$defs/thumb"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "thumb": {
+      "type": "object",
+      "required": [
+        "page",
+        "file"
+      ],
+      "properties": {
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

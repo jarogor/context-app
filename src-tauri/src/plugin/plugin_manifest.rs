@@ -102,8 +102,23 @@ impl PluginManifest {
             dir: path.to_path_buf(),
             reason: e.to_string(),
         })?;
-        let manifest: PluginManifest =
+        let value: serde_json::Value =
             serde_json::from_slice(&content).map_err(|e| PluginError::InvalidManifest {
+                dir: path.to_path_buf(),
+                reason: e.to_string(),
+            })?;
+        // Схема манифеста — общий контракт: её проверяет и ядро, и тесты.
+        crate::documents::schema::validate_text(
+            &value,
+            crate::documents::PLUGIN_MANIFEST.current_schema(),
+            "plugin-manifest",
+        )
+        .map_err(|reason| PluginError::InvalidManifest {
+            dir: path.to_path_buf(),
+            reason,
+        })?;
+        let manifest: PluginManifest =
+            serde_json::from_value(value).map_err(|e| PluginError::InvalidManifest {
                 dir: path.to_path_buf(),
                 reason: e.to_string(),
             })?;

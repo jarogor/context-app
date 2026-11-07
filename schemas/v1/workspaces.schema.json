@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/workspaces.schema.json",
+  "title": "Реестр рабочих мест",
+  "description": "Служебный файл app-state/workspaces.json: рабочие места, их вкладки и история наборов заметок. Файл принадлежит ядру; метку и версию пишет ядро, а прежние файлы без метки читаются как версия 0.",
+  "type": "object",
+  "required": [
+    "workspaces"
+  ],
+  "properties": {
+    "format": {
+      "const": "context.workspaces",
+      "description": "Метка формата документа: по ней файл опознаётся как документ приложения."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Версия формата документа."
+    },
+    "workspaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workspace"
+      }
+    },
+    "active_workspace_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "note_set_workspaces": {
+      "type": "object",
+      "description": "Где открывали наборы заметок: набор → места, свежие первыми.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "workspace": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "created_at_millis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tabs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tab"
+          }
+        },
+        "active_tab_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "tab": {
+      "type": "object",
+      "required": [
+        "id",
+        "title"
+      ],
+      "properties": {
+        "book_id": {
+          "type": "string",
+          "description": "Прежнее имя поля пути книги (до переименования в `path`); читается как `path`."
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "format": {
+          "type": "string"
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "position": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string"
+        },
+        "zoom": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

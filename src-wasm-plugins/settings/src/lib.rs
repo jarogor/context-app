@@ -201,8 +201,11 @@ fn section_id(payload: &serde_json::Value) -> String {
 }
 
 /// Загрузка состояния из служебного хранилища.
+///
+/// Загруженное состояние помечается меткой формата и версией: прежние файлы без
+/// метки переписываются с ней при следующем сохранении.
 fn load(host: &impl Host) -> Result<SettingsState, String> {
-    state::load::<SettingsState>(host, STATE_KEY)
+    Ok(state::load::<SettingsState>(host, STATE_KEY)?.marked())
 }
 
 /// Сохранение состояния в служебное хранилище.

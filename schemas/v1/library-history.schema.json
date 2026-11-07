@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/library-history.schema.json",
+  "title": "История открытых библиотек",
+  "description": "Служебный файл app-state/library-history.json: путь библиотеки, провайдер и время открытия. Записи недоступных провайдеров сохраняются, но не выдаются интерфейсу.",
+  "type": "object",
+  "required": [
+    "entries"
+  ],
+  "properties": {
+    "format": {
+      "const": "context.library-history",
+      "description": "Метка формата документа: по ней файл опознаётся как документ приложения."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Версия формата документа."
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": [
+        "path",
+        "provider",
+        "added_at_millis"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "added_at_millis": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

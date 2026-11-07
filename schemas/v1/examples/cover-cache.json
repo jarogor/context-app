@@ -1,0 +1,19 @@
+{
+  "format": "context.cover-cache",
+  "version": 1,
+  "covers": {
+    "/lib/Книга.epub": {
+      "size": 1024,
+      "mtime_ms": 1700000000000,
+      "cover": {
+        "format": "png",
+        "data": "iVBORw0KGgo="
+      }
+    },
+    "/lib/Без обложки.pdf": {
+      "size": 2048,
+      "mtime_ms": 1700000000000,
+      "cover": null
+    }
+  }
+}

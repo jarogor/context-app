@@ -14,12 +14,18 @@ use crate::models::{NoteInput, NotePatch};
 
 mod operations;
 
+/// Метка формата файла состояния.
+pub(crate) const STATE_FORMAT: &str = "context.notes-state";
+
 /// Текущая версия формата состояния.
 pub(crate) const STATE_VERSION: u32 = 1;
 
 /// Состояние заметок: версия формата, наборы и активный набор по книгам.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct NotesState {
+    /// Метка формата файла состояния.
+    #[serde(default)]
+    format: String,
     /// Версия формата состояния.
     #[serde(default)]
     version: u32,
@@ -38,6 +44,7 @@ impl NotesState {
     /// Создание пустого состояния.
     pub fn new() -> Self {
         Self {
+            format: STATE_FORMAT.to_string(),
             version: STATE_VERSION,
             sets: Vec::new(),
             active: BTreeMap::new(),
@@ -56,6 +63,8 @@ impl NotesState {
         if self.normalized {
             return self;
         }
+        // Метка и версия пишутся всегда: по ним файл опознаётся при чтении.
+        self.format = STATE_FORMAT.to_string();
         if self.version == 0 {
             self.version = STATE_VERSION;
         }

@@ -25,7 +25,14 @@ const INDEX_CONTRACT_VERSION: u32 = 1;
 pub fn read_index(source: &UpdateSource) -> Result<UpdateIndex, String> {
     source.validate()?;
     let text = read_text(source, INDEX_FILE_NAME, MAX_INDEX_BYTES)?;
-    let index: UpdateIndex = serde_json::from_str(&text)
+    let value: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|error| format!("некорректный индекс обновлений: {error}"))?;
+    crate::documents::schema::validate_text(
+        &value,
+        crate::documents::UPDATE_INDEX.current_schema(),
+        "update-index",
+    )?;
+    let index: UpdateIndex = serde_json::from_value(value)
         .map_err(|error| format!("некорректный индекс обновлений: {error}"))?;
     if index.contract_version != INDEX_CONTRACT_VERSION {
         return Err(format!(

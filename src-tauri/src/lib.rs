@@ -4,6 +4,7 @@ pub mod test_util;
 pub mod atomic_file;
 pub mod commands;
 pub mod constants;
+pub mod documents;
 pub mod library_history;
 pub mod library_identity;
 pub mod paths;

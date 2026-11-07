@@ -1,0 +1,20 @@
+{
+  "format": "context.reader-cache",
+  "version": 1,
+  "path": "/lib/Книга.pdf",
+  "size": 4096,
+  "mtime_ms": 1700000000000,
+  "properties": {
+    "page_count": 3,
+    "outlines": []
+  },
+  "annotations": null,
+  "thumbs": {
+    "1": {
+      "page": 1,
+      "file": "t-1.jpg",
+      "width": 160,
+      "height": 240
+    }
+  }
+}

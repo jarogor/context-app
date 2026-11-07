@@ -1,0 +1,12 @@
+{
+  "format": "context.plugin-store-state",
+  "version": 1,
+  "stores": [
+    {
+      "id": "store-1",
+      "kind": "file",
+      "title": "Локальный стор",
+      "location": "/stores"
+    }
+  ]
+}

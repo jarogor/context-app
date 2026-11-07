@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/cover-cache.schema.json",
+  "title": "Кэш обложек книг",
+  "description": "Служебный файл app-state/cover-cache.json: обложка книги по абсолютному пути. Свежесть записи определяется размером и временем изменения файла книги, поэтому они хранятся рядом с обложкой.",
+  "type": "object",
+  "required": [
+    "covers"
+  ],
+  "properties": {
+    "format": {
+      "const": "context.cover-cache",
+      "description": "Метка формата документа: по ней файл опознаётся как документ приложения."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Версия формата документа."
+    },
+    "covers": {
+      "type": "object",
+      "description": "Обложки по абсолютному пути книги.",
+      "additionalProperties": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "properties": {
+        "size": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "mtime_ms": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "cover": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Обложка; `null` — обложки у книги нет.",
+          "required": [
+            "format",
+            "data"
+          ],
+          "properties": {
+            "format": {
+              "type": "string",
+              "minLength": 1
+            },
+            "data": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

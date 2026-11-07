@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/settings-state.schema.json",
+  "title": "Состояние плагина настроек",
+  "description": "Служебное состояние базового плагина настроек (settings.json): зарегистрированные секции и сохранённые значения. Владелец формата — плагин настроек; декларации полей ядро не интерпретирует.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "context.settings-state"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "registry": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/section"
+      }
+    },
+    "values": {
+      "type": "object",
+      "description": "Сохранённые значения по полному идентификатору секции."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "section": {
+      "type": "object",
+      "required": [
+        "id",
+        "owner",
+        "kind",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "field": {
+      "type": "object",
+      "required": [
+        "key",
+        "title"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "boolean",
+            "string",
+            "number",
+            "select",
+            "json"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "default": {},
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

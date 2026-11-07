@@ -1,0 +1,33 @@
+{
+  "format": "context.settings-state",
+  "version": 1,
+  "registry": [
+    {
+      "id": "app.general",
+      "owner": "app",
+      "kind": "app",
+      "title": "Общие",
+      "description": null,
+      "fields": [
+        {
+          "key": "appearance.theme",
+          "title": "Тема оформления",
+          "type": "select",
+          "description": null,
+          "default": "system",
+          "options": [
+            {
+              "value": "system",
+              "label": "Как в системе"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "values": {
+    "app.general": {
+      "appearance.theme": "dark"
+    }
+  }
+}

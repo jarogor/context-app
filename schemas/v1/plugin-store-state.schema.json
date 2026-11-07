@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/plugin-store-state.schema.json",
+  "title": "Состояние плагина стора",
+  "description": "Служебное состояние базового плагина стора (stores.json): подключённые сторы плагинов. Владелец формата — плагин стора.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "context.plugin-store-state"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "stores": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/store"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "store": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "file",
+            "network"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

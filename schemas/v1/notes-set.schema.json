@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context.app/schemas/v1/notes-set.schema.json",
+  "title": "Переносимый набор заметок",
+  "description": "Файл обмена набором заметок (расширение .notes.json). Метка и версия обязательны: по ним чужой JSON отличается от файла набора. Книга описывается именем файла и названием — места хранения в документе нет, поэтому набор не зависит от того, где файл книги лежит у получателя.",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "set"
+  ],
+  "properties": {
+    "format": {
+      "const": "context.notes-set"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "exported_at_millis": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "book": {
+      "type": "object",
+      "required": [
+        "name",
+        "title"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "set": {
+      "type": "object",
+      "required": [
+        "name",
+        "notes"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "created_at_millis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "enum": [
+                  "quote",
+                  "text",
+                  "shape"
+                ]
+              },
+              "anchor": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "chapter": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "comment": {
+                "type": "string"
+              },
+              "color": {
+                "enum": [
+                  "yellow",
+                  "green",
+                  "blue",
+                  "red",
+                  "purple"
+                ]
+              },
+              "percent": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "page": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "text": {
+                "type": "string"
+              },
+              "shape": {
+                "enum": [
+                  "line",
+                  "rectangle",
+                  "ellipse"
+                ]
+              },
+              "geometry": {
+                "type": "string"
+              },
+              "created_at_millis": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "updated_at_millis": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

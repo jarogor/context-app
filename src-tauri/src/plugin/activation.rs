@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::atomic_file;
+use crate::documents::{self, DISABLED_PLUGINS};
 
 /// Имя файла реестра в служебном каталоге состояния.
 const FILE_NAME: &str = "disabled-plugins.json";
@@ -23,9 +23,8 @@ struct ActivationFile {
 
 /// Загрузка множества отключённых плагинов.
 pub fn load(root: &Path) -> Result<Vec<String>, String> {
-    atomic_file::read_json_or_default::<ActivationFile>(&file_path(root))
+    documents::read_or_default::<ActivationFile>(&file_path(root), &DISABLED_PLUGINS)
         .map(|file| file.disabled)
-        .map_err(|error| error.to_string())
 }
 
 /// Признак, что плагин с указанным идентификатором отключён.
@@ -50,7 +49,7 @@ pub fn save(root: &Path, disabled: &[String]) -> Result<(), String> {
     let file = ActivationFile {
         disabled: disabled.to_vec(),
     };
-    atomic_file::write_json(&file_path(root), &file).map_err(|error| error.to_string())
+    documents::write(&file_path(root), &DISABLED_PLUGINS, &file)
 }
 
 /// Путь файла реестра.

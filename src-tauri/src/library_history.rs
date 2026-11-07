@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::atomic_file;
+use crate::documents::{self, LIBRARY_HISTORY};
 use crate::plugin::SourceProvider;
 
 /// Имя файла истории в служебном каталоге состояния.
@@ -108,12 +108,12 @@ fn history_path(root: &Path) -> PathBuf {
 
 /// Загрузка истории; отсутствующий файл — пустая история.
 fn load(root: &Path) -> Result<HistoryFile, String> {
-    atomic_file::read_json_or_default(&history_path(root)).map_err(|error| error.to_string())
+    documents::read_or_default(&history_path(root), &LIBRARY_HISTORY)
 }
 
 /// Атомарная запись истории.
 fn save(root: &Path, file: &HistoryFile) -> Result<(), String> {
-    atomic_file::write_json(&history_path(root), file).map_err(|error| error.to_string())
+    documents::write(&history_path(root), &LIBRARY_HISTORY, file)
 }
 
 /// Текущее время Unix в миллисекундах.

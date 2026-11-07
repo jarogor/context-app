@@ -1,0 +1,26 @@
+{
+  "format": "context.updates",
+  "version": 1,
+  "config": {
+    "source": {
+      "kind": "network",
+      "location": "https://example.org/updates/"
+    },
+    "check_on_startup": true,
+    "skipped_version": null
+  },
+  "last_check": {
+    "source": {
+      "kind": "network",
+      "location": "https://example.org/updates/"
+    },
+    "core": {
+      "current_version": "0.1.0",
+      "version": "0.2.0",
+      "notes": "Что нового",
+      "mode": "appimage"
+    },
+    "checked_at_millis": 1700000000000,
+    "errors": []
+  }
+}

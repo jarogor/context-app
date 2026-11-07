@@ -581,6 +581,10 @@ fn state_survives_reload() {
     .expect("заметка");
 
     let stored = host.state.borrow().clone().expect("состояние записано");
+    let document: serde_json::Value = serde_json::from_str(&stored).expect("состояние — JSON");
+    // Метка и версия состояния: по ним файл опознаётся при чтении.
+    assert_eq!(document["format"], "context.notes-state");
+    assert_eq!(document["version"], 1);
     let state: NotesState = serde_json::from_str(&stored).expect("состояние парсится");
     assert_eq!(state.sets().len(), 1);
     assert_eq!(state.find(&set_id).expect("набор").notes.len(), 1);
