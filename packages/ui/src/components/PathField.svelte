@@ -66,21 +66,26 @@
   {#if label}
     <span class="role-caption text-[var(--muted-foreground)]">{label}</span>
   {/if}
-  <div class="flex min-w-0 items-start gap-1.5">
-    <!-- Сам адрес: отдельная врезка, поэтому границы значения видны даже с пробелами. -->
-    <span
-      class="min-w-0 flex-1 break-all rounded-[var(--radius)] bg-[var(--surface-inset)] px-2 py-1.5 font-mono text-xs leading-[1.5] {tone ===
-      'danger'
-        ? 'text-[var(--destructive)]'
-        : 'text-[var(--foreground)]'}"
-      data-testid={testId}
-    >
-      {value}
-    </span>
+  <!--
+    Расположение — одна залитая подложка: адрес и копирование внутри неё.
+    Подложка из полупрозрачного тона чернил, поэтому блок отделяется и на
+    странице, и на карточке в обеих темах. У отсутствующей библиотеки вся
+    подложка, текст и кнопка получают один предупреждающий тон.
+  -->
+  <div
+    class="flex min-w-0 items-start gap-1 rounded-[calc(var(--radius)*0.6)] py-0 {tone ===
+    'danger'
+      ? 'bg-[var(--destructive-soft)] text-[var(--destructive)]'
+      : 'bg-[var(--code-surface)] text-[var(--foreground)]'}"
+  >
+    <!-- Копирование внутри подложки: высота кнопки равна строке адреса, поэтому
+         верхний край иконки совпадает с верхом текста без дополнительных полей. -->
     <Button
       variant="ghost"
-      size="sm"
-      class="shrink-0 px-1"
+      size="icon"
+      class="h-[1.125rem] w-5 shrink-0 gap-0 p-0 {tone === 'danger'
+        ? 'text-[var(--destructive)] hover:text-[var(--destructive)]'
+        : ''}"
       title={copied ? t('app.library.book.pathCopied') : t('app.library.book.copyPath')}
       ariaLabel={t('app.library.book.copyPath')}
       testId="path-copy"
@@ -88,6 +93,10 @@
     >
       <Icon name={copied ? 'check' : 'copy'} class="h-3.5 w-3.5" />
     </Button>
+    <!-- Сам адрес — обычный текст без собственных полей. -->
+    <span class="min-w-0 flex-1 font-mono text-xs leading-[1.5] break-all" data-testid={testId}>
+      {value}
+    </span>
   </div>
   {#if note}
     <span

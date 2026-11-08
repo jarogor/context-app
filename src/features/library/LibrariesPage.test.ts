@@ -342,21 +342,27 @@ describe('провайдер и отсутствующая библиотека'
     expect(text).not.toContain('books-source');
   });
 
-  it('помечает отсутствие у пути и не даёт открыть библиотеку', async () => {
+  it('показывает путь и отсутствие только в карточке выбранной библиотеки', async () => {
     history();
     render(LibrariesPage);
 
-    await waitFor(() => expect(screen.getAllByTestId('library-meta')).toHaveLength(3));
-    // Подпись стоит рядом с путём: видно, чего именно нет.
-    const missingMeta = screen
-      .getAllByTestId('library-meta')
-      .find((element) => element.textContent?.includes('отсутствует'));
-    expect(missingMeta).toBeTruthy();
-    expect(missingMeta?.textContent).toContain('/lib/gone');
-    // Сам путь выделен предупреждающим тоном.
-    expect(missingMeta?.querySelector('[data-testid="library-path"]')?.className).toContain(
-      'text-[var(--destructive)]',
-    );
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(3));
+
+    // В элементах списка пути нет: только название, тип и дата.
+    for (const meta of screen.queryAllByTestId('library-meta')) {
+      expect(meta.textContent).not.toContain('/lib/');
+    }
+
+    // Выбор отсутствующей записи не обращается к диску, а показывает сведения.
+    const item = screen
+      .getAllByTestId('library-item')
+      .find((element) => element.textContent?.includes('gone')) as HTMLElement;
+    await fireEvent.click(item.querySelector('button') as HTMLElement);
+
+    const card = screen.getByTestId('library-card');
+    expect(card.textContent).toContain('/lib/gone');
+    expect(card.textContent).toContain('отсутствует');
+    expect(invoke).not.toHaveBeenCalledWith('select_source_library', expect.anything());
   });
 
   it('у отсутствующей библиотеки нет пункта открытия папки', async () => {

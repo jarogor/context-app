@@ -46,6 +46,11 @@
    * цвет сливался бы с фоном. Врезка (`--surface-inset`) — наоборот, нейтральная
    * и непрозрачная: она сама служит фоном, а не подсветкой. */
   --surface-inset: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  /* Подложка встроенного фрагмента кода (путь, идентификатор). Считается от
+   * **прозрачного** тона чернил, а не от фона: тогда она накладывается поверх
+   * любой поверхности — страницы, карточки, всплывающего слоя — и в тёмной
+   * теме фрагмент отделяется от карточки так же, как в светлой. */
+  --code-surface: color-mix(in oklab, var(--foreground) 9%, transparent);
   --surface-hover: color-mix(in oklab, var(--primary) 12%, transparent);
   --surface-selected: color-mix(in oklab, var(--primary) 24%, transparent);
   /* Линия-разделитель внутри списка: чуть заметнее обычной обводки, но тише
@@ -560,6 +565,7 @@
   --color-destructive-soft: var(--destructive-soft);
   --color-destructive-border: var(--destructive-border);
   --color-surface-inset: var(--surface-inset);
+  --color-code-surface: var(--code-surface);
   --color-surface-hover: var(--surface-hover);
   --color-surface-selected: var(--surface-selected);
   --color-tab-idle-surface: var(--tab-idle-surface);

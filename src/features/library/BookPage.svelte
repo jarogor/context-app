@@ -969,11 +969,7 @@
               {#if path}
                 <!-- Путь — общий компонент системы: отдельная врезка на адрес
                      и отдельное действие копирования. -->
-                <PathField
-                  value={path}
-                  label={t('app.library.book.path')}
-                  testId="book-property-path"
-                />
+                <PathField value={path} testId="book-property-path" />
               {/if}
             </section>
           {/if}

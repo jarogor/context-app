@@ -567,7 +567,7 @@
         </dl>
 
         <Button
-          variant="ghost"
+          variant="secondary"
           size="sm"
           class="self-start"
           disabled={!selectedEntry.available}
