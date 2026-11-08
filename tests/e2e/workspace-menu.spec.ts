@@ -48,6 +48,9 @@ test('меню рабочего места как меню библиотеки'
   console.log('РАБОЧЕЕ МЕСТО:', JSON.stringify(workspaceMenu));
 
   await page.getByTestId('nav-library').click();
+  // Раздел открывает книги активной библиотеки: к списку библиотек ведёт
+  // кнопка «Библиотеки» в полосе управления.
+  await page.getByTestId('library-choose-top').click();
   await expect(page.getByTestId('library-item').first()).toBeVisible();
   const libraryMenu = await measure('Действия с библиотекой');
   console.log('БИБЛИОТЕКА:', JSON.stringify(libraryMenu));

@@ -44,9 +44,10 @@ test('разделы переключаются с клавиатуры', async 
   // Бутстрап монтирует оболочку не мгновенно: клавиши регистрируются вместе с ней.
   await expect(page.getByTestId('section-nav')).toBeVisible();
 
-  // Раздел «Библиотека» открывается выбором библиотек: это его точка входа.
+  // Раздел «Библиотека» открывается книгами активной библиотеки: она уже
+  // задана моком, поэтому список библиотек не показывается.
   await page.keyboard.press('Control+2');
-  await expect(page.getByTestId('libraries-page')).toBeVisible();
+  await expect(page.getByTestId('library-page')).toBeVisible();
 
   await page.keyboard.press('Control+3');
   await expect(page.getByTestId('notes-library')).toBeVisible();
