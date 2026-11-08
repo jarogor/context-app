@@ -52,7 +52,8 @@
     | 'monitor'
     | 'download'
     | 'upload'
-    | 'refresh';
+    | 'refresh'
+    | 'external-link';
 
   /** Иконки, предлагаемые для оформления вкладки рабочего места.
    *
@@ -220,5 +221,8 @@
   {:else if name === 'monitor'}
     <rect x="2.5" y="4" width="19" height="13" rx="2" />
     <path d="M8 20.5h8" />
+  {:else if name === 'external-link'}
+    <path d="M18 13.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.5" />
+    <path d="M14 3h7v7M21 3l-9 9" />
   {/if}
 </svg>

@@ -307,6 +307,7 @@ export const en: Dictionary = {
   'app.library.book.read': 'Read',
   'app.library.book.readHint': 'Open the book in a workspace',
   'app.library.book.readIn': 'Open in «{name}»',
+  'app.library.book.openHint': 'Open the book file with the default application',
   'app.library.book.about': 'About the book',
   'app.library.book.details': 'Details',
   'app.library.book.fileDetails': 'File',
@@ -343,6 +344,9 @@ export const en: Dictionary = {
   'app.library.book.path': 'File path',
   'app.library.book.description': 'Description',
   'app.library.book.openFolder': 'Open the folder with the file',
+  'app.library.book.openFolderShort': 'Open folder',
+  'app.library.book.copyPath': 'Copy the path',
+  'app.library.book.pathCopied': 'Path copied',
   'app.library.book.title': 'Book page',
   'app.library.empty.noLibrary.title': 'Library is not open',
   'app.library.empty.noLibrary.description':

@@ -291,6 +291,7 @@ export const ru = {
   'app.library.book.read': 'Читать',
   'app.library.book.readHint': 'Открыть книгу в рабочем месте',
   'app.library.book.readIn': 'Открыть в «{name}»',
+  'app.library.book.openHint': 'Открыть файл книги программой по умолчанию',
   'app.library.book.about': 'О книге',
   'app.library.book.details': 'Сведения',
   'app.library.book.fileDetails': 'Файл',
@@ -327,6 +328,9 @@ export const ru = {
   'app.library.book.path': 'Путь к файлу',
   'app.library.book.description': 'Описание',
   'app.library.book.openFolder': 'Открыть папку с файлом',
+  'app.library.book.openFolderShort': 'Открыть папку',
+  'app.library.book.copyPath': 'Скопировать путь',
+  'app.library.book.pathCopied': 'Путь скопирован',
   'app.library.book.title': 'Страница книги',
   'app.library.empty.noLibrary.title': 'Библиотека не открыта',
   'app.library.empty.noLibrary.description':
