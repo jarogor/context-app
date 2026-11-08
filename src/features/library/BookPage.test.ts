@@ -63,10 +63,12 @@ describe('страница книги', () => {
     expect(screen.getByTestId('book-description').textContent).toContain('Описание книги');
   });
 
-  it('держит технические сведения о файле внизу', () => {
+  it('держит технические сведения о файле в свёрнутом блоке', () => {
     render(BookPage, { props: pageProps() });
 
     const file = screen.getByTestId('book-file');
+    // Блок «Файл» — раскрывающийся: путь и размер не спорят с содержанием.
+    expect(file.tagName).toBe('DETAILS');
     expect(file.textContent).toContain('/lib/a.epub');
     expect(file.textContent).toContain('2 КБ');
     expect(file.textContent).toContain('2024');
@@ -134,5 +136,92 @@ describe('страница книги', () => {
     await fireEvent.click(screen.getByTestId('book-edit-reset'));
 
     expect(onResetProperties).toHaveBeenCalledTimes(1);
+  });
+
+  it('делает главным действием первый читаемый формат', async () => {
+    const onAdd = vi.fn();
+    render(BookPage, {
+      props: pageProps({
+        formats: [
+          { format: 'pdf', readable: false },
+          { format: 'epub', readable: true },
+        ],
+        onAdd,
+      }),
+    });
+
+    // PDF не читается: главная кнопка ведёт в EPUB, а не в первый файл записи.
+    const read = screen.getByTestId('book-read-epub');
+    expect(read.className).toContain('bg-primary');
+    expect(screen.queryByTestId('book-read-pdf')).toBeNull();
+
+    await fireEvent.click(read);
+    expect(onAdd).toHaveBeenCalledWith('epub');
+  });
+
+  it('выносит дополнительные файлы книги в отдельную группу', () => {
+    render(BookPage, {
+      props: pageProps({
+        formats: [
+          { format: 'epub', readable: true },
+          { format: 'pdf', readable: true },
+        ],
+      }),
+    });
+
+    const other = screen.getByTestId('book-other-formats');
+    expect(other.textContent).toContain('PDF');
+    // Второй читаемый формат — второстепенное действие, а не второй «Читать» в ряд.
+    expect(other.contains(screen.getByTestId('book-read-pdf'))).toBe(true);
+    expect(screen.getByTestId('book-formats').contains(other)).toBe(true);
+  });
+
+  it('называет рабочее место, в которое попадёт книга', () => {
+    render(BookPage, { props: pageProps({ targetWorkspaceName: 'Исследование' }) });
+
+    expect(screen.getByTestId('book-read-epub').getAttribute('title')).toContain('Исследование');
+  });
+
+  it('показывает заглушку, пока форматы чтения грузятся', () => {
+    render(BookPage, {
+      props: pageProps({ formats: [], canRead: true, formatsLoading: true }),
+    });
+
+    expect(screen.getByTestId('book-formats-loading')).toBeTruthy();
+    // Загрузка — не повод объявлять формат неподдерживаемым.
+    expect(screen.queryByTestId('book-unsupported')).toBeNull();
+  });
+
+  it('поясняет неподдерживаемый формат', () => {
+    render(BookPage, {
+      props: pageProps({
+        formats: [{ format: 'docx', readable: false }],
+        canRead: false,
+      }),
+    });
+
+    expect(screen.getByTestId('book-unsupported').textContent).toContain(
+      'Формат не поддерживается',
+    );
+    expect(screen.queryByTestId('book-read-docx')).toBeNull();
+    expect(screen.getByTestId('book-open-docx')).toBeTruthy();
+  });
+
+  it('сворачивает длинное описание и раскрывает его по действию', async () => {
+    const long = 'Слово '.repeat(120);
+    render(BookPage, { props: pageProps({ book: book({ description: long }) }) });
+
+    const text = screen.getByTestId('book-description');
+    expect(text.className).toContain('line-clamp-6');
+
+    await fireEvent.click(screen.getByTestId('book-description-toggle'));
+    expect(screen.getByTestId('book-description').className).not.toContain('line-clamp-6');
+  });
+
+  it('не сворачивает короткое описание', () => {
+    render(BookPage, { props: pageProps() });
+
+    expect(screen.getByTestId('book-description').className).not.toContain('line-clamp-6');
+    expect(screen.queryByTestId('book-description-toggle')).toBeNull();
   });
 });

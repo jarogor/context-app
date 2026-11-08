@@ -138,6 +138,42 @@ describe('страница библиотеки', () => {
     expect(screen.getByTestId('book-read-epub')).toBeTruthy();
   });
 
+  it('показывает заглушку форматов, пока плагины чтения грузятся', async () => {
+    /** Отложенный ответ списка форматов: до него страница книги не знает их. */
+    let releaseFormats: (value: string[]) => void = () => {};
+    invoke.mockImplementation(async (command) => {
+      if (command === 'reader_formats') {
+        return new Promise<string[]>((resolve) => {
+          releaseFormats = resolve;
+        });
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      if (command === 'invoke_plugin_operation') {
+        return CATALOG;
+      }
+      return null;
+    });
+
+    render(LibraryPage, {
+      props: { initialActiveLibrary: null, visible: true, onOpenInWorkplace: vi.fn() },
+    });
+
+    await waitFor(() => expect(catalogChanged).toBeTruthy());
+    // Каталог приходит раньше форматов: страница книги уже открыта.
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'books-source' });
+    await screen.findByText('Демо-книга');
+    await fireEvent.click(screen.getByRole('button', { name: /Демо-книга/ }));
+
+    expect(screen.getByTestId('book-formats-loading')).toBeTruthy();
+    // Незавершённая загрузка не объявляет формат неподдерживаемым.
+    expect(screen.queryByTestId('book-unsupported')).toBeNull();
+
+    releaseFormats(['epub']);
+    await waitFor(() => expect(screen.getByTestId('book-read-epub')).toBeTruthy());
+  });
+
   it('даёт отдельную кнопку на каждый читаемый формат книги', async () => {
     const onOpenInWorkplace = vi.fn();
     invoke.mockImplementation(async (command) => {

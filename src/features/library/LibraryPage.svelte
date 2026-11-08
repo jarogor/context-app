@@ -109,6 +109,9 @@
   /** Запрошены ли форматы чтения; повторный запрос не выполняется. */
   let formatsLoaded = $state(false);
 
+  /** Идёт ли загрузка форматов чтения: страница книги показывает заглушку, не ошибку. */
+  let formatsLoading = $state(false);
+
   /** Корень активной библиотеки для сборки абсолютного пути книги. */
   let libraryRoot = $state('');
 
@@ -354,11 +357,14 @@
       return;
     }
     formatsLoaded = true;
+    formatsLoading = true;
     try {
       const formats = await readerFormats();
       supportedFormats = [...new Set(formats.map((value) => value.toLowerCase()))];
     } catch {
       supportedFormats = [];
+    } finally {
+      formatsLoading = false;
     }
   }
 
@@ -544,8 +550,10 @@
     path={bookPath(openedBook)}
     formats={bookFormats(openedBook)}
     canRead={canRead(openedBook)}
+    {formatsLoading}
     {openingFormat}
     {openError}
+    {targetWorkspaceName}
     userEntry={properties[bookPath(openedBook)] ?? {}}
     onClose={closeBook}
     onOpenFolder={() => void openBookFolder(bookPath(openedBook as BookWithCover))}
