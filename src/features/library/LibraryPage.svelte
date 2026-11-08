@@ -874,7 +874,7 @@
           />
         {:else if viewMode === 'grid'}
           <ul
-            class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]"
+            class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))] wide:[grid-template-columns:repeat(auto-fill,minmax(12rem,1fr))] ultra:[grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]"
             data-testid="library-grid"
           >
             {#each pageBooksWithCovers as book (book.id)}

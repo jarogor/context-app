@@ -397,7 +397,7 @@
     />
   {:else}
     <ul
-      class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))]"
+      class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))] wide:[grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
       data-testid="workspaces-grid"
     >
       {#each filtered as item (item.id)}

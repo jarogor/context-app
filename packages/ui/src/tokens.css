@@ -673,47 +673,110 @@
  * курсором. Базовый кегль `html` не меняется: масштабируется набор ролей, а не
  * весь документ, поэтому раскладка остаётся предсказуемой.
  */
-/* Большие мониторы: набор текста крупнее и страница просторнее.
+
+/* Общий масштаб интерфейса на больших мониторах.
  *
- * На мониторе от 1440px интерфейс, рассчитанный на ноутбук, читается мелким, а
- * предел ширины оставляет его узкой полосой посреди пустого окна. Здесь растёт
- * одна ступень набора (роли текста, предел ширины, шапка и панели), а базовый
- * кегль `html` не меняется: масштабируется набор ролей, а не весь документ,
- * поэтому раскладка остаётся предсказуемой. Ступень выбрана так, чтобы строка
- * оставалась той же длины в знаках, а кнопки — той же площади под курсором.
+ * До этой ступени интерфейс рассчитан на ноутбук: на мониторе от 1440px набор
+ * текста, отступы, высоты элементов и радиусы читаются мелкими, а окно остаётся
+ * наполовину пустым. Ступень поднимает **шкалу целиком**, а не отдельные роли:
+ * переопределяются переменные, из которых Tailwind строит все утилиты
+ * (`--spacing` — отступы, высоты и ширины; `--text-*` — кегли; `--radius` —
+ * скругления). Поэтому растут кнопки, поля, карточки, списки и панели во всём
+ * приложении, а не только текст.
+ *
+ * Базовый кегль `html` не меняется: масштабируется шкала утилит, а не документ,
+ * поэтому раскладка остаётся предсказуемой, а читалка книги (она масштабируется
+ * отдельно и живёт в изолированном документе) не затрагивается.
  */
+
+/* Шаг 1: монитор от 1440px — шкала на четверть крупнее. */
 @media (min-width: 90rem) {
   :root {
+    --spacing: 0.28125rem;
+    --text-xs: 0.84375rem;
+    --text-xs--line-height: calc(1.1 / 0.84375);
+    --text-sm: 0.984375rem;
+    --text-sm--line-height: calc(1.25 / 0.984375);
+    --text-base: 1.125rem;
+    --text-base--line-height: 1.5;
+    --text-lg: 1.265625rem;
+    --text-lg--line-height: calc(1.75 / 1.265625);
+    --text-xl: 1.40625rem;
+    --text-xl--line-height: calc(1.75 / 1.40625);
+    --text-2xl: 1.6875rem;
+    --text-2xl--line-height: calc(2 / 1.6875);
+    --radius: 0.5625rem;
+
+    /* Сетка страницы: колонки списков и полки растут вместе с набором. */
+    --container-sm: 24rem;
+    --container-md: 28rem;
+    --container-lg: 32rem;
+    --container-xl: 36rem;
+    --container-2xl: 42rem;
+    --container-3xl: 48rem;
+    --container-4xl: 56rem;
+    --container-5xl: 64rem;
+    --container-6xl: 72rem;
+    --container-7xl: 80rem;
+
+    /* Роли текста повторяют ступень шкалы. */
     --role-display-size: 1.75rem;
     --role-heading-size: 1.25rem;
-    --role-title-size: 1.0625rem;
-    --role-subtitle-size: 0.9375rem;
-    --role-body-size: 0.9375rem;
-    --role-small-size: 0.8125rem;
+    --role-title-size: 1.125rem;
+    --role-subtitle-size: 0.984375rem;
+    --role-body-size: 0.984375rem;
+    --role-small-size: 0.84375rem;
 
     --content-max-width: 1600px;
     --book-page-max-width: 80rem;
-    --app-bar-height: 3.5rem;
-    --app-bar-height-wide: 3.75rem;
-    --context-bar-height: 3.75rem;
+    --app-bar-height: 3.75rem;
+    --app-bar-height-wide: 4rem;
+    --context-bar-height: 4rem;
     --notes-panel-width: var(--notes-panel-width-wide);
     --properties-panel-width: var(--properties-panel-width-wide);
   }
 }
 
+/* Шаг 2: очень большой монитор от 1920px — шкала на половину крупнее базовой. */
 @media (min-width: 120rem) {
   :root {
+    --spacing: 0.3125rem;
+    --text-xs: 0.9375rem;
+    --text-xs--line-height: calc(1.1 / 0.9375);
+    --text-sm: 1.09375rem;
+    --text-sm--line-height: calc(1.25 / 1.09375);
+    --text-base: 1.25rem;
+    --text-base--line-height: 1.5;
+    --text-lg: 1.40625rem;
+    --text-lg--line-height: calc(1.75 / 1.40625);
+    --text-xl: 1.5625rem;
+    --text-xl--line-height: calc(1.75 / 1.5625);
+    --text-2xl: 1.875rem;
+    --text-2xl--line-height: calc(2 / 1.875);
+    --radius: 0.625rem;
+
+    --container-sm: 26rem;
+    --container-md: 30rem;
+    --container-lg: 34rem;
+    --container-xl: 38rem;
+    --container-2xl: 44rem;
+    --container-3xl: 50rem;
+    --container-4xl: 58rem;
+    --container-5xl: 66rem;
+    --container-6xl: 74rem;
+    --container-7xl: 82rem;
+
     --role-display-size: 2rem;
     --role-heading-size: 1.375rem;
-    --role-title-size: 1.125rem;
-    --role-subtitle-size: 1rem;
-    --role-body-size: 1rem;
-    --role-small-size: 0.875rem;
+    --role-title-size: 1.25rem;
+    --role-subtitle-size: 1.09375rem;
+    --role-body-size: 1.09375rem;
+    --role-small-size: 0.9375rem;
 
     --content-max-width: 1840px;
     --book-page-max-width: 92rem;
-    --app-bar-height: 3.75rem;
-    --app-bar-height-wide: 4rem;
-    --context-bar-height: 4rem;
+    --app-bar-height: 4rem;
+    --app-bar-height-wide: 4.25rem;
+    --context-bar-height: 4.25rem;
   }
 }
