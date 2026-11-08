@@ -34,6 +34,8 @@ describe('Icon', () => {
       'plus',
       'chevron-left',
       'chevron-right',
+      'chevrons-left',
+      'chevrons-right',
       'chevron-down',
       'copy',
       'resize',

@@ -10,6 +10,7 @@
     PageShell,
     PathField,
     Progress,
+    SegmentedControl,
     Select,
     Spinner,
     type MenuAction,
@@ -71,6 +72,12 @@
   /** Режим показа библиотек: строки или плитка. */
   let viewMode = $state<'list' | 'grid'>('list');
 
+  /** Варианты переключателя режима показа библиотек. */
+  const viewModeItems = $derived([
+    { value: 'grid', label: t('app.library.mode.tiles'), icon: 'grid' as const },
+    { value: 'list', label: t('app.library.mode.list'), icon: 'list' as const },
+  ]);
+
   /**
    * Смартфон: плитка и список выглядят одинаково (оба — одна колонка), поэтому
    * переключатель вида на нём скрыт, а список всегда строчный. Маленький
@@ -108,6 +115,16 @@
   function chooseSort(value: string) {
     sortField = value === 'name' ? 'name' : 'opened';
     sortDirection = sortField === 'name' ? 'asc' : 'desc';
+    rememberSort();
+  }
+
+  /** Запоминание порядка списка в браузере: он переживает перезапуск. */
+  function rememberSort() {
+    try {
+      localStorage.setItem('libraries-sort', sortField);
+    } catch {
+      /* Хранилище недоступно — порядок остаётся в состоянии страницы. */
+    }
   }
 
   /**
@@ -381,6 +398,13 @@
       if (stored === 'list' || stored === 'grid') {
         viewMode = stored;
       }
+      // Порядок списка тоже переживает перезапуск: иначе каждое открытие
+      // возвращало бы порядок по дате, хотя выбран алфавитный.
+      const storedSort = localStorage.getItem('libraries-sort');
+      if (storedSort === 'name' || storedSort === 'opened') {
+        sortField = storedSort;
+        sortDirection = storedSort === 'name' ? 'asc' : 'desc';
+      }
     } catch {
       /* Хранилище недоступно — режим по умолчанию остаётся. */
     }
@@ -482,32 +506,12 @@
           onchange={(value) => chooseSort(value)}
         />
         {#if !phoneWindow}
-          <div
-            class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
-            role="group"
-            aria-label={t('app.library.modeLabel')}
-          >
-            <Button
-              variant={viewMode === 'grid' ? 'primary' : 'ghost'}
-              size="icon"
-              title={t('app.library.mode.tiles')}
-              ariaLabel={t('app.library.mode.tiles')}
-              ariaPressed={viewMode === 'grid'}
-              onclick={() => chooseViewMode('grid')}
-            >
-              <Icon name="grid" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'primary' : 'ghost'}
-              size="icon"
-              title={t('app.library.mode.list')}
-              ariaLabel={t('app.library.mode.list')}
-              ariaPressed={viewMode === 'list'}
-              onclick={() => chooseViewMode('list')}
-            >
-              <Icon name="list" />
-            </Button>
-          </div>
+          <SegmentedControl
+            items={viewModeItems}
+            value={viewMode}
+            ariaLabel={t('app.library.modeLabel')}
+            onchange={(next) => chooseViewMode(next as 'list' | 'grid')}
+          />
         {/if}
       </div>
     </div>
@@ -528,20 +532,18 @@
     <!-- Панель стоит на месте всегда: без выбранной библиотеки она объясняет,
          что та не выбрана, а не исчезает, сдвигая список. -->
     <aside
-      class="flex w-full min-w-0 flex-col gap-3 self-start rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:h-full lg:min-h-0 lg:overflow-y-auto"
+      class="flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] lg:h-full lg:min-h-0"
       data-testid="library-card"
     >
-      <h2 class="m-0 role-caption text-[var(--muted-foreground)]">
-        {t('app.library.libraries.card.title')}
-      </h2>
       {#if selectedEntry}
         <!--
-          Название — единственный вход к книгам: выбор в списке только
-          показывает сведения, а переход начинается здесь.
+          Шапка карточки — единственный вход к книгам: выбор в списке только
+          показывает сведения, а переход начинается здесь. Кликабельна вся
+          шапка целиком — название, метка загрузки и тип библиотеки.
         -->
         <button
           type="button"
-          class="cursor-pointer self-start rounded-[var(--radius)] bg-transparent p-0 text-left transition-colors [font:inherit] hover:text-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none disabled:cursor-not-allowed"
+          class="flex w-full cursor-pointer flex-col gap-2 border-b border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset disabled:cursor-not-allowed disabled:hover:bg-[var(--card)]"
           title={t('app.library.libraries.toBooks')}
           disabled={!selectedEntry.available || opening}
           data-testid="library-card-open"
@@ -550,56 +552,62 @@
           <span class="block break-words role-heading text-[var(--foreground)]">
             {libraryName(selectedEntry.path)}
           </span>
+          <span class="flex flex-wrap items-center gap-1.5">
+            {#if selectedEntry.available}
+              <Badge variant="success">{t('app.library.libraries.loaded')}</Badge>
+            {:else}
+              <Badge variant="warning">{t('app.library.libraries.missing')}</Badge>
+            {/if}
+            <Badge variant="outline">{providerLabel(selectedEntry.providerName)}</Badge>
+          </span>
         </button>
 
-        <Badge variant="outline" class="self-start">
-          {providerLabel(selectedEntry.providerName)}
-        </Badge>
-
-        <dl class="m-0 flex flex-col gap-2">
-          {#if selectedEntry.addedAtMillis}
+        <div class="flex flex-col gap-3 overflow-y-auto px-4 py-3">
+          <dl class="m-0 flex flex-col gap-2">
+            {#if selectedEntry.addedAtMillis}
+              <div class="flex flex-col gap-0.5">
+                <dt class="role-caption text-[var(--muted-foreground)]">
+                  {t('app.library.libraries.openedLabel')}
+                </dt>
+                <dd class="m-0 role-body">
+                  {formatDateTime(selectedEntry.addedAtMillis)}
+                </dd>
+              </div>
+            {/if}
+            <!-- Расположение — общий компонент пути: адрес отдельным блоком,
+                 копирование рядом, отсутствие подписано под адресом. -->
             <div class="flex flex-col gap-0.5">
-              <dt class="role-caption text-[var(--muted-foreground)]">
-                {t('app.library.libraries.openedLabel')}
-              </dt>
-              <dd class="m-0 role-body">
-                {formatDateTime(selectedEntry.addedAtMillis)}
+              <dd class="m-0">
+                <PathField
+                  value={selectedEntry.path}
+                  label={t('app.library.libraries.locationShort')}
+                  tone={selectedEntry.available ? undefined : 'danger'}
+                  note={selectedEntry.available ? '' : t('app.library.libraries.missing')}
+                  testId="library-card-path"
+                />
               </dd>
             </div>
-          {/if}
-          <!-- Расположение — общий компонент пути: адрес отдельным блоком,
-               копирование рядом, отсутствие подписано под адресом. -->
-          <div class="flex flex-col gap-0.5">
-            <dd class="m-0">
-              <PathField
-                value={selectedEntry.path}
-                label={t('app.library.libraries.locationShort')}
-                tone={selectedEntry.available ? undefined : 'danger'}
-                note={selectedEntry.available ? '' : t('app.library.libraries.missing')}
-                testId="library-card-path"
-              />
-            </dd>
-          </div>
-        </dl>
+          </dl>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          class="self-start"
-          disabled={!selectedEntry.available}
-          testId="library-card-folder"
-          onclick={() => void openFolder(selectedEntry.path)}
-        >
-          <Icon name="folder" />
-          {t('app.library.libraries.openShort')}
-        </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            class="self-start"
+            disabled={!selectedEntry.available}
+            testId="library-card-folder"
+            onclick={() => void openFolder(selectedEntry.path)}
+          >
+            <Icon name="folder" />
+            {t('app.library.libraries.openShort')}
+          </Button>
+        </div>
       {:else if opening}
         <!--
           Пока библиотека загружается и индексируется, карточка показывает
           прогресс вместо пустого состояния: пользователь видит, что выбор
           принят и работа идёт.
         -->
-        <div class="flex flex-col gap-2" data-testid="library-card-progress">
+        <div class="flex flex-col gap-2 px-4 py-3" data-testid="library-card-progress">
           <span class="m-0 role-heading text-[var(--foreground)]">
             {t('app.library.libraries.indexing')}
           </span>
@@ -614,8 +622,17 @@
           {/if}
         </div>
       {:else}
-        <div class="flex flex-col gap-1" data-testid="library-card-empty">
-          <span class="m-0 role-heading text-[var(--foreground)]">
+        <div
+          class="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-6 text-center"
+          data-testid="library-card-empty"
+        >
+          <span
+            class="flex size-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-inset)] text-[var(--muted-foreground)]"
+            aria-hidden="true"
+          >
+            <Icon name="library" class="h-6 w-6" />
+          </span>
+          <span class="role-body text-[var(--muted-foreground)]">
             {t('app.library.libraries.noSelection.title')}
           </span>
         </div>
@@ -644,12 +661,15 @@
               <!--
                 Плитка устроена как строка списка: кликабельна вся карточка, а
                 меню действий стоит поверх и нажатий карточки не перехватывает.
-                Активная библиотека выделяется тем же фоном, что и в списке.
+                Активная библиотека выделяется тем же фоном, что и в списке, а
+                наведение подсвечивает карточку так же, как строку: отклик
+                одинаков в обеих раскладках.
               -->
               <article
-                class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3 transition-colors"
-                class:bg-[var(--surface-selected)]={entry.path === selectedEntry?.path}
-                class:opacity-60={!entry.available}
+                class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3 transition-colors {entry.path ===
+                selectedEntry?.path
+                  ? 'bg-[var(--surface-selected)]'
+                  : 'hover:bg-[var(--surface-hover)]'} {entry.available ? '' : 'opacity-60'}"
                 data-selected={entry.path === selectedEntry?.path ? 'true' : undefined}
               >
                 <button

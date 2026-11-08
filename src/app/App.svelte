@@ -473,26 +473,28 @@
 
   /** Переключение страницы «Библиотеки».
    *
-   * Раздел всегда открывается **списком библиотек**: выбор библиотеки — точка
-   * входа, а список книг открывается уже выбором конкретной библиотеки. Книги
-   * открытой библиотеки не грузятся заново: уход со страницы книги сбрасывает её,
-   * а каталог библиотеки остаётся загруженным в общем состоянии.
+   * Кнопка раздела ведёт к **активной** библиотеке: если она выбрана,
+   * открывается список её книг, а список библиотек — только когда библиотеки
+   * ещё нет (выбирать нечего). К книгам открытой библиотеки не возвращаемся:
+   * уход со страницы книги сбрасывает её, а каталог библиотеки остаётся
+   * загруженным в общем состоянии.
    */
   function toggleLibraries() {
     settingsOpen = false;
     notesLibraryOpen = false;
     librariesOpen = true;
-    librarySourcesRequested = true;
+    librarySourcesRequested = activeLibrary === null;
     libraryPage?.resetBook();
   }
 
-  /** Переключение вида выбора источников внутри раздела «Библиотека».
+  /** Переход к списку библиотек для выбора другой.
    *
-   * Возврат к списку книг после выбора библиотеки; кнопки «Выбрать библиотеку»
-   * внутри списка книг нет — за списком библиотек идём кнопкой раздела в шапке.
+   * Нужен кнопке «К списку библиотек» в полосе библиотеки: без неё из книг
+   * активной библиотеки нельзя было бы выбрать другую.
    */
-  function toggleLibrarySources() {
-    librarySourcesRequested = !librarySourcesOpen;
+  function openLibrariesList() {
+    librarySourcesRequested = true;
+    libraryPage?.resetBook();
   }
 
   /** Переключение раздела «Заметки».
@@ -1416,6 +1418,7 @@
             visible={librariesVisible && !librarySourcesOpen}
             targetWorkspaceName={workspace?.name ?? null}
             onOpenInWorkplace={openBookInWorkspace}
+            onChooseLibrary={openLibrariesList}
           />
         </div>
         <div class="flex min-h-0 min-w-0 flex-1" class:hidden={!librarySourcesOpen}>

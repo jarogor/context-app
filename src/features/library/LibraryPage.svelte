@@ -10,6 +10,7 @@
     Icon,
     Input,
     ScrollArea,
+    SegmentedControl,
     Select,
     SidePanel,
     Skeleton,
@@ -66,6 +67,8 @@
     targetWorkspaceName?: string | null;
     /** Открытие книги вкладкой рабочего места. */
     onOpenInWorkplace: (book: { path: string; title: string; format: string }) => void;
+    /** Переход к списку библиотек для выбора другой. */
+    onChooseLibrary?: () => void;
   }
 
   let {
@@ -73,6 +76,7 @@
     visible = true,
     targetWorkspaceName = null,
     onOpenInWorkplace,
+    onChooseLibrary,
   }: Props = $props();
 
   /** Открыта ли библиотека (есть активный корень). */
@@ -120,6 +124,12 @@
 
   /** Режим показа книг: плитка или список. */
   let viewMode = $state<'grid' | 'list'>('grid');
+
+  /** Варианты переключателя режима показа книг. */
+  const viewModeItems = $derived([
+    { value: 'grid', label: t('app.library.mode.tiles'), icon: 'grid' as const },
+    { value: 'list', label: t('app.library.mode.list'), icon: 'list' as const },
+  ]);
 
   /** Поле сортировки списка книг. */
   let sortField = $state<SortField>('title');
@@ -208,24 +218,13 @@
     ),
   );
 
-  /** Номера страниц для перехода: при длинном списке — крайние и окно у текущей. */
-  const pageItems = $derived.by((): (number | 'gap')[] => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, index) => index + 1);
-    }
-    const items: (number | 'gap')[] = [];
-    for (let number = 1; number <= totalPages; number += 1) {
-      const edge = number === 1 || number === totalPages;
-      const near = Math.abs(number - currentPage) <= 1;
-      if (!edge && !near) {
-        if (items[items.length - 1] !== 'gap') {
-          items.push('gap');
-        }
-        continue;
-      }
-      items.push(number);
-    }
-    return items;
+  /** Номера страниц для перехода: окно из трёх страниц вокруг текущей. */
+  const pageItems = $derived.by((): number[] => {
+    const windowSize = 3;
+    let start = Math.max(1, currentPage - 1);
+    const end = Math.min(totalPages, start + windowSize - 1);
+    start = Math.max(1, end - windowSize + 1);
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
   });
 
   /** Переход на страницу списка с возвратом прокрутки к началу списка. */
@@ -653,52 +652,74 @@
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     {#if librarySelected}
       <!--
-        Полоса управления каталогом: поиск с лупой, кнопка фильтров и режим
-        показа. Сортировка и фильтры живут в боковой панели: выпадающих списков
-        в полосе нет, и её высота не меняется.
+        Полоса управления каталогом.
+
+        На смартфоне — две полосы: сверху фильтры и поиск со счётчиком (счётчик
+        вплотную к полю, он относится к поиску), снизу сортировка и переключатель
+        вида. На планшете и десктопе всё в одну строку: выбор библиотеки,
+        фильтры, поиск со счётчиком, затем сортировка и вид. От сортировки
+        счётчик отделяет отступ — счётчик не слипается с выпадающим списком.
       -->
       <div
-        class="flex flex-none flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center md:px-6"
+        class="flex flex-none flex-col gap-3 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 md:flex-row md:flex-nowrap md:items-center md:gap-2 md:px-6"
         data-testid="library-controls"
       >
         <Button
-          variant={filtersOpen ? 'primary' : 'secondary'}
-          testId="library-filters-open"
-          ariaLabel={t('app.library.filters.open')}
-          ariaPressed={filtersOpen}
-          onclick={() => (filtersOpen = !filtersOpen)}
+          variant="secondary"
+          testId="library-choose-top"
+          ariaLabel={t('app.library.libraries.toList')}
+          class="hidden lg:inline-flex"
+          onclick={() => onChooseLibrary?.()}
         >
-          <Icon name="layers" />
-          {t('app.library.filters.open')}
-          {#if filterCount > 0}
-            <span
-              class="role-caption text-[var(--muted-foreground)]"
-              data-testid="library-filters-count">{filterCount}</span>
-          {/if}
+          <Icon name="chevron-left" />
+          {t('app.library.libraries.toList')}
         </Button>
-        <Input
-          bind:value={searchQuery}
-          placeholder={t('app.search.books.placeholder')}
-          ariaLabel={t('app.search.books.placeholder')}
-          icon="search"
-          clearable
-          class="w-full sm:w-auto sm:max-w-[24rem] sm:flex-1"
-          oninput={onSearchInput}
-        />
-        <span class="role-caption text-[var(--muted-foreground)]">
-          {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
-        </span>
-        <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <!-- Сортировка — компактный список с переключателем направления. -->
-          <Select
-            value={sortField}
-            items={sortOptions}
-            ariaLabel={t('app.library.filters.sort')}
-            class="w-[11rem]"
-            onchange={(value) => chooseSort(value as SortField)}
-          />
+
+        <div class="flex min-w-0 items-center gap-2 md:min-w-0 md:flex-1">
           <Button
-            variant="ghost"
+            variant={filtersOpen ? 'primary' : 'secondary'}
+            testId="library-filters-open"
+            ariaLabel={t('app.library.filters.open')}
+            ariaPressed={filtersOpen}
+            onclick={() => (filtersOpen = !filtersOpen)}
+          >
+            <Icon name="layers" />
+            {t('app.library.filters.open')}
+            {#if filterCount > 0}
+              <span
+                class="role-caption text-[var(--muted-foreground)]"
+                data-testid="library-filters-count">{filterCount}</span>
+            {/if}
+          </Button>
+
+          <div class="flex min-w-0 flex-1 items-center gap-2">
+            <Input
+              bind:value={searchQuery}
+              placeholder={t('app.search.books.placeholder')}
+              ariaLabel={t('app.search.books.placeholder')}
+              icon="search"
+              clearable
+              class="min-w-0 flex-1 md:max-w-[24rem]"
+              oninput={onSearchInput}
+            />
+            <span
+              class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)]"
+              data-testid="library-counter"
+            >
+              {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
+            </span>
+          </div>
+        </div>
+
+        <!-- Растягивающийся разделитель: держит явный зазор между счётчиком
+             поиска и группой сортировки на планшете и десктопе. -->
+        <span class="hidden md:block md:w-6 md:flex-none" aria-hidden="true"></span>
+
+        <div
+          class="flex w-full min-w-0 items-center justify-end gap-2 md:w-auto md:flex-none"
+        >
+          <Button
+            variant="secondary"
             size="icon"
             title={sortDirection === 'asc'
               ? t('app.library.sort.desc')
@@ -711,32 +732,19 @@
           >
             <Icon name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} />
           </Button>
-          <div
-            class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
-            role="group"
-            aria-label={t('app.library.modeLabel')}
-          >
-            <Button
-              variant={viewMode === 'grid' ? 'primary' : 'ghost'}
-              size="icon"
-              title={t('app.library.mode.tiles')}
-              ariaLabel={t('app.library.mode.tiles')}
-              ariaPressed={viewMode === 'grid'}
-              onclick={() => chooseViewMode('grid')}
-            >
-              <Icon name="grid" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'primary' : 'ghost'}
-              size="icon"
-              title={t('app.library.mode.list')}
-              ariaLabel={t('app.library.mode.list')}
-              ariaPressed={viewMode === 'list'}
-              onclick={() => chooseViewMode('list')}
-            >
-              <Icon name="list" />
-            </Button>
-          </div>
+          <Select
+            value={sortField}
+            items={sortOptions}
+            ariaLabel={t('app.library.filters.sort')}
+            class="min-w-0 w-[9.5rem] sm:w-[11rem]"
+            onchange={(value) => chooseSort(value as SortField)}
+          />
+          <SegmentedControl
+            items={viewModeItems}
+            value={viewMode}
+            ariaLabel={t('app.library.modeLabel')}
+            onchange={(next) => chooseViewMode(next as 'grid' | 'list')}
+          />
         </div>
       </div>
     {/if}
@@ -938,40 +946,65 @@
     </div>
 
     <!--
-      Постраничность списка: отдельная полоса под областью прокрутки, чтобы
-      перелистывание было доступно без прокрутки до конца списка и не сдвигало
-      полосу управления каталогом.
+      Нижняя полоса раздела: выбор библиотеки и постраничность в одной строке.
+      Кнопка «Библиотеки» слева всегда доступна из списка книг, иначе из книг
+      активной библиотеки нельзя было бы выбрать другую. Постраничность — справа,
+      окно из трёх страниц вокруг текущей и переходы к началу и концу: всех
+      номеров нет даже на десктопе. Кнопки одинаковы на всех режимах, а на
+      смартфоне (до `30rem`, как `PHONE_MAX_WIDTH`) от окна остаётся одна текущая
+      страница — иначе строка не помещается. Планшет и десктоп показывают три.
     -->
-    {#if librarySelected && totalPages > 1}
+    {#if librarySelected}
       <nav
-        class="flex flex-none flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 md:px-6"
+        class="flex flex-none items-center gap-2 overflow-hidden border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 md:px-6 {totalPages >
+        1
+          ? ''
+          : 'lg:hidden'}"
         aria-label={t('app.library.page.label')}
         data-testid="library-pagination"
       >
-        <span class="role-caption text-[var(--muted-foreground)]">
-          {t('app.library.page.status', { page: currentPage, total: totalPages })}
-        </span>
-        <div class="flex flex-wrap items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            title={t('app.library.page.prev')}
-            ariaLabel={t('app.library.page.prev')}
-            disabled={currentPage <= 1}
-            onclick={() => goToPage(currentPage - 1)}
-          >
-            <Icon name="chevron-left" />
-          </Button>
-          {#each pageItems as item, index (index)}
-            {#if item === 'gap'}
-              <span class="px-1 role-caption text-[var(--muted-foreground)]" aria-hidden="true">
-                …
-              </span>
-            {:else}
+        <Button
+          variant="secondary"
+          size="sm"
+          testId="library-choose"
+          ariaLabel={t('app.library.libraries.toList')}
+          class="lg:hidden"
+          onclick={() => onChooseLibrary?.()}
+        >
+          <Icon name="chevron-left" />
+          {t('app.library.libraries.toList')}
+        </Button>
+
+        {#if totalPages > 1}
+          <span class="ml-auto hidden truncate role-caption text-[var(--muted-foreground)] lg:block">
+            {t('app.library.page.status', { page: currentPage, total: totalPages })}
+          </span>
+          <div class="ml-auto flex flex-none items-center gap-0.5 lg:ml-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              title={t('app.library.page.first')}
+              ariaLabel={t('app.library.page.first')}
+              disabled={currentPage <= 1}
+              onclick={() => goToPage(1)}
+            >
+              <Icon name="chevrons-left" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title={t('app.library.page.prev')}
+              ariaLabel={t('app.library.page.prev')}
+              disabled={currentPage <= 1}
+              onclick={() => goToPage(currentPage - 1)}
+            >
+              <Icon name="chevron-left" />
+            </Button>
+            {#each pageItems as item (item)}
               <Button
                 variant={item === currentPage ? 'primary' : 'ghost'}
                 size="sm"
-                class="w-[2.25rem] px-0"
+                class="w-[2.25rem] px-0 {item === currentPage ? '' : 'hidden min-[30rem]:inline-flex'}"
                 title={t('app.library.page.go', { page: item })}
                 ariaLabel={t('app.library.page.go', { page: item })}
                 ariaCurrent={item === currentPage ? 'page' : undefined}
@@ -979,19 +1012,29 @@
               >
                 {item}
               </Button>
-            {/if}
-          {/each}
-          <Button
-            variant="ghost"
-            size="icon"
-            title={t('app.library.page.next')}
-            ariaLabel={t('app.library.page.next')}
-            disabled={currentPage >= totalPages}
-            onclick={() => goToPage(currentPage + 1)}
-          >
-            <Icon name="chevron-right" />
-          </Button>
-        </div>
+            {/each}
+            <Button
+              variant="ghost"
+              size="icon"
+              title={t('app.library.page.next')}
+              ariaLabel={t('app.library.page.next')}
+              disabled={currentPage >= totalPages}
+              onclick={() => goToPage(currentPage + 1)}
+            >
+              <Icon name="chevron-right" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title={t('app.library.page.last')}
+              ariaLabel={t('app.library.page.last')}
+              disabled={currentPage >= totalPages}
+              onclick={() => goToPage(totalPages)}
+            >
+              <Icon name="chevrons-right" />
+            </Button>
+          </div>
+        {/if}
       </nav>
     {/if}
   </div>

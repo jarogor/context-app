@@ -32,6 +32,8 @@
     | 'plus'
     | 'chevron-left'
     | 'chevron-right'
+    | 'chevrons-left'
+    | 'chevrons-right'
     | 'chevron-down'
     | 'chevron-up'
     | 'copy'
@@ -173,6 +175,10 @@
     <path d="M15 6l-6 6 6 6" />
   {:else if name === 'chevron-right'}
     <path d="M9 6l6 6-6 6" />
+  {:else if name === 'chevrons-left'}
+    <path d="M11 6l-6 6 6 6M18 6l-6 6 6 6" />
+  {:else if name === 'chevrons-right'}
+    <path d="M13 6l6 6-6 6M6 6l6 6-6 6" />
   {:else if name === 'chevron-down'}
     <path d="m6 9 6 6 6-6" />
   {:else if name === 'chevron-up'}

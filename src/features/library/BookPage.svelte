@@ -406,7 +406,12 @@
   <header
     class="flex flex-none flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2 md:px-6"
   >
-    <Button variant="ghost" size="sm" ariaLabel={t('app.library.book.back')} onclick={onClose}>
+    <Button
+      variant="secondary"
+      size="sm"
+      ariaLabel={t('app.library.book.back')}
+      onclick={onClose}
+    >
       <Icon name="chevron-left" />
       {t('app.library.book.back')}
     </Button>
