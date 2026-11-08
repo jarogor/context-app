@@ -356,6 +356,7 @@ export const ru = {
   'app.library.filters.search': 'Поиск по значениям',
   'app.library.filters.notFound': 'Ничего не найдено',
   'app.library.filters.withoutCover': 'Без обложки',
+  'app.library.filters.selected': 'Выбрано: {count}',
   'app.library.facet.authors': 'Автор',
   'app.library.facet.formats': 'Формат',
   'app.library.facet.languages': 'Язык',

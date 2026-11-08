@@ -395,6 +395,65 @@ describe('сортировка и фильтры библиотеки', () => {
     expect(within(panel).queryByRole('button', { name: 'Сортировка' })).toBeNull();
   });
 
+  it('переход по формату открывает панель фильтров и раздел с выбранным значением', async () => {
+    await openLibrary();
+
+    await fireEvent.click(screen.getByRole('button', { name: /Книга EPUB/ }));
+    // Страница книги: переход по метке формата ведёт к отфильтрованному списку.
+    await fireEvent.click(screen.getByTestId('book-format-link-epub'));
+
+    // Панель открыта сама: иначе фильтр незаметен и список выглядит случайным.
+    const panel = await screen.findByTestId('library-filters');
+    expect(panel).toBeTruthy();
+
+    // Раздел форматов раскрыт, и на нём виден счётчик выбранного.
+    const formats = within(panel).getByTestId('library-facet-formats');
+    expect(formats).toBeTruthy();
+    expect(screen.getByTestId('library-facet-count-formats').textContent).toContain('1');
+    // Выбран именно EPUB: в списке отмечен один флажок.
+    const checked = within(formats)
+      .getAllByRole('checkbox')
+      .filter((element) => element.getAttribute('aria-checked') === 'true');
+    expect(checked).toHaveLength(1);
+
+    // И список уже отфильтрован: книги другого формата в нём нет.
+    await waitFor(() => expect(screen.queryByText('Книга FB2')).toBeNull());
+  });
+
+  it('счётчик на разделе показывает число выбранных значений при сворачивании', async () => {
+    await openLibrary();
+
+    await fireEvent.click(screen.getByTestId('library-filters-open'));
+    const panel = await screen.findByTestId('library-filters');
+    const formats = within(panel).getByTestId('library-facet-formats');
+    await fireEvent.click(within(formats).getAllByRole('checkbox')[1]);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('library-facet-count-formats').textContent).toContain('1'),
+    );
+
+    // Сворачивание раздела: список скрывается, а счётчик остаётся видимым.
+    await fireEvent.click(screen.getByTestId('library-facet-toggle-formats'));
+    await waitFor(() => expect(within(panel).queryByTestId('library-facet-formats')).toBeNull());
+    expect(screen.getByTestId('library-facet-count-formats').textContent).toContain('1');
+  });
+
+  it('раздел фильтра сворачивается и разворачивается заголовком', async () => {
+    await openLibrary();
+
+    await fireEvent.click(screen.getByTestId('library-filters-open'));
+    const panel = await screen.findByTestId('library-filters');
+    const toggle = screen.getByTestId('library-facet-toggle-formats');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+    await fireEvent.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute('aria-expanded')).toBe('false'));
+    expect(within(panel).queryByTestId('library-facet-formats')).toBeNull();
+
+    await fireEvent.click(toggle);
+    await waitFor(() => expect(within(panel).getByTestId('library-facet-formats')).toBeTruthy());
+  });
+
   it('флажок «без обложки» считается среди фильтров', async () => {
     await openLibrary();
 

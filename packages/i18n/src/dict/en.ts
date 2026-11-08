@@ -372,6 +372,7 @@ export const en: Dictionary = {
   'app.library.filters.search': 'Search values',
   'app.library.filters.notFound': 'Nothing found',
   'app.library.filters.withoutCover': 'Without a cover',
+  'app.library.filters.selected': 'Selected: {count}',
   'app.library.facet.authors': 'Author',
   'app.library.facet.formats': 'Format',
   'app.library.facet.languages': 'Language',

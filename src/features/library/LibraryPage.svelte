@@ -133,6 +133,34 @@
   /** Открыта ли панель фильтров. */
   let filtersOpen = $state(false);
 
+  /** Свёрнутые разделы фильтров: свёрнутый раздел не занимает места в панели. */
+  let collapsedFacets = $state<Record<string, boolean>>({});
+
+  /** Элементы разделов фильтров: к нужному разделу панель прокручивается. */
+  const facetElements: Record<string, HTMLElement | undefined> = {};
+
+  /** Запоминание элемента раздела при его появлении в разметке. */
+  function registerFacet(node: HTMLElement, id: FacetId) {
+    facetElements[id] = node;
+    return {
+      destroy: () => {
+        delete facetElements[id];
+      },
+    };
+  }
+
+  /** Раздел, к которому панель прокручивается после открытия (или null). */
+  let pendingFacet: FacetId | null = $state(null);
+
+  /** Прокручиваемый список разделов фильтров. */
+  let filterSections: HTMLElement | null = $state(null);
+
+  /** Раздел, к которому пришёл пользователь: подсвечивается короткое время. */
+  let highlightedFacet: FacetId | null = $state(null);
+
+  /** Таймер снятия подсветки раздела. */
+  let highlightTimer: ReturnType<typeof setTimeout> | undefined;
+
 
   /** Номер показанной страницы списка (с единицы). */
   let page = $state(1);
@@ -278,7 +306,65 @@
             : 'tags';
     filters = { ...emptyFilters(), [facet]: [kind === 'format' ? value.toLowerCase() : value] };
     page = 1;
+    // Переход с карточки книги ведёт в уже отфильтрованный список: панель
+    // фильтров открывается сама, а раздел с выбранным значением разворачивается
+    // и подводится в видимую часть. Без этого пользователь видит другой список
+    // и не понимает, почему книг стало меньше.
+    collapsedFacets = { ...collapsedFacets, [facet]: false };
+    pendingFacet = facet;
+    filtersOpen = true;
+    highlightFacet(facet);
   }
+
+  /**
+   * Подсветка раздела, к которому пришёл пользователь.
+   *
+   * Прокрутка не всегда возможна: при коротком списке панель уже показывает
+   * раздел целиком, и тогда переход ничем не отмечен. Подсветка отмечает
+   * выбранный раздел в любом случае — пользователь видит, что фильтр применён
+   * именно здесь.
+   */
+  function highlightFacet(id: FacetId) {
+    highlightedFacet = id;
+    clearTimeout(highlightTimer);
+    highlightTimer = setTimeout(() => (highlightedFacet = null), 2000);
+  }
+
+  /** Переключение свёрнутости раздела фильтров. */
+  function toggleFacetSection(id: FacetId) {
+    collapsedFacets = { ...collapsedFacets, [id]: !collapsedFacets[id] };
+  }
+
+  /** Прокрутка панели к разделу, к которому пришёл пользователь.
+   *
+   * Выполняется после раскрытия панели: до неё раздела ещё нет в разметке.
+   * Прокрутка ставит раздел в начало видимой части — тогда выбранное значение
+   * и подпись раздела оказываются на виду.
+   */
+  $effect(() => {
+    const facet = pendingFacet;
+    if (facet === null || !filtersOpen) {
+      return;
+    }
+    untrack(() => {
+      const section = facetElements[facet];
+      if (!section) {
+        return;
+      }
+      pendingFacet = null;
+      const container = filterSections;
+      if (!container) {
+        return;
+      }
+      // Раздел уже виден, поэтому `scrollIntoView` ничего бы не сделал: список
+      // прокручивается вручную, чтобы раздел встал в начало видимой части.
+      // В тестовом окружении раскладки нет — прокрутка пропускается.
+      const top = section.getBoundingClientRect().top - container.getBoundingClientRect().top;
+      if (typeof container.scrollTo === 'function') {
+        container.scrollTo({ top: container.scrollTop + top, behavior: 'auto' });
+      }
+    });
+  });
 
   /** Возврат открытой книги к значениям файла. */
   async function resetProperties() {
@@ -667,8 +753,9 @@
         >
           <div class="flex min-h-0 flex-1 flex-col">
             <div
-              class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-2"
+              class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-2"
               data-testid="library-filter-sections"
+              bind:this={filterSections}
             >
               <!-- Обложка — обычный флажок: сворачивать нечего. -->
               <label
@@ -685,19 +772,59 @@
 
               {#each FACET_IDS as id (id)}
                 {@const values = facets[id]}
+                {@const selected = filters[id]}
                 {#if values.length > 0}
-                  <section class="flex flex-col gap-1">
-                    <h3 class="px-2 role-caption text-[var(--muted-foreground)]">
-                      {t(FACET_LABELS[id])}
-                    </h3>
-                    <FilterList
-                      items={values}
-                      selected={filters[id]}
-                      onToggle={(value) => onFacetToggle(id, value)}
-                      searchPlaceholder={t('app.library.filters.search')}
-                      emptyText={t('app.library.filters.notFound')}
-                      testId="library-facet-{id}"
-                    />
+                  <!--
+                    Раздел фильтра сворачивается: длинный список авторов не
+                    вытесняет остальные разделы. Выбранное число всегда видно на
+                    заголовке, поэтому свёрнутый раздел не скрывает, что он
+                    фильтрует список.
+                  -->
+                  <section
+                    class="flex flex-col gap-1 rounded-[var(--radius)] transition-colors {highlightedFacet ===
+                    id
+                      ? 'bg-[var(--surface-selected)] ring-1 ring-[var(--primary-border)]'
+                      : ''}"
+                    use:registerFacet={id}
+                    data-testid="library-facet-section-{id}"
+                  >
+                    <button
+                      type="button"
+                      class="flex w-full cursor-pointer items-center gap-1.5 rounded-[var(--radius)] px-2 py-1 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
+                      aria-expanded={!collapsedFacets[id]}
+                      aria-controls="library-facet-{id}"
+                      data-testid="library-facet-toggle-{id}"
+                      onclick={() => toggleFacetSection(id)}
+                    >
+                      <Icon
+                        name={collapsedFacets[id] ? 'chevron-right' : 'chevron-down'}
+                        class="h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)]"
+                      />
+                      <span class="min-w-0 flex-1 truncate role-caption text-[var(--muted-foreground)]">
+                        {t(FACET_LABELS[id])}
+                      </span>
+                      {#if selected.length > 0}
+                        <span
+                          class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[0.625rem] font-semibold text-[var(--primary-foreground)]"
+                          title={t('app.library.filters.selected', { count: selected.length })}
+                          data-testid="library-facet-count-{id}"
+                        >
+                          {selected.length}
+                        </span>
+                      {/if}
+                    </button>
+                    {#if !collapsedFacets[id]}
+                      <div id="library-facet-{id}">
+                        <FilterList
+                          items={values}
+                          {selected}
+                          onToggle={(value) => onFacetToggle(id, value)}
+                          searchPlaceholder={t('app.library.filters.search')}
+                          emptyText={t('app.library.filters.notFound')}
+                          testId="library-facet-{id}"
+                        />
+                      </div>
+                    {/if}
                   </section>
                 {/if}
               {/each}

@@ -59,6 +59,36 @@ describe('FilterList', () => {
     expect(screen.getByText('Ничего не найдено')).toBeTruthy();
   });
 
+  it('показывает пять строк, а остальное прокручивается внутри списка', () => {
+    render(FilterList, {
+      props: {
+        items: many,
+        selected: [],
+        onToggle: vi.fn(),
+        searchPlaceholder: 'Поиск',
+        emptyText: 'Ничего не найдено',
+      },
+    });
+
+    // Пять строк по 2.125rem: список не растягивает панель и не режет строку.
+    const list = screen.getAllByRole('checkbox')[0].closest('div') as HTMLElement;
+    expect(list.style.maxHeight).toBe('calc(10.625rem)');
+  });
+
+  it('показывает поиск, когда значений больше видимой части', () => {
+    render(FilterList, {
+      props: {
+        items: many.slice(0, 6),
+        selected: [],
+        onToggle: vi.fn(),
+        searchPlaceholder: 'Поиск',
+        emptyText: 'Ничего не найдено',
+      },
+    });
+
+    expect(screen.getByPlaceholderText('Поиск')).toBeTruthy();
+  });
+
   it('передаёт выбранное значение обработчику', async () => {
     const onToggle = vi.fn();
     render(FilterList, {

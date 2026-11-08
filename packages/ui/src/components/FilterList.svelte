@@ -34,9 +34,19 @@
     emptyText: string;
     /** Метка списка для тестов. */
     testId?: string;
+    /** Сколько значений видно до прокрутки (по умолчанию — пять). */
+    visibleRows?: number;
   }
 
-  let { items, selected, onToggle, searchPlaceholder, emptyText, testId }: Props = $props();
+  let {
+    items,
+    selected,
+    onToggle,
+    searchPlaceholder,
+    emptyText,
+    testId,
+    visibleRows = 5,
+  }: Props = $props();
 
   /** Строка поиска по значениям списка. */
   let query = $state('');
@@ -48,7 +58,15 @@
   });
 
   /** Искать есть смысл только в длинном списке. */
-  const searchable = $derived(items.length > 6);
+  const searchable = $derived(items.length > visibleRows);
+
+  /** Высота видимой части списка: ровно столько строк, сколько задано.
+   *
+   * Считается, а не берётся «на глаз»: строка — флажок с подписью и отступами,
+   * поэтому высота списка совпадает с целым числом строк, и половина строки не
+   * обрезается. Поиск над списком в высоту не входит — он не прокручивается.
+   */
+  const listHeight = $derived(`calc(${visibleRows} * 2.125rem)`);
 </script>
 
 <div class="flex flex-col gap-1" data-testid={testId}>
@@ -61,7 +79,7 @@
       clearable
     />
   {/if}
-  <div class="flex max-h-[16rem] flex-col overflow-y-auto">
+  <div class="flex flex-col overflow-y-auto" style="max-height: {listHeight}">
     {#each visible as item (item.value)}
       <label
         class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 hover:bg-[var(--surface-hover)]"
