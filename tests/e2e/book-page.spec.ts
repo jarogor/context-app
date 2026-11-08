@@ -365,3 +365,27 @@ test('на телефоне действие и содержание досту�
   });
   expect(overflow).toBeLessThanOrEqual(1);
 });
+
+test('на большом мониторе набор и ширина страницы крупнее', async ({ page }) => {
+  // 1440px и выше — отдельная ступень: текст, обложка и предел ширины растут,
+  // иначе интерфейс ноутбука читается на большом экране мелким.
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const library = await openBookPage(page, [FULL_BOOK], /Книга с авторами/);
+
+  const metrics = await library.getByTestId('book-page').evaluate((element) => {
+    const title = element.querySelector('[data-testid="book-title"]') as HTMLElement;
+    const description = element.querySelector('[data-testid="book-description"]') as HTMLElement;
+    const grid = element.querySelector('.grid') as HTMLElement;
+    return {
+      title: parseFloat(getComputedStyle(title).fontSize),
+      body: parseFloat(getComputedStyle(description).fontSize),
+      width: grid.getBoundingClientRect().width,
+    };
+  });
+
+  // Ступень набора: заголовок и текст крупнее ноутбучных 24px и 14px.
+  expect(metrics.title).toBeGreaterThan(24);
+  expect(metrics.body).toBeGreaterThan(14);
+  // Страница не зажата в узкую колонку посреди пустого окна.
+  expect(metrics.width).toBeGreaterThan(1400);
+});

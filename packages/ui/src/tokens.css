@@ -88,16 +88,35 @@
   --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.12);
   --elevation-raised: none;
 
+  /* Размеры ролей текста. Объявлены переменными, чтобы широкие окна меняли
+   * набор одним движением, а утилиты ролей оставались единственным местом
+   * выбора кегля. Значения — ступень для ноутбука. */
+  --role-display-size: 1.5rem;
+  --role-heading-size: 1.125rem;
+  --role-title-size: 1rem;
+  --role-subtitle-size: 0.875rem;
+  --role-body-size: 0.875rem;
+  --role-small-size: 0.75rem;
+
   /* Единая максимальная ширина контента страницы: широкие окна не растягивают
-   * списки в одну строку. На узком окне предел не действует. */
+   * списки в одну строку. На узком окне предел не действует. На больших
+   * мониторах предел растёт вместе с кеглем: иначе страница читалась бы узкой
+   * полосой посреди пустого окна. */
   --content-max-width: 1440px;
 
+  /* Предел ширины страницы книги: колонка текста не растягивается на весь
+   * монитор, но на большом экране растёт ступенью вместе с набором. */
+  --book-page-max-width: 68rem;
+
   /* Точки перелома интерфейса едины для всех областей: `--breakpoint-mobile`
-   * отделяет телефонную компоновку, `--breakpoint-narrow` — узкое окно.
-   * Значения совпадают с утилитами Tailwind `md`/`lg` (см. `@theme inline`) и с
-   * константами `src/shared/breakpoints.ts`. */
+   * отделяет телефонную компоновку, `--breakpoint-narrow` — узкое окно,
+   * `--breakpoint-wide` — большой монитор, `--breakpoint-ultra` — очень
+   * большой. Значения совпадают с утилитами Tailwind `md`/`lg`/`wide`/`ultra`
+   * (см. `@theme inline`) и с константами `src/shared/breakpoints.ts`. */
   --breakpoint-mobile: 48rem;
   --breakpoint-narrow: 56.25rem;
+  --breakpoint-wide: 90rem;
+  --breakpoint-ultra: 120rem;
 
   /* Безопасные зоны экрана (вырезы, системные индикаторы). */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -126,6 +145,11 @@
   /* На широком окне шапка чуть выше: знак и действия читаются свободнее. */
   --app-bar-height-wide: 3.5rem;
   --context-bar-height: 3.5rem;
+
+  /* Ширины боковых панелей на больших мониторах: панель не теряется рядом с
+   * широким содержимым. */
+  --notes-panel-width-wide: 23rem;
+  --properties-panel-width-wide: 23rem;
 
   /* Палитра «Лён» по умолчанию, светлый набор. */
   --background: #f1ece1;
@@ -498,9 +522,12 @@
   --font-mono: var(--font-mono);
 
   /* Точки перелома Tailwind выводятся из общих токенов: `md` — телефон против
-   * планшета и десктопа, `lg` — узкое окно против широкого. */
+   * планшета и десктопа, `lg` — узкое окно против широкого, `wide` — большой
+   * монитор (от 1440px), `ultra` — очень большой (от 1920px). */
   --breakpoint-md: 48rem;
   --breakpoint-lg: 56.25rem;
+  --breakpoint-wide: 90rem;
+  --breakpoint-ultra: 120rem;
 
   --radius-sm: calc(var(--radius) * 0.55);
   --radius-md: calc(var(--radius) * 0.8);
@@ -555,48 +582,48 @@
  * различаются размером и насыщенностью, а не вторым шрифтом. Размеры не
  * опускаются ниже 0.75rem. */
 @utility role-display {
-  font-size: 1.5rem;
-  line-height: 1.25;
+  font-size: var(--role-display-size);
+  line-height: 1.22;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 @utility role-title {
-  font-size: 1rem;
+  font-size: var(--role-title-size);
   line-height: 1.4;
   font-weight: 600;
 }
 
 @utility role-heading {
-  font-size: 1.125rem;
+  font-size: var(--role-heading-size);
   line-height: 1.35;
   font-weight: 600;
 }
 
 @utility role-subtitle {
-  font-size: 0.875rem;
+  font-size: var(--role-subtitle-size);
   line-height: 1.4;
   font-weight: 500;
 }
 
 @utility role-body {
-  font-size: 0.875rem;
+  font-size: var(--role-body-size);
   line-height: 1.55;
 }
 
 @utility role-label {
-  font-size: 0.75rem;
+  font-size: var(--role-small-size);
   line-height: 1.4;
   font-weight: 500;
 }
 
 @utility role-caption {
-  font-size: 0.75rem;
+  font-size: var(--role-small-size);
   line-height: 1.4;
 }
 
 @utility role-eyebrow {
-  font-size: 0.75rem;
+  font-size: var(--role-small-size);
   line-height: 1.4;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -605,7 +632,7 @@
 
 @utility role-mono {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--role-small-size);
   line-height: 1.4;
 }
 
@@ -634,4 +661,59 @@
 
 .marker-black {
   background-color: rgba(31, 29, 26, 0.16);
+}
+
+/* Широкие окна: крупнее набор и просторнее страница.
+ *
+ * На мониторе от 1440px интерфейс, рассчитанный на ноутбук, читается мелким, а
+ * предел ширины оставляет его узкой полосой посреди пустого окна. Здесь набор
+ * растёт ступенью (не непрерывно с окном): роли текста, элементы управления и
+ * предел ширины контента. Ступень выбрана так, чтобы на 27" экране строка
+ * оставалась той же длины в знаках, а поля и кнопки — той же площади под
+ * курсором. Базовый кегль `html` не меняется: масштабируется набор ролей, а не
+ * весь документ, поэтому раскладка остаётся предсказуемой.
+ */
+/* Большие мониторы: набор текста крупнее и страница просторнее.
+ *
+ * На мониторе от 1440px интерфейс, рассчитанный на ноутбук, читается мелким, а
+ * предел ширины оставляет его узкой полосой посреди пустого окна. Здесь растёт
+ * одна ступень набора (роли текста, предел ширины, шапка и панели), а базовый
+ * кегль `html` не меняется: масштабируется набор ролей, а не весь документ,
+ * поэтому раскладка остаётся предсказуемой. Ступень выбрана так, чтобы строка
+ * оставалась той же длины в знаках, а кнопки — той же площади под курсором.
+ */
+@media (min-width: 90rem) {
+  :root {
+    --role-display-size: 1.75rem;
+    --role-heading-size: 1.25rem;
+    --role-title-size: 1.0625rem;
+    --role-subtitle-size: 0.9375rem;
+    --role-body-size: 0.9375rem;
+    --role-small-size: 0.8125rem;
+
+    --content-max-width: 1600px;
+    --book-page-max-width: 80rem;
+    --app-bar-height: 3.5rem;
+    --app-bar-height-wide: 3.75rem;
+    --context-bar-height: 3.75rem;
+    --notes-panel-width: var(--notes-panel-width-wide);
+    --properties-panel-width: var(--properties-panel-width-wide);
+  }
+}
+
+@media (min-width: 120rem) {
+  :root {
+    --role-display-size: 2rem;
+    --role-heading-size: 1.375rem;
+    --role-title-size: 1.125rem;
+    --role-subtitle-size: 1rem;
+    --role-body-size: 1rem;
+    --role-small-size: 0.875rem;
+
+    --content-max-width: 1840px;
+    --book-page-max-width: 92rem;
+    --app-bar-height: 3.75rem;
+    --app-bar-height-wide: 4rem;
+    --context-bar-height: 4rem;
+  }
 }

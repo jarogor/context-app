@@ -43,10 +43,30 @@ describe('токены оформления', () => {
   });
 
   it('не опускает размер ролей ниже 0.75rem', () => {
-    const sizes = [...tokens.matchAll(/@utility role-[a-z]+\s*\{[^}]*font-size:\s*([\d.]+)rem/gs)];
+    // Размер роли задан переменной: проверяются все её значения — базовая
+    // ступень и ступени больших мониторов.
+    const sizes = [
+      ...tokens.matchAll(
+        /--role-(?:display|heading|title|subtitle|body|small)-size:\s*([\d.]+)rem/g,
+      ),
+    ];
     expect(sizes.length).toBeGreaterThan(0);
     for (const [, size] of sizes) {
       expect(Number(size)).toBeGreaterThanOrEqual(0.75);
+    }
+  });
+
+  it('крупнее набор на больших мониторах', () => {
+    // У каждой ступени роль определена: иначе на широком окне кегль «прыгал»
+    // бы обратно к базовому.
+    const steps = [
+      ...tokens.matchAll(/@media \(min-width: (\d+)rem\)\s*\{\s*:root\s*\{([\s\S]*?)\n  \}/g),
+    ];
+    expect(steps.length).toBeGreaterThanOrEqual(2);
+    for (const [, width, body] of steps) {
+      expect(Number(width)).toBeGreaterThanOrEqual(90);
+      expect(body).toContain('--role-body-size');
+      expect(body).toContain('--content-max-width');
     }
   });
 

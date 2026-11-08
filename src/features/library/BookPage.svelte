@@ -482,12 +482,12 @@
       (`contents`), поэтому разметка одна, а порядок блоков задаёт сетка.
     -->
     <div
-      class="mx-auto grid w-full max-w-[68rem] grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-6 px-4 py-6 [grid-template-areas:'cover_head'_'actions_actions'_'body_body'_'meta_meta'] md:px-8 md:py-8 @min-[34rem]:grid-cols-[9rem_minmax(0,1fr)] @min-[34rem]:gap-x-6 @min-[34rem]:[grid-template-areas:'cover_head'_'cover_actions'_'body_body'_'meta_meta'] @min-[56rem]:flex @min-[56rem]:items-start @min-[56rem]:gap-10"
+      class="mx-auto grid w-full max-w-[var(--book-page-max-width)] grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-6 px-4 py-6 [grid-template-areas:'cover_head'_'actions_actions'_'body_body'_'meta_meta'] md:px-8 md:py-8 @min-[34rem]:grid-cols-[9rem_minmax(0,1fr)] @min-[34rem]:gap-x-6 @min-[34rem]:[grid-template-areas:'cover_head'_'cover_actions'_'body_body'_'meta_meta'] @min-[56rem]:flex @min-[56rem]:items-start @min-[56rem]:gap-10 wide:gap-12 ultra:gap-14"
     >
       <div
-        class="contents @min-[56rem]:flex @min-[56rem]:w-[14rem] @min-[56rem]:shrink-0 @min-[56rem]:flex-col @min-[56rem]:gap-8"
+        class="contents @min-[56rem]:flex @min-[56rem]:w-[14rem] @min-[56rem]:shrink-0 @min-[56rem]:flex-col @min-[56rem]:gap-8 wide:w-[16rem] ultra:w-[18rem]"
       >
-        <div class="w-full [grid-area:cover]">
+        <div class="w-full [grid-area:cover] @min-[56rem]:w-[14rem] wide:w-[16rem] ultra:w-[18rem]">
           <BookCover src={book.coverUri ?? null} class="rounded-[var(--radius)]" />
         </div>
 
