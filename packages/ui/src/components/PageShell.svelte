@@ -180,7 +180,7 @@
   <div class="relative flex min-h-0 min-w-0 flex-1">
     <ScrollArea class={className}>
       <div
-        class="flex min-h-full w-full flex-col gap-4 px-4 py-4 md:px-6 md:py-5 {width === 'full'
+        class="flex w-full flex-col gap-4 px-4 py-4 md:px-6 md:py-5 {width === 'full'
           ? ''
           : 'max-w-[var(--content-max-width)]'}"
       >

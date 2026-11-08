@@ -79,20 +79,62 @@ describe('список библиотек', () => {
     const card = screen.getByTestId('library-card');
     expect(card.textContent).toContain('demo-library');
     expect(card.textContent).toContain('/demo-library');
-    // Открытая библиотека не повторяется строкой списка.
+    // Список показывает все библиотеки: открытая в нём остаётся и подсвечена.
     const rows = screen
       .getAllByTestId('library-name')
       .map((element) => element.textContent?.trim());
-    expect(rows).toEqual(['other-library']);
+    expect(rows).toEqual(['other-library', 'demo-library']);
+  });
 
-    // Название карточки открывает библиотеку: отдельной кнопки нет.
-    await fireEvent.click(screen.getByTestId('library-card-open'));
+  it('выбор строки загружает библиотеку, но книги не открывает', async () => {
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/demo-library',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1,
+              available: true,
+            },
+            {
+              path: '/other-library',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 2,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      return null;
+    });
+    const onOpened = vi.fn();
+    render(LibrariesPage, { props: { onOpened } });
+
+    await waitFor(() => expect(screen.getByTestId('libraries-page')).toBeTruthy());
+    const row = screen
+      .getAllByTestId('library-item')
+      .find((element) => element.textContent?.includes('other-library')) as HTMLElement;
+    await fireEvent.click(row.querySelector('[data-testid="library-item"] button') as HTMLElement);
+
+    // Библиотека загружена, сведения показаны панелью.
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith(
         'select_source_library',
-        expect.objectContaining({ path: '/demo-library' }),
+        expect.objectContaining({ path: '/other-library' }),
       ),
     );
+    expect(screen.getByTestId('library-card').textContent).toContain('other-library');
+    // Книги не открываются: переход — только действием панели.
+    expect(onOpened).not.toHaveBeenCalled();
+
+    await fireEvent.click(screen.getByTestId('library-card-open'));
+    expect(onOpened).toHaveBeenCalledTimes(1);
   });
 
   it('пункт меню открывает директорию библиотеки, а не саму библиотеку', async () => {
@@ -124,8 +166,13 @@ describe('список библиотек', () => {
     });
     render(LibrariesPage);
 
-    await waitFor(() => expect(screen.getByTestId('library-item')).toBeTruthy());
-    await fireEvent.click(screen.getByLabelText('Действия с библиотекой'));
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(2));
+    const row = screen
+      .getAllByTestId('library-item')
+      .find((element) => element.textContent?.includes('other-library')) as HTMLElement;
+    await fireEvent.click(
+      row.querySelector('[aria-label="Действия с библиотекой"]') as HTMLElement,
+    );
     await fireEvent.click(await screen.findByRole('menuitem', { name: 'Открыть папку' }));
 
     // Клик по строке открывает библиотеку; пункт меню делает то, чего клик не
@@ -392,7 +439,7 @@ describe('режим показа библиотек', () => {
     });
     render(LibrariesPage);
 
-    await waitFor(() => expect(screen.getByTestId('library-item')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByTestId('library-item').length).toBeGreaterThan(0));
     // По умолчанию — список.
     expect(screen.queryByTestId('libraries-grid')).toBeNull();
 

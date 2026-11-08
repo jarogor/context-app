@@ -144,7 +144,9 @@ test('кнопка рабочего места открывает список �
   await page.goto('/');
 
   await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
-  await page.getByRole('button', { name: /demo-library/ }).click();
+  // Выбор библиотеки загружает её, книги открываются из панели.
+  await page.getByTestId('library-item').first().getByRole('button').first().click();
+  await page.getByTestId('library-card-open').click();
   await expect(page.locator('main')).toBeVisible();
 
   await page.getByLabel('Рабочее место', { exact: true }).click();
@@ -178,9 +180,9 @@ test('страница библиотек показывает историю с
 
   // Навигационный текст в шапке показывает текущий раздел.
   await expect(page.getByTestId('app-context')).toContainText('Библиотека');
-  const entry = page.getByRole('button', { name: /demo-library/ });
+  const entry = page.getByTestId('library-item').filter({ hasText: 'demo-library' }).first();
   await expect(entry).toBeVisible();
-  await expect(page.getByText('books-source', { exact: true })).toBeVisible();
+  await expect(page.getByText('context', { exact: true }).first()).toBeVisible();
   await expect(entry).toContainText('2023');
 });
 
@@ -188,7 +190,8 @@ test('после открытия библиотеки страница выбо
   await page.goto('/');
 
   await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
-  await page.getByRole('button', { name: /demo-library/ }).click();
+  await page.getByTestId('library-item').first().getByRole('button').first().click();
+  await page.getByTestId('library-card-open').click();
 
   await expect(page.getByTestId('libraries-page')).toBeHidden();
   await expect(page.locator('main')).toBeVisible();

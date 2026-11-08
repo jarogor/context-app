@@ -41,8 +41,9 @@ export async function openWorkspaceArea(page: Page) {
 
 /** Показ списка книг библиотеки.
  *
- * Раздел «Библиотека» открывается кнопкой меню разделов и всегда показывает
- * список библиотек. Выбираем библиотеку — раздел сразу показывает список книг.
+ * Раздел «Библиотека» открывается кнопкой меню разделов и показывает список
+ * библиотек. Выбор библиотеки в списке только загружает её и показывает сведения
+ * в панели; книги открываются нажатием на название в панели.
  */
 export async function showLibraryBookList(page: Page) {
   await page.getByLabel('Библиотека', { exact: true }).click();
@@ -55,7 +56,15 @@ export async function showLibraryBookList(page: Page) {
     sources.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined),
   ]);
   if (await sources.isVisible().catch(() => false)) {
-    await page.getByRole('button', { name: /demo-library/ }).click();
+    // Строка списка — кнопка внутри пункта; название в панели тоже кнопка с тем
+    // же именем, поэтому выбор идёт по пункту списка.
+    await page
+      .getByTestId('library-item')
+      .filter({ hasText: 'demo-library' })
+      .getByRole('button')
+      .first()
+      .click();
+    await page.getByTestId('library-card-open').click();
   }
   await expect(books).toBeVisible();
 }

@@ -274,7 +274,6 @@ export const ru = {
   'app.library.libraries.empty.description':
     'Откройте директорию с книгами — она появится в списке, и по ней построится каталог.',
   'app.library.libraries.addShort': 'Добавить',
-  'app.library.libraries.open': 'Открыть библиотеку',
   'app.library.libraries.openedLabel': 'Последнее открытие',
   'app.library.libraries.card.title': 'Выбранная библиотека',
   'app.library.libraries.sort.label': 'Порядок библиотек',
@@ -289,6 +288,7 @@ export const ru = {
   'app.library.libraries.unavailable': 'недоступна',
   'app.library.libraries.missing': 'отсутствует',
   'app.library.libraries.notFound': 'Библиотек по запросу не найдено.',
+  'app.library.libraries.toBooks': 'Книги библиотеки',
   'app.library.libraries.noSelection.title': 'Библиотека не выбрана',
   'app.library.libraries.noSelection.description':
     'Выберите библиотеку в списке или добавьте новую — она откроется здесь.',

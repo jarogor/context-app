@@ -290,7 +290,6 @@ export const en: Dictionary = {
   'app.library.libraries.empty.description':
     'Open a directory with books — it will appear in the list and a catalog will be built for it.',
   'app.library.libraries.addShort': 'Add',
-  'app.library.libraries.open': 'Open library',
   'app.library.libraries.openedLabel': 'Last opened',
   'app.library.libraries.card.title': 'Selected library',
   'app.library.libraries.sort.label': 'Library order',
@@ -305,6 +304,7 @@ export const en: Dictionary = {
   'app.library.libraries.unavailable': 'unavailable',
   'app.library.libraries.missing': 'missing',
   'app.library.libraries.notFound': 'No libraries match the query.',
+  'app.library.libraries.toBooks': 'Library books',
   'app.library.libraries.noSelection.title': 'No library selected',
   'app.library.libraries.noSelection.description':
     'Pick a library from the list or add a new one — it will open here.',

@@ -96,8 +96,20 @@
     sortDirection = sortField === 'name' ? 'asc' : 'desc';
   }
 
-  /** Открытая библиотека: единственная, что показана карточкой. */
-  const openedEntry = $derived(entries.find((entry) => entry.path === activePath) ?? null);
+  /**
+   * Выбранная библиотека — та, что показана панелью слева.
+   *
+   * Выбор и открытие разделены, как в реестре наборов заметок: клик по строке
+   * загружает библиотеку и показывает её сведения, но книги не открывает.
+   * Книги открываются явным действием карточки — тогда пользователь точно
+   * понимает, куда перешёл.
+   */
+  let selectedPath = $state<string | null>(null);
+
+  /** Запись, показанная панелью: выбранная, а без выбора — открытая. */
+  const selectedEntry = $derived(
+    entries.find((entry) => entry.path === (selectedPath ?? activePath)) ?? null,
+  );
 
   /** Идёт ли открытие библиотеки. */
   const opening = $derived(openingPath !== null);
@@ -107,15 +119,12 @@
     openingPath !== null && !entries.some((entry) => entry.path === openingPath),
   );
 
-  /** Записи истории без открытой: она показана карточкой, а не строкой списка. */
-  const others = $derived(entries.filter((entry) => entry.path !== activePath));
-
   /** Записи списка, отфильтрованные поиском и упорядоченные выбранным полем. */
   const filtered = $derived.by(() => {
     const needle = query.trim().toLowerCase();
     const found = needle
-      ? others.filter((entry) => libraryName(entry.path).toLowerCase().includes(needle))
-      : [...others];
+      ? entries.filter((entry) => libraryName(entry.path).toLowerCase().includes(needle))
+      : [...entries];
     const factor = sortDirection === 'asc' ? 1 : -1;
     return found.sort((left, right) => {
       if (sortField === 'name') {
@@ -224,11 +233,18 @@
     }
   }
 
-  /** Открытие библиотеки по пути и обновление истории. */
-  async function openLibrary(path: string) {
+  /**
+   * Загрузка библиотеки: каталог строится, сведения показываются в панели.
+   *
+   * Переход к книгам не выполняется: библиотека только выбирается. Так выбор
+   * библиотеки в списке не уносит пользователя из раздела, а карточка слева
+   * успевает показать, что именно выбрано.
+   */
+  async function loadLibrary(path: string) {
     if (opening) {
       return;
     }
+    selectedPath = path;
     openingPath = path;
     error = null;
     progress = null;
@@ -240,7 +256,6 @@
         storageRoot: appConfig.state_dir,
       });
       activePath = path;
-      onOpened();
     } catch (e) {
       error = String(e);
     } finally {
@@ -248,6 +263,11 @@
       progress = null;
       void loadHistory();
     }
+  }
+
+  /** Переход к книгам выбранной библиотеки: её каталог уже загружен выбором. */
+  function openLibraryBooks() {
+    onOpened();
   }
 
   /** Выбор новой папки библиотеки. */
@@ -259,7 +279,7 @@
     try {
       const selected = await openDialog({ directory: true, multiple: false });
       if (typeof selected === 'string') {
-        await openLibrary(selected);
+        await loadLibrary(selected);
       }
     } catch (e) {
       error = String(e);
@@ -346,38 +366,44 @@
 
   {#snippet controls()}
     <!--
-      Полоса управления: на телефоне поиск занимает всю строку, сортировка
-      встаёт под ним во всю ширину. На широком окне они идут одним рядом и не
-      сжимают друг друга.
+      Полоса управления как в библиотеке книг: действие добавления слева, справа
+      сортировка и переключатель вида. На узком окне они переносятся друг под
+      друга, поэтому кнопка не съезжает от длинной подписи сортировки.
     -->
-    <div
-      class="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-none sm:flex-row sm:items-center"
-    >
+    <div class="flex w-full min-w-0 flex-wrap items-center gap-2">
+      <Button
+        variant="primary"
+        disabled={opening}
+        ariaLabel={t('app.library.libraries.add')}
+        onclick={pickLibrary}
+      >
+        {#if openingNew}
+          <Spinner class="h-4 w-4" />
+        {/if}
+        <Icon name="folder" />
+        {t('app.library.libraries.addShort')}
+      </Button>
       <Input
         bind:value={query}
         placeholder={t('app.search.library.placeholder')}
         ariaLabel={t('app.search.library.placeholder')}
         icon="search"
         clearable
-        class="min-w-0 flex-1 sm:w-[22rem] sm:flex-none"
+        class="min-w-0 flex-1 sm:max-w-[22rem]"
       />
-      <div class="flex min-w-0 items-center gap-2">
-        <!-- Счётчик рядом с поиском — тот же, что в списке рабочих мест. -->
-        <span
-          class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)]"
-          data-testid="libraries-filter-counter"
-        >
-          {t('app.search.filter', { shown: filtered.length, total: others.length })}
-        </span>
-        <!--
-          Сортировка занимает свободное место и ужимается вместе с ним: у поля
-          нет своей ширины, поэтому кнопка добавления не съезжает на узком окне.
-        -->
+      <!-- Счётчик рядом с поиском — тот же, что в списке рабочих мест. -->
+      <span
+        class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)]"
+        data-testid="libraries-filter-counter"
+      >
+        {t('app.search.filter', { shown: filtered.length, total: entries.length })}
+      </span>
+      <div class="ml-auto flex items-center gap-2">
         <Select
           value={sortField}
           items={sortOptions}
           ariaLabel={t('app.library.libraries.sort.label')}
-          class="min-w-0 flex-1 sm:w-auto sm:min-w-[11rem]"
+          class="w-[15rem]"
           onchange={(value) => chooseSort(value)}
         />
         <div
@@ -408,21 +434,6 @@
         </div>
       </div>
     </div>
-    <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
-      <Button
-        variant="primary"
-        size="sm"
-        disabled={opening}
-        ariaLabel={t('app.library.libraries.add')}
-        onclick={pickLibrary}
-      >
-        {#if openingNew}
-          <Spinner class="h-4 w-4" />
-        {/if}
-        <Icon name="folder" />
-        {t('app.library.libraries.addShort')}
-      </Button>
-    </div>
   {/snippet}
 
   {#if error}
@@ -442,40 +453,43 @@
   {/if}
 
   <!--
-    Две колонки на всю доступную ширину: слева карточка открытой библиотеки,
-    справа список остальных. Открытая библиотека в списке не повторяется — она
-    уже показана карточкой. Карточка остаётся на месте при прокрутке списка, а
-    список забирает всё остальное пространство окна.
+    Две колонки на всю доступную ширину: слева панель выбранной библиотеки,
+    справа список всех библиотек. Выбор в списке только загружает библиотеку и
+    показывает её сведения; книги открываются нажатием на название в панели.
   -->
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:h-full lg:flex-row lg:items-stretch lg:gap-6">
-    <!--
-      Карточка открытой библиотеки стоит на месте всегда: без открытой
-      библиотеки она объясняет, что библиотека не выбрана, а не исчезает,
-      сдвигая список. Карточка закреплена при прокрутке списка.
-    -->
+  <div
+    class="grid min-h-0 min-w-0 items-start gap-4 lg:flex-1 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-stretch lg:gap-6 wide:grid-cols-[26rem_minmax(0,1fr)]"
+  >
+    <!-- Панель стоит на месте всегда: без выбранной библиотеки она объясняет,
+         что та не выбрана, а не исчезает, сдвигая список. -->
     <aside
-      class="flex w-full shrink-0 flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:h-full lg:w-[22rem] wide:w-[26rem]"
+      class="flex w-full min-w-0 flex-col gap-3 self-start rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:h-full lg:self-stretch"
       data-testid="library-card"
     >
       <h2 class="m-0 role-caption text-[var(--muted-foreground)]">
         {t('app.library.libraries.card.title')}
       </h2>
-      {#if openedEntry}
-        <!-- Название — действие открытия: карточка говорит об открытой
-             библиотеке, и переход к её книгам начинается отсюда. -->
+      {#if selectedEntry}
+        <!--
+          Название — единственный вход к книгам: выбор в списке только
+          показывает сведения, а переход начинается здесь.
+        -->
         <button
           type="button"
-          class="cursor-pointer self-start rounded-[var(--radius)] bg-transparent p-0 text-left transition-colors [font:inherit] hover:text-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
-          title={t('app.library.libraries.open')}
+          class="cursor-pointer self-start rounded-[var(--radius)] bg-transparent p-0 text-left transition-colors [font:inherit] hover:text-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none disabled:cursor-not-allowed"
+          title={t('app.library.libraries.toBooks')}
+          disabled={!selectedEntry.available || opening}
           data-testid="library-card-open"
-          onclick={() => void openLibrary(openedEntry.path)}
+          onclick={() => openLibraryBooks()}
         >
           <span class="block break-words role-heading text-[var(--foreground)]">
-            {libraryName(openedEntry.path)}
+            {libraryName(selectedEntry.path)}
           </span>
         </button>
 
-        <Badge variant="outline" class="self-start">{providerLabel(openedEntry.providerName)}</Badge>
+        <Badge variant="outline" class="self-start">
+          {providerLabel(selectedEntry.providerName)}
+        </Badge>
 
         <dl class="m-0 flex flex-col gap-2">
           <div class="flex flex-col gap-0.5">
@@ -483,16 +497,16 @@
               {t('app.library.libraries.locationShort')}
             </dt>
             <dd class="m-0 break-all font-mono text-xs text-[var(--foreground)]">
-              {openedEntry.path}
+              {selectedEntry.path}
             </dd>
           </div>
-          {#if openedEntry.addedAtMillis}
+          {#if selectedEntry.addedAtMillis}
             <div class="flex flex-col gap-0.5">
               <dt class="role-caption text-[var(--muted-foreground)]">
                 {t('app.library.libraries.openedLabel')}
               </dt>
               <dd class="m-0 role-body">
-                {formatDateTime(openedEntry.addedAtMillis)}
+                {formatDateTime(selectedEntry.addedAtMillis)}
               </dd>
             </div>
           {/if}
@@ -502,9 +516,9 @@
           variant="ghost"
           size="sm"
           class="self-start"
-          disabled={!openedEntry.available}
+          disabled={!selectedEntry.available}
           testId="library-card-folder"
-          onclick={() => void openFolder(openedEntry.path)}
+          onclick={() => void openFolder(selectedEntry.path)}
         >
           <Icon name="folder" />
           {t('app.library.libraries.openFolder')}
@@ -525,10 +539,10 @@
       Список библиотек: строки или плитка. Обе раскладки показывают одно и то же
       содержимое, поэтому переключение вида не меняет данные, а только подачу.
     -->
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="libraries-view">
+    <div class="flex min-h-0 min-w-0 flex-col" data-testid="libraries-view">
       {#if filtered.length === 0}
         <p class="text-[var(--muted-foreground)]" data-testid="libraries-not-found">
-          {others.length > 0 ? t('app.library.libraries.notFound') : t('app.list.notFound')}
+          {entries.length > 0 ? t('app.library.libraries.notFound') : t('app.list.notFound')}
         </p>
       {:else if viewMode === 'grid'}
         <ul
@@ -547,7 +561,7 @@
                     class="min-w-0 flex-1 cursor-pointer bg-transparent p-0 text-left [font:inherit] hover:text-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none disabled:cursor-not-allowed disabled:hover:text-inherit"
                     disabled={!entry.available || opening}
                     data-testid="library-open"
-                    onclick={() => void openLibrary(entry.path)}
+                    onclick={() => void loadLibrary(entry.path)}
                   >
                     <span class="block truncate role-title" data-testid="library-name">
                       {libraryName(entry.path)}
@@ -590,10 +604,11 @@
           items={filtered}
           key={(entry) => entry.path}
           itemTestId="library-item"
-          notFound={others.length > 0 && filtered.length === 0}
+          notFound={entries.length > 0 && filtered.length === 0}
           notFoundTestId="libraries-not-found"
           disabled={(entry) => !entry.available || opening}
-          onSelect={(entry) => void openLibrary(entry.path)}
+          selected={(entry) => entry.path === selectedEntry?.path}
+          onSelect={(entry) => void loadLibrary(entry.path)}
           metaItems={metaItems}
           metaTestId="library-meta"
           actions={entryActions}
