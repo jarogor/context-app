@@ -283,6 +283,7 @@ export const ru = {
   'app.library.libraries.openFolder': 'Открыть папку',
   'app.library.libraries.search': 'Поиск библиотеки',
   'app.library.libraries.indexing': 'Индексация библиотеки…',
+  'app.library.libraries.indexingCount': 'Обработано {done} из {total}',
   'app.library.libraries.current': 'выбрана',
   'app.library.libraries.available': 'Доступна',
   'app.library.libraries.unavailable': 'недоступна',

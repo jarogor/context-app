@@ -30,6 +30,13 @@ pub const HOST_FS_READ_TEXT: &str = "fs_read_text";
 
 /// Имя host-функции чтения бинарного файла в base64.
 pub const HOST_FS_READ_BYTES: &str = "fs_read_bytes";
+
+/// Имя host-функции чтения части файла в base64.
+///
+/// Сигнатура: `fs_read_range(path, offset, length)`. Нужна разбору метаданных
+/// крупных книг: читать файл целиком в память плагина нельзя — у книги в сотни
+/// мегабайт это исчерпывает память и роняет открытие всей библиотеки.
+pub const HOST_FS_READ_RANGE: &str = "fs_read_range";
 /// Имя host-функции чтения выбранного пользователем файла импорта.
 pub const HOST_IMPORT_READ_BYTES: &str = "import_read_bytes";
 /// Имя host-функции записи файла в source-корень.
@@ -122,6 +129,7 @@ pub const KNOWN_HOST_FUNCTIONS: &[&str] = &[
     HOST_FS_LIST_DIR,
     HOST_FS_READ_TEXT,
     HOST_FS_READ_BYTES,
+    HOST_FS_READ_RANGE,
     HOST_IMPORT_READ_BYTES,
     HOST_FS_WRITE_BYTES,
     HOST_OPEN_FILE,

@@ -8,12 +8,19 @@ use crate::models::BookMetadata;
 /// Извлечение метаданных из содержимого PDF.
 pub(crate) fn extract(bytes: &[u8]) -> BookMetadata {
     BookMetadata {
-        title: find_text(bytes, b"/Title").filter(|value| !value.trim().is_empty()),
+        title: find_text(bytes, b"/Title")
+            .map(|value| value.trim().to_string())
+            .filter(|value| is_displayable(value)),
         authors: find_text(bytes, b"/Author")
             .map(|value| split_authors(&value))
-            .unwrap_or_default(),
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|value| is_displayable(value))
+            .collect(),
         // Дата файла (`/CreationDate`) — не дата издания, поэтому не берётся.
-        language: find_text(bytes, b"/Lang").filter(|value| !value.trim().is_empty()),
+        language: find_text(bytes, b"/Lang")
+            .map(|value| value.trim().to_string())
+            .filter(|value| is_displayable(value)),
         ..BookMetadata::default()
     }
 }
@@ -111,9 +118,38 @@ fn parse_hex(bytes: &[u8]) -> Option<String> {
     Some(decode(data))
 }
 
-/// Декодирование байтов как UTF-8 с фолбэком на потерю.
+/// Декодирование строкового значения PDF.
+///
+/// PDF хранит текст либо в UTF-8/PDFDocEncoding, либо в UTF-16BE с меткой
+/// порядка байтов (`\xFE\xFF`). Без разбора метки кириллица превращалась в
+/// мусор из управляющих символов, и такое название попадало в индекс.
 fn decode(bytes: Vec<u8>) -> String {
+    if bytes.starts_with(&[0xFE, 0xFF]) {
+        let units: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+            .collect();
+        return String::from_utf16_lossy(&units);
+    }
+    if bytes.starts_with(&[0xFF, 0xFE]) {
+        let units: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+            .collect();
+        return String::from_utf16_lossy(&units);
+    }
     String::from_utf8_lossy(&bytes).into_owned()
+}
+
+/// Пригодность разобранного значения для показа.
+///
+/// Строка с управляющими символами — не название книги, а остаток разбора:
+/// такие значения отбрасываются, и вызывающий берёт имя файла.
+fn is_displayable(value: &str) -> bool {
+    !value.is_empty()
+        && !value
+            .chars()
+            .any(|character| character.is_control() && character != '\t')
 }
 
 /// Разделение строки авторов на список.

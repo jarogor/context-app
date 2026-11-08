@@ -7,6 +7,8 @@ import { invokeCommand, listenEvent } from '../../shared/app-bridge';
 vi.mock('../../shared/app-bridge', () => ({
   invokeCommand: vi.fn(),
   listenEvent: vi.fn(async () => () => {}),
+  // Диалог выбора папки: путь задаётся моком, чтобы проверить открытие.
+  openDialog: vi.fn(async () => '/demo-library'),
 }));
 
 const invoke = vi.mocked(invokeCommand);
@@ -454,5 +456,87 @@ describe('режим показа библиотек', () => {
 
     await fireEvent.click(screen.getByRole('button', { name: 'Список' }));
     await waitFor(() => expect(screen.queryByTestId('libraries-grid')).toBeNull());
+  });
+});
+
+describe('открытие новой библиотеки', () => {
+  it('добавляет новую библиотеку в список сразу после открытия', async () => {
+    // В истории уже есть одна библиотека: запись новой появляется после
+    // открытия, и полагаться на ответ истории нельзя — он может прийти раньше.
+    const history = [
+      {
+        path: '/other',
+        provider: 'books-source',
+        provider_name: 'books-source',
+        added_at_millis: 1,
+        available: true,
+      },
+    ];
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return { entries: history };
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      if (command === 'select_source_library') {
+        return { provider: 'books-source', provider_name: 'books-source' };
+      }
+      return null;
+    });
+
+    render(LibrariesPage);
+    await waitFor(() => expect(screen.getByTestId('libraries-page')).toBeTruthy());
+
+    // Открытие папки — как из диалога выбора директории.
+    await fireEvent.click(screen.getAllByRole('button', { name: /Добавить библиотеку/ })[0]);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(2));
+    expect(screen.getByTestId('library-card').textContent).toContain('demo-library');
+  });
+
+  it('показывает прогресс индексации внутри карточки', async () => {
+    /** Обработчик события прогресса, перехваченный страницей. */
+    let onProgress: ((value: unknown) => void) | undefined;
+    listen.mockImplementation(async (event, handler) => {
+      if (event === 'library-index-progress') {
+        onProgress = handler as (value: unknown) => void;
+      }
+      return () => {};
+    });
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/other',
+              provider: 'books-source',
+              provider_name: 'books-source',
+              added_at_millis: 1,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      // Открытие не завершается: карточка должна показать прогресс.
+      if (command === 'select_source_library') {
+        return new Promise(() => {});
+      }
+      return null;
+    });
+
+    render(LibrariesPage);
+    await waitFor(() => expect(onProgress).toBeTruthy());
+
+    await fireEvent.click(screen.getAllByRole('button', { name: /Добавить библиотеку/ })[0]);
+    await onProgress?.({ done: 3, total: 10, percent: 30 });
+
+    await waitFor(() => expect(screen.getByTestId('library-card-progress')).toBeTruthy());
+    const card = screen.getByTestId('library-card');
+    expect(card.textContent).toContain('Индексация библиотеки');
+    expect(card.textContent).toContain('Обработано 3 из 10');
   });
 });

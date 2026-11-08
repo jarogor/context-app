@@ -7,6 +7,8 @@ use std::sync::Arc;
 
 use extism::{CurrentPlugin, UserData, Val};
 
+use crate::plugin::{get_bus, Severity};
+
 use super::super::host_state::{resolve_sandboxed, resolve_sandboxed_for_write, HostState};
 
 /// Host-функция `fs_list_dir`: перечисление имён записей директории.
@@ -138,7 +140,63 @@ pub(super) fn host_fs_read_bytes(
     drop(state);
     let path = resolve_sandboxed(&sandbox, &relative)
         .map_err(|_| extism::Error::msg("путь вне песочницы библиотеки"))?;
-    let bytes = fs::read(path).map_err(|_| extism::Error::msg("файл не читается"))?;
+    let bytes = fs::read(&path).map_err(|error| {
+        // Ошибка host-функции в Extism становится trap без текста: причина
+        // пишется в журнал, иначе по трассе не понять, что случилось.
+        get_bus().publish(
+            Severity::Error,
+            format!("Файл не читается: {}", path.display()),
+            "plugin",
+            serde_json::json!({ "error": error.to_string() }),
+        );
+        extism::Error::msg("файл не читается")
+    })?;
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+    plugin
+        .memory_set_val(&mut returns[0], &encoded)
+        .map_err(|err| extism::Error::msg(err.to_string()))
+}
+
+/// Host-функция чтения части файла с возвратом base64.
+///
+/// Сигнатура: `fs_read_range(path, offset, length)`. Разбор метаданных читает
+/// только нужный кусок: хвост PDF с `/Info`, начало EPUB. Файл целиком в память
+/// плагина не попадает, поэтому размер книги не влияет на открытие библиотеки.
+pub(super) fn host_fs_read_range(
+    plugin: &mut CurrentPlugin,
+    args: &[Val],
+    returns: &mut [Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let relative: String = plugin.memory_get_val(&args[0])?;
+    let offset_raw: String = plugin.memory_get_val(&args[1])?;
+    let length_raw: String = plugin.memory_get_val(&args[2])?;
+    let offset: u64 = offset_raw
+        .parse()
+        .map_err(|_| extism::Error::msg("смещение чтения не число"))?;
+    let length: u64 = length_raw
+        .parse()
+        .map_err(|_| extism::Error::msg("длина чтения не число"))?;
+    let host = user_data.get()?;
+    let state = host
+        .lock()
+        .map_err(|_| extism::Error::msg("состояние host недоступно"))?;
+    let sandbox = Arc::clone(&state.roots.sandbox_root);
+    drop(state);
+    let path = resolve_sandboxed(&sandbox, &relative)
+        .map_err(|_| extism::Error::msg("путь вне песочницы библиотеки"))?;
+    let mut file = fs::File::open(path).map_err(|_| extism::Error::msg("файл не читается"))?;
+    let size = file.metadata().map(|meta| meta.len()).unwrap_or_default();
+    file.seek(SeekFrom::Start(offset))
+        .map_err(|_| extism::Error::msg("смещение вне файла"))?;
+    // Чтение за концом файла просто короче: это не ошибка.
+    let take = length.min(size.saturating_sub(offset));
+    let mut bytes = Vec::with_capacity(take as usize);
+    file.take(take)
+        .read_to_end(&mut bytes)
+        .map_err(|_| extism::Error::msg("файл не читается"))?;
     let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
     plugin
         .memory_set_val(&mut returns[0], &encoded)

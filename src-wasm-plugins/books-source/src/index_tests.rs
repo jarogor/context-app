@@ -214,7 +214,12 @@ fn publishes_progress_only_when_processing() {
     let fs = TestFs::new(root);
 
     sync(&fs).expect("построение индекса");
-    let events = fs.events();
+    // Считаются только события прогресса: журнал этапов — отдельные события.
+    let events: Vec<_> = fs
+        .events()
+        .into_iter()
+        .filter(|(name, _)| name == "library-index-progress")
+        .collect();
     assert_eq!(
         events.len(),
         3,
@@ -229,11 +234,19 @@ fn publishes_progress_only_when_processing() {
     assert_eq!(last["total"], 2);
     assert_eq!(last["percent"], 100);
 
-    let before = fs.events().len();
+    let before = fs
+        .events()
+        .iter()
+        .filter(|(name, _)| name == "library-index-progress")
+        .count();
     sync(&fs).expect("повторное открытие");
+    let after = fs
+        .events()
+        .iter()
+        .filter(|(name, _)| name == "library-index-progress")
+        .count();
     assert_eq!(
-        fs.events().len(),
-        before,
+        after, before,
         "при актуальном индексе прогресс не публикуется"
     );
 }

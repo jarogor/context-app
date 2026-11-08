@@ -6,6 +6,21 @@ use std::path::PathBuf;
 use extism::{CurrentPlugin, UserData, Val};
 
 use super::super::host_state::HostState;
+use crate::plugin::{get_bus, Severity};
+
+/// Запись сбоя SQL в журнал диагностики.
+///
+/// Ошибка host-функции в Extism превращается в trap модуля: плагин не получает
+/// её как значение, и в журнале остаётся только трасса из адресов. Поэтому
+/// причина пишется здесь — с текстом ошибки и самим запросом.
+fn log_sql_failure(operation: &str, sql: &str, error: &str) {
+    get_bus().publish(
+        Severity::Error,
+        format!("SQL не выполнен ({operation}): {error}"),
+        "plugin",
+        serde_json::json!({ "sql": sql, "error": error }),
+    );
+}
 
 /// Разрешение пути к SQLite-базе плагина в служебной области приложения.
 ///
@@ -172,7 +187,10 @@ pub(super) fn host_sql_execute(
     let state = host
         .lock()
         .map_err(|_| extism::Error::msg("SQL-хранилище недоступно"))?;
-    execute_sql(&state, &sql, params).map_err(extism::Error::msg)?;
+    execute_sql(&state, &sql, params).map_err(|error| {
+        log_sql_failure("execute", &sql, &error);
+        extism::Error::msg(error)
+    })?;
     plugin
         .memory_set_val(&mut returns[0], "ok")
         .map_err(|err| extism::Error::msg(err.to_string()))
@@ -192,7 +210,10 @@ pub(super) fn host_sql_query(
     let state = host
         .lock()
         .map_err(|_| extism::Error::msg("SQL-хранилище недоступно"))?;
-    let result = query_sql(&state, &sql, params).map_err(extism::Error::msg)?;
+    let result = query_sql(&state, &sql, params).map_err(|error| {
+        log_sql_failure("query", &sql, &error);
+        extism::Error::msg(error)
+    })?;
     let payload = serde_json::to_string(&result)
         .map_err(|_| extism::Error::msg("не удалось сериализовать результат SQL"))?;
     plugin

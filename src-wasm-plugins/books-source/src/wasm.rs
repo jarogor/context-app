@@ -14,6 +14,31 @@ use source_protocol::labels::{indexed_message, library_label};
 use source_protocol::request::Request;
 use std::rc::Rc;
 
+/// Установка обработчика паник, пишущего причину в журнал.
+fn install_panic_hook() {
+    use std::sync::Once;
+    static HOOK: Once = Once::new();
+    HOOK.call_once(|| {
+        std::panic::set_hook(Box::new(|info| {
+            let message = info
+                .payload()
+                .downcast_ref::<&str>()
+                .map(|value| (*value).to_string())
+                .or_else(|| info.payload().downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "неизвестная причина".to_string());
+            let location = info
+                .location()
+                .map(|place| format!("{}:{}", place.file(), place.line()))
+                .unwrap_or_default();
+            source_protocol::host::emit_log(
+                "error",
+                "Плагин source остановлен паникой",
+                json!({ "panic": message, "location": location }),
+            );
+        }));
+    });
+}
+
 /// Ответ операции открытия source-сессии.
 #[derive(serde::Serialize)]
 struct OpenResponse {
@@ -24,8 +49,13 @@ struct OpenResponse {
 }
 
 /// Точка расширения: диспетчеризация действий плагина.
+///
+/// Перед работой ставится обработчик паник: сообщение паники уходит в журнал
+/// диагностики. Без него в журнале остаётся только трасса из номеров
+/// wasm-функций, по которой невозможно понять, что сломалось.
 #[plugin_fn]
 pub fn invoke(input: String) -> FnResult<String> {
+    install_panic_hook();
     let request: Request = serde_json::from_str(&input)?;
     let fs = HostFs;
     let payload = match request.action.as_str() {

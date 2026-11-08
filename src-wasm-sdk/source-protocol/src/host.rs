@@ -18,6 +18,8 @@ extern "ExtismHost" {
     fn fs_list_dir(path: String) -> String;
     /// Чтение бинарного файла в base64.
     fn fs_read_bytes(path: String) -> String;
+    /// Чтение части файла в base64.
+    fn fs_read_range(path: String, offset: String, length: String) -> String;
     /// Чтение выбранного пользователем EPUB-файла.
     fn import_read_bytes(path: String) -> String;
     /// Запись файла portable-библиотеки в base64.
@@ -61,6 +63,15 @@ impl Fs for HostFs {
     fn read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
         let payload =
             unsafe { fs_read_bytes(path.to_string()).map_err(|error| error.to_string())? };
+        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, payload)
+            .map_err(|error| error.to_string())
+    }
+
+    fn read_range(&self, path: &str, offset: u64, length: u64) -> Result<Vec<u8>, String> {
+        let payload = unsafe {
+            fs_read_range(path.to_string(), offset.to_string(), length.to_string())
+                .map_err(|error| error.to_string())?
+        };
         base64::Engine::decode(&base64::engine::general_purpose::STANDARD, payload)
             .map_err(|error| error.to_string())
     }

@@ -311,16 +311,28 @@ pub fn upsert_book(fs: &impl Fs, book: &BookRecord) -> Result<(), String> {
     )
 }
 
+/// Колонки модели книги в порядке схемы.
+///
+/// Читаются явным списком, а не `SELECT *`: в базе могли остаться колонки
+/// прежних версий схемы (например, `series`), и лишнее поле ломает разбор
+/// модели — открытие библиотеки падало на библиотеке, пережившей пересборку
+/// индекса.
+const BOOK_COLUMNS: &str = "id, title, authors, tags, files, format, size, mtime_ms, \
+     added_at_ms, language, published, publisher, description, identifier, signature";
+
 /// Загрузка всех книг индекса в порядке идентификаторов.
 pub fn load_books(fs: &impl Fs) -> Result<Vec<BookRecord>, String> {
-    let raw = fs.sql_query("SELECT * FROM books ORDER BY id", "[]")?;
+    let raw = fs.sql_query(&format!("SELECT {BOOK_COLUMNS} FROM books ORDER BY id"), "[]")?;
     serde_json::from_str(&raw).map_err(|error| error.to_string())
 }
 
 /// Загрузка одной книги индекса по идентификатору.
 pub fn load_book(fs: &impl Fs, id: &str) -> Result<Option<BookRecord>, String> {
     let params = serde_json::to_string(&[id]).map_err(|error| error.to_string())?;
-    let raw = fs.sql_query("SELECT * FROM books WHERE id = ?1", &params)?;
+    let raw = fs.sql_query(
+        &format!("SELECT {BOOK_COLUMNS} FROM books WHERE id = ?1"),
+        &params,
+    )?;
     let rows: Vec<BookRecord> = serde_json::from_str(&raw).map_err(|error| error.to_string())?;
     Ok(rows.into_iter().next())
 }

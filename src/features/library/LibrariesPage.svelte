@@ -120,9 +120,19 @@
    */
   let selectedPath = $state<string | null>(null);
 
+  /**
+   * Только что открытая библиотека, которой ещё нет в ответе истории.
+   *
+   * Ядро записывает историю в конце открытия, а ответ истории может прийти
+   * раньше: без резерва карточка на мгновение показывала «не выбрана», хотя
+   * библиотека уже открыта.
+   */
+  let openedEntryFallback = $state<HistoryEntry | null>(null);
+
   /** Запись, показанная панелью: выбранная, а без выбора — открытая. */
   const selectedEntry = $derived(
-    entries.find((entry) => entry.path === (selectedPath ?? activePath)) ?? null,
+    entries.find((entry) => entry.path === (selectedPath ?? activePath)) ??
+      (openedEntryFallback?.path === (selectedPath ?? activePath) ? openedEntryFallback : null),
   );
 
   /** Идёт ли открытие библиотеки. */
@@ -259,16 +269,34 @@
     try {
       // Уже открытая библиотека не переоткрывается: ядро вернёт её без опроса
       // source-плагинов и переиндексации (см. `select_source_library`).
-      await invokeCommand('select_source_library', {
+      const response = (await invokeCommand('select_source_library', {
         path,
         storageRoot: appConfig.state_dir,
-      });
+      })) as { provider?: string; provider_name?: string } | null;
+
+      const provider = String(response?.provider ?? '');
+      const opened: HistoryEntry = {
+        path,
+        provider,
+        providerName: String(response?.provider_name ?? provider),
+        addedAtMillis: Date.now(),
+        available: true,
+      };
+
+      // Запись появляется в списке сразу: ядро пишет историю в конце открытия,
+      // но ответ истории может прийти раньше её записи, и новая библиотека
+      // «терялась» — открыта, а в списке её нет.
+      entries = [...entries.filter((entry) => entry.path !== path), opened];
       activePath = path;
+      selectedPath = path;
+      openedEntryFallback = opened;
     } catch (e) {
       error = String(e);
     } finally {
       openingPath = null;
       progress = null;
+      // История перечитывается, но локальная запись не должна из-за этого
+      // пропасть: пока ядро не отдало её, она подставляется из резерва.
       void loadHistory();
     }
   }
@@ -489,18 +517,6 @@
     <p class="role-body text-[var(--destructive)]" data-testid="libraries-error">{error}</p>
   {/if}
 
-  {#if opening && progress}
-    <div
-      class="flex flex-col gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3"
-    >
-      <div class="flex items-center justify-between role-caption text-[var(--muted-foreground)]">
-        <span>{t('app.library.libraries.indexing')}</span>
-        <span>{progress.percent}%</span>
-      </div>
-      <Progress value={progress.percent} />
-    </div>
-  {/if}
-
   <!--
     Две колонки на всю доступную ширину: слева панель выбранной библиотеки,
     справа список всех библиотек. Выбор в списке только загружает библиотеку и
@@ -577,6 +593,26 @@
           <Icon name="folder" />
           {t('app.library.libraries.openShort')}
         </Button>
+      {:else if opening}
+        <!--
+          Пока библиотека загружается и индексируется, карточка показывает
+          прогресс вместо пустого состояния: пользователь видит, что выбор
+          принят и работа идёт.
+        -->
+        <div class="flex flex-col gap-2" data-testid="library-card-progress">
+          <span class="m-0 role-heading text-[var(--foreground)]">
+            {t('app.library.libraries.indexing')}
+          </span>
+          <Progress value={progress?.percent ?? 0} />
+          {#if progress}
+            <span class="role-caption text-[var(--muted-foreground)]">
+              {t('app.library.libraries.indexingCount', {
+                done: progress.done,
+                total: progress.total,
+              })}
+            </span>
+          {/if}
+        </div>
       {:else}
         <div class="flex flex-col gap-1" data-testid="library-card-empty">
           <span class="m-0 role-heading text-[var(--foreground)]">

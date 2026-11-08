@@ -11,6 +11,7 @@
   "host_functions": [
     "fs_list_dir",
     "fs_read_bytes",
+    "fs_read_range",
     "fs_write_bytes",
     "open_file",
     "import_read_bytes",

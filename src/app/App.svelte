@@ -871,7 +871,24 @@
       multiple: false,
       directory: false,
       filters: [
-        { name: t('app.dialog.books'), extensions: ['epub', 'pdf', 'djvu', 'fb2'] },
+        {
+          name: t('app.dialog.books'),
+          extensions: [
+            'epub',
+            'pdf',
+            'djvu',
+            'fb2',
+            'fbz',
+            'mobi',
+            'azw3',
+            'cbz',
+            'cbr',
+            'docx',
+            'txt',
+            'md',
+            'html',
+          ],
+        },
         { name: t('app.dialog.allFiles'), extensions: ['*'] },
       ],
     });

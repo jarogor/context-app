@@ -233,3 +233,43 @@ fn covers_flag_and_batch_are_read_from_index() {
     assert_eq!(covers.len(), 1, "обложка есть только у известной книги");
     assert_eq!(covers["a"].format, "png");
 }
+
+/// Книги читаются и из базы, где остались колонки прежней схемы.
+///
+/// `SELECT *` возвращал и лишние столбцы (например, `series`), из-за чего
+/// разбор модели падал и открытие библиотеки завершалось ошибкой.
+#[test]
+fn loads_books_from_legacy_schema_with_extra_columns() {
+    let db = TestDb::new();
+    db.execute(
+        "CREATE TABLE books (
+           id TEXT PRIMARY KEY,
+           title TEXT NOT NULL,
+           authors TEXT NOT NULL,
+           tags TEXT NOT NULL,
+           series TEXT NOT NULL,
+           files TEXT NOT NULL,
+           format TEXT NOT NULL,
+           size INTEGER,
+           mtime_ms INTEGER,
+           added_at_ms INTEGER,
+           language TEXT,
+           published TEXT,
+           publisher TEXT,
+           description TEXT,
+           identifier TEXT,
+           signature TEXT
+         )",
+    )
+    .expect("схема прежней версии");
+    db.execute(
+        "INSERT INTO books (id, title, authors, tags, series, files, format)
+         VALUES ('a', 'Книга', '[]', '[]', '[]', '[]', 'pdf')",
+    )
+    .expect("запись");
+
+    let books = load_books(&db).expect("книги читаются");
+
+    assert_eq!(books.len(), 1);
+    assert_eq!(books[0].title, "Книга");
+}

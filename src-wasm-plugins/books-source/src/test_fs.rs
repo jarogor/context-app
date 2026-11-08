@@ -108,6 +108,25 @@ impl Fs for TestFs {
         .map_err(|error| error.to_string())
     }
 
+    /// Чтение части файла: как у host-функции, диапазон за концом короче.
+    fn read_range(&self, path: &str, offset: u64, length: u64) -> Result<Vec<u8>, String> {
+        use std::io::{Read, Seek, SeekFrom};
+        // Обращение к файлу считается чтением: тесты проверяют, что неизменные
+        // книги не перечитываются при повторном открытии.
+        self.reads.set(self.reads.get() + 1);
+        let full = self
+            .root
+            .join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
+        let mut file = fs::File::open(full).map_err(|error| error.to_string())?;
+        file.seek(SeekFrom::Start(offset))
+            .map_err(|error| error.to_string())?;
+        let mut bytes = Vec::new();
+        file.take(length)
+            .read_to_end(&mut bytes)
+            .map_err(|error| error.to_string())?;
+        Ok(bytes)
+    }
+
     fn import_read_bytes(&self, path: &str) -> Result<Vec<u8>, String> {
         fs::read(path).map_err(|error| error.to_string())
     }

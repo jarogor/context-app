@@ -49,3 +49,33 @@ fn extracts_language_without_publication_date() {
         "CreationDate — не дата издания"
     );
 }
+
+/// UTF-16BE с меткой порядка байтов внутри литерала `(...)`.
+///
+/// Так хранит кириллицу часть PDF: без разбора метки название превращалось в
+/// мусор из управляющих символов и попадало в индекс.
+#[test]
+fn decodes_utf16be_literal_title() {
+    let mut pdf = Vec::from(&b"<< /Title ("[..]);
+    pdf.extend_from_slice(&[0xFE, 0xFF]);
+    for unit in "Тест".encode_utf16() {
+        pdf.extend_from_slice(&unit.to_be_bytes());
+    }
+    pdf.extend_from_slice(b") >>");
+
+    let metadata = extract(&pdf);
+
+    assert_eq!(metadata.title.as_deref(), Some("Тест"));
+}
+
+/// Управляющие символы в разобранном значении отбрасываются.
+///
+/// Остаток разбора — не название книги: вызывающий берёт имя файла.
+#[test]
+fn rejects_control_characters_in_title() {
+    let pdf = b"<< /Title (\x01\x02\x03) >>";
+
+    let metadata = extract(pdf);
+
+    assert!(metadata.title.is_none(), "мусор не становится названием");
+}

@@ -37,14 +37,38 @@ struct ChangeRow {
     mtime_ms: Option<i64>,
 }
 
+/// Запись этапа построения индекса в журнал диагностики.
+fn log_step(_fs: &impl Fs, message: &str, details: serde_json::Value) {
+    // Этапы попадают в журнал диагностики приложения: при сбое открытия по нему
+    // видно, на каком шаге и на какой книге всё остановилось. Нативные тесты
+    // host-функций не имеют — вызов просто ничего не делает.
+    #[cfg(target_arch = "wasm32")]
+    source_protocol::host::emit_log("debug", message, details);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = (message, details);
+    }
+}
+
 /// Актуализация индекса по текущему содержимому библиотеки.
 ///
 /// Перечитывает только новые и изменённые файлы, удаляет исчезнувшие,
 /// сохраняет обложки и публикует прогресс, возвращая согласованный snapshot.
 pub(crate) fn sync(fs: &impl Fs) -> Result<SourceCatalog, String> {
-    ensure_schema(fs, CATALOG_MIGRATIONS, LEGACY_STATE_KEY)?;
-    let existing = load_rows(fs)?;
-    let listing = scanner::list_files(fs)?;
+    // Этапы пишутся в журнал: при сбое открытия по нему видно, на чём именно
+    // всё остановилось, а не только адреса wasm-функций.
+    ensure_schema(fs, CATALOG_MIGRATIONS, LEGACY_STATE_KEY)
+        .map_err(|error| format!("схема индекса: {error}"))?;
+    let existing = load_rows(fs).map_err(|error| format!("текущий индекс: {error}"))?;
+    let listing = scanner::list_files(fs).map_err(|error| format!("обход директории: {error}"))?;
+    log_step(
+        fs,
+        "Каталог прочитан",
+        serde_json::json!({
+            "files": listing.len(),
+            "indexed": existing.len(),
+        }),
+    );
     let mut present = HashSet::new();
     let mut pending: Vec<&FileListing> = Vec::new();
     for file in &listing {
@@ -67,17 +91,50 @@ pub(crate) fn sync(fs: &impl Fs) -> Result<SourceCatalog, String> {
         }
     }
     let total = pending.len();
+    log_step(
+        fs,
+        "Файлы к разбору",
+        serde_json::json!({ "pending": total, "removed": listing.len() - present.len() }),
+    );
     emit_progress(fs, 0, total);
     let stride = progress_stride(total);
     for (index, file) in pending.iter().enumerate() {
-        let (book, cover) = scanner::read_book(fs, &file.path);
-        write_book(
+        let (book, cover) = scanner::read_book(fs, &file.path, file.size);
+        // Файл называется в журнале до записи: если запись сорвётся, видно, на
+        // какой книге это произошло и что в ней разобралось.
+        log_step(
+            fs,
+            "Разбор книги",
+            serde_json::json!({
+                "path": file.path,
+                "format": file.format,
+                "title": book.title,
+                "authors": book.authors.len(),
+                "cover": cover.is_some(),
+            }),
+        );
+        // Одна книга не должна обрушивать открытие всей библиотеки: сбой записи
+        // попадает в журнал, а остальные книги индексируются дальше.
+        if let Err(error) = write_book(
             fs,
             &book,
             file.size.map(|value| value as i64),
             file.mtime_ms,
-        )?;
-        store_cover(fs, &book.id, cover.as_ref(), file.mtime_ms)?;
+        ) {
+            log_step(
+                fs,
+                "Книга пропущена",
+                serde_json::json!({ "path": file.path, "error": error }),
+            );
+            continue;
+        }
+        if let Err(error) = store_cover(fs, &book.id, cover.as_ref(), file.mtime_ms) {
+            log_step(
+                fs,
+                "Обложка пропущена",
+                serde_json::json!({ "path": file.path, "error": error }),
+            );
+        }
         let done = index + 1;
         if done % stride == 0 || done == total {
             emit_progress(fs, done, total);

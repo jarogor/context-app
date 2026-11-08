@@ -28,7 +28,7 @@ fn lists_nested_book_files_as_separate_entries() {
     fs::create_dir_all(root.join("a").join("b")).expect("создание папок");
     fs::write(root.join("a").join("b").join("Первый.epub"), "epub").expect("книга");
     fs::write(root.join("Второй.pdf"), "pdf").expect("книга");
-    fs::write(root.join("notes.md"), "заметки").expect("шум");
+    fs::write(root.join("cover.jpg"), "картинка").expect("шум");
 
     let files = list_files(&TestFs::new(root)).expect("обход");
 
@@ -65,7 +65,7 @@ fn book_has_no_author_and_no_cover() {
     fs::create_dir_all(&root).expect("создание корня");
     fs::write(root.join("Название книги.fb2"), "fb2").expect("книга");
 
-    let (book, _cover) = super::read_book(&TestFs::new(root), "Название книги.fb2");
+    let (book, _cover) = super::read_book(&TestFs::new(root), "Название книги.fb2", None);
 
     assert_eq!(book.title, "Название книги");
     assert!(book.authors.is_empty());
@@ -115,4 +115,61 @@ fn probe_confirms_any_directory() {
         Some(PROBE_PRIORITY),
         "generic-источник — базовый и подтверждает любую директорию"
     );
+}
+
+/// Книгой считается и формат, который чтение пока не открывает.
+///
+/// Библиотека — общая коллекция: книгу чужого формата видно, можно сортировать,
+/// фильтровать и править сведения. Поддержку чтения определяет плагин формата,
+/// а не источник.
+#[test]
+fn accepts_formats_reading_does_not_open_yet() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("создание корня");
+    for name in [
+        "Книга.mobi",
+        "Книга.azw3",
+        "Книга.cbz",
+        "Книга.docx",
+        "Книга.odt",
+        "Заметки.md",
+        "Список.txt",
+        "Страница.html",
+    ] {
+        fs::write(root.join(name), "book").expect("книга");
+    }
+    fs::write(root.join("cover.jpg"), "картинка").expect("шум");
+    fs::write(root.join("setup.exe"), "программа").expect("шум");
+
+    let files = list_files(&TestFs::new(root)).expect("обход");
+
+    assert_eq!(
+        files.len(),
+        8,
+        "книжные форматы приняты, посторонние файлы — нет"
+    );
+}
+
+/// Крупный PDF разбирается по хвосту файла, а не целиком.
+///
+/// Чтение книги в сотни мегабайт в память WASM исчерпывало её и роняло открытие
+/// всей библиотеки. Метаданные берутся из хвоста: файл целиком не читается.
+#[test]
+fn reads_tail_of_large_pdf_only() {
+    let root = test_root();
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("создание корня");
+    // Большой файл: словарь `/Info` в конце, как в настоящем PDF.
+    let mut bytes = vec![b'0'; 2 * 1024 * 1024];
+    bytes.extend_from_slice("<< /Title (Большая книга) >>".as_bytes());
+    fs::write(root.join("Большая книга.pdf"), &bytes).expect("книга");
+
+    let fs = TestFs::new(root);
+    let (book, cover) = super::read_book(&fs, "Большая книга.pdf", Some(bytes.len() as u64));
+
+    assert_eq!(book.title, "Большая книга", "название из словаря в хвосте");
+    assert!(cover.is_none());
+    // Одно обращение — диапазон, а не весь файл.
+    assert_eq!(fs.reads(), 1, "файл читается один раз");
 }

@@ -7,10 +7,10 @@
 use extism::{PluginBuilder, UserData, ValType};
 
 use crate::plugin::contract::{
-    HOST_EMIT_EVENT, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_TEXT, HOST_FS_WRITE_BYTES,
-    HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION, HOST_NOW_FUNCTION,
-    HOST_OPEN_FILE, HOST_SQL_EXECUTE, HOST_SQL_QUERY, HOST_STATE_DELETE, HOST_STATE_READ,
-    HOST_STATE_WRITE, HOST_STORE_FETCH, HOST_STORE_INSPECT, HOST_STORE_INSTALL,
+    HOST_EMIT_EVENT, HOST_FS_LIST_DIR, HOST_FS_READ_BYTES, HOST_FS_READ_RANGE, HOST_FS_READ_TEXT,
+    HOST_FS_WRITE_BYTES, HOST_IMPORT_READ_BYTES, HOST_LOG_FUNCTION, HOST_NOTIFY_FUNCTION,
+    HOST_NOW_FUNCTION, HOST_OPEN_FILE, HOST_SQL_EXECUTE, HOST_SQL_QUERY, HOST_STATE_DELETE,
+    HOST_STATE_READ, HOST_STATE_WRITE, HOST_STORE_FETCH, HOST_STORE_INSPECT, HOST_STORE_INSTALL,
     HOST_STORE_INSTALLED, HOST_STORE_PLUGINS, HOST_STORE_READ, HOST_STORE_SET_ENABLED,
     HOST_STORE_UNINSTALL,
 };
@@ -67,6 +67,15 @@ pub(crate) fn register<'a>(
             [ValType::I64],
             user_data(),
             fs::host_fs_read_text,
+        );
+    }
+    if declares(HOST_FS_READ_RANGE) {
+        builder = builder.with_function(
+            HOST_FS_READ_RANGE,
+            [ValType::I64, ValType::I64, ValType::I64],
+            [ValType::I64],
+            user_data(),
+            fs::host_fs_read_range,
         );
     }
     if declares(HOST_FS_READ_BYTES) {

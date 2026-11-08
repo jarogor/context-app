@@ -1,7 +1,7 @@
 //! Сканирование директории книг generic-источника.
 //!
-//! Директория обходится рекурсивно; книга — отдельный файл формата `pdf`,
-//! `djvu`, `epub` или `fb2`. Обход опирается на тип и метаданные записи из
+//! Директория обходится рекурсивно; книга — отдельный файл известного
+//! книжного формата (см. `BOOK_FORMATS`). Обход опирается на тип и метаданные записи из
 //! `list_dir`, пропускает скрытые элементы и символические ссылки. Содержимое
 //! файлов при обходе не читается: метаданные используются для инкрементального
 //! сопоставления с индексом, а извлечение названия и авторов выполняется позже
@@ -14,7 +14,17 @@ use super::metadata;
 use super::models::{EntryKind, ExternalBook, ExternalFile, ExternalFileKind, FileListing};
 
 /// Расширения файлов, считающихся книгой.
-const BOOK_FORMATS: &[&str] = &["pdf", "djvu", "epub", "fb2"];
+///
+/// Список шире, чем набор форматов, которые умеет открывать чтение: библиотека
+/// — общая коллекция, и книга чужого формата участвует в ней на равных (её
+/// видно, можно сортировать, фильтровать и править сведения), просто открыть
+/// её здесь нельзя. Поддержку чтения определяет наличие плагина формата, а не
+/// источник.
+const BOOK_FORMATS: &[&str] = &[
+    "pdf", "djvu", "djv", "epub", "fb2", "fbz", "mobi", "azw", "azw3", "kfx", "lit", "lrf", "pdb",
+    "prc", "cbz", "cbr", "cb7", "cbt", "chm", "doc", "docx", "odt", "rtf", "txt", "md", "textile",
+    "rst", "adoc", "org", "html", "htm", "xhtml",
+];
 
 /// Страховочный предел глубины обхода (защита от аномальных структур).
 const MAX_DEPTH: usize = 64;
@@ -84,10 +94,14 @@ fn collect(
 ///
 /// Возвращает запись книги нейтрального каталога и, при наличии, байты обложки
 /// с её форматом — для сохранения в индексе.
-pub(crate) fn read_book(fs: &impl Fs, relative: &str) -> (ExternalBook, Option<(Vec<u8>, String)>) {
+pub(crate) fn read_book(
+    fs: &impl Fs,
+    relative: &str,
+    size: Option<u64>,
+) -> (ExternalBook, Option<(Vec<u8>, String)>) {
     let file_name = relative.rsplit('/').next().unwrap_or(relative);
     let format = extension(file_name);
-    let metadata = metadata::extract(fs, relative, &format);
+    let metadata = metadata::extract(fs, relative, &format, size);
     let title = metadata
         .title
         .filter(|value| !value.trim().is_empty())

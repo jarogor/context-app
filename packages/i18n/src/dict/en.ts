@@ -299,6 +299,7 @@ export const en: Dictionary = {
   'app.library.libraries.openFolder': 'Open folder',
   'app.library.libraries.search': 'Library search',
   'app.library.libraries.indexing': 'Indexing the library…',
+  'app.library.libraries.indexingCount': 'Processed {done} of {total}',
   'app.library.libraries.current': 'selected',
   'app.library.libraries.available': 'Available',
   'app.library.libraries.unavailable': 'unavailable',
