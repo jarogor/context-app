@@ -8,6 +8,7 @@
     Input,
     PageShell,
     Progress,
+    Select,
     Spinner,
     type MenuAction,
     type MetaItem,
@@ -15,6 +16,7 @@
   import { invokeCommand, listenEvent, openDialog } from '../../shared/app-bridge';
   import { t } from '@context/i18n';
   import { formatDateTime } from '../../shared/format';
+  import { currentLocale } from '@context/i18n';
   import { lastSegment } from '../../shared/path';
   import { activeLibrary } from '../../shared/base-plugin';
   import appConfig from './app-config.json';
@@ -63,6 +65,32 @@
   /** Строка поиска по имени библиотеки. */
   let query = $state('');
 
+  /** Порядок списка: по имени или по времени последнего открытия. */
+  let sortField = $state<'name' | 'opened'>('opened');
+
+  /** Направление порядка: свежие и А–Я считаются по-разному. */
+  let sortDirection = $state<'asc' | 'desc'>('desc');
+
+  /** Варианты порядка списка библиотек. */
+  const sortOptions = $derived([
+    { value: 'opened', label: t('app.library.libraries.sort.opened') },
+    { value: 'name', label: t('app.library.libraries.sort.name') },
+  ]);
+
+  /** Смена поля порядка: направление берётся удобное для поля. */
+  function chooseSort(value: string) {
+    sortField = value === 'name' ? 'name' : 'opened';
+    sortDirection = sortField === 'name' ? 'asc' : 'desc';
+  }
+
+  /** Библиотека, показанная в карточке: выбранная или первая в списке. */
+  let pickedPath = $state<string | null>(null);
+
+  /** Карточка показывает активную библиотеку, а без неё — выбранную строкой. */
+  const pickedEntry = $derived(
+    entries.find((entry) => entry.path === (activePath ?? pickedPath)) ?? null,
+  );
+
   /** Идёт ли открытие библиотеки. */
   const opening = $derived(openingPath !== null);
 
@@ -71,13 +99,23 @@
     openingPath !== null && !entries.some((entry) => entry.path === openingPath),
   );
 
-  /** Записи истории, отфильтрованные поиском по имени библиотеки. */
+  /** Записи истории, отфильтрованные поиском и упорядоченные выбранным полем. */
   const filtered = $derived.by(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return entries;
-    }
-    return entries.filter((entry) => libraryName(entry.path).toLowerCase().includes(needle));
+    const found = needle
+      ? entries.filter((entry) => libraryName(entry.path).toLowerCase().includes(needle))
+      : [...entries];
+    const factor = sortDirection === 'asc' ? 1 : -1;
+    return found.sort((left, right) => {
+      if (sortField === 'name') {
+        return factor * libraryName(left.path).localeCompare(libraryName(right.path), currentLocale());
+      }
+      // По времени открытия: у записей без времени порядок задаёт имя.
+      const delta = (left.addedAtMillis ?? 0) - (right.addedAtMillis ?? 0);
+      return delta !== 0
+        ? factor * delta
+        : libraryName(left.path).localeCompare(libraryName(right.path), currentLocale());
+    });
   });
 
   /** Имя библиотеки по последнему сегменту пути. */
@@ -240,6 +278,7 @@
 
 <PageShell
   testId="libraries-page"
+  width="full"
   loading={loading && entries.length === 0}
   loadingText={t('app.loading')}
   empty={entries.length === 0}
@@ -258,7 +297,7 @@
   {/snippet}
 
   {#snippet controls()}
-    <div class="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-none">
+    <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-none">
       <Input
         bind:value={query}
         placeholder={t('app.search.library.placeholder')}
@@ -269,11 +308,18 @@
       />
       <!-- Счётчик рядом с поиском — тот же, что в списке рабочих мест. -->
       <span
-        class="flex-none role-caption text-[var(--muted-foreground)]"
+        class="mx-1 flex-none role-caption text-[var(--muted-foreground)]"
         data-testid="libraries-filter-counter"
       >
         {t('app.search.filter', { shown: filtered.length, total: entries.length })}
       </span>
+      <Select
+        value={sortField}
+        items={sortOptions}
+        ariaLabel={t('app.library.libraries.sort.label')}
+        class="w-[13rem]"
+        onchange={(value) => chooseSort(value)}
+      />
     </div>
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
       <Button
@@ -297,7 +343,9 @@
   {/if}
 
   {#if opening && progress}
-    <div class="flex flex-col gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3">
+    <div
+      class="flex flex-col gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3"
+    >
       <div class="flex items-center justify-between role-caption text-[var(--muted-foreground)]">
         <span>{t('app.library.libraries.indexing')}</span>
         <span>{progress.percent}%</span>
@@ -306,49 +354,134 @@
     </div>
   {/if}
 
-  <EntityList
-    items={filtered}
-    key={(entry) => entry.path}
-    itemTestId="library-item"
-    notFound={entries.length > 0 && filtered.length === 0}
-    notFoundTestId="libraries-not-found"
-    disabled={(entry) => !entry.available || opening}
-    onSelect={(entry) => void openLibrary(entry.path)}
-    metaItems={metaItems}
-    metaTestId="library-meta"
-    actions={entryActions}
-    actionsLabel={t('app.library.libraries.actionsLabel')}
-    onAction={runEntryAction}
-  >
-    {#snippet titleContent(entry)}
-      <span
-        class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)]"
-        aria-live="polite"
-        title={entry.available
-          ? t('app.library.libraries.available')
-          : t('app.library.libraries.unavailable')}
-        aria-label={entry.available
-          ? t('app.library.libraries.available')
-          : t('app.library.libraries.unavailable')}
+  <!--
+    Две колонки на всю доступную ширину: слева карточка выбранной библиотеки,
+    справа список. Карточка остаётся на месте при прокрутке списка, поэтому
+    выбранная библиотека не уезжает из виду, а список забирает всё остальное
+    пространство окна и не оставляет пустую полосу справа.
+  -->
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:gap-6">
+    {#if pickedEntry}
+      <aside
+        class="flex w-full shrink-0 flex-col gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:sticky lg:top-0 lg:w-[22rem] lg:self-start wide:w-[26rem]"
+        data-testid="library-card"
       >
-        {#if openingPath === entry.path}
-          <Spinner class="h-3.5 w-3.5 text-[var(--primary)]" />
-        {:else if entry.available}
-          <Icon name="check" class="h-3.5 w-3.5 text-[var(--success)]" />
-        {:else}
-          <Icon name="close" class="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
-        {/if}
-      </span>
-      <strong class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
-        {libraryName(entry.path)}
-      </strong>
-      {#if activePath === entry.path}
-        <Badge variant="default">{t('app.library.libraries.current')}</Badge>
-      {/if}
-    {/snippet}
+        <div class="flex flex-col gap-1">
+          <span class="role-caption text-[var(--muted-foreground)]">
+            {t('app.library.libraries.card.title')}
+          </span>
+          <h2 class="m-0 break-words role-heading text-[var(--foreground)]">
+            {libraryName(pickedEntry.path)}
+          </h2>
+        </div>
 
-    {#snippet trailing(entry)}
-      <Badge variant="outline">{entry.providerName}</Badge>
-    {/snippet}
-  </EntityList>
+        <div class="flex flex-wrap items-center gap-2">
+          <Badge variant={pickedEntry.available ? 'outline' : 'muted'}>
+            {pickedEntry.available
+              ? t('app.library.libraries.available')
+              : t('app.library.libraries.unavailable')}
+          </Badge>
+          <Badge variant="outline">{pickedEntry.providerName}</Badge>
+          {#if activePath === pickedEntry.path}
+            <Badge variant="default">{t('app.library.libraries.current')}</Badge>
+          {/if}
+        </div>
+
+        <dl class="m-0 flex flex-col gap-2">
+          <div class="flex flex-col gap-0.5">
+            <dt class="role-caption text-[var(--muted-foreground)]">
+              {t('app.library.libraries.location')}
+            </dt>
+            <dd class="m-0 break-all font-mono text-xs text-[var(--foreground)]">
+              {pickedEntry.path}
+            </dd>
+          </div>
+          {#if pickedEntry.addedAtMillis}
+            <div class="flex flex-col gap-0.5">
+              <dt class="role-caption text-[var(--muted-foreground)]">
+                {t('app.library.libraries.openedLabel')}
+              </dt>
+              <dd class="m-0 role-body">
+                {formatDateTime(pickedEntry.addedAtMillis)}
+              </dd>
+            </div>
+          {/if}
+        </dl>
+
+        <div class="mt-auto flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={opening || !pickedEntry.available}
+            testId="library-card-open"
+            onclick={() => void openLibrary(pickedEntry.path)}
+          >
+            {#if openingPath === pickedEntry.path}
+              <Spinner class="h-4 w-4" />
+            {/if}
+            {t('app.library.libraries.open')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!pickedEntry.available}
+            testId="library-card-folder"
+            onclick={() => void openFolder(pickedEntry.path)}
+          >
+            <Icon name="folder" />
+            {t('app.library.libraries.openFolder')}
+          </Button>
+        </div>
+      </aside>
+    {/if}
+
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <EntityList
+        items={filtered}
+        key={(entry) => entry.path}
+        itemTestId="library-item"
+        notFound={entries.length > 0 && filtered.length === 0}
+        notFoundTestId="libraries-not-found"
+        disabled={(entry) => !entry.available || opening}
+        selected={(entry) => entry.path === pickedEntry?.path}
+        onSelect={(entry) => void openLibrary(entry.path)}
+        metaItems={metaItems}
+        metaTestId="library-meta"
+        actions={entryActions}
+        actionsLabel={t('app.library.libraries.actionsLabel')}
+        onAction={runEntryAction}
+      >
+        {#snippet titleContent(entry)}
+          <span
+            class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)]"
+            aria-live="polite"
+            title={entry.available
+              ? t('app.library.libraries.available')
+              : t('app.library.libraries.unavailable')}
+            aria-label={entry.available
+              ? t('app.library.libraries.available')
+              : t('app.library.libraries.unavailable')}
+          >
+            {#if openingPath === entry.path}
+              <Spinner class="h-3.5 w-3.5 text-[var(--primary)]" />
+            {:else if entry.available}
+              <Icon name="check" class="h-3.5 w-3.5 text-[var(--success)]" />
+            {:else}
+              <Icon name="close" class="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
+            {/if}
+          </span>
+          <strong class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
+            {libraryName(entry.path)}
+          </strong>
+          {#if activePath === entry.path}
+            <Badge variant="default">{t('app.library.libraries.current')}</Badge>
+          {/if}
+        {/snippet}
+
+        {#snippet trailing(entry)}
+          <Badge variant="outline">{entry.providerName}</Badge>
+        {/snippet}
+      </EntityList>
+    </div>
+  </div>
 </PageShell>

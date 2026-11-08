@@ -41,9 +41,30 @@ describe('список библиотек', () => {
     render(LibrariesPage);
 
     await waitFor(() => expect(screen.getByTestId('library-item')).toBeTruthy());
-    // Кнопка добавляет новую библиотеку в список, а не открывает выбранную.
+    // Кнопка полосы добавляет новую библиотеку, а не открывает выбранную:
+    // открытие выбранной — отдельная кнопка карточки.
     expect(screen.getByRole('button', { name: /Добавить/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Открыть библиотеку/ })).toBeNull();
+    expect(screen.getByTestId('library-card-open')).toBeTruthy();
+  });
+
+  it('показывает выбранную библиотеку карточкой слева от списка', async () => {
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getByTestId('library-card')).toBeTruthy());
+    const card = screen.getByTestId('library-card');
+    // Карточка называет библиотеку, её путь и состояние доступности.
+    expect(card.textContent).toContain('demo-library');
+    expect(card.textContent).toContain('/demo-library');
+    expect(card.textContent).toContain('Доступна');
+
+    // Открытие выбранной библиотеки — действием карточки.
+    await fireEvent.click(screen.getByTestId('library-card-open'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        'select_source_library',
+        expect.objectContaining({ path: '/demo-library' }),
+      ),
+    );
   });
 
   it('пункт меню открывает директорию библиотеки, а не саму библиотеку', async () => {
@@ -97,5 +118,74 @@ describe('счётчик найденных библиотек', () => {
     await waitFor(() =>
       expect(screen.getByTestId('libraries-filter-counter').textContent).toContain('1 из 2'),
     );
+  });
+});
+
+describe('порядок списка библиотек', () => {
+  /** История из трёх библиотек с разным временем открытия. */
+  function history() {
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/lib/alpha',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1_000,
+              available: true,
+            },
+            {
+              path: '/lib/zeta',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 3_000,
+              available: true,
+            },
+            {
+              path: '/lib/beta',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 2_000,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return { path: '/lib/zeta', provider_name: 'books-source' };
+      }
+      return null;
+    });
+  }
+
+  /** Названия строк списка в порядке показа. */
+  function names(): string[] {
+    return screen
+      .getAllByTestId('library-name')
+      .map((element) => element.textContent?.trim() ?? '');
+  }
+
+  it('свежие библиотеки идут первыми', async () => {
+    history();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(3));
+    // По умолчанию — по времени открытия, свежие сверху.
+    expect(names()).toEqual(['zeta', 'beta', 'alpha']);
+  });
+
+  it('сортировка по алфавиту ставит библиотеки по имени', async () => {
+    history();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(3));
+    // Триггер списка подписан доступным именем, значение — выбранный порядок.
+    await fireEvent.pointerDown(screen.getByRole('button', { name: 'Порядок библиотек' }), {
+      button: 0,
+    });
+    await fireEvent.pointerUp(screen.getByRole('option', { name: 'По алфавиту' }));
+
+    await waitFor(() => expect(names()).toEqual(['alpha', 'beta', 'zeta']));
   });
 });

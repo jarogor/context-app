@@ -274,6 +274,12 @@ export const ru = {
   'app.library.libraries.empty.description':
     'Откройте директорию с книгами — она появится в списке, и по ней построится каталог.',
   'app.library.libraries.addShort': 'Добавить',
+  'app.library.libraries.open': 'Открыть библиотеку',
+  'app.library.libraries.openedLabel': 'Последнее открытие',
+  'app.library.libraries.card.title': 'Выбранная библиотека',
+  'app.library.libraries.sort.label': 'Порядок библиотек',
+  'app.library.libraries.sort.opened': 'По времени открытия',
+  'app.library.libraries.sort.name': 'По алфавиту',
   'app.library.libraries.add': 'Добавить библиотеку',
   'app.library.libraries.openFolder': 'Открыть папку',
   'app.library.libraries.search': 'Поиск библиотеки',

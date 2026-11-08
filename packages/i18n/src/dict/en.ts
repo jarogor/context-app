@@ -290,6 +290,12 @@ export const en: Dictionary = {
   'app.library.libraries.empty.description':
     'Open a directory with books — it will appear in the list and a catalog will be built for it.',
   'app.library.libraries.addShort': 'Add',
+  'app.library.libraries.open': 'Open library',
+  'app.library.libraries.openedLabel': 'Last opened',
+  'app.library.libraries.card.title': 'Selected library',
+  'app.library.libraries.sort.label': 'Library order',
+  'app.library.libraries.sort.opened': 'By last opened',
+  'app.library.libraries.sort.name': 'Alphabetically',
   'app.library.libraries.add': 'Add library',
   'app.library.libraries.openFolder': 'Open folder',
   'app.library.libraries.search': 'Library search',

@@ -69,6 +69,12 @@
     testId?: string;
     /** Дополнительные классы области прокрутки. */
     class?: string;
+    /**
+     * Ширина содержимого: `content` — общий предел страницы (по умолчанию),
+     * `full` — вся доступная ширина окна. Полная ширина нужна разделам, где
+     * список и карточка делят пространство и предел оставлял бы пустоту справа.
+     */
+    width?: 'content' | 'full';
   }
 
   let {
@@ -96,6 +102,7 @@
     emptyTestId,
     testId,
     class: className = '',
+    width = 'content',
   }: Props = $props();
 
   /** Текущее состояние содержимого каркаса. */
@@ -173,7 +180,9 @@
   <div class="relative flex min-h-0 min-w-0 flex-1">
     <ScrollArea class={className}>
       <div
-        class="flex w-full max-w-[var(--content-max-width)] flex-col gap-4 px-4 py-4 md:px-6 md:py-5"
+        class="flex w-full flex-col gap-4 px-4 py-4 md:px-6 md:py-5 {width === 'full'
+          ? ''
+          : 'max-w-[var(--content-max-width)]'}"
       >
         {@render content()}
       </div>
