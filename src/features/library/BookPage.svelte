@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { BookCover, Button, ErrorState, Icon, Input, Textarea } from '@context/ui';
+  import { BookCover, Button, ErrorState, Icon, Input, PathField, Textarea } from '@context/ui';
   import { t } from '@context/i18n';
   import { formatBytes, formatDateTime } from '../../shared/format';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
@@ -177,33 +177,6 @@
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       commitActive();
-    }
-  }
-
-  /** Скопирован ли путь к файлу: подтверждение живёт короткое время. */
-  let pathCopied = $state(false);
-
-  /** Таймер снятия подтверждения копирования. */
-  let pathCopiedTimer: ReturnType<typeof setTimeout> | undefined;
-
-  /**
-   * Копирование пути к файлу в буфер обмена.
-   *
-   * Буфер может быть недоступен (нет разрешения или небезопасный контекст) —
-   * это не ошибка страницы: подтверждение просто не показывается.
-   */
-  async function copyPath() {
-    const value = path.trim();
-    if (!value || typeof navigator === 'undefined' || !navigator.clipboard) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(value);
-      pathCopied = true;
-      clearTimeout(pathCopiedTimer);
-      pathCopiedTimer = setTimeout(() => (pathCopied = false), 1500);
-    } catch {
-      /* Буфер обмена недоступен — копирование пропускается. */
     }
   }
 
@@ -994,34 +967,13 @@
                 {/if}
               </div>
               {#if path}
-                <!--
-                  Путь — единая строка: моноширинный текст на врезке, чтобы
-                  пробелы и переносы не разваливали его на куски и было видно
-                  границы значения. Копирование — слева, до самого пути.
-                -->
-                <div
-                  class="flex min-w-0 items-start gap-2 rounded-[var(--radius)] bg-[var(--surface-inset)] px-2 py-1.5"
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="-my-1 shrink-0 px-1"
-                    title={pathCopied
-                      ? t('app.library.book.pathCopied')
-                      : t('app.library.book.copyPath')}
-                    ariaLabel={t('app.library.book.copyPath')}
-                    testId="book-copy-path"
-                    onclick={copyPath}
-                  >
-                    <Icon name={pathCopied ? 'check' : 'copy'} class="h-3.5 w-3.5" />
-                  </Button>
-                  <span
-                    class="min-w-0 break-all font-mono text-[0.7rem] leading-[1.5] text-[var(--muted-foreground)]"
-                    data-testid="book-property-path"
-                  >
-                    {path}
-                  </span>
-                </div>
+                <!-- Путь — общий компонент системы: отдельная врезка на адрес
+                     и отдельное действие копирования. -->
+                <PathField
+                  value={path}
+                  label={t('app.library.book.path')}
+                  testId="book-property-path"
+                />
               {/if}
             </section>
           {/if}

@@ -181,7 +181,7 @@
     <ScrollArea class={className}>
       <div
         class="flex w-full flex-col gap-4 px-4 py-4 md:px-6 md:py-5 {width === 'full'
-          ? ''
+          ? 'h-full min-h-0'
           : 'max-w-[var(--content-max-width)]'}"
       >
         {@render content()}
