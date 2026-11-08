@@ -83,13 +83,8 @@
     sortDirection = sortField === 'name' ? 'asc' : 'desc';
   }
 
-  /** Библиотека, показанная в карточке: выбранная или первая в списке. */
-  let pickedPath = $state<string | null>(null);
-
-  /** Карточка показывает активную библиотеку, а без неё — выбранную строкой. */
-  const pickedEntry = $derived(
-    entries.find((entry) => entry.path === (activePath ?? pickedPath)) ?? null,
-  );
+  /** Открытая библиотека: единственная, что показана карточкой. */
+  const openedEntry = $derived(entries.find((entry) => entry.path === activePath) ?? null);
 
   /** Идёт ли открытие библиотеки. */
   const opening = $derived(openingPath !== null);
@@ -99,12 +94,15 @@
     openingPath !== null && !entries.some((entry) => entry.path === openingPath),
   );
 
-  /** Записи истории, отфильтрованные поиском и упорядоченные выбранным полем. */
+  /** Записи истории без открытой: она показана карточкой, а не строкой списка. */
+  const others = $derived(entries.filter((entry) => entry.path !== activePath));
+
+  /** Записи списка, отфильтрованные поиском и упорядоченные выбранным полем. */
   const filtered = $derived.by(() => {
     const needle = query.trim().toLowerCase();
     const found = needle
-      ? entries.filter((entry) => libraryName(entry.path).toLowerCase().includes(needle))
-      : [...entries];
+      ? others.filter((entry) => libraryName(entry.path).toLowerCase().includes(needle))
+      : [...others];
     const factor = sortDirection === 'asc' ? 1 : -1;
     return found.sort((left, right) => {
       if (sortField === 'name') {
@@ -297,29 +295,38 @@
   {/snippet}
 
   {#snippet controls()}
-    <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-none">
+    <!--
+      Полоса управления: на телефоне поиск занимает всю строку, сортировка
+      встаёт под ним во всю ширину. На широком окне они идут одним рядом и не
+      сжимают друг друга.
+    -->
+    <div
+      class="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-none sm:flex-row sm:items-center"
+    >
       <Input
         bind:value={query}
         placeholder={t('app.search.library.placeholder')}
         ariaLabel={t('app.search.library.placeholder')}
         icon="search"
         clearable
-        class="min-w-0 flex-1 sm:w-[24rem] sm:flex-none"
+        class="min-w-0 flex-1 sm:w-[22rem] sm:flex-none"
       />
-      <!-- Счётчик рядом с поиском — тот же, что в списке рабочих мест. -->
-      <span
-        class="mx-1 flex-none role-caption text-[var(--muted-foreground)]"
-        data-testid="libraries-filter-counter"
-      >
-        {t('app.search.filter', { shown: filtered.length, total: entries.length })}
-      </span>
-      <Select
-        value={sortField}
-        items={sortOptions}
-        ariaLabel={t('app.library.libraries.sort.label')}
-        class="w-[13rem]"
-        onchange={(value) => chooseSort(value)}
-      />
+      <div class="flex min-w-0 items-center gap-2">
+        <!-- Счётчик рядом с поиском — тот же, что в списке рабочих мест. -->
+        <span
+          class="flex-none role-caption text-[var(--muted-foreground)]"
+          data-testid="libraries-filter-counter"
+        >
+          {t('app.search.filter', { shown: filtered.length, total: others.length })}
+        </span>
+        <Select
+          value={sortField}
+          items={sortOptions}
+          ariaLabel={t('app.library.libraries.sort.label')}
+          class="w-full min-w-0 sm:w-[15rem]"
+          onchange={(value) => chooseSort(value)}
+        />
+      </div>
     </div>
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
       <Button
@@ -355,83 +362,65 @@
   {/if}
 
   <!--
-    Две колонки на всю доступную ширину: слева карточка выбранной библиотеки,
-    справа список. Карточка остаётся на месте при прокрутке списка, поэтому
-    выбранная библиотека не уезжает из виду, а список забирает всё остальное
-    пространство окна и не оставляет пустую полосу справа.
+    Две колонки на всю доступную ширину: слева карточка открытой библиотеки,
+    справа список остальных. Открытая библиотека в списке не повторяется — она
+    уже показана карточкой. Карточка остаётся на месте при прокрутке списка, а
+    список забирает всё остальное пространство окна.
   -->
   <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:gap-6">
-    {#if pickedEntry}
+    {#if openedEntry}
       <aside
-        class="flex w-full shrink-0 flex-col gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:sticky lg:top-0 lg:w-[22rem] lg:self-start wide:w-[26rem]"
+        class="flex w-full shrink-0 flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:sticky lg:top-0 lg:w-[22rem] lg:self-start wide:w-[26rem]"
         data-testid="library-card"
       >
-        <div class="flex flex-col gap-1">
-          <span class="role-caption text-[var(--muted-foreground)]">
-            {t('app.library.libraries.card.title')}
-          </span>
+        <!-- Название — действие открытия: карточка говорит об открытой
+             библиотеке, и переход к её книгам начинается отсюда. -->
+        <button
+          type="button"
+          class="cursor-pointer self-start rounded-[var(--radius)] bg-transparent p-0 text-left transition-colors [font:inherit] hover:text-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
+          title={t('app.library.libraries.open')}
+          data-testid="library-card-open"
+          onclick={() => void openLibrary(openedEntry.path)}
+        >
           <h2 class="m-0 break-words role-heading text-[var(--foreground)]">
-            {libraryName(pickedEntry.path)}
+            {libraryName(openedEntry.path)}
           </h2>
-        </div>
+        </button>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <Badge variant={pickedEntry.available ? 'outline' : 'muted'}>
-            {pickedEntry.available
-              ? t('app.library.libraries.available')
-              : t('app.library.libraries.unavailable')}
-          </Badge>
-          <Badge variant="outline">{pickedEntry.providerName}</Badge>
-          {#if activePath === pickedEntry.path}
-            <Badge variant="default">{t('app.library.libraries.current')}</Badge>
-          {/if}
-        </div>
+        <Badge variant="outline" class="self-start">{openedEntry.providerName}</Badge>
 
         <dl class="m-0 flex flex-col gap-2">
           <div class="flex flex-col gap-0.5">
             <dt class="role-caption text-[var(--muted-foreground)]">
-              {t('app.library.libraries.location')}
+              {t('app.library.libraries.locationShort')}
             </dt>
             <dd class="m-0 break-all font-mono text-xs text-[var(--foreground)]">
-              {pickedEntry.path}
+              {openedEntry.path}
             </dd>
           </div>
-          {#if pickedEntry.addedAtMillis}
+          {#if openedEntry.addedAtMillis}
             <div class="flex flex-col gap-0.5">
               <dt class="role-caption text-[var(--muted-foreground)]">
                 {t('app.library.libraries.openedLabel')}
               </dt>
               <dd class="m-0 role-body">
-                {formatDateTime(pickedEntry.addedAtMillis)}
+                {formatDateTime(openedEntry.addedAtMillis)}
               </dd>
             </div>
           {/if}
         </dl>
 
-        <div class="mt-auto flex flex-wrap items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={opening || !pickedEntry.available}
-            testId="library-card-open"
-            onclick={() => void openLibrary(pickedEntry.path)}
-          >
-            {#if openingPath === pickedEntry.path}
-              <Spinner class="h-4 w-4" />
-            {/if}
-            {t('app.library.libraries.open')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!pickedEntry.available}
-            testId="library-card-folder"
-            onclick={() => void openFolder(pickedEntry.path)}
-          >
-            <Icon name="folder" />
-            {t('app.library.libraries.openFolder')}
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="self-start"
+          disabled={!openedEntry.available}
+          testId="library-card-folder"
+          onclick={() => void openFolder(openedEntry.path)}
+        >
+          <Icon name="folder" />
+          {t('app.library.libraries.openFolder')}
+        </Button>
       </aside>
     {/if}
 
@@ -440,10 +429,9 @@
         items={filtered}
         key={(entry) => entry.path}
         itemTestId="library-item"
-        notFound={entries.length > 0 && filtered.length === 0}
+        notFound={others.length > 0 && filtered.length === 0}
         notFoundTestId="libraries-not-found"
         disabled={(entry) => !entry.available || opening}
-        selected={(entry) => entry.path === pickedEntry?.path}
         onSelect={(entry) => void openLibrary(entry.path)}
         metaItems={metaItems}
         metaTestId="library-meta"
@@ -473,9 +461,6 @@
           <strong class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
             {libraryName(entry.path)}
           </strong>
-          {#if activePath === entry.path}
-            <Badge variant="default">{t('app.library.libraries.current')}</Badge>
-          {/if}
         {/snippet}
 
         {#snippet trailing(entry)}

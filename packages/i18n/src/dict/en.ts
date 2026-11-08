@@ -307,6 +307,7 @@ export const en: Dictionary = {
   'app.library.libraries.opened': 'Last opened {date}',
   'app.library.libraries.actionsLabel': 'Library actions',
   'app.library.libraries.location': 'Directory with books',
+  'app.library.libraries.locationShort': 'Directory',
   'app.library.libraries.remove': 'Remove library',
   'app.library.book.back': 'Back to the book list',
   'app.library.book.formatUnsupported': 'Format is not supported.',

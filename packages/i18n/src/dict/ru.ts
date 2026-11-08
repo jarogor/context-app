@@ -291,6 +291,7 @@ export const ru = {
   'app.library.libraries.opened': 'Последнее открытие {date}',
   'app.library.libraries.actionsLabel': 'Действия с библиотекой',
   'app.library.libraries.location': 'Директория с книгами',
+  'app.library.libraries.locationShort': 'Директория',
   'app.library.libraries.remove': 'Убрать библиотеку',
   'app.library.book.back': 'К списку книг',
   'app.library.book.formatUnsupported': 'Формат не поддерживается.',

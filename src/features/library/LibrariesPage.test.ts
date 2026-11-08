@@ -44,20 +44,48 @@ describe('список библиотек', () => {
     // Кнопка полосы добавляет новую библиотеку, а не открывает выбранную:
     // открытие выбранной — отдельная кнопка карточки.
     expect(screen.getByRole('button', { name: /Добавить/ })).toBeTruthy();
-    expect(screen.getByTestId('library-card-open')).toBeTruthy();
   });
 
-  it('показывает выбранную библиотеку карточкой слева от списка', async () => {
+  it('показывает открытую библиотеку карточкой, а список — без неё', async () => {
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/demo-library',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1_700_000_000_000,
+              available: true,
+            },
+            {
+              path: '/other-library',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1_700_000_001_000,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return { path: '/demo-library', provider_name: 'books-source' };
+      }
+      return null;
+    });
     render(LibrariesPage);
 
     await waitFor(() => expect(screen.getByTestId('library-card')).toBeTruthy());
     const card = screen.getByTestId('library-card');
-    // Карточка называет библиотеку, её путь и состояние доступности.
     expect(card.textContent).toContain('demo-library');
     expect(card.textContent).toContain('/demo-library');
-    expect(card.textContent).toContain('Доступна');
+    // Открытая библиотека не повторяется строкой списка.
+    const rows = screen
+      .getAllByTestId('library-name')
+      .map((element) => element.textContent?.trim());
+    expect(rows).toEqual(['other-library']);
 
-    // Открытие выбранной библиотеки — действием карточки.
+    // Название карточки открывает библиотеку: отдельной кнопки нет.
     await fireEvent.click(screen.getByTestId('library-card-open'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith(
@@ -68,6 +96,32 @@ describe('список библиотек', () => {
   });
 
   it('пункт меню открывает директорию библиотеки, а не саму библиотеку', async () => {
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/demo-library',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1_700_000_000_000,
+              available: true,
+            },
+            {
+              path: '/other-library',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1_700_000_001_000,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return { path: '/demo-library', provider_name: 'books-source' };
+      }
+      return null;
+    });
     render(LibrariesPage);
 
     await waitFor(() => expect(screen.getByTestId('library-item')).toBeTruthy());
@@ -77,7 +131,7 @@ describe('список библиотек', () => {
     // Клик по строке открывает библиотеку; пункт меню делает то, чего клик не
     // умеет, — показывает её директорию в файловом менеджере.
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('open_folder', { path: '/demo-library' }),
+      expect(invoke).toHaveBeenCalledWith('open_folder', { path: '/other-library' }),
     );
     expect(invoke).not.toHaveBeenCalledWith('select_source_library', expect.anything());
   });
@@ -153,7 +207,8 @@ describe('порядок списка библиотек', () => {
         };
       }
       if (command === 'active_library') {
-        return { path: '/lib/zeta', provider_name: 'books-source' };
+        // Открытая библиотека показана карточкой, поэтому в списке её нет.
+        return null;
       }
       return null;
     });
