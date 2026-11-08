@@ -39,6 +39,9 @@ pub struct BookPropertyEntry {
     /// Идентификатор издания.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identifier: Option<String>,
+    /// Описание книги, заданное пользователем.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     /// Пользовательские теги книги.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
@@ -58,6 +61,7 @@ impl BookPropertyEntry {
             && self.published.is_none()
             && self.publisher.is_none()
             && self.identifier.is_none()
+            && self.description.is_none()
             && self.tags.is_empty()
     }
 }

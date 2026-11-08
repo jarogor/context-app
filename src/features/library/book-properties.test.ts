@@ -63,7 +63,14 @@ describe('пользовательские свойства книг', () => {
   it('накладывает правку поверх источника: теги правки заменяют теги файла', () => {
     const merged = applyBookProperties(
       [book()],
-      { '/lib/a.epub': { title: 'Новое название', authors: ['Пётр'], tags: ['мой тег'] } },
+      {
+        '/lib/a.epub': {
+          title: 'Новое название',
+          authors: ['Пётр'],
+          description: 'Своё описание',
+          tags: ['мой тег'],
+        },
+      },
       () => '/lib/a.epub',
     );
 
@@ -71,6 +78,8 @@ describe('пользовательские свойства книг', () => {
     expect(merged[0].authors).toEqual([{ name: 'Пётр' }]);
     // Теги у книги одни: правка заменяет теги файла.
     expect(merged[0].tags).toEqual([{ name: 'мой тег' }]);
+    // Описание правится как любое другое свойство.
+    expect(merged[0].description).toBe('Своё описание');
     expect(merged[0].language).toBe('ru');
   });
 

@@ -53,7 +53,7 @@ fn document_carries_mark_and_version() {
     let text = fs::read_to_string(root.join("book-properties.json")).expect("файл");
     let value: serde_json::Value = serde_json::from_str(&text).expect("json");
     assert_eq!(value["format"], "context.book-properties");
-    assert_eq!(value["version"], 1);
+    assert_eq!(value["version"], 2);
     assert_eq!(
         value["books"]["/lib/Книга.epub"]["title"],
         "Уточнённое название"
@@ -67,7 +67,7 @@ fn newer_document_is_rejected() {
         root.join("book-properties.json"),
         json!({
             "format": "context.book-properties",
-            "version": 2,
+            "version": 3,
             "books": {}
         })
         .to_string(),

@@ -156,15 +156,33 @@ pub static NOTES_SET: DocumentKind = DocumentKind {
 };
 
 /// Пользовательские свойства книг: правки и теги поверх источника.
+///
+/// Версия 2 добавила описание книги; документ версии 1 читается как есть —
+/// недостающее поле берётся из источника.
 pub static BOOK_PROPERTIES: DocumentKind = DocumentKind {
     format: "context.book-properties",
     schema_name: "book-properties",
     owner: Owner::Core,
-    versions: &[DocumentVersion::only(
-        1,
-        include_str!("../../../schemas/v1/book-properties.schema.json"),
-    )],
+    versions: &[
+        DocumentVersion {
+            version: 1,
+            schema: include_str!("../../../schemas/v1/book-properties.schema.json"),
+            upgrade: Some(upgrade_book_properties_1),
+        },
+        DocumentVersion::only(
+            2,
+            include_str!("../../../schemas/v2/book-properties.schema.json"),
+        ),
+    ],
 };
+
+/// Приведение свойств книги версии 1 к версии 2: добавляется описание.
+///
+/// Поле отсутствует у старых записей, а отсутствие означает «как в файле», —
+/// поэтому добавлять в записи нечего: форма документа уже совместима.
+fn upgrade_book_properties_1(_value: &mut serde_json::Value) -> Result<(), String> {
+    Ok(())
+}
 
 pub static ALL: [&DocumentKind; 13] = [
     &WORKSPACES,

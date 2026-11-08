@@ -224,3 +224,144 @@ test('возврат к списку сохраняет поиск', async ({ pa
   await expect(library.getByPlaceholder('Название или автор')).toHaveValue('Демо');
   await expect(library.getByText('Вторая книга')).toBeHidden();
 });
+
+/** Книга с заполненными свойствами для сценариев страницы. */
+const FULL_BOOK = {
+  id: 'full',
+  title: 'Книга с авторами',
+  authors: ['Первый автор', 'Второй автор'],
+  tags: ['философия'],
+  language: 'ru',
+  published: '2019-05-01',
+  publisher: 'Издательский дом',
+  identifier: 'urn:isbn:978-5-00000-000-0',
+  description: 'Описание книги для проверки правки по месту.',
+  size: 2048000,
+  added_at_ms: 1700000000000,
+  files: [{ kind: 'book', path: 'full.epub', format: 'epub' }],
+};
+
+/** Открытие страницы книги с заданным каталогом. */
+async function openBookPage(
+  page: import('@playwright/test').Page,
+  books: unknown[],
+  title: RegExp,
+  formats: string[] = ['epub'],
+) {
+  await page.addInitScript(
+    ({ catalog, readerFormats }) => {
+      // Правки свойств копятся в памяти: ядро в моке хранит тот же документ.
+      const stored: Record<string, unknown> = {};
+      (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
+        handlers: {
+          active_library: () => ({ path: '/demo-library', provider_name: 'books-source' }),
+          reader_formats: () => readerFormats,
+          invoke_plugin_operation: () => ({ catalog: { books: catalog } }),
+          book_properties_get: () => stored,
+          book_properties_set: (payload: unknown) => {
+            const message = payload as { path?: string; properties?: Record<string, unknown> };
+            const path = String(message.path ?? '');
+            const properties = message.properties ?? {};
+            const hasValue = Object.values(properties).some((value) =>
+              Array.isArray(value) ? value.length > 0 : value !== undefined && value !== '',
+            );
+            if (path && hasValue) {
+              stored[path] = properties;
+            } else if (path) {
+              delete stored[path];
+            }
+            return stored;
+          },
+        },
+      };
+    },
+    { catalog: books, readerFormats: formats },
+  );
+  await page.goto('/');
+  await showLibraryBookList(page);
+  const library = page.locator('main');
+  await library.getByRole('button', { name: title }).first().click();
+  await expect(library.getByTestId('book-page')).toBeVisible();
+  return library;
+}
+
+test('все форматы книги равноправны: у каждого свои действия', async ({ page }) => {
+  const library = await openBookPage(
+    page,
+    [
+      {
+        id: 'multi',
+        title: 'Книга с двумя файлами',
+        authors: [],
+        tags: [],
+        files: [
+          { kind: 'book', path: 'multi.epub', format: 'epub' },
+          { kind: 'book', path: 'multi.pdf', format: 'pdf' },
+        ],
+      },
+    ],
+    /Книга с двумя файлами/,
+    ['epub', 'pdf'],
+  );
+
+  // Ни «основного» формата, ни группы «другие файлы»: строки одинаковы.
+  await expect(library.getByTestId('book-other-formats')).toHaveCount(0);
+  for (const format of ['epub', 'pdf']) {
+    const row = library.getByTestId(`book-format-${format}`);
+    await expect(row.getByTestId(`book-read-${format}`)).toBeVisible();
+    await expect(row.getByRole('button', { name: 'Открыть' })).toBeVisible();
+  }
+});
+
+test('режим правки открывает каждое поле своим действием', async ({ page }) => {
+  const library = await openBookPage(page, [FULL_BOOK], /Книга с авторами/);
+
+  // Обычный режим: значения только читаются, названия разделов на месте.
+  await expect(library.getByTestId('book-edit-save')).toHaveCount(0);
+  await expect(library.getByTestId('book-description')).toBeVisible();
+
+  const toggle = library.getByTestId('book-edit-toggle');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+  // Авторы правятся по одному, описание — отдельным действием.
+  await expect(library.getByTestId('book-author-0').getByLabel('Изменить: автор')).toBeVisible();
+  await expect(library.getByTestId('book-author-1').getByLabel('Изменить: автор')).toBeVisible();
+  await expect(library.getByLabel('Изменить: описание')).toBeVisible();
+  await expect(library.getByLabel('Изменить: Издатель')).toBeVisible();
+});
+
+test('правка по месту не сбрасывает значения соседних полей', async ({ page }) => {
+  const library = await openBookPage(page, [FULL_BOOK], /Книга с авторами/);
+  await library.getByTestId('book-edit-toggle').click();
+
+  // Правка названия сохраняется, а издатель остаётся прежним.
+  await library.getByLabel('Изменить: Название').click();
+  const titleField = library.getByLabel('Название');
+  await titleField.fill('Уточнённое название');
+  await library.getByTestId('book-edit-save').click();
+
+  await expect(library.getByTestId('book-title')).toHaveText('Уточнённое название');
+  await expect(library.getByTestId('book-property-publisher')).toHaveText('Издательский дом');
+});
+
+test('на телефоне действие и содержание доступны без прокрутки вправо', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const library = await openBookPage(page, [FULL_BOOK], /Книга с авторами/);
+
+  // Обложка и главное действие в первом экране: книга и «Читать» видны сразу.
+  const cover = library.getByTestId('book-page').locator('img, svg').first();
+  await expect(cover).toBeVisible();
+  const read = library.getByTestId('book-read-epub');
+  await expect(read).toBeVisible();
+  const box = await read.boundingBox();
+  expect(box!.y).toBeLessThan(520);
+
+  // Горизонтальной прокрутки нет.
+  const overflow = await library.getByTestId('book-page').evaluate((element) => {
+    const scroller = element.querySelector('[class*="overflow-y-auto"]') ?? element;
+    return scroller.scrollWidth - scroller.clientWidth;
+  });
+  expect(overflow).toBeLessThanOrEqual(1);
+});

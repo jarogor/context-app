@@ -22,6 +22,8 @@ export interface BookPropertyEntry {
   publisher?: string;
   /** Идентификатор издания. */
   identifier?: string;
+  /** Описание книги, заданное пользователем. */
+  description?: string;
   /** Пользовательские теги книги. */
   tags?: string[];
   /** Когда правка сделана (Unix, мс). */
@@ -45,6 +47,8 @@ interface RawEntry {
   publisher?: unknown;
   /** Идентификатор издания. */
   identifier?: unknown;
+  /** Описание книги. */
+  description?: unknown;
   /** Пользовательские теги. */
   tags?: unknown;
   /** Время правки. */
@@ -77,6 +81,7 @@ function normalizeProperties(response: Record<string, RawEntry> | null): BookPro
       published: text(raw.published),
       publisher: text(raw.publisher),
       identifier: text(raw.identifier),
+      description: text(raw.description),
       tags: textList(raw.tags),
       updatedAtMillis:
         typeof raw.updated_at_millis === 'number' ? raw.updated_at_millis : undefined,
@@ -89,6 +94,7 @@ function normalizeProperties(response: Record<string, RawEntry> | null): BookPro
       entry.published ||
       entry.publisher ||
       entry.identifier ||
+      entry.description ||
       entry.tags
     ) {
       result[path] = entry;
@@ -137,6 +143,7 @@ export function applyBookProperties<T extends Book>(
       published: entry.published ?? book.published,
       publisher: entry.publisher ?? book.publisher,
       identifier: entry.identifier ?? book.identifier,
+      description: entry.description ?? book.description,
       // Теги у книги одни: правка заменяет теги файла целиком.
       tags: entry.tags ? entry.tags.map((name) => ({ name })) : book.tags,
     };
