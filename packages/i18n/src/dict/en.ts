@@ -304,6 +304,7 @@ export const en: Dictionary = {
   'app.library.libraries.available': 'Available',
   'app.library.libraries.unavailable': 'unavailable',
   'app.library.libraries.missing': 'missing',
+  'app.library.libraries.notFound': 'No libraries match the query.',
   'app.library.libraries.noSelection.title': 'No library selected',
   'app.library.libraries.noSelection.description':
     'Pick a library from the list or add a new one — it will open here.',

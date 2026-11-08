@@ -9,6 +9,8 @@
     badge?: string;
     /** Подпись-контекст (например, «Изменён»); нужна, когда дат несколько. */
     label?: string;
+    /** Подпись после значения (например, «отсутствует» у пути). */
+    labelAfter?: string;
     /** Значение метаинформации. */
     value: string;
     /** Выделить значение (например, «текущее»). */
@@ -19,6 +21,8 @@
     title?: string;
     /** Метка значения для тестов. */
     testId?: string;
+    /** Тон значения: обычный или предупреждающий (например, отсутствующий путь). */
+    tone?: 'danger';
   }
 </script>
 
@@ -67,6 +71,7 @@
         class={cn(
           'min-w-0 truncate',
           item.strong ? 'font-medium text-[var(--foreground)]' : '',
+          item.tone === 'danger' ? 'text-[var(--destructive)]' : '',
           item.mono
             ? 'rounded-[calc(var(--radius)*0.5)] bg-[var(--surface-inset)] px-1 font-mono text-[0.95em]'
             : '',
@@ -75,6 +80,9 @@
       >
         {item.value}
       </span>
+      {#if item.labelAfter}
+        <span class="shrink-0">{item.labelAfter}</span>
+      {/if}
     </span>
   {/each}
 </div>

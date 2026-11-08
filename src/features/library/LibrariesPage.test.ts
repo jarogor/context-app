@@ -295,19 +295,38 @@ describe('провайдер и отсутствующая библиотека'
     expect(text).not.toContain('books-source');
   });
 
-  it('помечает отсутствующую библиотеку и не даёт её открыть', async () => {
+  it('помечает отсутствие у пути и не даёт открыть библиотеку', async () => {
     history();
     render(LibrariesPage);
 
-    await waitFor(() => expect(screen.getByTestId('library-missing')).toBeTruthy());
-    const missing = screen.getByTestId('library-missing');
-    expect(missing.textContent).toContain('отсутствует');
+    await waitFor(() => expect(screen.getAllByTestId('library-meta')).toHaveLength(3));
+    // Подпись стоит рядом с путём: видно, чего именно нет.
+    const missingMeta = screen
+      .getAllByTestId('library-meta')
+      .find((element) => element.textContent?.includes('отсутствует'));
+    expect(missingMeta).toBeTruthy();
+    expect(missingMeta?.textContent).toContain('/lib/gone');
+    // Сам путь выделен предупреждающим тоном.
+    expect(missingMeta?.querySelector('[data-testid="library-path"]')?.className).toContain(
+      'text-[var(--destructive)]',
+    );
+  });
 
-    // Недоступная строка выключена: открыть её нельзя.
-    const row = missing.closest('[data-testid="library-item"]') as HTMLElement;
-    expect(
-      row.querySelector('[data-testid="library-item"] button')?.hasAttribute('disabled') ?? true,
-    ).toBe(true);
+  it('у отсутствующей библиотеки нет пункта открытия папки', async () => {
+    history();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(3));
+    const item = screen
+      .getAllByTestId('library-item')
+      .find((element) => element.textContent?.includes('gone')) as HTMLElement;
+
+    await fireEvent.click(
+      item.querySelector('[aria-label="Действия с библиотекой"]') as HTMLElement,
+    );
+    // Открывать нечего: в меню остаётся только удаление записи.
+    expect(await screen.findByRole('menuitem', { name: 'Убрать из списка' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Открыть папку' })).toBeNull();
   });
 });
 
@@ -339,5 +358,48 @@ describe('карточка без открытой библиотеки', () => 
     expect(screen.getByTestId('library-card').textContent).toContain('Библиотека не выбрана');
     // Выбор остаётся в списке: без открытой библиотеки он не сокращается.
     expect(screen.getAllByTestId('library-item')).toHaveLength(1);
+  });
+});
+
+describe('режим показа библиотек', () => {
+  it('переключается между списком и плиткой', async () => {
+    // Открытая библиотека показана карточкой, поэтому в списке нужна вторая.
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/demo-library',
+              provider: 'books-source',
+              provider_name: 'books-source',
+              added_at_millis: 1,
+              available: true,
+            },
+            {
+              path: '/other-library',
+              provider: 'books-source',
+              provider_name: 'books-source',
+              added_at_millis: 2,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return { path: '/demo-library', provider_name: 'books-source' };
+      }
+      return null;
+    });
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getByTestId('library-item')).toBeTruthy());
+    // По умолчанию — список.
+    expect(screen.queryByTestId('libraries-grid')).toBeNull();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Плитка' }));
+    await waitFor(() => expect(screen.getByTestId('libraries-grid')).toBeTruthy());
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Список' }));
+    await waitFor(() => expect(screen.queryByTestId('libraries-grid')).toBeNull());
   });
 });

@@ -65,6 +65,19 @@
   /** Строка поиска по имени библиотеки. */
   let query = $state('');
 
+  /** Режим показа библиотек: строки или плитка. */
+  let viewMode = $state<'list' | 'grid'>('list');
+
+  /** Запоминание режима показа в браузере: он переживает перезапуск. */
+  function chooseViewMode(mode: 'list' | 'grid') {
+    viewMode = mode;
+    try {
+      localStorage.setItem('libraries-view-mode', mode);
+    } catch {
+      /* Хранилище недоступно — режим остаётся в состоянии страницы. */
+    }
+  }
+
   /** Порядок списка: по имени или по времени последнего открытия. */
   let sortField = $state<'name' | 'opened'>('opened');
 
@@ -140,7 +153,7 @@
     return provider;
   }
 
-  /** Метаинформация записи истории: время открытия (иконкой) и путь. */
+  /** Метаинформация записи истории: время открытия и путь. */
   function metaItems(entry: HistoryEntry): MetaItem[] {
     const items: MetaItem[] = [];
     const opened = formatDateTime(entry.addedAtMillis);
@@ -152,7 +165,16 @@
       });
     }
     if (entry.path) {
-      items.push({ icon: 'folder', value: entry.path, title: entry.path });
+      items.push({
+        icon: 'folder',
+        value: entry.path,
+        title: entry.path,
+        testId: 'library-path',
+        // Отсутствующая библиотека помечается у самого пути: подпись рядом с
+        // путём объясняет, чего именно нет.
+        labelAfter: entry.available ? undefined : t('app.library.libraries.missing'),
+        tone: entry.available ? undefined : 'danger',
+      });
     }
     return items;
   }
@@ -166,12 +188,12 @@
    * чего клик не умеет.
    */
   function entryActions(entry: HistoryEntry): MenuAction[] {
+    // У отсутствующей библиотеки открывать нечего: остаётся только убрать запись.
+    if (!entry.available) {
+      return [{ id: 'forget', label: t('app.library.libraries.forget'), destructive: true }];
+    }
     return [
-      {
-        id: 'open-folder',
-        label: t('app.library.libraries.openFolder'),
-        disabled: !entry.available,
-      },
+      { id: 'open-folder', label: t('app.library.libraries.openFolder') },
       { id: 'forget', label: t('app.library.libraries.forget'), destructive: true },
     ];
   }
@@ -274,6 +296,15 @@
   }
 
   onMount(() => {
+    // Режим показа переживает перезапуск: он хранится в браузере, как у книг.
+    try {
+      const stored = localStorage.getItem('libraries-view-mode');
+      if (stored === 'list' || stored === 'grid') {
+        viewMode = stored;
+      }
+    } catch {
+      /* Хранилище недоступно — режим по умолчанию остаётся. */
+    }
     let unlisten: (() => void) | undefined;
     void (async () => {
       unlisten = await listenEvent('library-index-progress', (value) => {
@@ -349,6 +380,32 @@
           class="min-w-0 flex-1 sm:w-auto sm:min-w-[11rem]"
           onchange={(value) => chooseSort(value)}
         />
+        <div
+          class="flex flex-none items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5"
+          role="group"
+          aria-label={t('app.library.modeLabel')}
+        >
+          <Button
+            variant={viewMode === 'grid' ? 'primary' : 'ghost'}
+            size="icon"
+            title={t('app.library.mode.tiles')}
+            ariaLabel={t('app.library.mode.tiles')}
+            ariaPressed={viewMode === 'grid'}
+            onclick={() => chooseViewMode('grid')}
+          >
+            <Icon name="grid" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'primary' : 'ghost'}
+            size="icon"
+            title={t('app.library.mode.list')}
+            ariaLabel={t('app.library.mode.list')}
+            ariaPressed={viewMode === 'list'}
+            onclick={() => chooseViewMode('list')}
+          >
+            <Icon name="list" />
+          </Button>
+        </div>
       </div>
     </div>
     <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
@@ -390,16 +447,19 @@
     уже показана карточкой. Карточка остаётся на месте при прокрутке списка, а
     список забирает всё остальное пространство окна.
   -->
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:gap-6">
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:h-full lg:flex-row lg:items-stretch lg:gap-6">
     <!--
       Карточка открытой библиотеки стоит на месте всегда: без открытой
       библиотеки она объясняет, что библиотека не выбрана, а не исчезает,
       сдвигая список. Карточка закреплена при прокрутке списка.
     -->
     <aside
-      class="flex w-full shrink-0 flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:sticky lg:top-0 lg:w-[22rem] lg:self-start wide:w-[26rem]"
+      class="flex w-full shrink-0 flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:h-full lg:w-[22rem] wide:w-[26rem]"
       data-testid="library-card"
     >
+      <h2 class="m-0 role-caption text-[var(--muted-foreground)]">
+        {t('app.library.libraries.card.title')}
+      </h2>
       {#if openedEntry}
         <!-- Название — действие открытия: карточка говорит об открытой
              библиотеке, и переход к её книгам начинается отсюда. -->
@@ -410,9 +470,9 @@
           data-testid="library-card-open"
           onclick={() => void openLibrary(openedEntry.path)}
         >
-          <h2 class="m-0 break-words role-heading text-[var(--foreground)]">
+          <span class="block break-words role-heading text-[var(--foreground)]">
             {libraryName(openedEntry.path)}
-          </h2>
+          </span>
         </button>
 
         <Badge variant="outline" class="self-start">{providerLabel(openedEntry.providerName)}</Badge>
@@ -451,9 +511,9 @@
         </Button>
       {:else}
         <div class="flex flex-col gap-1" data-testid="library-card-empty">
-          <h2 class="m-0 role-heading text-[var(--foreground)]">
+          <span class="m-0 role-heading text-[var(--foreground)]">
             {t('app.library.libraries.noSelection.title')}
-          </h2>
+          </span>
           <p class="m-0 role-body text-[var(--muted-foreground)]">
             {t('app.library.libraries.noSelection.description')}
           </p>
@@ -461,40 +521,97 @@
       {/if}
     </aside>
 
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-      <EntityList
-        items={filtered}
-        key={(entry) => entry.path}
-        itemTestId="library-item"
-        notFound={others.length > 0 && filtered.length === 0}
-        notFoundTestId="libraries-not-found"
-        disabled={(entry) => !entry.available || opening}
-        onSelect={(entry) => void openLibrary(entry.path)}
-        metaItems={metaItems}
-        metaTestId="library-meta"
-        actions={entryActions}
-        actionsLabel={t('app.library.libraries.actionsLabel')}
-        onAction={runEntryAction}
-      >
-        {#snippet titleContent(entry)}
-          <!-- Индикатора доступности нет: состояние видно по самой строке. -->
-          <strong class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
-            {libraryName(entry.path)}
-          </strong>
-          {#if !entry.available}
-            <span
-              class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)]"
-              data-testid="library-missing"
-            >
-              {t('app.library.libraries.missing')}
-            </span>
-          {/if}
-        {/snippet}
+    <!--
+      Список библиотек: строки или плитка. Обе раскладки показывают одно и то же
+      содержимое, поэтому переключение вида не меняет данные, а только подачу.
+    -->
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="libraries-view">
+      {#if filtered.length === 0}
+        <p class="text-[var(--muted-foreground)]" data-testid="libraries-not-found">
+          {others.length > 0 ? t('app.library.libraries.notFound') : t('app.list.notFound')}
+        </p>
+      {:else if viewMode === 'grid'}
+        <ul
+          class="grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
+          data-testid="libraries-grid"
+        >
+          {#each filtered as entry (entry.path)}
+            <li data-testid="library-item">
+              <article
+                class="flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3 transition-colors"
+                class:opacity-60={!entry.available}
+              >
+                <div class="flex min-w-0 items-start gap-2">
+                  <button
+                    type="button"
+                    class="min-w-0 flex-1 cursor-pointer bg-transparent p-0 text-left [font:inherit] hover:text-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none disabled:cursor-not-allowed disabled:hover:text-inherit"
+                    disabled={!entry.available || opening}
+                    data-testid="library-open"
+                    onclick={() => void openLibrary(entry.path)}
+                  >
+                    <span class="block truncate role-title" data-testid="library-name">
+                      {libraryName(entry.path)}
+                    </span>
+                  </button>
+                  <Badge variant="outline">{providerLabel(entry.providerName)}</Badge>
+                </div>
+                <div class="flex min-w-0 flex-col gap-1">
+                  <span class="flex min-w-0 items-center gap-1.5 role-caption text-[var(--muted-foreground)]">
+                    <Icon name="folder" class="h-3.5 w-3.5 shrink-0" />
+                    <span
+                      class="min-w-0 truncate"
+                      class:text-[var(--destructive)]={!entry.available}
+                      data-testid="library-path"
+                    >
+                      {entry.path}
+                    </span>
+                    {#if !entry.available}
+                      <span
+                        class="shrink-0 whitespace-nowrap text-[var(--destructive)]"
+                        data-testid="library-missing"
+                      >
+                        {t('app.library.libraries.missing')}
+                      </span>
+                    {/if}
+                  </span>
+                  {#if formatDateTime(entry.addedAtMillis)}
+                    <span class="flex items-center gap-1.5 role-caption text-[var(--muted-foreground)]">
+                      <Icon name="clock" class="h-3.5 w-3.5 shrink-0" />
+                      {formatDateTime(entry.addedAtMillis)}
+                    </span>
+                  {/if}
+                </div>
+              </article>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <EntityList
+          items={filtered}
+          key={(entry) => entry.path}
+          itemTestId="library-item"
+          notFound={others.length > 0 && filtered.length === 0}
+          notFoundTestId="libraries-not-found"
+          disabled={(entry) => !entry.available || opening}
+          onSelect={(entry) => void openLibrary(entry.path)}
+          metaItems={metaItems}
+          metaTestId="library-meta"
+          actions={entryActions}
+          actionsLabel={t('app.library.libraries.actionsLabel')}
+          onAction={runEntryAction}
+        >
+          {#snippet titleContent(entry)}
+            <!-- Индикатора доступности нет: состояние видно по метаданным. -->
+            <strong class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
+              {libraryName(entry.path)}
+            </strong>
+          {/snippet}
 
-        {#snippet trailing(entry)}
-          <Badge variant="outline">{providerLabel(entry.providerName)}</Badge>
-        {/snippet}
-      </EntityList>
+          {#snippet trailing(entry)}
+            <Badge variant="outline">{providerLabel(entry.providerName)}</Badge>
+          {/snippet}
+        </EntityList>
+      {/if}
     </div>
   </div>
 </PageShell>

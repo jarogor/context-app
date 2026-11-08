@@ -288,6 +288,7 @@ export const ru = {
   'app.library.libraries.available': 'Доступна',
   'app.library.libraries.unavailable': 'недоступна',
   'app.library.libraries.missing': 'отсутствует',
+  'app.library.libraries.notFound': 'Библиотек по запросу не найдено.',
   'app.library.libraries.noSelection.title': 'Библиотека не выбрана',
   'app.library.libraries.noSelection.description':
     'Выберите библиотеку в списке или добавьте новую — она откроется здесь.',
