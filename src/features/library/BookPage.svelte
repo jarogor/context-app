@@ -801,7 +801,10 @@
               </div>
             </div>
           {:else if tags.length > 0}
-            <p class="m-0 mt-2 flex flex-wrap items-center pt-3 role-body">
+            <p
+              class="m-0 mt-2 flex flex-wrap items-center pt-3 role-body"
+              data-testid="book-tags"
+            >
               {#each tags as tag, index (tag)}
                 {#if index > 0}
                   <span
@@ -921,7 +924,7 @@
                 </h2>
               </div>
               {#if activeField === 'description'}
-                {@render editor(t('app.library.book.description'), () => commitActive(), true)}
+                {@render editor(t('app.library.book.descriptionField'), () => commitActive(), true)}
               {:else if description}
                 <p
                   class="m-0 max-w-[68ch] break-words whitespace-pre-line role-body text-[var(--foreground)]"

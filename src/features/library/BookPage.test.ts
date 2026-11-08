@@ -211,7 +211,7 @@ describe('страница книги', () => {
     await startEditing();
 
     await fireEvent.click(screen.getByLabelText('Изменить: описание'));
-    await fireEvent.input(screen.getByLabelText('Описание'), {
+    await fireEvent.input(screen.getByLabelText('Текст описания'), {
       target: { value: 'Новое описание' },
     });
     await fireEvent.click(screen.getByTestId('book-edit-save'));
@@ -229,7 +229,7 @@ describe('страница книги', () => {
     await startEditing();
 
     await fireEvent.click(screen.getByRole('button', { name: 'Добавить описание' }));
-    await fireEvent.input(screen.getByLabelText('Описание'), {
+    await fireEvent.input(screen.getByLabelText('Текст описания'), {
       target: { value: 'Появившееся описание' },
     });
     await fireEvent.click(screen.getByTestId('book-edit-save'));

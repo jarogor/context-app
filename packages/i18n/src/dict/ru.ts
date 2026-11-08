@@ -327,6 +327,7 @@ export const ru = {
   'app.library.book.size': 'Размер файла',
   'app.library.book.path': 'Путь к файлу',
   'app.library.book.description': 'Описание',
+  'app.library.book.descriptionField': 'Текст описания',
   'app.library.book.openFolder': 'Открыть папку с файлом',
   'app.library.book.openFolderShort': 'Открыть папку',
   'app.library.book.copyPath': 'Скопировать путь',

@@ -343,6 +343,7 @@ export const en: Dictionary = {
   'app.library.book.size': 'File size',
   'app.library.book.path': 'File path',
   'app.library.book.description': 'Description',
+  'app.library.book.descriptionField': 'Description text',
   'app.library.book.openFolder': 'Open the folder with the file',
   'app.library.book.openFolderShort': 'Open folder',
   'app.library.book.copyPath': 'Copy the path',
