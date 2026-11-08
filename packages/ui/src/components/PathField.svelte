@@ -73,7 +73,7 @@
     подложка, текст и кнопка получают один предупреждающий тон.
   -->
   <div
-    class="flex min-w-0 items-start gap-1 rounded-[calc(var(--radius)*0.6)] py-0 {tone ===
+    class="flex min-w-0 items-start gap-1 rounded-[calc(var(--radius)*0.6)] px-0.5 py-0.5 {tone ===
     'danger'
       ? 'bg-[var(--destructive-soft)] text-[var(--destructive)]'
       : 'bg-[var(--code-surface)] text-[var(--foreground)]'}"
@@ -83,7 +83,7 @@
     <Button
       variant="ghost"
       size="icon"
-      class="h-[1.125rem] w-5 shrink-0 gap-0 p-0 {tone === 'danger'
+      class="h-[1.125rem] w-5 shrink-0 gap-0 rounded-[calc(var(--radius)*0.6)] p-0 {tone === 'danger'
         ? 'text-[var(--destructive)] hover:text-[var(--destructive)]'
         : ''}"
       title={copied ? t('app.library.book.pathCopied') : t('app.library.book.copyPath')}
@@ -93,8 +93,14 @@
     >
       <Icon name={copied ? 'check' : 'copy'} class="h-3.5 w-3.5" />
     </Button>
-    <!-- Сам адрес — обычный текст без собственных полей. -->
-    <span class="min-w-0 flex-1 font-mono text-xs leading-[1.5] break-all" data-testid={testId}>
+    <!-- Сам адрес — одна строка с многоточием: длинный путь не переносится и не
+         растягивает блок. Полное значение доступно подсказкой при наведении и
+         кнопкой копирования. -->
+    <span
+      class="min-w-0 flex-1 truncate font-mono text-xs leading-[1.5]"
+      title={value}
+      data-testid={testId}
+    >
       {value}
     </span>
   </div>
