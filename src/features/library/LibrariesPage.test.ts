@@ -244,3 +244,100 @@ describe('порядок списка библиотек', () => {
     await waitFor(() => expect(names()).toEqual(['alpha', 'beta', 'zeta']));
   });
 });
+
+describe('провайдер и отсутствующая библиотека', () => {
+  /** История с двумя провайдерами и отсутствующей библиотекой. */
+  function history() {
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/lib/context',
+              provider: 'books-source',
+              provider_name: 'books-source',
+              added_at_millis: 3_000,
+              available: true,
+            },
+            {
+              path: '/lib/calibre',
+              provider: 'books-source-calibre',
+              provider_name: 'books-source-calibre',
+              added_at_millis: 2_000,
+              available: true,
+            },
+            {
+              path: '/lib/gone',
+              provider: 'books-source',
+              provider_name: 'books-source',
+              added_at_millis: 1_000,
+              available: false,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      return null;
+    });
+  }
+
+  it('называет провайдеров короткими именами', async () => {
+    history();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(3));
+    // Служебные идентификаторы плагинов пользователю не показываются.
+    const text = screen.getByTestId('libraries-page').textContent ?? '';
+    expect(text).toContain('calibre');
+    expect(text).not.toContain('books-source-calibre');
+    expect(text).not.toContain('books-source');
+  });
+
+  it('помечает отсутствующую библиотеку и не даёт её открыть', async () => {
+    history();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getByTestId('library-missing')).toBeTruthy());
+    const missing = screen.getByTestId('library-missing');
+    expect(missing.textContent).toContain('отсутствует');
+
+    // Недоступная строка выключена: открыть её нельзя.
+    const row = missing.closest('[data-testid="library-item"]') as HTMLElement;
+    expect(
+      row.querySelector('[data-testid="library-item"] button')?.hasAttribute('disabled') ?? true,
+    ).toBe(true);
+  });
+});
+
+describe('карточка без открытой библиотеки', () => {
+  it('объясняет, что библиотека не выбрана, и не исчезает', async () => {
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/lib/a',
+              provider: 'books-source',
+              provider_name: 'books-source',
+              added_at_millis: 1,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      return null;
+    });
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getByTestId('library-card-empty')).toBeTruthy());
+    // Место карточки сохраняется: список не сдвигается при выборе библиотеки.
+    expect(screen.getByTestId('library-card').textContent).toContain('Библиотека не выбрана');
+    // Выбор остаётся в списке: без открытой библиотеки он не сокращается.
+    expect(screen.getAllByTestId('library-item')).toHaveLength(1);
+  });
+});

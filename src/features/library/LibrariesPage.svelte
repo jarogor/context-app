@@ -121,6 +121,25 @@
     return lastSegment(path);
   }
 
+  /**
+   * Имя провайдера для показа.
+   *
+   * Идентификаторы плагинов — служебные (`books-source`, `books-source-calibre`);
+   * пользователь видит источник по короткому имени: `context` для общего
+   * источника книг и `calibre` для библиотеки Calibre. Неизвестный провайдер
+   * показывается как есть — выдумывать ему имя нельзя.
+   */
+  function providerLabel(provider: string): string {
+    const id = provider.trim().toLowerCase();
+    if (id === 'books-source') {
+      return 'context';
+    }
+    if (id === 'books-source-calibre') {
+      return 'calibre';
+    }
+    return provider;
+  }
+
   /** Метаинформация записи истории: время открытия (иконкой) и путь. */
   function metaItems(entry: HistoryEntry): MetaItem[] {
     const items: MetaItem[] = [];
@@ -314,16 +333,20 @@
       <div class="flex min-w-0 items-center gap-2">
         <!-- Счётчик рядом с поиском — тот же, что в списке рабочих мест. -->
         <span
-          class="flex-none role-caption text-[var(--muted-foreground)]"
+          class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)]"
           data-testid="libraries-filter-counter"
         >
           {t('app.search.filter', { shown: filtered.length, total: others.length })}
         </span>
+        <!--
+          Сортировка занимает свободное место и ужимается вместе с ним: у поля
+          нет своей ширины, поэтому кнопка добавления не съезжает на узком окне.
+        -->
         <Select
           value={sortField}
           items={sortOptions}
           ariaLabel={t('app.library.libraries.sort.label')}
-          class="w-full min-w-0 sm:w-[15rem]"
+          class="min-w-0 flex-1 sm:w-auto sm:min-w-[11rem]"
           onchange={(value) => chooseSort(value)}
         />
       </div>
@@ -368,11 +391,16 @@
     список забирает всё остальное пространство окна.
   -->
   <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:gap-6">
-    {#if openedEntry}
-      <aside
-        class="flex w-full shrink-0 flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:sticky lg:top-0 lg:w-[22rem] lg:self-start wide:w-[26rem]"
-        data-testid="library-card"
-      >
+    <!--
+      Карточка открытой библиотеки стоит на месте всегда: без открытой
+      библиотеки она объясняет, что библиотека не выбрана, а не исчезает,
+      сдвигая список. Карточка закреплена при прокрутке списка.
+    -->
+    <aside
+      class="flex w-full shrink-0 flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 lg:sticky lg:top-0 lg:w-[22rem] lg:self-start wide:w-[26rem]"
+      data-testid="library-card"
+    >
+      {#if openedEntry}
         <!-- Название — действие открытия: карточка говорит об открытой
              библиотеке, и переход к её книгам начинается отсюда. -->
         <button
@@ -387,7 +415,7 @@
           </h2>
         </button>
 
-        <Badge variant="outline" class="self-start">{openedEntry.providerName}</Badge>
+        <Badge variant="outline" class="self-start">{providerLabel(openedEntry.providerName)}</Badge>
 
         <dl class="m-0 flex flex-col gap-2">
           <div class="flex flex-col gap-0.5">
@@ -421,8 +449,17 @@
           <Icon name="folder" />
           {t('app.library.libraries.openFolder')}
         </Button>
-      </aside>
-    {/if}
+      {:else}
+        <div class="flex flex-col gap-1" data-testid="library-card-empty">
+          <h2 class="m-0 role-heading text-[var(--foreground)]">
+            {t('app.library.libraries.noSelection.title')}
+          </h2>
+          <p class="m-0 role-body text-[var(--muted-foreground)]">
+            {t('app.library.libraries.noSelection.description')}
+          </p>
+        </div>
+      {/if}
+    </aside>
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <EntityList
@@ -440,31 +477,22 @@
         onAction={runEntryAction}
       >
         {#snippet titleContent(entry)}
-          <span
-            class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)]"
-            aria-live="polite"
-            title={entry.available
-              ? t('app.library.libraries.available')
-              : t('app.library.libraries.unavailable')}
-            aria-label={entry.available
-              ? t('app.library.libraries.available')
-              : t('app.library.libraries.unavailable')}
-          >
-            {#if openingPath === entry.path}
-              <Spinner class="h-3.5 w-3.5 text-[var(--primary)]" />
-            {:else if entry.available}
-              <Icon name="check" class="h-3.5 w-3.5 text-[var(--success)]" />
-            {:else}
-              <Icon name="close" class="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
-            {/if}
-          </span>
+          <!-- Индикатора доступности нет: состояние видно по самой строке. -->
           <strong class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
             {libraryName(entry.path)}
           </strong>
+          {#if !entry.available}
+            <span
+              class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)]"
+              data-testid="library-missing"
+            >
+              {t('app.library.libraries.missing')}
+            </span>
+          {/if}
         {/snippet}
 
         {#snippet trailing(entry)}
-          <Badge variant="outline">{entry.providerName}</Badge>
+          <Badge variant="outline">{providerLabel(entry.providerName)}</Badge>
         {/snippet}
       </EntityList>
     </div>

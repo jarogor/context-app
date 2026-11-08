@@ -287,6 +287,10 @@ export const ru = {
   'app.library.libraries.current': 'выбрана',
   'app.library.libraries.available': 'Доступна',
   'app.library.libraries.unavailable': 'недоступна',
+  'app.library.libraries.missing': 'отсутствует',
+  'app.library.libraries.noSelection.title': 'Библиотека не выбрана',
+  'app.library.libraries.noSelection.description':
+    'Выберите библиотеку в списке или добавьте новую — она откроется здесь.',
   'app.library.libraries.forget': 'Убрать из списка',
   'app.library.libraries.opened': 'Последнее открытие {date}',
   'app.library.libraries.actionsLabel': 'Действия с библиотекой',

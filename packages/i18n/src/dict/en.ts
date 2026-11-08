@@ -303,6 +303,10 @@ export const en: Dictionary = {
   'app.library.libraries.current': 'selected',
   'app.library.libraries.available': 'Available',
   'app.library.libraries.unavailable': 'unavailable',
+  'app.library.libraries.missing': 'missing',
+  'app.library.libraries.noSelection.title': 'No library selected',
+  'app.library.libraries.noSelection.description':
+    'Pick a library from the list or add a new one — it will open here.',
   'app.library.libraries.forget': 'Remove from the list',
   'app.library.libraries.opened': 'Last opened {date}',
   'app.library.libraries.actionsLabel': 'Library actions',
