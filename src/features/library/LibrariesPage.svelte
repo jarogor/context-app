@@ -62,6 +62,8 @@
   let entries: HistoryEntry[] = $state([]);
   let loading: boolean = $state(false);
   let openingPath: string | null = $state(null);
+  /** Номер последнего запроса открытия: ответы устаревших запросов отбрасываются. */
+  let loadToken = 0;
   let activePath: string | null = $state(null);
   let error: string | null = $state(null);
   /** Прогресс построения индекса открываемой библиотеки (в процентах). */
@@ -167,6 +169,14 @@
 
   /** Идёт ли открытие библиотеки. */
   const opening = $derived(openingPath !== null);
+
+  /**
+   * Имя библиотеки, которая сейчас загружается.
+   *
+   * Пока идёт загрузка, карточка показывает прогресс и называет библиотеку, но
+   * не показывает сведения о ней: состояние «Загружена» ещё не подтверждено.
+   */
+  const openingName = $derived(openingPath === null ? '' : libraryName(openingPath));
 
   /** Идёт ли открытие пути, которого ещё нет в истории. */
   const openingNew = $derived(
@@ -287,11 +297,13 @@
    * Переход к книгам не выполняется: библиотека только выбирается. Так выбор
    * библиотеки в списке не уносит пользователя из раздела, а карточка слева
    * успевает показать, что именно выбрано.
+   *
+   * Новый выбор не ждёт конца предыдущей загрузки: пользователь вправе передумать.
+   * Ответ устаревшего запроса отбрасывается по номеру (`loadToken`), иначе
+   * карточка переключилась бы обратно на библиотеку, которую уже не выбирали.
    */
   async function loadLibrary(path: string) {
-    if (opening) {
-      return;
-    }
+    const token = ++loadToken;
     selectedPath = path;
     openingPath = path;
     error = null;
@@ -303,6 +315,10 @@
         path,
         storageRoot: appConfig.state_dir,
       })) as { provider?: string; provider_name?: string } | null;
+      // Пока шёл запрос, выбрали другую библиотеку: этот ответ устарел.
+      if (token !== loadToken) {
+        return;
+      }
 
       const provider = String(response?.provider ?? '');
       const opened: HistoryEntry = {
@@ -321,13 +337,17 @@
       selectedPath = path;
       openedEntryFallback = opened;
     } catch (e) {
-      error = String(e);
+      if (token === loadToken) {
+        error = String(e);
+      }
     } finally {
-      openingPath = null;
-      progress = null;
-      // История перечитывается, но локальная запись не должна из-за этого
-      // пропасть: пока ядро не отдало её, она подставляется из резерва.
-      void loadHistory();
+      if (token === loadToken) {
+        openingPath = null;
+        progress = null;
+        // История перечитывается, но локальная запись не должна из-за этого
+        // пропасть: пока ядро не отдало её, она подставляется из резерва.
+        void loadHistory();
+      }
     }
   }
 
@@ -566,7 +586,29 @@
       class="flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] large-tablet:h-full large-tablet:min-h-0"
       data-testid="library-card"
     >
-      {#if selectedEntry}
+      {#if opening}
+        <!--
+          Пока библиотека загружается и индексируется, карточка показывает
+          прогресс вместо сведений: состояние «Загружена» ещё не подтверждено, а
+          кнопка перехода к книгам была бы заблокирована и выглядела сломанной.
+          Сведения появляются, как только загрузка закончилась.
+        -->
+        <div class="flex flex-col gap-2 px-4 py-3" data-testid="library-card-progress">
+          <span class="m-0 break-words role-heading text-[var(--foreground)]">{openingName}</span>
+          <span class="role-caption text-[var(--muted-foreground)]">
+            {t('app.library.libraries.indexing')}
+          </span>
+          <Progress value={progress?.percent ?? 0} />
+          {#if progress}
+            <span class="role-caption text-[var(--muted-foreground)]">
+              {t('app.library.libraries.indexingCount', {
+                done: progress.done,
+                total: progress.total,
+              })}
+            </span>
+          {/if}
+        </div>
+      {:else if selectedEntry}
         <!--
           Шапка карточки — единственный вход к книгам: выбор в списке только
           показывает сведения, а переход начинается здесь. Кликабельна вся
@@ -576,7 +618,7 @@
           type="button"
           class="flex w-full cursor-pointer flex-col gap-2 border-b border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset disabled:cursor-not-allowed disabled:hover:bg-[var(--card)]"
           title={t('app.library.libraries.toBooks')}
-          disabled={!selectedEntry.available || opening}
+          disabled={!selectedEntry.available}
           data-testid="library-card-open"
           onclick={() => openLibraryBooks()}
         >
@@ -632,26 +674,6 @@
             {t('app.library.libraries.openShort')}
           </Button>
         </div>
-      {:else if opening}
-        <!--
-          Пока библиотека загружается и индексируется, карточка показывает
-          прогресс вместо пустого состояния: пользователь видит, что выбор
-          принят и работа идёт.
-        -->
-        <div class="flex flex-col gap-2 px-4 py-3" data-testid="library-card-progress">
-          <span class="m-0 role-heading text-[var(--foreground)]">
-            {t('app.library.libraries.indexing')}
-          </span>
-          <Progress value={progress?.percent ?? 0} />
-          {#if progress}
-            <span class="role-caption text-[var(--muted-foreground)]">
-              {t('app.library.libraries.indexingCount', {
-                done: progress.done,
-                total: progress.total,
-              })}
-            </span>
-          {/if}
-        </div>
       {:else}
         <div
           class="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-6 text-center"
@@ -706,7 +728,6 @@
                 <button
                   type="button"
                   class="absolute inset-0 cursor-pointer rounded-[var(--radius)] [font:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
-                  disabled={opening}
                   aria-label={libraryName(entry.path)}
                   data-testid="library-open"
                   onclick={() => pickEntry(entry)}
@@ -751,7 +772,6 @@
           itemTestId="library-item"
           notFound={entries.length > 0 && filtered.length === 0}
           notFoundTestId="libraries-not-found"
-          disabled={() => opening}
           selected={(entry) => entry.path === selectedEntry?.path}
           onSelect={(entry) => pickEntry(entry)}
           metaItems={metaItems}

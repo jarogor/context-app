@@ -649,3 +649,97 @@ describe('порядок библиотек: направление', () => {
     await waitFor(() => expect(names()).toEqual(['alpha', 'zeta']));
   });
 });
+
+describe('загрузка выбранной библиотеки', () => {
+  /** История с одной библиотекой и незавершённым выбором. */
+  function pendingSelection() {
+    let finish: (() => void) | undefined;
+    let calls = 0;
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/lib/alpha',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1_000,
+              available: true,
+            },
+            {
+              path: '/lib/zeta',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 2_000,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      if (command === 'select_source_library') {
+        calls += 1;
+        // Первый выбор не завершается, пока тест не отпустит его сам.
+        if (calls === 1) {
+          return new Promise((resolve) => {
+            finish = () => resolve({ provider: 'p1', provider_name: 'books-source' });
+          });
+        }
+        return { provider: 'p1', provider_name: 'books-source' };
+      }
+      return null;
+    });
+    return () => finish?.();
+  }
+
+  it('показывает прогресс вместо сведений, пока библиотека не загружена', async () => {
+    localStorage.clear();
+    const finish = pendingSelection();
+    render(LibrariesPage);
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(2));
+
+    const item = screen
+      .getAllByTestId('library-item')
+      .find((element) => element.textContent?.includes('alpha')) as HTMLElement;
+    await fireEvent.click(item.querySelector('[data-testid="library-item"] button') as HTMLElement);
+
+    // Сведения о библиотеке ещё не подтверждены: карточка показывает прогресс.
+    await waitFor(() => expect(screen.getByTestId('library-card-progress')).toBeTruthy());
+    expect(screen.queryByTestId('library-card-open')).toBeNull();
+    expect(screen.queryByText('Загружена')).toBeNull();
+    // Карточка называет библиотеку, которую грузит.
+    expect(screen.getByTestId('library-card-progress').textContent).toContain('alpha');
+
+    finish();
+    // Загрузка закончилась: сведения и переход к книгам появляются.
+    await waitFor(() => expect(screen.getByTestId('library-card-open')).toBeTruthy());
+    expect(screen.queryByTestId('library-card-progress')).toBeNull();
+  });
+
+  it('не блокирует список, пока одна библиотека грузится', async () => {
+    localStorage.clear();
+    const finish = pendingSelection();
+    render(LibrariesPage);
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(2));
+
+    const item = screen
+      .getAllByTestId('library-item')
+      .find((element) => element.textContent?.includes('alpha')) as HTMLElement;
+    await fireEvent.click(item.querySelector('[data-testid="library-item"] button') as HTMLElement);
+    await waitFor(() => expect(screen.getByTestId('library-card-progress')).toBeTruthy());
+
+    // Другая строка списка остаётся кликабельной: выбор можно поменять.
+    const other = screen
+      .getAllByTestId('library-item')
+      .find((element) => element.textContent?.includes('zeta')) as HTMLElement;
+    const button = other.querySelector('[data-testid="library-item"] button') as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+
+    await fireEvent.click(button);
+    finish();
+    // Новый выбор главнее прежнего: карточка показывает zeta.
+    await waitFor(() => expect(screen.getByTestId('library-card').textContent).toContain('zeta'));
+  });
+});
