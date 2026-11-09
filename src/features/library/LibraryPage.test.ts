@@ -382,9 +382,10 @@ describe('сортировка и фильтры библиотеки', () => {
     await openLibrary();
 
     const controls = screen.getByTestId('library-controls');
-    // Список сортировки и переключатель направления — в полосе.
-    expect(within(controls).getByRole('button', { name: 'Сортировка' })).toBeTruthy();
-    const direction = within(controls).getByTestId('library-sort-direction');
+    // Поле порядка и переключатель направления — один контрол в полосе.
+    const sort = within(controls).getByTestId('library-sort');
+    expect(within(sort).getByRole('button', { name: 'Сортировка' })).toBeTruthy();
+    const direction = within(sort).getByTestId('library-sort-direction');
     expect(direction.getAttribute('aria-label')).toBe('По убыванию');
 
     await fireEvent.click(direction);

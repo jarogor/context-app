@@ -108,6 +108,8 @@ export const ru = {
   'app.search.notes.placeholder': 'Поиск по заметкам',
   'app.search.newName.placeholder': 'Новое имя',
   'app.search.filter': '{shown} из {total}',
+  'app.sort.asc': 'По возрастанию',
+  'app.sort.desc': 'По убыванию',
   'app.search.notFound': 'Ничего не найдено',
   'app.search.changeQuery': 'Измените запрос поиска.',
 
@@ -360,8 +362,6 @@ export const ru = {
   'app.library.sort.added': 'По дате добавления файла',
   'app.library.sort.size': 'По размеру',
   'app.library.sort.format': 'По формату',
-  'app.library.sort.asc': 'По возрастанию',
-  'app.library.sort.desc': 'По убыванию',
   'app.library.filters.open': 'Фильтры',
   'app.library.filters.title': 'Сортировка и фильтры',
   'app.library.filters.sort': 'Сортировка',

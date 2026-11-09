@@ -11,10 +11,11 @@
     PathField,
     Progress,
     SegmentedControl,
-    Select,
+    SortControl,
     Spinner,
     type MenuAction,
     type MetaItem,
+    type SortDirection,
   } from '@context/ui';
   import { invokeCommand, listenEvent, openDialog } from '../../shared/app-bridge';
   import { t } from '@context/i18n';
@@ -118,10 +119,22 @@
     rememberSort();
   }
 
+  /**
+   * Переключение направления порядка.
+   *
+   * Направление сохраняется вместе с полем: перезапуск возвращает и выбранный
+   * порядок, и его сторону.
+   */
+  function chooseSortDirection(next: SortDirection) {
+    sortDirection = next;
+    rememberSort();
+  }
+
   /** Запоминание порядка списка в браузере: он переживает перезапуск. */
   function rememberSort() {
     try {
       localStorage.setItem('libraries-sort', sortField);
+      localStorage.setItem('libraries-sort-direction', sortDirection);
     } catch {
       /* Хранилище недоступно — порядок остаётся в состоянии страницы. */
     }
@@ -408,11 +421,16 @@
         viewMode = stored;
       }
       // Порядок списка тоже переживает перезапуск: иначе каждое открытие
-      // возвращало бы порядок по дате, хотя выбран алфавитный.
+      // возвращало бы порядок по дате, хотя выбран алфавитный. Сторона порядка
+      // хранится отдельно — пользователь мог переключить её вручную.
       const storedSort = localStorage.getItem('libraries-sort');
       if (storedSort === 'name' || storedSort === 'opened') {
         sortField = storedSort;
         sortDirection = storedSort === 'name' ? 'asc' : 'desc';
+      }
+      const storedDirection = localStorage.getItem('libraries-sort-direction');
+      if (storedDirection === 'asc' || storedDirection === 'desc') {
+        sortDirection = storedDirection;
       }
     } catch {
       /* Хранилище недоступно — режим по умолчанию остаётся. */
@@ -507,12 +525,16 @@
       <div
         class="order-last flex w-full min-w-0 items-center gap-2 tablet:order-none tablet:ml-auto tablet:w-auto"
       >
-        <Select
-          value={sortField}
+        <SortControl
           items={sortOptions}
+          value={sortField}
+          direction={sortDirection}
           ariaLabel={t('app.library.libraries.sort.label')}
-          class="w-full min-w-0 tablet:w-[15rem] tablet:shrink-0"
+          testId="libraries-sort"
+          class="w-full min-w-0 tablet:w-auto"
+          selectClass="w-full tablet:w-[15rem] tablet:shrink-0"
           onchange={(value) => chooseSort(value)}
+          ondirection={(next) => chooseSortDirection(next)}
         />
         {#if !phoneWindow}
           <SegmentedControl

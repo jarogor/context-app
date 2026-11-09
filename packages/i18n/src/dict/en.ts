@@ -107,6 +107,8 @@ export const en: Dictionary = {
   'app.search.tabs.placeholder': 'Search tabs',
   'app.search.notes.placeholder': 'Search notes',
   'app.search.filter': '{shown} of {total}',
+  'app.sort.asc': 'Ascending',
+  'app.sort.desc': 'Descending',
   'app.search.notFound': 'Nothing found',
   'app.search.changeQuery': 'Change the search query.',
 
@@ -376,8 +378,6 @@ export const en: Dictionary = {
   'app.library.sort.added': 'By file added date',
   'app.library.sort.size': 'By size',
   'app.library.sort.format': 'By format',
-  'app.library.sort.asc': 'Ascending',
-  'app.library.sort.desc': 'Descending',
   'app.library.filters.open': 'Filters',
   'app.library.filters.title': 'Sorting and filters',
   'app.library.filters.sort': 'Sorting',

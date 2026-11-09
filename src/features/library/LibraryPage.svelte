@@ -11,7 +11,7 @@
     Input,
     ScrollArea,
     SegmentedControl,
-    Select,
+    SortControl,
     SidePanel,
     Skeleton,
   } from '@context/ui';
@@ -244,11 +244,6 @@
     sortField = field;
     sortDirection = sortFieldInfo(field).defaultDirection;
     page = 1;
-  }
-
-  /** Переключение направления сортировки. */
-  function toggleDirection() {
-    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
   }
 
   /** Переключение значения фасета: список начинается с начала. */
@@ -733,26 +728,15 @@
         <div
           class="flex w-full min-w-0 items-center justify-end gap-2 tablet:w-auto tablet:flex-none"
         >
-          <Button
-            variant="secondary"
-            size="icon"
-            title={sortDirection === 'asc'
-              ? t('app.library.sort.desc')
-              : t('app.library.sort.asc')}
-            ariaLabel={sortDirection === 'asc'
-              ? t('app.library.sort.desc')
-              : t('app.library.sort.asc')}
-            testId="library-sort-direction"
-            onclick={toggleDirection}
-          >
-            <Icon name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} />
-          </Button>
-          <Select
-            value={sortField}
+          <SortControl
             items={sortOptions}
+            value={sortField}
+            direction={sortDirection}
             ariaLabel={t('app.library.filters.sort')}
-            class="min-w-0 w-[9.5rem] tablet:w-[11rem]"
+            testId="library-sort"
+            selectClass="w-[9.5rem] tablet:w-[11rem]"
             onchange={(value) => chooseSort(value as SortField)}
+            ondirection={(next) => (sortDirection = next)}
           />
           <SegmentedControl
             items={viewModeItems}

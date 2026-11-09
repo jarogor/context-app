@@ -36,6 +36,8 @@
     | 'chevrons-right'
     | 'chevron-down'
     | 'chevron-up'
+    | 'sort-asc'
+    | 'sort-desc'
     | 'copy'
     | 'resize'
     | 'move'
@@ -183,6 +185,12 @@
     <path d="m6 9 6 6 6-6" />
   {:else if name === 'chevron-up'}
     <path d="m6 15 6-6 6 6" />
+  {:else if name === 'sort-asc'}
+    <path d="M7 20V5M7 5 4 8M7 5l3 3" />
+    <path d="M13 7h7M13 12h5M13 17h3" />
+  {:else if name === 'sort-desc'}
+    <path d="M7 5v15M7 20l-3-3M7 20l3-3" />
+    <path d="M13 7h3M13 12h5M13 17h7" />
   {:else if name === 'copy'}
     <path d="M9 9h9v9H9zM6 15V6h9" />
   {:else if name === 'resize'}

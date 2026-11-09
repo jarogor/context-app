@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LibrariesPage from './LibrariesPage.svelte';
@@ -599,5 +599,53 @@ describe('удаление активной библиотеки', () => {
     await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
     expect(screen.getByTestId('library-card').textContent).not.toContain('/lib/alpha');
     expect(screen.getByTestId('library-card-empty')).toBeTruthy();
+  });
+});
+
+describe('порядок библиотек: направление', () => {
+  it('переключает сторону порядка кнопкой рядом с полем', async () => {
+    // Соседние проверки пишут порядок в браузерное хранилище: без сброса эта
+    // проверка зависела бы от их порядка выполнения.
+    localStorage.clear();
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/lib/alpha',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1_000,
+              available: true,
+            },
+            {
+              path: '/lib/zeta',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 3_000,
+              available: true,
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      return null;
+    });
+
+    render(LibrariesPage);
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(2));
+
+    const names = () =>
+      screen.getAllByTestId('library-name').map((element) => element.textContent?.trim() ?? '');
+    // По умолчанию — свежие сверху.
+    expect(names()).toEqual(['zeta', 'alpha']);
+
+    // Кнопка направления стоит в том же контроле, что и поле порядка.
+    const sort = screen.getByTestId('libraries-sort');
+    await fireEvent.click(within(sort).getByTestId('libraries-sort-direction'));
+
+    await waitFor(() => expect(names()).toEqual(['alpha', 'zeta']));
   });
 });
