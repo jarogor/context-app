@@ -8,8 +8,8 @@
     EmptyState,
     ErrorState,
     Icon,
-    Input,
     ScrollArea,
+    SearchField,
     SegmentedControl,
     SortControl,
     SidePanel,
@@ -703,21 +703,17 @@
           </Button>
 
           <div class="flex min-w-0 flex-1 items-center gap-2">
-            <Input
+            <SearchField
               bind:value={searchQuery}
               placeholder={t('app.search.books.placeholder')}
               ariaLabel={t('app.search.books.placeholder')}
-              icon="search"
+              shown={viewBooks.length}
+              total={books.length}
+              counterTestId="library-counter"
               clearable
               class="min-w-0 flex-1 tablet:max-w-[24rem]"
               oninput={onSearchInput}
             />
-            <span
-              class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)]"
-              data-testid="library-counter"
-            >
-              {t('app.search.filter', { shown: viewBooks.length, total: books.length })}
-            </span>
           </div>
         </div>
 

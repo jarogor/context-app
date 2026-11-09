@@ -355,19 +355,12 @@ test('список рабочих мест адаптивен к ширине о
   expect(search).not.toBeNull();
   expect(create).not.toBeNull();
   expect(Math.abs(search!.y - create!.y)).toBeLessThan(4);
-  // Кнопка стоит справа от поиска и от его правого края, вплотную к
-  // счётчику: между цифрами и кнопкой нет широкого зазора.
+  // Кнопка стоит справа от поля поиска.
   expect(create!.x).toBeGreaterThan(search!.x + search!.width - 1);
-  const counter = await page
-    .getByTestId('workspaces-controls')
-    .locator('span.role-caption')
-    .first()
-    .boundingBox();
-  expect(counter).not.toBeNull();
-  expect(create!.x - (counter!.x + counter!.width)).toBeLessThan(16);
-  // Поиск занимает всё место до счётчика: между его правым краем и цифрами
-  // нет пустого провала.
-  expect(counter!.x - (search!.x + search!.width)).toBeLessThan(16);
+  // Счётчик найденного — часть поля поиска, а не отдельный элемент полосы.
+  await expect(
+    page.getByTestId('workspaces-controls').getByTestId('workspaces-counter'),
+  ).toBeVisible();
 
   const narrow = await page.evaluate(
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,

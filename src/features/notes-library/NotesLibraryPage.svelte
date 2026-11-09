@@ -10,6 +10,7 @@
     IconButton,
     Input,
     PageShell,
+    SearchField,
     SidePanel,
     Skeleton,
     Spinner,
@@ -432,20 +433,16 @@
 
     {#snippet controls()}
       <div class="flex w-full min-w-0 items-center gap-2 tablet:w-auto tablet:flex-none">
-        <Input
+        <SearchField
           bind:value={query}
           placeholder={t('app.search.notes.placeholder')}
           ariaLabel={t('app.search.notes.placeholder')}
-          icon="search"
+          shown={view.length}
+          total={sets.length}
+          counterTestId="notes-filter-counter"
           clearable
           class="min-w-0 flex-1 tablet:w-[24rem] tablet:flex-none"
         />
-        <span
-          class="flex-none role-caption text-[var(--muted-foreground)]"
-          data-testid="notes-filter-counter"
-        >
-          {t('app.search.filter', { shown: view.length, total: sets.length })}
-        </span>
         {#if sets.length > 0}
           <!-- Общее число заметок стоит рядом со счётчиком наборов: оба числа
                говорят о том, что лежит в реестре, и читаются одним взглядом. -->

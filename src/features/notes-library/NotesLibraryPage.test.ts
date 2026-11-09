@@ -61,7 +61,7 @@ describe('библиотека заметок', () => {
     expect(screen.getByTestId('notes-library-empty').textContent).toContain('пока нет');
   });
 
-  it('ставит общее число заметок рядом со счётчиком наборов', () => {
+  it('ставит общее число заметок рядом с поиском по наборам', () => {
     render(NotesLibraryPage, {
       props: {
         sets: [
@@ -70,12 +70,14 @@ describe('библиотека заметок', () => {
         ],
       },
     });
-    const filter = screen.getByTestId('notes-filter-counter');
+    // Счётчик найденного — внутри поля поиска, общее число заметок — рядом.
+    const search = screen.getByTestId('notes-filter-counter');
     const total = screen.getByTestId('notes-total-counter');
     expect(total.textContent).toContain('Заметок');
     expect(total.textContent).toContain('2');
-    // Оба счётчика стоят в одной полосе: число заметок не уезжает вправо.
-    expect(total.parentElement).toBe(filter.parentElement);
+    expect(search.closest('[data-search-field]')).toBeTruthy();
+    // Число заметок — не часть поля поиска: оно про весь реестр.
+    expect(search.closest('[data-search-field]')?.contains(total)).toBe(false);
     expect(total.className).not.toContain('ml-auto');
     expect(screen.queryByText('Наборов')).toBeNull();
   });

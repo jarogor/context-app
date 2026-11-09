@@ -9,6 +9,7 @@
     IconButton,
     Input,
     PageShell,
+    SearchField,
     type MenuAction,
   } from '@context/ui';
   import { t } from '@context/i18n';
@@ -318,17 +319,16 @@
     <div class="flex w-full min-w-0 flex-wrap items-center gap-2" data-testid="workspaces-controls">
       {#if !composerOpen && workspaces.length > 0}
         <div class="flex min-w-0 flex-1 items-center gap-2 tablet:flex-none">
-          <Input
+          <SearchField
             bind:value={query}
             placeholder={t('app.search.workspace.placeholder')}
             ariaLabel={t('app.search.workspace.placeholder')}
-            icon="search"
+            shown={filtered.length}
+            total={workspaces.length}
+            counterTestId="workspaces-counter"
             clearable
             class="min-w-0 flex-1 tablet:w-[24rem] tablet:flex-none"
           />
-          <span class="flex-none role-caption text-[var(--muted-foreground)]">
-            {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
-          </span>
         </div>
       {/if}
       <!--

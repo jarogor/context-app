@@ -147,11 +147,14 @@ test('полосы управления не сдвигают основание
     await page.goto('/');
 
     // Поиск и создание стоят в одной полосе: поле и кнопка на одной высоте.
-    const search = await page.getByPlaceholder('Поиск рабочего места').boundingBox();
+    const search = await page
+      .locator('[data-search-field]')
+      .filter({ has: page.getByPlaceholder('Поиск рабочего места') })
+      .boundingBox();
     const create = await page.getByRole('button', { name: 'Создать рабочее место' }).boundingBox();
     expect(search, `поиск ${width}`).not.toBeNull();
     expect(create, `создание ${width}`).not.toBeNull();
-    expect(Math.abs(search!.y - create!.y)).toBeLessThan(4);
+    expect(Math.abs(search!.y - create!.y), `высота полосы ${width}`).toBeLessThan(4);
 
     // Появление поля создания не переставляет кнопку: у неё меняется действие,
     // а не место.

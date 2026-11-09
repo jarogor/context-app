@@ -6,10 +6,10 @@
     Button,
     EntityList,
     Icon,
-    Input,
     PageShell,
     PathField,
     Progress,
+    SearchField,
     SegmentedControl,
     SortControl,
     Spinner,
@@ -517,26 +517,16 @@
         <Icon name="folder" />
         {t('app.library.libraries.addShort')}
       </Button>
-      <Input
+      <SearchField
         bind:value={query}
         placeholder={t('app.search.library.placeholder')}
         ariaLabel={t('app.search.library.placeholder')}
-        icon="search"
+        shown={filtered.length}
+        total={entries.length}
+        counterTestId="libraries-filter-counter"
         clearable
         class="min-w-0 flex-1 tablet:max-w-[22rem]"
       />
-      <!--
-        Счётчик относится к поиску, поэтому от сортировки его отделяет больший
-        зазор. Отступ включается только когда сортировка стоит в той же строке:
-        на перенесённой строке справа от счётчика ничего нет и лишний отступ
-        был бы пустотой.
-      -->
-      <span
-        class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)] tablet:mr-3"
-        data-testid="libraries-filter-counter"
-      >
-        {t('app.search.filter', { shown: filtered.length, total: entries.length })}
-      </span>
       <!--
         Сортировка и вид: на телефоне уходят на свою строку, а поиск занимает
         всю ширину. На планшете и шире остаются в общем ряду справа и не

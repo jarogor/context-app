@@ -4,6 +4,7 @@ export { default as Button } from './components/Button.svelte';
 export { default as PageShell } from './components/PageShell.svelte';
 export { default as ScrollArea } from './components/ScrollArea.svelte';
 export { default as SearchCreate } from './components/SearchCreate.svelte';
+export { default as SearchField } from './components/SearchField.svelte';
 export { default as ListRow } from './components/ListRow.svelte';
 export { default as RowActions } from './components/RowActions.svelte';
 export { default as EntityList } from './components/EntityList.svelte';
