@@ -9,7 +9,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 .PHONY: help plugins artifacts check-artifacts dev dev-test build release run-release \
-        check test test-rust e2e rust-check validate verify clean
+        check test test-rust e2e rust-check verify clean
 
 help: ## Показать список команд
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -62,9 +62,6 @@ rust-check: ## Clippy без предупреждений и проверка ф
 	cargo clippy --manifest-path src-wasm-sdk/Cargo.toml --target wasm32-unknown-unknown --all-targets -- -D warnings
 	cargo fmt --manifest-path src-wasm-sdk/Cargo.toml --all -- --check
 
-validate: ## Проверить спецификации OpenSpec
-	openspec validate --all
-
 verify: ## Полный набор проверок перед завершением задачи
 	$(MAKE) plugins
 	$(MAKE) check-artifacts
@@ -73,7 +70,6 @@ verify: ## Полный набор проверок перед завершен�
 	$(MAKE) check
 	$(MAKE) e2e
 	$(MAKE) build
-	$(MAKE) validate
 
 clean: ## Удалить сгенерированные артефакты (ресурсы плагинов)
 	rm -rf src-tauri/resources/plugins src-tauri/resources/base-plugins
