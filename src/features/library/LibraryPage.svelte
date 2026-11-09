@@ -471,6 +471,21 @@
         libraryRoot = '';
       }
     }
+    // Библиотеки нет: её выгрузили. Каталог не перечитывается, а раздел
+    // возвращается к пустому состоянию — показывать книги выгруженной
+    // библиотеки нельзя.
+    if (nextRoot === '' && libraryRoot === '') {
+      librarySelected = false;
+      libraryRootUsed = '';
+      books = [];
+      coverUris = {};
+      searchQuery = '';
+      clearTimeout(searchTimer);
+      openedBook = null;
+      page = 1;
+      error = null;
+      return;
+    }
     // Та же библиотека уже загружена: не перечитываем каталог и обложки заново.
     // Библиотека перечитывается только при смене корня.
     if (librarySelected && nextRoot !== '' && nextRoot === libraryRootUsed && books.length > 0) {

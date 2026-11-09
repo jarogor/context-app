@@ -185,3 +185,36 @@ fn switching_between_generic_and_calibre_uses_new_root() {
 
     test_util::cleanup(&parent);
 }
+
+/// Выгрузка освобождает активную библиотеку: её больше нет в сессии.
+#[test]
+fn release_drops_active_library() {
+    let parent = test_util::test_root("plugin-session-release");
+    let library = parent.join("library");
+    let storage = parent.join("state");
+    write_generic_library(&library, "BorrowedBook");
+    let bundled = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("plugins");
+    let mut session = PluginSession::idle(PathBuf::from("."), bundled);
+
+    session
+        .select_source(&library, false, &storage)
+        .expect("выбор источника");
+    assert!(
+        session.active_library().is_some(),
+        "до выгрузки библиотека активна"
+    );
+
+    session.release();
+
+    assert!(
+        session.active_library().is_none(),
+        "после выгрузки активной библиотеки нет"
+    );
+    assert!(
+        session.invoke("list", serde_json::json!({})).is_err(),
+        "у выгруженной сессии нет активного плагина"
+    );
+    test_util::cleanup(&parent);
+}

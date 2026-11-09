@@ -466,3 +466,24 @@ describe('сортировка и фильтры библиотеки', () => {
     );
   });
 });
+
+describe('выгрузка библиотеки', () => {
+  it('сбрасывает каталог, когда активной библиотеки не осталось', async () => {
+    // Удаление активной библиотеки выгружает её: ядро присылает событие без
+    // пути, и список книг обязан закрыться — показывать книги выгруженной
+    // библиотеки нельзя.
+    render(LibraryPage, {
+      props: { initialActiveLibrary: null, onOpenInWorkplace: vi.fn() },
+    });
+
+    await waitFor(() => expect(catalogChanged).toBeTruthy());
+    await catalogChanged?.({ path: '/demo-library', provider_name: 'books-source' });
+    await screen.findByText('Демо-книга');
+
+    // Выгрузка: активного корня больше нет.
+    await catalogChanged?.(null);
+
+    await waitFor(() => expect(screen.queryByText('Демо-книга')).toBeNull());
+    expect(screen.getByTestId('library-not-selected')).toBeTruthy();
+  });
+});

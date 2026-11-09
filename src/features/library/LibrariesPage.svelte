@@ -358,7 +358,16 @@
   /** Удаление записи из истории. */
   async function forget(path: string) {
     try {
-      await invokeCommand('library_history_forget', { path });
+      const response = (await invokeCommand('library_history_forget', { path })) as {
+        released?: boolean;
+      } | null;
+      // Удалённая библиотека была активной: ядро выгрузило её, и выбранной
+      // записи больше нет — панель не должна показывать сведения о ней.
+      if (response?.released) {
+        activePath = null;
+        selectedPath = null;
+        openedEntryFallback = null;
+      }
       await loadHistory();
     } catch (e) {
       error = String(e);

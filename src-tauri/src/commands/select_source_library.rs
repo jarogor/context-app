@@ -1,5 +1,6 @@
 //! Открытие внешней библиотеки с выбором source-плагина по `probe`.
 
+use std::path::Path;
 use std::sync::Mutex;
 
 use serde_json::Value;
@@ -14,30 +15,33 @@ use crate::plugin::AppState;
 /// главный поток и интерфейс мог отрисовать прогресс.
 ///
 /// Если запрошен тот же путь, что уже открыт, команда ничего не переоткрывает:
-/// выбор уже загруженной библиотеки не должен заново строить её индекс.
+/// выбор уже загруженной библиотеки не должен заново строить её индекс. Запись
+/// в истории при этом всё равно обновляется — библиотеку могли убрать из списка,
+/// и без неё повторное открытие не вернуло бы её обратно.
 #[tauri::command]
 pub async fn select_source_library(
     state: State<'_, Mutex<AppState>>,
     path: String,
     storage_root: String,
 ) -> Result<Value, String> {
-    let session = {
+    // Дескриптор сессии и корень истории берутся одним коротким замком: взять
+    // общий замок состояния под уже захваченной сессией нельзя — это обратный
+    // порядок замков и путь к взаимной блокировке.
+    let (session, history_root) = {
         let state = crate::commands::lock_state(state.inner())?;
-        state.session.clone()
+        (state.session.clone(), state.app_state_root.clone())
     };
     let mut session = session
         .lock()
         .map_err(|_| "сессия плагинов недоступна".to_string())?;
 
     // Быстрый путь: та же библиотека уже активна — ни опроса source-плагинов, ни
-    // переиндексации. Повторный выбор того же каталога ничего не меняет.
+    // переиндексации. Повторный выбор того же каталога ничего не меняет, кроме
+    // места записи в истории.
     if let Some((active_path, provider, provider_name)) = session.active_library() {
         if active_path == path {
-            return Ok(serde_json::json!({
-                "provider": provider,
-                "provider_name": provider_name,
-                "reused": true,
-            }));
+            drop(session);
+            return reuse_active_library(&history_root, &path, &provider, &provider_name);
         }
     }
 
@@ -54,10 +58,6 @@ pub async fn select_source_library(
         .map_err(|error| error.to_string())?;
     drop(session);
 
-    let history_root = {
-        let state = crate::commands::lock_state(state.inner())?;
-        state.app_state_root.clone()
-    };
     library_history::remember(&history_root, &path, &provider)
         .map_err(|error| error.to_string())?;
 
@@ -77,3 +77,26 @@ pub async fn select_source_library(
 
     Ok(serde_json::json!({ "provider": provider, "provider_name": provider_name }))
 }
+
+/// Возврат уже активной библиотеки с записью её в историю.
+///
+/// Переоткрытия нет: индекс и сессия остаются прежними. Запись обязательна —
+/// библиотеку могли убрать из списка, и без неё повторное открытие её бы не
+/// вернуло.
+fn reuse_active_library(
+    history_root: &Path,
+    path: &str,
+    provider: &str,
+    provider_name: &str,
+) -> Result<Value, String> {
+    library_history::remember(history_root, path, provider).map_err(|error| error.to_string())?;
+    Ok(serde_json::json!({
+        "provider": provider,
+        "provider_name": provider_name,
+        "reused": true,
+    }))
+}
+
+#[cfg(test)]
+#[path = "select_source_library_tests.rs"]
+mod tests;

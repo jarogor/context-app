@@ -540,3 +540,64 @@ describe('открытие новой библиотеки', () => {
     expect(card.textContent).toContain('Обработано 3 из 10');
   });
 });
+
+describe('удаление активной библиотеки', () => {
+  it('сбрасывает выбранную запись, когда ядро выгрузило библиотеку', async () => {
+    // Удаление активной библиотеки выгружает её: сведения о ней больше не
+    // показываются, и панель возвращается к пустому состоянию.
+    let entries = [
+      {
+        path: '/lib/alpha',
+        provider: 'p1',
+        provider_name: 'books-source',
+        added_at_millis: 1_000,
+        available: true,
+      },
+      {
+        path: '/lib/zeta',
+        provider: 'p1',
+        provider_name: 'books-source',
+        added_at_millis: 2_000,
+        available: true,
+      },
+    ];
+    let active: { path: string; provider_name: string } | null = {
+      path: '/lib/alpha',
+      provider_name: 'books-source',
+    };
+
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return { entries };
+      }
+      if (command === 'active_library') {
+        return active;
+      }
+      if (command === 'library_history_forget') {
+        // Активная библиотека удаляется: ядро выгружает её.
+        active = null;
+        entries = entries.filter((entry) => entry.path !== '/lib/alpha');
+        return { forgotten: '/lib/alpha', released: true };
+      }
+      return null;
+    });
+
+    render(LibrariesPage);
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(2));
+    // До удаления панель показывает открытую библиотеку.
+    expect(screen.getByTestId('library-card').textContent).toContain('/lib/alpha');
+
+    const item = screen
+      .getAllByTestId('library-item')
+      .find((element) => element.textContent?.includes('alpha')) as HTMLElement;
+    await fireEvent.click(
+      item.querySelector('[aria-label="Действия с библиотекой"]') as HTMLElement,
+    );
+    await fireEvent.click(await screen.findByRole('menuitem', { name: 'Убрать из списка' }));
+
+    // Библиотеки нет ни в списке, ни в карточке: выбор сброшен.
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
+    expect(screen.getByTestId('library-card').textContent).not.toContain('/lib/alpha');
+    expect(screen.getByTestId('library-card-empty')).toBeTruthy();
+  });
+});

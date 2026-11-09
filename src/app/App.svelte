@@ -1157,6 +1157,11 @@
         if (payload?.path) {
           activeLibrary = payload;
         } else {
+          // Библиотеку выгрузили (например, удалили из списка): раздел должен
+          // вернуться к списку библиотек, а не показывать пустой каталог.
+          activeLibrary = null;
+          libraryOpened = false;
+          librarySourcesRequested = true;
           void refreshActiveLibrary();
         }
       });

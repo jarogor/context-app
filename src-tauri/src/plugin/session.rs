@@ -160,6 +160,18 @@ impl PluginSession {
         Some((path, provider, provider_name))
     }
 
+    /// Выгрузка активной библиотеки.
+    ///
+    /// Сессия возвращается в пустое состояние: активный source-плагин и его
+    /// runtime отпускаются, корень сбрасывается. Настройки загрузки (каталоги
+    /// плагинов, отключённые, кэш компиляции) остаются — следующее открытие
+    /// библиотеки соберёт runtime заново.
+    pub fn release(&mut self) {
+        self.root = PathBuf::from(".");
+        self.active_plugin = None;
+        self.runtime = PluginRuntime::empty();
+    }
+
     /// Человекочитаемое имя плагина по идентификатору.
     pub fn plugin_name(&self, id: &str) -> Option<String> {
         self.runtime.plugin_name(id)
