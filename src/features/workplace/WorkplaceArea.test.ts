@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import WorkplaceArea from './WorkplaceArea.svelte';
 import { DEFAULT_NOTE_TOOL, normalizeNote, noteList } from '../notes/notes';
 import { emptyProperties } from '../reader/file-properties';
+import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
 
 vi.mock('../../shared/app-bridge', () => ({
   invokeCommand: vi.fn(async () => null),
@@ -281,7 +282,7 @@ describe('область рабочего места: список и вклад
   it('на узком окне переход к заметке закрывает панель заметок', async () => {
     const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
       matches: true,
-      media: '(max-width: 899px)',
+      media: NARROW_MAX_WIDTH,
       onchange: null,
       addEventListener: () => {},
       removeEventListener: () => {},
@@ -334,7 +335,7 @@ describe('область рабочего места: список и вклад
   it('на узком окне выбор вкладки в панели закрывает панель вкладок', async () => {
     const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
       matches: true,
-      media: '(max-width: 899px)',
+      media: NARROW_MAX_WIDTH,
       onchange: null,
       addEventListener: () => {},
       removeEventListener: () => {},
@@ -395,7 +396,7 @@ describe('область рабочего места: список и вклад
   it('на широком окне выбор вкладки в панели оставляет панель открытой', async () => {
     const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
       matches: false,
-      media: '(max-width: 899px)',
+      media: NARROW_MAX_WIDTH,
       onchange: null,
       addEventListener: () => {},
       removeEventListener: () => {},

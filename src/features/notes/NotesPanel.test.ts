@@ -25,8 +25,8 @@ describe('панель заметок-цитат', () => {
     expect(panel.className).toContain('var(--notes-panel-width)');
     // На узком окне панель занимает всю ширину области: общее поведение
     // задаёт компонент боковой панели.
-    expect(panel.className).toContain('max-lg:absolute');
-    expect(panel.className).toContain('max-lg:w-auto');
+    expect(panel.className).toContain('max-large-tablet:absolute');
+    expect(panel.className).toContain('max-large-tablet:w-auto');
   });
 
   it('показывает цитаты, место и дату', () => {

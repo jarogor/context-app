@@ -5,6 +5,9 @@ import { showLibraryBookList } from './workplace-area';
 /** Ответ активной библиотеки для сценариев адаптивности. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
 
+/** Ширина большого планшета: единственный порог смены компоновки. */
+const LARGE_TABLET = 1024;
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((active) => {
     (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
@@ -20,27 +23,38 @@ async function hasHorizontalScroll(page: import('@playwright/test').Page): Promi
   );
 }
 
-/** Контрольные ширины: очень узкий телефон, компактный, распространённый, планшет. */
-const WIDTHS = [320, 360, 390, 414, 768];
+/**
+ * Контрольные ширины: каждая пара — соседние значения по обе стороны порога
+ * режима. На границах компоновка переключается один раз и не «пляшет».
+ */
+const WIDTHS = [360, 480, 767, 768, 1023, LARGE_TABLET, 1439, 1440, 1919, 1920, 2559, 2560];
 
-test('на телефоне разделы уходят в нижнюю навигацию, на планшете — тоже', async ({ page }) => {
+test('на телефоне разделы уходят в нижнюю навигацию, на большом планшете — в шапку', async ({
+  page,
+}) => {
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/');
 
     const nav = page.getByTestId('section-nav');
     await expect(nav).toBeVisible();
-    // Телефон — не уменьшенный десктоп: меню разделов переезжает в нижнюю
-    // полосу, а верхняя панель остаётся знаком и именем. Нижняя полоса
-    // прижата к нижнему краю экрана, а не стоит в шапке.
     const bar = page.getByTestId('app-bar');
     const navBox = await nav.boundingBox();
     const barBox = await bar.boundingBox();
     expect(navBox).not.toBeNull();
     expect(barBox).not.toBeNull();
-    expect(navBox!.y).toBeGreaterThanOrEqual(barBox!.y + barBox!.height - 1);
-    expect(navBox!.y + navBox!.height).toBeGreaterThanOrEqual(800 - 1);
-    await expect(nav).toHaveAttribute('data-mobile', width < 900 ? 'true' : 'false');
+
+    const mobile = width < LARGE_TABLET;
+    await expect(nav).toHaveAttribute('data-mobile', mobile ? 'true' : 'false');
+    if (mobile) {
+      // Телефон — не уменьшенный десктоп: меню разделов переезжает в нижнюю
+      // полосу, прижатую к нижнему краю экрана.
+      expect(navBox!.y).toBeGreaterThanOrEqual(barBox!.y + barBox!.height - 1);
+      expect(navBox!.y + navBox!.height).toBeGreaterThanOrEqual(800 - 1);
+    } else {
+      // Большой планшет и шире: разделы стоят вкладками в верхней панели.
+      expect(navBox!.y).toBeLessThan(barBox!.y + barBox!.height + 1);
+    }
 
     // Разделы и служебные действия доступны на любой ширине — ровно один раз:
     // на телефоне они в нижней полосе, в шапке их нет.
@@ -51,17 +65,17 @@ test('на телефоне разделы уходят в нижнюю нави
 });
 
 test('на телефоне рабочее место занимает всю ширину окна', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 800 });
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/');
 
   const area = await page.getByTestId('workplace-area').boundingBox();
   expect(area).not.toBeNull();
   // Верхняя панель не делит ширину с содержимым: оно на всю ширину окна.
   expect(Math.abs(area!.x)).toBeLessThanOrEqual(1);
-  expect(Math.abs(area!.width - 320)).toBeLessThanOrEqual(1);
+  expect(Math.abs(area!.width - 360)).toBeLessThanOrEqual(1);
 });
 
-test('все основные экраны без горизонтальной прокрутки на узких ширинах', async ({ page }) => {
+test('все основные экраны без горизонтальной прокрутки на ширинах режимов', async ({ page }) => {
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/');
@@ -81,7 +95,7 @@ test('все основные экраны без горизонтальной �
   }
 });
 
-test('меню разделов настроек на телефоне — полоса сверху, на десктопе — колонка', async ({
+test('меню разделов настроек на телефоне — полоса сверху, на большом планшете — колонка', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 800 });
@@ -125,6 +139,33 @@ test('панель заметок на телефоне закрывается �
   await expect(panel.getByTestId('side-panel-close')).toBeVisible();
   await panel.getByTestId('side-panel-close').click();
   await expect(panel).toBeHidden();
+});
+
+test('полосы управления не сдвигают основание при появлении соседних блоков', async ({ page }) => {
+  for (const width of WIDTHS) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/');
+
+    // Поиск и создание стоят в одной полосе: поле и кнопка на одной высоте.
+    const search = await page.getByPlaceholder('Поиск рабочего места').boundingBox();
+    const create = await page.getByRole('button', { name: 'Создать рабочее место' }).boundingBox();
+    expect(search, `поиск ${width}`).not.toBeNull();
+    expect(create, `создание ${width}`).not.toBeNull();
+    expect(Math.abs(search!.y - create!.y)).toBeLessThan(4);
+
+    // Появление поля создания не переставляет кнопку: у неё меняется действие,
+    // а не место.
+    await page.getByRole('button', { name: 'Создать рабочее место' }).click();
+    const field = await page.getByPlaceholder('Новое рабочее место').boundingBox();
+    expect(field, `поле ${width}`).not.toBeNull();
+    const before = await page.getByLabel('Отменить создание').boundingBox();
+    await page.getByPlaceholder('Новое рабочее место').fill('Новое');
+    const after = await page.getByRole('button', { name: 'Создать рабочее место' }).boundingBox();
+    expect(before).not.toBeNull();
+    expect(after).not.toBeNull();
+    expect(Math.abs(before!.x - after!.x), `кнопка ${width}`).toBeLessThan(2);
+    expect(Math.abs(before!.y - after!.y), `кнопка ${width}`).toBeLessThan(2);
+  }
 });
 
 test('горизонтальная ориентация телефона остаётся рабочей', async ({ page }) => {

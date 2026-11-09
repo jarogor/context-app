@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import WorkspacesPage from './WorkspacesPage.svelte';
+import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
 
 vi.mock('../../shared/app-bridge', () => ({
   invokeCommand: vi.fn(async () => null),
@@ -177,7 +178,7 @@ describe('экран списка рабочих мест', () => {
     // Поле во всю ширину оттесняло поиск, поэтому на телефоне и планшете
     // оно появляется только по нажатию кнопки.
     const matchMedia = vi.fn((query: string) => ({
-      matches: query.includes('899'),
+      matches: query === NARROW_MAX_WIDTH,
       media: query,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),

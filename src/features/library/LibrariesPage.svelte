@@ -454,7 +454,7 @@
     <!--
       Полоса управления как в библиотеке книг: добавление, поиск и счётчик —
       слева, сортировка и переключатель вида — справа в той же строке. Только
-      на планшете (до `lg`) им не хватает места: там они переносятся на свою
+      на планшете им не хватает места: там они переносятся на свою
       строку, а поиск сохраняет ширину. На широком окне всё стоит в один ряд.
     -->
     <div class="flex w-full min-w-0 flex-wrap items-center gap-2">
@@ -476,7 +476,7 @@
         ariaLabel={t('app.search.library.placeholder')}
         icon="search"
         clearable
-        class="min-w-0 flex-1 md:max-w-[22rem]"
+        class="min-w-0 flex-1 tablet:max-w-[22rem]"
       />
       <!--
         Счётчик относится к поиску, поэтому от сортировки его отделяет больший
@@ -485,7 +485,7 @@
         был бы пустотой.
       -->
       <span
-        class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)] md:mr-3"
+        class="shrink-0 role-caption whitespace-nowrap text-[var(--muted-foreground)] tablet:mr-3"
         data-testid="libraries-filter-counter"
       >
         {t('app.search.filter', { shown: filtered.length, total: entries.length })}
@@ -496,13 +496,13 @@
         растягиваются — растянутая сортировка выглядела полем ввода.
       -->
       <div
-        class="order-last flex w-full min-w-0 items-center gap-2 md:order-none md:ml-auto md:w-auto"
+        class="order-last flex w-full min-w-0 items-center gap-2 tablet:order-none tablet:ml-auto tablet:w-auto"
       >
         <Select
           value={sortField}
           items={sortOptions}
           ariaLabel={t('app.library.libraries.sort.label')}
-          class="w-full min-w-0 md:w-[15rem] md:shrink-0"
+          class="w-full min-w-0 tablet:w-[15rem] tablet:shrink-0"
           onchange={(value) => chooseSort(value)}
         />
         {#if !phoneWindow}
@@ -527,12 +527,12 @@
     показывает её сведения; книги открываются нажатием на название в панели.
   -->
   <div
-    class="grid min-w-0 gap-4 lg:h-full lg:min-h-0 lg:flex-1 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6 wide:grid-cols-[26rem_minmax(0,1fr)]"
+    class="grid min-w-0 gap-4 large-tablet:h-full large-tablet:min-h-0 large-tablet:flex-1 large-tablet:grid-cols-[22rem_minmax(0,1fr)] large-tablet:items-start large-tablet:gap-6 desktop:grid-cols-[26rem_minmax(0,1fr)]"
   >
     <!-- Панель стоит на месте всегда: без выбранной библиотеки она объясняет,
          что та не выбрана, а не исчезает, сдвигая список. -->
     <aside
-      class="flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] lg:h-full lg:min-h-0"
+      class="flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] large-tablet:h-full large-tablet:min-h-0"
       data-testid="library-card"
     >
       {#if selectedEntry}
@@ -644,7 +644,7 @@
       содержимое, поэтому переключение вида не меняет данные, а только подачу.
     -->
     <div
-      class="flex min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto"
+      class="flex min-w-0 flex-col large-tablet:h-full large-tablet:min-h-0 large-tablet:overflow-y-auto"
       data-testid="libraries-view"
     >
       {#if filtered.length === 0}

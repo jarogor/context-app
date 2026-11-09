@@ -458,7 +458,7 @@
   });
 </script>
 
-<ScrollArea testId="store-page" class="p-4 md:p-6">
+<ScrollArea testId="store-page" class="p-4 tablet:p-6">
   <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-5">
     <!--
       Приложение и плагины — два самостоятельных раздела. У каждого свои

@@ -322,7 +322,10 @@ const BOOK_COLUMNS: &str = "id, title, authors, tags, files, format, size, mtime
 
 /// Загрузка всех книг индекса в порядке идентификаторов.
 pub fn load_books(fs: &impl Fs) -> Result<Vec<BookRecord>, String> {
-    let raw = fs.sql_query(&format!("SELECT {BOOK_COLUMNS} FROM books ORDER BY id"), "[]")?;
+    let raw = fs.sql_query(
+        &format!("SELECT {BOOK_COLUMNS} FROM books ORDER BY id"),
+        "[]",
+    )?;
     serde_json::from_str(&raw).map_err(|error| error.to_string())
 }
 

@@ -178,7 +178,7 @@ describe('UiRenderer', () => {
     const label = screen.getByText('Количество').closest('label');
     const grid = label?.parentElement;
     expect(grid?.className).toContain('grid');
-    expect(grid?.className).toContain('@min-[34rem]:grid-cols-');
+    expect(grid?.className).toContain('@min-columns:grid-cols-');
   });
 
   it('не меняет вид заголовка секции и её описания как узлов', () => {

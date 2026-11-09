@@ -125,7 +125,7 @@
     type="button"
     class="flex h-9 min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 {item.active
       ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-      : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} px-2 md:px-3"
+      : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} px-2 tablet:px-3"
     aria-pressed={item.active}
     aria-label={item.label}
     title={item.label}
@@ -171,7 +171,7 @@
         ></span>
       {/if}
     </span>
-    <span class="hidden min-[34rem]:inline role-caption leading-none">{item.label}</span>
+    <span class="hidden phone:inline role-caption leading-none">{item.label}</span>
   </button>
 {/snippet}
 
@@ -221,7 +221,7 @@
   </nav>
 {:else}
   <nav
-    class="flex min-w-0 items-center gap-0.5 overflow-hidden {className} md:gap-1"
+    class="flex min-w-0 items-center gap-0.5 overflow-hidden {className} tablet:gap-1"
     aria-label={t('app.sections.label')}
     data-testid="section-nav"
     data-mobile="false"

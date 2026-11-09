@@ -194,23 +194,23 @@ describe('панель инструментов заметок', () => {
 
     // Цвет идёт сразу за списком вида фигуры и до разрыва строки.
     expect(order.indexOf(shape)).toBeLessThan(order.indexOf(color));
-    expect(color.className).toContain('max-lg:order-4');
+    expect(color.className).toContain('max-large-tablet:order-4');
     // В управление чтением цвет не попадает: его строка начинается с темы.
-    expect(theme.className).toContain('max-lg:order-6');
-    expect(Number(theme.className.match(/max-lg:order-(\d+)/)![1])).toBeGreaterThan(
-      Number(color.className.match(/max-lg:order-(\d+)/)![1]),
+    expect(theme.className).toContain('max-large-tablet:order-6');
+    expect(Number(theme.className.match(/max-large-tablet:order-(\d+)/)![1])).toBeGreaterThan(
+      Number(color.className.match(/max-large-tablet:order-(\d+)/)![1]),
     );
   });
 
   it('на узком окне начинает нижнюю строку с левого края, а не с правого', () => {
     render(NoteToolbar, { props: props() });
 
-    // Выталкивание вправо — только на широком окне (`lg:ml-auto`): на узком
+    // Выталкивание вправо — только на широком окне (`large-tablet:ml-auto`): на узком
     // строка идёт слева, иначе строки «смотрят» в разные стороны.
     const footer = screen.getByTestId('reader-footer');
-    expect(footer.className).toContain('lg:ml-auto');
-    expect(footer.className).not.toContain(' max-lg:justify-end');
-    expect(footer.className).toContain('max-lg:contents');
+    expect(footer.className).toContain('large-tablet:ml-auto');
+    expect(footer.className).not.toContain(' max-large-tablet:justify-end');
+    expect(footer.className).toContain('max-large-tablet:contents');
   });
 
   it('держит выбор вида фигуры компактным: длинное название не растягивает список', () => {

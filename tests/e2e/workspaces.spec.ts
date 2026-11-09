@@ -328,7 +328,7 @@ test('кнопка создания не переезжает при вводе 
     // На телефоне и планшете поле занимает всю ширину панели, на широком
     // окне остаётся компактным.
     const controls = await page.getByTestId('workspaces-controls').boundingBox();
-    const expected = width < 900 ? controls!.width - 44 : 240;
+    const expected = width < 1024 ? controls!.width - 44 : 24 * 16;
     expect(Math.abs(field!.width - expected)).toBeLessThan(24);
 
     await page.getByRole('button', { name: 'Создать рабочее место' }).click();

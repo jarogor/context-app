@@ -661,21 +661,21 @@
         счётчик отделяет отступ — счётчик не слипается с выпадающим списком.
       -->
       <div
-        class="flex flex-none flex-col gap-3 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 md:flex-row md:flex-nowrap md:items-center md:gap-2 md:px-6"
+        class="flex flex-none flex-col gap-3 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 tablet:flex-row tablet:flex-wrap tablet:items-center tablet:gap-2 tablet:px-6 large-tablet:flex-nowrap"
         data-testid="library-controls"
       >
         <Button
           variant="secondary"
           testId="library-choose-top"
           ariaLabel={t('app.library.libraries.toList')}
-          class="hidden lg:inline-flex"
+          class="hidden large-tablet:inline-flex"
           onclick={() => onChooseLibrary?.()}
         >
           <Icon name="chevron-left" />
           {t('app.library.libraries.toList')}
         </Button>
 
-        <div class="flex min-w-0 items-center gap-2 md:min-w-0 md:flex-1">
+        <div class="flex min-w-0 items-center gap-2 tablet:min-w-0 tablet:flex-1">
           <Button
             variant={filtersOpen ? 'primary' : 'secondary'}
             testId="library-filters-open"
@@ -699,7 +699,7 @@
               ariaLabel={t('app.search.books.placeholder')}
               icon="search"
               clearable
-              class="min-w-0 flex-1 md:max-w-[24rem]"
+              class="min-w-0 flex-1 tablet:max-w-[24rem]"
               oninput={onSearchInput}
             />
             <span
@@ -713,10 +713,10 @@
 
         <!-- Растягивающийся разделитель: держит явный зазор между счётчиком
              поиска и группой сортировки на планшете и десктопе. -->
-        <span class="hidden md:block md:w-6 md:flex-none" aria-hidden="true"></span>
+        <span class="hidden tablet:block tablet:w-6 tablet:flex-none" aria-hidden="true"></span>
 
         <div
-          class="flex w-full min-w-0 items-center justify-end gap-2 md:w-auto md:flex-none"
+          class="flex w-full min-w-0 items-center justify-end gap-2 tablet:w-auto tablet:flex-none"
         >
           <Button
             variant="secondary"
@@ -736,7 +736,7 @@
             value={sortField}
             items={sortOptions}
             ariaLabel={t('app.library.filters.sort')}
-            class="min-w-0 w-[9.5rem] sm:w-[11rem]"
+            class="min-w-0 w-[9.5rem] tablet:w-[11rem]"
             onchange={(value) => chooseSort(value as SortField)}
           />
           <SegmentedControl
@@ -756,7 +756,7 @@
           title={t('app.library.filters.title')}
           testId="library-filters"
           side="left"
-          class="w-full lg:w-[19rem]"
+          class="w-full large-tablet:w-[19rem]"
           onClose={() => (filtersOpen = false)}
         >
           <div class="flex min-h-0 flex-1 flex-col">
@@ -853,7 +853,7 @@
         </SidePanel>
       {/if}
 
-      <ScrollArea testId="library-page" class="p-4 md:p-6">
+      <ScrollArea testId="library-page" class="p-4 tablet:p-6">
         <div bind:this={listTop} aria-hidden="true"></div>
         {#if !librarySelected}
           <EmptyState
@@ -882,7 +882,7 @@
           />
         {:else if viewMode === 'grid'}
           <ul
-            class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] md:gap-6 md:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))] wide:[grid-template-columns:repeat(auto-fill,minmax(12rem,1fr))] ultra:[grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]"
+            class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))] tablet:gap-6 tablet:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))] desktop:[grid-template-columns:repeat(auto-fill,minmax(12rem,1fr))] large-desktop:[grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]"
             data-testid="library-grid"
           >
             {#each pageBooksWithCovers as book (book.id)}
@@ -951,15 +951,15 @@
       активной библиотеки нельзя было бы выбрать другую. Постраничность — справа,
       окно из трёх страниц вокруг текущей и переходы к началу и концу: всех
       номеров нет даже на десктопе. Кнопки одинаковы на всех режимах, а на
-      смартфоне (до `30rem`, как `PHONE_MAX_WIDTH`) от окна остаётся одна текущая
+      смартфоне (подступень `phone`, как `PHONE_MAX_WIDTH`) от окна остаётся одна текущая
       страница — иначе строка не помещается. Планшет и десктоп показывают три.
     -->
     {#if librarySelected}
       <nav
-        class="flex flex-none items-center gap-2 overflow-hidden border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 md:px-6 {totalPages >
+        class="flex flex-none items-center gap-2 overflow-hidden border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 tablet:px-6 {totalPages >
         1
           ? ''
-          : 'lg:hidden'}"
+          : 'large-tablet:hidden'}"
         aria-label={t('app.library.page.label')}
         data-testid="library-pagination"
       >
@@ -968,7 +968,7 @@
           size="sm"
           testId="library-choose"
           ariaLabel={t('app.library.libraries.toList')}
-          class="lg:hidden"
+          class="large-tablet:hidden"
           onclick={() => onChooseLibrary?.()}
         >
           <Icon name="chevron-left" />
@@ -976,10 +976,10 @@
         </Button>
 
         {#if totalPages > 1}
-          <span class="ml-auto hidden truncate role-caption text-[var(--muted-foreground)] lg:block">
+          <span class="ml-auto hidden truncate role-caption text-[var(--muted-foreground)] large-tablet:block">
             {t('app.library.page.status', { page: currentPage, total: totalPages })}
           </span>
-          <div class="ml-auto flex flex-none items-center gap-0.5 lg:ml-3">
+          <div class="ml-auto flex flex-none items-center gap-0.5 large-tablet:ml-3">
             <Button
               variant="ghost"
               size="icon"
@@ -1004,7 +1004,7 @@
               <Button
                 variant={item === currentPage ? 'primary' : 'ghost'}
                 size="sm"
-                class="w-[2.25rem] px-0 {item === currentPage ? '' : 'hidden min-[30rem]:inline-flex'}"
+                class="w-[2.25rem] px-0 {item === currentPage ? '' : 'hidden phone:inline-flex'}"
                 title={t('app.library.page.go', { page: item })}
                 ariaLabel={t('app.library.page.go', { page: item })}
                 ariaCurrent={item === currentPage ? 'page' : undefined}

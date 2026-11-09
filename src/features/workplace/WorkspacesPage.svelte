@@ -315,16 +315,16 @@
       показывает поле слева от неё, и кнопка не переезжает, а меняет действие
       (пустое поле — закрыть, введённое имя — сохранить).
     -->
-    <div class="flex w-full min-w-0 items-center gap-2" data-testid="workspaces-controls">
+    <div class="flex w-full min-w-0 flex-wrap items-center gap-2" data-testid="workspaces-controls">
       {#if !composerOpen && workspaces.length > 0}
-        <div class="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+        <div class="flex min-w-0 flex-1 items-center gap-2 tablet:flex-none">
           <Input
             bind:value={query}
             placeholder={t('app.search.workspace.placeholder')}
             ariaLabel={t('app.search.workspace.placeholder')}
             icon="search"
             clearable
-            class="min-w-0 flex-1 sm:w-[24rem] sm:flex-none"
+            class="min-w-0 flex-1 tablet:w-[24rem] tablet:flex-none"
           />
           <span class="flex-none role-caption text-[var(--muted-foreground)]">
             {t('app.search.filter', { shown: filtered.length, total: workspaces.length })}
@@ -336,11 +336,11 @@
         доступную ширину панели, на широком окне — компактное.
       -->
       <div
-        class="ml-auto flex min-w-0 items-center gap-2 {composerOpen ? 'flex-1 sm:flex-none' : 'flex-none'}"
+        class="ml-auto flex min-w-0 items-center gap-2 {composerOpen ? 'flex-1 tablet:flex-none' : 'flex-none'}"
         data-testid="workspace-composer"
       >
         {#if composerOpen}
-          <div class="relative min-w-0 flex-1 sm:w-[24rem] sm:flex-none">
+          <div class="relative min-w-0 flex-1 tablet:w-[24rem] tablet:flex-none">
             <Input
               bind:element={composerField}
               bind:value={newName}
@@ -397,7 +397,7 @@
     />
   {:else}
     <ul
-      class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))] wide:[grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
+      class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))] desktop:[grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
       data-testid="workspaces-grid"
     >
       {#each filtered as item (item.id)}

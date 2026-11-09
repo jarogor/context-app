@@ -431,14 +431,14 @@
     {/snippet}
 
     {#snippet controls()}
-      <div class="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-none">
+      <div class="flex w-full min-w-0 items-center gap-2 tablet:w-auto tablet:flex-none">
         <Input
           bind:value={query}
           placeholder={t('app.search.notes.placeholder')}
           ariaLabel={t('app.search.notes.placeholder')}
           icon="search"
           clearable
-          class="min-w-0 flex-1 sm:w-[24rem] sm:flex-none"
+          class="min-w-0 flex-1 tablet:w-[24rem] tablet:flex-none"
         />
         <span
           class="flex-none role-caption text-[var(--muted-foreground)]"
@@ -458,7 +458,7 @@
           </dl>
         {/if}
       </div>
-      <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+      <div class="flex w-full items-center gap-2 tablet:ml-auto tablet:w-auto">
         <Button
           variant="secondary"
           size="sm"

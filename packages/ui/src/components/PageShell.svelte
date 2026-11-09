@@ -146,7 +146,7 @@
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid={testId}>
   {#if eyebrow || title || subtitle || actions}
     <header
-      class="flex flex-none flex-wrap items-end gap-x-4 gap-y-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-3 md:px-6"
+      class="flex flex-none flex-wrap items-end gap-x-4 gap-y-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-3 tablet:px-6"
       data-testid="page-header"
     >
       <div class="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -170,7 +170,7 @@
 
   {#if controls}
     <div
-      class="flex flex-none flex-wrap items-center gap-3 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2.5 md:px-6"
+      class="flex flex-none flex-wrap items-center gap-3 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2.5 tablet:px-6"
       data-testid="page-controls"
     >
       {@render controls()}
@@ -180,7 +180,7 @@
   <div class="relative flex min-h-0 min-w-0 flex-1">
     <ScrollArea class={className}>
       <div
-        class="flex w-full flex-col gap-4 px-4 py-4 md:px-6 md:py-5 {width === 'full'
+        class="flex w-full flex-col gap-4 px-4 py-4 tablet:px-6 tablet:py-5 {width === 'full'
           ? 'h-full min-h-0'
           : 'max-w-[var(--content-max-width)]'}"
       >

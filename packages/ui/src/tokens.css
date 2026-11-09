@@ -113,15 +113,19 @@
    * монитор, но на большом экране растёт ступенью вместе с набором. */
   --book-page-max-width: 68rem;
 
-  /* Точки перелома интерфейса едины для всех областей: `--breakpoint-mobile`
-   * отделяет телефонную компоновку, `--breakpoint-narrow` — узкое окно,
-   * `--breakpoint-wide` — большой монитор, `--breakpoint-ultra` — очень
-   * большой. Значения совпадают с утилитами Tailwind `md`/`lg`/`wide`/`ultra`
-   * (см. `@theme inline`) и с константами `src/shared/breakpoints.ts`. */
-  --breakpoint-mobile: 48rem;
-  --breakpoint-narrow: 56.25rem;
-  --breakpoint-wide: 90rem;
-  --breakpoint-ultra: 120rem;
+  /* Точки перелома интерфейса — единая шкала режимов (см. ROADMAP.md).
+   * `phone` — подступень смартфона, `tablet` — маленький планшет,
+   * `large-tablet` — большой планшет, `desktop` — десктоп,
+   * `large-desktop` — крупный десктоп, `huge-desktop` — очень крупный.
+   * Смена компоновки (навигация, панели, полосы управления) происходит ровно
+   * по одному порогу — `large-tablet`. Значения совпадают с утилитами Tailwind
+   * в `@theme inline` и с константами `src/shared/breakpoints.ts`. */
+  --breakpoint-phone: 30rem;
+  --breakpoint-tablet: 48rem;
+  --breakpoint-large-tablet: 64rem;
+  --breakpoint-desktop: 90rem;
+  --breakpoint-large-desktop: 120rem;
+  --breakpoint-huge-desktop: 160rem;
 
   /* Безопасные зоны экрана (вырезы, системные индикаторы). */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -526,13 +530,24 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
-  /* Точки перелома Tailwind выводятся из общих токенов: `md` — телефон против
-   * планшета и десктопа, `lg` — узкое окно против широкого, `wide` — большой
-   * монитор (от 1440px), `ultra` — очень большой (от 1920px). */
-  --breakpoint-md: 48rem;
-  --breakpoint-lg: 56.25rem;
-  --breakpoint-wide: 90rem;
-  --breakpoint-ultra: 120rem;
+  /* Точки перелома Tailwind выводятся из общих токенов режимов: `phone` —
+   * подступень смартфона, `tablet` — маленький планшет, `large-tablet` —
+   * большой планшет, `desktop` — десктоп, `large-desktop` — крупный десктоп,
+   * `huge-desktop` — очень крупный. Смена компоновки (навигация, панели,
+   * полосы управления) идёт по одному порогу — `large-tablet`. */
+  --breakpoint-phone: 30rem;
+  --breakpoint-tablet: 48rem;
+  --breakpoint-large-tablet: 64rem;
+  --breakpoint-desktop: 90rem;
+  --breakpoint-large-desktop: 120rem;
+  --breakpoint-huge-desktop: 160rem;
+
+  /* Именованные пороги контейнера: раскладка поля и страницы книги
+   * переключается по ширине контейнера, а не окна. Значения не подбираются
+   * «на глаз» — каждый порог отвечает за конкретную раскладку. */
+  --container-field: 18rem;
+  --container-columns: 34rem;
+  --container-spread: 56rem;
 
   --radius-sm: calc(var(--radius) * 0.55);
   --radius-md: calc(var(--radius) * 0.8);

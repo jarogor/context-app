@@ -239,12 +239,12 @@
   влезают), а подсказка у кнопки называет тип: «Цитата», «Текст», «Фигура».
 -->
 <div
-  class="flex flex-wrap items-center gap-1.5 border-[var(--border)] bg-[var(--card)] px-2 py-1.5 text-sm [font-variant-numeric:tabular-nums] max-lg:order-last max-lg:gap-1 max-lg:border-t lg:h-11 lg:border-b lg:border-t-0 lg:px-3 lg:py-0"
+  class="flex flex-wrap items-center gap-1.5 border-[var(--border)] bg-[var(--card)] px-2 py-1.5 text-sm [font-variant-numeric:tabular-nums] max-large-tablet:order-last max-large-tablet:gap-1 max-large-tablet:border-t large-tablet:h-11 large-tablet:border-b large-tablet:border-t-0 large-tablet:px-3 large-tablet:py-0"
   data-testid="note-toolbar"
 >
   {#if notesMode && typeOptions.length > 1}
     <div
-      class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-lg:order-1"
+      class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-large-tablet:order-1"
       role="group"
       aria-label={t('app.note.typeLabel')}
     >
@@ -255,11 +255,11 @@
           title={NOTE_TYPE_TITLES[type]}
           ariaLabel={noteTypeLabel(type)}
           ariaPressed={tool.type === type}
-          class="max-lg:px-2"
+          class="max-large-tablet:px-2"
           onclick={() => selectType(type)}
         >
-          <Icon name={type} class="hidden max-lg:block" />
-          <span class="max-lg:hidden">{noteTypeLabel(type)}</span>
+          <Icon name={type} class="hidden max-large-tablet:block" />
+          <span class="max-large-tablet:hidden">{noteTypeLabel(type)}</span>
         </Button>
       {/each}
     </div>
@@ -276,7 +276,7 @@
   -->
   {#if flowing && onChangeReaderFont}
     <div
-      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-lg:order-2"
+      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-large-tablet:order-2"
       role="group"
       aria-label={t('app.font.bookLabel')}
       data-testid="reader-font-toggle"
@@ -301,11 +301,11 @@
   {/if}
 
   {#if notesMode && tool.type === 'shape' && typeOptions.includes('shape')}
-    <div class="flex items-center max-lg:order-3" data-testid="note-tool-shape">
+    <div class="flex items-center max-large-tablet:order-3" data-testid="note-tool-shape">
       <Select
         value={tool.shape}
         items={shapeOptions}
-        class="h-8 w-[6.25rem] text-sm max-lg:w-[5.75rem]"
+        class="h-8 w-[6.25rem] text-sm max-large-tablet:w-[5.75rem]"
         ariaLabel={t('app.note.shapeLabel')}
         onchange={selectShape}
       />
@@ -319,20 +319,20 @@
       ariaLabel={t('app.note.colorMenuLabel')}
       testIdPrefix="note-tool-color"
       size={compact ? 'sm' : 'md'}
-      class="h-8 max-lg:order-4"
+      class="h-8 max-large-tablet:order-4"
     />
   {/if}
 
   <!-- Разрыв строки на узком окне: выше — инструменты, ниже — управление чтением. -->
-  <span class="hidden max-lg:order-5 max-lg:block max-lg:basis-full" aria-hidden="true"></span>
+  <span class="hidden max-large-tablet:order-5 max-large-tablet:block max-large-tablet:basis-full" aria-hidden="true"></span>
 
   <!--
     Управление чтением: на широком окне — группа справа от инструментов заметок
     (`ml-auto`), на узком — её блоки встают в общий перенос панели
-    (`max-lg:contents`) и получают место в нижней строке порядком `order`:
+    (`max-large-tablet:contents`) и получают место в нижней строке порядком `order`:
     переключатель темы, масштаб, навигация по страницам, прогресс.
   -->
-  <div class="flex items-center gap-1.5 max-lg:contents lg:ml-auto" data-testid="reader-footer">
+  <div class="flex items-center gap-1.5 max-large-tablet:contents large-tablet:ml-auto" data-testid="reader-footer">
     <!--
       Постраничная навигация: кнопки стоят **в ряд** и идут слева направо —
       «Следующая страница» (вниз), «Предыдущая страница» (вверх), затем поле номера
@@ -341,7 +341,7 @@
     -->
     {#if workplace && workplacePages && workplacePage !== null}
       <div
-        class="flex shrink-0 items-center gap-1.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-lg:order-8 max-lg:gap-1"
+        class="flex shrink-0 items-center gap-1.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-large-tablet:order-8 max-large-tablet:gap-1"
         data-testid="reader-pages"
       >
         <button
@@ -349,7 +349,7 @@
           title={t('app.reader.nextPage')}
           aria-label={t('app.reader.nextPage')}
           disabled={workplacePageCount !== null && workplacePage >= workplacePageCount}
-          class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 max-lg:h-7 max-lg:w-7"
+          class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 max-large-tablet:h-7 max-large-tablet:w-7"
           onclick={() => onStepPage?.(1)}
         >
           <Icon name="chevron-down" class="h-4 w-4" />
@@ -359,7 +359,7 @@
           title={t('app.reader.prevPage')}
           aria-label={t('app.reader.prevPage')}
           disabled={workplacePage <= 1}
-          class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 max-lg:h-7 max-lg:w-7"
+          class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 max-large-tablet:h-7 max-large-tablet:w-7"
           onclick={() => onStepPage?.(-1)}
         >
           <Icon name="chevron-up" class="h-4 w-4" />
@@ -370,7 +370,7 @@
           блоки, поэтому вся полоса стоит на месте.
         -->
         <Input
-          class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm max-lg:w-[2.75rem] max-lg:px-1 max-lg:text-xs"
+          class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm max-large-tablet:w-[2.75rem] max-large-tablet:px-1 max-large-tablet:text-xs"
           ariaLabel={t('app.reader.currentPage')}
           value={pageValue}
           oninput={(event) => (pageDraft = event.currentTarget.value)}
@@ -382,7 +382,7 @@
           onblur={commitPage}
         />
         <span
-          class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm max-lg:min-w-[1.75rem] max-lg:pr-1 max-lg:text-xs"
+          class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm max-large-tablet:min-w-[1.75rem] max-large-tablet:pr-1 max-large-tablet:text-xs"
           data-testid="reader-page-count"
           >/ {workplacePageCount ?? '?'}</span
         >
@@ -395,7 +395,7 @@
     -->
     {#if !(workplace && workplacePages)}
       <span
-        class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)] max-lg:order-9 max-lg:text-xs"
+        class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)] max-large-tablet:order-9 max-large-tablet:text-xs"
         data-testid="reader-progress"
         >{Math.round(progress)}%</span
       >
@@ -407,7 +407,7 @@
     -->
     {#if showZoom}
       <div
-        class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-lg:order-7 max-lg:gap-0"
+        class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5 max-large-tablet:order-7 max-large-tablet:gap-0"
         data-testid="reader-zoom-group"
       >
         <Button
@@ -429,7 +429,7 @@
           onclick={() => onChangeZoom?.(1)}>+</Button
         >
         <span
-          class="inline-block w-[3.25rem] text-center text-sm max-lg:w-[3.25rem] max-lg:text-xs"
+          class="inline-block w-[3.25rem] text-center text-sm max-large-tablet:w-[3.25rem] max-large-tablet:text-xs"
           data-testid="reader-zoom">{zoom}%</span
         >
       </div>
@@ -440,7 +440,7 @@
       заметок. Панель поиска открывается поверх области содержимого.
     -->
     {#if onToggleSearch}
-      <div class="flex shrink-0 items-center gap-1 max-lg:order-10" data-testid="reader-search-toggle">
+      <div class="flex shrink-0 items-center gap-1 max-large-tablet:order-10" data-testid="reader-search-toggle">
         <Button
           size="icon"
           variant={searchOpen ? 'primary' : 'ghost'}
@@ -455,7 +455,7 @@
       </div>
     {/if}
     <div
-      class="flex shrink-0 items-center gap-1 max-lg:order-6"
+      class="flex shrink-0 items-center gap-1 max-large-tablet:order-6"
       data-testid="reader-theme-toggle"
     >
       <Button

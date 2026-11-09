@@ -404,7 +404,7 @@
     а не форма: страница остаётся той же, меняются лишь значения.
   -->
   <header
-    class="flex flex-none flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2 md:px-6"
+    class="flex flex-none flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2 tablet:px-6"
   >
     <Button
       variant="secondary"
@@ -460,12 +460,12 @@
       (`contents`), поэтому разметка одна, а порядок блоков задаёт сетка.
     -->
     <div
-      class="mx-auto grid w-full max-w-[var(--book-page-max-width)] grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-6 px-4 py-6 [grid-template-areas:'cover_head'_'actions_actions'_'body_body'_'meta_meta'] md:px-8 md:py-8 @min-[34rem]:grid-cols-[9rem_minmax(0,1fr)] @min-[34rem]:gap-x-6 @min-[34rem]:[grid-template-areas:'cover_head'_'cover_actions'_'body_body'_'meta_meta'] @min-[56rem]:flex @min-[56rem]:items-start @min-[56rem]:gap-10 wide:gap-12 ultra:gap-14"
+      class="mx-auto grid w-full max-w-[var(--book-page-max-width)] grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-6 px-4 py-6 [grid-template-areas:'cover_head'_'actions_actions'_'body_body'_'meta_meta'] tablet:px-8 tablet:py-8 @min-columns:grid-cols-[9rem_minmax(0,1fr)] @min-columns:gap-x-6 @min-columns:[grid-template-areas:'cover_head'_'cover_actions'_'body_body'_'meta_meta'] @min-spread:flex @min-spread:items-start @min-spread:gap-10 desktop:gap-12 large-desktop:gap-14"
     >
       <div
-        class="contents @min-[56rem]:flex @min-[56rem]:w-[14rem] @min-[56rem]:shrink-0 @min-[56rem]:flex-col @min-[56rem]:gap-8 wide:w-[16rem] ultra:w-[18rem]"
+        class="contents @min-spread:flex @min-spread:w-[14rem] @min-spread:shrink-0 @min-spread:flex-col @min-spread:gap-8 desktop:w-[16rem] large-desktop:w-[18rem]"
       >
-        <div class="w-full [grid-area:cover] @min-[56rem]:w-[14rem] wide:w-[16rem] ultra:w-[18rem]">
+        <div class="w-full [grid-area:cover] @min-spread:w-[14rem] desktop:w-[16rem] large-desktop:w-[18rem]">
           <BookCover src={book.coverUri ?? null} class="rounded-[var(--radius)]" />
         </div>
 
@@ -633,7 +633,7 @@
       </div>
 
       <div
-        class="contents @min-[56rem]:flex @min-[56rem]:min-w-0 @min-[56rem]:flex-1 @min-[56rem]:flex-col @min-[56rem]:gap-8"
+        class="contents @min-spread:flex @min-spread:min-w-0 @min-spread:flex-1 @min-spread:flex-col @min-spread:gap-8"
       >
         <!-- Титул: автор, название, теги. -->
         <div class="flex min-w-0 flex-col gap-2 [grid-area:head]">

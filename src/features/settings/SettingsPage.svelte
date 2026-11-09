@@ -226,7 +226,7 @@
     {#each visible as item, index (item.declaration?.id ?? index)}
       {#if item.declaration}
         <section
-          class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 md:p-5"
+          class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 tablet:p-5"
           data-testid="settings-section"
         >
           <UiRenderer
@@ -257,7 +257,7 @@
   -->
   {#if ownFooter || dirty}
     <div
-      class="flex flex-none px-4 md:px-6 {embedded ? '' : 'pb-[max(0.75rem,var(--safe-bottom))]'}"
+      class="flex flex-none px-4 tablet:px-6 {embedded ? '' : 'pb-[max(0.75rem,var(--safe-bottom))]'}"
       data-testid="settings-footer"
     >
       <div
@@ -284,7 +284,7 @@
   </div>
 {:else}
   <div class="flex min-h-0 flex-1 flex-col" data-testid="settings-page">
-    <ScrollArea testId="settings-sections" class="p-4 md:p-6">
+    <ScrollArea testId="settings-sections" class="p-4 tablet:p-6">
       <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-6">
         {@render sectionsContent()}
       </div>

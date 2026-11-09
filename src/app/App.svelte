@@ -185,8 +185,8 @@
   let pendingNoteTarget: { bookKey: string; setId: string; noteId: string | null } | null =
     $state(null);
 
-  /** Узкое окно (телефон и планшет): меню разделов показывается иконками без
-   * подписей. Точка совпадает с токеном `--breakpoint-narrow`. */
+  /** Узкое окно (телефон и планшеты): меню разделов показывается иконками без
+   * подписей. Точка совпадает с токеном `--breakpoint-large-tablet`. */
   let mobileWindow = $state(false);
 
   /** Есть ли неприменённые изменения активности плагинов. */
@@ -1445,7 +1445,7 @@
           месте.
         -->
         <header
-          class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 md:min-h-14 md:gap-4 md:px-6"
+          class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 large-tablet:min-h-14 large-tablet:gap-4 large-tablet:px-6"
           data-testid="settings-header"
         >
           <span class="min-w-0 flex-1 truncate role-heading text-[var(--foreground)]"
@@ -1477,7 +1477,7 @@
             <Icon name="close" />
           </Button>
         </header>
-        <div class="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col large-tablet:flex-row">
           <!--
             Меню разделов — та же карточка, что и секции настроек: мягкое
             скругление и общий фон, а не контурная полоса сбоку. На узком окне
@@ -1485,7 +1485,7 @@
           -->
           <Menu
             ariaLabel={t('app.settings.sections')}
-            class="shrink-0 gap-1 overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 max-md:mx-4 max-md:mt-3 max-md:flex-row md:mx-3 md:my-3 md:w-[13rem] md:flex-none md:flex-col md:self-start"
+            class="shrink-0 gap-1 overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 max-large-tablet:mx-4 max-large-tablet:mt-3 max-large-tablet:flex-row large-tablet:mx-3 large-tablet:my-3 large-tablet:w-[13rem] large-tablet:flex-none large-tablet:flex-col large-tablet:self-start"
           >
             <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
               {t('app.settings.general')}

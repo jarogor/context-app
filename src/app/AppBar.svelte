@@ -88,7 +88,7 @@
 </script>
 
 <header
-  class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 md:min-h-14 md:gap-4 md:px-6"
+  class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 tablet:min-h-14 tablet:gap-4 tablet:px-6"
   style="padding-top: var(--safe-top);"
   data-testid="app-bar"
 >
@@ -112,7 +112,7 @@
   >
     {@html logoMarkup}
   </span>
-  <span class="hidden h-6 w-px shrink-0 bg-[var(--border)] md:block" aria-hidden="true"></span>
+  <span class="hidden h-6 w-px shrink-0 bg-[var(--border)] tablet:block" aria-hidden="true"></span>
   <!--
     Навигационный текст. На узком окне (телефон, планшет) остаётся только имя
     выбранного объекта: название раздела уже показано меню-иконками, и «Рабочее
@@ -120,7 +120,7 @@
     раздел, и выбор — шапка остаётся единственным местом, где это видно.
   -->
   <span
-    class="min-w-0 truncate role-caption text-[var(--muted-foreground)] max-md:ml-4"
+    class="min-w-0 truncate role-caption text-[var(--muted-foreground)] max-tablet:ml-4"
     data-testid="app-context"
     title={contextTitle}
   >
@@ -137,7 +137,7 @@
     не две с повторяющимися доступными именами и метками для тестов.
   -->
   {#if !mobile}
-    <div class="ml-auto flex min-w-0 items-center gap-2 md:gap-4">
+    <div class="ml-auto flex min-w-0 items-center gap-2 tablet:gap-4">
       <SectionNav
         {workspaceActive}
         {libraryActive}

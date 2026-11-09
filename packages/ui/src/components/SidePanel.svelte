@@ -54,14 +54,14 @@
   /** Классы границы: панель справа отделена слева, панель слева — справа. */
   const borderClass = $derived(
     side === 'left'
-      ? 'border-r max-lg:border-r-0'
-      : 'border-l max-lg:border-l-0',
+      ? 'border-r max-large-tablet:border-r-0'
+      : 'border-l max-large-tablet:border-l-0',
   );
 </script>
 
 <aside
   class={cn(
-    'flex h-full min-w-0 flex-none flex-col border-[var(--border)] bg-[var(--panel)] max-lg:absolute max-lg:inset-0 max-lg:z-[var(--layer-panel)] max-lg:w-auto',
+    'flex h-full min-w-0 flex-none flex-col border-[var(--border)] bg-[var(--panel)] max-large-tablet:absolute max-large-tablet:inset-0 max-large-tablet:z-[var(--layer-panel)] max-large-tablet:w-auto',
     borderClass,
     className,
   )}
@@ -73,7 +73,7 @@
     class="flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 py-2.5"
   >
     {#if onClose}
-      <span class="flex lg:hidden">
+      <span class="flex large-tablet:hidden">
         <button
           type="button"
           class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"

@@ -78,7 +78,7 @@
    * не выдавливает контрол за край.
    */
   const fieldGridClass =
-    'grid grid-cols-1 gap-2 @min-[34rem]:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] @min-[34rem]:items-start @min-[34rem]:gap-x-6';
+    'grid grid-cols-1 gap-2 @min-columns:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] @min-columns:items-start @min-columns:gap-x-6';
 </script>
 
 {#snippet fieldLabel()}

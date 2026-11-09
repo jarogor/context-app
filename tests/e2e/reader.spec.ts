@@ -110,7 +110,7 @@ test('масштаб удерживает читаемую строку на м�
 });
 
 test('открытие панели заметок не сбивает читаемое место', async ({ page }) => {
-  await page.setViewportSize({ width: 900, height: 700 });
+  await page.setViewportSize({ width: 1200, height: 700 });
   await openWorkplace(page);
   const frameLocator = page.frameLocator('iframe[title="Содержимое книги"]');
   await expect(frameLocator.getByText('Первый абзац книги.')).toBeVisible();

@@ -169,7 +169,7 @@ test('дублирование вкладки доступно пунктом м
 test('переключение вкладки в полосе прокручивает список панели к ней', async ({ page }) => {
   // Дефект: вкладку переключали в полосе сверху, а список панели оставался на
   // прежнем месте, и выбранной вкладки в нём не было видно.
-  await page.setViewportSize({ width: 920, height: 600 });
+  await page.setViewportSize({ width: 1100, height: 600 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
   await duplicateActive(page, 8);
@@ -309,20 +309,20 @@ test('при переполнении вкладки ограничены по �
   page,
 }) => {
   // Широкое окно: на узком полоса вкладок показывает одну активную вкладку.
-  await page.setViewportSize({ width: 920, height: 800 });
+  await page.setViewportSize({ width: 1100, height: 800 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
-  await duplicateActive(page, 4);
+  await duplicateActive(page, 6);
 
   // Состав вкладок сохранён, но показаны не все: навигация и счётчик видны.
   await expect(page.getByLabel('Следующие вкладки')).toBeVisible();
   await expect(page.getByLabel('Предыдущие вкладки')).toBeVisible();
   const counter = page.getByTestId('workplace-tabs-counter');
   await expect(counter).toBeVisible();
-  await expect(counter).toContainText('из 5');
+  await expect(counter).toContainText('из 7');
 
   const shown = await page.getByTestId('workplace-tab-item').count();
-  expect(shown).toBeLessThan(5);
+  expect(shown).toBeLessThan(7);
   expect(shown).toBeGreaterThan(0);
 
   // Кнопки открытия книги закреплены и видны.
@@ -338,7 +338,7 @@ test('при переполнении вкладки ограничены по �
 test('навигация по вкладкам сдвигает видимый диапазон, не меняя активную вкладку', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 920, height: 800 });
+  await page.setViewportSize({ width: 1100, height: 800 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
   // Вкладок заметно больше ёмкости полосы: тогда число видимых не зависит от
@@ -725,7 +725,7 @@ test('вкладка занимает всю доступную ширину п�
   expect(Math.abs(tabBox!.x - windowBox!.x)).toBeLessThan(2);
 
   // При переполнении вкладки держат свой размер, иначе все не поместились бы.
-  await page.setViewportSize({ width: 920, height: 800 });
+  await page.setViewportSize({ width: 1100, height: 800 });
   await duplicateActive(page, 6);
   const items = await page.getByTestId('workplace-tab-item').count();
   expect(items).toBeLessThan(7);
@@ -734,7 +734,7 @@ test('вкладка занимает всю доступную ширину п�
 });
 
 test('на узком окне действия вкладки собраны в меню', async ({ page }) => {
-  // Режим определяется размером окна: телефон/планшет — до 900px.
+  // Режим определяется размером окна: телефон и планшеты — до 1024px.
   await page.setViewportSize({ width: 820, height: 900 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
@@ -764,7 +764,7 @@ test('на широком окне кнопки вкладки остаются 
   await page.goto('/');
   await addBook(page, 'Демо-книга');
 
-  // До 900px меню нет, кнопки закрытия и открытия книги — как прежде.
+  // От 1024px меню нет, кнопки закрытия и открытия книги — как прежде.
   await expect(page.getByTestId('workplace-tab-menu')).toHaveCount(0);
   await expect(page.getByTestId('workplace-panel-menu')).toHaveCount(0);
   await expect(page.getByTestId('workplace-tab-close').first()).toBeVisible();
