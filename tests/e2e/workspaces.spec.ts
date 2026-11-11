@@ -326,9 +326,9 @@ test('кнопка создания не переезжает при вводе 
     expect(Math.abs(field!.x - (after!.x + after!.width) - 8)).toBeLessThan(10);
 
     // На телефоне и планшете поле занимает свободное место полосы (минус
-    // кнопка и промежутки), на широком окне остаётся компактным.
+    // кнопка и промежуток), на широком окне остаётся компактным.
     const controls = await page.getByTestId('workspaces-controls').boundingBox();
-    const expected = width < 1024 ? controls!.width - 52 : 22 * 16;
+    const expected = width < 1024 ? controls!.width - 44 : 22 * 16;
     expect(Math.abs(field!.width - expected)).toBeLessThan(8);
 
     await page.getByRole('button', { name: 'Создать рабочее место' }).click();

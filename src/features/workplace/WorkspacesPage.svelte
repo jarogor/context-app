@@ -19,7 +19,7 @@
   } from '@context/ui';
   import { currentLocale, t } from '@context/i18n';
   import { onMount } from 'svelte';
-  import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
+  import { NARROW_MAX_WIDTH, PHONE_MAX_WIDTH } from '../../shared/breakpoints';
   import { formatDateTime } from '../../shared/format';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
@@ -79,6 +79,13 @@
       composerOpen = false;
     };
     query.addEventListener('change', onChange);
+    // Смартфон — подступень узкого окна: там плитка и список неразличимы.
+    const phoneQuery = window.matchMedia(PHONE_MAX_WIDTH);
+    phoneWindow = phoneQuery.matches;
+    const onPhoneChange = (event: MediaQueryListEvent) => {
+      phoneWindow = event.matches;
+    };
+    phoneQuery.addEventListener('change', onPhoneChange);
     // Режим показа и порядок переживают перезапуск: они хранятся в браузере,
     // как у книг и библиотек.
     try {
@@ -98,7 +105,10 @@
     } catch {
       /* Хранилище недоступно — режим и порядок по умолчанию остаются. */
     }
-    return () => query.removeEventListener('change', onChange);
+    return () => {
+      query.removeEventListener('change', onChange);
+      phoneQuery.removeEventListener('change', onPhoneChange);
+    };
   });
 
   /** Показ поля создания на узком окне. */
@@ -206,9 +216,11 @@
 
   /**
    * Смартфон: плитка и список выглядят одинаково (оба — одна колонка), поэтому
-   * переключатель вида на нём скрыт, а список всегда строки.
+   * переключатель вида на нём скрыт, а список всегда строки. Порог — подступень
+   * смартфона, а не «узкое окно»: на маленьком планшете виды различимы и
+   * переключатель нужен.
    */
-  const phoneWindow = $derived(narrow);
+  let phoneWindow = $state(false);
 
   /** Режим показа с учётом смартфона: там всегда строки. */
   const effectiveViewMode = $derived(phoneWindow ? 'list' : viewMode);
@@ -479,11 +491,12 @@
       {:else}
         <Button
           variant="primary"
+          title={t('app.workspace.create')}
           ariaLabel={t('app.workspace.create')}
           onclick={openComposer}
         >
           <Icon name="plus" />
-          {t('app.workspace.createShort')}
+          <span class="max-large-tablet:hidden">{t('app.workspace.createShort')}</span>
         </Button>
       {/if}
 
@@ -500,19 +513,29 @@
         />
       {/if}
 
-      <div class="flex min-w-0 items-center gap-2 tablet:ml-auto" data-testid="workspace-composer">
+      <!--
+        Порядок и вид всегда справа. На узком окне группа занимает всю ширину,
+        но её содержимое прижато к правому краю: переключатель вида не обрезается
+        и не уезжает влево, сжимается только список порядка.
+      -->
+      <div
+        class="flex w-full min-w-0 items-center justify-end gap-2 tablet:ml-auto tablet:w-auto"
+        data-testid="workspace-composer"
+      >
         {#if !composerOpen && workspaces.length > 0}
-          <SortControl
-            items={sortOptions}
-            value={sortField}
-            direction={sortDirection}
-            ariaLabel={t('app.workspace.sort.label')}
-            testId="workspaces-sort"
-            class="min-w-0"
-            selectClass="w-[10.5rem] tablet:w-[12rem]"
-            onchange={(value) => chooseSort(value)}
-            ondirection={(next) => chooseSortDirection(next)}
-          />
+          <div class="min-w-0 tablet:flex-none">
+            <SortControl
+              items={sortOptions}
+              value={sortField}
+              direction={sortDirection}
+              ariaLabel={t('app.workspace.sort.label')}
+              testId="workspaces-sort"
+              class="min-w-0"
+              selectClass="min-w-0 tablet:w-[12rem] tablet:shrink-0"
+              onchange={(value) => chooseSort(value)}
+              ondirection={(next) => chooseSortDirection(next)}
+            />
+          </div>
           {#if !phoneWindow}
             <SegmentedControl
               items={viewModeItems}

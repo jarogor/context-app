@@ -508,6 +508,7 @@
       <Button
         variant="primary"
         disabled={opening}
+        title={t('app.library.libraries.add')}
         ariaLabel={t('app.library.libraries.add')}
         onclick={pickLibrary}
       >
@@ -515,7 +516,7 @@
           <Spinner class="h-4 w-4" />
         {/if}
         <Icon name="folder" />
-        {t('app.library.libraries.addShort')}
+        <span class="max-large-tablet:hidden">{t('app.library.libraries.addShort')}</span>
       </Button>
       <SearchField
         bind:value={query}
@@ -528,24 +529,24 @@
         class="min-w-0 flex-1 tablet:max-w-[22rem]"
       />
       <!--
-        Сортировка и вид: на телефоне уходят на свою строку, а поиск занимает
-        всю ширину. На планшете и шире остаются в общем ряду справа и не
-        растягиваются — растянутая сортировка выглядела полем ввода.
+        Порядок и вид всегда справа. На узком окне группа занимает всю ширину,
+        но её содержимое прижато к правому краю: переключатель вида не обрезается
+        и не уезжает влево, сжимается только список порядка.
       -->
-      <div
-        class="order-last flex w-full min-w-0 items-center gap-2 tablet:order-none tablet:ml-auto tablet:w-auto"
-      >
-        <SortControl
-          items={sortOptions}
-          value={sortField}
-          direction={sortDirection}
-          ariaLabel={t('app.library.libraries.sort.label')}
-          testId="libraries-sort"
-          class="w-full min-w-0 tablet:w-auto"
-          selectClass="w-full tablet:w-[15rem] tablet:shrink-0"
-          onchange={(value) => chooseSort(value)}
-          ondirection={(next) => chooseSortDirection(next)}
-        />
+      <div class="flex w-full min-w-0 items-center justify-end gap-2 tablet:ml-auto tablet:w-auto">
+        <div class="min-w-0 tablet:flex-none">
+          <SortControl
+            items={sortOptions}
+            value={sortField}
+            direction={sortDirection}
+            ariaLabel={t('app.library.libraries.sort.label')}
+            testId="libraries-sort"
+            class="min-w-0"
+            selectClass="min-w-0 tablet:w-[15rem] tablet:shrink-0"
+            onchange={(value) => chooseSort(value)}
+            ondirection={(next) => chooseSortDirection(next)}
+          />
+        </div>
         {#if !phoneWindow}
           <SegmentedControl
             items={viewModeItems}

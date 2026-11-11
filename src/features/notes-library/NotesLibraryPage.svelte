@@ -502,7 +502,7 @@
             <Spinner class="h-4 w-4" />
           {/if}
           <Icon name="download" />
-          {t('app.notes.library.import')}
+          <span class="max-large-tablet:hidden">{t('app.notes.library.import')}</span>
         </Button>
         <SearchField
           bind:value={query}
@@ -525,18 +525,24 @@
             <dd>{totalNotes}</dd>
           </dl>
         {/if}
-        <div class="flex min-w-0 items-center gap-2 tablet:ml-auto">
-          <SortControl
-            items={sortOptions}
-            value={sortField}
-            direction={sortDirection}
-            ariaLabel={t('app.notes.library.sort.label')}
-            testId="notes-library-sort"
-            class="min-w-0"
-            selectClass="w-[10.5rem] tablet:w-[12rem]"
-            onchange={(value) => chooseSort(value)}
-            ondirection={(next) => chooseSortDirection(next)}
-          />
+        <!--
+          Порядок всегда справа. На узком окне группа занимает всю ширину, но
+          прижата к правому краю.
+        -->
+        <div class="flex w-full min-w-0 items-center justify-end gap-2 tablet:ml-auto tablet:w-auto">
+          <div class="min-w-0 tablet:flex-none">
+            <SortControl
+              items={sortOptions}
+              value={sortField}
+              direction={sortDirection}
+              ariaLabel={t('app.notes.library.sort.label')}
+              testId="notes-library-sort"
+              class="min-w-0"
+              selectClass="min-w-0 tablet:w-[12rem] tablet:shrink-0"
+              onchange={(value) => chooseSort(value)}
+              ondirection={(next) => chooseSortDirection(next)}
+            />
+          </div>
         </div>
       </div>
     {/snippet}

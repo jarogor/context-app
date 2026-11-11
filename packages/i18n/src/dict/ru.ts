@@ -15,7 +15,7 @@ export const ru = {
   'app.boot.error.retry': 'Повторить',
 
   'app.section.workspace': 'Рабочее место',
-  'app.section.library': 'Библиотека',
+  'app.section.library': 'Книги',
   'app.section.notes': 'Заметки',
   'app.section.workspace.short': 'Место',
   'app.section.library.short': 'Книги',
@@ -366,7 +366,7 @@ export const ru = {
   'app.library.sort.size': 'По размеру',
   'app.library.sort.format': 'По формату',
   'app.library.filters.open': 'Фильтры',
-  'app.library.filters.title': 'Сортировка и фильтры',
+  'app.library.filters.title': 'Фильтры',
   'app.library.filters.sort': 'Сортировка',
   'app.library.filters.reset': 'Сбросить',
   'app.library.filters.search': 'Поиск по значениям',

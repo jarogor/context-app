@@ -15,7 +15,7 @@ export const en: Dictionary = {
   'app.boot.error.retry': 'Retry',
 
   'app.section.workspace': 'Workspace',
-  'app.section.library': 'Library',
+  'app.section.library': 'Books',
   'app.section.notes': 'Notes',
   'app.section.workspace.short': 'Place',
   'app.section.library.short': 'Books',
@@ -382,7 +382,7 @@ export const en: Dictionary = {
   'app.library.sort.size': 'By size',
   'app.library.sort.format': 'By format',
   'app.library.filters.open': 'Filters',
-  'app.library.filters.title': 'Sorting and filters',
+  'app.library.filters.title': 'Filters',
   'app.library.filters.sort': 'Sorting',
   'app.library.filters.reset': 'Reset',
   'app.library.filters.search': 'Search values',

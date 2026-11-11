@@ -689,12 +689,13 @@
           <Button
             variant={filtersOpen ? 'primary' : 'secondary'}
             testId="library-filters-open"
+            title={t('app.library.filters.open')}
             ariaLabel={t('app.library.filters.open')}
             ariaPressed={filtersOpen}
             onclick={() => (filtersOpen = !filtersOpen)}
           >
             <Icon name="layers" />
-            {t('app.library.filters.open')}
+            <span class="max-tablet:hidden">{t('app.library.filters.open')}</span>
             {#if filterCount > 0}
               <span
                 class="role-caption text-[var(--muted-foreground)]"

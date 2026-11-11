@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import WorkspacesPage from './WorkspacesPage.svelte';
-import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
+import { NARROW_MAX_WIDTH, PHONE_MAX_WIDTH } from '../../shared/breakpoints';
 
 vi.mock('../../shared/app-bridge', () => ({
   invokeCommand: vi.fn(async () => null),
@@ -389,5 +389,68 @@ describe('порядок рабочих мест', () => {
     await fireEvent.click(screen.getByTestId('workspaces-sort-direction'));
 
     await waitFor(() => expect(names()).toEqual(['Альфа', 'Бета']));
+  });
+});
+
+describe('полоса управления на узком окне', () => {
+  /** Подмена медиазапросов: узкое окно и смартфон. */
+  function mockWidths(narrow: boolean, phone: boolean) {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => {
+      const matches =
+        query === NARROW_MAX_WIDTH ? narrow : query === PHONE_MAX_WIDTH ? phone : false;
+      return {
+        matches,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      } as unknown as MediaQueryList;
+    });
+  }
+
+  it('на маленьком планшете переключатель вида остаётся', () => {
+    // Дефект: вид скрывался вместе с «узким окном» до 1024px, и на планшете
+    // переключить плитку и список было нельзя.
+    mockWidths(true, false);
+    render(WorkspacesPage, {
+      props: {
+        workspaces: [{ id: 'ws-1', name: 'Первое' }],
+        currentId: null,
+        ...handlers(),
+      },
+    });
+
+    expect(screen.getByRole('group', { name: 'Режим показа' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Список' })).toBeTruthy();
+  });
+
+  it('на смартфоне переключатель вида скрыт: виды одинаковы', () => {
+    mockWidths(true, true);
+    render(WorkspacesPage, {
+      props: {
+        workspaces: [{ id: 'ws-1', name: 'Первое' }],
+        currentId: null,
+        ...handlers(),
+      },
+    });
+
+    expect(screen.queryByRole('group', { name: 'Режим показа' })).toBeNull();
+  });
+
+  it('правая группа занимает строку целиком и прижата к правому краю', () => {
+    mockWidths(true, true);
+    render(WorkspacesPage, {
+      props: {
+        workspaces: [{ id: 'ws-1', name: 'Первое' }],
+        currentId: null,
+        ...handlers(),
+      },
+    });
+
+    // На узком окне группа занимает всю ширину полосы, но содержимое прижато
+    // вправо: переключатель вида не уезжает влево и не обрезается.
+    const group = screen.getByTestId('workspace-composer');
+    expect(group.className).toContain('w-full');
+    expect(group.className).toContain('justify-end');
+    expect(group.className).toContain('tablet:ml-auto');
   });
 });
