@@ -63,5 +63,5 @@ test('шапка показывает имя открытой библиотек
   await showLibraryBookList(page);
 
   // Навигационный текст в шапке: раздел и имя открытой библиотеки.
-  await expect(page.getByTestId('app-context')).toContainText('Библиотека · demo-library');
+  await expect(page.getByTestId('app-context')).toContainText('Книги · demo-library');
 });

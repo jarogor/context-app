@@ -32,7 +32,7 @@ test('выбор языка переводит интерфейс без пер�
   // Разделы приложения переводятся вместе со всем интерфейсом.
   await page.getByLabel('Close settings').click();
   await expect(page.getByTestId('nav-workspace')).toHaveAttribute('aria-label', 'Workspace');
-  await expect(page.getByTestId('nav-library')).toHaveAttribute('aria-label', 'Library');
+  await expect(page.getByTestId('nav-library')).toHaveAttribute('aria-label', 'Books');
 
   // Имя приложения — тоже текст интерфейса: знак-логотип не меняется, а имя
   // и заголовок документа переводятся.

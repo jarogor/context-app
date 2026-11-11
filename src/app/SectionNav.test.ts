@@ -27,7 +27,7 @@ describe('SectionNav', () => {
     render(SectionNav, { props: props() });
 
     expect(screen.getByLabelText('Рабочее место')).toBeTruthy();
-    expect(screen.getByLabelText('Библиотека')).toBeTruthy();
+    expect(screen.getByLabelText('Книги')).toBeTruthy();
     expect(screen.getByLabelText('Заметки')).toBeTruthy();
     expect(screen.getByTestId('section-nav').getAttribute('data-mobile')).toBe('false');
   });
@@ -79,7 +79,7 @@ describe('SectionNav', () => {
 
     // Телефон — не уменьшенный десктоп: в нижней полосе не только разделы, но и
     // служебные действия (тема, настройки), доступные пальцу.
-    for (const label of ['Рабочее место', 'Библиотека', 'Заметки', 'Настройки']) {
+    for (const label of ['Рабочее место', 'Книги', 'Заметки', 'Настройки']) {
       expect(screen.getByLabelText(label)).toBeTruthy();
     }
     expect(screen.getByTestId('nav-theme')).toBeTruthy();

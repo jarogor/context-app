@@ -19,7 +19,7 @@ test('выбор библиотеки показывает прогресс, а 
   }, ACTIVE_LIBRARY);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
-  await page.getByLabel('Библиотека', { exact: true }).click();
+  await page.getByLabel('Книги', { exact: true }).click();
 
   // Переход к списку библиотек из полосы книг.
   await page.getByTestId('library-choose-top').click();

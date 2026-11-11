@@ -33,7 +33,7 @@ test('счётчик поиска стоит внутри поля в каждо
   await expectInsideField('workspaces-counter', 'input[placeholder="Поиск рабочего места"]');
 
   // Библиотеки.
-  await page.getByLabel('Библиотека', { exact: true }).click();
+  await page.getByLabel('Книги', { exact: true }).click();
   await page
     .getByTestId('library-choose-top')
     .click()

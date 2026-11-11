@@ -45,7 +45,7 @@ test('на телефоне нижняя навигация даёт все ра
     await page.goto('/');
     await page.getByTestId('app-bar').waitFor();
 
-    for (const label of ['Рабочее место', 'Библиотека', 'Заметки', 'Настройки']) {
+    for (const label of ['Рабочее место', 'Книги', 'Заметки', 'Настройки']) {
       await expect(
         page.getByTestId('section-nav').getByLabel(label, { exact: true }),
       ).toBeVisible();

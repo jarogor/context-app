@@ -47,7 +47,7 @@ export async function openWorkspaceArea(page: Page) {
  * сведения в панели; книги открываются нажатием на название в панели.
  */
 export async function showLibraryBookList(page: Page) {
-  await page.getByLabel('Библиотека', { exact: true }).click();
+  await page.getByLabel('Книги', { exact: true }).click();
   const sources = page.getByTestId('libraries-page');
   const books = page.getByTestId('library-page');
   // Раздел показывает список библиотек; открытие библиотеки сменяет его списком

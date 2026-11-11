@@ -133,8 +133,8 @@ test('уход в «Библиотеки» и возврат не перечит
   await addBook(page);
 
   // Уходим в раздел «Библиотека» и возвращаемся кнопкой рабочего места.
-  await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
-  await expect(page.getByTestId('app-context')).toContainText('Библиотека', { timeout: 10000 });
+  await page.getByRole('button', { name: 'Книги', exact: true }).click();
+  await expect(page.getByTestId('app-context')).toContainText('Книги', { timeout: 10000 });
   await page.getByRole('button', { name: 'Рабочее место', exact: true }).click();
 
   // Возврат показывает список рабочих мест, а вкладки остаются смонтированными.

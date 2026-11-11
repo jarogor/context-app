@@ -143,7 +143,7 @@ test('настройки закрываются клавишей Escape', async 
 test('кнопка рабочего места открывает список из раздела библиотеки', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
+  await page.getByRole('button', { name: 'Книги', exact: true }).click();
   // Выбор библиотеки загружает её, книги открываются из панели.
   await page.getByTestId('library-item').first().getByRole('button').first().click();
   await page.getByTestId('library-card-open').click();
@@ -176,10 +176,10 @@ test('кнопка рабочего места активна только в с
 test('страница библиотек показывает историю с временем', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
+  await page.getByRole('button', { name: 'Книги', exact: true }).click();
 
   // Навигационный текст в шапке показывает текущий раздел.
-  await expect(page.getByTestId('app-context')).toContainText('Библиотека');
+  await expect(page.getByTestId('app-context')).toContainText('Книги');
   const entry = page.getByTestId('library-item').filter({ hasText: 'demo-library' }).first();
   await expect(entry).toBeVisible();
   await expect(page.getByText('context', { exact: true }).first()).toBeVisible();
@@ -189,7 +189,7 @@ test('страница библиотек показывает историю с
 test('после открытия библиотеки страница выбора закрывается', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
+  await page.getByRole('button', { name: 'Книги', exact: true }).click();
   await page.getByTestId('library-item').first().getByRole('button').first().click();
   await page.getByTestId('library-card-open').click();
 
@@ -224,7 +224,7 @@ test('кнопка рабочего места не «отжимается» и 
 test('раздел остаётся открытым при повторном нажатии по его кнопке', async ({ page }) => {
   await page.goto('/');
 
-  const libraries = page.getByRole('button', { name: 'Библиотека', exact: true });
+  const libraries = page.getByRole('button', { name: 'Книги', exact: true });
   const notes = page.getByTestId('nav-notes');
   const workspace = page.getByRole('button', { name: 'Рабочее место', exact: true });
 
@@ -249,7 +249,7 @@ test('список библиотек адаптивен к ширине окн�
   // Узкое окно: страница не даёт горизонтальной прокрутки и показывает поиск.
   await page.setViewportSize({ width: 600, height: 700 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
+  await page.getByRole('button', { name: 'Книги', exact: true }).click();
   await expect(page.getByTestId('libraries-page')).toBeVisible();
   await expect(
     page.getByTestId('libraries-page').getByPlaceholder('Поиск библиотеки'),
@@ -276,7 +276,7 @@ test('реестр заметок и библиотеки используют �
   await page.setViewportSize({ width: 1600, height: 800 });
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Библиотека', exact: true }).click();
+  await page.getByRole('button', { name: 'Книги', exact: true }).click();
   await expect(page.getByTestId('libraries-page').getByTestId('page-controls')).toBeVisible();
 
   await page.getByTestId('nav-notes').click();
@@ -325,10 +325,8 @@ test('панель разделов держит вкладки и действ�
     .evaluateAll((nodes) =>
       nodes.map((node) => (node as HTMLElement).getAttribute('aria-label') ?? ''),
     );
-  const sections = order.filter((label) =>
-    ['Рабочее место', 'Библиотека', 'Заметки'].includes(label),
-  );
-  expect(sections).toEqual(['Рабочее место', 'Библиотека', 'Заметки']);
+  const sections = order.filter((label) => ['Рабочее место', 'Книги', 'Заметки'].includes(label));
+  expect(sections).toEqual(['Рабочее место', 'Книги', 'Заметки']);
 });
 
 test('на узком окне шапка показывает только имя выбранного, без раздела', async ({ page }) => {
@@ -348,9 +346,9 @@ test('на узком окне шапка показывает только им
   // Открыта библиотека: в шапке только имя библиотеки, без названия раздела.
   const context = page.getByTestId('app-context');
   await expect(context).toHaveText('demo-library');
-  await expect(context).not.toContainText('Библиотека');
+  await expect(context).not.toContainText('Книги');
   // Полный путь остаётся в подсказке.
-  await expect(context).toHaveAttribute('title', 'Библиотека · demo-library');
+  await expect(context).toHaveAttribute('title', 'Книги · demo-library');
 
   // Открыто рабочее место: то же правило.
   const library = page.locator('main');

@@ -435,7 +435,7 @@ describe('состав меню разделов', () => {
 
     const labels = navLabels();
     expect(labels).toContain('Рабочее место');
-    expect(labels).toContain('Библиотека');
+    expect(labels).toContain('Книги');
     expect(labels).toContain('Заметки');
     const service = serviceLabels();
     expect(service).toContain('Настройки');
@@ -447,9 +447,9 @@ describe('состав меню разделов', () => {
     render(App, { props: appProps() });
 
     const labels = navLabels().filter((label) =>
-      ['Рабочее место', 'Библиотека', 'Заметки'].includes(label),
+      ['Рабочее место', 'Книги', 'Заметки'].includes(label),
     );
-    expect(labels).toEqual(['Рабочее место', 'Библиотека', 'Заметки']);
+    expect(labels).toEqual(['Рабочее место', 'Книги', 'Заметки']);
   });
 });
 
