@@ -432,3 +432,49 @@ describe('библиотека заметок', () => {
     expect(screen.getByTestId('notes-library-error').textContent).toContain('сбой');
   });
 });
+
+describe('полоса управления реестра заметок', () => {
+  it('ставит импорт слева от поиска, порядок — справа', () => {
+    render(NotesLibraryPage, {
+      props: { sets: [set({ id: 'ns-1', book_key: '/a.pdf', name: 'A' })] },
+    });
+
+    const importButton = screen.getByRole('button', { name: 'Импорт' });
+    const search = screen.getByTestId('notes-filter-counter').closest('[data-search-field]');
+    const sort = screen.getByTestId('notes-library-sort');
+    expect(importButton).toBeTruthy();
+    expect(search).toBeTruthy();
+    expect(sort).toBeTruthy();
+    // Импорт стоит левее поля поиска.
+    expect(
+      importButton.compareDocumentPosition(search as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('упорядочивает наборы по дате изменения и по алфавиту', async () => {
+    localStorage.clear();
+    render(NotesLibraryPage, {
+      props: {
+        sets: [
+          set({ id: 'ns-1', book_key: '/a.pdf', name: 'Бета', created_at_millis: 1_000 }),
+          set({ id: 'ns-2', book_key: '/b.pdf', name: 'Альфа', created_at_millis: 3_000 }),
+        ],
+      },
+    });
+
+    const names = () =>
+      screen.getAllByTestId('notes-library-set-name').map((element) => element.textContent?.trim());
+    // По умолчанию — по дате изменения, свежие сверху.
+    expect(names()).toEqual(['Альфа', 'Бета']);
+
+    await fireEvent.pointerDown(screen.getByRole('button', { name: 'Порядок наборов' }), {
+      button: 0,
+    });
+    await fireEvent.pointerUp(screen.getByRole('option', { name: 'По алфавиту' }));
+    await waitFor(() => expect(names()).toEqual(['Альфа', 'Бета']));
+
+    // Кнопка направления разворачивает порядок.
+    await fireEvent.click(screen.getByTestId('notes-library-sort-direction'));
+    await waitFor(() => expect(names()).toEqual(['Бета', 'Альфа']));
+  });
+});

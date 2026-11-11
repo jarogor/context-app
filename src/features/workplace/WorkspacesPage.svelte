@@ -5,14 +5,19 @@
     BookCover,
     Button,
     EmptyState,
+    EntityList,
     Icon,
     IconButton,
     Input,
     PageShell,
     SearchField,
+    SegmentedControl,
+    SortControl,
     type MenuAction,
+    type MetaItem,
+    type SortDirection,
   } from '@context/ui';
-  import { t } from '@context/i18n';
+  import { currentLocale, t } from '@context/i18n';
   import { onMount } from 'svelte';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { formatDateTime } from '../../shared/format';
@@ -74,6 +79,25 @@
       composerOpen = false;
     };
     query.addEventListener('change', onChange);
+    // Режим показа и порядок переживают перезапуск: они хранятся в браузере,
+    // как у книг и библиотек.
+    try {
+      const storedView = localStorage.getItem('workspaces-view-mode');
+      if (storedView === 'grid' || storedView === 'list') {
+        viewMode = storedView;
+      }
+      const storedSort = localStorage.getItem('workspaces-sort');
+      if (storedSort === 'name' || storedSort === 'created') {
+        sortField = storedSort;
+        sortDirection = storedSort === 'name' ? 'asc' : 'desc';
+      }
+      const storedDirection = localStorage.getItem('workspaces-sort-direction');
+      if (storedDirection === 'asc' || storedDirection === 'desc') {
+        sortDirection = storedDirection;
+      }
+    } catch {
+      /* Хранилище недоступно — режим и порядок по умолчанию остаются. */
+    }
     return () => query.removeEventListener('change', onChange);
   });
 
@@ -171,6 +195,83 @@
     return workspaces.filter((item) => item.name.toLowerCase().includes(needle));
   });
 
+  /** Режим показа: плитка (по умолчанию) или строки. */
+  let viewMode = $state<'grid' | 'list'>('grid');
+
+  /** Варианты переключателя режима показа рабочих мест. */
+  const viewModeItems = $derived([
+    { value: 'grid', label: t('app.library.mode.tiles'), icon: 'grid' as const },
+    { value: 'list', label: t('app.library.mode.list'), icon: 'list' as const },
+  ]);
+
+  /**
+   * Смартфон: плитка и список выглядят одинаково (оба — одна колонка), поэтому
+   * переключатель вида на нём скрыт, а список всегда строки.
+   */
+  const phoneWindow = $derived(narrow);
+
+  /** Режим показа с учётом смартфона: там всегда строки. */
+  const effectiveViewMode = $derived(phoneWindow ? 'list' : viewMode);
+
+  /** Запоминание режима показа в браузере: он переживает перезапуск. */
+  function chooseViewMode(mode: 'grid' | 'list') {
+    viewMode = mode;
+    try {
+      localStorage.setItem('workspaces-view-mode', mode);
+    } catch {
+      /* Хранилище недоступно — режим остаётся в состоянии страницы. */
+    }
+  }
+
+  /** Поле порядка рабочих мест: по имени или по дате создания. */
+  let sortField = $state<'name' | 'created'>('created');
+
+  /** Направление порядка. */
+  let sortDirection = $state<SortDirection>('desc');
+
+  /** Варианты порядка рабочих мест. */
+  const sortOptions = $derived([
+    { value: 'created', label: t('app.workspace.sort.created') },
+    { value: 'name', label: t('app.workspace.sort.name') },
+  ]);
+
+  /** Смена поля порядка: направление берётся удобное для поля. */
+  function chooseSort(value: string) {
+    sortField = value === 'name' ? 'name' : 'created';
+    sortDirection = sortField === 'name' ? 'asc' : 'desc';
+    rememberSort();
+  }
+
+  /** Переключение направления порядка; сторона сохраняется вместе с полем. */
+  function chooseSortDirection(next: SortDirection) {
+    sortDirection = next;
+    rememberSort();
+  }
+
+  /** Запоминание порядка в браузере: он переживает перезапуск. */
+  function rememberSort() {
+    try {
+      localStorage.setItem('workspaces-sort', sortField);
+      localStorage.setItem('workspaces-sort-direction', sortDirection);
+    } catch {
+      /* Хранилище недоступно — порядок остаётся в состоянии страницы. */
+    }
+  }
+
+  /** Рабочие места после поиска, в выбранном порядке. */
+  const visible = $derived.by(() => {
+    const factor = sortDirection === 'asc' ? 1 : -1;
+    return [...filtered].sort((left, right) => {
+      if (sortField === 'name') {
+        return factor * left.name.localeCompare(right.name, currentLocale());
+      }
+      const delta = (left.createdAtMillis ?? 0) - (right.createdAtMillis ?? 0);
+      return delta !== 0
+        ? factor * delta
+        : left.name.localeCompare(right.name, currentLocale());
+    });
+  });
+
   /** Подпись числа книг рабочего места. */
   function bookCountLabel(count: number): string {
     return t('app.workspace.count', { count });
@@ -209,6 +310,31 @@
   /** Обложки для показа: не больше лимита (счётчик занимает слот). */
   function previewPaths(item: WorkspaceItem): string[] {
     return coverPlan(item).paths;
+  }
+
+  /**
+   * Метаинформация строки списка: дата, книги и вкладки.
+   *
+   * Начинается с даты, как в остальных списках; книги и вкладки — рядом,
+   * иконками с подсказкой. Метки для тестов те же, что в карточке плитки.
+   */
+  function workspaceMeta(item: WorkspaceItem): MetaItem[] {
+    const items: MetaItem[] = [];
+    const created = formatDateTime(item.createdAtMillis ?? 0);
+    if (created) {
+      items.push({ icon: 'calendar', value: created });
+    }
+    items.push({
+      icon: 'book',
+      value: bookCountLabel(bookCount(item)),
+      testId: 'workspace-book-count',
+    });
+    items.push({
+      icon: 'tabs',
+      value: tabCountLabel(tabCount(item)),
+      testId: 'workspace-tab-count',
+    });
+    return items;
   }
 
   /** Сколько книг сверх показанных обложек. */
@@ -310,60 +436,21 @@
 
   {#snippet controls()}
     <!--
-      Одна полоса. Слева — поиск со счётчиком найденного: счётчик относится к
-      поиску и стоит сразу за полем, чтобы связь между ними читалась. Справа —
-      создание рабочего места: пока поле закрыто, там только кнопка; нажатие
-      показывает поле слева от неё, и кнопка не переезжает, а меняет действие
+      Полоса управления как в списках библиотек: создание — слева от поиска,
+      справа — порядок и режим показа. Кнопка создания стоит на месте и при
+      вводе имени: рядом с ней появляется поле, а сама она меняет действие
       (пустое поле — закрыть, введённое имя — сохранить).
     -->
     <div class="flex w-full min-w-0 flex-wrap items-center gap-2" data-testid="workspaces-controls">
-      {#if !composerOpen && workspaces.length > 0}
-        <div class="flex min-w-0 flex-1 items-center gap-2 tablet:flex-none">
-          <SearchField
-            bind:value={query}
-            placeholder={t('app.search.workspace.placeholder')}
-            ariaLabel={t('app.search.workspace.placeholder')}
-            shown={filtered.length}
-            total={workspaces.length}
-            counterTestId="workspaces-counter"
-            clearable
-            class="min-w-0 flex-1 tablet:w-[24rem] tablet:flex-none"
-          />
-        </div>
-      {/if}
-      <!--
-        Поле имени стоит слева от кнопки: на телефоне и планшете занимает всю
-        доступную ширину панели, на широком окне — компактное.
-      -->
-      <div
-        class="ml-auto flex min-w-0 items-center gap-2 {composerOpen ? 'flex-1 tablet:flex-none' : 'flex-none'}"
-        data-testid="workspace-composer"
-      >
-        {#if composerOpen}
-          <div class="relative min-w-0 flex-1 tablet:w-[24rem] tablet:flex-none">
-            <Input
-              bind:element={composerField}
-              bind:value={newName}
-              placeholder={t('app.search.newWorkspace.placeholder')}
-              ariaLabel={t('app.search.newWorkspace.placeholder')}
-              clearable
-              class="w-full"
-              onkeydown={(event) => {
-                if (event.key === 'Enter') {
-                  createFromField();
-                }
-              }}
-            />
-          </div>
-        {/if}
-        {#if composerOpen && newName.trim()}
+      {#if composerOpen}
+        {#if newName.trim()}
           <IconButton
             action="add"
             title={t('app.workspace.create')}
             ariaLabel={t('app.workspace.saveCreate')}
             onclick={createFromField}
           />
-        {:else if composerOpen}
+        {:else}
           <Button
             variant="ghost"
             size="icon"
@@ -373,34 +460,138 @@
           >
             <Icon name="close" />
           </Button>
-        {:else}
-          <Button
-            variant="primary"
-            size="sm"
-            ariaLabel={t('app.workspace.create')}
-            onclick={openComposer}
-          >
-            <Icon name="plus" />
-            {t('app.workspace.createShort')}
-          </Button>
+        {/if}
+        <div class="relative min-w-0 flex-1 tablet:w-[22rem] tablet:flex-none">
+          <Input
+            bind:element={composerField}
+            bind:value={newName}
+            placeholder={t('app.search.newWorkspace.placeholder')}
+            ariaLabel={t('app.search.newWorkspace.placeholder')}
+            clearable
+            class="w-full min-w-0"
+            onkeydown={(event) => {
+              if (event.key === 'Enter') {
+                createFromField();
+              }
+            }}
+          />
+        </div>
+      {:else}
+        <Button
+          variant="primary"
+          ariaLabel={t('app.workspace.create')}
+          onclick={openComposer}
+        >
+          <Icon name="plus" />
+          {t('app.workspace.createShort')}
+        </Button>
+      {/if}
+
+      {#if !composerOpen && workspaces.length > 0}
+        <SearchField
+          bind:value={query}
+          placeholder={t('app.search.workspace.placeholder')}
+          ariaLabel={t('app.search.workspace.placeholder')}
+          shown={filtered.length}
+          total={workspaces.length}
+          counterTestId="workspaces-counter"
+          clearable
+          class="min-w-0 flex-1 tablet:max-w-[22rem]"
+        />
+      {/if}
+
+      <div class="flex min-w-0 items-center gap-2 tablet:ml-auto" data-testid="workspace-composer">
+        {#if !composerOpen && workspaces.length > 0}
+          <SortControl
+            items={sortOptions}
+            value={sortField}
+            direction={sortDirection}
+            ariaLabel={t('app.workspace.sort.label')}
+            testId="workspaces-sort"
+            class="min-w-0"
+            selectClass="w-[10.5rem] tablet:w-[12rem]"
+            onchange={(value) => chooseSort(value)}
+            ondirection={(next) => chooseSortDirection(next)}
+          />
+          {#if !phoneWindow}
+            <SegmentedControl
+              items={viewModeItems}
+              value={viewMode}
+              ariaLabel={t('app.library.modeLabel')}
+              onchange={(next) => chooseViewMode(next as 'grid' | 'list')}
+            />
+          {/if}
         {/if}
       </div>
     </div>
   {/snippet}
 
-  {#if workspaces.length > 0 && filtered.length === 0}
+  {#if workspaces.length > 0 && visible.length === 0}
     <EmptyState
       icon="search"
       title={t('app.search.notFound')}
       description={t('app.search.changeQuery')}
       testId="workspaces-not-found"
     />
+  {:else if effectiveViewMode === 'list'}
+    <EntityList
+      items={visible}
+      key={(item) => item.id}
+      itemTestId="workspace-item"
+      buttonTestId="workspace-open"
+      selected={(item) => item.id === currentId}
+      onSelect={(item) => onOpen(item.id)}
+      metaItems={workspaceMeta}
+      metaTestId="workspace-meta"
+      actions={() => workspaceActions}
+      actionsLabel={t('app.workspace.actionsLabel')}
+      onAction={(item, action) => runWorkspaceAction(item, action)}
+      isEditing={(item) => editingId === item.id}
+    >
+      {#snippet titleContent(item)}
+        <span class="min-w-0 flex-1 truncate role-title" data-testid="workspace-name">
+          {item.name}
+        </span>
+      {/snippet}
+
+      {#snippet trailing(item)}
+        {#if item.id === currentId}
+          <Badge testId="workspace-current">{t('app.workspace.current')}</Badge>
+        {/if}
+      {/snippet}
+
+      {#snippet editContent(item)}
+        <div class="flex flex-col gap-2 p-3">
+          <span class="role-eyebrow text-[var(--muted-foreground)]"
+            >{t('app.workspace.renameEyebrow')}</span
+          >
+          <Input
+            bind:value={editingName}
+            placeholder={t('app.search.newName.placeholder')}
+            ariaLabel={t('app.workspace.newNameLabel')}
+            onkeydown={(event) => {
+              if (event.key === 'Enter') {
+                commitRename();
+              }
+            }}
+          />
+          <div class="flex items-center gap-2">
+            <Button variant="primary" size="sm" onclick={commitRename}>
+              {t('app.action.save')}
+            </Button>
+            <Button variant="secondary" size="sm" onclick={() => (editingId = null)}>
+              {t('app.reader.cancel')}
+            </Button>
+          </div>
+        </div>
+      {/snippet}
+    </EntityList>
   {:else}
     <ul
       class="grid list-none gap-4 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))] desktop:[grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
       data-testid="workspaces-grid"
     >
-      {#each filtered as item (item.id)}
+      {#each visible as item (item.id)}
         <li data-testid="workspace-item">
           {#if editingId === item.id}
             <div

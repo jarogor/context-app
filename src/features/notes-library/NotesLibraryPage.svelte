@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '@context/i18n';
+  import { currentLocale, t } from '@context/i18n';
   import {
     Button,
     EmptyState,
@@ -13,10 +13,12 @@
     SearchField,
     SidePanel,
     Skeleton,
+    SortControl,
     Spinner,
     createAsyncState,
     type MenuAction,
     type MetaItem,
+    type SortDirection,
   } from '@context/ui';
   import { formatDateTime } from '../../shared/format';
   import NoteEntry from '../notes/NoteEntry.svelte';
@@ -117,6 +119,57 @@
 
   /** Наборы реестра с учётом поиска. */
   const view = $derived(librarySets(sets, query));
+
+  /** Поле порядка наборов: по дате изменения или по имени. */
+  let sortField = $state<'changed' | 'name'>('changed');
+
+  /** Направление порядка. */
+  let sortDirection = $state<SortDirection>('desc');
+
+  /** Варианты порядка наборов. */
+  const sortOptions = $derived([
+    { value: 'changed', label: t('app.notes.library.sort.changed') },
+    { value: 'name', label: t('app.notes.library.sort.name') },
+  ]);
+
+  /** Смена поля порядка: направление берётся удобное для поля. */
+  function chooseSort(value: string) {
+    sortField = value === 'name' ? 'name' : 'changed';
+    sortDirection = sortField === 'name' ? 'asc' : 'desc';
+    rememberSort();
+  }
+
+  /** Переключение направления порядка. */
+  function chooseSortDirection(next: SortDirection) {
+    sortDirection = next;
+    rememberSort();
+  }
+
+  /** Запоминание порядка в браузере: он переживает перезапуск. */
+  function rememberSort() {
+    try {
+      localStorage.setItem('notes-library-sort', sortField);
+      localStorage.setItem('notes-library-sort-direction', sortDirection);
+    } catch {
+      /* Хранилище недоступно — порядок остаётся в состоянии страницы. */
+    }
+  }
+
+  /** Наборы после поиска, в выбранном порядке. */
+  const visibleSets = $derived.by(() => {
+    const factor = sortDirection === 'asc' ? 1 : -1;
+    return [...view].sort((left, right) => {
+      if (sortField === 'name') {
+        return factor * left.name.localeCompare(right.name, currentLocale());
+      }
+      const leftDate = left.updatedAtMillis || left.createdAtMillis;
+      const rightDate = right.updatedAtMillis || right.createdAtMillis;
+      const delta = leftDate - rightDate;
+      return delta !== 0
+        ? factor * delta
+        : left.name.localeCompare(right.name, currentLocale());
+    });
+  });
 
   /** При непустом поиске наборы раскрываются, чтобы были видны найденные заметки. */
   const searching = $derived(query.trim().length > 0);
@@ -432,33 +485,14 @@
     {/snippet}
 
     {#snippet controls()}
-      <div class="flex w-full min-w-0 items-center gap-2 tablet:w-auto tablet:flex-none">
-        <SearchField
-          bind:value={query}
-          placeholder={t('app.search.notes.placeholder')}
-          ariaLabel={t('app.search.notes.placeholder')}
-          shown={view.length}
-          total={sets.length}
-          counterTestId="notes-filter-counter"
-          clearable
-          class="min-w-0 flex-1 tablet:w-[24rem] tablet:flex-none"
-        />
-        {#if sets.length > 0}
-          <!-- Общее число заметок стоит рядом со счётчиком наборов: оба числа
-               говорят о том, что лежит в реестре, и читаются одним взглядом. -->
-          <dl
-            class="flex flex-none items-center gap-1.5 role-caption text-[var(--muted-foreground)]"
-            data-testid="notes-total-counter"
-          >
-            <dt>{t('app.notes.library.notes')}</dt>
-            <dd>{totalNotes}</dd>
-          </dl>
-        {/if}
-      </div>
-      <div class="flex w-full items-center gap-2 tablet:ml-auto tablet:w-auto">
+      <!--
+        Полоса управления как в списках библиотек: импорт — слева от поиска,
+        справа — порядок наборов. Счётчик найденного живёт внутри поля поиска,
+        общее число заметок — рядом с ним.
+      -->
+      <div class="flex w-full min-w-0 flex-wrap items-center gap-2">
         <Button
-          variant="secondary"
-          size="sm"
+          variant="primary"
           disabled={fileState.loading}
           title={t('app.notes.library.importHint')}
           ariaLabel={t('app.notes.library.import')}
@@ -470,11 +504,45 @@
           <Icon name="download" />
           {t('app.notes.library.import')}
         </Button>
+        <SearchField
+          bind:value={query}
+          placeholder={t('app.search.notes.placeholder')}
+          ariaLabel={t('app.search.notes.placeholder')}
+          shown={view.length}
+          total={sets.length}
+          counterTestId="notes-filter-counter"
+          clearable
+          class="min-w-0 flex-1 tablet:max-w-[22rem]"
+        />
+        {#if sets.length > 0}
+          <!-- Общее число заметок стоит рядом с поиском: оно про весь реестр,
+               а не про найденное по запросу. -->
+          <dl
+            class="flex flex-none items-center gap-1.5 role-caption text-[var(--muted-foreground)]"
+            data-testid="notes-total-counter"
+          >
+            <dt>{t('app.notes.library.notes')}</dt>
+            <dd>{totalNotes}</dd>
+          </dl>
+        {/if}
+        <div class="flex min-w-0 items-center gap-2 tablet:ml-auto">
+          <SortControl
+            items={sortOptions}
+            value={sortField}
+            direction={sortDirection}
+            ariaLabel={t('app.notes.library.sort.label')}
+            testId="notes-library-sort"
+            class="min-w-0"
+            selectClass="w-[10.5rem] tablet:w-[12rem]"
+            onchange={(value) => chooseSort(value)}
+            ondirection={(next) => chooseSortDirection(next)}
+          />
+        </div>
       </div>
     {/snippet}
 
     <EntityList
-      items={view}
+      items={visibleSets}
       key={(set) => set.id}
       container="div"
       itemTestId="notes-library-set"

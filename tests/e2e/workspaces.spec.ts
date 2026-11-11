@@ -319,17 +319,17 @@ test('кнопка создания не переезжает при вводе 
     expect(Math.abs(before!.x - after!.x)).toBeLessThan(2);
     expect(Math.abs(before!.y - after!.y)).toBeLessThan(2);
 
-    // Поле стоит вплотную к кнопке: правый край поля упирается в левый
-    // край кнопки, а не тянется через всю полосу.
+    // Поле стоит вплотную к кнопке справа: левый край поля примыкает к
+    // правому краю кнопки, а не тянется через всю полосу.
     const field = await page.getByPlaceholder('Новое рабочее место').boundingBox();
     expect(field).not.toBeNull();
-    expect(Math.abs(after!.x - (field!.x + field!.width) - 8)).toBeLessThan(10);
+    expect(Math.abs(field!.x - (after!.x + after!.width) - 8)).toBeLessThan(10);
 
-    // На телефоне и планшете поле занимает всю ширину панели, на широком
-    // окне остаётся компактным.
+    // На телефоне и планшете поле занимает свободное место полосы (минус
+    // кнопка и промежутки), на широком окне остаётся компактным.
     const controls = await page.getByTestId('workspaces-controls').boundingBox();
-    const expected = width < 1024 ? controls!.width - 44 : 24 * 16;
-    expect(Math.abs(field!.width - expected)).toBeLessThan(24);
+    const expected = width < 1024 ? controls!.width - 52 : 22 * 16;
+    expect(Math.abs(field!.width - expected)).toBeLessThan(8);
 
     await page.getByRole('button', { name: 'Создать рабочее место' }).click();
     await expect(page.getByTestId('workplace-tabs')).toBeVisible();
@@ -348,15 +348,15 @@ test('список рабочих мест адаптивен к ширине о
   await expect(
     page.getByTestId('workspaces-page').getByPlaceholder('Поиск рабочего места'),
   ).toBeVisible();
-  // Поиск и кнопка создания стоят в одной полосе: поле поиска и кнопка
-  // создания на одной высоте, а не двумя отдельными рядами.
+  // Создание и поиск стоят в одной полосе: кнопка и поле на одной высоте, а не
+  // двумя отдельными рядами.
   const search = await page.getByPlaceholder('Поиск рабочего места').boundingBox();
   const create = await page.getByRole('button', { name: 'Создать рабочее место' }).boundingBox();
   expect(search).not.toBeNull();
   expect(create).not.toBeNull();
-  expect(Math.abs(search!.y - create!.y)).toBeLessThan(4);
-  // Кнопка стоит справа от поля поиска.
-  expect(create!.x).toBeGreaterThan(search!.x + search!.width - 1);
+  expect(Math.abs(search!.y - create!.y)).toBeLessThan(5);
+  // Кнопка стоит слева от поля поиска, как в списке библиотек.
+  expect(create!.x).toBeLessThan(search!.x);
   // Счётчик найденного — часть поля поиска, а не отдельный элемент полосы.
   await expect(
     page.getByTestId('workspaces-controls').getByTestId('workspaces-counter'),
@@ -370,11 +370,14 @@ test('список рабочих мест адаптивен к ширине о
   // Широкое окно: список остаётся вертикальным, форма поиска — в полосе
   // управления над списком, а не колонкой сбоку.
   await page.setViewportSize({ width: 1400, height: 800 });
-  const workspacesPage = page.getByTestId('workspaces-page');
-  const list = workspacesPage.locator('ul', { has: page.getByTestId('workspace-item') });
-  const listBox = await list.boundingBox();
-  const searchBox = await workspacesPage.getByPlaceholder('Поиск рабочего места').boundingBox();
-  expect(listBox).not.toBeNull();
+  // Режим показа задаётся явно: предыдущие проверки могли сохранить его в
+  // браузере, а измеряется раскладка плитки.
+  await page.getByRole('button', { name: 'Плитка' }).click();
+  const grid = page.getByTestId('workspaces-grid');
+  await expect(grid).toBeVisible();
+  const gridBox = await grid.boundingBox();
+  const searchBox = await page.getByPlaceholder('Поиск рабочего места').boundingBox();
+  expect(gridBox).not.toBeNull();
   expect(searchBox).not.toBeNull();
-  expect(searchBox!.y).toBeLessThan(listBox!.y);
+  expect(searchBox!.y).toBeLessThan(gridBox!.y);
 });
