@@ -409,8 +409,8 @@ export const en: Dictionary = {
   'app.reader.unavailable.title': 'The book is unavailable',
   'app.reader.unavailable.description':
     'The book is unavailable: the file may have been moved or renamed.',
+  'app.reader.recheck': 'Recheck',
   'app.reader.pointFile': 'Choose file',
-  'app.reader.removeTab': 'Remove tab',
   'app.reader.formatUnsupported.title': 'Format is not supported',
   'app.reader.formatUnsupported.description':
     'This book format is not yet supported by the built-in reader.',

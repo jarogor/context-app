@@ -86,8 +86,6 @@
     onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
     /** Просьба указать файл недоступной книги. */
     onRepoint?: () => void;
-    /** Убрать вкладку. */
-    onRemove?: () => void;
     /** Снимок свойств открытого файла для панели рабочего места. */
     onProperties?: (snapshot: FilePropertiesSnapshot) => void;
   }
@@ -115,7 +113,6 @@
     onNoteClick,
     onPlaceNote,
     onRepoint,
-    onRemove,
     onProperties,
   }: Props = $props();
 
@@ -149,6 +146,5 @@
   {onNoteClick}
   {onPlaceNote}
   {onRepoint}
-  {onRemove}
   {onProperties}
 />

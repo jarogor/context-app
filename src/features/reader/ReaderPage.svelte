@@ -94,8 +94,6 @@
     onNoteClick?: (noteId: string) => void;
     /** Перемещение заметки или сдвиг границ цитаты. */
     onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
-    /** Убрать вкладку. */
-    onRemove?: () => void;
     /** Снимок свойств открытого файла для панели рабочего места. */
     onProperties?: (snapshot: FilePropertiesSnapshot) => void;
   }
@@ -151,7 +149,6 @@
     onRepoint,
     onNoteClick,
     onPlaceNote,
-    onRemove,
     onProperties,
   }: Props = $props();
 
@@ -639,6 +636,17 @@
     zoomApply.request(zoom);
   }
 
+  /**
+   * Повторная проверка пути недоступной книги.
+   *
+   * Книга может лежать на съёмном носителе: пока его подключают, путь уже
+   * снова ведёт к файлу, но приложение об этом не знает. Повторное чтение
+   * открывает книгу, если файл стал доступен.
+   */
+  function recheck() {
+    void load(path);
+  }
+
   /** Открытие файла книги. */
   async function openFile() {
     error = null;
@@ -992,11 +1000,15 @@
       >
           {#snippet action()}
             <div class="flex flex-wrap justify-center gap-2">
+              <Button variant="primary" onclick={recheck}>
+                <Icon name="refresh" />
+                {t('app.reader.recheck')}
+              </Button>
               {#if onRepoint}
-                <Button variant="primary" onclick={onRepoint}>{t('app.reader.pointFile')}</Button>
-              {/if}
-              {#if onRemove}
-                <Button variant="ghost" onclick={onRemove}>{t('app.reader.removeTab')}</Button>
+                <Button variant="secondary" onclick={onRepoint}>
+                  <Icon name="folder" />
+                  {t('app.reader.pointFile')}
+                </Button>
               {/if}
             </div>
           {/snippet}
@@ -1017,9 +1029,6 @@
     {:else if error}
       <div class="mx-auto max-w-[35rem] p-6 text-center" data-testid="reader-error">
         <ErrorState message={t('app.reader.openFailed', { error })} />
-        {#if onRemove}
-          <Button variant="ghost" class="mt-3" onclick={onRemove}>{t('app.reader.removeTab')}</Button>
-        {/if}
       </div>
     {:else if workplace}
       <div

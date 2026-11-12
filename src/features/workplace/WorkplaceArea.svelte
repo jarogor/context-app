@@ -703,7 +703,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
                   onNoteClick={onSelectNote}
                   onPlaceNote={onPlaceNote}
                   onRepoint={() => onRepointTab(item.id)}
-                  onRemove={() => onCloseTab(item.id)}
                   onProperties={(snapshot) => handleProperties(item.id, snapshot)}
                 />
               {/key}

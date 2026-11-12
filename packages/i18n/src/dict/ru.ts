@@ -394,8 +394,8 @@ export const ru = {
   'app.reader.unavailable.title': 'Книга недоступна',
   'app.reader.unavailable.description':
     'Книга недоступна: возможно, файл перемещён или переименован.',
+  'app.reader.recheck': 'Перепроверить',
   'app.reader.pointFile': 'Указать файл',
-  'app.reader.removeTab': 'Убрать вкладку',
   'app.reader.formatUnsupported.title': 'Формат не поддерживается',
   'app.reader.formatUnsupported.description':
     'Формат этой книги пока не поддерживается встроенным чтением.',
