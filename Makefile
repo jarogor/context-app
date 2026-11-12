@@ -59,7 +59,7 @@ rust-check: ## Clippy без предупреждений и проверка ф
 	cargo clippy --manifest-path src-wasm-plugins/Cargo.toml --target wasm32-unknown-unknown --all-targets -- -D warnings
 	cargo fmt --manifest-path src-wasm-plugins/Cargo.toml --all -- --check
 	cargo clippy --manifest-path src-wasm-sdk/Cargo.toml --all-targets -- -D warnings
-	cargo clippy --manifest-path src-wasm-sdk/Cargo.toml --target wasm32-unknown-unknown --all-targets -- -D warnings
+	cargo clippy --manifest-path src-wasm-sdk/Cargo.toml --workspace --exclude sqlite-test-harness --target wasm32-unknown-unknown -- -D warnings
 	cargo fmt --manifest-path src-wasm-sdk/Cargo.toml --all -- --check
 
 verify: ## Полный набор проверок перед завершением задачи
