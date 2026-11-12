@@ -40,7 +40,14 @@ describe('экран списка рабочих мест', () => {
   it('показывает дату создания рабочего места', () => {
     render(WorkspacesPage, {
       props: {
-        workspaces: [{ id: 'ws-1', name: 'Первое', createdAtMillis: 1_700_000_000_000, openedAtMillis: 1_700_000_000_000 }],
+        workspaces: [
+          {
+            id: 'ws-1',
+            name: 'Первое',
+            createdAtMillis: 1_700_000_000_000,
+            openedAtMillis: 1_700_000_000_000,
+          },
+        ],
         currentId: null,
         ...handlers(),
       },

@@ -226,7 +226,14 @@ describe('раздел «Заметки» в оболочке', () => {
   function recordedWorkspaceRegistry(): WorkspaceRegistry {
     return {
       workspaces: [
-        { id: 'ws-1', name: 'Текущее', createdAtMillis: 0, openedAtMillis: 0, tabs: [], activeTabId: null },
+        {
+          id: 'ws-1',
+          name: 'Текущее',
+          createdAtMillis: 0,
+          openedAtMillis: 0,
+          tabs: [],
+          activeTabId: null,
+        },
         {
           id: 'ws-2',
           name: 'Исследование',

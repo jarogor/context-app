@@ -67,7 +67,7 @@ function workplaceProps(overrides: { listMode: boolean }) {
       id: 'ws-1',
       name: 'Первое',
       createdAtMillis: 0,
-          openedAtMillis: 0,
+      openedAtMillis: 0,
       tabs: [
         {
           id: 't1',
@@ -97,7 +97,14 @@ describe('область рабочего места: список и вклад
       props: {
         workspace: null,
         workspaces: [
-          { id: 'ws-1', name: 'Первое', createdAtMillis: 0, openedAtMillis: 0, tabs: [], activeTabId: null },
+          {
+            id: 'ws-1',
+            name: 'Первое',
+            createdAtMillis: 0,
+            openedAtMillis: 0,
+            tabs: [],
+            activeTabId: null,
+          },
         ],
         currentWorkspaceId: null,
         listMode: true,
@@ -159,7 +166,14 @@ describe('область рабочего места: список и вклад
           activeTabId: null,
         },
         workspaces: [
-          { id: 'ws-1', name: 'Первое', createdAtMillis: 0, openedAtMillis: 0, tabs: [], activeTabId: null },
+          {
+            id: 'ws-1',
+            name: 'Первое',
+            createdAtMillis: 0,
+            openedAtMillis: 0,
+            tabs: [],
+            activeTabId: null,
+          },
         ],
         currentWorkspaceId: 'ws-1',
         listMode: true,
