@@ -24,6 +24,7 @@ fn workspace(id: &str, name: &str) -> WorkspaceRecord {
         id: id.to_string(),
         name: name.to_string(),
         created_at_millis: 1_700_000_000_000,
+        opened_at_millis: 1_700_000_001_000,
         tabs: vec![tab("t1", "book-1", 120, 42.5)],
         active_tab_id: Some("t1".to_string()),
     }

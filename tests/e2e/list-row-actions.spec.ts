@@ -15,6 +15,7 @@ test.beforeEach(async ({ page }) => {
               id: 'ws-1',
               name: 'Рабочее место',
               created_at_millis: 1_700_000_000_000,
+              opened_at_millis: 1_700_000_000_000,
               tabs: [],
               active_tab_id: null,
             },

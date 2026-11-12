@@ -226,11 +226,12 @@ describe('раздел «Заметки» в оболочке', () => {
   function recordedWorkspaceRegistry(): WorkspaceRegistry {
     return {
       workspaces: [
-        { id: 'ws-1', name: 'Текущее', createdAtMillis: 0, tabs: [], activeTabId: null },
+        { id: 'ws-1', name: 'Текущее', createdAtMillis: 0, openedAtMillis: 0, tabs: [], activeTabId: null },
         {
           id: 'ws-2',
           name: 'Исследование',
           createdAtMillis: 0,
+          openedAtMillis: 0,
           tabs: [
             {
               id: 't1',
@@ -361,6 +362,7 @@ describe('тема области чтения в оболочке', () => {
           id: 'ws-1',
           name: 'Рабочее место',
           createdAtMillis: 0,
+          openedAtMillis: 0,
           tabs: [
             {
               id: 't1',
@@ -462,6 +464,7 @@ describe('активность кнопки рабочего места', () => 
           id: 'ws-1',
           name: 'Рабочее место',
           createdAtMillis: 0,
+          openedAtMillis: 0,
           tabs: [
             {
               id: 't1',
@@ -608,6 +611,7 @@ describe('текущее рабочее место остаётся загруж
           id: 'ws-1',
           name: 'Моё место',
           createdAtMillis: 0,
+          openedAtMillis: 0,
           tabs: [
             {
               id: 't1',
@@ -693,6 +697,7 @@ describe('текущее рабочее место остаётся загруж
           id: 'ws-1',
           name: 'Текущее',
           createdAtMillis: 0,
+          openedAtMillis: 0,
           tabs: [
             {
               id: 't1',
@@ -710,6 +715,7 @@ describe('текущее рабочее место остаётся загруж
           id: 'ws-2',
           name: 'Другое',
           createdAtMillis: 0,
+          openedAtMillis: 0,
           tabs: [
             {
               id: 't2',
@@ -760,6 +766,7 @@ describe('комбинации клавиш в оболочке', () => {
           id: 'ws-1',
           name: 'Моё место',
           createdAtMillis: 0,
+          openedAtMillis: 0,
           tabs: [
             {
               id: 't1',

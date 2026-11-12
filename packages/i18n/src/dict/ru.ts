@@ -205,6 +205,7 @@ export const ru = {
   'app.workspace.actionsLabel': 'Действия с рабочим местом',
   'app.workspace.renameEyebrow': 'Переименование',
   'app.workspace.sort.label': 'Порядок рабочих мест',
+  'app.workspace.sort.opened': 'По дате открытия',
   'app.workspace.sort.created': 'По дате создания',
   'app.workspace.sort.name': 'По алфавиту',
   'app.workspace.count': {

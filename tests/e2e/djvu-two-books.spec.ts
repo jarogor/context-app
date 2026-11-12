@@ -98,6 +98,7 @@ async function installTwoBooks(page: Page) {
                 id: 'ws-1',
                 name: 'foo',
                 created_at_millis: 1,
+                opened_at_millis: 1,
                 tabs: [],
                 active_tab_id: null,
               },

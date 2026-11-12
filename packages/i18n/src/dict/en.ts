@@ -231,6 +231,7 @@ export const en: Dictionary = {
   'app.workspace.actionsLabel': 'Workspace actions',
   'app.workspace.renameEyebrow': 'Renaming',
   'app.workspace.sort.label': 'Workspace order',
+  'app.workspace.sort.opened': 'By opening date',
   'app.workspace.sort.created': 'By creation date',
   'app.workspace.sort.name': 'Alphabetically',
   'app.workspace.count': { one: '{count} book', other: '{count} books' },

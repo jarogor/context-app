@@ -40,7 +40,7 @@ describe('экран списка рабочих мест', () => {
   it('показывает дату создания рабочего места', () => {
     render(WorkspacesPage, {
       props: {
-        workspaces: [{ id: 'ws-1', name: 'Первое', createdAtMillis: 1_700_000_000_000 }],
+        workspaces: [{ id: 'ws-1', name: 'Первое', createdAtMillis: 1_700_000_000_000, openedAtMillis: 1_700_000_000_000 }],
         currentId: null,
         ...handlers(),
       },
@@ -323,6 +323,7 @@ describe('режимы показа рабочих мест', () => {
             id: 'ws-1',
             name: 'Первое',
             createdAtMillis: 1_700_000_000_000,
+            openedAtMillis: 1_700_000_000_000,
             bookPaths: ['/lib/a.epub', '/lib/a.epub'],
           },
         ],
@@ -345,8 +346,8 @@ describe('порядок рабочих мест', () => {
     render(WorkspacesPage, {
       props: {
         workspaces: [
-          { id: 'ws-1', name: 'Бета', createdAtMillis: 1_000 },
-          { id: 'ws-2', name: 'Альфа', createdAtMillis: 3_000 },
+          { id: 'ws-1', name: 'Бета', createdAtMillis: 1_000, openedAtMillis: 1_000 },
+          { id: 'ws-2', name: 'Альфа', createdAtMillis: 3_000, openedAtMillis: 3_000 },
         ],
         currentId: null,
         ...handlers(),
@@ -374,8 +375,8 @@ describe('порядок рабочих мест', () => {
     render(WorkspacesPage, {
       props: {
         workspaces: [
-          { id: 'ws-1', name: 'Альфа', createdAtMillis: 1_000 },
-          { id: 'ws-2', name: 'Бета', createdAtMillis: 3_000 },
+          { id: 'ws-1', name: 'Альфа', createdAtMillis: 1_000, openedAtMillis: 1_000 },
+          { id: 'ws-2', name: 'Бета', createdAtMillis: 3_000, openedAtMillis: 3_000 },
         ],
         currentId: null,
         ...handlers(),

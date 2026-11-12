@@ -6,6 +6,7 @@
       "id": "ws-1",
       "name": "Рабочее место",
       "created_at_millis": 1700000000000,
+      "opened_at_millis": 1700000000000,
       "tabs": [
         {
           "id": "tab-1",

@@ -72,6 +72,9 @@ pub struct WorkspaceRecord {
     /// Время создания (Unix, мс).
     #[serde(default)]
     pub created_at_millis: u64,
+    /// Время последнего открытия места (Unix, мс); 0 — не открывали.
+    #[serde(default)]
+    pub opened_at_millis: u64,
     /// Вкладки рабочего места в порядке отображения.
     #[serde(default)]
     pub tabs: Vec<WorkspaceTab>,
@@ -148,6 +151,7 @@ fn migrate_legacy(root: &Path) -> WorkspacesFile {
             // иначе повторное чтение до сохранения давало бы новое время и
             // миграция переставала быть идемпотентной.
             created_at_millis: legacy_modified_millis(&legacy_path),
+            opened_at_millis: legacy_modified_millis(&legacy_path),
             tabs: legacy.tabs,
             active_tab_id: legacy.active_tab_id,
         }],

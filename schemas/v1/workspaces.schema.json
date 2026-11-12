@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://context.app/schemas/v1/workspaces.schema.json",
   "title": "Реестр рабочих мест",
-  "description": "Служебный файл app-state/workspaces.json: рабочие места, их вкладки и история наборов заметок. Файл принадлежит ядру; метку и версию пишет ядро, а прежние файлы без метки читаются как версия 0.",
+  "description": "Служебный файл app-state/workspaces.json: рабочие места, их вкладки и история наборов заметок. Файл принадлежит ядру; метку и версию пишет ядро, а прежние файлы без метки читаются как версия 0. Время последнего открытия места — `opened_at_millis` (0 — не открывали).",
   "type": "object",
   "required": [
     "workspaces"
@@ -57,6 +57,10 @@
           "type": "string"
         },
         "created_at_millis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "opened_at_millis": {
           "type": "integer",
           "minimum": 0
         },

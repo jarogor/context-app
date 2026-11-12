@@ -27,6 +27,8 @@ export interface WorkspaceRecord {
   name: string;
   /** Время создания (Unix, мс). */
   createdAtMillis: number;
+  /** Время последнего открытия места (Unix, мс); 0 — не открывали. */
+  openedAtMillis: number;
   /** Вкладки рабочего места в порядке отображения. */
   tabs: WorkspaceTab[];
   /** Идентификатор активной вкладки. */
@@ -110,6 +112,10 @@ export function normalizeRegistry(value: unknown): WorkspaceRegistry {
           Number.isFinite(Number(entry.created_at_millis)) && Number(entry.created_at_millis) >= 0
             ? Number(entry.created_at_millis)
             : 0,
+        openedAtMillis:
+          Number.isFinite(Number(entry.opened_at_millis)) && Number(entry.opened_at_millis) >= 0
+            ? Number(entry.opened_at_millis)
+            : 0,
         tabs: tabs.tabs,
         activeTabId: tabs.activeTabId,
       } satisfies WorkspaceRecord;
@@ -146,6 +152,7 @@ export function addWorkspace(
     id,
     name: name.trim() || defaultWorkspaceName(),
     createdAtMillis,
+    openedAtMillis: createdAtMillis,
     tabs: [],
     activeTabId: null,
   };
@@ -158,10 +165,20 @@ export function addWorkspace(
 
 /** Открытие рабочего места: перевод текущего места и показ его вкладок. */
 export function selectWorkspace(registry: WorkspaceRegistry, id: string): WorkspaceRegistry {
-  if (!registry.workspaces.some((item) => item.id === id)) {
+  const selected = registry.workspaces.find((item) => item.id === id);
+  if (!selected) {
     return registry;
   }
-  return { ...registry, currentWorkspaceId: id };
+  // Открытие отмечается временем: по нему список показывает последнее
+  // открытое место первым, в том числе после перезапуска.
+  const openedAtMillis = Date.now();
+  return {
+    ...registry,
+    currentWorkspaceId: id,
+    workspaces: [selected, ...registry.workspaces.filter((item) => item.id !== id)].map((item) =>
+      item.id === id ? { ...item, openedAtMillis } : item,
+    ),
+  };
 }
 
 /** Переименование рабочего места; пустое имя отклоняется. */
@@ -278,6 +295,7 @@ export function serializeRegistry(registry: WorkspaceRegistry): Record<string, u
       id: workspace.id,
       name: workspace.name,
       created_at_millis: workspace.createdAtMillis,
+      opened_at_millis: workspace.openedAtMillis,
       ...serializeWorkspace({ tabs: workspace.tabs, activeTabId: workspace.activeTabId }),
     })),
     active_workspace_id: registry.currentWorkspaceId,

@@ -32,6 +32,8 @@
     name: string;
     /** Время создания (Unix, мс); необязательно. */
     createdAtMillis?: number;
+    /** Время последнего открытия (Unix, мс); 0 — не открывали. */
+    openedAtMillis?: number;
     /** Число открытых вкладок рабочего места. */
     bookCount?: number;
     /** Пути книг открытых вкладок — для превью обложек. */
@@ -87,14 +89,15 @@
     };
     phoneQuery.addEventListener('change', onPhoneChange);
     // Режим показа и порядок переживают перезапуск: они хранятся в браузере,
-    // как у книг и библиотек.
+    // как у книг и библиотек. По умолчанию порядок — по дате открытия,
+    // последнее открытое место первым.
     try {
       const storedView = localStorage.getItem('workspaces-view-mode');
       if (storedView === 'grid' || storedView === 'list') {
         viewMode = storedView;
       }
       const storedSort = localStorage.getItem('workspaces-sort');
-      if (storedSort === 'name' || storedSort === 'created') {
+      if (storedSort === 'name' || storedSort === 'created' || storedSort === 'opened') {
         sortField = storedSort;
         sortDirection = storedSort === 'name' ? 'asc' : 'desc';
       }
@@ -196,6 +199,9 @@
    */
   const COVER_PREVIEW_LIMIT = 4;
 
+  /** Поле порядка рабочих мест. */
+  type WorkspaceSortField = 'opened' | 'created' | 'name';
+
   /** Рабочие места, отфильтрованные поиском по имени. */
   const filtered = $derived.by(() => {
     const needle = query.trim().toLowerCase();
@@ -235,21 +241,22 @@
     }
   }
 
-  /** Поле порядка рабочих мест: по имени или по дате создания. */
-  let sortField = $state<'name' | 'created'>('created');
+  /** Поле порядка: последнее открытое, имя или дата создания. */
+  let sortField = $state<WorkspaceSortField>('opened');
 
   /** Направление порядка. */
   let sortDirection = $state<SortDirection>('desc');
 
   /** Варианты порядка рабочих мест. */
   const sortOptions = $derived([
+    { value: 'opened', label: t('app.workspace.sort.opened') },
     { value: 'created', label: t('app.workspace.sort.created') },
     { value: 'name', label: t('app.workspace.sort.name') },
   ]);
 
   /** Смена поля порядка: направление берётся удобное для поля. */
   function chooseSort(value: string) {
-    sortField = value === 'name' ? 'name' : 'created';
+    sortField = value === 'name' || value === 'created' ? value : 'opened';
     sortDirection = sortField === 'name' ? 'asc' : 'desc';
     rememberSort();
   }
@@ -260,7 +267,12 @@
     rememberSort();
   }
 
-  /** Запоминание порядка в браузере: он переживает перезапуск. */
+  /**
+   * Запоминание порядка в браузере.
+   *
+   * При следующем запуске пользователь получает выбранный им порядок и его
+   * сторону, а не значение по умолчанию.
+   */
   function rememberSort() {
     try {
       localStorage.setItem('workspaces-sort', sortField);
@@ -270,17 +282,22 @@
     }
   }
 
-  /** Рабочие места после поиска, в выбранном порядке. */
+  /**
+   * Рабочие места после поиска, в выбранном порядке.
+   *
+   * По умолчанию — по дате открытия, свежее открытое первым; место без
+   * отметки открытия (ещё не открывали) идёт последним.
+   */
   const visible = $derived.by(() => {
     const factor = sortDirection === 'asc' ? 1 : -1;
     return [...filtered].sort((left, right) => {
-      if (sortField === 'name') {
-        return factor * left.name.localeCompare(right.name, currentLocale());
-      }
-      const delta = (left.createdAtMillis ?? 0) - (right.createdAtMillis ?? 0);
-      return delta !== 0
-        ? factor * delta
-        : left.name.localeCompare(right.name, currentLocale());
+      const compare =
+        sortField === 'name'
+          ? factor * left.name.localeCompare(right.name, currentLocale())
+          : sortField === 'opened'
+            ? factor * ((left.openedAtMillis ?? 0) - (right.openedAtMillis ?? 0))
+            : factor * ((left.createdAtMillis ?? 0) - (right.createdAtMillis ?? 0));
+      return compare !== 0 ? compare : left.name.localeCompare(right.name, currentLocale());
     });
   });
 

@@ -29,6 +29,7 @@ test('состав и активная вкладка восстанавлива
                     id: 'ws-1',
                     name: 'Рабочее место',
                     created_at_millis: 1_700_000_000_000,
+                    opened_at_millis: 1_700_000_000_000,
                     tabs: [],
                     active_tab_id: null,
                   },
@@ -79,6 +80,7 @@ test('прежнее одиночное состояние переноситс�
               id: 'default',
               name: 'Рабочее место',
               created_at_millis: 1_700_000_000_000,
+              opened_at_millis: 1_700_000_000_000,
               tabs: [
                 {
                   id: 't1',
@@ -150,6 +152,7 @@ test('недоступную книгу можно переуказать на �
               id: 'ws-1',
               name: 'Рабочее место',
               created_at_millis: 1_700_000_000_000,
+              opened_at_millis: 1_700_000_000_000,
               tabs: [
                 {
                   id: 'tab-gone',
@@ -204,6 +207,7 @@ test('рабочее место читает книгу без открытой 
               id: 'ws-1',
               name: 'Рабочее место',
               created_at_millis: 1_700_000_000_000,
+              opened_at_millis: 1_700_000_000_000,
               tabs: [
                 {
                   id: 't1',

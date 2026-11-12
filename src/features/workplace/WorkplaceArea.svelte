@@ -522,6 +522,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
         id: item.id,
         name: item.name,
         createdAtMillis: item.createdAtMillis,
+        openedAtMillis: item.openedAtMillis,
         bookCount: item.tabs.length,
         bookPaths: item.tabs.map((tab) => tab.path),
       }))}
