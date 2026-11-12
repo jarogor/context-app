@@ -109,11 +109,7 @@ fn parse_hex(bytes: &[u8]) -> Option<String> {
         .filter_map(|index| u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16).ok())
         .collect();
     if data.starts_with(&[0xFE, 0xFF]) {
-        let units: Vec<u16> = data[2..]
-            .chunks_exact(2)
-            .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
-            .collect();
-        return Some(String::from_utf16_lossy(&units));
+        return Some(String::from_utf16_lossy(&utf16_units(&data[2..], true)));
     }
     Some(decode(data))
 }
@@ -125,20 +121,30 @@ fn parse_hex(bytes: &[u8]) -> Option<String> {
 /// мусор из управляющих символов, и такое название попадало в индекс.
 fn decode(bytes: Vec<u8>) -> String {
     if bytes.starts_with(&[0xFE, 0xFF]) {
-        let units: Vec<u16> = bytes[2..]
-            .chunks_exact(2)
-            .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
-            .collect();
-        return String::from_utf16_lossy(&units);
+        return String::from_utf16_lossy(&utf16_units(&bytes[2..], true));
     }
     if bytes.starts_with(&[0xFF, 0xFE]) {
-        let units: Vec<u16> = bytes[2..]
-            .chunks_exact(2)
-            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-            .collect();
-        return String::from_utf16_lossy(&units);
+        return String::from_utf16_lossy(&utf16_units(&bytes[2..], false));
     }
     String::from_utf8_lossy(&bytes).into_owned()
+}
+
+/// Пары байтов, прочитанные как единицы UTF-16.
+///
+/// Нечётный хвост отбрасывается: он не образует полной единицы.
+fn utf16_units(bytes: &[u8], big_endian: bool) -> Vec<u16> {
+    let mut units = Vec::with_capacity(bytes.len() / 2);
+    let mut index = 0;
+    while index + 1 < bytes.len() {
+        let pair = [bytes[index], bytes[index + 1]];
+        units.push(if big_endian {
+            u16::from_be_bytes(pair)
+        } else {
+            u16::from_le_bytes(pair)
+        });
+        index += 2;
+    }
+    units
 }
 
 /// Пригодность разобранного значения для показа.
