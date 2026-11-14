@@ -198,10 +198,7 @@ test('меню сноски меняет оформление вместе с т
   const light = await menuColors();
 
   // Тема области чтения переключается в панели чтения.
-  await page
-    .getByTestId('reader-theme-toggle')
-    .getByRole('button', { name: 'Тёмная тема области чтения' })
-    .click();
+  await page.getByTestId('reader-theme-toggle').click();
   await expect(content(page).locator('html')).toHaveAttribute('data-reader-theme', 'dark');
 
   const dark = await menuColors();

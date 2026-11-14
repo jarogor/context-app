@@ -240,6 +240,11 @@
     readerTheme === 'dark' ? t('app.theme.reader.toLight') : t('app.theme.reader.toDark'),
   );
 
+  /** Доступное имя кнопки темы: называет текущую сторону, как у значка. */
+  const themeLabel = $derived(
+    readerTheme === 'dark' ? t('app.theme.reader.light') : t('app.theme.reader.dark'),
+  );
+
   /** Подпись кнопки гарнитуры. */
   const fontTitle = $derived(
     readerFont === 'serif' ? t('app.font.switchToSans') : t('app.font.switchToSerif'),
@@ -319,7 +324,7 @@
   {/if}
 
   {#if toolChoosable && tool}
-    <Popover bind:open={toolOpen} side="top" align="start" class="w-[15rem]">
+    <Popover bind:open={toolOpen} side="top" align="start" class="w-[15rem]" testId="book-tool-menu">
       {#snippet trigger({ props })}
         <button
           type="button"
@@ -467,7 +472,11 @@
         <Icon name="chevron-down" />
       </Button>
     </div>
-  {:else if flowing}
+  {:else}
+    <!--
+      Прогресс показывается у книг без страниц, в том числе пока формат ещё не
+      сообщил свои возможности: это место «где я», и пустым оно быть не должно.
+    -->
     <span
       class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
       data-testid="reader-progress"
@@ -509,11 +518,10 @@
       size="icon"
       variant="ghost"
       title={themeTitle}
-      ariaLabel={themeTitle}
+      ariaLabel={themeLabel}
       testId="reader-theme-toggle"
       onclick={onToggleTheme}
     >
       <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
     </Button>
-  {/if}
-</div>
+  {/if}</div>

@@ -48,6 +48,8 @@
     onSearchQuery?: (value: string) => void;
     /** Переход к соседнему вхождению поиска. */
     onSearchStep?: (delta: 1 | -1) => void;
+    /** Открыт ли поиск: его вкладка есть, только пока он открыт. */
+    searchVisible?: boolean;
   }
 
   let {
@@ -71,10 +73,17 @@
     searchError = null,
     onSearchQuery,
     onSearchStep,
+    searchVisible = false,
   }: Props = $props();
 
   /** Доступные вкладки панели для текущего снимка. */
-  const tabs = $derived(propertyTabs(snapshot));
+  /** Доступные вкладки панели книги для снимка.
+   *
+   * Поиск по книге — режим, а не раздел файла: вкладка появляется, пока поиск
+   * открыт, и уходит вместе с ним. Иначе Escape, снимающий поиск, оставлял бы
+   * пустую вкладку на виду.
+   */
+  const tabs = $derived(propertyTabs(snapshot, searchVisible));
 
   /** Действующая вкладка: выбранная, если доступна, иначе первая доступная. */
   const activeTab = $derived(tab && tabs.includes(tab) ? tab : (tabs[0] ?? null));

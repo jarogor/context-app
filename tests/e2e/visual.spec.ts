@@ -48,20 +48,17 @@ async function openWorkplaceBook(page: import('@playwright/test').Page) {
   await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 }
 
-test('снимок верхней панели чтения в светлой теме области чтения', async ({ page }) => {
+test('снимок строки книги в светлой теме области чтения', async ({ page }) => {
   await openWorkplaceBook(page);
   await expect(page.locator('html')).toHaveAttribute('data-reader-theme', 'light');
-  await expect(page.getByTestId('note-toolbar')).toHaveScreenshot('reader-toolbar-light.png');
+  await expect(page.getByTestId('book-bar')).toHaveScreenshot('reader-toolbar-light.png');
 });
 
-test('снимок верхней панели чтения в тёмной теме', async ({ page }) => {
+test('снимок строки книги в тёмной теме', async ({ page }) => {
   await openWorkplaceBook(page);
-  await page
-    .getByTestId('note-toolbar')
-    .getByRole('button', { name: 'Тёмная тема области чтения' })
-    .click();
+  await page.getByTestId('reader-theme-toggle').click();
   await expect(page.locator('html')).toHaveAttribute('data-reader-theme', 'dark');
-  await expect(page.getByTestId('note-toolbar')).toHaveScreenshot('reader-toolbar-dark.png');
+  await expect(page.getByTestId('book-bar')).toHaveScreenshot('reader-toolbar-dark.png');
 });
 
 test('список рабочих мест читается в светлой палитре Gruvbox', async ({ page }) => {

@@ -212,6 +212,18 @@ describe('панель свойств файла', () => {
     expect(screen.getByTestId('properties-empty')).toBeTruthy();
   });
 
+  it('показывает вкладку поиска, пока поиск открыт', () => {
+    render(FilePropertiesPanel, {
+      props: {
+        snapshot: emptyProperties('mobi'),
+        tab: 'search',
+        currentPage: null,
+        searchVisible: true,
+      },
+    });
+    expect(screen.getByTestId('reader-search')).toBeTruthy();
+  });
+
   it('запускает анализ пометок при открытии вкладки', () => {
     const onAnalyzeAnnotations = vi.fn();
     const snapshot: FilePropertiesSnapshot = {

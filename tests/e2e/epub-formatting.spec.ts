@@ -196,32 +196,28 @@ test('текст книги не прижимается к левому краю
 
 // Кнопка шрифта относится к текучему тексту: у постраничных форматов (PDF,
 // DjVu) текст — часть растра, и выбор гарнитуры там ничего не меняет.
-test('кнопка шрифта есть у EPUB и стоит слева, в группе инструментов', async ({ page }) => {
+test('кнопка шрифта есть у EPUB и стоит слева, в группе действий над текстом', async ({ page }) => {
   await openBook(page);
-  const toolbar = page.getByTestId('note-toolbar');
+  const bar = page.getByTestId('book-bar');
   const toggle = page.getByTestId('reader-font-toggle');
   await expect(toggle).toBeVisible();
 
-  const layout = await toolbar.evaluate((element) => {
+  const layout = await bar.evaluate((element) => {
     const toggleEl = element.querySelector('[data-testid="reader-font-toggle"]') as HTMLElement;
-    const footer = element.querySelector('[data-testid="reader-footer"]') as HTMLElement;
+    const search = element.querySelector('[data-testid="reader-search-toggle"]') as HTMLElement;
+    const zoom = element.querySelector('[data-testid="reader-zoom-group"]') as HTMLElement;
     return {
       toggleLeft: toggleEl.getBoundingClientRect().left,
-      footerLeft: footer.getBoundingClientRect().left,
-      toolbarLeft: element.getBoundingClientRect().left,
+      searchLeft: search.getBoundingClientRect().left,
+      zoomLeft: zoom.getBoundingClientRect().left,
+      barLeft: element.getBoundingClientRect().left,
     };
   });
-  // Кнопка — в левой части панели, до правой группы управления чтением.
-  expect(layout.toggleLeft).toBeGreaterThanOrEqual(layout.toolbarLeft);
-  expect(layout.toggleLeft).toBeLessThan(layout.footerLeft);
-  // Свой блок с фоном, как у типов заметок и масштаба: единая система панели.
-  await expect(toggle).toHaveAttribute('role', 'group');
-  const background = await toggle.evaluate((element) => getComputedStyle(element).backgroundColor);
-  const zoomGroup = await page
-    .getByTestId('reader-zoom-group')
-    .evaluate((element) => getComputedStyle(element).backgroundColor);
-  expect(background).not.toBe('rgba(0, 0, 0, 0)');
-  expect(background).toBe(zoomGroup);
+  // Шрифт — среди действий над текстом, слева: после меню и поиска.
+  expect(layout.toggleLeft).toBeGreaterThan(layout.barLeft);
+  expect(layout.searchLeft).toBeLessThan(layout.toggleLeft);
+  // И до управления положением и видом книги, которое стоит справа.
+  expect(layout.toggleLeft).toBeLessThan(layout.zoomLeft);
 });
 
 // При увеличении масштаба ширина колонки растёт вместе с кеглем: иначе крупный

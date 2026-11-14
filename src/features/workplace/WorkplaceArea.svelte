@@ -12,7 +12,8 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import { EmptyState, Icon } from '@context/ui';
   import { activeTab } from './workplace';
   import FilePropertiesPanel from '../reader/FilePropertiesPanel.svelte';
-  import { propertyTabs } from '../reader/file-properties';
+  import { emptyProperties, propertyTabs } from '../reader/file-properties';
+  import { formatFromPath } from '../reader/reader';
   import type {
     FileAnnotation,
     FileBookmark,
@@ -790,15 +791,19 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
             onRemoveSet={onRemoveSet}
             onClose={onCloseNotes}
           />
-        {:else if propertiesOpen && activeProperties}
+        {:else if propertiesOpen}
           <!--
-            Панель пересоздаётся при смене активной вкладки: показ пометки и
-            запрос разбора относятся к конкретной книге и не должны переезжать
-            на соседнюю.
+            Панель открывается и до того, как пришли свойства вкладки: иначе
+            нажатие кнопки «Книга» не давало бы видимого отклика, пока читалка
+            грузится. До снимка панель показывает, что показывать нечего.
+
+            Пересоздаётся при смене активной вкладки: показ пометки и запрос
+            разбора относятся к конкретной книге и не должны переезжать на
+            соседнюю.
           -->
           {#key tab?.id}
             <FilePropertiesPanel
-              snapshot={activeProperties}
+              snapshot={activeProperties ?? emptyProperties(formatFromPath(tab?.path ?? ''))}
               tab={propertiesTab}
               currentPage={activeFooter?.page ?? null}
               overlay={panelOverlay}
@@ -806,6 +811,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
               searchState={activeFooter?.searchState ?? EMPTY_SEARCH_STATE}
               searchBusy={activeFooter?.searchBusy ?? false}
               searchError={activeFooter?.searchError ?? null}
+              searchVisible={activeFooter?.searchOpen ?? false}
               onSearchQuery={setSearchQuery}
               onSearchStep={stepSearch}
               onGoToChapter={goToChapter}

@@ -868,15 +868,18 @@ describe('комбинации клавиш в оболочке', () => {
     expect(screen.queryByTestId('open-books-panel')).toBeNull();
   });
 
-  it('Escape закрывает панель поиска по книге', async () => {
+  it('Escape закрывает поиск по книге', async () => {
     render(App, { props: { ...appProps(), initialRegistry: registryWithTab() } });
     await fireEvent.click(screen.getByTestId('workspace-open'));
     await waitFor(() => expect(screen.getByTestId('workplace-tab-page')).toBeTruthy());
 
     await fireEvent.keyDown(window, { key: 'f', code: 'KeyF', ctrlKey: true });
+    // Поиск живёт на вкладке панели книги: панель открывается вместе с ним.
+    expect(screen.getByTestId('properties-panel')).toBeTruthy();
     expect(screen.getByTestId('reader-search')).toBeTruthy();
 
     await fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+    // Escape снимает поиск: вкладка остаётся, поля запроса больше нет.
     expect(screen.queryByTestId('reader-search')).toBeNull();
   });
 });

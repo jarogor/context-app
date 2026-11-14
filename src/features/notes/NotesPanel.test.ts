@@ -19,14 +19,25 @@ describe('панель заметок-цитат', () => {
     expect(screen.getByTestId('notes-panel-empty')).toBeTruthy();
   });
 
-  it('адаптируется к области: ширина токеном и на всю ширину на узком окне', () => {
+  it('адаптируется к области: ширина токеном и переключение в накладную панель', () => {
     render(NotesPanel, { props: { items: [], sets: [], activeSetId: null, hasBook: true } });
     const panel = screen.getByTestId('notes-panel');
     expect(panel.className).toContain('var(--notes-panel-width)');
-    // На узком окне панель занимает всю ширину области: общее поведение
-    // задаёт компонент боковой панели.
-    expect(panel.className).toContain('max-large-tablet:absolute');
-    expect(panel.className).toContain('max-large-tablet:w-auto');
+    // Панель области чтения не подчиняется ширине окна: накладной её делает
+    // область, которой не хватает места рядом с книгой (`overlay`).
+    expect(panel.className).not.toContain('max-large-tablet:absolute');
+    expect(panel.getAttribute('data-overlay')).toBe('false');
+  });
+
+  it('в накладном режиме накрывает книгу, не занимая места в раскладке', () => {
+    render(NotesPanel, {
+      props: { items: [], sets: [], activeSetId: null, hasBook: true, overlay: true },
+    });
+    const panel = screen.getByTestId('notes-panel');
+    expect(panel.getAttribute('data-overlay')).toBe('true');
+    expect(panel.className).toContain('absolute');
+    // Нижняя граница — высота строки книги: её переключатель остаётся доступен.
+    expect(panel.className).toContain('bottom-[var(--book-bar-height)]');
   });
 
   it('показывает цитаты, место и дату', () => {

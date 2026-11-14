@@ -476,7 +476,7 @@ test('поиск по книге PDF: находит текст, переход�
   // найденное, не дожидаясь разбора всех страниц.
   await openPdf(page, 120);
 
-  await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
+  await page.getByTestId('book-bar').getByRole('button', { name: 'Поиск по книге' }).click();
   const search = page.getByTestId('reader-search');
   const started = Date.now();
   await search.getByRole('textbox', { name: 'Поиск по книге' }).fill('Page 90');
@@ -512,7 +512,7 @@ test('поиск по книге PDF: находит текст, переход�
   // В тёмной теме подсветка другого оттенка и наложения: жёлтая сливалась с
   // цветом текста по светлоте.
   await page
-    .getByTestId('note-toolbar')
+    .getByTestId('book-bar')
     .getByRole('button', { name: 'Тёмная тема области чтения' })
     .click();
   await expect
@@ -705,7 +705,7 @@ test('переход на следующую страницу показывае
   await openPdf(page, 4);
 
   await page
-    .getByTestId('note-toolbar')
+    .getByTestId('book-bar')
     .getByRole('button', { name: 'Тёмная тема области чтения' })
     .click();
   await expect(content(page).locator('html')).toHaveAttribute('data-reader-theme', 'dark');
@@ -1568,7 +1568,11 @@ test('клик по подсветке открывает панель заме�
 
 /** Выбор инструмента заметок в панели инструментов рабочего места. */
 async function selectTool(page: Page, name: string) {
-  await page.getByTestId('note-toolbar').getByRole('button', { name }).click();
+  // Инструмент заметки выбирается в поповере строки книги: в постоянной строке
+  // стоит одна кнопка, чтобы её высота не росла вместе с числом типов.
+  await page.getByTestId('book-bar-tool').click();
+  await page.getByTestId('book-tool-menu').getByRole('button', { name }).click();
+  await page.keyboard.press('Escape');
 }
 
 test('меню цитаты копирует текст в буфер обмена', async ({ page, context }) => {
@@ -1594,11 +1598,13 @@ test('текстовая карточка создаётся кликом по �
   await openPdf(page, 3);
   await page.getByTestId('workplace-notes-toggle').click();
 
-  // Страничный формат сохраняет все три типа: текст и фигура доступны.
-  const toolbar = page.getByTestId('note-toolbar');
-  await expect(toolbar.getByRole('button', { name: 'Цитата' })).toBeVisible();
-  await expect(toolbar.getByRole('button', { name: 'Текст' })).toBeVisible();
-  await expect(toolbar.getByRole('button', { name: 'Фигура' })).toBeVisible();
+  // Страничный формат сохраняет все три типа: они в поповере инструмента.
+  await page.getByTestId('book-bar-tool').click();
+  const toolMenu = page.getByTestId('book-tool-menu');
+  await expect(toolMenu.getByRole('button', { name: 'Цитата' })).toBeVisible();
+  await expect(toolMenu.getByRole('button', { name: 'Текст' })).toBeVisible();
+  await expect(toolMenu.getByRole('button', { name: 'Фигура' })).toBeVisible();
+  await page.keyboard.press('Escape');
 
   await selectTool(page, 'Текст');
   await content(page)
@@ -1617,14 +1623,17 @@ test('текстовая карточка создаётся кликом по �
 
   // После создания карточки инструмент возвращается к «цитате»: следующая
   // заметка по умолчанию снова цитата.
-  await expect(toolbar.getByRole('button', { name: 'Цитата' })).toHaveAttribute(
+  await page.getByTestId('book-bar-tool').click();
+  const afterCreate = page.getByTestId('book-tool-menu');
+  await expect(afterCreate.getByRole('button', { name: 'Цитата' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await expect(toolbar.getByRole('button', { name: 'Текст' })).toHaveAttribute(
+  await expect(afterCreate.getByRole('button', { name: 'Текст' })).toHaveAttribute(
     'aria-pressed',
     'false',
   );
+  await page.keyboard.press('Escape');
 
   // Название и комментарий доступны заметке любого типа и правятся в панели.
   await page.getByLabel('Действия с заметкой').first().click();
@@ -1718,48 +1727,37 @@ test('фигура рисуется протяжкой по странице', a
   expect(blend).toBe('multiply');
 });
 
-test('на узком окне панель инструментов — две строки: снизу тема, масштаб, навигация', async ({
-  page,
-}) => {
+test('на узком окне строка книги не переносится: всё в одной линии', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await openPdf(page, 3);
 
-  // Фигура добавляет в панель выбор вида и цвет: самая широкая раскладка.
+  // Фигура — самая широкая панель инструмента: вида и цвета в строке нет, они
+  // живут в поповере, поэтому высота строки не меняется.
   await selectTool(page, 'Фигура');
 
-  const toolbar = await page.getByTestId('note-toolbar').boundingBox();
-  const types = await page.getByRole('group', { name: 'Тип заметки' }).boundingBox();
-  const shape = await page.getByTestId('note-tool-shape').boundingBox();
-  const color = await page.getByTestId('note-tool-color-picker').boundingBox();
+  const bar = await page.getByTestId('book-bar').boundingBox();
   const theme = await page.getByTestId('reader-theme-toggle').boundingBox();
   const zoom = await page.getByTestId('reader-zoom-group').boundingBox();
   const pages = await page.getByTestId('reader-pages').boundingBox();
-  for (const box of [toolbar, types, shape, color, theme, zoom, pages]) {
+  for (const box of [bar, theme, zoom, pages]) {
     expect(box).not.toBeNull();
   }
 
-  // Каждый инструмент целиком внутри панели: ничего не обрезано и не
-  // вынесено за её пределы.
-  for (const box of [types!, shape!, color!, theme!, zoom!, pages!]) {
-    expect(box.x).toBeGreaterThanOrEqual(toolbar!.x - 1);
-    expect(box.x + box.width).toBeLessThanOrEqual(toolbar!.x + toolbar!.width + 1);
-    expect(box.y + box.height).toBeLessThanOrEqual(toolbar!.y + toolbar!.height + 1);
+  // Строка — одна линия постоянной высоты, а не две: инструмент в поповере её
+  // не растягивает.
+  expect(bar!.height).toBeLessThanOrEqual(48);
+  const rows = new Set([theme!, zoom!, pages!].map((box) => Math.round(box.y + box.height / 2)));
+  expect(rows.size).toBe(1);
+
+  // Каждый элемент целиком внутри строки: ничего не обрезано.
+  for (const box of [theme!, zoom!, pages!]) {
+    expect(box.x).toBeGreaterThanOrEqual(bar!.x - 1);
+    expect(box.x + box.width).toBeLessThanOrEqual(bar!.x + bar!.width + 1);
+    expect(box.y + box.height).toBeLessThanOrEqual(bar!.y + bar!.height + 1);
   }
 
-  const rows = (list: Array<{ y: number; height: number }>) =>
-    new Set(list.map((box) => Math.round(box.y + box.height / 2)));
-
-  // Верхняя строка — инструменты заметок, цвет стоит в ней справа.
-  expect(rows([types!, shape!, color!]).size).toBe(1);
-  expect(color!.x).toBeGreaterThan(shape!.x + shape!.width - 1);
-  // Нижняя строка — управление чтением, и начинается она с переключателя темы.
-  expect(rows([theme!, zoom!, pages!]).size).toBe(1);
-  expect(theme!.x).toBeLessThan(zoom!.x);
-  expect(zoom!.x).toBeLessThan(pages!.x);
-  expect(Math.abs(theme!.x - Math.round(toolbar!.x + 8))).toBeLessThanOrEqual(8);
-
-  // Строки не пересекаются: инструменты выше управления чтением.
-  expect(types!.y + types!.height).toBeLessThanOrEqual(theme!.y + 1);
+  // Порядок справа: прогресс, масштаб, тема.
+  expect(zoom!.x).toBeLessThan(theme!.x);
 });
 
 test('фигура-эллипс рисуется и переживает смену масштаба', async ({ page }) => {
@@ -1767,8 +1765,10 @@ test('фигура-эллипс рисуется и переживает сме�
   await page.getByTestId('workplace-notes-toggle').click();
 
   await selectTool(page, 'Фигура');
-  await page.getByRole('button', { name: 'Вид фигуры' }).click();
-  await page.getByRole('option', { name: 'Эллипс' }).click();
+  // Вид фигуры — в том же поповере инструмента, он появляется для фигуры.
+  await page.getByTestId('book-bar-tool').click();
+  await page.getByTestId('note-tool-shape').getByRole('button', { name: 'Эллипс' }).click();
+  await page.keyboard.press('Escape');
 
   const pageEl = content(page).locator('.page').first();
   await pageEl.dragTo(pageEl, {
@@ -1862,14 +1862,20 @@ test('клик по заметке не переключает инструме�
   await selectTool(page, 'Фигура');
   const card = content(page).locator('.note-card').first();
   await card.click();
-  await expect(
-    page.getByTestId('note-toolbar').getByRole('button', { name: 'Фигура' }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await expect(
-    page.getByTestId('note-toolbar').getByRole('button', { name: 'Текст' }),
-  ).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByTestId('note-menu')).toBeVisible();
   await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
+  // Выбранный тип виден в поповере инструмента: он не сбрасывается кликом.
+  await page.getByTestId('book-bar-tool').click();
+  const toolMenu = page.getByTestId('book-tool-menu');
+  await expect(toolMenu.getByRole('button', { name: 'Фигура' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(toolMenu.getByRole('button', { name: 'Текст' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await page.keyboard.press('Escape');
 
   await page.getByTestId('note-menu').getByRole('button', { name: 'Переместить' }).click();
   await expect(content(page).locator('.note-move-guide')).toBeVisible();

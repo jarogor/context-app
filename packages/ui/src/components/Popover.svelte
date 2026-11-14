@@ -29,6 +29,8 @@
     children: Snippet;
     /** Дополнительные классы панели (ширина задаётся здесь). */
     class?: string;
+    /** Метка панели для тестов. */
+    testId?: string;
   }
 
   let {
@@ -38,6 +40,7 @@
     trigger,
     children,
     class: className = '',
+    testId,
   }: Props = $props();
 </script>
 
@@ -52,6 +55,7 @@
       {side}
       {align}
       sideOffset={6}
+      data-testid={testId}
       class={cn(
         'border-[var(--border)] bg-[var(--overlay-surface)] text-popover-foreground z-[var(--layer-popup)] min-w-[12rem] rounded-[var(--radius)] border p-2 shadow-overlay outline-none',
         className,

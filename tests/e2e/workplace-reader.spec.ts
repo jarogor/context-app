@@ -100,7 +100,7 @@ test('плагин рабочего места сообщает прогресс
   await page.getByRole('button', { name: 'Увеличить масштаб' }).click();
   await expect(page.getByTestId('reader-zoom')).toHaveText('110%');
   // Управление масштабом расположено в единой панели чтения.
-  await expect(page.getByTestId('note-toolbar').getByTestId('reader-zoom')).toBeVisible();
+  await expect(page.getByTestId('book-bar').getByTestId('reader-zoom')).toBeVisible();
   await expect
     .poll(async () => html.evaluate((element) => getComputedStyle(element).fontSize))
     .not.toBe(before);
@@ -114,7 +114,7 @@ test('сосредоточенное чтение скрывает хром и �
   // Хром интерфейса виден: меню разделов, панель вкладок, панель чтения.
   await expect(page.getByTestId('section-nav')).toBeVisible();
   await expect(page.getByTestId('workplace-tabs')).toBeVisible();
-  await expect(page.getByTestId('note-toolbar')).toBeVisible();
+  await expect(page.getByTestId('book-bar')).toBeVisible();
 
   await page.getByRole('button', { name: 'Сосредоточенное чтение' }).click();
 

@@ -74,7 +74,7 @@ test('масштаб меняет размер текста книги', async (
 
   await expect(page.getByTestId('reader-zoom')).toHaveText('110%');
   // Управление масштабом принадлежит верхней панели чтения.
-  await expect(page.getByTestId('note-toolbar').getByTestId('reader-zoom')).toBeVisible();
+  await expect(page.getByTestId('book-bar').getByTestId('reader-zoom')).toBeVisible();
   await expect
     .poll(async () => html.evaluate((element) => getComputedStyle(element).fontSize))
     .not.toBe(before);
@@ -177,30 +177,35 @@ test('переключатель меняет тему области чтени
   await expect(root).toHaveAttribute('data-reader-theme', 'light');
   await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
 
-  // Переключатель темы принадлежит единой панели чтения.
-  const toggle = page.getByTestId('note-toolbar').getByTestId('reader-theme-toggle');
+  // Переключатель темы принадлежит строке книги.
+  const toggle = page.getByTestId('book-bar').getByTestId('reader-theme-toggle');
   await expect(toggle).toBeVisible();
 
-  await toggle.getByRole('button', { name: 'Тёмная тема области чтения' }).click();
+  await toggle.click();
 
   await expect(root).toHaveAttribute('data-reader-theme', 'dark');
   await expect(readerHtml).toHaveAttribute('data-reader-theme', 'dark');
   // Интерфейсная тема независима и не меняется вместе с областью чтения.
   await expect(root).toHaveAttribute('data-theme', 'light');
 
-  await toggle.getByRole('button', { name: 'Светлая тема области чтения' }).click();
+  await toggle.click();
   await expect(root).toHaveAttribute('data-reader-theme', 'light');
   await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
 });
 
-test('поиск по книге: поле во всю ширину, короткий запрос не ищется, найденное подсвечено', async ({
+test('поиск по книге: поле на панели книги, короткий запрос не ищется, найденное подсвечено', async ({
   page,
 }) => {
   await openWorkplace(page);
-  await page.getByTestId('note-toolbar').getByRole('button', { name: 'Поиск по книге' }).click();
+  await page.getByTestId('book-bar').getByRole('button', { name: 'Поиск по книге' }).click();
   const search = page.getByTestId('reader-search');
   const reader = page.frameLocator('iframe[title="Содержимое книги"]');
   const field = search.getByRole('textbox', { name: 'Поиск по книге' });
+
+  // Поиск живёт на своей вкладке панели книги, а не плавает над текстом:
+  // панель открыта, и книга остаётся видимой рядом с ней.
+  await expect(page.getByTestId('properties-panel')).toBeVisible();
+  await expect(page.getByTestId('properties-tab-search')).toHaveAttribute('aria-selected', 'true');
 
   // Пока результата нет, счётчика нет вовсе: он не резервирует место справа
   // от поля, и поле тянется до кнопок без пустоты.
@@ -221,12 +226,10 @@ test('поиск по книге: поле во всю ширину, корот�
   await expect(search.getByTestId('reader-search-counter')).toHaveText(/\d/);
   await expect(reader.locator('mark.context-search-hit').first()).toBeVisible();
   await expect(reader.locator('mark.context-search-hit-active')).toHaveCount(1);
-  const fieldAfter = await field.boundingBox();
-  expect(Math.round(fieldAfter?.width ?? 0)).toBe(Math.round(fieldBox.width));
 
   // Закрытие поиска снимает подсветку: она рабочий слой, а не заметка.
-  await search.getByRole('button', { name: 'Закрыть поиск' }).click();
-  await expect(page.getByTestId('reader-search')).toBeHidden();
+  await page.getByTestId('book-bar').getByRole('button', { name: 'Поиск по книге' }).click();
+  await expect(page.getByTestId('reader-search')).toHaveCount(0);
   await expect(reader.locator('mark.context-search-hit')).toHaveCount(0);
 });
 

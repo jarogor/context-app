@@ -18,7 +18,7 @@ vi.mock('./reader', () => ({
 }));
 
 describe('ReaderPage как содержимое вкладки', () => {
-  it('открывает поиск по книге по команде панели чтения и снимает его при закрытии', async () => {
+  it('сообщает состояние поиска по книге для панели', async () => {
     const onFooter = vi.fn();
     const component = render(ReaderPage, {
       props: { path: '/lib/book.epub', title: 'Книга', onFooter },
@@ -28,13 +28,14 @@ describe('ReaderPage как содержимое вкладки', () => {
     component.component.toggleFooterSearch();
     await tick();
 
-    expect(await screen.findByTestId('reader-search')).toBeTruthy();
+    // Поиск показывает панель книги, поэтому сама читалка его поля не рисует:
+    // она сообщает лишь то, что нужно панели.
+    expect(screen.queryByTestId('reader-search')).toBeNull();
     expect(onFooter).toHaveBeenLastCalledWith(expect.objectContaining({ searchOpen: true }));
 
     component.component.toggleFooterSearch();
     await tick();
 
-    expect(screen.queryByTestId('reader-search')).toBeNull();
     expect(onFooter).toHaveBeenLastCalledWith(expect.objectContaining({ searchOpen: false }));
   });
 

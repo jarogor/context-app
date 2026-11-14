@@ -360,10 +360,7 @@ test('в тёмной теме фон подсветки непрозрачны�
   await highlightParagraph(page, 'Первый абзац книги.');
 
   // Тёмная сторона темы области чтения.
-  await page
-    .getByTestId('reader-theme-toggle')
-    .getByRole('button', { name: 'Тёмная тема области чтения' })
-    .click();
+  await page.getByTestId('reader-theme-toggle').click();
   await expect(bookDocument(page).locator('html[data-reader-theme="dark"]')).toHaveCount(1);
 
   const background = await bookDocument(page)
@@ -543,9 +540,7 @@ test('клик по заметке ведёт к выделению в книг�
   await expect(bookDocument(page).locator('mark').first()).toHaveText('Второй абзац книги.');
 });
 
-test('панель чтения — верх области чтения, панели открываются сбоку на всю высоту', async ({
-  page,
-}) => {
+test('строка книги — под панелями во всю ширину, панель открывается слева', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 800 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
@@ -553,55 +548,54 @@ test('панель чтения — верх области чтения, пан
 
   const area = await page.getByTestId('workplace-area').boundingBox();
   const reading = await page.getByTestId('workplace-reading').boundingBox();
-  const toolbar = await page.getByTestId('note-toolbar').boundingBox();
+  const bar = await page.getByTestId('book-bar').boundingBox();
   const notes = await page.getByTestId('notes-panel').boundingBox();
   const tabs = await page.getByTestId('workplace-tabs').boundingBox();
   expect(area).not.toBeNull();
   expect(reading).not.toBeNull();
-  expect(toolbar).not.toBeNull();
+  expect(bar).not.toBeNull();
   expect(notes).not.toBeNull();
   expect(tabs).not.toBeNull();
 
-  // Панель чтения принадлежит области чтения: она уже рабочего места, потому
-  // что рядом стоит панель заметок.
-  expect(Math.abs(toolbar!.width - reading!.width)).toBeLessThanOrEqual(1);
-  expect(toolbar!.width).toBeLessThan(area!.width);
-  // Она стоит сверху области чтения, а панель заметок — сбоку от неё и во всю
-  // её высоту, а не ниже панели. Панели живут слева от области чтения.
-  expect(Math.abs(toolbar!.y - reading!.y)).toBeLessThanOrEqual(1);
+  // Строка книги идёт во всю ширину рабочего места под панелью и книгой,
+  // поэтому открытие панели не сдвигает её кнопки.
+  expect(Math.abs(bar!.width - area!.width)).toBeLessThanOrEqual(1);
+  // Она стоит под областью чтения, а панель заметок — слева от неё и во всю
+  // высоту области чтения.
+  expect(bar!.y).toBeGreaterThanOrEqual(reading!.y + reading!.height - 1);
   expect(Math.abs(notes!.y - reading!.y)).toBeLessThanOrEqual(1);
   expect(Math.abs(notes!.height - reading!.height)).toBeLessThanOrEqual(1);
-  expect(notes!.x + notes!.width).toBeLessThanOrEqual(toolbar!.x + 1);
+  expect(notes!.x + notes!.width).toBeLessThanOrEqual(reading!.x + 1);
   // Полоса вкладок остаётся над областью чтения во всю ширину рабочего места.
   expect(Math.abs(tabs!.width - area!.width)).toBeLessThanOrEqual(1);
-  expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(toolbar!.y + 1);
+  expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(reading!.y + 1);
 });
 
-test('на узком окне панель чтения уходит вниз и раскладывается на две строки', async ({ page }) => {
+test('на узком окне строка книги остаётся одной линией', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
 
   const area = await page.getByTestId('workplace-area').boundingBox();
-  const toolbar = await page.getByTestId('note-toolbar').boundingBox();
+  const bar = await page.getByTestId('book-bar').boundingBox();
   const zoom = await page.getByTestId('reader-zoom-group').boundingBox();
   const theme = await page.getByTestId('reader-theme-toggle').boundingBox();
   expect(area).not.toBeNull();
-  expect(toolbar).not.toBeNull();
+  expect(bar).not.toBeNull();
   expect(zoom).not.toBeNull();
   expect(theme).not.toBeNull();
 
-  // Панель прижата к низу области рабочего места, а не висит сверху.
-  expect(Math.abs(toolbar!.y + toolbar!.height - (area!.y + area!.height))).toBeLessThanOrEqual(1);
-  // Управление чтением — в нижней строке панели, под инструментами заметок.
-  expect(zoom!.y).toBeGreaterThan(toolbar!.y + toolbar!.height / 2);
+  // Строка прижата к низу области рабочего места и не переносится: высота —
+  // та же, что на широком окне.
+  expect(Math.abs(bar!.y + bar!.height - (area!.y + area!.height))).toBeLessThanOrEqual(1);
+  expect(bar!.height).toBeLessThanOrEqual(48);
 
-  // Всё управление чтением на месте и не выходит за пределы панели.
+  // Всё управление чтением на месте и стоит в той же строке.
   for (const name of ['Увеличить масштаб', 'Уменьшить масштаб', 'Тёмная тема области чтения']) {
     await expect(page.getByRole('button', { name })).toBeVisible();
   }
-  expect(zoom!.x + zoom!.width).toBeLessThanOrEqual(toolbar!.x + toolbar!.width + 1);
-  expect(zoom!.y + zoom!.height).toBeLessThanOrEqual(toolbar!.y + toolbar!.height + 1);
+  expect(zoom!.x + zoom!.width).toBeLessThanOrEqual(bar!.x + bar!.width + 1);
+  expect(zoom!.y + zoom!.height).toBeLessThanOrEqual(bar!.y + bar!.height + 1);
 });
 
 test('на узком окне полоса вкладок показывает одну активную вкладку без навигации', async ({
@@ -644,12 +638,12 @@ test('на узком окне панель заметок — на всю ши�
   // Панель заметок занимает всю ширину области рабочего места.
   expect(Math.abs(notes!.width - area!.width)).toBeLessThanOrEqual(1);
   // Единая панель чтения остаётся видимой.
-  await expect(page.getByTestId('note-toolbar')).toBeVisible();
+  await expect(page.getByTestId('book-bar')).toBeVisible();
 
   // Переход к заметке в этом режиме закрывает панель, и видно страницу текста.
   await page.getByTestId('notes-item-link').click();
   await expect(page.getByTestId('notes-panel')).toHaveCount(0);
-  await expect(page.getByTestId('note-toolbar')).toBeVisible();
+  await expect(page.getByTestId('book-bar')).toBeVisible();
 });
 
 test('удаление заметки убирает подсветку из книги', async ({ page }) => {
@@ -836,7 +830,7 @@ test('в EPUB доступен только инструмент «цитата�
   await addBook(page, 'Демо-книга');
   await openNotes(page);
 
-  const toolbar = page.getByTestId('note-toolbar');
+  const toolbar = page.getByTestId('book-bar');
   // Текучее чтение не предлагает текст и фигуру: их точки неустойчивы к потоку.
   await expect(toolbar.getByRole('button', { name: 'Цитата' })).toHaveCount(0);
   await expect(toolbar.getByRole('button', { name: 'Текст' })).toHaveCount(0);

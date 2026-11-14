@@ -125,6 +125,8 @@ describe('вкладки панели свойств', () => {
       chapters: [{ index: 0, title: 'Глава' }],
     };
     expect(propertyTabs(flowing)).toEqual(['contents']);
+    // Поиск — режим: его вкладка появляется, только пока поиск открыт.
+    expect(propertyTabs(flowing, true)).toEqual(['contents', 'search']);
   });
 
   it('не показывает превью и пометки без поддержки формата', () => {

@@ -272,17 +272,26 @@ export function mergeFileAnnotations(
   return result;
 }
 
-/** Доступные вкладки панели книги для снимка.
+/**
+ * Доступные вкладки панели книги для снимка.
  *
- * Поиск по тексту есть у любой открытой книги, поэтому панель всегда имеет хотя
- * бы одну вкладку. Остальные вкладки зависят от того, что разобрал формат:
- * содержание — у книг с оглавлением, закладки — у страничных с встроенными
- * закладками, превью и пометки — у форматов, которые их умеют.
+ * Состав зависит от того, что разобрал формат: содержание — у книг с
+ * оглавлением, закладки — у страничных с встроенными закладками, превью и
+ * пометки — у форматов, которые их умеют.
+ *
+ * @param searchVisible Открыт ли поиск: это режим, а не раздел файла, поэтому
+ * его вкладка живёт, только пока поиск открыт.
  */
-export function propertyTabs(snapshot: FilePropertiesSnapshot): PropertiesTabId[] {
-  const tabs: PropertiesTabId[] = ['search'];
+export function propertyTabs(
+  snapshot: FilePropertiesSnapshot,
+  searchVisible = false,
+): PropertiesTabId[] {
+  const tabs: PropertiesTabId[] = [];
   if (snapshot.chapters.length > 0) {
-    tabs.unshift('contents');
+    tabs.push('contents');
+  }
+  if (searchVisible) {
+    tabs.push('search');
   }
   if (!snapshot.flowing && snapshot.bookmarksSupported) {
     tabs.push('bookmarks');

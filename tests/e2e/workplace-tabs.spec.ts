@@ -686,7 +686,7 @@ test('на телефоне меню панелей стоит слева от �
   const bar = page.getByTestId('workplace-tabs');
   await expect(bar).toBeVisible();
 
-  // Ни кнопок панелей, ни кнопки открытия книги в полосе нет.
+  // Отдельных кнопок панелей и открытия книги в полосе нет: они в меню.
   await expect(page.getByTestId('workplace-notes-toggle')).toHaveCount(0);
   await expect(page.getByTestId('workplace-properties-toggle')).toHaveCount(0);
   await expect(bar.getByLabel('Добавить книгу')).toHaveCount(0);

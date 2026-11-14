@@ -214,7 +214,7 @@ describe('область рабочего места: список и вклад
     expect(screen.getByTestId('workplace-tab-page').getAttribute('data-active')).toBe('true');
   });
 
-  it('показывает общую нижнюю панель при открытой вкладке', () => {
+  it('показывает общую строку книги при открытой вкладке', () => {
     render(WorkplaceArea, {
       props: {
         workspace: {
@@ -245,16 +245,14 @@ describe('область рабочего места: список и вклад
       },
     });
 
-    expect(screen.getByTestId('note-toolbar').contains(screen.getByTestId('reader-zoom'))).toBe(
-      true,
-    );
+    expect(screen.getByTestId('book-bar').contains(screen.getByTestId('reader-zoom'))).toBe(true);
     expect(screen.getByTestId('reader-zoom').textContent).toBe('100%');
-    expect(screen.getByTestId('reader-progress').textContent).toBe('0%');
     // Прогресс есть у текучей книги; у постраничной он не показывается.
     expect(screen.getByTestId('reader-progress')).toBeTruthy();
+    expect(screen.getByTestId('reader-progress').textContent).toBe('0%');
   });
 
-  it('держит панель чтения внутри области чтения, а панели — рядом с ней', () => {
+  it('держит строку книги под панелями и книгой, а открытую панель — слева от книги', () => {
     render(WorkplaceArea, {
       props: {
         workspace: {
@@ -281,21 +279,23 @@ describe('область рабочего места: список и вклад
         booksOpen: true,
         visible: true,
         ...panels(),
-        notesOpen: true,
         ...handlers(),
       },
     });
 
-    // Панель чтения принадлежит области чтения, а не рабочему месту целиком.
+    // Строка книги стоит под областью чтения, а не внутри неё: открытие панели
+    // не переставляет её кнопки.
     const reading = screen.getByTestId('workplace-reading');
-    expect(reading.contains(screen.getByTestId('note-toolbar'))).toBe(true);
-    // Панели заметок и открытых вкладок стоят рядом с областью чтения, а не
-    // внутри неё: они идут от её верха до низа.
-    for (const panelId of ['notes-panel', 'open-books-panel']) {
-      const panel = screen.getByTestId(panelId);
-      expect(reading.contains(panel)).toBe(false);
-      expect(panel.parentElement?.contains(reading)).toBe(true);
-    }
+    const bar = screen.getByTestId('book-bar');
+    expect(reading.contains(bar)).toBe(false);
+    // Ближайший общий предок — тот, где строка книги соседствует с рядом
+    // «панель + книга».
+    expect(reading.parentElement?.parentElement?.contains(bar)).toBe(true);
+
+    // Панель стоит слева от книги и вне её.
+    const panel = screen.getByTestId('open-books-panel');
+    expect(reading.contains(panel)).toBe(false);
+    expect(panel.parentElement?.contains(reading)).toBe(true);
   });
 
   it('на узком окне переход к заметке закрывает панель заметок', async () => {
