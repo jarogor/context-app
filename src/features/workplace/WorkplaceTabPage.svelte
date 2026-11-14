@@ -15,18 +15,28 @@
     footerSnapshot: () => FooterSnapshot;
     /** Изменение масштаба на один шаг шкалы: `1` — увеличение, `-1` — уменьшение. */
     changeFooterZoom: (direction: 1 | -1) => void;
-    /** Переход к соседней странице из нижней панели рабочего места. */
+    /** Установка масштаба значением. */
+    setFooterZoom: (value: number) => void;
+    /** Переход к соседней странице из строки книги. */
     stepFooterPage: (delta: number) => void;
-    /** Переход к заданному номеру страницы из нижней панели рабочего места. */
+    /** Переход к заданному номеру страницы из строки книги. */
     gotoFooterPage: (page: number) => void;
     /** Переключение панели поиска по книге. */
     toggleFooterSearch: () => void;
+    /** Открытие поиска по книге. */
+    openFooterSearch: () => void;
+    /** Закрытие поиска по книге. */
+    closeFooterSearch: () => void;
+    /** Изменение запроса поиска. */
+    setFooterSearchQuery: (query: string) => void;
+    /** Переход к соседнему вхождению поиска. */
+    stepFooterSearch: (delta: 1 | -1) => void;
     /** Переход к главе текучей книги из панели содержания. */
     goToChapter: (chapter: FileChapter) => void;
     /** Переход к странице из панели свойств файла. */
     goToFilePage: (page: number) => void;
     /** Переход к закладке файла. */
-  goToBookmark: (bookmark: FileBookmark) => void;
+    goToBookmark: (bookmark: FileBookmark) => void;
     /** Заказ миниатюр страниц у модуля рисования. */
     requestThumbs: (pages: number[], width: number) => void;
     /** Запуск анализа встроенных пометок файла. */

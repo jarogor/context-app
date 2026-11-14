@@ -16,14 +16,12 @@ describe('панель поиска, планировщик и состояни�
   it('панель показывает счётчик, сообщает о запросе и переходах', async () => {
     const onQuery = vi.fn();
     const onStep = vi.fn();
-    const onClose = vi.fn();
     render(ReaderSearchBar, {
       props: {
         query: '',
         state: { total: 17, index: 1, truncated: false },
         onQuery,
         onStep,
-        onClose,
       },
     });
 
@@ -47,7 +45,6 @@ describe('панель поиска, планировщик и состояни�
     // (`app.dismiss`) через стек слоёв, иначе каждый слой заводил бы свой
     // обработчик и порядок закрытия решался бы порядком подписки.
     await fireEvent.keyDown(field, { key: 'Escape' });
-    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('панель не резервирует место под счётчик без результата', () => {

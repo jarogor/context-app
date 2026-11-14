@@ -11,6 +11,10 @@
    * необязательный поиск и содержимое. На узком окне панель занимает всю ширину
    * области и получает кнопку закрытия; на широком — свою ширину (классом
    * потребителя) и остаётся на месте содержимого рядом с ним.
+   *
+   * Где ставить панель рядом, а где поверх, решает потребитель: в области
+   * чтения это зависит от ширины **области**, а не окна, поэтому панель там
+   * не слушает ширину окна вовсе (`responsive={false}`).
    */
   interface Props {
     /** Заголовок панели. */
@@ -33,6 +37,18 @@
     testId?: string;
     /** Сторона панели относительно содержимого: справа (по умолчанию) или слева. */
     side?: 'left' | 'right';
+    /** Панель накрывает содержимое, а не стоит рядом с ним.
+     *
+     * Задаёт тот, кто знает ширину области, а не окна: панель перекрывает
+     * книгу, когда рядом с ней тексту не остаётся места для чтения.
+     */
+    overlay?: boolean;
+    /** Слушать ли ширину окна: ниже `large-tablet` панель становится накладной.
+     *
+     * Так ведут себя разделы библиотеки и заметок. Область чтения выключает
+     * это: её панели подчиняются ширине области, а не окна.
+     */
+    responsive?: boolean;
     /** Дополнительные классы (ширина панели задаётся здесь). */
     class?: string;
   }
@@ -48,6 +64,8 @@
     onClose,
     testId,
     side = 'right',
+    overlay = false,
+    responsive = true,
     class: className = '',
   }: Props = $props();
 
@@ -57,23 +75,62 @@
       ? 'border-r max-large-tablet:border-r-0'
       : 'border-l max-large-tablet:border-l-0',
   );
+
+  /**
+   * Классы накладной панели.
+   *
+   * Накладная панель не занимает места в раскладке, но и не растягивается на
+   * всю область: она встаёт над книгой у своей стороны и держит ширину
+   * потребителя. Так панели с обеих сторон не накрывают друг друга, а книга
+   * остаётся видимой между ними.
+   *
+   * Нижняя граница — высота строки книги: строка остаётся доступной, пока
+   * панель открыта, иначе её собственный переключатель оказался бы под панелью
+   * и закрыть панель было бы нечем, кроме крестика. `h-full` из общего набора
+   * здесь не годится: при заданной высоте нижняя граница игнорируется.
+   */
+  const overlayClass = $derived(
+    cn(
+      'absolute z-[var(--layer-panel)]',
+      side === 'left' ? 'left-0' : 'right-0',
+      'top-0 bottom-[var(--book-bar-height)] h-auto',
+      // На узком окне панель занимает всю ширину области. Ширина задаётся
+      // шириной, а не парой `left`/`right`: при заданной ширине второе из них
+      // игнорируется, и панель с правой стороны встала бы слева.
+      'max-large-tablet:w-full max-large-tablet:top-0 max-large-tablet:bottom-[var(--book-bar-height)]',
+    ),
+  );
+
+  /** Классы положения: накладная панель либо обычная в потоке раскладки. */
+  const positionClass = $derived(
+    overlay
+      ? overlayClass
+      : responsive
+        ? 'max-large-tablet:absolute max-large-tablet:inset-0 max-large-tablet:z-[var(--layer-panel)] max-large-tablet:w-auto'
+        : '',
+  );
+
+  /** Показывать ли крестик: у накладной панели он нужен всегда. */
+  const showClose = $derived(overlay || responsive);
 </script>
 
 <aside
   class={cn(
-    'flex h-full min-w-0 flex-none flex-col border-[var(--border)] bg-[var(--panel)] max-large-tablet:absolute max-large-tablet:inset-0 max-large-tablet:z-[var(--layer-panel)] max-large-tablet:w-auto',
+    'flex h-full min-w-0 flex-none flex-col border-[var(--border)] bg-[var(--panel)]',
+    positionClass,
     borderClass,
     className,
   )}
   data-side={side}
+  data-overlay={overlay ? 'true' : 'false'}
   data-testid={testId}
   style="padding-left: var(--safe-left); padding-right: var(--safe-right);"
 >
   <div
     class="flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 py-2.5"
   >
-    {#if onClose}
-      <span class="flex large-tablet:hidden">
+    {#if onClose && showClose}
+      <span class={cn('flex', !overlay && 'large-tablet:hidden')}>
         <button
           type="button"
           class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"

@@ -56,6 +56,7 @@ export { default as Spinner } from './components/Spinner.svelte';
 export { default as Progress } from './components/Progress.svelte';
 export { default as Menu } from './components/Menu.svelte';
 export { default as MenuItem } from './components/MenuItem.svelte';
+export { default as Popover } from './components/Popover.svelte';
 export { default as UiRenderer } from './declarative/UiRenderer.svelte';
 export { collectValues } from './declarative/values';
 export {

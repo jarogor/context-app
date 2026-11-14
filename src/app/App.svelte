@@ -673,35 +673,27 @@
 
   /** Переключение панели списка открытых книг.
    *
-   * Панели заметок и открытых книг взаимоисключающие: они занимают одно и то же
-   * место справа и вместе загромождают экран, поэтому открытие одной закрывает
-   * другую.
+   * Панели независимы: заметки и содержание нужны одновременно — это главный
+   * сценарий исследовательского чтения. Панель открытых книг остаётся
+   * отдельным случаем: она показывает тот же состав, что полоса вкладок, и
+   * место в строке книги не занимает её постоянное присутствие.
    */
   function toggleBooksPanel() {
     booksPanelOpen = !booksPanelOpen;
-    if (booksPanelOpen) {
-      notesPanelOpen = false;
-      propertiesPanelOpen = false;
-    }
   }
 
-  /** Переключение панели заметок (взаимоисключающе с панелью открытых книг). */
+  /** Переключение панели заметок. */
   function toggleNotesPanel() {
     notesPanelOpen = !notesPanelOpen;
     if (notesPanelOpen) {
-      booksPanelOpen = false;
-      propertiesPanelOpen = false;
       void notesController.load();
     }
   }
 
-  /** Переключение панели свойств файла (одно место с заметками и вкладками). */
+  /** Переключение панели книги (содержание, поиск, закладки, страницы, пометки). */
   function togglePropertiesPanel() {
     propertiesPanelOpen = !propertiesPanelOpen;
-    if (propertiesPanelOpen) {
-      booksPanelOpen = false;
-      notesPanelOpen = false;
-    } else {
+    if (!propertiesPanelOpen) {
       // Закрытие панели снимает показ встроенных пометок активной вкладки:
       // без панели у них не осталось бы управления.
       reader?.hideAnnotations?.();
@@ -726,8 +718,6 @@
   function selectNote(noteId: string) {
     selectedNoteId = noteId;
     notesPanelOpen = true;
-    booksPanelOpen = false;
-    propertiesPanelOpen = false;
     // Клик по заметке лишь выбирает её и открывает панель: активный инструмент
     // не переключается, чтобы создание заметок не зависело от прежнего выбора.
     void notesController.load();
@@ -774,8 +764,6 @@
     if (!target.noteId) {
       pendingNoteTarget = null;
       notesPanelOpen = true;
-      booksPanelOpen = false;
-      propertiesPanelOpen = false;
       return;
     }
     const note = notesController.findNote(target.noteId);
@@ -784,8 +772,6 @@
     }
     pendingNoteTarget = null;
     notesPanelOpen = true;
-    booksPanelOpen = false;
-    propertiesPanelOpen = false;
     goToNote(note);
   });
 

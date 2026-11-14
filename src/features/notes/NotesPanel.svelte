@@ -41,6 +41,8 @@
     onRemoveSet?: (setId: string) => void;
     /** Закрытие панели (на узком окне панель перекрывает содержимое). */
     onClose?: () => void;
+    /** Панель накрывает книгу, а не стоит рядом с ней. */
+    overlay?: boolean;
   }
 
   let {
@@ -61,6 +63,7 @@
     onRenameSet,
     onRemoveSet,
     onClose,
+    overlay = false,
   }: Props = $props();
 
   /** Запрос поиска по цитатам. */
@@ -138,6 +141,8 @@
   title={t('app.notes.panel.title')}
   testId="notes-panel"
   side="left"
+  {overlay}
+  responsive={false}
   showSearch={hasBook}
   class="w-[var(--notes-panel-width)]"
   {onClose}

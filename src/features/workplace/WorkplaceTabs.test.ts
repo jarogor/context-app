@@ -36,8 +36,6 @@ function handlers() {
     onDuplicate: vi.fn<(id: string) => void>(),
     onAdd: vi.fn(),
     onAddFile: vi.fn(),
-    onToggleBooks: vi.fn(),
-    onToggleNotes: vi.fn(),
   };
 }
 
@@ -70,8 +68,6 @@ describe('панель вкладок: окно и навигация', () => {
       props: {
         tabs: tabs(7),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -90,8 +86,6 @@ describe('панель вкладок: окно и навигация', () => {
       props: {
         tabs: tabs(5),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -114,8 +108,6 @@ describe('панель вкладок: окно и навигация', () => {
       props: {
         tabs: tabs(5),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...base,
       },
     });
@@ -134,8 +126,6 @@ describe('панель вкладок: окно и навигация', () => {
       props: {
         tabs: tabs(2),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -152,8 +142,6 @@ describe('панель вкладок: окно и навигация', () => {
       props: {
         tabs: tabs(5),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -162,8 +150,6 @@ describe('панель вкладок: окно и навигация', () => {
     await rerender({
       tabs: tabs(5),
       activeTabId: 't5',
-      booksOpen: false,
-      notesOpen: false,
       ...handlers(),
     });
 
@@ -190,8 +176,6 @@ describe('панель вкладок: оформление вкладки', () 
       props: {
         tabs: [decorated()],
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -212,8 +196,6 @@ describe('панель вкладок: оформление вкладки', () 
       props: {
         tabs: [tab('t1', 'Книга 1'), tab('t2', 'Книга 2')],
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -233,8 +215,6 @@ describe('панель вкладок: оформление вкладки', () 
       props: {
         tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -251,8 +231,6 @@ describe('панель вкладок: оформление вкладки', () 
       props: {
         tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -266,8 +244,6 @@ describe('панель вкладок: оформление вкладки', () 
       props: {
         tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
         activeTabId: 't2',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -284,8 +260,6 @@ describe('панель вкладок: оформление вкладки', () 
       props: {
         tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
         activeTabId: 't2',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -301,8 +275,6 @@ describe('панель вкладок: оформление вкладки', () 
       props: {
         tabs: [tab('t1', 'Книга 1')],
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -325,8 +297,6 @@ describe('панель вкладок: подтверждение закрыти
       props: {
         tabs: tabs(2),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...base,
       },
     });
@@ -348,8 +318,6 @@ describe('панель вкладок: подтверждение закрыти
       props: {
         tabs: tabs(2),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...base,
       },
     });
@@ -370,8 +338,6 @@ describe('панель вкладок: подтверждение закрыти
       props: {
         tabs: tabs(2),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...base,
       },
     });
@@ -389,8 +355,6 @@ describe('панель вкладок: подтверждение закрыти
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -405,8 +369,6 @@ describe('панель вкладок: подтверждение закрыти
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -420,8 +382,6 @@ describe('панель вкладок: подтверждение закрыти
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -437,8 +397,6 @@ describe('панель вкладок: лимит открытых вкладо�
       props: {
         tabs: tabs(2),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
         openTabsLimit: 5,
       },
@@ -458,8 +416,6 @@ describe('панель вкладок: лимит открытых вкладо�
       props: {
         tabs: tabs(3),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
         openTabsLimit: 3,
       },
@@ -484,8 +440,6 @@ describe('панель вкладок: лимит открытых вкладо�
       props: {
         tabs: tabs(5),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
         openTabsLimit: 5,
       },
@@ -494,8 +448,6 @@ describe('панель вкладок: лимит открытых вкладо�
     await rerender({
       tabs: tabs(5),
       activeTabId: 't1',
-      booksOpen: false,
-      notesOpen: false,
       ...handlers(),
       openTabsLimit: 3,
     });
@@ -515,8 +467,6 @@ describe('панель вкладок: лимит открытых вкладо�
     await rerender({
       tabs: tabs(5),
       activeTabId: 't1',
-      booksOpen: false,
-      notesOpen: false,
       ...handlers(),
       openTabsLimit: 3,
     });
@@ -526,8 +476,6 @@ describe('панель вкладок: лимит открытых вкладо�
     await rerender({
       tabs: tabs(2),
       activeTabId: 't1',
-      booksOpen: false,
-      notesOpen: false,
       ...handlers(),
       openTabsLimit: 3,
     });
@@ -554,9 +502,6 @@ describe('панель вкладок: место кнопок панелей', 
         tabs: tabs(1),
         activeTabId: 't1',
         ...handlers(),
-        booksOpen: false,
-        notesOpen: false,
-        propertiesOpen: false,
       },
     });
 
@@ -584,9 +529,6 @@ describe('панель вкладок: место кнопок панелей', 
         tabs: tabs(1),
         activeTabId: 't1',
         ...handlers(),
-        booksOpen: false,
-        notesOpen: false,
-        propertiesOpen: false,
         onToggleFocus: vi.fn(),
       },
     });
@@ -621,10 +563,6 @@ describe('панель вкладок: место кнопок панелей', 
         tabs: tabs(1),
         activeTabId: 't1',
         ...handlers(),
-        booksOpen: false,
-        notesOpen: false,
-        propertiesOpen: false,
-        onToggleProperties: vi.fn(),
       },
     });
 
@@ -662,8 +600,6 @@ describe('панель вкладок: узкое окно', () => {
       props: {
         tabs: tabs(3),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -684,8 +620,6 @@ describe('панель вкладок: узкое окно', () => {
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -718,8 +652,6 @@ describe('панель вкладок: узкое окно', () => {
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -741,8 +673,6 @@ describe('панель вкладок: узкое окно', () => {
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...props,
       },
     });
@@ -760,8 +690,6 @@ describe('панель вкладок: узкое окно', () => {
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -794,8 +722,6 @@ describe('панель вкладок: узкое окно', () => {
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...props,
       },
     });
@@ -813,8 +739,6 @@ describe('панель вкладок: узкое окно', () => {
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -832,8 +756,6 @@ describe('панель вкладок: узкое окно', () => {
       props: {
         tabs: tabs(2),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -857,8 +779,6 @@ describe('панель вкладок: узкое окно без вкладок
       props: {
         tabs: [],
         activeTabId: null,
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -879,8 +799,6 @@ describe('панель вкладок: вид меню и высота вкла�
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -898,8 +816,6 @@ describe('панель вкладок: вид меню и высота вкла�
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });
@@ -917,8 +833,6 @@ describe('панель вкладок: вид меню и высота вкла�
       props: {
         tabs: tabs(1),
         activeTabId: 't1',
-        booksOpen: false,
-        notesOpen: false,
         ...handlers(),
       },
     });

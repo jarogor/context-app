@@ -4,6 +4,8 @@
   import { EmptyState, Icon, Input, SidePanel, Skeleton } from '@context/ui';
   import type { FileAnnotation, FileBookmark, FileChapter, FilePropertiesSnapshot, PropertiesTabId } from '../reader/file-properties';
   import { propertyTabs } from '../reader/file-properties';
+  import { EMPTY_SEARCH_STATE, type SearchState } from './search-state';
+  import ReaderSearchBar from './ReaderSearchBar.svelte';
 
   interface Props {
     /** Снимок свойств открытой книги. */
@@ -32,6 +34,20 @@
     onRegenerateThumbs?: () => void;
     /** Закрытие панели (на узком окне панель перекрывает содержимое). */
     onClose?: () => void;
+    /** Панель накрывает книгу, а не стоит рядом с ней. */
+    overlay?: boolean;
+    /** Текущий запрос поиска по книге. */
+    searchQuery?: string;
+    /** Состояние поиска по книге. */
+    searchState?: SearchState;
+    /** Идёт ли поиск. */
+    searchBusy?: boolean;
+    /** Ошибка поиска. */
+    searchError?: string | null;
+    /** Изменение запроса поиска по книге. */
+    onSearchQuery?: (value: string) => void;
+    /** Переход к соседнему вхождению поиска. */
+    onSearchStep?: (delta: 1 | -1) => void;
   }
 
   let {
@@ -48,6 +64,13 @@
     onToggleAnnotation,
     onRegenerateThumbs,
     onClose,
+    overlay = false,
+    searchQuery = '',
+    searchState = EMPTY_SEARCH_STATE,
+    searchBusy = false,
+    searchError = null,
+    onSearchQuery,
+    onSearchStep,
   }: Props = $props();
 
   /** Доступные вкладки панели для текущего снимка. */
@@ -59,6 +82,7 @@
   /** Заголовки вкладок. */
   const TAB_TITLES: Record<PropertiesTabId, string> = $derived({
     contents: t('app.properties.contents'),
+    search: t('app.bookDock.search'),
     bookmarks: t('app.properties.bookmarks'),
     pages: t('app.properties.pages'),
     annotations: t('app.properties.annotations'),
@@ -426,6 +450,17 @@
     </div>
   {/snippet}
 
+  {#snippet searchPanel()}
+    <ReaderSearchBar
+      query={searchQuery}
+      state={searchState}
+      busy={searchBusy}
+      error={searchError}
+      onQuery={onSearchQuery}
+      onStep={onSearchStep}
+    />
+  {/snippet}
+
   {#snippet searchSnippet()}
     <Input
       bind:value={query}
@@ -437,17 +472,20 @@
   {/snippet}
 
 <SidePanel
-  title={t('app.properties.title')}
+  title={t('app.bookDock.title')}
   testId="properties-panel"
-  side="left"
+  side="right"
+  {overlay}
+  responsive={false}
   showSearch={activeTab === 'contents' || activeTab === 'bookmarks' || activeTab === 'annotations'}
   class="w-[var(--properties-panel-width)]"
   tabs={tabs.length > 0 ? tabsSnippet : undefined}
   search={searchSnippet}
   {onClose}
 >
-
-  {#if tabs.length === 0}
+  {#if activeTab === 'search'}
+    {@render searchPanel()}
+  {:else if tabs.length === 0}
     <div class="p-4" data-testid="properties-empty">
       <EmptyState
         icon="book"

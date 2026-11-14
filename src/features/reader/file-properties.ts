@@ -114,8 +114,8 @@ export interface FilePropertiesSnapshot {
   thumbsEpoch: number;
 }
 
-/** Вкладка панели свойств файла. */
-export type PropertiesTabId = 'contents' | 'bookmarks' | 'pages' | 'annotations';
+/** Вкладка панели книги: разделы файла и поиск по тексту. */
+export type PropertiesTabId = 'contents' | 'search' | 'bookmarks' | 'pages' | 'annotations';
 
 /** Пустой снимок свойств для книги, которая ещё не открыта. */
 export function emptyProperties(format = ''): FilePropertiesSnapshot {
@@ -272,11 +272,17 @@ export function mergeFileAnnotations(
   return result;
 }
 
-/** Доступные вкладки панели свойств для снимка. */
+/** Доступные вкладки панели книги для снимка.
+ *
+ * Поиск по тексту есть у любой открытой книги, поэтому панель всегда имеет хотя
+ * бы одну вкладку. Остальные вкладки зависят от того, что разобрал формат:
+ * содержание — у книг с оглавлением, закладки — у страничных с встроенными
+ * закладками, превью и пометки — у форматов, которые их умеют.
+ */
 export function propertyTabs(snapshot: FilePropertiesSnapshot): PropertiesTabId[] {
-  const tabs: PropertiesTabId[] = [];
+  const tabs: PropertiesTabId[] = ['search'];
   if (snapshot.chapters.length > 0) {
-    tabs.push('contents');
+    tabs.unshift('contents');
   }
   if (!snapshot.flowing && snapshot.bookmarksSupported) {
     tabs.push('bookmarks');

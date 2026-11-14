@@ -4,19 +4,18 @@
   import { Button, Icon, Input } from '@context/ui';
   import type { SearchState } from './search-state';
 
-  /** Панель поиска по книге, общая для всех форматов чтения.
+  /** Поиск по книге внутри правой доки.
    *
-   * Поиск выполняет область чтения: текучая книга ищется по главам, а
-   * плагин формата — по текстовому слою страниц. Панель только принимает запрос,
-   * показывает счётчик и просит перейти к соседнему вхождению, поэтому её вид
-   * одинаков во всех форматах, а логика поиска живёт там, где есть текст.
+   * Поиск выполняет область чтения: текучая книга ищется по главам, плагин
+   * формата — по текстовому слою страниц. Панель только принимает запрос,
+   * показывает счётчик и просит перейти к соседнему вхождению.
    *
-   * Панель стоит поверх области чтения: книга остаётся видимой, поиск не
-   * сдвигает текст и не занимает место в колонке.
+   * Здесь поиск стоит в доке, а не карточкой поверх текста: книга остаётся
+   * видимой, а результат не перекрывает то место, к которому ведёт переход.
    */
 
   interface Props {
-    /** Текущий запрос (двусторонняя привязка). */
+    /** Текущий запрос. */
     query?: string;
     /** Состояние поиска: сколько найдено и к какому вхождению ведёт переход. */
     state: SearchState;
@@ -28,8 +27,6 @@
     onQuery?: (value: string) => void;
     /** Переход к соседнему вхождению. */
     onStep?: (delta: 1 | -1) => void;
-    /** Закрытие панели. */
-    onClose?: () => void;
   }
 
   let {
@@ -41,7 +38,6 @@
     error = null,
     onQuery,
     onStep,
-    onClose,
   }: Props = $props();
 
   /** Есть ли вхождения для перехода. */
@@ -69,27 +65,21 @@
             : '',
   );
 
-  /** Поле ввода: при открытии поиска курсор сразу в нём. */
+  /** Поле ввода: при открытии вкладки поиска курсор сразу в нём. */
   let searchField = $state<HTMLInputElement | undefined>();
 
   onMount(() => {
-    // Панель открывается по кнопке поиска: печатать запрос нужно сразу, без
-    // лишнего клика в поле.
+    // Поиск открывается действием или кнопкой: печатать запрос нужно сразу.
     searchField?.focus();
   });
 </script>
 
 <div
-  class="absolute right-2 top-2 z-[var(--layer-popup)] flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--overlay-surface)] p-1.5 shadow-overlay"
+  class="flex flex-col gap-2 border-b border-[var(--border)] p-2"
   data-testid="reader-search"
   role="search"
   aria-label={t('app.reader.searchShort')}
 >
-  <!--
-    Поле занимает всё доступное место строки до кнопок. Счётчик стоит в подсказке
-    под полем и только когда он есть: в строке он занимал бы место даже без
-    результата и оставлял пустоту справа от поля.
-  -->
   <div class="flex items-center gap-1">
     <div class="min-w-0 flex-1">
       <Input
@@ -130,16 +120,6 @@
     >
       <Icon name="chevron-down" />
     </Button>
-    <Button
-      variant="ghost"
-      size="icon"
-      title={t('app.reader.search.close')}
-      ariaLabel={t('app.reader.search.close')}
-      class="size-8"
-      onclick={() => onClose?.()}
-    >
-      <Icon name="close" />
-    </Button>
   </div>
   {#if counter || hint}
     <div class="flex items-center gap-2 px-1 text-xs text-[var(--muted-foreground)]">
@@ -154,5 +134,9 @@
         <span class="min-w-0" data-testid="reader-search-hint">{hint}</span>
       {/if}
     </div>
+  {:else}
+    <p class="m-0 px-1 text-xs text-[var(--muted-foreground)]" data-testid="reader-search-hint">
+      {t('app.bookDock.search.empty')}
+    </p>
   {/if}
 </div>

@@ -24,7 +24,6 @@
   import NoteMenu from '../notes/NoteMenu.svelte';
   import NoteTextEditor from './NoteTextEditor.svelte';
   import FootnoteMenu from '../notes/FootnoteMenu.svelte';
-  import ReaderSearchBar from './ReaderSearchBar.svelte';
   import {
     EMPTY_SEARCH_STATE,
     stepSearchIndex,
@@ -127,6 +126,14 @@
     progress: number;
     /** Открыта ли панель поиска по книге. */
     searchOpen: boolean;
+    /** Текущий запрос поиска. */
+    searchQuery: string;
+    /** Состояние поиска: сколько найдено и к какому вхождению ведёт переход. */
+    searchState: SearchState;
+    /** Идёт ли поиск. */
+    searchBusy: boolean;
+    /** Ошибка поиска. */
+    searchError: string | null;
   }
 
   let {
@@ -675,12 +682,51 @@
       maxZoom,
       progress,
       searchOpen,
+      searchQuery,
+      searchState,
+      searchBusy,
+      searchError,
     };
   }
 
   /** Изменение масштаба из нижней панели рабочего места. */
   export function changeFooterZoom(direction: ZoomDirection) {
     changeZoom(direction);
+  }
+
+  /** Установка масштаба значением из панели масштаба. */
+  export function setFooterZoom(value: number) {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    pluginZoomTaken = true;
+    zoom = Math.max(minZoom, Math.min(maxZoom, Math.round(value)));
+    reportState();
+    zoomApply.request(zoom);
+  }
+
+  /** Открытие поиска по книге из строки книги. */
+  export function openFooterSearch() {
+    if (!searchOpen) {
+      toggleSearch();
+    }
+  }
+
+  /** Закрытие поиска по книге. */
+  export function closeFooterSearch() {
+    if (searchOpen) {
+      toggleSearch();
+    }
+  }
+
+  /** Изменение запроса поиска из панели доки. */
+  export function setFooterSearchQuery(query: string) {
+    changeSearch(query);
+  }
+
+  /** Переход к соседнему вхождению из панели доки. */
+  export function stepFooterSearch(delta: 1 | -1) {
+    stepSearch(delta);
   }
 
   /** Переход к соседней странице из нижней панели рабочего места. */
@@ -697,7 +743,6 @@
   export function toggleFooterSearch() {
     toggleSearch();
   }
-
   /** Есть ли чем выполнять действия чтения (книга открыта и читается). */
   const readerReady = $derived(workplaceContent !== undefined);
 
@@ -1043,17 +1088,6 @@
           >
             <Progress value={loadProgress} />
           </div>
-        {/if}
-        {#if searchOpen}
-          <ReaderSearchBar
-            query={searchQuery}
-            state={searchState}
-            busy={searchBusy}
-            error={searchError}
-            onQuery={changeSearch}
-            onStep={stepSearch}
-            onClose={toggleSearch}
-          />
         {/if}
         <WorkplaceContent
           bind:this={workplaceContent}
