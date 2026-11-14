@@ -77,6 +77,8 @@ describe('ActionMenu', () => {
     expect(group).toBe(icons.parentElement);
     expect(group?.className).not.toContain('gap-');
     expect(group?.className).toContain('bg-[var(--card)]');
-    expect(color.className).toContain('bg-card');
+    // Фон палитры — общий токен группы контролов, а не карточка: он отделяет
+    // группу от подложки заметнее и одинаково во всех палитрах.
+    expect(color.className).toContain('bg-[var(--control-surface)]');
   });
 });

@@ -45,7 +45,7 @@
 -->
 <div
   class={cn(
-    'inline-flex h-9 shrink-0 items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0.5 pointer-coarse:h-11',
+    'inline-flex h-9 shrink-0 items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--control-surface)] p-0.5 pointer-coarse:h-11',
     className,
   )}
   role="group"

@@ -343,7 +343,7 @@
       {/snippet}
       <div class="flex flex-col gap-2">
         <div
-          class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+          class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
           role="group"
           aria-label={t('app.note.typeLabel')}
         >
@@ -363,7 +363,7 @@
         </div>
         {#if tool.type === 'shape' && typeOptions.includes('shape')}
           <div
-            class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+            class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
             role="group"
             aria-label={t('app.note.shapeLabel')}
             data-testid="note-tool-shape"
@@ -423,7 +423,7 @@
   -->
   {#if pages && page !== null}
     <div
-      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
       data-testid="reader-pages"
     >
       <Button
@@ -443,7 +443,7 @@
         </span>
       {:else}
         <Input
-          class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm"
+          class="h-8 w-[3.5rem] shrink-0 border-0 bg-transparent px-1 py-0 text-right text-sm"
           ariaLabel={t('app.reader.currentPage')}
           value={pageValue}
           oninput={(event) => (pageDraft = event.currentTarget.value)}
@@ -486,7 +486,7 @@
 
   {#if showZoom}
     <div
-      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
       data-testid="reader-zoom-group"
     >
       <Button
