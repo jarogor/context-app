@@ -404,7 +404,7 @@
     а не форма: страница остаётся той же, меняются лишь значения.
   -->
   <header
-    class="flex flex-none flex-wrap items-center gap-2 bg-[var(--background)] px-4 py-2 tablet:px-6"
+    class="flex flex-none flex-wrap items-center gap-2 bg-[var(--app-bar-strip)] px-4 py-2 [--control-surface:var(--strip-control-surface)] tablet:px-6"
   >
     <Button
       variant="secondary"

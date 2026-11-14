@@ -70,6 +70,14 @@
    */
   --app-bar-surface: var(--card);
 
+  /*
+   * Поверхность контролов на полосе под шапкой (поиск, сортировка,
+   * переключатели). В светлой стороне элементы светлее полосы, поэтому берут
+   * цвет страницы; в тёмной — темнее полосы, поэтому цвет шапки. Второе правило
+   * объявлено один раз для всех тёмных палитр (см. ниже).
+   */
+  --strip-control-surface: var(--background);
+
   /* Фон группы контролов внутри поверхности: масштаб, навигация, типы заметок,
    * палитра цвета, переключатели. Группа стоит на карточке, панели или
    * всплывающем слое и должна читаться отдельным блоком, а не растворяться в
@@ -260,13 +268,20 @@
   --warning: #e0b063;
 }
 
+/* Контролы на полосе под шапкой в тёмной стороне берут цвет шапки: он темнее
+ * полосы, тогда элементы читаются как углубления, а не как светлые пятна.
+ * Правило одно на все палитры: палитры этот токен не переопределяют. */
+:root[data-theme='dark'] {
+  --strip-control-surface: var(--card);
+}
+
 /* Палитра «Иней», светлый набор. Селектор специфичнее `:root`, поэтому
  * перекрывает светлую сторону «Льна». Голубоватая бумага с насыщенным синим
  * акцентом — характер палитры задан цветностью фона и акцента. */
 :root[data-palette='frost'] {
-  --background: #e6ecf7;
+  --background: #eef4fb;
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #d4def3;
+  --app-bar-strip: #d4e1f4;
   --foreground: #0f1622;
   --card: #ffffff;
   --card-foreground: #0f1622;
@@ -281,18 +296,18 @@
    * заливки даёт контраст 8.5. */
   --primary: #204592;
   --primary-foreground: #f7f9fc;
-  --secondary: #d7e0f0;
+  --secondary: #e2eafa;
   --secondary-foreground: #0f1622;
-  --muted: #dae2f1;
+  --muted: #e4eefa;
   --muted-foreground: #495a78;
   --destructive: #a83a2e;
   --destructive-foreground: #ffffff;
   --ring: #204592;
-  --sidebar: #e2e9f6;
+  --sidebar: #f4f8fe;
   --sidebar-foreground: #0f1622;
   --sidebar-primary: #204592;
   --sidebar-primary-foreground: #f7f9fc;
-  --sidebar-accent: #cfd9ee;
+  --sidebar-accent: #e2eafa;
   --sidebar-accent-foreground: #0f1622;
   --sidebar-ring: #204592;
   --success: #2f7d4f;

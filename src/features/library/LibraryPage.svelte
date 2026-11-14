@@ -671,7 +671,7 @@
         счётчик отделяет отступ — счётчик не слипается с выпадающим списком.
       -->
       <div
-        class="flex flex-none flex-col gap-3 bg-[var(--surface-inset)] px-4 py-2.5 tablet:flex-row tablet:flex-wrap tablet:items-center tablet:gap-2 tablet:px-6 large-tablet:flex-nowrap"
+        class="flex flex-none flex-col gap-3 bg-[var(--app-bar-strip)] px-4 py-2.5 [--control-surface:var(--strip-control-surface)] tablet:flex-row tablet:flex-wrap tablet:items-center tablet:gap-2 tablet:px-6 large-tablet:flex-nowrap"
         data-testid="library-controls"
       >
         <Button
@@ -952,7 +952,7 @@
     -->
     {#if librarySelected}
       <nav
-        class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--surface-inset)] px-4 py-2 tablet:px-6 {totalPages >
+        class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--app-bar-strip)] px-4 py-2 [--control-surface:var(--strip-control-surface)] tablet:px-6 {totalPages >
  1
  ? ''
  : 'large-tablet:hidden'}"

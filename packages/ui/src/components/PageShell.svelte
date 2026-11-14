@@ -146,7 +146,7 @@
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid={testId}>
   {#if eyebrow || title || subtitle || actions}
     <header
-      class="flex flex-none flex-wrap items-end gap-x-4 gap-y-2 bg-[var(--app-bar-strip)] px-4 py-3 tablet:px-6"
+      class="flex flex-none flex-wrap items-end gap-x-4 gap-y-2 bg-[var(--app-bar-strip)] px-4 py-3 [--control-surface:var(--strip-control-surface)] tablet:px-6"
       data-testid="page-header"
     >
       <div class="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -170,7 +170,7 @@
 
   {#if controls}
     <div
-      class="flex flex-none flex-wrap items-center gap-3 bg-[var(--app-bar-strip)] px-4 py-2.5 tablet:px-6"
+      class="flex flex-none flex-wrap items-center gap-3 bg-[var(--app-bar-strip)] px-4 py-2.5 [--control-surface:var(--strip-control-surface)] tablet:px-6"
       data-testid="page-controls"
     >
       {@render controls()}

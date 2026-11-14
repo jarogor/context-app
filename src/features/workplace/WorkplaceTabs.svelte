@@ -447,7 +447,7 @@
 </script>
 
 <div
-  class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--app-bar-strip)] px-2 py-1.5"
+  class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--app-bar-strip)] px-2 py-1.5 [--control-surface:var(--strip-control-surface)]"
   data-testid="workplace-tabs"
 >
   <!--
