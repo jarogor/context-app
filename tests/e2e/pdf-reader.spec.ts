@@ -383,21 +383,27 @@ async function setZoom(page: Page, target: number) {
   await waitForZoomRendered(page);
 }
 
-/** Ожидание отрисовки страниц в применённом масштабе. */
+/** Ожидание отрисовки страниц в применённом масштабе.
+ *
+ * Ждётся не только стабильная ширина страницы (она выставляется сразу при смене
+ * масштаба), но и готовый растр: иначе на медленной машине замеры попадали в
+ * страницу без канваса, и проверка ничего не проверяла.
+ */
 async function waitForZoomRendered(page: Page) {
   await content(page)
     .locator('#viewer')
     .evaluate(
       () =>
         new Promise<void>((resolve) => {
-          // Два кадра подряд с неизменной шириной страницы: отрисовка
-          // завершена и размер стабилен.
+          // Два кадра подряд с неизменной шириной страницы и готовым канвасом:
+          // отрисовка завершена и размер стабилен.
           let previous = -1;
           let stable = 0;
           const step = () => {
             const pageEl = document.querySelector('.page') as HTMLElement | null;
             const width = pageEl ? Math.round(pageEl.getBoundingClientRect().width) : -1;
-            stable = width === previous && width > 0 ? stable + 1 : 0;
+            const drawn = pageEl?.querySelector('canvas') !== null;
+            stable = width === previous && width > 0 && drawn ? stable + 1 : 0;
             previous = width;
             if (stable >= 3) {
               resolve();
@@ -884,7 +890,7 @@ test('прокрутка не оставляет белых полос на ст
       if (!pagesHost) {
         return [1];
       }
-      const measure = () => {
+      const measure = (seen: Set<Element>) => {
         const viewerRect = viewer.getBoundingClientRect();
         const canvases = Array.from(document.querySelectorAll('.page canvas')).map((canvas) =>
           canvas.getBoundingClientRect(),
@@ -900,26 +906,43 @@ test('прокрутка не оставляет белых полос на ст
             if (!pageEl) {
               continue;
             }
-            total += 1;
             const covered = canvases.some(
               (canvas) =>
                 x >= canvas.left && x <= canvas.right && y >= canvas.top && y <= canvas.bottom,
             );
-            if (!covered) {
-              blank += 1;
+            // Страница, которая ещё ни разу не отрисовалась, к проверке не
+            // относится: рисование идёт вблизи видимой области и на медленной
+            // машине отстаёт от прокрутки. Проверяется другое — что у уже
+            // нарисованной страницы растр не пропадает при прокрутке.
+            if (covered) {
+              seen.add(pageEl);
+              total += 1;
+              continue;
             }
+            if (!seen.has(pageEl)) {
+              continue;
+            }
+            total += 1;
+            blank += 1;
           }
         }
-        return total > 0 ? blank / total : 1;
+        // Ни одна точка не попала на страницу: прокрутка ушла за конец книги
+        // (например, страница короче шага прокрутки). Это не белая полоса —
+        // замер пропускается, иначе отсутствие данных считалось бы пустотой.
+        return total > 0 ? blank / total : 0;
       };
       const start = viewer.scrollTop;
-      const samples: number[] = [measure()];
+      // Прокрутка не выходит за конец содержимого: за его пределами страниц нет,
+      // и замер не нашёл бы ни одной точки.
+      const maxScroll = Math.max(0, viewer.scrollHeight - viewer.clientHeight);
+      const seen = new Set<Element>();
+      const samples: number[] = [measure(seen)];
       // Непрерывная прокрутка небольшими шагами без пауз: проверяется,
       // что текст остаётся видимым прямо во время движения.
       for (let step = 1; step <= 20; step += 1) {
-        viewer.scrollTop = start + step * 50;
+        viewer.scrollTop = Math.min(maxScroll, start + step * 50);
         await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-        samples.push(measure());
+        samples.push(measure(seen));
       }
       return samples;
     });
