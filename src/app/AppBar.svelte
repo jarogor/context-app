@@ -88,7 +88,7 @@
 </script>
 
 <header
-  class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 bg-[var(--panel)] px-3 tablet:min-h-14 tablet:gap-4 tablet:px-6"
+  class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 bg-[var(--app-bar-surface)] px-3 tablet:min-h-14 tablet:gap-4 tablet:px-6"
   style="padding-top: var(--safe-top);"
   data-testid="app-bar"
 >

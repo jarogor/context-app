@@ -59,6 +59,17 @@
   --panel: color-mix(in oklab, var(--card) 58%, var(--muted));
   --panel-foreground: var(--foreground);
 
+  /*
+   * Верхние полосы оболочки: шапка — поверхность `--card`, полоса под ней —
+   * отдельный цвет палитры (объявляется в блоке каждой палитры).
+   *
+   * Полоса — та же гамма, что фон и акцент, но на ступень темнее и чуть
+   * насыщеннее: она отделена от рабочей области и от шапки, оставаясь в тоне
+   * своей палитры. Цвет задаётся явно, а не смешением с акцентом: смешение
+   * оставляло полосу серой там, где акцент и фон одного тона.
+   */
+  --app-bar-surface: var(--card);
+
   /* Фон группы контролов внутри поверхности: масштаб, навигация, типы заметок,
    * палитра цвета, переключатели. Группа стоит на карточке, панели или
    * всплывающем слое и должна читаться отдельным блоком, а не растворяться в
@@ -182,6 +193,8 @@
 
   /* Палитра «Лён» по умолчанию, светлый набор. */
   --background: #f1ece1;
+  /* Полоса под шапкой: ступень в тоне палитры. */
+  --app-bar-strip: #e6dfd0;
   --foreground: #1f1d1a;
   --card: #fbf8f1;
   --card-foreground: #1f1d1a;
@@ -220,6 +233,8 @@
   --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.4);
 
   --background: #17191a;
+  /* Полоса под шапкой: ступень в тоне палитры. */
+  --app-bar-strip: #262728;
   --foreground: #e7e2d7;
   --card: #1f2223;
   --card-foreground: #e7e2d7;
@@ -250,6 +265,8 @@
  * акцентом — характер палитры задан цветностью фона и акцента. */
 :root[data-palette='frost'] {
   --background: #e6ecf7;
+  /* Полоса под шапкой: ступень в тоне палитры. */
+  --app-bar-strip: #d4def3;
   --foreground: #0f1622;
   --card: #ffffff;
   --card-foreground: #0f1622;
@@ -287,6 +304,8 @@
   color-scheme: dark;
 
   --background: #0c1526;
+  /* Полоса под шапкой: ступень в тоне палитры. */
+  --app-bar-strip: #1d2d4c;
   --foreground: #e4e9f4;
   --card: #15203a;
   --card-foreground: #e4e9f4;
@@ -317,30 +336,30 @@
 /* Палитра «Янтарь», светлый набор. Тёплая бумага с янтарным акцентом;
  * подключается атрибутом `data-palette='amber'`. */
 :root[data-palette='amber'] {
-  /* Бумага сдвинута от жёлтой к оранжевой: палитра обещает янтарь, и фон
-   * держит это обещание — тёплый светлый оттенок, а не лимонный. */
-  --background: #f8e7c5;
+  --background: #fbf4da;
+  /* Полоса под шапкой: ступень в тоне палитры. */
+  --app-bar-strip: #ecd9ab;
   --foreground: #3c3836;
-  --card: #fbf0d8;
+  --card: #ffffff;
   --card-foreground: #3c3836;
-  --popover: #f9edd7;
+  --popover: #ffffff;
   --popover-foreground: #3c3836;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #fff6e3;
+  --overlay-surface: #ffffff;
   --primary: #a84b07;
   --primary-foreground: #fdf6e6;
-  --secondary: #f0ddb6;
+  --secondary: #f7e9c9;
   --secondary-foreground: #3c3836;
-  --muted: #efdbb2;
+  --muted: #f6e8c8;
   --muted-foreground: #715e49;
   --destructive: #9d0006;
   --destructive-foreground: #fdf6e6;
   --ring: #a84b07;
-  --sidebar: #f9edd7;
+  --sidebar: #fffaef;
   --sidebar-foreground: #3c3836;
   --sidebar-primary: #a84b07;
   --sidebar-primary-foreground: #fdf6e6;
-  --sidebar-accent: #f0ddb6;
+  --sidebar-accent: #f7e9c9;
   --sidebar-accent-foreground: #3c3836;
   --sidebar-ring: #a84b07;
   --success: #427b58;
@@ -352,28 +371,30 @@
 :root[data-palette='amber'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #2b2523;
+  --background: #13100c;
+  /* Полоса под шапкой: ступень в тоне палитры. */
+  --app-bar-strip: #342b21;
   --foreground: #ebdbb2;
-  --card: #342d2a;
+  --card: #251f19;
   --card-foreground: #ebdbb2;
-  --popover: #342d2a;
+  --popover: #251f19;
   --popover-foreground: #ebdbb2;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #453b36;
+  --overlay-surface: #2e2720;
   --primary: #e3a24a;
   --primary-foreground: #2b2523;
-  --secondary: #3c3430;
+  --secondary: #2e2a22;
   --secondary-foreground: #ebdbb2;
-  --muted: #3c3430;
+  --muted: #2e2a22;
   --muted-foreground: #b3a08c;
   --destructive: #fb4934;
   --destructive-foreground: #2b2523;
   --ring: #e3a24a;
-  --sidebar: #342d2a;
+  --sidebar: #251f19;
   --sidebar-foreground: #ebdbb2;
   --sidebar-primary: #e3a24a;
   --sidebar-primary-foreground: #2b2523;
-  --sidebar-accent: #3c3430;
+  --sidebar-accent: #2e2a22;
   --sidebar-accent-foreground: #ebdbb2;
   --sidebar-ring: #e3a24a;
   --success: #8ec07c;
@@ -385,6 +406,8 @@
  * `data-palette='mist'`. */
 :root[data-palette='mist'] {
   --background: #f3f4f5;
+  /* Полоса под шапкой: ступень в тоне палитры. */
+  --app-bar-strip: #dee0e2;
   --foreground: #1b1e21;
   --card: #ffffff;
   --card-foreground: #1b1e21;
@@ -417,6 +440,8 @@
   color-scheme: dark;
 
   --background: #16181a;
+  /* Полоса под шапкой: ступень в тоне палитры. */
+  --app-bar-strip: #313336;
   --foreground: #eceef0;
   --card: #1f2224;
   --card-foreground: #eceef0;

@@ -183,7 +183,7 @@
     панель на телефоне это меню не дублирует.
   -->
   <nav
-    class="flex w-full flex-none items-stretch gap-1 bg-[var(--panel)] px-1 pt-1 {className}"
+    class="flex w-full flex-none items-stretch gap-1 bg-[var(--app-bar-surface)] px-1 pt-1 {className}"
     aria-label={t('app.sections.label')}
     data-testid="section-nav"
     data-mobile="true"
