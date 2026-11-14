@@ -1,7 +1,5 @@
 //! Объединённое состояние plugin host приложения.
 
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -242,8 +240,6 @@ pub struct AppState {
     app_host_config: AppHostConfig,
     /// App-level runtime базовых плагинов, собираемый в фоне.
     app_host: Option<Arc<SharedRuntime<AppPluginHost>>>,
-    /// Содержимое файлов вложений по пути: ядро не интерпретирует байты.
-    workplace_files: HashMap<String, Vec<u8>>,
     /// Дисковый кэш обложек книг по пути.
     ///
     /// Извлечение обложки дорого, а список рабочих мест показывает её сразу,
@@ -273,7 +269,6 @@ impl AppState {
             reader: None,
             app_host_config,
             app_host: None,
-            workplace_files: HashMap::new(),
             cover_cache: None,
         }
     }
@@ -678,52 +673,41 @@ impl AppState {
         })
     }
 
-    /// Содержимое файла вложения по пути.
-    ///
-    /// Файл читается напрямую, без песочницы библиотеки: рабочее место не знает,
-    /// откуда книга. Байты кэшируются; ядро их не интерпретирует.
-    pub fn workplace_file(&mut self, path: &str) -> Result<&[u8], String> {
-        match self.workplace_files.entry(path.to_string()) {
-            Entry::Occupied(entry) => Ok(entry.into_mut().as_slice()),
-            Entry::Vacant(entry) => {
-                let bytes =
-                    std::fs::read(path).map_err(|_| "файл книги не читается".to_string())?;
-                Ok(entry.insert(bytes).as_slice())
-            }
-        }
-    }
-
-    /// Забывание кэша содержимого файла вложения.
-    pub fn forget_workplace_file(&mut self, path: &str) {
-        self.workplace_files.remove(path);
-    }
-
     /// Порция содержимого файла вложения по пути и полный размер файла.
     ///
-    /// Файл читается **до** кэширования: чтение с диска (библиотека может лежать
-    /// на медленном носителе) идёт без общего замка состояния, иначе на время
-    /// чтения замирал весь интерфейс — сохранение настроек и любой клик ждали
-    /// замок. Из кэша отдаётся только запрошенная порция: прежняя реализация
-    /// копировала весь файл на каждый вызов, и чтение книги порциями на файле в
-    /// сотни мегабайт упиралось в копирование, а не в чтение.
+    /// Порция читается **из файла напрямую**, без загрузки книги целиком в
+    /// память состояния: чтение одной порции с диска идёт под коротким общим
+    /// замком, а не на всё время разбора книги. Прежняя реализация держала общий
+    /// замок на чтении всего файла (сотни мегабайт с медленного носителя), и
+    /// интерфейс замирал: сохранение настроек и любой клик ждали замок.
+    ///
+    /// `end` — верхняя граница порции: читается не больше запрошенного, поэтому
+    /// ответ не растёт вместе с книгой.
     pub fn workplace_book_chunk(
         &mut self,
         path: &str,
         start: usize,
         end: usize,
     ) -> Result<(Vec<u8>, usize), String> {
-        let bytes = match self.workplace_files.entry(path.to_string()) {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => {
-                let bytes =
-                    std::fs::read(path).map_err(|_| "файл книги не читается".to_string())?;
-                entry.insert(bytes)
-            }
-        };
-        let total = bytes.len();
+        use std::io::{Read, Seek, SeekFrom};
+        let mut file =
+            std::fs::File::open(path).map_err(|_| "файл книги не читается".to_string())?;
+        let total = file
+            .metadata()
+            .map_err(|_| "файл книги не читается".to_string())?
+            .len() as usize;
         let start = start.min(total);
         let end = end.min(total);
-        Ok((bytes[start..end].to_vec(), total))
+        let length = end.saturating_sub(start);
+        if length == 0 {
+            return Ok((Vec::new(), total));
+        }
+        file.seek(SeekFrom::Start(start as u64))
+            .map_err(|_| "файл книги не читается".to_string())?;
+        let mut buffer = vec![0u8; length];
+        file.read_exact(&mut buffer)
+            .map_err(|_| "файл книги не читается".to_string())?;
+        Ok((buffer, total))
     }
 
     /// Ответ интерфейсу на запрос порции содержимого книги.

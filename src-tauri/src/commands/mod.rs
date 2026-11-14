@@ -227,14 +227,20 @@ pub fn lock_state(state: &Mutex<AppState>) -> Result<MutexGuard<'_, AppState>, S
 ///
 /// Дескриптор runtime берётся под коротким общим замком состояния, который
 /// сразу освобождается; готовность фоновой сборки ожидается уже на замке самого
-/// runtime. Так тяжёлая компиляция не удерживает общий замок `AppState`.
-pub async fn with_app_host<T>(
-    state: &Mutex<AppState>,
-    action: impl FnOnce(&mut crate::plugin::AppPluginHost) -> T,
-) -> Result<T, String> {
+/// runtime. Сама операция идёт в пуле блокирующих задач: вызов WASM синхронный
+/// и, выполняясь в потоке асинхронного рантайма, занимал его на всё время
+/// работы — очередь команд росла, и нажатия в интерфейсе срабатывали с
+/// задержкой.
+pub async fn with_app_host<T, F>(state: &Mutex<AppState>, action: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce(&mut crate::plugin::AppPluginHost) -> T + Send + 'static,
+{
     let handle = {
         let mut state = lock_state(state)?;
         state.app_host_handle()
     };
-    handle.with_ready(action)
+    tauri::async_runtime::spawn_blocking(move || handle.with_ready(action))
+        .await
+        .map_err(|error| error.to_string())?
 }

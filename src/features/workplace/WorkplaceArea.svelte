@@ -224,6 +224,33 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   /** Элементы списка заметок книги активной вкладки. */
   const tabItems = $derived(tab ? notes : []);
 
+  /**
+   * Вкладки, которые уже открывали: их читалки смонтированы.
+   *
+   * Открытие рабочего места не должно читать все книги сразу: пока пользователь
+   * не выбрал вкладку, её книга не нужна. Активная вкладка добавляется в набор
+   * отдельно, поэтому она открывается сразу, а остальные — только при первом
+   * выборе и остаются смонтированными дальше.
+   */
+  let openedTabIds = $state<string[]>([]);
+
+  $effect(() => {
+    const id = workspace?.activeTabId ?? null;
+    if (id && !openedTabIds.includes(id)) {
+      openedTabIds = [...openedTabIds, id];
+    }
+  });
+
+  // Вкладки, убранные из места, забываются: их читалки размонтированы, и держать
+  // их в наборе незачем.
+  $effect(() => {
+    const ids = new Set((workspace?.tabs ?? []).map((item) => item.id));
+    const kept = openedTabIds.filter((id) => ids.has(id));
+    if (kept.length !== openedTabIds.length) {
+      openedTabIds = kept;
+    }
+  });
+
   /** Заметки книги активной вкладки для подсветки. */
   const tabNotes = $derived(tabItems.map((item) => item.note));
 
@@ -667,11 +694,18 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
           </div>
         {:else}
           <!--
-            Все вкладки остаются смонтированными, а активная показывается:
-            переключение не пересоздаёт документ книги и не запускает чтение
-            заново — книга уже открыта и просто становится видимой.
+            Вкладки остаются смонтированными, но книга открывается не в каждой:
+            читалка монтируется только для вкладки, которую уже открывали (или
+            для активной). Иначе открытие рабочего места с десятком вкладок
+            одновременно читало все книги, и интерфейс ждал их вместо того,
+            чтобы сразу откликаться на клики.
+
+            Открытая вкладка не пересоздаётся при переключении: её документ книги
+            уже прочитан и просто становится видимым.
           -->
           {#each workspace.tabs as item (item.id)}
+            {@const mounted =
+              item.id === workspace.activeTabId || openedTabIds.includes(item.id)}
             <div
               class="min-h-0 min-w-0 flex-1 flex-col"
               class:flex={item.id === workspace.activeTabId}
@@ -679,33 +713,35 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
               data-testid="workplace-tab-page"
               data-active={item.id === workspace.activeTabId ? 'true' : 'false'}
             >
-              {#key `${item.id}:${item.path}`}
-                <WorkplaceTabPage
-                  tabId={item.id}
-                  path={item.path}
-                  title={item.title}
-                  zoom={item.zoom}
-                  position={item.position}
-                  notes={notesByTab[item.id] ?? []}
-                  {tool}
-                  {readerTheme}
-                  {readerFont}
-                  {palette}
-                  active={item.id === workspace.activeTabId}
-                  visible={visible && item.id === workspace.activeTabId && !listMode}
-                  onReader={registerReader}
-                  onStateChange={(state) => onTabState(item.id, state)}
-                  onFooter={(snapshot) => handleFooter(item.id, snapshot)}
-                  onQuote={onQuote}
-                  onTextNote={onTextNote}
-                  onEditNoteText={onEditNoteText}
-                  onShape={onShape}
-                  onNoteClick={onSelectNote}
-                  onPlaceNote={onPlaceNote}
-                  onRepoint={() => onRepointTab(item.id)}
-                  onProperties={(snapshot) => handleProperties(item.id, snapshot)}
-                />
-              {/key}
+              {#if mounted}
+                {#key `${item.id}:${item.path}`}
+                  <WorkplaceTabPage
+                    tabId={item.id}
+                    path={item.path}
+                    title={item.title}
+                    zoom={item.zoom}
+                    position={item.position}
+                    notes={notesByTab[item.id] ?? []}
+                    {tool}
+                    {readerTheme}
+                    {readerFont}
+                    {palette}
+                    active={item.id === workspace.activeTabId}
+                    visible={visible && item.id === workspace.activeTabId && !listMode}
+                    onReader={registerReader}
+                    onStateChange={(state) => onTabState(item.id, state)}
+                    onFooter={(snapshot) => handleFooter(item.id, snapshot)}
+                    onQuote={onQuote}
+                    onTextNote={onTextNote}
+                    onEditNoteText={onEditNoteText}
+                    onShape={onShape}
+                    onNoteClick={onSelectNote}
+                    onPlaceNote={onPlaceNote}
+                    onRepoint={() => onRepointTab(item.id)}
+                    onProperties={(snapshot) => handleProperties(item.id, snapshot)}
+                  />
+                {/key}
+              {/if}
             </div>
           {/each}
         {/if}

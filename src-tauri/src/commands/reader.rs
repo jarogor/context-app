@@ -21,14 +21,30 @@ fn reader_handle(state: &Mutex<AppState>) -> Result<Arc<SharedRuntime<PluginRunt
     Ok(state.reader_handle())
 }
 
+/// Готовность runtime чтения и операция над ним — в пуле блокирующих задач.
+///
+/// Вызов WASM-плагина синхронный: в потоке асинхронного рантайма он занимал его
+/// на всё время работы, очередь команд росла, и нажатия в интерфейсе
+/// срабатывали с задержкой. Ожидание готовности тоже идёт здесь: компиляция
+/// плагинов не должна занимать поток рантайма.
+async fn with_reader<T, F>(state: &Mutex<AppState>, action: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce(&mut PluginRuntime) -> T + Send + 'static,
+{
+    let handle = reader_handle(state)?;
+    tauri::async_runtime::spawn_blocking(move || handle.with_ready(action))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
 /// Форматы, поддерживаемые плагинами рабочего места.
 ///
 /// Готовность runtime чтения ожидается после освобождения общего замка
 /// состояния, поэтому команда не держит его на время компиляции WASM.
 #[tauri::command]
 pub async fn reader_formats(state: State<'_, Mutex<AppState>>) -> Result<Vec<String>, String> {
-    let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| runtime.supported_formats())
+    with_reader(state.inner(), |runtime| runtime.supported_formats()).await
 }
 
 /// Идентификатор плагина рабочего места, обслуживающего формат, либо `null`.
@@ -37,8 +53,7 @@ pub async fn reader_plugin_for_format(
     state: State<'_, Mutex<AppState>>,
     format: String,
 ) -> Result<Value, String> {
-    let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| {
+    with_reader(state.inner(), move |runtime| {
         match runtime.format_plugin_for_format(&format) {
             // Текучая ли книга, решает плагин формата: от этого зависит, что
             // приложение передаёт модулю рисования — главы или байты файла.
@@ -49,6 +64,7 @@ pub async fn reader_plugin_for_format(
             None => Value::Null,
         }
     })
+    .await
 }
 
 /// Модуль рисования плагина рабочего места как HTML.
@@ -57,14 +73,14 @@ pub async fn reader_viewer(
     state: State<'_, Mutex<AppState>>,
     plugin_id: String,
 ) -> Result<String, String> {
-    let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| {
+    with_reader(state.inner(), move |runtime| {
         let path = runtime
             .viewer_path(&plugin_id)
             .ok_or_else(|| format!("плагин рабочего места не найден: {plugin_id}"))?;
         std::fs::read_to_string(&path)
             .map_err(|error| format!("не удалось прочитать модуль рисования: {error}"))
-    })?
+    })
+    .await?
 }
 
 /// Список файлов модуля рисования плагина рабочего места.
@@ -73,8 +89,10 @@ pub async fn reader_viewer_files(
     state: State<'_, Mutex<AppState>>,
     plugin_id: String,
 ) -> Result<Value, String> {
-    let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| AppState::viewer_files_of(runtime, &plugin_id))?
+    with_reader(state.inner(), move |runtime| {
+        AppState::viewer_files_of(runtime, &plugin_id)
+    })
+    .await?
 }
 
 /// Содержимое файла модуля рисования плагина рабочего места (base64).
@@ -84,8 +102,10 @@ pub async fn reader_viewer_file(
     plugin_id: String,
     path: String,
 ) -> Result<Value, String> {
-    let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| AppState::viewer_file_of(runtime, &plugin_id, &path))?
+    with_reader(state.inner(), move |runtime| {
+        AppState::viewer_file_of(runtime, &plugin_id, &path)
+    })
+    .await?
 }
 
 /// Содержимое книги по пути (opaque-модель source-плагина).
@@ -94,8 +114,10 @@ pub async fn reader_content(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
-    let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| AppState::reader_content_of(runtime, &path))?
+    with_reader(state.inner(), move |runtime| {
+        AppState::reader_content_of(runtime, &path)
+    })
+    .await?
 }
 
 /// Обложка книги по пути (base64) либо `null`, если обложки нет.
@@ -116,8 +138,11 @@ pub async fn reader_cover(
     } {
         return Ok(cover_value(cached.as_ref()));
     }
-    let handle = reader_handle(state.inner())?;
-    let value = handle.with_ready(|runtime| AppState::reader_cover_of(runtime, &path))??;
+    let cover_path = path.clone();
+    let value = with_reader(state.inner(), move |runtime| {
+        AppState::reader_cover_of(runtime, &cover_path)
+    })
+    .await??;
     let cover = AppState::cover_data_from_value(&value);
     {
         let mut state = crate::commands::lock_state(state.inner())?;
@@ -154,8 +179,7 @@ pub async fn workspace_covers(
     if missing.is_empty() {
         return Ok(Value::Object(result));
     }
-    let handle = reader_handle(state.inner())?;
-    let extracted = handle.with_ready(|runtime| {
+    let extracted = with_reader(state.inner(), move |runtime| {
         let mut values: Vec<(String, Option<Value>)> = Vec::new();
         for path in &missing {
             // Ошибка извлечения — не «обложки нет»: такой ответ не кэшируется,
@@ -164,7 +188,8 @@ pub async fn workspace_covers(
             values.push((path.clone(), value));
         }
         values
-    })?;
+    })
+    .await?;
     {
         let mut guard = crate::commands::lock_state(state.inner())?;
         for (path, value) in extracted {
@@ -197,50 +222,73 @@ pub async fn reader_open_external(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
-    let handle = reader_handle(state.inner())?;
-    handle.with_ready(|runtime| AppState::reader_open_external_of(runtime, &path))??;
+    let open_path = path.clone();
+    with_reader(state.inner(), move |runtime| {
+        AppState::reader_open_external_of(runtime, &open_path)
+    })
+    .await??;
     Ok(serde_json::json!({ "opened": true }))
-}
-
-/// Порция книги из состояния и ответ интерфейсу.
-///
-/// Вынесено из команды, чтобы весь путь чтения книги (границы порции и ответ)
-/// проверялся тестом целиком: ошибка в ответе зацикливает чтение в интерфейсе, и
-/// по одной лишь функции порции её не видно.
-fn book_chunk_response(
-    state: &mut AppState,
-    path: &str,
-    offset: usize,
-    length: usize,
-) -> Result<Value, String> {
-    state.book_chunk_response(path, offset, length)
 }
 
 /// Порция содержимого книги по пути.
 ///
-/// Чтение файла с диска и кодирование base64 идут **вне общего замка состояния**:
-/// на медленном носителе (например, библиотеке на USB) порция читается секундами,
-/// и замок на это время замораживал весь интерфейс — сохранение настроек и любой
-/// клик ждали окончания чтения. Замок берётся только на проверку кэша и запись в
-/// него.
+/// Чтение файла с диска и кодирование base64 идут **вне общего замка состояния**
+/// и вне главного потока: на медленном носителе (например, библиотеке на USB)
+/// порция читается секундами, и замок на это время замораживал весь интерфейс —
+/// сохранение настроек и любой клик ждали окончания чтения. Замок берётся
+/// только на короткую проверку пути, а сама порция собирается в фоновом потоке.
 #[tauri::command]
 pub async fn reader_book_chunk(
-    state: State<'_, Mutex<AppState>>,
+    _state: State<'_, Mutex<AppState>>,
     path: String,
     offset: usize,
     length: usize,
 ) -> Result<Value, String> {
-    let mut state = crate::commands::lock_state(state.inner())?;
-    book_chunk_response(&mut state, &path, offset, length)
+    // Состояние приложения для порции книги не нужно вовсе: файл читается по
+    // пути, а замок состояния на это время не берётся — иначе медленный носитель
+    // замораживал бы интерфейс.
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut file =
+            std::fs::File::open(&path).map_err(|_| "файл книги не читается".to_string())?;
+        let total = file
+            .metadata()
+            .map_err(|_| "файл книги не читается".to_string())?
+            .len() as usize;
+        let start = offset.min(total);
+        let end = offset.saturating_add(length).min(total);
+        let chunk = if end > start {
+            use std::io::{Read, Seek, SeekFrom};
+            file.seek(SeekFrom::Start(start as u64))
+                .map_err(|_| "файл книги не читается".to_string())?;
+            let mut buffer = vec![0u8; end - start];
+            file.read_exact(&mut buffer)
+                .map_err(|_| "файл книги не читается".to_string())?;
+            buffer
+        } else {
+            Vec::new()
+        };
+        Ok(crate::plugin::app_state::book_chunk_bounds(
+            &chunk, start, end, total,
+        ))
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
-/// Сброс кэша содержимого книги по пути (после переуказания файла).
+/// Сброс кэша содержимого книги по пути.
+///
+/// Содержимое книги в памяти состояния не держится: порции читаются из файла по
+/// запросу. Команда остаётся в контракте (переуказание файла её вызывает) и
+/// сбрасывает кэш свойств книги, привязанный к пути.
 #[tauri::command]
 pub async fn reader_forget_book(
     state: State<'_, Mutex<AppState>>,
     path: String,
 ) -> Result<Value, String> {
-    let mut state = crate::commands::lock_state(state.inner())?;
-    state.forget_workplace_file(&path);
+    let root = {
+        let state = crate::commands::lock_state(state.inner())?;
+        state.app_state_root().to_path_buf()
+    };
+    crate::reader_cache::forget(&root, &path)?;
     Ok(serde_json::json!({ "forgotten": true }))
 }

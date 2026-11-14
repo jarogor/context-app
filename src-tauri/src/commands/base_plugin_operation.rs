@@ -13,6 +13,11 @@ use crate::plugin::AppState;
 /// Готовность фоновой сборки базовых плагинов ожидается после освобождения
 /// общего замка состояния: вызов WASM-плагина может быть тяжёлым и не должен
 /// блокировать лёгкие команды.
+///
+/// Сам вызов идёт в пуле блокирующих задач: это синхронная работа с WASM,
+/// которая занимала поток асинхронного рантайма. Из-за этого очередь команд
+/// росла: сохранение настроек ждало, а нажатия приходили с задержкой и
+/// «срабатывали» после того, как отпускали кнопку.
 #[tauri::command]
 pub async fn invoke_base_plugin_operation(
     state: State<'_, Mutex<AppState>>,
@@ -25,21 +30,29 @@ pub async fn invoke_base_plugin_operation(
         let mut state = crate::commands::lock_state(state.inner())?;
         state.app_host_handle()
     };
-    let response = handle.with_ready(|host| {
-        host.invoke_capability(&capability, &operation, payload)
-            .map_err(|error| error.to_string())
-    })??;
+    let (capability_key, operation_key) = (capability.clone(), operation.clone());
+    let response = tauri::async_runtime::spawn_blocking(move || {
+        handle.with_ready(|host| {
+            host.invoke_capability(&capability, &operation, payload)
+                .map_err(|error| error.to_string())
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())???;
 
     // Стор мог изменить активность плагинов. Чтение активности ходит на диск
     // под общим замком состояния, поэтому оно нужно только там, где это
     // действительно могло измениться. Иначе каждое сохранение настроек (тема,
     // палитра, любое поле) задерживало закрытие раздела: замок занят, и
     // интерфейс не отвечает на следующий клик.
-    let state = crate::commands::lock_state(state.inner())?;
-    if capability_changes_activation(&capability, &operation) {
-        let disabled = state.disabled_plugins();
-        if let Ok(mut session) = state.session.lock() {
-            session.set_disabled_plugins(disabled);
+    if capability_changes_activation(&capability_key, &operation_key) {
+        let (disabled, session) = {
+            let state = crate::commands::lock_state(state.inner())?;
+            (state.disabled_plugins(), state.session.clone())
+        };
+        let locked = session.lock();
+        if let Ok(mut guard) = locked {
+            guard.set_disabled_plugins(disabled);
         }
     }
 
