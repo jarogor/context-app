@@ -139,7 +139,7 @@ describe('панель открытых книг: оформление', () => {
     expect(screen.queryByLabelText('Закрыть вкладку')).toBeNull();
   });
 
-  it('оформляет пункт как строку заметок: поверхности без обводок', () => {
+  it('оформляет пункт как строку заметок: фоны без обводок', () => {
     render(OpenBooksPanel, {
       props: { tabs: [tab('t1'), tab('t2')], activeTabId: 't2', ...handlers() },
     });
@@ -147,7 +147,7 @@ describe('панель открытых книг: оформление', () => {
     const items = screen.getAllByTestId('open-books-item');
     // Невыбранный пункт — на фоне карточки.
     expect(items[0].className).toContain('bg-[var(--card)]');
-    // Выбранный — фоном выбора. Контуров нет ни у кого: поверхности
+    // Выбранный — фоном выбора. Контуров нет ни у кого: фоны
     // разделяются заливкой.
     expect(items[1].className).toContain('bg-[var(--surface-selected)]');
     for (const item of items) {

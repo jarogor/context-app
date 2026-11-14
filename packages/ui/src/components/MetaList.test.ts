@@ -25,7 +25,7 @@ describe('MetaList', () => {
     expect(screen.getByText('Автор')).toBeTruthy();
   });
 
-  it('ставит метку на поверхность группы контролов', () => {
+  it('ставит метку на фон группы контролов', () => {
     render(MetaList, {
       props: {
         items: [{ badge: 'PDF', value: 'книга.pdf' }],
