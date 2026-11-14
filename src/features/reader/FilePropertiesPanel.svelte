@@ -474,7 +474,7 @@
 <SidePanel
   title={t('app.bookDock.title')}
   testId="properties-panel"
-  side="right"
+  side="left"
   {overlay}
   responsive={false}
   showSearch={activeTab === 'contents' || activeTab === 'bookmarks' || activeTab === 'annotations'}

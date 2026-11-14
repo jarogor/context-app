@@ -582,10 +582,9 @@ export const ru = {
   'app.bookBar.modeExit': 'Выйти из режима заметок',
   'app.bookBar.modeHintText': 'Клик по странице поставит карточку',
   'app.bookBar.modeHintShape': 'Протяните область, чтобы нарисовать фигуру',
+  'app.bookDock.search': 'Поиск',
   'app.bookDock.title': 'Книга',
   'app.bookDock.tabs': 'Разделы книги',
-  'app.bookDock.search': 'Поиск',
-  'app.bookDock.search.empty': 'Введите запрос — вхождения находятся по всему тексту книги.',
 
   'app.properties.title': 'Свойства файла',
   'app.properties.tabs': 'Разделы свойств файла',

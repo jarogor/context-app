@@ -5,7 +5,6 @@
   import OpenBooksPanel from './OpenBooksPanel.svelte';
   import NotesPanel from '../notes/NotesPanel.svelte';
   import BookBar from '../reader/BookBar.svelte';
-  import { EMPTY_SEARCH_STATE } from '../reader/search-state';
   import { noteTypeLabel } from '../notes/notes';
   import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
@@ -29,6 +28,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import type { NoteColor } from '../notes/notes';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { PANEL_WIDTH_REM, panelOverlayFlags } from './panel-layout';
+  import { EMPTY_SEARCH_STATE } from '../reader/search-state';
   import { hotkeys } from '../hotkeys';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import {
@@ -296,10 +296,20 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   /** Снимок нижней панели активной вкладки. */
   const activeFooter = $derived(tab ? (footerByTab[tab.id] ?? null) : null);
 
-  /** Ширина ряда «панели + книга»: по ней решается, стоят панели рядом или поверх. */
+  /**
+   * Ширина рабочей части — панели и книги вместе.
+   *
+   * Меряется именно этот контейнер, а не сама область чтения: открытая панель
+   * сужает книгу, и мера по книге зависела бы от собственного решения —
+   * панель накрывает книгу, книга шире, панель снова встаёт рядом, — и
+   * раскладка мигала бы. Ширина контейнера от панелей не зависит.
+   */
   let rowWidth = $state(0);
 
-  /** Ширина области, ниже которой панель всегда накладная, в пикселях.
+  /** Элемент рабочей части. */
+  let row: HTMLDivElement | undefined = $state();
+
+  /** Ширина, ниже которой панель всегда накладная, в пикселях.
    *
    * Совпадает с точкой перелома `large-tablet`: раскладка панелей и остального
    * интерфейса переключается одним порогом, а не двумя разными.
@@ -312,54 +322,20 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   /** Узкая ли область: панель рядом с книгой всё равно стала бы накладной. */
   const narrowRow = $derived(rowWidth > 0 && rowWidth < NARROW_ROW_MIN_PX);
 
-  /** Признаки «панель накрывает книгу» для левой и правой доки. */
-  const overlayFlags = $derived(
-    panelOverlayFlags(
-      rowWidth,
-      rootFont,
-      [
-        ...(notesOpen ? [PANEL_WIDTH_REM] : []),
-        ...(propertiesOpen ? [PANEL_WIDTH_REM] : []),
-      ],
-    ),
+  /** Накрывает ли книгу открытая панель. */
+  const panelOverlay = $derived(
+    (notesOpen || propertiesOpen || booksOpen) &&
+      (narrowRow || (panelOverlayFlags(rowWidth, rootFont, [PANEL_WIDTH_REM])[0] ?? false)),
   );
 
-  /** Накрывает ли книгу левая дока заметок. */
-  const notesOverlay = $derived(notesOpen && (narrowRow || (overlayFlags[0] ?? false)));
-
-  /** Накрывает ли книгу правая дока книги. */
-  const dockOverlay = $derived(
-    propertiesOpen && (narrowRow || (overlayFlags[notesOpen ? 1 : 0] ?? false)),
-  );
-
-  /**
-   * Места нет ни для одной панели рядом с книгой.
-   *
-   * Тогда панели взаимоисключающие: две накладные панели с обеих сторон
-   * оставляли бы от книги узкую полоску в середине и при этом накрывали друг
-   * друга. Как только места хватает хотя бы одной — панели независимы.
+  /*
+   * Три панели занимают одно и то же место — слева от книги, — поэтому открыта
+   * может быть только одна. Вкладки, содержание книги и заметки нужны в разных
+   * задачах, но не одновременно: вторая панель рядом съедала книгу, а на узком
+   * окне ещё и накрывала первую.
    */
-  const panelsExclusive = $derived(
-    (notesOpen && notesOverlay) || (propertiesOpen && dockOverlay),
-  );
 
-  /** Переключение панели заметок с учётом нехватки места. */
-  function toggleNotesPanel() {
-    if (panelsExclusive && !notesOpen) {
-      onToggleProperties?.();
-    }
-    onToggleNotes?.();
-  }
-
-  /** Переключение правой доки с учётом нехватки места. */
-  function toggleDockPanel() {
-    if (panelsExclusive && !propertiesOpen) {
-      onToggleNotes?.();
-    }
-    onToggleProperties?.();
-  }
-
-  /** Слежение за шириной ряда панелей и корневым кеглем. */
+  /** Слежение за шириной рабочей части и корневым кеглем. */
   $effect(() => {
     const el = row;
     if (!el) {
@@ -384,9 +360,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       window.removeEventListener('resize', apply);
     };
   });
-
-  /** Элемент ряда «панели + книга». */
-  let row: HTMLDivElement | undefined = $state();
 
   /** Плагин сообщил, что книга текучая: текст течёт и гарнитура применима.
    *
@@ -480,13 +453,19 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     }
   }
 
-  /** Открытие поиска по книге в правой доке. */
-  function openSearchInDock() {
+  /** Открытие раздела панели книги по кнопке строки книги. */
+  function openDockTab(next: PropertiesTabId) {
+    if (!propertiesOpen) {
+      onToggleProperties?.();
+    }
+    onSelectPropertiesTab?.(next);
+  }
+
+  /** Переключение поиска по книге: он живёт на вкладке панели книги. */
+  function toggleSearchInDock() {
     if (!tab) {
       return;
     }
-    // Повторное нажатие кнопки закрывает поиск: это переключатель, и второй
-    // клик не должен оставлять открытой пустую вкладку.
     if (activeFooter?.searchOpen) {
       readers.get(tab.id)?.closeFooterSearch();
       return;
@@ -496,14 +475,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     }
     onSelectPropertiesTab?.('search');
     readers.get(tab.id)?.openFooterSearch();
-  }
-
-  /** Открытие раздела правой доки по кнопке строки книги. */
-  function openDockTab(next: PropertiesTabId) {
-    if (!propertiesOpen) {
-      onToggleProperties?.();
-    }
-    onSelectPropertiesTab?.(next);
   }
 
   /** Изменение запроса поиска активной вкладки. */
@@ -520,24 +491,12 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     }
   }
 
-  /** Установка масштаба активной вкладки значением. */
-  function setZoom(value: number) {
-    if (tab) {
-      readers.get(tab.id)?.setFooterZoom(value);
-    }
-  }
-
-  /** Доступные разделы правой доки активной книги. */
-  const activeDockTabs = $derived(
-    activeProperties ? propertyTabs(activeProperties) : [],
-  );
-
   /**
-   * Поиск, открытый клавишей или кнопкой строки, показывает свою вкладку.
+   * Поиск, открытый клавишей, показывает свою вкладку.
    *
-   * Поиском владеет читалка (она его выполняет), а показывает его доки.
-   * Эффект реагирует только на переход «закрыт → открыт», поэтому выбор
-   * другой вкладки панели не возвращает поиск обратно.
+   * Поиском владеет читалка (она его выполняет), а показывает его панель книги.
+   * Эффект реагирует только на переход «закрыт → открыт», поэтому выбор другой
+   * вкладки панели не возвращает поиск обратно.
    */
   let searchWasOpen = $state(false);
   $effect(() => {
@@ -550,6 +509,11 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     }
     searchWasOpen = open;
   });
+
+  /** Доступные разделы панели книги активной книги. */
+  const activeDockTabs = $derived(
+    activeProperties ? propertyTabs(activeProperties) : [],
+  );
 
   /** Переход к заметке в читалке активной вкладки. */
   export function goto(note: Note) {
@@ -773,59 +737,94 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       activeTabId={workspace.activeTabId}
       {openTabsLimit}
       {focusMode}
+      {booksOpen}
+      {notesOpen}
+      {propertiesOpen}
       onToggleFocus={onToggleFocus}
+      onToggleBooks={onToggleBooks}
+      onToggleNotes={onToggleNotes}
+      onToggleProperties={() => onToggleProperties?.()}
       onSelect={onSelectTab}
       onClose={onCloseTab}
       onDuplicate={onDuplicateTab}
       onAdd={onAddBook}
       onAddFile={onAddFile}
     />
-    <div class="relative flex min-h-0 flex-1" bind:this={row}>
+    <div class="relative flex min-h-0 flex-1 flex-col">
       <!--
-        Панели заметок и книги стоят по сторонам от области чтения и открываются
-        независимо: содержание и заметки нужны одновременно, это главный
-        сценарий исследовательского чтения. Панели идут от верха области до низа.
-
-        Панель накрывает книгу только тогда, когда рядом с текстом не остаётся
-        места для чтения, — и решается это по ширине области, а не окна. Поэтому
-        на широком окне с открытой панелью полоса управления не «ломается»: она
-        больше не подстраивается под окно.
+        Рабочая часть: панель слева и книга справа. Панель одна — вкладки,
+        содержание книги или заметки; они занимают одно место и открываются
+        взаимоисключающе, потому что две панели подряд перекрывали бы книгу.
       -->
-      {#if notesOpen}
-        <NotesPanel
-          items={tabItems}
-          sets={noteSets}
-          activeSetId={activeSetId}
-          {readerTheme}
-          {palette}
-          loading={notesLoading}
-          {hasBook}
-          selectedId={selectedNoteId}
-          overlay={notesOverlay}
-          onGoToNote={selectNoteInPanel}
-          onDeleteNote={onDeleteNote}
-          onChangeColor={onChangeNoteColor}
-          onEditNote={onEditNote}
-          onSelectSet={onSelectSet}
-          onCreateSet={onCreateSet}
-          onRenameSet={onRenameSet}
-          onRemoveSet={onRemoveSet}
-          onClose={onCloseNotes}
-        />
-      {/if}
-      {#if booksOpen}
-        <OpenBooksPanel
-          tabs={workspace.tabs}
-          activeTabId={workspace.activeTabId}
-          {openTabsLimit}
-          onSelect={selectTabInPanel}
-          onClose={onCloseTab}
-          onDuplicate={onDuplicateTab}
-          onEditAppearance={onEditTabAppearance}
-          onClosePanel={onToggleBooks}
-        />
-      {/if}
-      <div class="relative flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workplace-reading">
+      <div class="relative flex min-h-0 flex-1" bind:this={row}>
+        {#if booksOpen}
+          <OpenBooksPanel
+            tabs={workspace.tabs}
+            activeTabId={workspace.activeTabId}
+            {openTabsLimit}
+            overlay={panelOverlay}
+            onSelect={selectTabInPanel}
+            onClose={onCloseTab}
+            onDuplicate={onDuplicateTab}
+            onEditAppearance={onEditTabAppearance}
+            onClosePanel={onToggleBooks}
+          />
+        {:else if notesOpen}
+          <NotesPanel
+            items={tabItems}
+            sets={noteSets}
+            activeSetId={activeSetId}
+            {readerTheme}
+            {palette}
+            loading={notesLoading}
+            {hasBook}
+            selectedId={selectedNoteId}
+            overlay={panelOverlay}
+            onGoToNote={selectNoteInPanel}
+            onDeleteNote={onDeleteNote}
+            onChangeColor={onChangeNoteColor}
+            onEditNote={onEditNote}
+            onSelectSet={onSelectSet}
+            onCreateSet={onCreateSet}
+            onRenameSet={onRenameSet}
+            onRemoveSet={onRemoveSet}
+            onClose={onCloseNotes}
+          />
+        {:else if propertiesOpen && activeProperties}
+          <!--
+            Панель пересоздаётся при смене активной вкладки: показ пометки и
+            запрос разбора относятся к конкретной книге и не должны переезжать
+            на соседнюю.
+          -->
+          {#key tab?.id}
+            <FilePropertiesPanel
+              snapshot={activeProperties}
+              tab={propertiesTab}
+              currentPage={activeFooter?.page ?? null}
+              overlay={panelOverlay}
+              searchQuery={activeFooter?.searchQuery ?? ''}
+              searchState={activeFooter?.searchState ?? EMPTY_SEARCH_STATE}
+              searchBusy={activeFooter?.searchBusy ?? false}
+              searchError={activeFooter?.searchError ?? null}
+              onSearchQuery={setSearchQuery}
+              onSearchStep={stepSearch}
+              onGoToChapter={goToChapter}
+              onGoToBookmark={goToBookmark}
+              onGoToPage={goToFilePage}
+              onSelectTab={(next) => onSelectPropertiesTab?.(next)}
+              onRequestThumbs={requestThumbs}
+              onAnalyzeAnnotations={analyzeAnnotations}
+              onStopAnnotations={stopAnnotations}
+              onToggleAnnotation={toggleAnnotation}
+              onRegenerateThumbs={regenerateThumbs}
+              onClose={onToggleProperties}
+            />
+          {/key}
+        {/if}
+        <div
+          class="relative flex min-h-0 min-w-0 flex-1 flex-col"
+          data-testid="workplace-reading"
+        >
         {#if workspace.tabs.length === 0}
           <div class="flex h-full items-center justify-center p-6" data-testid="workplace-empty">
             <EmptyState
@@ -924,79 +923,46 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
               {/if}
             </div>
           {/each}
-          <!--
-            Строка книги — постоянное управление чтением под текстом. Стоит в
-            области чтения, а не в полосе вкладок: она принадлежит открытой книге,
-            а не рабочему месту. Панели открываются её краями, поэтому кнопок
-            панелей в полосе вкладок больше нет.
-          -->
-          <BookBar
-            {tool}
-            allowedTypes={allowedNoteTypes}
-            onToolChange={onToolChange}
-            flowing={flowingBook}
-            pages={activeFooter?.workplacePages ?? false}
-            page={activeFooter?.page ?? null}
-            pageCount={activeFooter?.pageCount ?? null}
-            progress={activeFooter?.progress ?? 0}
-            zoom={activeFooter?.zoom ?? 100}
-            minZoom={activeFooter?.minZoom ?? 60}
-            maxZoom={activeFooter?.maxZoom ?? 220}
-            showZoom={activeFooter?.workplaceZoom ?? true}
-            {readerTheme}
-            onToggleTheme={() =>
-              onChangeReaderTheme?.(readerTheme === 'dark' ? 'light' : 'dark')}
-            {readerFont}
-            onToggleFont={() => onChangeReaderFont?.(readerFont === 'serif' ? 'sans' : 'serif')}
-            searchOpen={activeFooter?.searchOpen ?? false}
-            onOpenSearch={openSearchInDock}
-            {notesOpen}
-            onToggleNotes={toggleNotesPanel}
-            dockOpen={propertiesOpen}
-            onToggleDock={toggleDockPanel}
-            onOpenDockTab={openDockTab}
-            dockTabs={activeDockTabs}
-            onOpenBooks={onToggleBooks}
-            onStepPage={stepPage}
-            onGoToPage={goToPage}
-            onStepZoom={changeZoom}
-            onSetZoom={setZoom}
-          />
         {/if}
+        </div>
       </div>
-      {#if propertiesOpen && activeProperties}
-        <!--
-          Панель книги стоит справа от области чтения — у той стороны, где у
-          книги корешок и поля. Пересоздаётся при смене активной вкладки: показ
-          пометки и запрос разбора относятся к конкретной книге и не должны
-          переезжать на соседнюю.
-        -->
-        {#key tab?.id}
-          <FilePropertiesPanel
-            snapshot={activeProperties}
-            tab={propertiesTab}
-            currentPage={activeFooter?.page ?? null}
-            overlay={dockOverlay}
-            searchQuery={activeFooter?.searchQuery ?? ''}
-            searchState={activeFooter?.searchState ?? EMPTY_SEARCH_STATE}
-            searchBusy={activeFooter?.searchBusy ?? false}
-            searchError={activeFooter?.searchError ?? null}
-            onSearchQuery={setSearchQuery}
-            onSearchStep={stepSearch}
-            onGoToChapter={goToChapter}
-            onGoToBookmark={goToBookmark}
-            onGoToPage={goToFilePage}
-            onSelectTab={(next) => onSelectPropertiesTab?.(next)}
-            onRequestThumbs={requestThumbs}
-            onAnalyzeAnnotations={analyzeAnnotations}
-            onStopAnnotations={stopAnnotations}
-            onToggleAnnotation={toggleAnnotation}
-            onRegenerateThumbs={regenerateThumbs}
-            onClose={onToggleProperties}
-          />
-        {/key}
+      <!--
+        Строка книги стоит под панелью и книгой во всю ширину рабочего места,
+        поэтому открытие и закрытие панели не переставляет её кнопки: основание
+        того, на что нажимают, не сдвигается. Слева — где я в книге, справа —
+        навигация, масштаб и остальное управление чтением.
+      -->
+      {#if workspace.tabs.length > 0}
+        <BookBar
+          flowing={flowingBook}
+          {tool}
+          allowedTypes={allowedNoteTypes}
+          onToolChange={onToolChange}
+          pages={activeFooter?.workplacePages ?? false}
+          page={activeFooter?.page ?? null}
+          pageCount={activeFooter?.pageCount ?? null}
+          progress={activeFooter?.progress ?? 0}
+          zoom={activeFooter?.zoom ?? 100}
+          minZoom={activeFooter?.minZoom ?? 60}
+          maxZoom={activeFooter?.maxZoom ?? 220}
+          showZoom={activeFooter?.workplaceZoom ?? true}
+          {readerTheme}
+          onToggleTheme={() =>
+            onChangeReaderTheme?.(readerTheme === 'dark' ? 'light' : 'dark')}
+          fontAvailable={flowingBook}
+          {readerFont}
+          onToggleFont={() => onChangeReaderFont?.(readerFont === 'serif' ? 'sans' : 'serif')}
+          searchOpen={activeFooter?.searchOpen ?? false}
+          onToggleSearch={toggleSearchInDock}
+          onOpenDockTab={openDockTab}
+          dockTabs={activeDockTabs}
+          onOpenBooks={onToggleBooks}
+          onStepPage={stepPage}
+          onGoToPage={goToPage}
+          onStepZoom={changeZoom}
+        />
       {/if}
     </div>
-    </div>
+  </div>
   {/if}
 </div>

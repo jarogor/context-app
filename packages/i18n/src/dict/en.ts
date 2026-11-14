@@ -591,10 +591,9 @@ export const en: Dictionary = {
   'app.bookBar.modeExit': 'Exit note mode',
   'app.bookBar.modeHintText': 'Click the page to place a card',
   'app.bookBar.modeHintShape': 'Drag an area to draw a shape',
+  'app.bookDock.search': 'Search',
   'app.bookDock.title': 'Book',
   'app.bookDock.tabs': 'Book sections',
-  'app.bookDock.search': 'Search',
-  'app.bookDock.search.empty': 'Type a query — occurrences are found across the whole book.',
 
   'app.properties.title': 'File properties',
   'app.properties.tabs': 'File property sections',

@@ -17,6 +17,12 @@
     activeTabId: string | null;
     /** Лимит числа открытых вкладок рабочего места. */
     openTabsLimit: number;
+    /** Открыта ли панель списка вкладок. */
+    booksOpen: boolean;
+    /** Открыта ли панель заметок. */
+    notesOpen: boolean;
+    /** Открыта ли панель книги. */
+    propertiesOpen: boolean;
     /** Выбор вкладки. */
     onSelect: (id: string) => void;
     /** Закрытие вкладки. */
@@ -27,6 +33,12 @@
     onAdd: () => void;
     /** Открытие книги с диска как произвольного файла. */
     onAddFile: () => void;
+    /** Переключение панели списка вкладок. */
+    onToggleBooks: () => void;
+    /** Переключение панели заметок. */
+    onToggleNotes: () => void;
+    /** Переключение панели книги. */
+    onToggleProperties: () => void;
     /** Режим сосредоточенного чтения. */
     focusMode?: boolean;
     /** Переключение режима сосредоточенного чтения. */
@@ -37,11 +49,17 @@
     tabs,
     activeTabId,
     openTabsLimit,
+    booksOpen,
+    notesOpen,
+    propertiesOpen,
     onSelect,
     onClose,
     onDuplicate,
     onAdd,
     onAddFile,
+    onToggleBooks,
+    onToggleNotes,
+    onToggleProperties,
     focusMode = false,
     onToggleFocus,
   }: Props = $props();
@@ -172,17 +190,33 @@
   }
 
   /**
-   * Пункты меню открытия книги на узком окне.
+   * Пункты меню на узком окне.
    *
-   * На узком окне кнопки открытия книги уезжают в меню: рядом с единственной
-   * видимой вкладкой для них нет места. Панели в это меню не входят — они
-   * принадлежат книге и открываются из строки книги.
+   * В полосе видна одна вкладка, и кнопки панелей рядом с ней не помещаются,
+   * поэтому они уезжают в меню — но остаются на том же месте, слева от вкладки.
+   * Панели идут первыми: это главное действие рабочего места.
    */
   const compactPanelActions = $derived<MenuAction[]>([
+    {
+      id: 'books',
+      label: t('app.workplace.tabs'),
+      icon: 'tabs',
+    },
+    {
+      id: 'notes',
+      label: t('app.workplace.notes'),
+      icon: 'note',
+    },
+    {
+      id: 'properties',
+      label: t('app.workplace.properties'),
+      icon: 'layers',
+    },
     {
       id: 'add-book',
       label: t('app.workplace.addBook'),
       icon: 'plus',
+      separatorBefore: true,
     },
     {
       id: 'add-file',
@@ -191,9 +225,18 @@
     },
   ]);
 
-  /** Выполнение пункта меню открытия книги. */
+  /** Выполнение пункта меню панелей и открытия книги. */
   function runCompactPanelAction(id: string) {
     switch (id) {
+      case 'books':
+        onToggleBooks();
+        break;
+      case 'notes':
+        onToggleNotes();
+        break;
+      case 'properties':
+        onToggleProperties();
+        break;
       case 'add-book':
         onAdd();
         break;
@@ -415,10 +458,47 @@
     в верхней панели, и вторая точка входа только дублировала бы её.
   -->
   <!--
-    Панели открываются из строки книги, а не здесь: они принадлежат открытой
-    книге, а полоса вкладок — рабочему месту. Это же освобождает полосу от трёх
-    кнопок, из-за которых она не помещалась на средних ширинах.
+    Кнопки панелей стоят первыми в полосе: вкладки — главная функция рабочего
+    места, поэтому переключатели панелей слева от них, на привычном месте.
+    Открытие панели не меняет состав полосы, поэтому нажатие не сдвигает
+    соседние кнопки.
   -->
+  {#if !compactTabs}
+    <div class="flex flex-none items-center gap-[0.125rem]" data-testid="workplace-tabs-panels">
+      <Button
+        variant={booksOpen ? 'primary' : 'ghost'}
+        size="icon"
+        title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
+        ariaLabel={t('app.workplace.tabs')}
+        ariaPressed={booksOpen}
+        onclick={onToggleBooks}
+      >
+        <Icon name="tabs" />
+      </Button>
+      <Button
+        variant={notesOpen ? 'primary' : 'ghost'}
+        size="icon"
+        title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
+        ariaLabel={t('app.workplace.notes')}
+        testId="workplace-notes-toggle"
+        ariaPressed={notesOpen}
+        onclick={onToggleNotes}
+      >
+        <Icon name="note" />
+      </Button>
+      <Button
+        variant={propertiesOpen ? 'primary' : 'ghost'}
+        size="icon"
+        title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
+        ariaLabel={t('app.workplace.properties')}
+        testId="workplace-properties-toggle"
+        ariaPressed={propertiesOpen}
+        onclick={onToggleProperties}
+      >
+        <Icon name="layers" />
+      </Button>
+    </div>
+  {/if}
   <div class="flex min-w-0 flex-1 items-center gap-2">
     {#if compactTabs}
       <!--

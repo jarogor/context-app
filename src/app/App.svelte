@@ -680,12 +680,18 @@
    */
   function toggleBooksPanel() {
     booksPanelOpen = !booksPanelOpen;
+    if (booksPanelOpen) {
+      notesPanelOpen = false;
+      propertiesPanelOpen = false;
+    }
   }
 
   /** Переключение панели заметок. */
   function toggleNotesPanel() {
     notesPanelOpen = !notesPanelOpen;
     if (notesPanelOpen) {
+      booksPanelOpen = false;
+      propertiesPanelOpen = false;
       void notesController.load();
     }
   }
@@ -693,7 +699,10 @@
   /** Переключение панели книги (содержание, поиск, закладки, страницы, пометки). */
   function togglePropertiesPanel() {
     propertiesPanelOpen = !propertiesPanelOpen;
-    if (!propertiesPanelOpen) {
+    if (propertiesPanelOpen) {
+      booksPanelOpen = false;
+      notesPanelOpen = false;
+    } else {
       // Закрытие панели снимает показ встроенных пометок активной вкладки:
       // без панели у них не осталось бы управления.
       reader?.hideAnnotations?.();

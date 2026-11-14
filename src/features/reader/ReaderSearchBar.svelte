@@ -4,14 +4,11 @@
   import { Button, Icon, Input } from '@context/ui';
   import type { SearchState } from './search-state';
 
-  /** Поиск по книге внутри правой доки.
+  /** Поле поиска по книге в панели книги.
    *
    * Поиск выполняет область чтения: текучая книга ищется по главам, плагин
    * формата — по текстовому слою страниц. Панель только принимает запрос,
    * показывает счётчик и просит перейти к соседнему вхождению.
-   *
-   * Здесь поиск стоит в доке, а не карточкой поверх текста: книга остаётся
-   * видимой, а результат не перекрывает то место, к которому ведёт переход.
    */
 
   interface Props {
@@ -134,9 +131,5 @@
         <span class="min-w-0" data-testid="reader-search-hint">{hint}</span>
       {/if}
     </div>
-  {:else}
-    <p class="m-0 px-1 text-xs text-[var(--muted-foreground)]" data-testid="reader-search-hint">
-      {t('app.bookDock.search.empty')}
-    </p>
   {/if}
 </div>

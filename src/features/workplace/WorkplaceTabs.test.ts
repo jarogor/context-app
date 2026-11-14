@@ -31,11 +31,17 @@ function tabs(count: number): WorkspaceTab[] {
 function handlers() {
   return {
     openTabsLimit: 50,
+    booksOpen: false,
+    notesOpen: false,
+    propertiesOpen: false,
     onSelect: vi.fn<(id: string) => void>(),
     onClose: vi.fn<(id: string) => void>(),
     onDuplicate: vi.fn<(id: string) => void>(),
     onAdd: vi.fn(),
     onAddFile: vi.fn(),
+    onToggleBooks: vi.fn(),
+    onToggleNotes: vi.fn(),
+    onToggleProperties: vi.fn(),
   };
 }
 

@@ -25,24 +25,17 @@
     type ShapeKind,
   } from '../notes/notes';
   import type { PropertiesTabId } from './file-properties';
-  import { zoomPresetsIn } from './zoom';
 
   /**
-   * Строка книги — постоянное управление чтением под текстом.
+   * Строка книги — управление чтением под текстом.
    *
-   * Здесь только то, что нужно всегда: где я в книге и как листать. Всё редкое
-   * (оформление, шрифт, тема) и режимное (инструмент заметок) уходит во
-   * всплывающие панели, а разделы книги — в правую доку. Поэтому высота строки
-   * постоянна у всех форматов и при любом наборе инструментов: появление нового
-   * инструмента не сдвигает книгу и не переносит строку на второй ряд.
+   * Строка стоит под панелями и книгой во всю ширину рабочего места, поэтому
+   * открытие панели не меняет её места и не сдвигает кнопки из-под курсора.
    *
-   * Состав строки зависит от возможностей формата: у страничной книги — переход
-   * по страницам и номер, у текучей — прогресс и шкала. Это не ветка «если PDF»,
-   * а два вида одного места «где я», которое выбирается по `pages`.
-   *
-   * Строка не переносится никогда: она идёт одной линией, а середина («где я»)
-   * сжимается первой. Панели перекрывают книгу раньше, чем строке перестаёт
-   * хватать места, поэтому до сжатия дело доходит только на очень узком окне.
+   * Порядок — по тому, как читают: слева меню и действия над текстом (поиск,
+   * инструмент заметки, шрифт), справа — управление положением и видом книги
+   * (страницы или прогресс, масштаб, тема). Ближе к правому краю то, что
+   * меняют реже.
    */
 
   interface Props {
@@ -64,37 +57,31 @@
     maxZoom?: number;
     /** Поддерживает ли формат изменение масштаба. */
     showZoom?: boolean;
-    /** Текущий инструмент создания заметок. */
-    tool?: NoteTool;
-    /** Доступные формату типы заметок; один тип — переключать нечего. */
-    allowedTypes?: readonly NoteType[];
-    /** Смена инструмента заметок. */
-    onToolChange?: (tool: NoteTool) => void;
     /** Текущая тема области чтения. */
     readerTheme?: 'light' | 'dark';
     /** Переключение темы области чтения. */
     onToggleTheme?: () => void;
+    /** Применима ли гарнитура книги (текучий текст). */
+    fontAvailable?: boolean;
     /** Текущая гарнитура книги. */
     readerFont?: 'serif' | 'sans';
     /** Переключение гарнитуры книги. */
     onToggleFont?: () => void;
     /** Открыта ли панель поиска по книге. */
     searchOpen?: boolean;
-    /** Открытие поиска по книге. */
-    onOpenSearch?: () => void;
-    /** Открыта ли левая панель заметок. */
-    notesOpen?: boolean;
-    /** Переключение левой панели заметок. */
-    onToggleNotes?: () => void;
-    /** Открыта ли правая панель книги. */
-    dockOpen?: boolean;
-    /** Переключение правой панели книги. */
-    onToggleDock?: () => void;
-    /** Открытие раздела правой панели. */
-    onOpenDockTab?: (tab: PropertiesTabId) => void;
+    /** Переключение поиска по книге. */
+    onToggleSearch?: () => void;
+    /** Активный инструмент создания заметок. */
+    tool?: NoteTool;
+    /** Доступные формату типы заметок; один тип — переключать нечего. */
+    allowedTypes?: readonly NoteType[];
+    /** Смена инструмента заметок. */
+    onToolChange?: (tool: NoteTool) => void;
     /** Доступные разделы панели книги. */
     dockTabs?: readonly PropertiesTabId[];
-    /** Открытие панели открытых книг. */
+    /** Открытие раздела панели книги. */
+    onOpenDockTab?: (tab: PropertiesTabId) => void;
+    /** Открытие панели открытых вкладок. */
     onOpenBooks?: () => void;
     /** Переход к соседней странице. */
     onStepPage?: (delta: number) => void;
@@ -102,8 +89,6 @@
     onGoToPage?: (page: number) => void;
     /** Изменение масштаба на шаг шкалы. */
     onStepZoom?: (direction: 1 | -1) => void;
-    /** Установка масштаба значением. */
-    onSetZoom?: (value: number) => void;
   }
 
   let {
@@ -116,27 +101,54 @@
     minZoom = 60,
     maxZoom = 220,
     showZoom = true,
-    tool,
-    allowedTypes = NOTE_TYPES,
-    onToolChange,
     readerTheme = 'light',
     onToggleTheme,
+    fontAvailable = false,
     readerFont = 'serif',
     onToggleFont,
     searchOpen = false,
-    onOpenSearch,
-    notesOpen = false,
-    onToggleNotes,
-    dockOpen = false,
-    onToggleDock,
-    onOpenDockTab,
+    onToggleSearch,
+    tool,
+    allowedTypes = NOTE_TYPES,
+    onToolChange,
     dockTabs = [],
+    onOpenDockTab,
     onOpenBooks,
     onStepPage,
     onGoToPage,
     onStepZoom,
-    onSetZoom,
   }: Props = $props();
+
+  /** Ширина строки: по ней убираются второстепенные действия, но строка не переносится. */
+  let barWidth = $state(0);
+
+  /** Элемент строки для измерения ширины. */
+  let bar: HTMLDivElement | undefined = $state();
+
+  /** Узко: поиск и шрифт уходят в меню; номер страницы становится подписью. */
+  const narrow = $derived(barWidth > 0 && barWidth < 34 * 16);
+
+  /** Слежение за шириной строки. */
+  $effect(() => {
+    const el = bar;
+    if (!el) {
+      return;
+    }
+    let frame = 0;
+    const apply = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        barWidth = el.clientWidth;
+      });
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  });
 
   /** Черновик поля номера страницы; `null` — поле показывает текущую страницу. */
   let pageDraft = $state<string | null>(null);
@@ -144,11 +156,8 @@
   /** Видимое значение поля страницы. */
   const pageValue = $derived(pageDraft ?? (page === null ? '' : String(page)));
 
-  /** Есть ли что выбирать в инструменте заметок. */
-  const toolChoosable = $derived(allowedTypes.length > 1 && tool !== undefined);
-
-  /** Доступные типы в порядке панели. */
-  const typeOptions = $derived(NOTE_TYPES.filter((type) => allowedTypes.includes(type)));
+  /** Состояние поповера инструмента заметок. */
+  let toolOpen = $state(false);
 
   /** Названия разделов панели книги. */
   const DOCK_LABELS: Record<PropertiesTabId, string> = $derived({
@@ -159,8 +168,72 @@
     annotations: t('app.properties.annotations'),
   });
 
-  /** Пресеты масштаба в действующих границах формата. */
-  const zoomPresets = $derived(zoomPresetsIn(minZoom, maxZoom));
+  /** Пункты меню: разделы книги, вкладки и то, что не влезло в строку. */
+  const moreItems = $derived<MenuAction[]>([
+    ...(['contents', 'search', 'bookmarks', 'pages', 'annotations'] as PropertiesTabId[])
+      .filter((id) => dockTabs.includes(id))
+      .map((id) => ({ id: `dock:${id}`, label: DOCK_LABELS[id] })),
+    ...(narrow && onToggleSearch
+      ? [
+          {
+            id: 'search',
+            label: t('app.reader.searchShort'),
+            icon: 'search' as const,
+            separatorBefore: true,
+          },
+        ]
+      : []),
+    ...(narrow && fontAvailable && onToggleFont
+      ? [
+          {
+            id: 'font',
+            label: readerFont === 'serif' ? t('app.font.toSans') : t('app.font.toSerif'),
+            icon: 'text' as const,
+          },
+        ]
+      : []),
+    ...(onOpenBooks
+      ? [
+          {
+            id: 'books',
+            label: t('app.workplace.openBooks'),
+            icon: 'tabs' as const,
+            separatorBefore: true,
+          },
+        ]
+      : []),
+  ]);
+
+  /** Выполнение пункта меню. */
+  function runMore(id: string) {
+    if (id.startsWith('dock:')) {
+      onOpenDockTab?.(id.slice(5) as PropertiesTabId);
+      return;
+    }
+    switch (id) {
+      case 'search':
+        onToggleSearch?.();
+        break;
+      case 'font':
+        onToggleFont?.();
+        break;
+      case 'books':
+        onOpenBooks?.();
+        break;
+    }
+  }
+
+  /** Переход к введённому номеру страницы. */
+  function commitPage() {
+    const draft = pageDraft?.trim();
+    if (draft !== undefined && draft !== '') {
+      const value = Number(draft);
+      if (Number.isInteger(value) && value >= 1) {
+        onGoToPage?.(value);
+      }
+    }
+    pageDraft = null;
+  }
 
   /** Подпись кнопки темы: называет сторону, на которую она переключит. */
   const themeTitle = $derived(
@@ -171,6 +244,12 @@
   const fontTitle = $derived(
     readerFont === 'serif' ? t('app.font.switchToSans') : t('app.font.switchToSerif'),
   );
+
+  /** Есть ли что выбирать в инструменте заметок. */
+  const toolChoosable = $derived(allowedTypes.length > 1 && tool !== undefined);
+
+  /** Доступные типы в порядке панели. */
+  const typeOptions = $derived(NOTE_TYPES.filter((type) => allowedTypes.includes(type)));
 
   /** Образцы цвета заметки. */
   const colorSwatches = $derived<ColorSwatch[]>(
@@ -202,178 +281,50 @@
       onToolChange?.({ ...tool, color });
     }
   }
-
-  /** Переход к введённому номеру страницы. */
-  function commitPage() {
-    const draft = pageDraft?.trim();
-    if (draft !== undefined && draft !== '') {
-      const value = Number(draft);
-      if (Number.isInteger(value) && value >= 1) {
-        onGoToPage?.(value);
-      }
-    }
-    pageDraft = null;
-  }
-
-  /** Разделы панели книги в меню «Ещё». */
-  const dockItems = $derived<MenuAction[]>(
-    (['contents', 'search', 'bookmarks', 'pages', 'annotations'] as PropertiesTabId[])
-      .filter((id) => dockTabs.includes(id))
-      .map((id) => ({ id: `dock:${id}`, label: DOCK_LABELS[id] })),
-  );
-
-  /**
-   * Пункты меню «Ещё»: разделы книги и открытые вкладки.
-   *
-   * Меню — единственное место в строке, которое растёт вместе с приложением:
-   * новый раздел или служебное действие добавляются сюда, и высота строки от
-   * этого не меняется.
-   */
-  const moreItems = $derived<MenuAction[]>([
-    ...dockItems,
-    ...(onOpenBooks
-      ? [
-          {
-            id: 'books',
-            label: t('app.workplace.openBooks'),
-            icon: 'tabs' as const,
-            separatorBefore: true,
-          },
-        ]
-      : []),
-  ]);
-
-  /** Состояние поповеров строки. */
-  let viewOpen = $state(false);
-  let toolOpen = $state(false);
-
-  /** Выполнение пункта меню «Ещё». */
-  function runMore(id: string) {
-    if (id.startsWith('dock:')) {
-      onOpenDockTab?.(id.slice(5) as PropertiesTabId);
-      return;
-    }
-    if (id === 'books') {
-      onOpenBooks?.();
-    }
-  }
 </script>
 
 <div
-  class="flex h-[var(--book-bar-height)] flex-none flex-nowrap items-center gap-1 overflow-hidden border-t border-[var(--border)] bg-[var(--card)] px-2 text-sm [font-variant-numeric:tabular-nums]"
+  bind:this={bar}
+  class="flex h-[var(--book-bar-height)] flex-none flex-nowrap items-center gap-1.5 overflow-hidden border-t border-[var(--border)] bg-[var(--card)] px-2 text-sm [font-variant-numeric:tabular-nums]"
   data-testid="book-bar"
   role="toolbar"
   aria-label={t('app.bookBar.label')}
 >
   <!--
-    Панели книги стоят по краям строки: заметки слева, разделы книги справа —
-    там же, где стоят сами панели. Кнопка — переключатель, поэтому её нажатое
-    состояние показывает, открыта ли панель.
+    Слева — действия над текстом книги: меню, поиск, инструмент заметки и
+    гарнитура. Это то, что делают с текстом, поэтому группа стоит у начала
+    строки, где её ищут.
   -->
-  {#if onToggleNotes}
+  <ActionMenu
+    items={moreItems}
+    onselect={runMore}
+    ariaLabel={t('app.bookBar.more')}
+    title={t('app.bookBar.more')}
+    testId="book-bar-more"
+    class="size-9"
+  />
+
+  {#if onToggleSearch && !narrow}
     <Button
-      variant={notesOpen ? 'primary' : 'ghost'}
       size="icon"
-      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
-      ariaLabel={t('app.workplace.notes')}
-      ariaPressed={notesOpen}
-      testId="workplace-notes-toggle"
-      onclick={onToggleNotes}
+      variant={searchOpen ? 'primary' : 'ghost'}
+      title={hotkeyHint('reader.search', t('app.reader.searchShort'))}
+      ariaLabel={t('app.reader.searchShort')}
+      ariaPressed={searchOpen}
+      testId="reader-search-toggle"
+      onclick={onToggleSearch}
     >
-      <Icon name="note" />
-    </Button>
-  {/if}
-  {#if onToggleDock}
-    <Button
-      variant={dockOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.properties', t('app.bookDock.title'))}
-      ariaLabel={t('app.bookDock.title')}
-      ariaPressed={dockOpen}
-      testId="workplace-properties-toggle"
-      onclick={onToggleDock}
-    >
-      <Icon name="layers" />
+      <Icon name="search" />
     </Button>
   {/if}
 
-  <!--
-    «Где я в книге». У страничной книги — переход и номер; у текучей — прогресс
-    и шкала. Числовые элементы держат постоянную ширину, поэтому смена числа
-    разрядов не двигает соседние кнопки. Шкала прогресса занимает остаток
-    ширины и сжимается первой — вплоть до нуля.
-  -->
-  <div class="flex min-w-0 flex-1 items-center gap-1.5" data-testid="book-bar-place">
-    {#if pages && page !== null}
-      <div
-        class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
-        data-testid="reader-pages"
-      >
-        <button
-          type="button"
-          title={t('app.reader.prevPage')}
-          aria-label={t('app.reader.prevPage')}
-          disabled={page <= 1}
-          class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
-          onclick={() => onStepPage?.(-1)}
-        >
-          <Icon name="chevron-up" />
-        </button>
-        <Input
-          class="h-7 w-[3.25rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm"
-          ariaLabel={t('app.reader.currentPage')}
-          value={pageValue}
-          oninput={(event) => (pageDraft = event.currentTarget.value)}
-          onkeydown={(event) => {
-            if (event.key === 'Enter') {
-              commitPage();
-            }
-          }}
-          onblur={commitPage}
-        />
-        <span
-          class="inline-block min-w-[2.75rem] shrink-0 pr-1 whitespace-nowrap text-left text-sm"
-          data-testid="reader-page-count"
-          >/ {pageCount ?? '?'}</span
-        >
-        <button
-          type="button"
-          title={t('app.reader.nextPage')}
-          aria-label={t('app.reader.nextPage')}
-          disabled={pageCount !== null && page >= pageCount}
-          class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
-          onclick={() => onStepPage?.(1)}
-        >
-          <Icon name="chevron-down" />
-        </button>
-      </div>
-    {:else if flowing}
-      <div class="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--primary-soft)]">
-        <div
-          class="h-full rounded-full bg-[var(--primary)] transition-[width] duration-200"
-          style="width: {Math.max(0, Math.min(100, progress))}%"
-        ></div>
-      </div>
-      <span
-        class="inline-block w-[2.75rem] shrink-0 text-right text-sm text-[var(--muted-foreground)]"
-        data-testid="reader-progress"
-        >{Math.round(progress)}%</span
-      >
-    {/if}
-  </div>
-
-  <!--
-    Инструмент заметок: у книги с одним доступным типом (текучий текст)
-    переключать нечего, поэтому кнопки нет. Панель открывается вверх и не
-    занимает места в строке.
-  -->
   {#if toolChoosable && tool}
-    <Popover bind:open={toolOpen} side="top" align="end" class="w-[15rem]">
+    <Popover bind:open={toolOpen} side="top" align="start" class="w-[15rem]">
       {#snippet trigger({ props })}
         <button
           type="button"
           {...props}
-          class="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-hover)] {tool.type ===
+          class="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-hover)] {tool.type ===
           'quote'
             ? 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
             : 'bg-[var(--primary)] text-[var(--primary-foreground)]'}"
@@ -438,131 +389,131 @@
     </Popover>
   {/if}
 
-  <!--
-    «Вид» — единственная панель оформления: масштаб, гарнитура, тема области
-    чтения. Они меняются редко и вместе, поэтому стоят в одном месте, а не
-    тремя отдельными кнопками в постоянной строке.
-  -->
-  {#if showZoom || (flowing && onToggleFont) || onToggleTheme}
-    <Popover bind:open={viewOpen} side="top" align="end" class="w-[16rem]">
-      {#snippet trigger({ props })}
-        <button
-          type="button"
-          {...props}
-          class="flex h-8 shrink-0 cursor-pointer items-center gap-0.5 rounded-[var(--radius)] px-1.5 text-sm tabular-nums text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-          title={hotkeyHint('reader.zoom.in', t('app.bookBar.view'))}
-          aria-label={t('app.bookBar.view')}
-          data-testid="reader-zoom"
-        >
-          {#if showZoom}
-            {zoom}%
-          {:else}
-            <Icon name="focus" />
-          {/if}
-          <Icon name="chevron-up" class="h-3 w-3" />
-        </button>
-      {/snippet}
-      <div class="flex flex-col gap-3" data-testid="reader-zoom-group">
-        {#if showZoom}
-          <div class="flex flex-col gap-1.5">
-            <span class="text-xs text-[var(--muted-foreground)]">{t('app.reader.zoomIn')}</span>
-            <div class="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="secondary"
-                title={hotkeyHint('reader.zoom.out', t('app.reader.zoomOut'))}
-                ariaLabel={t('app.reader.zoomOut')}
-                class="flex-1"
-                disabled={zoom <= minZoom}
-                onclick={() => onStepZoom?.(-1)}>−</Button
-              >
-              <span class="w-14 shrink-0 text-center text-sm tabular-nums">{zoom}%</span>
-              <Button
-                size="icon"
-                variant="secondary"
-                title={hotkeyHint('reader.zoom.in', t('app.reader.zoomIn'))}
-                ariaLabel={t('app.reader.zoomIn')}
-                class="flex-1"
-                disabled={zoom >= maxZoom}
-                onclick={() => onStepZoom?.(1)}>+</Button
-              >
-            </div>
-            <div class="flex flex-wrap gap-1">
-              {#each zoomPresets as preset (preset)}
-                <Button
-                  size="sm"
-                  variant={zoom === preset ? 'primary' : 'secondary'}
-                  title={t('app.bookBar.zoomPreset', { value: preset })}
-                  ariaLabel={t('app.bookBar.zoomPreset', { value: preset })}
-                  ariaPressed={zoom === preset}
-                  onclick={() => onSetZoom?.(preset)}>{preset}%</Button
-                >
-              {/each}
-            </div>
-          </div>
-        {/if}
-        {#if flowing && onToggleFont}
-          <div class="flex flex-col gap-1.5">
-            <span class="text-xs text-[var(--muted-foreground)]">{t('app.font.bookLabel')}</span>
-            <Button
-              size="sm"
-              variant="secondary"
-              title={fontTitle}
-              ariaLabel={fontTitle}
-              testId="reader-font-toggle"
-              onclick={onToggleFont}
-            >
-              <span
-                class="text-[0.95rem] leading-none"
-                style="font-family: {readerFont === 'serif'
-                  ? "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-                  : "Georgia, 'Times New Roman', serif"}"
-                aria-hidden="true">Аа</span
-              >
-              {readerFont === 'serif' ? t('app.font.toSans') : t('app.font.toSerif')}
-            </Button>
-          </div>
-        {/if}
-        {#if onToggleTheme}
-          <div class="flex flex-col gap-1.5">
-            <span class="text-xs text-[var(--muted-foreground)]">{t('app.theme.short')}</span>
-            <Button
-              size="sm"
-              variant="secondary"
-              title={themeTitle}
-              ariaLabel={themeTitle}
-              testId="reader-theme-toggle"
-              onclick={() => onToggleTheme?.()}
-            >
-              <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
-              {themeTitle}
-            </Button>
-          </div>
-        {/if}
-      </div>
-    </Popover>
-  {/if}
-
-  {#if onOpenSearch}
+  {#if fontAvailable && onToggleFont && !narrow}
     <Button
       size="icon"
-      variant={searchOpen ? 'primary' : 'ghost'}
-      title={hotkeyHint('reader.search', t('app.reader.searchShort'))}
-      ariaLabel={t('app.reader.searchShort')}
-      ariaPressed={searchOpen}
-      testId="reader-search-toggle"
-      onclick={onOpenSearch}
+      variant="ghost"
+      title={fontTitle}
+      ariaLabel={fontTitle}
+      testId="reader-font-toggle"
+      onclick={onToggleFont}
     >
-      <Icon name="search" />
+      <span
+        class="text-[0.95rem] leading-none"
+        style="font-family: {readerFont === 'serif'
+          ? "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+          : "Georgia, 'Times New Roman', serif"}"
+        aria-hidden="true">Аа</span
+      >
     </Button>
   {/if}
 
-  <ActionMenu
-    items={moreItems}
-    onselect={runMore}
-    ariaLabel={t('app.bookBar.more')}
-    title={t('app.bookBar.more')}
-    testId="book-bar-more"
-    class="size-9"
-  />
+  <div class="min-w-0 flex-1"></div>
+
+  <!--
+    Справа — положение и вид книги: страницы или прогресс, масштаб, тема.
+    Прогресс текучей книги стоит там же, где у страничной номер страницы:
+    это одно и то же место «где я», просто у текучей книги его нечем считать
+    по страницам.
+  -->
+  {#if pages && page !== null}
+    <div
+      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+      data-testid="reader-pages"
+    >
+      <Button
+        size="icon"
+        variant="ghost"
+        title={t('app.reader.prevPage')}
+        ariaLabel={t('app.reader.prevPage')}
+        class="size-8"
+        disabled={page <= 1}
+        onclick={() => onStepPage?.(-1)}
+      >
+        <Icon name="chevron-up" />
+      </Button>
+      {#if narrow}
+        <span class="px-1 text-sm whitespace-nowrap" data-testid="reader-page-count">
+          {page} / {pageCount ?? '?'}
+        </span>
+      {:else}
+        <Input
+          class="h-8 w-[3.5rem] shrink-0 border-0 bg-card px-1 py-0 text-right text-sm"
+          ariaLabel={t('app.reader.currentPage')}
+          value={pageValue}
+          oninput={(event) => (pageDraft = event.currentTarget.value)}
+          onkeydown={(event) => {
+            if (event.key === 'Enter') {
+              commitPage();
+            }
+          }}
+          onblur={commitPage}
+        />
+        <span
+          class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm"
+          data-testid="reader-page-count"
+          >/ {pageCount ?? '?'}</span
+        >
+      {/if}
+      <Button
+        size="icon"
+        variant="ghost"
+        title={t('app.reader.nextPage')}
+        ariaLabel={t('app.reader.nextPage')}
+        class="size-8"
+        disabled={pageCount !== null && page >= pageCount}
+        onclick={() => onStepPage?.(1)}
+      >
+        <Icon name="chevron-down" />
+      </Button>
+    </div>
+  {:else if flowing}
+    <span
+      class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
+      data-testid="reader-progress"
+      >{Math.round(progress)}%</span
+    >
+  {/if}
+
+  {#if showZoom}
+    <div
+      class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--panel)] p-0.5"
+      data-testid="reader-zoom-group"
+    >
+      <Button
+        size="icon"
+        variant="ghost"
+        title={hotkeyHint('reader.zoom.out', t('app.reader.zoomOut'))}
+        ariaLabel={t('app.reader.zoomOut')}
+        class="size-8"
+        disabled={zoom <= minZoom}
+        onclick={() => onStepZoom?.(-1)}>−</Button
+      >
+      <Button
+        size="icon"
+        variant="ghost"
+        title={hotkeyHint('reader.zoom.in', t('app.reader.zoomIn'))}
+        ariaLabel={t('app.reader.zoomIn')}
+        class="size-8"
+        disabled={zoom >= maxZoom}
+        onclick={() => onStepZoom?.(1)}>+</Button
+      >
+      <span class="inline-block w-[3.25rem] text-center text-sm" data-testid="reader-zoom"
+        >{zoom}%</span
+      >
+    </div>
+  {/if}
+
+  {#if onToggleTheme}
+    <Button
+      size="icon"
+      variant="ghost"
+      title={themeTitle}
+      ariaLabel={themeTitle}
+      testId="reader-theme-toggle"
+      onclick={onToggleTheme}
+    >
+      <Icon name={readerTheme === 'dark' ? 'sun' : 'moon'} />
+    </Button>
+  {/if}
 </div>
