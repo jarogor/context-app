@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '@context/i18n';
   import { onMount } from 'svelte';
-  import { Button, Icon, Input } from '@context/ui';
+  import { Button, Icon, SearchField } from '@context/ui';
   import type { SearchState } from './search-state';
 
   /** Поле поиска по книге в панели книги.
@@ -9,6 +9,9 @@
    * Поиск выполняет область чтения: текучая книга ищется по главам, плагин
    * формата — по текстовому слою страниц. Панель только принимает запрос,
    * показывает счётчик и просит перейти к соседнему вхождению.
+   *
+   * Поле — общий компонент поиска приложения: лупа и кнопка очистки в нём уже
+   * есть, и здесь они ведут себя так же, как в остальных списках.
    */
 
   interface Props {
@@ -44,9 +47,7 @@
   const counter = $derived(
     search.total > 0 && search.index !== null
       ? t('app.reader.search.counter', { index: search.index + 1, total: search.total })
-      : search.total > 0
-        ? String(search.total)
-        : '',
+      : '',
   );
 
   /** Сообщение о результате: пустой запрос молчит, найденное показывает счётчик. */
@@ -62,7 +63,7 @@
             : '',
   );
 
-  /** Поле ввода: при открытии вкладки поиска курсор сразу в нём. */
+  /** Поле ввода: при открытии поиска курсор сразу в нём. */
   let searchField = $state<HTMLInputElement | undefined>();
 
   onMount(() => {
@@ -79,12 +80,12 @@
 >
   <div class="flex items-center gap-1">
     <div class="min-w-0 flex-1">
-      <Input
-        bind:element={searchField}
+      <SearchField
         value={query}
         placeholder={t('app.reader.search.placeholder')}
         ariaLabel={t('app.reader.search.placeholder')}
-        class="h-8"
+        clearable
+        bind:element={searchField}
         oninput={(event) => onQuery?.(event.currentTarget.value)}
         onkeydown={(event) => {
           if (event.key === 'Enter') {
