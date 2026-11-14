@@ -174,24 +174,30 @@
       align="end"
       class="border-[var(--border)] bg-[var(--overlay-surface)] text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md border p-1 shadow-overlay"
     >
-      {#if colors.length > 0}
-        <div class="px-1.5 py-[0.375rem]">
-          <ColorPicker
-            colors={swatches}
-            onpick={pickColor}
-            ariaLabel={colorsLabel ?? t('app.color.choose')}
-            testIdPrefix="menu-color"
-          />
-        </div>
-      {/if}
-      {#if icons.length > 0}
-        <div class="px-1.5 py-[0.375rem]">
-          <IconPicker
-            icons={iconSwatches}
-            onpick={pickIcon}
-            ariaLabel={iconsLabel ?? t('app.icon.choose')}
-            testIdPrefix="menu-icon"
-          />
+      {#if colors.length > 0 || icons.length > 0}
+        <!--
+          Цвет и иконка — единый блок оформления. У палитр нет рамок, а фон общий,
+          поэтому они стоят друг под другом внутри одного блока без промежутка:
+          стык фонов не виден, и выбор цвета с выбором иконки читается одним
+          блоком, а не двумя соседними.
+        -->
+        <div class="flex flex-col overflow-hidden rounded-[var(--radius)] bg-[var(--card)]">
+          {#if colors.length > 0}
+            <ColorPicker
+              colors={swatches}
+              onpick={pickColor}
+              ariaLabel={colorsLabel ?? t('app.color.choose')}
+              testIdPrefix="menu-color"
+            />
+          {/if}
+          {#if icons.length > 0}
+            <IconPicker
+              icons={iconSwatches}
+              onpick={pickIcon}
+              ariaLabel={iconsLabel ?? t('app.icon.choose')}
+              testIdPrefix="menu-icon"
+            />
+          {/if}
         </div>
       {/if}
       {#if (colors.length > 0 || icons.length > 0) && items.length > 0}

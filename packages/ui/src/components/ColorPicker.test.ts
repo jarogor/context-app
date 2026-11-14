@@ -38,14 +38,31 @@ describe('ColorPicker', () => {
     expect(picker.className).toContain('h-9');
   });
 
+  it('не рисует собственную обводку: палитра стоит внутри меню и слоя', () => {
+    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
+
+    const picker = screen.getByTestId('color-picker');
+    // Контур спорил бы с обводкой всплывающего меню, внутри которого палитра живёт.
+    expect(picker.className).not.toContain('border');
+  });
+
   it('ширина блока вмещает расширенный выбранный образец', () => {
     render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
 
     const picker = screen.getByTestId('color-picker');
     const width = Number.parseInt(picker.style.width, 10);
     const swatches = COLORS.length;
-    // Базовая ширина невыбранного образца — 16 px, зазоры по 3 px, chrome 12 px,
-    // выбранный образец шире в 1.8 раза. Проверяем нижнюю границу вместимости.
+    // Базовая ширина невыбранного образца — 16 px, зазоры по 3 px, боковые
+    // отступы 12 px, выбранный образец шире в 1.8 раза.
     expect(width).toBeGreaterThanOrEqual(swatches * 16 + (swatches - 1) * 3);
+  });
+
+  it('отделяет крайние образцы от границ так же, как сверху и снизу', () => {
+    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
+
+    const picker = screen.getByTestId('color-picker');
+    // Боковой отступ равен вертикальному: 8 px до края, как и до плашки сверху.
+    expect(picker.className).toContain('px-2');
+    expect(picker.className).toContain('py-1');
   });
 });
