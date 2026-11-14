@@ -155,21 +155,25 @@ describe('панель открытых книг: оформление', () => {
     expect(items[1].className).toContain('border-[var(--item-line)]');
   });
 
-  it('рисует обводку выбранного пункта цветом вкладки, если он задан', () => {
+  it('даёт обводку выбранному пункту и не даёт невыбранному цветному', () => {
     // Цветная обводка — общий расчёт цвета: тот же, что у плашки на полосе.
+    // Контур получает только выбранный пункт, как и на полосе вкладок.
     render(OpenBooksPanel, {
       props: {
-        tabs: [tab('t1', { color: 'blue' }), tab('t2')],
+        tabs: [tab('t1', { color: 'blue' }), tab('t2', { color: 'blue' })],
         activeTabId: 't1',
         ...handlers(),
       },
     });
 
     const items = screen.getAllByTestId('open-books-item');
+    // Выбранный цветной — контур цветом вкладки.
+    expect(items[0].className).toContain('border-[var(--item-line)]');
     expect(items[0].getAttribute('style')).toContain('--item-line: color-mix');
     expect(items[0].getAttribute('style')).toContain('#2563eb');
-    // У нецветного пункта обводка общая, темы.
-    expect(items[1].getAttribute('style')).toContain('--item-line: var(--primary-border)');
+    // Невыбранный цветной — только заливка, без контура.
+    expect(items[1].className).toContain('border-transparent');
+    expect(items[1].className).not.toContain('border-[var(--item-line)]');
   });
 });
 

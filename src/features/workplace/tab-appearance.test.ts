@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tabColorFill, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
+import { tabColorFill, tabColorLine, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
 
 describe('вид вкладки', () => {
   it('показывает название книги, если имя не задано', () => {
@@ -45,5 +45,12 @@ describe('вид вкладки', () => {
     // ступени приглушены, чтобы подпись оставалась контрастной.
     expect(tabColorFill('blue', 'var(--card)', true)).toContain('#2563eb 20%');
     expect(tabIdleFill('blue')).toContain('#2563eb 6%');
+  });
+
+  it('даёт обводку только заданному цвету вкладки', () => {
+    // Контур получает только активная вкладка; у нецветной его нет вовсе.
+    expect(tabColorLine('blue')).toContain('#2563eb');
+    expect(tabColorLine('blue')).toContain('var(--border)');
+    expect(tabColorLine(undefined)).toBeUndefined();
   });
 });

@@ -243,6 +243,39 @@ describe('панель вкладок: оформление вкладки', () 
     expect(colored.getAttribute('style')).toContain('var(--tab-idle-surface)');
   });
 
+  it('не рисует обводку неактивной цветной вкладке', () => {
+    // Контур есть только у активной вкладки: у неактивной его нет ни у цветной,
+    // ни у нецветной, поэтому плашки на полосе стоят ровно.
+    mockWidth(320);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
+        activeTabId: 't1',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+    const [, colored] = screen.getAllByTestId('workplace-tab-item');
+    expect(colored.className).not.toContain('shadow-[inset');
+  });
+
+  it('рисует обводку выбранной цветной вкладке', () => {
+    mockWidth(320);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
+        activeTabId: 't2',
+        booksOpen: false,
+        notesOpen: false,
+        ...handlers(),
+      },
+    });
+    const active = screen.getAllByTestId('workplace-tab-item')[1];
+    expect(active.className).toContain('shadow-[inset');
+    expect(active.getAttribute('style')).toContain('--tab-line: color-mix');
+  });
+
   it('заливает активную цветную вкладку плотнее неактивной', () => {
     // Активная заливается плотнее неактивной: доля цвета берётся из общего
     // реестра (ступени `active` и `tint`), а не подбирается на месте.

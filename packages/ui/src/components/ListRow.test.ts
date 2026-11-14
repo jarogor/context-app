@@ -59,4 +59,21 @@ describe('ListRow', () => {
     expect(row.className).toContain('hover:bg');
     expect(button.className).not.toContain('hover:bg');
   });
+
+  it('не рисует собственный контур: у списка уже есть обводка', () => {
+    // Второй контур рядом с обводкой списка читался двойной рамкой и перекрывал
+    // скругление, поэтому строка своего контура не рисует.
+    render(ListRow, {
+      props: {
+        testId: 'row',
+        titleContent: text('Название'),
+        onclick: vi.fn(),
+        selected: true,
+      },
+    });
+
+    const row = screen.getByTestId('row');
+    expect(row.className).not.toContain('shadow-[inset');
+    expect(row.className).not.toContain('border');
+  });
 });

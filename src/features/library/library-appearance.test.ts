@@ -40,6 +40,12 @@ describe('оформление библиотеки', () => {
     expect(libraryColorLine(undefined)).toBeUndefined();
   });
 
+  it('делает обводку записи приглушённой', () => {
+    // Контур обозначает цвет записи, но не спорит с заливкой, текстом и выбором.
+    expect(libraryColorLine('blue', { strong: false })).toBe(accentLine('blue', { strong: false }));
+    expect(libraryColorLine('blue', { strong: false })).not.toBe(libraryColorLine('blue'));
+  });
+
   it('предлагает общие с вкладками образцы иконок и цветов', () => {
     expect(LIBRARY_ICONS.length).toBeGreaterThan(0);
     expect(LIBRARY_COLORS).toContain('blue');

@@ -45,4 +45,15 @@ describe('цвета оформления', () => {
     expect(line).toContain('#9333ea');
     expect(line).toContain('var(--border)');
   });
+
+  it('делает слабую обводку заметно тише обычной', () => {
+    // Невыбранный цветной элемент уже отличается заливкой: яркий контур делал бы
+    // его заметнее выбранного, поэтому слабая ступень заметно ниже обычной.
+    const strong = accentLine('blue') ?? '';
+    const weak = accentLine('blue', { strong: false }) ?? '';
+    const strongPercent = Number(strong.match(/(\d+)%/)?.[1]);
+    const weakPercent = Number(weak.match(/(\d+)%/)?.[1]);
+    expect(weakPercent).toBeLessThan(strongPercent);
+    expect(strongPercent).toBeLessThanOrEqual(30);
+  });
 });
