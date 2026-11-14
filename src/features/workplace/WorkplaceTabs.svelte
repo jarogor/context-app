@@ -407,13 +407,13 @@
    *
    * У вкладки без цвета фон задаётся классом (`--tab-idle-surface`), поэтому
    * переменная не нужна. У цветной: неактивная залита слабым оттенком цвета
-   * поверх общего фона неактивной вкладки, активная — плотнее; обводка у обеих
-   * одного цвета с заливкой, чтобы цвет читался и по контуру.
+   * поверх общего фона неактивной вкладки, активная — плотнее; обводку получает
+   * только активная, как и нецветная: у неактивных контура нет ни у кого.
    */
   function tabFill(tab: WorkspaceTab): string {
     const base = tabIdleFill(tab.color);
     const active = tabColorFill(tab.color, 'var(--muted)', true);
-    const line = tabColorLine(tab.color);
+    const line = tabColorLine(tab.color, true);
     return base && active && line
       ? ` --tab-fill: ${base}; --tab-fill-active: ${active}; --tab-line: ${line};`
       : '';
@@ -440,7 +440,7 @@
     if (tab.color) {
       return active
         ? 'bg-[var(--tab-fill-active)] text-[var(--foreground)] shadow-[inset_0_0_0_1px_var(--tab-line)]'
-        : 'bg-[var(--tab-fill)] text-[var(--foreground)] shadow-[inset_0_0_0_1px_var(--tab-line)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)] hover:shadow-none';
+        : 'bg-[var(--tab-fill)] text-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
     }
     return active
       ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'

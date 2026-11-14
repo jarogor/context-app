@@ -378,14 +378,20 @@
     }));
   }
 
-  /** CSS-переменные заливки и обводки строки или карточки библиотеки. */
+  /** CSS-переменные заливки и обводки строки или карточки библиотеки.
+   *
+   * Переменные задаются только при заданном цвете: без цвета фон и обводку
+   * берут классы. Обводка приглушена для всех состояний: она обозначает цвет
+   * записи, но не спорит с заливкой, текстом и выбором.
+   */
   function colorStyle(entry: HistoryEntry, base: string, selectedBase: string): string {
+    if (!entry.color) {
+      return '';
+    }
     const fill = libraryColorFill(entry.color, { base });
     const selected = libraryColorFill(entry.color, { base: selectedBase, selected: true });
-    const line = libraryColorLine(entry.color) ?? 'var(--border)';
-    return `--row-fill: ${fill ?? base}; --row-fill-selected: ${
-      selected ?? selectedBase
-    }; --row-line: ${line};`;
+    const line = libraryColorLine(entry.color, { strong: false });
+    return `--row-fill: ${fill}; --row-fill-selected: ${selected}; --row-line: ${line};`;
   }
 
   /** Цвет строки списка: заливка поверх карточки, обводка — цветом записи. */
@@ -1007,10 +1013,10 @@
                 одинаков в обеих раскладках.
               -->
               <article
-                class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--row-line,var(--border))] p-3 transition-colors {entry.path ===
+                class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] border p-3 transition-colors {entry.path ===
                 selectedEntry?.path
-                  ? 'bg-[var(--row-fill-selected,var(--surface-selected))]'
-                  : 'bg-[var(--row-fill,var(--card))] hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill,var(--card)))]'} {entry.available ? '' : 'opacity-60'}"
+                  ? 'border-[var(--row-line,var(--border))] bg-[var(--row-fill-selected,var(--surface-selected))]'
+                  : 'border-[var(--row-line,var(--border))] bg-[var(--row-fill,var(--card))] hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill,var(--card)))]'} {entry.available ? '' : 'opacity-60'}"
                 style={rowStyle(entry)}
                 data-selected={entry.path === selectedEntry?.path ? 'true' : undefined}
               >

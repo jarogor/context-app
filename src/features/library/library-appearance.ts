@@ -80,8 +80,12 @@ export function libraryColorFill(
 /** CSS-цвет обводки библиотеки; отсутствует, если цвет не задан.
  *
  * Обводка меняется вместе с заливкой: цветная запись отличается не только
- * фоном, но и контуром — тем же, что у цветной вкладки.
+ * фоном, но и контуром. У невыбранной записи контур слабый (`strong: false`),
+ * чтобы она не спорила с выбранной.
  */
-export function libraryColorLine(color: LibraryColor | undefined): string | undefined {
-  return accentLine(color);
+export function libraryColorLine(
+  color: LibraryColor | undefined,
+  options: { strong?: boolean } = {},
+): string | undefined {
+  return accentLine(color, options);
 }

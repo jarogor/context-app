@@ -59,11 +59,11 @@ export function tabIdleFill(color: TabColor | undefined): string | undefined {
 
 /** CSS-цвет обводки цветной вкладки; отсутствует, если цвета нет.
  *
- * Обводка — та же ступень цвета, что и заливка: цветная вкладка отличается от
- * нецветной и фоном, и контуром, поэтому выделение читается и на светлом фоне.
+ * Обводка нужна только выбранной вкладке: у неактивной её нет — ни у цветной,
+ * ни у нецветной, поэтому неактивные плашки стоят ровно, без контуров.
  */
-export function tabColorLine(color: TabColor | undefined): string | undefined {
-  return accentLine(color);
+export function tabColorLine(color: TabColor | undefined, active = true): string | undefined {
+  return accentLine(color, { strong: active });
 }
 
 /** Подсказка вкладки: пользовательское имя и название книги.

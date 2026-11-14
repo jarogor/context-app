@@ -46,7 +46,14 @@ const ACCENT_FILL_PERCENTS: Record<AccentStrength, number> = {
 };
 
 /** Доля цвета в цветной обводке, в процентах. */
-const ACCENT_LINE_PERCENT = 45;
+const ACCENT_LINE_PERCENT = 28;
+
+/** Доля цвета в слабой обводке, в процентах.
+ *
+ * Слабая обводка нужна невыбранному объекту: он уже отличается заливкой, и
+ * яркий контур делал бы его заметнее выбранного.
+ */
+const ACCENT_LINE_WEAK_PERCENT = 14;
 
 /** CSS-фон поверхности с примесью цвета объекта; отсутствует без цвета.
  *
@@ -69,14 +76,17 @@ export function accentFill(
 /** CSS-цвет обводки объекта с примесью его цвета; отсутствует без цвета.
  *
  * Обводка не равна заливке: она смешивается с общей линией темы, поэтому
- * цветной контур заметен, но не превращается в яркую рамку.
+ * цветной контур заметен, но не превращается в яркую рамку. `strong` — обводка
+ * выбранного объекта; невыбранный получает слабую, чтобы не спорить с выбором.
  */
 export function accentLine(
   color: AccentColor | undefined,
-  base = 'var(--border)',
+  options: { base?: string; strong?: boolean } = {},
 ): string | undefined {
   if (!color) {
     return undefined;
   }
-  return `color-mix(in oklab, ${ACCENT_COLOR_SWATCHES[color]} ${ACCENT_LINE_PERCENT}%, ${base})`;
+  const base = options.base ?? 'var(--border)';
+  const percent = options.strong === false ? ACCENT_LINE_WEAK_PERCENT : ACCENT_LINE_PERCENT;
+  return `color-mix(in oklab, ${ACCENT_COLOR_SWATCHES[color]} ${percent}%, ${base})`;
 }

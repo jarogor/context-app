@@ -249,12 +249,12 @@
    *
    * Пункт повторяет вид строки заметок: у неактивного фон карточки, у выбранного
    * — тон выбора. Если у вкладки задан цвет, он подмешивается в этот фон, а
-   * обводка повторяет цвет вкладки — тем же расчётом, что и у плашки на полосе.
+   * обводку получает только выбранный пункт — как и на полосе вкладок.
    */
   function itemFill(tab: WorkspaceTab): string {
     const base = tabColorFill(tab.color, 'var(--card)', false);
     const active = tabColorFill(tab.color, 'var(--card)', true);
-    const line = tabColorLine(tab.color);
+    const line = tabColorLine(tab.color, true);
     if (!base || !active || !line) {
       return '--item-line: var(--primary-border);';
     }
@@ -265,9 +265,10 @@
    *
    * Как в списке заметок: неактивный стоит на фоне карточки и подсвечивается
    * наведением, выбранный — фоном выбора и обводкой. Обводка берёт цвет
-   * вкладки, если он задан, иначе общую линию темы. Цветная подпись остаётся
-   * цветом основного текста: приглушённая заливка светлая, и вторичный цвет на
-   * ней сливался бы с фоном.
+   * вкладки, если он задан, иначе общую линию темы; у неактивного пункта её нет
+   * ни у цветной, ни у нецветной вкладки. Цветная подпись остаётся цветом
+   * основного текста: приглушённая заливка светлая, и вторичный цвет на ней
+   * сливался бы с фоном.
    */
   function itemFillClass(tab: WorkspaceTab): string {
     if (tab.id === activeTabId) {
@@ -276,7 +277,7 @@
         : 'bg-[var(--surface-selected)] border-[var(--item-line)]';
     }
     return tab.color
-      ? 'bg-[var(--item-fill)] border-[var(--item-line)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+      ? 'bg-[var(--item-fill)] border-transparent text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
       : 'bg-[var(--card)] border-transparent hover:bg-[var(--surface-hover)]';
   }
 
