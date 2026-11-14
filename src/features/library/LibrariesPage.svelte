@@ -34,7 +34,6 @@
     LIBRARY_COLOR_SWATCHES,
     LIBRARY_ICONS,
     libraryColorFill,
-    libraryColorLine,
     normalizeLibraryColor,
     normalizeLibraryIcon,
     optionalLibraryText,
@@ -390,11 +389,10 @@
     }
     const fill = libraryColorFill(entry.color, { base });
     const selected = libraryColorFill(entry.color, { base: selectedBase, selected: true });
-    const line = libraryColorLine(entry.color, { strong: false });
-    return `--row-fill: ${fill}; --row-fill-selected: ${selected}; --row-line: ${line};`;
+    return `--row-fill: ${fill}; --row-fill-selected: ${selected};`;
   }
 
-  /** Цвет строки списка: заливка поверх карточки, обводка — цветом записи. */
+  /** Цвет строки списка: заливка поверх карточки цветом записи. */
   function rowStyle(entry: HistoryEntry): string {
     return colorStyle(entry, 'var(--card)', 'var(--card)');
   }
@@ -830,7 +828,7 @@
     <!-- Панель стоит на месте всегда: без загруженной библиотеки она объясняет,
          что та не загружена, а не исчезает, сдвигая список. -->
     <aside
-      class="relative flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] border border-[var(--row-line,var(--border))] bg-[var(--card)] large-tablet:h-full large-tablet:min-h-0"
+      class="relative flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] bg-[var(--card)] large-tablet:h-full large-tablet:min-h-0"
       style={cardStyle}
       data-testid="library-card"
     >
@@ -869,7 +867,7 @@
           названия, а текст занимает оставшуюся ширину и не обрезается.
         -->
         <div
-          class="relative flex w-full items-start gap-2 border-b border-[var(--row-line,var(--border))] bg-[var(--row-fill-selected,var(--card))] py-4 pr-4 pl-4 transition-colors hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill-selected,var(--card)))]"
+          class="relative flex w-full items-start gap-2 bg-[var(--row-fill-selected,var(--card))] py-4 pr-4 pl-4 transition-colors hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill-selected,var(--card)))]"
         >
           <button
             type="button"
@@ -974,7 +972,7 @@
           data-testid="library-card-empty"
         >
           <span
-            class="flex size-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-inset)] text-[var(--muted-foreground)]"
+            class="flex size-12 items-center justify-center rounded-full bg-[var(--surface-inset)] text-[var(--muted-foreground)]"
             aria-hidden="true"
           >
             <Icon name="library" class="h-6 w-6" />
@@ -1013,10 +1011,10 @@
                 одинаков в обеих раскладках.
               -->
               <article
-                class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] border p-3 transition-colors {entry.path ===
-                selectedEntry?.path
-                  ? 'border-[var(--row-line,var(--border))] bg-[var(--row-fill-selected,var(--surface-selected))]'
-                  : 'border-[var(--row-line,var(--border))] bg-[var(--row-fill,var(--card))] hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill,var(--card)))]'} {entry.available ? '' : 'opacity-60'}"
+                class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] p-3 transition-colors {entry.path ===
+ selectedEntry?.path
+ ? ' bg-[var(--row-fill-selected,var(--surface-selected))]'
+ : ' bg-[var(--row-fill,var(--card))] hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill,var(--card)))]'} {entry.available ? '' : 'opacity-60'}"
                 style={rowStyle(entry)}
                 data-selected={entry.path === selectedEntry?.path ? 'true' : undefined}
               >

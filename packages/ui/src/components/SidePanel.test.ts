@@ -40,13 +40,14 @@ describe('SidePanel', () => {
     expect(screen.getByText('поиск')).toBeTruthy();
   });
 
-  it('отделяет левую панель границей справа', () => {
+  it('ставит левую панель на поверхность без обводки', () => {
     render(SidePanel, { props: { title: 'Панель', side: 'left', testId: 'panel' } });
 
     const panel = screen.getByTestId('panel');
     expect(panel.getAttribute('data-side')).toBe('left');
-    expect(panel.className).toContain('border-r');
-    expect(panel.className).not.toContain('border-l');
+    // Обводок нет: панель отделяется собственной поверхностью.
+    expect(panel.className).toContain('bg-[var(--panel)]');
+    expect(panel.className).not.toContain('border');
   });
 
   it('показывает кнопку закрытия на узком окне, когда задан обработчик', () => {

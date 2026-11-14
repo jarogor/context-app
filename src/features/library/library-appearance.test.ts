@@ -5,7 +5,6 @@ import {
   LIBRARY_COLOR_SWATCHES,
   LIBRARY_ICONS,
   libraryColorFill,
-  libraryColorLine,
   normalizeLibraryColor,
   normalizeLibraryIcon,
   optionalLibraryText,
@@ -33,17 +32,9 @@ describe('оформление библиотеки', () => {
     expect(libraryColorFill('blue', { selected: true })).not.toBe(libraryColorFill('blue'));
   });
 
-  it('берёт заливку и обводку из общего реестра цветов', () => {
+  it('берёт заливку из общего реестра цветов', () => {
     // Библиотека и вкладка не подбирают оттенок порознь: расчёт один.
     expect(libraryColorFill('blue')).toBe(accentFill('blue', { strength: 'tint' }));
-    expect(libraryColorLine('blue')).toBe(accentLine('blue'));
-    expect(libraryColorLine(undefined)).toBeUndefined();
-  });
-
-  it('делает обводку записи приглушённой', () => {
-    // Контур обозначает цвет записи, но не спорит с заливкой, текстом и выбором.
-    expect(libraryColorLine('blue', { strong: false })).toBe(accentLine('blue', { strong: false }));
-    expect(libraryColorLine('blue', { strong: false })).not.toBe(libraryColorLine('blue'));
   });
 
   it('предлагает общие с вкладками образцы иконок и цветов', () => {

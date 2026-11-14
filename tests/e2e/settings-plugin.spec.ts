@@ -85,14 +85,19 @@ test('журнал для разбора находится в сведения�
   await expect(log.getByRole('button', { name: 'Открыть' })).toBeVisible();
 });
 
-test('секция рисуется группой с линией и отступом содержимого', async ({ page }) => {
+test('секция рисуется группой с заголовком и отступом содержимого', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
   const heading = page.getByTestId('settings-group-heading').first();
   await expect(heading).toBeVisible();
-  // Строку сразу за заголовком продолжает горизонтальная линия.
-  await expect(heading.locator('[aria-hidden="true"]')).toBeVisible();
+  // Обводок нет: группу отделяет заголовок и отступ, а не линия.
+  const borders = await heading.evaluate((el) =>
+    [getComputedStyle(el).borderTopWidth, getComputedStyle(el).borderBottomWidth].map((v) =>
+      Number.parseFloat(v),
+    ),
+  );
+  expect(borders.every((width) => width === 0)).toBe(true);
   // Тело группы имеет отступ слева.
   const body = page.getByTestId('settings-group-body').first();
   const padding = await body.evaluate((el) => getComputedStyle(el).paddingLeft);

@@ -10,13 +10,7 @@
  * выглядят одинаково.
  */
 
-import {
-  ACCENT_COLORS,
-  ACCENT_COLOR_SWATCHES,
-  accentFill,
-  accentLine,
-  TAB_ICON_NAMES,
-} from '@context/ui';
+import { ACCENT_COLORS, ACCENT_COLOR_SWATCHES, accentFill, TAB_ICON_NAMES } from '@context/ui';
 import type { NoteColor } from '../notes/model';
 
 /** Допустимая библиотеке иконка: подмножество набора иконок дизайн-системы.
@@ -75,17 +69,4 @@ export function libraryColorFill(
     base: options.base,
     strength: options.selected ? 'active' : 'tint',
   });
-}
-
-/** CSS-цвет обводки библиотеки; отсутствует, если цвет не задан.
- *
- * Обводка меняется вместе с заливкой: цветная запись отличается не только
- * фоном, но и контуром. У невыбранной записи контур слабый (`strong: false`),
- * чтобы она не спорила с выбранной.
- */
-export function libraryColorLine(
-  color: LibraryColor | undefined,
-  options: { strong?: boolean } = {},
-): string | undefined {
-  return accentLine(color, options);
 }

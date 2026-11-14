@@ -25,7 +25,7 @@ describe('MetaList', () => {
     expect(screen.getByText('Автор')).toBeTruthy();
   });
 
-  it('обводит метку приглушённым цветом текста', () => {
+  it('ставит метку на поверхность группы контролов', () => {
     render(MetaList, {
       props: {
         items: [{ badge: 'PDF', value: 'книга.pdf' }],
@@ -34,6 +34,7 @@ describe('MetaList', () => {
 
     const badge = screen.getByTestId('meta-badge');
     expect(badge.textContent).toBe('PDF');
-    expect(badge.className).toContain('border-current/40');
+    expect(badge.className).toContain('bg-[var(--control-surface)]');
+    expect(badge.className).not.toContain('border');
   });
 });

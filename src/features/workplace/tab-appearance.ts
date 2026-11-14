@@ -8,7 +8,7 @@
  * получает библиотека и любая другая сущность с оформлением.
  */
 
-import { accentFill, accentLine } from '@context/ui';
+import { accentFill } from '@context/ui';
 import type { TabColor, WorkspaceTab } from './workplace';
 
 /** Эффективная подпись вкладки: пользовательское имя перекрывает название книги.
@@ -55,15 +55,6 @@ export function tabColorFill(
  */
 export function tabIdleFill(color: TabColor | undefined): string | undefined {
   return accentFill(color, { base: 'var(--tab-idle-surface)', strength: 'tint' });
-}
-
-/** CSS-цвет обводки цветной вкладки; отсутствует, если цвета нет.
- *
- * Обводка нужна только выбранной вкладке: у неактивной её нет — ни у цветной,
- * ни у нецветной, поэтому неактивные плашки стоят ровно, без контуров.
- */
-export function tabColorLine(color: TabColor | undefined, active = true): string | undefined {
-  return accentLine(color, { strong: active });
 }
 
 /** Подсказка вкладки: пользовательское имя и название книги.

@@ -44,7 +44,7 @@
    */
   const actionClass = $derived(
     [
-      'border-[var(--fn-border)] bg-transparent text-[var(--fn-text)]',
+      'bg-transparent text-[var(--fn-text)]',
       'hover:bg-[var(--fn-hover)] hover:text-[var(--fn-text)]',
     ].join(' '),
   );
@@ -63,16 +63,14 @@
       `width: ${MENU_WIDTH}px`,
       `background: ${tones.surface}`,
       `color: ${tones.text}`,
-      `border-color: ${tones.border}`,
       `--fn-text: ${tones.text}`,
-      `--fn-border: ${tones.border}`,
       `--fn-hover: ${tones.hover}`,
     ].join('; ');
   });
 </script>
 
 <div
-  class="absolute z-[var(--layer-popup)] flex flex-col gap-1 rounded-[var(--radius)] border p-1 shadow-overlay"
+  class="absolute z-[var(--layer-popup)] flex flex-col gap-1 rounded-[var(--radius)] p-1 shadow-overlay"
   data-testid="footnote-menu"
   data-reader-theme={readerTheme}
   style={style}

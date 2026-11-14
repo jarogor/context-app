@@ -781,13 +781,11 @@ describe('оформление библиотек', () => {
     expect(screen.getByTestId('library-name').textContent).toContain('Домашняя');
     // Описание в элементе списка не показывается: оно принадлежит карточке.
     expect(screen.queryByTestId('library-item-description')).toBeNull();
-    // Цвет задаёт заливку строки и приглушённую обводку, иконка стоит перед названием.
+    // Цвет задаёт только заливку строки: контуров в интерфейсе нет.
     const item = screen.getByTestId('library-item');
     const style = item.querySelector('[style]')?.getAttribute('style') ?? '';
     expect(style).toContain('--row-fill');
-    expect(style).toContain('--row-line');
-    // Обводка приглушена: доля цвета низкая, чтобы контур не спорил с выбором.
-    expect(Number(style.match(/--row-line: [^;]*?(\d+)%/)?.[1])).toBeLessThanOrEqual(20);
+    expect(style).not.toContain('--row-line');
     const name = item.querySelector('[data-testid="library-name"]');
     expect(name?.parentElement?.querySelector('svg')).not.toBeNull();
 
@@ -812,14 +810,16 @@ describe('оформление библиотек', () => {
     const item = screen.getByTestId('library-item');
     await fireEvent.click(item.querySelector('[data-testid="library-item"] button') as HTMLElement);
     const card = await screen.findByTestId('library-card-open');
-    // Шапка карточки залита цветом библиотеки; обводка карточки — тоже.
+    // Шапка карточки залита цветом библиотеки; контура у карточки нет.
     expect(card.parentElement?.className).toContain('bg-[var(--row-fill-selected');
-    expect(screen.getByTestId('library-card').getAttribute('style')).toContain('--row-line');
+    expect(screen.getByTestId('library-card').getAttribute('style') ?? '').not.toContain(
+      '--row-line',
+    );
   });
 
   it('не задаёт цветовых переменных записи без цвета', async () => {
-    // Без цвета фон и обводку берут классы: лишние переменные оставили бы
-    // строке контур, которого у нецветной записи быть не должно.
+    // Без цвета фон берут классы: лишние переменные оставили бы строке
+    // подкраску, которой у нецветной записи быть не должно.
     invoke.mockImplementation(async (command: string) => {
       if (command === 'library_history_list') {
         return {

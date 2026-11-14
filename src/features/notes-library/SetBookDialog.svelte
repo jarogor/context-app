@@ -136,7 +136,7 @@
             <button
               type="button"
               data-testid="bind-book-item"
-              class="flex w-full cursor-pointer items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+              class="flex w-full cursor-pointer items-start gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
               title={book.key}
               onclick={() => onSelect({ key: book.key, title: book.title })}
             >
@@ -153,7 +153,7 @@
       </ul>
     {/if}
 
-    <div class="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-3">
+    <div class="flex flex-wrap items-center justify-end gap-2 pt-3">
       <Button variant="ghost" size="sm" onclick={onClose}>
         {t('app.action.undo')}
       </Button>

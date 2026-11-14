@@ -5,15 +5,15 @@ import BookCover from './components/BookCover.svelte';
 import BookCoverPlaceholder from './components/BookCoverPlaceholder.svelte';
 
 describe('заглушка обложки', () => {
-  it('отделяется от подложки заливкой и обводкой', () => {
+  it('отделяется от подложки заливкой', () => {
     // Регресс: заглушка рисовалась тем же тоном, что и «полка» под ней,
     // поэтому пустой квадрат сливался с фоном и был невидим. Теперь у неё
-    // собственная заливка (`--muted`) и обводка (`--border`).
+    // собственная заливка (`--muted`), а контура нет: обводок в интерфейсе нет.
     render(BookCoverPlaceholder, { props: { testId: 'ph' } });
 
     const box = screen.getByTestId('ph');
     expect(box.className).toContain('bg-[var(--muted)]');
-    expect(box.className).toContain('border-[var(--border)]');
+    expect(box.className).not.toContain('border');
   });
 });
 

@@ -58,7 +58,7 @@
       {#if item.badge}
         <!-- Метка вместо иконки: короткое служебное значение (формат файла). -->
         <span
-          class="shrink-0 rounded-[calc(var(--radius)*0.5)] border border-current/40 px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide"
+          class="shrink-0 rounded-[calc(var(--radius)*0.5)] bg-[var(--control-surface)] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide"
           data-testid={`${item.testId ?? 'meta'}-badge`}
         >
           {item.badge}

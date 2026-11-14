@@ -124,8 +124,8 @@
   <button
     type="button"
     class="flex h-9 min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 {item.active
-      ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-      : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} px-2 tablet:px-3"
+ ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+ : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} px-2 tablet:px-3"
     aria-pressed={item.active}
     aria-label={item.label}
     title={item.label}
@@ -149,8 +149,8 @@
   <button
     type="button"
     class="relative flex min-h-[var(--touch-target)] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius)] px-1 py-1 transition-colors [font:inherit] {item.active
-      ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-      : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'}"
+ ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+ : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'}"
     aria-pressed={item.active}
     aria-label={item.title}
     title={item.title}
@@ -183,7 +183,7 @@
     панель на телефоне это меню не дублирует.
   -->
   <nav
-    class="flex w-full flex-none items-stretch gap-1 border-t border-[var(--border)] bg-[var(--panel)] px-1 pt-1 {className}"
+    class="flex w-full flex-none items-stretch gap-1 bg-[var(--panel)] px-1 pt-1 {className}"
     aria-label={t('app.sections.label')}
     data-testid="section-nav"
     data-mobile="true"

@@ -86,7 +86,7 @@ export function accentLine(
   if (!color) {
     return undefined;
   }
-  const base = options.base ?? 'var(--border)';
+  const base = options.base ?? 'var(--muted)';
   const percent = options.strong === false ? ACCENT_LINE_WEAK_PERCENT : ACCENT_LINE_PERCENT;
   return `color-mix(in oklab, ${ACCENT_COLOR_SWATCHES[color]} ${percent}%, ${base})`;
 }

@@ -155,15 +155,12 @@
 {:else if container === 'div'}
   <div
     class={cn(
-      'flex flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]',
+      'flex flex-col overflow-hidden rounded-[var(--radius)] bg-[var(--card)]',
       className,
     )}
   >
     {#each items as item (key(item))}
-      <section
-        class="flex flex-col border-b border-[var(--divider)] last:border-b-0"
-        data-testid={itemTestId}
-      >
+      <section class="flex flex-col" data-testid={itemTestId}>
         {@render listRow(item)}
         {#if body}
           {@render body(item)}
@@ -174,12 +171,12 @@
 {:else}
   <ul
     class={cn(
-      'flex min-w-0 list-none flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0',
+      'flex min-w-0 list-none flex-col overflow-hidden rounded-[var(--radius)] bg-[var(--card)] p-0',
       className,
     )}
   >
     {#each items as item (key(item))}
-      <li class="border-b border-[var(--divider)] last:border-b-0" data-testid={itemTestId}>
+      <li data-testid={itemTestId}>
         {#if isEditing?.(item) && editContent}
           {@render editContent(item)}
         {:else}

@@ -27,7 +27,7 @@
   import { noteColorLabel, NOTE_COLOR_SWATCHES } from '../notes/notes';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { openBookFile } from '../reader/reader';
-  import { tabColorFill, tabColorLine, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabColorFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -248,40 +248,36 @@
     return items;
   }
 
-  /** Стиль пункта: фон и обводка пользовательским цветом.
+  /** Стиль пункта: фон пользовательским цветом.
    *
    * Пункт повторяет вид строки заметок: у неактивного фон карточки, у выбранного
-   * — тон выбора. Если у вкладки задан цвет, он подмешивается в этот фон, а
-   * обводку получает только выбранный пункт — как и на полосе вкладок.
+   * — тон выбора. Если у вкладки задан цвет, он подмешивается в этот фон.
    */
   function itemFill(tab: WorkspaceTab): string {
     const base = tabColorFill(tab.color, 'var(--card)', false);
     const active = tabColorFill(tab.color, 'var(--card)', true);
-    const line = tabColorLine(tab.color, true);
-    if (!base || !active || !line) {
-      return '--item-line: var(--primary-border);';
+    if (!base || !active) {
+      return '';
     }
-    return ` --item-fill: ${base}; --item-fill-active: ${active}; --item-line: ${line};`;
+    return ` --item-fill: ${base}; --item-fill-active: ${active};`;
   }
 
   /** Классы пункта с учётом пользовательского цвета и активности.
    *
    * Как в списке заметок: неактивный стоит на фоне карточки и подсвечивается
-   * наведением, выбранный — фоном выбора и обводкой. Обводка берёт цвет
-   * вкладки, если он задан, иначе общую линию темы; у неактивного пункта её нет
-   * ни у цветной, ни у нецветной вкладки. Цветная подпись остаётся цветом
-   * основного текста: приглушённая заливка светлая, и вторичный цвет на ней
-   * сливался бы с фоном.
+   * наведением, выбранный — фоном выбора. Обводок нет: поверхности разделяются
+   * заливкой. Цветная подпись остаётся цветом основного текста: приглушённая
+   * заливка светлая, и вторичный цвет на ней сливался бы с фоном.
    */
   function itemFillClass(tab: WorkspaceTab): string {
     if (tab.id === activeTabId) {
       return tab.color
-        ? 'bg-[var(--item-fill-active)] border-[var(--item-line)] text-[var(--foreground)]'
-        : 'bg-[var(--surface-selected)] border-[var(--item-line)]';
+        ? 'bg-[var(--item-fill-active)] text-[var(--foreground)]'
+        : 'bg-[var(--surface-selected)]';
     }
     return tab.color
-      ? 'bg-[var(--item-fill)] border-transparent text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
-      : 'bg-[var(--card)] border-transparent hover:bg-[var(--surface-hover)]';
+      ? 'bg-[var(--item-fill)]  text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+      : 'bg-[var(--card)]  hover:bg-[var(--surface-hover)]';
   }
 
   /** Начало правки текстового свойства вкладки. */
@@ -369,9 +365,9 @@
   >
     {#each visible as tab (tab.id)}
       <li
-        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] border py-2.5 pr-2 pl-3 transition-colors {itemFillClass(
-          tab,
-        )}"
+        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] py-2.5 pr-2 pl-3 transition-colors {itemFillClass(
+ tab,
+ )}"
         style={itemFill(tab)}
         data-testid="open-books-item"
         data-tab-id={tab.id}

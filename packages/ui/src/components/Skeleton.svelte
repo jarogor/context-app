@@ -40,7 +40,7 @@
   {#each indices as index (index)}
     <div
       class={cn(
-        'animate-pulse rounded-[var(--radius)] border border-[var(--border)] bg-[var(--muted)]',
+        'animate-pulse rounded-[var(--radius)]  bg-[var(--muted)]',
         rowClass,
       )}
       aria-hidden="true"

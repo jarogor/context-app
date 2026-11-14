@@ -404,7 +404,7 @@
     а не форма: страница остаётся той же, меняются лишь значения.
   -->
   <header
-    class="flex flex-none flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--background)] px-4 py-2 tablet:px-6"
+    class="flex flex-none flex-wrap items-center gap-2 bg-[var(--background)] px-4 py-2 tablet:px-6"
   >
     <Button
       variant="secondary"
@@ -484,7 +484,7 @@
                     >
                       <span class="shrink-0">{t('app.library.book.published')}</span>
                       <span
-                        class="min-w-6 flex-1 border-b border-[var(--divider)]"
+                        class="min-w-6 flex-1"
                         aria-hidden="true"
                       ></span>
                     </dt>
@@ -519,7 +519,7 @@
                     >
                       <span class="shrink-0">{t('app.library.book.language')}</span>
                       <span
-                        class="min-w-6 flex-1 border-b border-[var(--divider)]"
+                        class="min-w-6 flex-1"
                         aria-hidden="true"
                       ></span>
                     </dt>
@@ -563,7 +563,7 @@
                     >
                       <span class="shrink-0">{t('app.library.book.publisher')}</span>
                       <span
-                        class="min-w-6 flex-1 border-b border-[var(--divider)]"
+                        class="min-w-6 flex-1"
                         aria-hidden="true"
                       ></span>
                     </dt>
@@ -598,7 +598,7 @@
                     >
                       <span class="shrink-0">{t('app.library.book.identifier')}</span>
                       <span
-                        class="min-w-6 flex-1 border-b border-[var(--divider)]"
+                        class="min-w-6 flex-1"
                         aria-hidden="true"
                       ></span>
                     </dt>
@@ -813,11 +813,11 @@
               data-testid="book-formats-loading"
             >
               <span
-                class="h-9 w-full max-w-[18rem] animate-pulse rounded-[var(--radius)] border border-[var(--border)] bg-[var(--muted)]"
+                class="h-9 w-full max-w-[18rem] animate-pulse rounded-[var(--radius)] bg-[var(--muted)]"
                 aria-hidden="true"
               ></span>
               <span
-                class="h-9 w-full max-w-[18rem] animate-pulse rounded-[var(--radius)] border border-[var(--border)] bg-[var(--muted)]"
+                class="h-9 w-full max-w-[18rem] animate-pulse rounded-[var(--radius)] bg-[var(--muted)]"
                 aria-hidden="true"
               ></span>
             </div>
@@ -829,7 +829,7 @@
               блок, и мало, чтобы она спорила с содержимым страницы.
             -->
             <div
-              class="flex flex-col divide-y divide-[var(--divider)] rounded-[var(--radius)] bg-[var(--surface-inset)]"
+              class="flex flex-col rounded-[var(--radius)] bg-[var(--surface-inset)]"
               role="list"
               data-testid="book-formats"
             >
@@ -916,14 +916,6 @@
                 </button>
               {/if}
             </section>
-          {/if}
-
-          <!--
-            Разделитель принадлежит описанию, а не файлу: без описания он не
-            нужен, иначе линия отделяла бы пустоту от файла.
-          -->
-          {#if description}
-            <div class="border-t border-[var(--divider)]" aria-hidden="true"></div>
           {/if}
 
           {#if openError}

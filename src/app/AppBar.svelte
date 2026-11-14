@@ -88,7 +88,7 @@
 </script>
 
 <header
-  class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 tablet:min-h-14 tablet:gap-4 tablet:px-6"
+  class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 bg-[var(--panel)] px-3 tablet:min-h-14 tablet:gap-4 tablet:px-6"
   style="padding-top: var(--safe-top);"
   data-testid="app-bar"
 >
@@ -112,7 +112,6 @@
   >
     {@html logoMarkup}
   </span>
-  <span class="hidden h-6 w-px shrink-0 bg-[var(--border)] tablet:block" aria-hidden="true"></span>
   <!--
     Навигационный текст. На узком окне (телефон, планшет) остаётся только имя
     выбранного объекта: название раздела уже показано меню-иконками, и «Рабочее

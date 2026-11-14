@@ -671,7 +671,7 @@
         счётчик отделяет отступ — счётчик не слипается с выпадающим списком.
       -->
       <div
-        class="flex flex-none flex-col gap-3 border-b border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2.5 tablet:flex-row tablet:flex-wrap tablet:items-center tablet:gap-2 tablet:px-6 large-tablet:flex-nowrap"
+        class="flex flex-none flex-col gap-3 bg-[var(--surface-inset)] px-4 py-2.5 tablet:flex-row tablet:flex-wrap tablet:items-center tablet:gap-2 tablet:px-6 large-tablet:flex-nowrap"
         data-testid="library-controls"
       >
         <Button
@@ -786,9 +786,9 @@
                   -->
                   <section
                     class="flex flex-col gap-1 rounded-[var(--radius)] transition-colors {highlightedFacet ===
-                    id
-                      ? 'bg-[var(--surface-selected)] ring-1 ring-[var(--primary-border)]'
-                      : ''}"
+ id
+ ? 'bg-[var(--surface-selected)] '
+ : ''}"
                     use:registerFacet={id}
                     data-testid="library-facet-section-{id}"
                   >
@@ -834,7 +834,7 @@
               {/each}
             </div>
             <div
-              class="flex flex-none items-center gap-2 border-t border-[var(--divider)] px-3 py-2"
+              class="flex flex-none items-center gap-2 px-3 py-2"
             >
               <Button
                 variant="ghost"
@@ -909,12 +909,12 @@
           </ul>
         {:else}
           <ul
-            class="m-0 flex list-none flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-0"
+            class="m-0 flex list-none flex-col overflow-hidden rounded-[var(--radius)] bg-[var(--card)] p-0"
             data-testid="library-list"
           >
             {#each pageBooksWithCovers as book (book.id)}
               <li
-                class="border-b border-[var(--divider)] last:border-b-0 even:bg-[var(--surface-inset)]"
+                class="even:bg-[var(--surface-inset)]"
               >
                 <button
                   class="flex w-full cursor-pointer items-center gap-3 p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
@@ -952,10 +952,10 @@
     -->
     {#if librarySelected}
       <nav
-        class="flex flex-none items-center gap-2 overflow-hidden border-t border-[var(--border)] bg-[var(--surface-inset)] px-4 py-2 tablet:px-6 {totalPages >
-        1
-          ? ''
-          : 'large-tablet:hidden'}"
+        class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--surface-inset)] px-4 py-2 tablet:px-6 {totalPages >
+ 1
+ ? ''
+ : 'large-tablet:hidden'}"
         aria-label={t('app.library.page.label')}
         data-testid="library-pagination"
       >

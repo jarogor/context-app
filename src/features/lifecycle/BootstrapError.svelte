@@ -17,7 +17,7 @@
   data-testid="bootstrap-error"
 >
   <span
-    class="border-[var(--destructive-border)] bg-[var(--destructive-soft)] text-[var(--destructive)] flex size-12 items-center justify-center rounded-full border"
+    class="bg-[var(--destructive-soft)] text-[var(--destructive)] flex size-12 items-center justify-center rounded-full"
     aria-hidden="true"
   >
     <Icon name="flag" class="h-6 w-6" />

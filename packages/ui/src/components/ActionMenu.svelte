@@ -149,7 +149,7 @@
       // Без плашки кнопка наследует и фон, и цвет владельца: на цветной вкладке
       // значок остаётся контрастным ей, а не спорит с ней собственной заливкой.
       plain
-        ? 'border-transparent bg-transparent text-current shadow-none hover:bg-[var(--surface-hover)] data-[state=open]:bg-[var(--surface-selected)]'
+        ? ' bg-transparent text-current shadow-none hover:bg-[var(--surface-hover)] data-[state=open]:bg-[var(--surface-selected)]'
         : 'text-[var(--muted-foreground)]',
       className,
     ),
@@ -172,7 +172,7 @@
     <DropdownMenu.Content
       sideOffset={4}
       align="end"
-      class="border-[var(--border)] bg-[var(--overlay-surface)] text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md border p-1 shadow-overlay"
+      class="bg-[var(--overlay-surface)] text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md p-1 shadow-overlay"
     >
       {#if colors.length > 0 || icons.length > 0}
         <!--
@@ -201,11 +201,11 @@
         </div>
       {/if}
       {#if (colors.length > 0 || icons.length > 0) && items.length > 0}
-        <div class="bg-[var(--border)] -mx-1 my-1 h-px"></div>
+        <div class="my-1 h-px"></div>
       {/if}
       {#each items as item (item.id)}
         {#if item.separatorBefore && item.id !== items[0]?.id}
-          <div class="bg-[var(--border)] -mx-1 my-1 h-px" aria-hidden="true"></div>
+          <div class="my-1 h-px" aria-hidden="true"></div>
         {/if}
         <DropdownMenu.Item
           disabled={item.disabled}

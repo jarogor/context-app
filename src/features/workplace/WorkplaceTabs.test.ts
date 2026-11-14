@@ -244,7 +244,7 @@ describe('панель вкладок: оформление вкладки', () 
     expect(colored.className).not.toContain('shadow-[inset');
   });
 
-  it('рисует обводку выбранной цветной вкладке', () => {
+  it('выделяет выбранную цветную вкладку заливкой, без обводки', () => {
     mockWidth(320);
     render(WorkplaceTabs, {
       props: {
@@ -254,8 +254,10 @@ describe('панель вкладок: оформление вкладки', () 
       },
     });
     const active = screen.getAllByTestId('workplace-tab-item')[1];
-    expect(active.className).toContain('shadow-[inset');
-    expect(active.getAttribute('style')).toContain('--tab-line: color-mix');
+    // Контуров в интерфейсе нет: активную вкладку отличает плотная заливка.
+    expect(active.className).toContain('bg-[var(--tab-fill-active)]');
+    expect(active.className).not.toContain('shadow-[inset');
+    expect(active.getAttribute('style')).not.toContain('--tab-line');
   });
 
   it('заливает активную цветную вкладку плотнее неактивной', () => {

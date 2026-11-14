@@ -14,7 +14,7 @@
     телефона (см. `app.css`), — иначе сообщение уходило бы под неё.
   -->
   <div
-    class="border-[var(--destructive-border)] bg-[var(--destructive-soft)] text-[var(--destructive)] fixed right-[0.5rem] left-[0.5rem] z-[var(--layer-popup)] rounded-[var(--radius)] border px-3 py-2 role-body shadow-overlay"
+    class="bg-[var(--destructive-soft)] text-[var(--destructive)] fixed right-[0.5rem] left-[0.5rem] z-[var(--layer-popup)] rounded-[var(--radius)] px-3 py-2 role-body shadow-overlay"
     style="bottom: calc(var(--safe-bottom) + var(--overlay-bottom-offset, 0.5rem));"
     role="alert"
   >

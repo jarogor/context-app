@@ -531,7 +531,7 @@
         <p class="mt-1 role-caption text-[var(--muted-foreground)]">{availableCore.notes}</p>
       {/if}
 
-      <div class="mt-4 border-t border-[var(--border)] pt-3">
+      <div class="mt-4 pt-3">
         <SourceEditor
           label={t('app.store.source')}
           ariaLabel={t('app.store.appSource')}
@@ -584,7 +584,7 @@
       </div>
 
       <!-- Источники стоят выше списка: из них приходят обновления плагинов. -->
-      <div class="flex flex-col gap-3 border-b border-[var(--border)] pb-3">
+      <div class="flex flex-col gap-3 pb-3">
         <SourceEditor
           label={t('app.store.source')}
           ariaLabel={t('app.store.pluginSourceDefault')}
@@ -612,7 +612,7 @@
             <ul class="flex list-none flex-col p-0" data-testid="store-plugin-sources">
               {#each extraPluginSources as store (store.id)}
                 <li
-                  class="flex items-center justify-between gap-3 py-2 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--divider)]"
+                  class="flex items-center justify-between gap-3 py-2 [&:not(:first-child)]:"
                 >
                   <code class="break-all role-mono text-[var(--muted-foreground)]">{store.location || '—'}</code>
                   <IconButton
@@ -635,7 +635,7 @@
           {#each plugins as plugin (plugin.id)}
             {@const update = updateFor(plugin)}
             <li
-              class="flex flex-wrap items-center justify-between gap-3 py-2.5 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--divider)]"
+              class="flex flex-wrap items-center justify-between gap-3 py-2.5 [&:not(:first-child)]:"
             >
               <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
                 <Checkbox

@@ -18,7 +18,7 @@
  * (`amber`); подключаются атрибутом `data-palette`.
  *
  * Блок `@theme inline` превращает токены в утилиты Tailwind (`bg-background`,
- * `text-muted-foreground`, `border-border`, `rounded-lg`, …).
+ * `text-muted-foreground`, `bg-panel`, `rounded-lg`, …).
  */
 :root {
   color-scheme: light;
@@ -33,9 +33,7 @@
    * так, чтобы активная вкладка и выбранный пункт списка были различимы на фоне
    * панели, а не сливались с ней. */
   --primary-soft: color-mix(in oklab, var(--primary) 30%, var(--background));
-  --primary-border: color-mix(in oklab, var(--primary) 62%, var(--border));
   --destructive-soft: color-mix(in oklab, var(--destructive) 12%, var(--background));
-  --destructive-border: color-mix(in oklab, var(--destructive) 42%, var(--border));
 
   /* Поверхности иерархии. Заливки-подсветки заданы **полупрозрачным акцентом
    * палитры**: `--primary` у каждой темы свой (смола зелёная у «Льна», синяя у
@@ -55,7 +53,6 @@
   --surface-selected: color-mix(in oklab, var(--primary) 24%, transparent);
   /* Линия-разделитель внутри списка: чуть заметнее обычной обводки, но тише
    * акцента; разделяет строки в едином листе, не превращая их в рамки. */
-  --divider: color-mix(in oklab, var(--foreground) 12%, var(--background));
 
   /* Фон панелей (боковые панели, полосы, шапки) — производный от базовых
    * токенов активной палитры: отделён и от фона области, и от карточки. */
@@ -102,9 +99,8 @@
    *   - тёмная тема: затемнять нечего (фон уже тёмный), поэтому слой поднимается
    *     **светлотой** поверхности, а тень лишь дополняет.
    * Цвет слоя у каждой палитры свой (задаётся в её блоке ниже), чтобы меню было в
-   * тон теме, а не серым пятном по умолчанию. Обводка слоя — общий `--border`
-   * темы: отдельного «яркого» контура у всплывающих слоёв нет, иначе он выбивался
-   * бы из остального интерфейса. */
+   * тон теме, а не серым пятном по умолчанию. Обводок в интерфейсе нет вовсе:
+   * слой отделяется поверхностью и тенью. */
   --overlay-surface: #fffdf6;
   --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.12);
   --elevation-raised: none;
@@ -201,8 +197,6 @@
   --destructive-foreground: #fbf8f1;
   /* Единая тонкая обводка областей и контролов: одно значение для полей ввода,
    * кнопок, карточек и пунктов списков. */
-  --border: color-mix(in oklab, var(--foreground) 13%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 18%, var(--background));
   --ring: #2e5c52;
   --radius: 0.5rem;
   --sidebar: #eae4d8;
@@ -211,7 +205,6 @@
   --sidebar-primary-foreground: #f4f1e9;
   --sidebar-accent: #ddd4c3;
   --sidebar-accent-foreground: #26231e;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 12%, var(--background));
   --sidebar-ring: #2e5c52;
   --success: #3f7d52;
   --warning: #a5741d;
@@ -240,8 +233,6 @@
   --muted-foreground: #9d968a;
   --destructive: #e2685c;
   --destructive-foreground: #17191a;
-  --border: color-mix(in oklab, var(--foreground) 14%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
   --ring: #7db9a7;
   --sidebar: #1c1f20;
   --sidebar-foreground: #e7e2d7;
@@ -249,7 +240,6 @@
   --sidebar-primary-foreground: #12181a;
   --sidebar-accent: #2c3132;
   --sidebar-accent-foreground: #e7e2d7;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 12%, var(--background));
   --sidebar-ring: #7db9a7;
   --success: #86bd90;
   --warning: #e0b063;
@@ -280,8 +270,6 @@
   --muted-foreground: #495a78;
   --destructive: #a83a2e;
   --destructive-foreground: #ffffff;
-  --border: color-mix(in oklab, var(--foreground) 16%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 22%, var(--background));
   --ring: #204592;
   --sidebar: #e2e9f6;
   --sidebar-foreground: #0f1622;
@@ -289,7 +277,6 @@
   --sidebar-primary-foreground: #f7f9fc;
   --sidebar-accent: #cfd9ee;
   --sidebar-accent-foreground: #0f1622;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
   --sidebar-ring: #204592;
   --success: #2f7d4f;
   --warning: #8f6415;
@@ -315,8 +302,6 @@
   --muted-foreground: #90a0bd;
   --destructive: #e0685c;
   --destructive-foreground: #0c1526;
-  --border: color-mix(in oklab, var(--foreground) 13%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 19%, var(--background));
   --ring: #608fed;
   --sidebar: #101a2e;
   --sidebar-foreground: #e4e9f4;
@@ -324,7 +309,6 @@
   --sidebar-primary-foreground: #0a101c;
   --sidebar-accent: #1f2c4a;
   --sidebar-accent-foreground: #e4e9f4;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 12%, var(--background));
   --sidebar-ring: #608fed;
   --success: #78b98a;
   --warning: #dcae62;
@@ -351,8 +335,6 @@
   --muted-foreground: #715e49;
   --destructive: #9d0006;
   --destructive-foreground: #fdf6e6;
-  --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
   --ring: #a84b07;
   --sidebar: #f9edd7;
   --sidebar-foreground: #3c3836;
@@ -360,7 +342,6 @@
   --sidebar-primary-foreground: #fdf6e6;
   --sidebar-accent: #f0ddb6;
   --sidebar-accent-foreground: #3c3836;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
   --sidebar-ring: #a84b07;
   --success: #427b58;
   --warning: #b57614;
@@ -387,8 +368,6 @@
   --muted-foreground: #b3a08c;
   --destructive: #fb4934;
   --destructive-foreground: #2b2523;
-  --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 20%, var(--background));
   --ring: #e3a24a;
   --sidebar: #342d2a;
   --sidebar-foreground: #ebdbb2;
@@ -396,7 +375,6 @@
   --sidebar-primary-foreground: #2b2523;
   --sidebar-accent: #3c3430;
   --sidebar-accent-foreground: #ebdbb2;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 13%, var(--background));
   --sidebar-ring: #e3a24a;
   --success: #8ec07c;
   --warning: #fabd2f;
@@ -422,8 +400,6 @@
   --muted-foreground: #565b60;
   --destructive: #b3261e;
   --destructive-foreground: #ffffff;
-  --border: color-mix(in oklab, var(--foreground) 16%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 22%, var(--background));
   --ring: #454b52;
   --sidebar: #eef0f1;
   --sidebar-foreground: #1b1e21;
@@ -431,7 +407,6 @@
   --sidebar-primary-foreground: #fafbfc;
   --sidebar-accent: #dfe2e4;
   --sidebar-accent-foreground: #1b1e21;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 14%, var(--background));
   --sidebar-ring: #454b52;
   --success: #2f7d4f;
   --warning: #976a15;
@@ -457,8 +432,6 @@
   --muted-foreground: #9aa0a6;
   --destructive: #e0685c;
   --destructive-foreground: #16181a;
-  --border: color-mix(in oklab, var(--foreground) 15%, var(--background));
-  --input: color-mix(in oklab, var(--foreground) 21%, var(--background));
   --ring: #b4bbc3;
   --sidebar: #191c1e;
   --sidebar-foreground: #eceef0;
@@ -466,7 +439,6 @@
   --sidebar-primary-foreground: #14161a;
   --sidebar-accent: #2a2e31;
   --sidebar-accent-foreground: #eceef0;
-  --sidebar-border: color-mix(in oklab, var(--foreground) 13%, var(--background));
   --sidebar-ring: #b4bbc3;
   --success: #7ab98c;
   --warning: #d9ad63;
@@ -594,22 +566,17 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
   --color-ring: var(--ring);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-primary-soft: var(--primary-soft);
-  --color-primary-border: var(--primary-border);
   --color-destructive-soft: var(--destructive-soft);
-  --color-destructive-border: var(--destructive-border);
   --color-surface-inset: var(--surface-inset);
   --color-code-surface: var(--code-surface);
   --color-control-surface: var(--control-surface);
   --color-surface-hover: var(--surface-hover);
   --color-surface-selected: var(--surface-selected);
   --color-tab-idle-surface: var(--tab-idle-surface);
-  --color-divider: var(--divider);
   --color-overlay-surface: var(--overlay-surface);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

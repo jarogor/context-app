@@ -46,7 +46,7 @@
 {#if showImage}
   <span
     class={cn(
-      'block aspect-[2/3] w-full overflow-hidden rounded-sm border border-[var(--border)] bg-[var(--muted)]',
+      'block aspect-[2/3] w-full overflow-hidden rounded-sm  bg-[var(--muted)]',
       className,
     )}
     data-testid={testId}

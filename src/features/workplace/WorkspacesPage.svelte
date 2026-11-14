@@ -635,7 +635,7 @@
         <li data-testid="workspace-item">
           {#if editingId === item.id}
             <div
-              class="flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--primary-border)] bg-[var(--card)] p-4"
+              class="flex h-full flex-col gap-2 rounded-[var(--radius)] bg-[var(--card)] p-4"
             >
               <span class="role-eyebrow text-[var(--muted-foreground)]"
                 >{t('app.workspace.renameEyebrow')}</span
@@ -661,7 +661,7 @@
             </div>
           {:else}
             <article
-              class="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] transition-colors hover:bg-[var(--surface-hover)]"
+              class="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius)] bg-[var(--card)] transition-colors hover:bg-[var(--surface-hover)]"
               data-current={item.id === currentId ? 'true' : 'false'}
             >
               <!--
@@ -686,7 +686,7 @@
                 поэтому весь ряд помещается в карточку и не обрезается.
               -->
               <div
-                class="pointer-events-none flex h-[6.5rem] items-center gap-2 overflow-hidden border-b border-[var(--divider)] bg-[var(--card)] px-3"
+                class="pointer-events-none flex h-[6.5rem] items-center gap-2 overflow-hidden bg-[var(--card)] px-3"
               >
                 {#if previewPaths(item).length > 0}
                   <span
@@ -702,7 +702,7 @@
                     {/each}
                     {#if hiddenCount(item) > 0}
                       <span
-                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center rounded-sm border border-[var(--border)] bg-[var(--muted)] role-caption text-[var(--muted-foreground)]"
+                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center rounded-sm bg-[var(--muted)] role-caption text-[var(--muted-foreground)]"
                         data-testid="workspace-covers-more"
                         title={t('app.workspace.moreBooks', { count: hiddenCount(item) })}
                       >

@@ -6,7 +6,7 @@
   import { openAvailability } from './workplace';
   import { logEvent } from '../../shared/app-log';
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
-  import { tabColorFill, tabColorLine, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabColorFill, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { hotkeyHint } from '../hotkeys/registry';
 
@@ -402,19 +402,17 @@
     return tab ? tabLabel(tab) : '';
   });
 
-  /** Фрагмент стиля вкладки: заливка и обводка пользовательским цветом.
+  /** Фрагмент стиля вкладки: заливка пользовательским цветом.
    *
    * У вкладки без цвета фон задаётся классом (`--tab-idle-surface`), поэтому
    * переменная не нужна. У цветной: неактивная залита слабым оттенком цвета
-   * поверх общего фона неактивной вкладки, активная — плотнее; обводку получает
-   * только активная, как и нецветная: у неактивных контура нет ни у кого.
+   * поверх общего фона неактивной вкладки, активная — плотнее.
    */
   function tabFill(tab: WorkspaceTab): string {
     const base = tabIdleFill(tab.color);
     const active = tabColorFill(tab.color, 'var(--muted)', true);
-    const line = tabColorLine(tab.color, true);
-    return base && active && line
-      ? ` --tab-fill: ${base}; --tab-fill-active: ${active}; --tab-line: ${line};`
+    return base && active
+      ? ` --tab-fill: ${base}; --tab-fill-active: ${active};`
       : '';
   }
 
@@ -430,15 +428,14 @@
    * своего цвета. Наведение — прежнее.
    *
    * Подпись цветной вкладки остаётся цветом основного текста: приглушённая
-   * заливка светлая, и вторичный цвет на ней сливался с фоном. Цветная обводка
-   * рисуется внутренней тенью: рамка добавила бы размер и сдвинула бы вкладки
-   * на полосе.
+   * заливка светлая, и вторичный цвет на ней сливался с фоном. Обводок нет:
+   * вкладку выделяет заливка, а не контур.
    */
   function tabFillClass(tab: WorkspaceTab): string {
     const active = tab.id === activeTabId;
     if (tab.color) {
       return active
-        ? 'bg-[var(--tab-fill-active)] text-[var(--foreground)] shadow-[inset_0_0_0_1px_var(--tab-line)]'
+        ? 'bg-[var(--tab-fill-active)] text-[var(--foreground)]'
         : 'bg-[var(--tab-fill)] text-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
     }
     return active

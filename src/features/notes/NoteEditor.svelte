@@ -45,7 +45,7 @@
 </script>
 
 <div
-  class="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-2"
+  class="mt-2 flex flex-col gap-2 pt-2"
   data-testid="notes-item-editor"
 >
   <Input

@@ -139,25 +139,23 @@ describe('панель открытых книг: оформление', () => {
     expect(screen.queryByLabelText('Закрыть вкладку')).toBeNull();
   });
 
-  it('оформляет пункт как строку заметок: без обводки у невыбранных', () => {
-    // Дефект: у каждого пункта была своя обводка, из-за чего список читался
-    // набором рамок, а не единым листом, как в заметках.
+  it('оформляет пункт как строку заметок: поверхности без обводок', () => {
     render(OpenBooksPanel, {
       props: { tabs: [tab('t1'), tab('t2')], activeTabId: 't2', ...handlers() },
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    // Невыбранный пункт — на фоне карточки и без видимой обводки.
+    // Невыбранный пункт — на фоне карточки.
     expect(items[0].className).toContain('bg-[var(--card)]');
-    expect(items[0].className).toContain('border-transparent');
-    // Выбранный — фон выбора и обводка.
+    // Выбранный — фоном выбора. Контуров нет ни у кого: поверхности
+    // разделяются заливкой.
     expect(items[1].className).toContain('bg-[var(--surface-selected)]');
-    expect(items[1].className).toContain('border-[var(--item-line)]');
+    for (const item of items) {
+      expect(item.className).not.toContain('border');
+    }
   });
 
-  it('даёт обводку выбранному пункту и не даёт невыбранному цветному', () => {
-    // Цветная обводка — общий расчёт цвета: тот же, что у плашки на полосе.
-    // Контур получает только выбранный пункт, как и на полосе вкладок.
+  it('заливает выбранный цветной пункт цветом вкладки без контура', () => {
     render(OpenBooksPanel, {
       props: {
         tabs: [tab('t1', { color: 'blue' }), tab('t2', { color: 'blue' })],
@@ -167,13 +165,14 @@ describe('панель открытых книг: оформление', () => {
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    // Выбранный цветной — контур цветом вкладки.
-    expect(items[0].className).toContain('border-[var(--item-line)]');
-    expect(items[0].getAttribute('style')).toContain('--item-line: color-mix');
+    // Выбранный цветной — плотнее невыбранного, цвет в заливке.
+    expect(items[0].className).toContain('bg-[var(--item-fill-active)]');
     expect(items[0].getAttribute('style')).toContain('#2563eb');
-    // Невыбранный цветной — только заливка, без контура.
-    expect(items[1].className).toContain('border-transparent');
-    expect(items[1].className).not.toContain('border-[var(--item-line)]');
+    // Невыбранный цветной — слабее, и тоже без контура.
+    expect(items[1].className).toContain('bg-[var(--item-fill)]');
+    for (const item of items) {
+      expect(item.className).not.toContain('border');
+    }
   });
 });
 

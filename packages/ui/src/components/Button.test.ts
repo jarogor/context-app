@@ -19,15 +19,13 @@ describe('Button', () => {
     expect(onclick).toHaveBeenCalledTimes(1);
   });
 
-  it('рисует приглушённую красную обводку опасной иконочной кнопки', () => {
-    // Обводка «опасной» кнопки видна, но не кричит: красный смешан с общей
-    // линией темы — как у соседних кнопок формы, только в тоне опасности.
+  it('красит опасную иконочную кнопку в тон опасности без обводки', () => {
     const children = createRawSnippet(() => ({ render: () => '<svg></svg>' }));
 
     render(Button, { props: { variant: 'ghost-danger', size: 'icon', children } });
 
     const classes = screen.getByRole('button').className;
-    expect(classes).toContain('border-[var(--destructive-border)]');
     expect(classes).toContain('text-destructive');
+    expect(classes).not.toContain('border');
   });
 });

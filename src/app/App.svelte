@@ -1445,7 +1445,7 @@
           месте.
         -->
         <header
-          class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 large-tablet:min-h-14 large-tablet:gap-4 large-tablet:px-6"
+          class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 bg-[var(--panel)] px-3 large-tablet:min-h-14 large-tablet:gap-4 large-tablet:px-6"
           data-testid="settings-header"
         >
           <span class="min-w-0 flex-1 truncate role-heading text-[var(--foreground)]"
@@ -1485,7 +1485,7 @@
           -->
           <Menu
             ariaLabel={t('app.settings.sections')}
-            class="shrink-0 gap-1 overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-2 max-large-tablet:mx-4 max-large-tablet:mt-3 max-large-tablet:flex-row large-tablet:mx-3 large-tablet:my-3 large-tablet:w-[13rem] large-tablet:flex-none large-tablet:flex-col large-tablet:self-start"
+            class="shrink-0 gap-1 overflow-x-auto rounded-[var(--radius)] bg-[var(--card)] p-2 max-large-tablet:mx-4 max-large-tablet:mt-3 max-large-tablet:flex-row large-tablet:mx-3 large-tablet:my-3 large-tablet:w-[13rem] large-tablet:flex-none large-tablet:flex-col large-tablet:self-start"
           >
             <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
               {t('app.settings.general')}

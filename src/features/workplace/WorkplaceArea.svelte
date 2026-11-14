@@ -853,7 +853,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
               data-testid="note-mode-hud"
             >
               <div
-                class="pointer-events-auto flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--overlay-surface)] px-3 py-1 text-xs shadow-overlay"
+                class="pointer-events-auto flex items-center gap-2 rounded-full bg-[var(--overlay-surface)] px-3 py-1 text-xs shadow-overlay"
               >
                 <span class="flex items-center gap-1.5 font-medium">
                   <Icon name="pencil" class="h-3.5 w-3.5 text-[var(--primary)]" />

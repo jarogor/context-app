@@ -447,9 +447,9 @@
           role="tab"
           aria-selected={activeTab === item}
           class="cursor-pointer rounded-[var(--radius)] px-2 py-1 role-caption transition-colors {activeTab ===
-          item
-            ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-            : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'}"
+ item
+ ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+ : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'}"
           data-testid="properties-tab-{item}"
           onclick={() => onSelectTab?.(item)}
         >
@@ -572,7 +572,7 @@
           Полоса управления превью стоит над сеткой и не сдвигается ею: это
           отдельная строка постоянной высоты, а не часть прокручиваемого списка.
         -->
-        <div class="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
+        <div class="flex items-center gap-2 px-3 py-2">
           <button
             type="button"
             class="cursor-pointer rounded-[var(--radius)] px-2 py-1 role-caption text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
@@ -608,9 +608,9 @@
             <button
               type="button"
               class="flex h-[10rem] cursor-pointer flex-col items-center gap-1 overflow-hidden rounded-[var(--radius)] p-1 transition-colors {currentPage ===
-              page
-                ? 'bg-[var(--surface-selected)]'
-                : 'hover:bg-[var(--surface-hover)]'}"
+ page
+ ? 'bg-[var(--surface-selected)]'
+ : 'hover:bg-[var(--surface-hover)]'}"
               aria-label={t('app.note.page', { page })}
               aria-current={currentPage === page ? 'true' : undefined}
               data-testid="properties-page"
@@ -620,11 +620,11 @@
                 <img
                   src={snapshot.thumbs[page]}
                   alt={t('app.note.page', { page })}
-                  class="min-h-0 w-full flex-1 rounded-[0.25rem] border border-[var(--border)] object-contain"
+                  class="min-h-0 w-full flex-1 rounded-[0.25rem] object-contain"
                 />
               {:else}
                 <span
-                  class="flex min-h-0 w-full flex-1 items-center justify-center rounded-[0.25rem] border border-[var(--border)] bg-[var(--muted)] text-[var(--muted-foreground)]"
+                  class="flex min-h-0 w-full flex-1 items-center justify-center rounded-[0.25rem] bg-[var(--muted)] text-[var(--muted-foreground)]"
                   data-testid={page >= windowStart && page < windowStart + THUMB_WINDOW
                     ? 'properties-page-pending'
                     : 'properties-page-idle'}
@@ -645,7 +645,7 @@
           {/if}
         </div>
       {:else if activeTab === 'annotations'}
-        <div class="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-3 py-2">
+        <div class="flex flex-wrap items-center gap-2 px-3 py-2">
           <span
             class="min-w-0 flex-1 role-caption text-[var(--muted-foreground)]"
             data-testid="properties-annotations-status"
@@ -687,7 +687,7 @@
           </p>
         {/if}
         {#if shownAnnotations.size > 0}
-          <div class="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
+          <div class="flex items-center gap-2 px-3 py-2">
             <span class="role-caption text-[var(--muted-foreground)]"
               >{t('app.properties.annotations.shown', { count: shownAnnotations.size })}</span
             >
@@ -705,10 +705,10 @@
           {#each annotations as annotation (annotation.id)}
             <li
               class="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 transition-colors {shownAnnotations.has(
-                annotation.id,
-              )
-                ? 'bg-[var(--surface-selected)]'
-                : 'hover:bg-[var(--surface-hover)]'}"
+ annotation.id,
+ )
+ ? 'bg-[var(--surface-selected)]'
+ : 'hover:bg-[var(--surface-hover)]'}"
             >
               <!--
                 Галочка — единственный переключатель показа: по умолчанию она
@@ -734,7 +734,7 @@
               >
                 <span class="flex w-full items-center gap-2">
                   <span
-                    class="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border)]"
+                    class="h-2.5 w-2.5 shrink-0 rounded-full"
                     style="background: {annotation.color || 'transparent'}"
                     aria-hidden="true"
                   ></span>

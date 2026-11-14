@@ -44,7 +44,7 @@
 >
   {#if icon}
     <span
-      class="text-[var(--muted-foreground)] flex size-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)]"
+      class="text-[var(--muted-foreground)] flex size-12 items-center justify-center rounded-full bg-[var(--card)]"
       aria-hidden="true"
     >
       <Icon name={icon} class="h-6 w-6" />

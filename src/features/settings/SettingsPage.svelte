@@ -225,7 +225,7 @@
     {#each visible as item, index (item.declaration?.id ?? index)}
       {#if item.declaration}
         <section
-          class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 tablet:p-5"
+          class="rounded-[var(--radius)] bg-[var(--card)] p-4 tablet:p-5"
           data-testid="settings-section"
         >
           <UiRenderer
@@ -260,7 +260,7 @@
       data-testid="settings-footer"
     >
       <div
-        class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3"
+        class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] bg-[var(--card)] px-4 py-3"
       >
         <span class="role-caption text-[var(--muted-foreground)]">
           {dirty ? t('app.settings.dirty') : t('app.settings.saved')}

@@ -565,8 +565,7 @@
     >
       {#snippet titleContent(set)}
         <span
-          class="inline-flex size-5 shrink-0 items-center justify-center rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)] transition-transform"
-          class:border-[var(--primary-border)]={isExpanded(set.id)}
+          class="inline-flex size-5 shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--background)] text-[var(--muted-foreground)] transition-transform"
           class:text-[var(--primary)]={isExpanded(set.id)}
           class:rotate-90={isExpanded(set.id)}
         >
@@ -591,7 +590,7 @@
             </p>
           {:else}
             <div
-              class="border-t border-[var(--divider)] bg-[var(--surface-inset)] p-2 pl-4"
+              class="bg-[var(--surface-inset)] p-2 pl-4"
               data-testid="notes-library-notes"
             >
               <ul class="m-0 flex list-none flex-col gap-1 p-0">
@@ -646,7 +645,7 @@
                     <li>
                       <button
                         type="button"
-                        class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                        class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
                         data-testid="notes-set-history-item"
                         onclick={() => chooseWorkspace(item.id)}
                       >
@@ -669,7 +668,7 @@
                     <li>
                       <button
                         type="button"
-                        class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                        class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
                         data-testid="notes-set-workspace-item"
                         onclick={() => chooseWorkspace(item.id)}
                       >
@@ -688,7 +687,7 @@
               </p>
             {/if}
 
-            <div class="mt-auto flex flex-col gap-2 border-t border-[var(--border)] pt-3">
+            <div class="mt-auto flex flex-col gap-2 pt-3">
               {#if creating}
                 <div class="flex items-center gap-2">
                   <Input

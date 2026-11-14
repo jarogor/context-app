@@ -94,7 +94,7 @@
     <ul class="flex list-none flex-col p-0">
       {#each info.paths as path (path.key)}
         <li
-          class="flex flex-col gap-[0.125rem] py-3 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--divider)]"
+          class="flex flex-col gap-[0.125rem] py-3 [&:not(:first-child)]:"
           data-testid={`app-path-${path.key}`}
         >
           <span class="flex flex-wrap items-baseline gap-x-2">

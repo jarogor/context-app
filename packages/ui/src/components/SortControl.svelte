@@ -94,7 +94,7 @@
 -->
 <div
   class={cn(
-    'inline-flex h-9 min-w-0 shrink-0 items-center gap-0.5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--control-surface)] p-0.5 pointer-coarse:h-11',
+    'inline-flex h-9 min-w-0 shrink-0 items-center gap-0.5 rounded-[var(--radius)]  bg-[var(--control-surface)] p-0.5 pointer-coarse:h-11',
     className,
   )}
   data-testid={testId}
@@ -109,7 +109,6 @@
     )}
     onchange={(next) => onchange(next)}
   />
-  <span class="h-4 w-px shrink-0 self-center bg-[var(--divider)]" aria-hidden="true"></span>
   <Button
     variant="ghost"
     size="icon"

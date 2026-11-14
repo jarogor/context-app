@@ -137,7 +137,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-2 border-b border-[var(--border)] p-2.5" data-testid="notes-sets">
+<div class="flex flex-col gap-2 p-2.5" data-testid="notes-sets">
   {#if creating}
     <label class="flex flex-col gap-1">
       <span class="role-caption text-[var(--muted-foreground)]"

@@ -290,7 +290,7 @@
 
 <div
   bind:this={bar}
-  class="flex h-[var(--book-bar-height)] flex-none flex-nowrap items-center gap-1.5 overflow-hidden border-t border-[var(--border)] bg-[var(--card)] px-2 text-sm [font-variant-numeric:tabular-nums]"
+  class="flex h-[var(--book-bar-height)] flex-none flex-nowrap items-center gap-1.5 overflow-hidden bg-[var(--card)] px-2 text-sm [font-variant-numeric:tabular-nums]"
   data-testid="book-bar"
   role="toolbar"
   aria-label={t('app.bookBar.label')}
@@ -330,9 +330,9 @@
           type="button"
           {...props}
           class="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-hover)] {tool.type ===
-          'quote'
-            ? 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
-            : 'bg-[var(--primary)] text-[var(--primary-foreground)]'}"
+ 'quote'
+ ? 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+ : 'bg-[var(--primary)] text-[var(--primary-foreground)]'}"
           title={t('app.bookBar.tool')}
           aria-label={t('app.bookBar.tool')}
           aria-pressed={tool.type !== 'quote'}
@@ -406,8 +406,8 @@
       <span
         class="text-[0.95rem] leading-none"
         style="font-family: {readerFont === 'serif'
-          ? "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-          : "Georgia, 'Times New Roman', serif"}"
+          ?"system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+          :"Georgia, 'Times New Roman', serif"}"
         aria-hidden="true">Аа</span
       >
     </Button>

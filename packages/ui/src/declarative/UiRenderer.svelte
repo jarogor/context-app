@@ -80,7 +80,7 @@
         {groupTitle}
       </span>
     {/if}
-    <span class="h-px min-w-4 flex-1 bg-[var(--border)]" aria-hidden="true"></span>
+    <span class="min-w-4 flex-1" aria-hidden="true"></span>
   </div>
   {#if groupDescription}
     <p class="mb-3 text-muted-foreground role-body" data-testid="settings-group-description">

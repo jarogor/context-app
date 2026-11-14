@@ -14,7 +14,7 @@
 
 <div
   class={cn(
-    'bg-card text-card-foreground rounded-[var(--radius)] border border-[var(--border)] p-4',
+    'bg-card text-card-foreground rounded-[var(--radius)]  p-4',
     className,
   )}
 >

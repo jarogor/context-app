@@ -73,7 +73,7 @@
 </script>
 
 <div
-  class="flex flex-col gap-2 border-b border-[var(--border)] p-2"
+  class="flex flex-col gap-2 p-2"
   data-testid="reader-search"
   role="search"
   aria-label={t('app.reader.searchShort')}
