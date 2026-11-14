@@ -7,6 +7,8 @@
 
 import { t } from '@context/i18n';
 import {
+  ACCENT_COLORS,
+  ACCENT_COLOR_SWATCHES,
   DEFAULT_PALETTE,
   DEFAULT_READER_THEME,
   readerThemeNoteTones,
@@ -28,8 +30,13 @@ export function defaultSetName(): string {
 /** Цвет подсветки заметки по умолчанию. */
 export const DEFAULT_NOTE_COLOR = 'yellow';
 
-/** Доступные цвета подсветки заметки. */
-export const NOTE_COLORS = ['yellow', 'green', 'blue', 'red', 'purple'] as const;
+/** Доступные цвета подсветки заметки.
+ *
+ * Идентификаторы общие для интерфейса: тот же набор выбирает цвет вкладки,
+ * библиотеки и любой другой сущности с оформлением, поэтому список цветов не
+ * расходится между областями.
+ */
+export const NOTE_COLORS = ACCENT_COLORS;
 
 /** Идентификатор цвета подсветки заметки. */
 export type NoteColor = (typeof NOTE_COLORS)[number];
@@ -45,13 +52,7 @@ export function noteColorLabel(color: NoteColor): string {
  * был узнаваем. Сам вид заметки на странице и её метка в списке берут мягкий тон
  * (`NOTE_COLOR_HIGHLIGHTS`), а не этот акцент.
  */
-export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = {
-  yellow: '#eab308',
-  green: '#16a34a',
-  blue: '#2563eb',
-  red: '#dc2626',
-  purple: '#9333ea',
-};
+export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = ACCENT_COLOR_SWATCHES;
 
 /** Мягкие тона заметок: фон цитаты, заливка фигуры и карточки, метка списка.
  *

@@ -19,7 +19,7 @@
         ghost: 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
         danger: 'bg-destructive text-destructive-foreground hover:brightness-110',
         'ghost-danger':
-          'border border-[var(--border)] text-destructive hover:bg-destructive-soft hover:border-destructive-border',
+          'border border-[var(--destructive-border)] text-destructive hover:bg-destructive-soft hover:border-[var(--destructive)]',
       },
       size: {
         md: 'h-9 px-4 py-2 pointer-coarse:min-h-11',

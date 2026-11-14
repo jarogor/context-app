@@ -6,7 +6,9 @@
     Button,
     EntityList,
     Icon,
+    NameDescriptionEditor,
     PageShell,
+    Dialog,
     PathField,
     Progress,
     SearchField,
@@ -14,6 +16,8 @@
     SortControl,
     Spinner,
     type MenuAction,
+    type MenuColor,
+    type MenuIcon,
     type MetaItem,
     type SortDirection,
   } from '@context/ui';
@@ -24,6 +28,19 @@
   import { lastSegment } from '../../shared/path';
   import { activeLibrary } from '../../shared/base-plugin';
   import { PHONE_MAX_WIDTH } from '../../shared/breakpoints';
+  import { noteColorLabel } from '../notes/model';
+  import {
+    LIBRARY_COLORS,
+    LIBRARY_COLOR_SWATCHES,
+    LIBRARY_ICONS,
+    libraryColorFill,
+    libraryColorLine,
+    normalizeLibraryColor,
+    normalizeLibraryIcon,
+    optionalLibraryText,
+    type LibraryColor,
+    type LibraryIcon,
+  } from './library-appearance';
   import appConfig from './app-config.json';
 
   interface Props {
@@ -45,18 +62,45 @@
     addedAtMillis: number;
     /** Доступна ли библиотека на диске. */
     available: boolean;
+    /** Пользовательское название библиотеки; отсутствует, если не задано. */
+    name?: string;
+    /** Пользовательское описание библиотеки; отсутствует, если не задано. */
+    description?: string;
+    /** Иконка оформления библиотеки; отсутствует, если не задана. */
+    icon?: LibraryIcon;
+    /** Цвет оформления библиотеки; отсутствует, если не задан. */
+    color?: LibraryColor;
   }
 
   /** Нормализация записи истории из ответа команды (snake_case → camelCase). */
   function normalizeHistoryEntry(value: unknown): HistoryEntry {
     const record = (value ?? {}) as Record<string, unknown>;
-    return {
+    const entry: HistoryEntry = {
       path: String(record.path ?? ''),
       provider: String(record.provider ?? ''),
       providerName: String(record.provider_name ?? ''),
       addedAtMillis: Number(record.added_at_millis ?? 0),
       available: Boolean(record.available),
     };
+    // Оформление необязательно: неизвестные иконка и цвет отбрасываются, а
+    // пустые строки читаются как «не задано».
+    const name = optionalLibraryText(record.name);
+    const description = optionalLibraryText(record.description);
+    const icon = normalizeLibraryIcon(record.icon);
+    const color = normalizeLibraryColor(record.color);
+    if (name !== undefined) {
+      entry.name = name;
+    }
+    if (description !== undefined) {
+      entry.description = description;
+    }
+    if (icon !== undefined) {
+      entry.icon = icon;
+    }
+    if (color !== undefined) {
+      entry.color = color;
+    }
+    return entry;
   }
 
   let entries: HistoryEntry[] = $state([]);
@@ -186,25 +230,41 @@
   /** Записи списка, отфильтрованные поиском и упорядоченные выбранным полем. */
   const filtered = $derived.by(() => {
     const needle = query.trim().toLowerCase();
+    // Поиск идёт и по подписи, и по имени папки: оформленное название не должно
+    // прятать библиотеку от запроса по её директории.
     const found = needle
-      ? entries.filter((entry) => libraryName(entry.path).toLowerCase().includes(needle))
+      ? entries.filter(
+          (entry) =>
+            libraryLabel(entry).toLowerCase().includes(needle) ||
+            libraryName(entry.path).toLowerCase().includes(needle),
+        )
       : [...entries];
     const factor = sortDirection === 'asc' ? 1 : -1;
     return found.sort((left, right) => {
       if (sortField === 'name') {
-        return factor * libraryName(left.path).localeCompare(libraryName(right.path), currentLocale());
+        return factor * libraryLabel(left).localeCompare(libraryLabel(right), currentLocale());
       }
       // По времени открытия: у записей без времени порядок задаёт имя.
       const delta = (left.addedAtMillis ?? 0) - (right.addedAtMillis ?? 0);
       return delta !== 0
         ? factor * delta
-        : libraryName(left.path).localeCompare(libraryName(right.path), currentLocale());
+        : libraryLabel(left).localeCompare(libraryLabel(right), currentLocale());
     });
   });
 
   /** Имя библиотеки по последнему сегменту пути. */
   function libraryName(path: string): string {
     return lastSegment(path);
+  }
+
+  /**
+   * Подпись библиотеки: пользовательское название или имя папки.
+   *
+   * Оформление дополняет вид, а не заменяет его: без названия остаётся имя
+   * директории, по которому библиотеку и узнают.
+   */
+  function libraryLabel(entry: HistoryEntry): string {
+    return entry.name?.trim() || libraryName(entry.path);
   }
 
   /**
@@ -227,10 +287,10 @@
   }
 
   /**
-   * Метаинформация записи истории: только дата открытия.
+   * Метаинформация записи истории: дата открытия.
    *
-   * В элементе списка нет ничего, кроме названия, типа и даты: подробности —
-   * путь, состояние — живут в карточке выбранной библиотеки.
+   * Описание принадлежит карточке библиотеки, а путь и состояние — тоже её
+   * сведениям: в строке списка остаются название, тип и дата.
    */
   function metaItems(entry: HistoryEntry): MetaItem[] {
     const opened = formatDateTime(entry.addedAtMillis);
@@ -246,23 +306,197 @@
     ];
   }
 
-  /** Пункты меню действий записи истории. */
   /**
    * Пункты меню записи истории.
    *
    * «Открыть папку» показывает директорию библиотеки в файловом менеджере:
    * открыть саму библиотеку можно кликом по строке, поэтому пункт делает то,
-   * чего клик не умеет.
+   * чего клик не умеет. Оформление (название, описание, сброс) стоит отдельной
+   * группой — оно меняет вид записи, а не работу с библиотекой.
    */
   function entryActions(entry: HistoryEntry): MenuAction[] {
-    // У отсутствующей библиотеки открывать нечего: остаётся только убрать запись.
+    const hasName = Boolean(entry.name?.trim());
+    const hasDescription = Boolean(entry.description?.trim());
+    const appearance: MenuAction[] = [
+      {
+        id: 'rename',
+        label: hasName ? t('app.library.libraries.editName') : t('app.library.libraries.addName'),
+      },
+      {
+        id: 'describe',
+        label: hasDescription
+          ? t('app.library.libraries.editDescription')
+          : t('app.library.libraries.addDescription'),
+      },
+      {
+        id: 'reset',
+        label: t('app.library.libraries.reset'),
+        destructive: true,
+      },
+    ];
+    // У отсутствующей библиотеки открывать нечего: остаётся оформление и
+    // удаление записи.
     if (!entry.available) {
-      return [{ id: 'forget', label: t('app.library.libraries.forget'), destructive: true }];
+      return [
+        ...appearance,
+        {
+          id: 'forget',
+          label: t('app.library.libraries.forget'),
+          separatorBefore: true,
+          destructive: true,
+        },
+      ];
     }
     return [
       { id: 'open-folder', label: t('app.library.libraries.openFolder') },
-      { id: 'forget', label: t('app.library.libraries.forget'), destructive: true },
+      ...appearance,
+      {
+        id: 'forget',
+        label: t('app.library.libraries.forget'),
+        separatorBefore: true,
+        destructive: true,
+      },
     ];
+  }
+
+  /** Образцы выбора цвета библиотеки: общая палитра, текущий цвет отмечен. */
+  function colorOptions(entry: HistoryEntry): MenuColor[] {
+    return LIBRARY_COLORS.map((color) => ({
+      id: color,
+      label: noteColorLabel(color),
+      color: LIBRARY_COLOR_SWATCHES[color],
+      selected: color === entry.color,
+    }));
+  }
+
+  /** Образцы выбора иконки библиотеки: текущая иконка отмечена. */
+  function iconOptions(entry: HistoryEntry): MenuIcon[] {
+    return LIBRARY_ICONS.map((icon) => ({
+      id: icon,
+      label: icon,
+      selected: icon === entry.icon,
+    }));
+  }
+
+  /** CSS-переменные заливки и обводки строки или карточки библиотеки. */
+  function colorStyle(entry: HistoryEntry, base: string, selectedBase: string): string {
+    const fill = libraryColorFill(entry.color, { base });
+    const selected = libraryColorFill(entry.color, { base: selectedBase, selected: true });
+    const line = libraryColorLine(entry.color) ?? 'var(--border)';
+    return `--row-fill: ${fill ?? base}; --row-fill-selected: ${
+      selected ?? selectedBase
+    }; --row-line: ${line};`;
+  }
+
+  /** Цвет строки списка: заливка поверх карточки, обводка — цветом записи. */
+  function rowStyle(entry: HistoryEntry): string {
+    return colorStyle(entry, 'var(--card)', 'var(--card)');
+  }
+
+  /** Цвет карточки: шапка и подвал лежат на разных поверхностях.
+   *
+   * Цвет применяется к самой карточке, поэтому выбирается её собственный фон:
+   * шапка стоит на карточке, а не на странице.
+   */
+  const cardStyle = $derived(
+    selectedEntry ? colorStyle(selectedEntry, 'var(--card)', 'var(--card)') : undefined,
+  );
+
+  /** Пункты меню карточки: те же действия, что у записи списка. */
+  const cardActions = $derived(selectedEntry ? entryActions(selectedEntry) : []);
+
+  /** Библиотека, оформление которой правится диалогом; `null` — диалог закрыт. */
+  let editingEntry = $state<HistoryEntry | null>(null);
+
+  /** Поле оформления, которое правится диалогом. */
+  let editingField = $state<'name' | 'description' | null>(null);
+
+  /** Заголовок, подпись и вид открытой формы оформления. */
+  const editingDialog = $derived.by(() => {
+    if (editingField === 'description') {
+      return {
+        title: t('app.library.libraries.descriptionLabel'),
+        label: t('app.library.libraries.descriptionLabel'),
+        multiline: true,
+      };
+    }
+    return {
+      title: t('app.library.libraries.nameLabel'),
+      label: t('app.library.libraries.nameLabel'),
+      multiline: false,
+    };
+  });
+
+  /** Значение поля открытой формы оформления. */
+  const editingValue = $derived(
+    editingField === 'description'
+      ? (editingEntry?.description ?? '')
+      : (editingEntry?.name ?? ''),
+  );
+
+  /** Запись пользовательского оформления библиотеки. */
+  async function saveAppearance(path: string, patch: Partial<HistoryEntry>) {
+    // Снимок записи с новым оформлением: список показывает изменение сразу, не
+    // дожидаясь ответа истории.
+    const updated = entries.map((entry) =>
+      entry.path === path ? { ...entry, ...patch } : entry,
+    );
+    entries = updated;
+    const entry = updated.find((item) => item.path === path);
+    if (!entry) {
+      return;
+    }
+    try {
+      await invokeCommand('library_history_appearance', {
+        path,
+        name: entry.name ?? null,
+        description: entry.description ?? null,
+        icon: entry.icon ?? null,
+        color: entry.color ?? null,
+      });
+      error = null;
+      // Ответ истории уточняет выдачу ядра: оформление остаётся тем, что легло
+      // на диск, а не тем, что успел показать интерфейс.
+      await loadHistory();
+    } catch (e) {
+      error = String(e);
+      // Оформление не сохранилось — список возвращается к состоянию ядра.
+      await loadHistory();
+    }
+  }
+
+  /** Сброс оформления: пустое значение в каждом поле снимает его. */
+  function resetAppearance(path: string) {
+    void saveAppearance(path, {
+      name: undefined,
+      description: undefined,
+      icon: undefined,
+      color: undefined,
+    });
+  }
+
+  /** Начало правки текстового оформления библиотеки. */
+  function startEditing(entry: HistoryEntry, field: 'name' | 'description') {
+    editingEntry = entry;
+    editingField = field;
+  }
+
+  /** Закрытие формы оформления без сохранения. */
+  function cancelEditing() {
+    editingEntry = null;
+    editingField = null;
+  }
+
+  /** Сохранение введённого текста оформления; пустая строка снимает значение. */
+  function commitEditing(value: string) {
+    const entry = editingEntry;
+    const field = editingField;
+    if (!entry || !field) {
+      return;
+    }
+    const text = optionalLibraryText(value);
+    void saveAppearance(entry.path, { [field]: text });
+    cancelEditing();
   }
 
   /** Загрузка истории открытых библиотек. */
@@ -321,12 +555,19 @@
       }
 
       const provider = String(response?.provider ?? '');
+      // Оформление уже известной записи не сбрасывается: ядро сохраняет его при
+      // повторном открытии, и локальная запись должна показать то же.
+      const previous = entries.find((entry) => entry.path === path);
       const opened: HistoryEntry = {
         path,
         provider,
         providerName: String(response?.provider_name ?? provider),
         addedAtMillis: Date.now(),
         available: true,
+        ...(previous?.name !== undefined ? { name: previous.name } : {}),
+        ...(previous?.description !== undefined ? { description: previous.description } : {}),
+        ...(previous?.icon !== undefined ? { icon: previous.icon } : {}),
+        ...(previous?.color !== undefined ? { color: previous.color } : {}),
       };
 
       // Запись появляется в списке сразу: ядро пишет историю в конце открытия,
@@ -411,6 +652,15 @@
   function runEntryAction(entry: HistoryEntry, action: string) {
     if (action === 'open-folder') {
       void openFolder(entry.path);
+    }
+    if (action === 'rename') {
+      startEditing(entry, 'name');
+    }
+    if (action === 'describe') {
+      startEditing(entry, 'description');
+    }
+    if (action === 'reset') {
+      resetAppearance(entry.path);
     }
     if (action === 'forget') {
       void forget(entry.path);
@@ -571,10 +821,11 @@
   <div
     class="grid min-w-0 gap-4 large-tablet:h-full large-tablet:min-h-0 large-tablet:flex-1 large-tablet:grid-cols-[22rem_minmax(0,1fr)] large-tablet:items-start large-tablet:gap-6 desktop:grid-cols-[26rem_minmax(0,1fr)]"
   >
-    <!-- Панель стоит на месте всегда: без выбранной библиотеки она объясняет,
-         что та не выбрана, а не исчезает, сдвигая список. -->
+    <!-- Панель стоит на месте всегда: без загруженной библиотеки она объясняет,
+         что та не загружена, а не исчезает, сдвигая список. -->
     <aside
-      class="flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] large-tablet:h-full large-tablet:min-h-0"
+      class="relative flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] border border-[var(--row-line,var(--border))] bg-[var(--card)] large-tablet:h-full large-tablet:min-h-0"
+      style={cardStyle}
       data-testid="library-card"
     >
       {#if opening}
@@ -603,19 +854,68 @@
         <!--
           Шапка карточки — единственный вход к книгам: выбор в списке только
           показывает сведения, а переход начинается здесь. Кликабельна вся
-          шапка целиком — название, метка загрузки и тип библиотеки.
+          шапка целиком — название и описание: описание относится к библиотеке,
+          а не к её состоянию, поэтому стоит в кликабельной области, увеличивая её.
+
+          Кнопка-наложение только ловит нажатие: фон наведения рисует сама шапка,
+          иначе заливка кнопки легла бы поверх текста. Меню стоит в своей колонке
+          у верхнего правого края — при длинном тексте оно не уезжает в середину
+          названия, а текст занимает оставшуюся ширину и не обрезается.
         -->
-        <button
-          type="button"
-          class="flex w-full cursor-pointer flex-col gap-2 border-b border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset disabled:cursor-not-allowed disabled:hover:bg-[var(--card)]"
-          title={t('app.library.libraries.toBooks')}
-          disabled={!selectedEntry.available}
-          data-testid="library-card-open"
-          onclick={() => openLibraryBooks()}
+        <div
+          class="relative flex w-full items-start gap-2 border-b border-[var(--row-line,var(--border))] bg-[var(--row-fill-selected,var(--card))] py-4 pr-4 pl-4 transition-colors hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill-selected,var(--card)))]"
         >
-          <span class="block break-words role-heading text-[var(--foreground)]">
-            {libraryName(selectedEntry.path)}
+          <button
+            type="button"
+            class="absolute inset-0 cursor-pointer [font:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset disabled:cursor-not-allowed"
+            title={t('app.library.libraries.toBooks')}
+            aria-label={t('app.library.libraries.toBooks')}
+            disabled={!selectedEntry.available}
+            data-testid="library-card-open"
+            onclick={() => openLibraryBooks()}
+          ></button>
+
+          <span class="pointer-events-none flex min-w-0 flex-1 flex-col gap-2">
+            <span class="flex min-w-0 items-start gap-2">
+              {#if selectedEntry.icon}
+                <Icon name={selectedEntry.icon} class="mt-1 h-4 w-4 shrink-0" />
+              {/if}
+              <span class="block min-w-0 break-words role-heading text-[var(--foreground)]">
+                {libraryLabel(selectedEntry)}
+              </span>
+            </span>
+            {#if selectedEntry.description}
+              <span
+                class="m-0 block whitespace-pre-wrap break-words role-body text-[var(--muted-foreground)]"
+                data-testid="library-card-description"
+              >
+                {selectedEntry.description}
+              </span>
+            {/if}
           </span>
+
+          <!-- Меню карточки: то же оформление, что у записи списка. -->
+          <span class="relative z-[1] flex shrink-0">
+            <ActionMenu
+              ariaLabel={t('app.library.libraries.actionsLabel')}
+              title={t('app.library.libraries.actionsLabel')}
+              items={cardActions}
+              icons={iconOptions(selectedEntry)}
+              iconsLabel={t('app.library.libraries.iconLabel')}
+              oniconselect={(icon) =>
+                void saveAppearance(selectedEntry!.path, { icon: normalizeLibraryIcon(icon) })}
+              colors={colorOptions(selectedEntry)}
+              colorsLabel={t('app.library.libraries.colorLabel')}
+              oncolorselect={(color) =>
+                void saveAppearance(selectedEntry!.path, { color: normalizeLibraryColor(color) })}
+              onselect={(action) => runEntryAction(selectedEntry!, action)}
+            />
+          </span>
+        </div>
+
+        <!-- Состояние и тип библиотеки — справочные сведения: они стоят ниже
+             кликабельной шапки, чтобы нажатие всегда открывало книги. -->
+        <div class="flex flex-col gap-3 overflow-y-auto px-4 py-3">
           <span class="flex flex-wrap items-center gap-1.5">
             {#if selectedEntry.available}
               <Badge variant="success">{t('app.library.libraries.loaded')}</Badge>
@@ -624,9 +924,6 @@
             {/if}
             <Badge variant="outline">{providerLabel(selectedEntry.providerName)}</Badge>
           </span>
-        </button>
-
-        <div class="flex flex-col gap-3 overflow-y-auto px-4 py-3">
           <dl class="m-0 flex flex-col gap-2">
             {#if selectedEntry.addedAtMillis}
               <div class="flex flex-col gap-0.5">
@@ -710,29 +1007,37 @@
                 одинаков в обеих раскладках.
               -->
               <article
-                class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-3 transition-colors {entry.path ===
+                class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] border border-[var(--row-line,var(--border))] p-3 transition-colors {entry.path ===
                 selectedEntry?.path
-                  ? 'bg-[var(--surface-selected)]'
-                  : 'hover:bg-[var(--surface-hover)]'} {entry.available ? '' : 'opacity-60'}"
+                  ? 'bg-[var(--row-fill-selected,var(--surface-selected))]'
+                  : 'bg-[var(--row-fill,var(--card))] hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill,var(--card)))]'} {entry.available ? '' : 'opacity-60'}"
+                style={rowStyle(entry)}
                 data-selected={entry.path === selectedEntry?.path ? 'true' : undefined}
               >
                 <button
                   type="button"
                   class="absolute inset-0 cursor-pointer rounded-[var(--radius)] [font:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
-                  aria-label={libraryName(entry.path)}
+                  aria-label={libraryLabel(entry)}
                   data-testid="library-open"
                   onclick={() => pickEntry(entry)}
                 ></button>
 
                 <div class="pointer-events-none flex min-w-0 items-start gap-2">
+                  {#if entry.icon}
+                    <Icon name={entry.icon} class="mt-0.5 h-4 w-4 shrink-0" />
+                  {/if}
                   <span class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
-                    {libraryName(entry.path)}
+                    {libraryLabel(entry)}
                   </span>
                 </div>
 
                 <!-- Тип — лейбл слева внизу, дата — под ним. -->
                 <div class="pointer-events-none mt-auto flex min-w-0 flex-col items-start gap-1">
-                  <Badge variant="outline">{providerLabel(entry.providerName)}</Badge>
+                  <!-- Лейбл стоит на фоне карточки, как меню действий: цвет строки
+                       сквозь него не просвечивает и подпись не меняет цвет. -->
+                  <Badge variant="outline" class="bg-[var(--card)]">
+                    {providerLabel(entry.providerName)}
+                  </Badge>
                   {#if formatDateTime(entry.addedAtMillis)}
                     <span
                       class="flex items-center gap-1.5 role-caption text-[var(--muted-foreground)]"
@@ -749,6 +1054,14 @@
                     ariaLabel={t('app.library.libraries.actionsLabel')}
                     title={t('app.library.libraries.actionsLabel')}
                     items={entryActions(entry)}
+                    icons={iconOptions(entry)}
+                    iconsLabel={t('app.library.libraries.iconLabel')}
+                    oniconselect={(icon) =>
+                      void saveAppearance(entry.path, { icon: normalizeLibraryIcon(icon) })}
+                    colors={colorOptions(entry)}
+                    colorsLabel={t('app.library.libraries.colorLabel')}
+                    oncolorselect={(color) =>
+                      void saveAppearance(entry.path, { color: normalizeLibraryColor(color) })}
                     onselect={(action) => runEntryAction(entry, action)}
                   />
                 </span>
@@ -767,22 +1080,62 @@
           onSelect={(entry) => pickEntry(entry)}
           metaItems={metaItems}
           metaTestId="library-meta"
+          rowStyle={rowStyle}
           actions={entryActions}
           actionsLabel={t('app.library.libraries.actionsLabel')}
+          colors={colorOptions}
+          colorsLabel={t('app.library.libraries.colorLabel')}
+          onColorSelect={(entry, color) =>
+            void saveAppearance(entry.path, { color: normalizeLibraryColor(color) })}
+          icons={iconOptions}
+          iconsLabel={t('app.library.libraries.iconLabel')}
+          onIconSelect={(entry, icon) =>
+            void saveAppearance(entry.path, { icon: normalizeLibraryIcon(icon) })}
           onAction={runEntryAction}
         >
           {#snippet titleContent(entry)}
             <!-- Индикатора доступности нет: состояние видно по метаданным. -->
+            {#if entry.icon}
+              <Icon name={entry.icon} class="h-3.5 w-3.5 shrink-0" />
+            {/if}
             <strong class="min-w-0 flex-1 truncate role-title" data-testid="library-name">
-              {libraryName(entry.path)}
+              {libraryLabel(entry)}
             </strong>
           {/snippet}
 
           {#snippet trailing(entry)}
-            <Badge variant="outline">{providerLabel(entry.providerName)}</Badge>
+            <!-- Лейбл стоит на фоне карточки, как меню действий: цвет строки
+                 сквозь него не просвечивает и подпись не меняет цвет. -->
+            <Badge variant="outline" class="bg-[var(--card)]">
+              {providerLabel(entry.providerName)}
+            </Badge>
           {/snippet}
         </EntityList>
       {/if}
     </div>
   </div>
+
+  <!--
+    Правка названия и описания — диалогом: список показывается и списком, и
+    плиткой, а встраиваемая форма не поместилась бы в узкую плитку. Сама форма —
+    общий компонент дизайн-системы, тот же, что у вкладки.
+  -->
+  <Dialog
+    open={editingEntry !== null && editingField !== null}
+    title={editingDialog.title}
+    onOpenChange={(next) => !next && cancelEditing()}
+  >
+    {#if editingField}
+      {#key `${editingEntry?.path}:${editingField}`}
+        <NameDescriptionEditor
+          label={editingDialog.label}
+          value={editingValue}
+          multiline={editingDialog.multiline}
+          testId="library-appearance-editor"
+          onSave={commitEditing}
+          onCancel={cancelEditing}
+        />
+      {/key}
+    {/if}
+  </Dialog>
 </PageShell>

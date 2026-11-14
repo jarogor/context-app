@@ -4,14 +4,12 @@
   import {
     ActionMenu,
     Badge,
-    Button,
     Icon,
-    IconButton,
-    Input,
     MetaList,
+    NameDescriptionEditor,
     RowActions,
     SidePanel,
-    Textarea,
+    Input,
     TAB_ICON_NAMES,
     type IconName,
     type MenuAction,
@@ -29,7 +27,7 @@
   import { noteColorLabel, NOTE_COLOR_SWATCHES } from '../notes/notes';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { openBookFile } from '../reader/reader';
-  import { tabAccent, tabColorFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabColorFill, tabColorLine, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -79,23 +77,26 @@
   /** Какое текстовое свойство правится: имя или описание. */
   let editingField: 'name' | 'description' | null = $state(null);
 
-  /** Черновик правки текстового свойства. */
-  let draft = $state('');
-
-  /** Поле правки: фокус ставится в него сразу после открытия. */
-  let editorField = $state<HTMLInputElement | HTMLTextAreaElement | undefined>();
-
-  /** Постановка фокуса в открытое поле правки. */
-  $effect(() => {
-    if (editingTabId !== null && editorField) {
-      editorField.focus();
+  /** Значение поля правки у открытой формы. */
+  const editingValue = $derived.by(() => {
+    const tab = tabs.find((item) => item.id === editingTabId);
+    if (!tab || !editingField) {
+      return '';
     }
+    return editingField === 'name' ? (tab.name ?? '') : (tab.description ?? '');
   });
+
+  /** Подпись поля правки: имя или описание вкладки. */
+  const editingLabel = $derived(
+    editingField === 'description'
+      ? t('app.workplace.tab.descriptionLabel')
+      : t('app.workplace.tab.nameLabel'),
+  );
 
   /** Escape снимает правку, не закрывая панель.
    *
    * Клавиша приходит от общего диспетчера: собственного обработчика `Escape`
-   * у поля нет, иначе одно нажатие закрывало бы два слоя сразу.
+   * у формы нет, иначе одно нажатие закрывало бы два слоя сразу.
    */
   $effect(() => {
     if (editingTabId === null) {
@@ -248,31 +249,34 @@
    *
    * Пункт повторяет вид строки заметок: у неактивного фон карточки, у выбранного
    * — тон выбора. Если у вкладки задан цвет, он подмешивается в этот фон, а
-   * обводка выбранного пункта рисуется самим цветом вкладки — той же краской, что
-   * и у заметки с цветом.
+   * обводка повторяет цвет вкладки — тем же расчётом, что и у плашки на полосе.
    */
   function itemFill(tab: WorkspaceTab): string {
     const base = tabColorFill(tab.color, 'var(--card)', false);
     const active = tabColorFill(tab.color, 'var(--card)', true);
-    const edge = tabAccent(tab.color);
-    const fill = base && active ? ` --item-fill: ${base}; --item-fill-active: ${active};` : '';
-    return `${fill} --item-edge: ${edge ?? 'var(--primary-border)'};`;
+    const line = tabColorLine(tab.color);
+    if (!base || !active || !line) {
+      return '--item-line: var(--primary-border);';
+    }
+    return ` --item-fill: ${base}; --item-fill-active: ${active}; --item-line: ${line};`;
   }
 
   /** Классы пункта с учётом пользовательского цвета и активности.
    *
-   * Как в списке заметок: у пункта нет обводки, неактивный стоит на фоне
-   * карточки и подсвечивается наведением, выбранный — фоном выбора и обводкой.
-   * Обводка выбранного берёт цвет вкладки, если он задан, иначе общий акцентный.
+   * Как в списке заметок: неактивный стоит на фоне карточки и подсвечивается
+   * наведением, выбранный — фоном выбора и обводкой. Обводка берёт цвет
+   * вкладки, если он задан, иначе общую линию темы. Цветная подпись остаётся
+   * цветом основного текста: приглушённая заливка светлая, и вторичный цвет на
+   * ней сливался бы с фоном.
    */
   function itemFillClass(tab: WorkspaceTab): string {
     if (tab.id === activeTabId) {
       return tab.color
-        ? 'bg-[var(--item-fill-active)] border-[var(--item-edge)]'
-        : 'bg-[var(--surface-selected)] border-[var(--item-edge)]';
+        ? 'bg-[var(--item-fill-active)] border-[var(--item-line)] text-[var(--foreground)]'
+        : 'bg-[var(--surface-selected)] border-[var(--item-line)]';
     }
     return tab.color
-      ? 'bg-[var(--item-fill)] border-transparent hover:bg-[var(--surface-hover)]'
+      ? 'bg-[var(--item-fill)] border-[var(--item-line)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
       : 'bg-[var(--card)] border-transparent hover:bg-[var(--surface-hover)]';
   }
 
@@ -280,45 +284,19 @@
   function startEditing(tab: WorkspaceTab, field: 'name' | 'description') {
     editingTabId = tab.id;
     editingField = field;
-    draft = field === 'name' ? (tab.name ?? '') : (tab.description ?? '');
   }
 
   /** Завершение правки текстового свойства без сохранения. */
   function cancelEditing() {
     editingTabId = null;
     editingField = null;
-    draft = '';
-  }
-
-  /**
-   * Клавиши в поле правки.
-   *
-   * Enter сохраняет **только название**, `Ctrl+Enter` — только описание: поля
-   * разной природы, и одно нажатие не должно подменять другое. `Escape`
-   * снимает правку через общий слой закрытия.
-   */
-  function handleEditorKey(event: KeyboardEvent) {
-    if (event.key === 'Enter') {
-      const isName = editingField === 'name';
-      const isDescription = editingField === 'description';
-      if ((isName && !event.ctrlKey && !event.metaKey) || (isDescription && (event.ctrlKey || event.metaKey))) {
-        event.preventDefault();
-        commitEditing();
-      }
-      return;
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      cancelEditing();
-    }
   }
 
   /** Сохранение изменённого текстового свойства вкладки. */
-  function commitEditing() {
+  function commitEditing(value: string) {
     if (editingTabId === null || editingField === null) {
       return;
     }
-    const value = draft.trim();
     onEditAppearance(editingTabId, { [editingField]: value || undefined });
     cancelEditing();
   }
@@ -440,63 +418,28 @@
             {tab.description}
           </p>
         {/if}
+        <!--
+          Форма правки стоит сразу под описанием и выше сведений о книге: она
+          меняет то, что пользователь видит первым, и не должна оказаться ниже
+          названия книги и пути, которые от неё не зависят.
+        -->
+        {#if editingTabId === tab.id && editingField}
+          {@const field = editingField}
+          <div class="pb-1.5" data-testid="open-books-item-editor">
+            {#key `${tab.id}:${field}`}
+              <NameDescriptionEditor
+                label={editingLabel}
+                value={editingValue}
+                multiline={field === 'description'}
+                onSave={commitEditing}
+                onCancel={cancelEditing}
+              />
+            {/key}
+          </div>
+        {/if}
         {#if metaItems(tab).length > 0}
           <div class="pb-1.5" data-testid="open-books-item-meta">
             <MetaList items={metaItems(tab)} />
-          </div>
-        {/if}
-        {#if editingTabId === tab.id && editingField}
-          <div class="flex flex-col gap-2 pb-2" data-testid="open-books-item-editor">
-            {#if editingField === 'name'}
-              <Input
-                bind:value={draft}
-                bind:element={editorField as HTMLInputElement | undefined}
-                placeholder={t('app.workplace.tab.name')}
-                ariaLabel={t('app.workplace.tab.nameLabel')}
-                onkeydown={handleEditorKey}
-              />
-            {:else}
-              <Textarea
-                bind:value={draft}
-                bind:element={editorField as HTMLTextAreaElement | undefined}
-                placeholder={t('app.workplace.tab.description')}
-                ariaLabel={t('app.workplace.tab.descriptionLabel')}
-                rows={2}
-                onkeydown={handleEditorKey}
-              />
-            {/if}
-            <div class="flex items-center justify-between gap-2">
-              <IconButton
-                action="delete"
-                title={t('app.action.clear')}
-                ariaLabel={t('app.action.clearField')}
-                disabled={!draft}
-                onclick={() => {
-                  draft = '';
-                  commitEditing();
-                }}
-              />
-              <div class="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  title={t('app.reader.cancel')}
-                  ariaLabel={t('app.reader.cancel')}
-                  onclick={cancelEditing}
-                >
-                  <Icon name="close" />
-                </Button>
-                <Button
-                  variant="primary"
-                  size="icon"
-                  title={t('app.action.save')}
-                  ariaLabel={t('app.action.save')}
-                  onclick={commitEditing}
-                >
-                  <Icon name="check" />
-                </Button>
-              </div>
-            </div>
           </div>
         {/if}
       </li>

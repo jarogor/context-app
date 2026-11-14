@@ -995,6 +995,7 @@ export function defaultMockConfig(): MockBridgeConfig {
         ],
       }),
       library_history_forget: () => ({ forgotten: true }),
+      library_history_appearance: () => ({ updated: true }),
     },
   };
 }

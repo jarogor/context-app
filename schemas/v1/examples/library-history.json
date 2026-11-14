@@ -5,6 +5,10 @@
     {
       "path": "/lib",
       "provider": "books-source",
+      "name": "Домашняя",
+      "description": "Книги для чтения вечером",
+      "icon": "star",
+      "color": "blue",
       "added_at_millis": 1700000000000
     }
   ]

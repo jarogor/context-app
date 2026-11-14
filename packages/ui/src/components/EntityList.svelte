@@ -2,7 +2,7 @@
   import type { Snippet } from 'svelte';
   import ListRow from './ListRow.svelte';
   import MetaList, { type MetaItem } from './MetaList.svelte';
-  import ActionMenu, { type MenuAction } from './ActionMenu.svelte';
+  import ActionMenu, { type MenuAction, type MenuColor, type MenuIcon } from './ActionMenu.svelte';
   import { t } from '@context/i18n';
   import { cn } from '../utils';
 
@@ -25,6 +25,18 @@
     actionsLabel?: string;
     /** Обработчик выбора пункта меню действий. */
     onAction?: (item: T, action: string) => void;
+    /** Строка выбора цвета в меню действий пункта. */
+    colors?: (item: T) => MenuColor[] | undefined;
+    /** Подпись доступности строки цветов. */
+    colorsLabel?: string;
+    /** Обработчик выбора цвета пункта. */
+    onColorSelect?: (item: T, color: string) => void;
+    /** Сетка выбора иконки в меню действий пункта. */
+    icons?: (item: T) => MenuIcon[] | undefined;
+    /** Подпись доступности сетки иконок. */
+    iconsLabel?: string;
+    /** Обработчик выбора иконки пункта. */
+    onIconSelect?: (item: T, icon: string) => void;
     /** Обработчик клика по пункту. */
     onSelect?: (item: T) => void;
     /** Пункт отмечен как текущий/выбранный. */
@@ -39,6 +51,8 @@
     editContent?: Snippet<[T]>;
     /** Дополнительное содержимое под строкой (например, раскрытый список). */
     body?: Snippet<[T]>;
+    /** Фрагмент inline-стиля строки (оформление пункта: заливка цветом). */
+    rowStyle?: (item: T) => string | undefined;
     /** Контейнер списка: `ul` (со `li`) или `div` (с `section`). */
     container?: 'ul' | 'div';
     /** Метка для тестов у каждого пункта. */
@@ -65,6 +79,12 @@
     actions: actionsFor,
     actionsLabel,
     onAction,
+    colors,
+    colorsLabel,
+    onColorSelect,
+    icons,
+    iconsLabel,
+    onIconSelect,
     onSelect,
     selected,
     disabled,
@@ -72,6 +92,7 @@
     isEditing,
     editContent,
     body,
+    rowStyle,
     container = 'ul',
     itemTestId,
     buttonTestId,
@@ -88,6 +109,7 @@
     disabled={disabled?.(item) ?? false}
     expanded={expanded?.(item)}
     buttonTestId={buttonTestId}
+    style={rowStyle?.(item)}
     onclick={onSelect ? () => onSelect(item) : undefined}
   >    {#snippet titleContent()}
       {@render title(item)}
@@ -113,6 +135,12 @@
           ariaLabel={actionsLabel ?? t('app.list.actions')}
           title={t('app.list.actions')}
           items={actionsFor(item)}
+          colors={colors?.(item) ?? []}
+          {colorsLabel}
+          oncolorselect={(color) => onColorSelect?.(item, color)}
+          icons={icons?.(item) ?? []}
+          {iconsLabel}
+          oniconselect={(icon) => onIconSelect?.(item, icon)}
           onselect={(action) => onAction?.(item, action)}
         />
       {/if}

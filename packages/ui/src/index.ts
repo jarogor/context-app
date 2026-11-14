@@ -1,4 +1,12 @@
 export { cn } from './utils';
+export {
+  ACCENT_COLORS,
+  ACCENT_COLOR_SWATCHES,
+  accentFill,
+  accentLine,
+  type AccentColor,
+  type AccentStrength,
+} from './accent';
 export { createAsyncState } from './async-state.svelte';
 export { default as Button } from './components/Button.svelte';
 export { default as PageShell } from './components/PageShell.svelte';
@@ -35,6 +43,7 @@ export type { IconSwatch } from './components/IconPicker.svelte';
 export { default as Dialog } from './components/Dialog.svelte';
 export { default as Input } from './components/Input.svelte';
 export { default as Textarea } from './components/Textarea.svelte';
+export { default as NameDescriptionEditor } from './components/NameDescriptionEditor.svelte';
 export { default as Select } from './components/Select.svelte';
 export type { SelectOption } from './components/Select.svelte';
 export { default as Checkbox } from './components/Checkbox.svelte';

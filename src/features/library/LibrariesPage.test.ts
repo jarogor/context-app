@@ -386,7 +386,7 @@ describe('провайдер и отсутствующая библиотека'
 });
 
 describe('карточка без открытой библиотеки', () => {
-  it('объясняет, что библиотека не выбрана, и не исчезает', async () => {
+  it('объясняет, что библиотека не загружена, и не исчезает', async () => {
     invoke.mockImplementation(async (command: string) => {
       if (command === 'library_history_list') {
         return {
@@ -410,7 +410,7 @@ describe('карточка без открытой библиотеки', () => 
 
     await waitFor(() => expect(screen.getByTestId('library-card-empty')).toBeTruthy());
     // Место карточки сохраняется: список не сдвигается при выборе библиотеки.
-    expect(screen.getByTestId('library-card').textContent).toContain('Библиотека не выбрана');
+    expect(screen.getByTestId('library-card').textContent).toContain('Библиотека не загружена');
     // Выбор остаётся в списке: без открытой библиотеки он не сокращается.
     expect(screen.getAllByTestId('library-item')).toHaveLength(1);
   });
@@ -741,5 +741,160 @@ describe('загрузка выбранной библиотеки', () => {
     finish();
     // Новый выбор главнее прежнего: карточка показывает zeta.
     await waitFor(() => expect(screen.getByTestId('library-card').textContent).toContain('zeta'));
+  });
+});
+
+describe('оформление библиотек', () => {
+  /** История из одной оформленной библиотеки. */
+  function decoratedHistory() {
+    invoke.mockImplementation(async (command: string) => {
+      if (command === 'library_history_list') {
+        return {
+          entries: [
+            {
+              path: '/lib/alpha',
+              provider: 'p1',
+              provider_name: 'books-source',
+              added_at_millis: 1_000,
+              available: true,
+              name: 'Домашняя',
+              description: 'Книги вечером',
+              icon: 'star',
+              color: 'blue',
+            },
+          ],
+        };
+      }
+      if (command === 'active_library') {
+        return null;
+      }
+      return null;
+    });
+  }
+
+  it('показывает название, иконку и цвет записи; описание — только в карточке', async () => {
+    decoratedHistory();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
+    // Пользовательское название перекрывает имя папки.
+    expect(screen.getByTestId('library-name').textContent).toContain('Домашняя');
+    // Описание в элементе списка не показывается: оно принадлежит карточке.
+    expect(screen.queryByTestId('library-item-description')).toBeNull();
+    // Цвет задаёт заливку и обводку строки, иконка стоит перед названием.
+    const item = screen.getByTestId('library-item');
+    const style = item.querySelector('[style]')?.getAttribute('style') ?? '';
+    expect(style).toContain('--row-fill');
+    expect(style).toContain('--row-line');
+    const name = item.querySelector('[data-testid="library-name"]');
+    expect(name?.parentElement?.querySelector('svg')).not.toBeNull();
+
+    // Выбор строки показывает название и описание в шапке карточки; «загружена»
+    // стоит ниже, вне кликабельной области.
+    await fireEvent.click(item.querySelector('[data-testid="library-item"] button') as HTMLElement);
+    const open = await screen.findByTestId('library-card-open');
+    const head = open.parentElement as HTMLElement;
+    expect(head.textContent).toContain('Домашняя');
+    expect(within(head).getByTestId('library-card-description').textContent).toContain(
+      'Книги вечером',
+    );
+    expect(head.textContent).not.toContain('загружена');
+    expect(screen.getByTestId('library-card').textContent).toContain('загружена');
+  });
+
+  it('применяет цвет и к карточке библиотеки', async () => {
+    decoratedHistory();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
+    const item = screen.getByTestId('library-item');
+    await fireEvent.click(item.querySelector('[data-testid="library-item"] button') as HTMLElement);
+    const card = await screen.findByTestId('library-card-open');
+    // Шапка карточки залита цветом библиотеки; обводка карточки — тоже.
+    expect(card.parentElement?.className).toContain('bg-[var(--row-fill-selected');
+    expect(screen.getByTestId('library-card').getAttribute('style')).toContain('--row-line');
+  });
+
+  it('делает кликабельной всю шапку карточки, а меню выносит из неё', async () => {
+    decoratedHistory();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
+    const item = screen.getByTestId('library-item');
+    await fireEvent.click(item.querySelector('[data-testid="library-item"] button') as HTMLElement);
+    const open = await screen.findByTestId('library-card-open');
+
+    // Кнопка-наложение занимает всю шапку: целиться в текст не нужно.
+    expect(open.className).toContain('absolute inset-0');
+    // Название и описание — внутри шапки, но не внутри кнопки: они не мешают
+    // нажатию в любое место.
+    const head = open.parentElement as HTMLElement;
+    expect(within(head).getByTestId('library-card-description')).toBeTruthy();
+    // Меню стоит рядом с кнопкой, а не поверх неё.
+    const menu = within(head).getByRole('button', { name: 'Действия с библиотекой' });
+    expect(open.contains(menu)).toBe(false);
+  });
+
+  it('даёт карточке то же меню оформления, что и записи списка', async () => {
+    decoratedHistory();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
+    const item = screen.getByTestId('library-item');
+    await fireEvent.click(item.querySelector('[data-testid="library-item"] button') as HTMLElement);
+    const card = await screen.findByTestId('library-card');
+
+    // Меню карточки: смена цвета доступна прямо из неё.
+    await fireEvent.click(within(card).getByRole('button', { name: 'Действия с библиотекой' }));
+    await fireEvent.click(await screen.findByTestId('menu-color-red'));
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        'library_history_appearance',
+        expect.objectContaining({ path: '/lib/alpha', color: 'red' }),
+      ),
+    );
+  });
+
+  it('сохраняет цвет и иконку командой оформления', async () => {
+    decoratedHistory();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
+    await fireEvent.click(screen.getByRole('button', { name: 'Действия с библиотекой' }));
+    await fireEvent.click(await screen.findByTestId('menu-color-green'));
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('library_history_appearance', {
+        path: '/lib/alpha',
+        name: 'Домашняя',
+        description: 'Книги вечером',
+        icon: 'star',
+        color: 'green',
+      }),
+    );
+  });
+
+  it('правит название диалогом и снимает его пустым полем', async () => {
+    decoratedHistory();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
+    await fireEvent.click(screen.getByRole('button', { name: 'Действия с библиотекой' }));
+    await fireEvent.click(await screen.findByRole('menuitem', { name: 'Редактировать название' }));
+
+    const field = (await screen.findByRole('textbox', {
+      name: 'Название библиотеки',
+    })) as HTMLInputElement;
+    expect(field.value).toBe('Домашняя');
+    await fireEvent.input(field, { target: { value: 'Рабочая' } });
+    await fireEvent.click(screen.getByLabelText('Сохранить'));
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        'library_history_appearance',
+        expect.objectContaining({ path: '/lib/alpha', name: 'Рабочая' }),
+      ),
+    );
   });
 });

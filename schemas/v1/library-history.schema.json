@@ -42,6 +42,34 @@
           "type": "string",
           "minLength": 1
         },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Пользовательское название библиотеки; отсутствует, если не задано."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Пользовательское описание библиотеки; отсутствует, если не задано."
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Иконка оформления библиотеки; отсутствует, если не задана."
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Цвет оформления библиотеки; отсутствует, если не задан."
+        },
         "added_at_millis": {
           "type": "integer",
           "minimum": 0

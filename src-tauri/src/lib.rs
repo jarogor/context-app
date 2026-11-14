@@ -163,6 +163,7 @@ pub fn run() {
             commands::book_properties_get,
             commands::book_properties_set,
             commands::library_history_list,
+            commands::library_history_appearance,
             commands::library_history_forget,
             commands::get_workspaces,
             commands::save_workspaces,

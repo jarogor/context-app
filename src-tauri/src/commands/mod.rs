@@ -12,6 +12,7 @@ pub mod base_plugin_operation;
 pub mod book_properties;
 pub mod get_workspaces;
 pub mod interface_locale;
+pub mod library_history_appearance;
 pub mod library_history_forget;
 pub mod library_history_list;
 pub mod open_folder;
@@ -84,6 +85,10 @@ pub use plugin_operation::invoke_plugin_operation;
 pub use open_folder::__cmd__open_folder;
 pub use open_folder::__tauri_command_name_open_folder;
 pub use open_folder::open_folder;
+
+pub use library_history_appearance::__cmd__library_history_appearance;
+pub use library_history_appearance::__tauri_command_name_library_history_appearance;
+pub use library_history_appearance::library_history_appearance;
 
 pub use library_history_forget::__cmd__library_history_forget;
 pub use library_history_forget::__tauri_command_name_library_history_forget;

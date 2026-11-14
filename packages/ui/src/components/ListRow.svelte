@@ -28,6 +28,16 @@
     meta?: Snippet;
     /** Действия пункта (контекстное меню); показываются в конце строки. */
     actions?: Snippet;
+    /**
+     * Фрагмент inline-стиля строки.
+     *
+     * Нужен для пользовательского оформления пункта (например, заливки цветом):
+     * переменные `--row-fill`, `--row-fill-selected` и `--row-line` задают фон
+     * обычной строки, фон выбранной и цвет обводки, не отменяя наведение и
+     * подсветку выбора. Обводка рисуется внутренней тенью: рамка добавила бы
+     * размер строке.
+     */
+    style?: string;
     /** Дополнительные классы. */
     class?: string;
   }
@@ -45,6 +55,7 @@
     trailing,
     meta,
     actions,
+    style = '',
     class: className = '',
   }: Props = $props();
 
@@ -53,23 +64,33 @@
    * тонкой линией-разделителем (последняя — без неё), а наведение и выбор
    * подсвечивают **всю строку целиком** фоном. Так список читается единым
    * листом, а не набором рамок, и при этом строки не сливаются с фоном.
+   *
+   * Фон берётся из переменной `--row-fill`: оформление пункта (например, цвет)
+   * задаёт её необязательным стилем, а без оформления остаётся фон карточки.
+   * Обводка цветного пункта рисуется внутренней тенью по `--row-line`: рамка
+   * добавила бы размер строке и сдвинула бы соседние.
    */
   const box = $derived(
     cn(
-      'bg-[var(--card)] transition-colors',
+      'transition-colors',
       selected
-        ? 'bg-[var(--surface-selected)]'
+        ? 'bg-[var(--row-fill-selected,var(--surface-selected))]'
         : onclick && !disabled
-          ? 'hover:bg-[var(--surface-hover)]'
-          : '',
+          ? 'bg-[var(--row-fill,var(--card))] hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill,var(--card)))]'
+          : 'bg-[var(--row-fill,var(--card))]',
     ),
   );
 </script>
 
 <div
-  class={cn(box, 'flex items-stretch', className)}
+  class={cn(
+    box,
+    'flex items-stretch shadow-[inset_0_0_0_1px_var(--row-line,transparent)]',
+    className,
+  )}
   data-testid={testId}
   data-selected={selected ? 'true' : undefined}
+  style={style || undefined}
 >
   <button
     type="button"

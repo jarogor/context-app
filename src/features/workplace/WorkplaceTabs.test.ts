@@ -244,7 +244,8 @@ describe('панель вкладок: оформление вкладки', () 
   });
 
   it('заливает активную цветную вкладку плотнее неактивной', () => {
-    // Активная заливается заметно плотнее: 40% цвета против 7% у неактивной.
+    // Активная заливается плотнее неактивной: доля цвета берётся из общего
+    // реестра (ступени `active` и `tint`), а не подбирается на месте.
     mockWidth(320);
     render(WorkplaceTabs, {
       props: {
@@ -257,9 +258,8 @@ describe('панель вкладок: оформление вкладки', () 
     });
     const active = screen.getAllByTestId('workplace-tab-item')[1];
     expect(active.className).toContain('bg-[var(--tab-fill-active)]');
-    expect(active.getAttribute('style')).toContain(
-      '--tab-fill-active: color-mix(in oklab, #2563eb 40%',
-    );
+    expect(active.getAttribute('style')).toContain('--tab-fill-active: color-mix');
+    expect(active.getAttribute('style')).toContain('#2563eb 20%');
   });
 
   it('оставляет прежний вид вкладки без оформления', () => {

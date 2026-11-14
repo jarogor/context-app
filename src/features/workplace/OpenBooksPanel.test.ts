@@ -152,11 +152,11 @@ describe('панель открытых книг: оформление', () => {
     expect(items[0].className).toContain('border-transparent');
     // Выбранный — фон выбора и обводка.
     expect(items[1].className).toContain('bg-[var(--surface-selected)]');
-    expect(items[1].className).toContain('border-[var(--item-edge)]');
+    expect(items[1].className).toContain('border-[var(--item-line)]');
   });
 
   it('рисует обводку выбранного пункта цветом вкладки, если он задан', () => {
-    // Если цвет задан — обводка им; если нет — общим акцентным, как в заметках.
+    // Цветная обводка — общий расчёт цвета: тот же, что у плашки на полосе.
     render(OpenBooksPanel, {
       props: {
         tabs: [tab('t1', { color: 'blue' }), tab('t2')],
@@ -166,10 +166,10 @@ describe('панель открытых книг: оформление', () => {
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    expect(items[0].getAttribute('style')).toContain('--item-edge: #2563eb');
-    // У невыбранного пункта обводки нет, поэтому цвет обводки не важен —
-    // подставляется общий.
-    expect(items[1].getAttribute('style')).toContain('--item-edge: var(--primary-border)');
+    expect(items[0].getAttribute('style')).toContain('--item-line: color-mix');
+    expect(items[0].getAttribute('style')).toContain('#2563eb');
+    // У нецветного пункта обводка общая, темы.
+    expect(items[1].getAttribute('style')).toContain('--item-line: var(--primary-border)');
   });
 });
 
