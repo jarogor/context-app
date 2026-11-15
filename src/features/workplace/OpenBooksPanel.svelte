@@ -272,11 +272,11 @@
   function itemFillClass(tab: WorkspaceTab): string {
     if (tab.id === activeTabId) {
       return tab.color
-        ? 'bg-[var(--item-fill-active)] text-[var(--foreground)]'
+        ? 'bg-[var(--item-fill-active)] text-[var(--on-accent-fill)]'
         : 'bg-[var(--surface-selected)]';
     }
     return tab.color
-      ? 'bg-[var(--item-fill)]  text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+      ? 'bg-[var(--item-fill)]  text-[var(--on-accent-fill)] hover:bg-[var(--surface-hover)]'
       : 'bg-[var(--card)]  hover:bg-[var(--surface-hover)]';
   }
 

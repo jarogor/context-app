@@ -74,7 +74,7 @@
       selected
         ? 'bg-[var(--row-fill-selected,var(--surface-selected))]'
         : onclick && !disabled
-          ? 'bg-[var(--row-fill,var(--card))] hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill,var(--card)))]'
+          ? 'bg-[var(--row-fill,var(--card))] hover:bg-[var(--surface-hover)]'
           : 'bg-[var(--row-fill,var(--card))]',
     ),
   );

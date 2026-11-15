@@ -149,7 +149,7 @@
       // Без плашки кнопка наследует и фон, и цвет владельца: на цветной вкладке
       // значок остаётся контрастным ей, а не спорит с ней собственной заливкой.
       plain
-        ? ' bg-transparent text-current shadow-none hover:bg-[var(--surface-hover)] data-[state=open]:bg-[var(--surface-selected)]'
+        ? ' bg-transparent text-current shadow-none hover:bg-[var(--surface-hover)] data-[state=open]:bg-[var(--surface-hover)]'
         : 'text-[var(--muted-foreground)]',
       className,
     ),
@@ -172,7 +172,7 @@
     <DropdownMenu.Content
       sideOffset={4}
       align="end"
-      class="bg-[var(--overlay-surface)] text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md p-1 shadow-overlay"
+      class="bg-[var(--menu-surface)] text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md p-1 shadow-overlay"
     >
       {#if colors.length > 0 || icons.length > 0}
         <!--
@@ -211,7 +211,7 @@
           disabled={item.disabled}
           onSelect={() => onselect?.(item.id)}
           class={cn(
-            'data-[highlighted]:bg-surface-hover flex cursor-pointer items-center rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+            'data-[highlighted]:bg-[var(--menu-hover)] flex cursor-pointer items-center rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
             item.destructive &&
               'text-destructive data-[highlighted]:bg-destructive-soft data-[highlighted]:text-destructive',
           )}

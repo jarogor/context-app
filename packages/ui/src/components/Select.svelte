@@ -75,7 +75,7 @@
  </SelectPrimitive.Trigger>
  <SelectPrimitive.Portal>
  <SelectPrimitive.Content
- class="bg-[var(--overlay-surface)] text-popover-foreground z-50 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-[var(--radius)] shadow-overlay"
+ class="bg-[var(--menu-surface)] text-popover-foreground z-50 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-[var(--radius)] shadow-overlay"
  sideOffset={4}
  >
  <SelectPrimitive.Viewport class="p-1">
@@ -84,7 +84,7 @@
  value={item.value}
  label={item.label}
  disabled={item.disabled}
- class="data-[highlighted]:bg-surface-hover flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+ class="data-[highlighted]:bg-[var(--menu-hover)] flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
  >
  {#snippet children({ selected })}
  <span class="flex-1 truncate text-left">{item.label}</span>

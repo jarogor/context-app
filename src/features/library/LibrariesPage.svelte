@@ -867,7 +867,7 @@
           названия, а текст занимает оставшуюся ширину и не обрезается.
         -->
         <div
-          class="relative flex w-full items-start gap-2 bg-[var(--row-fill-selected,var(--card))] py-4 pr-4 pl-4 transition-colors hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill-selected,var(--card)))]"
+          class="relative flex w-full items-start gap-2 bg-[var(--row-fill-selected,var(--card))] py-4 pr-4 pl-4 transition-colors hover:bg-[var(--surface-hover)]"
         >
           <button
             type="button"
@@ -1014,7 +1014,7 @@
                 class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] p-3 transition-colors {entry.path ===
  selectedEntry?.path
  ? ' bg-[var(--row-fill-selected,var(--surface-selected))]'
- : ' bg-[var(--row-fill,var(--card))] hover:bg-[color-mix(in_oklab,var(--primary)_8%,var(--row-fill,var(--card)))]'} {entry.available ? '' : 'opacity-60'}"
+ : ' bg-[var(--row-fill,var(--card))] hover:bg-[var(--surface-hover)]'} {entry.available ? '' : 'opacity-60'}"
                 style={rowStyle(entry)}
                 data-selected={entry.path === selectedEntry?.path ? 'true' : undefined}
               >

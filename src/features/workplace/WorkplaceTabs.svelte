@@ -435,8 +435,8 @@
     const active = tab.id === activeTabId;
     if (tab.color) {
       return active
-        ? 'bg-[var(--tab-fill-active)] text-[var(--foreground)]'
-        : 'bg-[var(--tab-fill)] text-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
+        ? 'bg-[var(--tab-fill-active)] text-[var(--on-accent-fill)]'
+        : 'bg-[var(--tab-fill)] text-[var(--on-accent-fill)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
     }
     return active
       ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
