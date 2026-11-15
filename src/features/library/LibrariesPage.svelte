@@ -394,7 +394,9 @@
     const ink = accentText(entry.color, { strength: 'tint' });
     const inkSelected = accentText(entry.color, { strength: 'active' });
     const hover = libraryColorFill(entry.color, { strength: 'soft' });
-    return `--row-fill: ${fill}; --row-fill-selected: ${selected}; --row-fill-hover: ${hover}; --row-ink: ${ink}; --row-ink-selected: ${inkSelected}; --meta-badge-surface: color-mix(in oklab, ${inkSelected} 14%, transparent);`;
+    // Метка провайдера стоит на подложке в тон подписи: светлая метка темы на
+    // плотной заливке не читалась.
+    return `--row-fill: ${fill}; --row-fill-selected: ${selected}; --row-fill-hover: ${hover}; --row-ink: ${ink}; --row-ink-selected: ${inkSelected}; --meta-ink: ${ink}; --meta-strong-ink: ${ink}; --meta-badge-surface: color-mix(in oklab, ${ink} 16%, transparent);`;
   }
 
   /** Цвет строки списка: заливка цветом записи. */

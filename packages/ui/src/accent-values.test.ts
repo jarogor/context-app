@@ -11,13 +11,13 @@ import {
 /** Ступени силы цвета. */
 const STRENGTHS: readonly AccentStrength[] = ['tint', 'soft', 'active'];
 
-/** Критерий «цвет остаётся собой»: допустимое отклонение тона от канонического. */
+/** Канонический тон цвета: его держат все ступени. */
 const HUE: Record<AccentColor, number> = {
-  yellow: 98,
-  green: 148,
-  blue: 255,
-  red: 28,
-  purple: 303,
+  yellow: 88,
+  green: 145,
+  blue: 252,
+  red: 25,
+  purple: 318,
 };
 
 /** Каналы цвета из `#rrggbb`. */
@@ -89,20 +89,21 @@ describe('значения пользовательских цветов', () =>
           expect(
             hueDistance(hue, HUE[color]),
             `${side}/${color}/${strength}: тон ${hue.toFixed(0)}°`,
-          ).toBeLessThan(6);
+          ).toBeLessThan(10);
         }
       }
     }
   });
 
-  it('не выцветает: у заливки заметная насыщенность', () => {
-    // Ниже этого порога цвет читается серым пятном, а не собой.
-    const minimum: Record<AccentColor, number> = {
-      yellow: 0.1,
+  it('остаётся приглушённым: заливка не светится ярче акцента темы', () => {
+    // Заливка — тихий цвет, а не пятно. Насыщенные значения давали ровно
+    // обратное: элемент резал глаз рядом со спокойной темой.
+    const maximum: Record<AccentColor, number> = {
+      yellow: 0.14,
       green: 0.12,
-      blue: 0.055,
-      red: 0.055,
-      purple: 0.07,
+      blue: 0.105,
+      red: 0.1,
+      purple: 0.11,
     };
     for (const side of ['light', 'dark'] as const) {
       for (const color of ACCENT_COLORS) {
@@ -111,14 +112,14 @@ describe('значения пользовательских цветов', () =>
           expect(
             chroma,
             `${side}/${color}/${strength}: насыщенность ${chroma.toFixed(3)}`,
-          ).toBeGreaterThan(minimum[color]);
+          ).toBeLessThanOrEqual(maximum[color]);
         }
       }
     }
   });
 
   it('читается подписью на каждой заливке', () => {
-    // Подпись выбирается по контрасту с самой заливкой, а не по стороне темы.
+    // Подпись одна на всё приложение: заливки держатся в полосе, где она читается.
     for (const side of ['light', 'dark'] as const) {
       for (const color of ACCENT_COLORS) {
         for (const strength of STRENGTHS) {
@@ -142,7 +143,7 @@ describe('значения пользовательских цветов', () =>
           expect(
             distance(previous, current),
             `${side}/${color}: ${STRENGTHS[index - 1]} → ${STRENGTHS[index]}`,
-          ).toBeGreaterThan(6);
+          ).toBeGreaterThan(4.5);
         }
       }
     }
@@ -158,7 +159,7 @@ describe('значения пользовательских цветов', () =>
             expect(
               distance(a, b),
               `${side}/${strength}: ${ACCENT_COLORS[first]} и ${ACCENT_COLORS[second]}`,
-            ).toBeGreaterThan(6);
+            ).toBeGreaterThan(4);
           }
         }
       }

@@ -57,11 +57,10 @@
       {/if}
       {#if item.badge}
         <!-- Метка вместо иконки: короткое служебное значение (формат файла).
-             Фон метки по умолчанию — группа контролов; на цветной заливке пункт
-             задаёт свою поверхность, иначе светлая метка на светлой подписи не
-             читается. -->
+             Подложка метки выводится из подписи, а не из поверхности темы: на
+             цветной заливке светлая подложка со светлой подписью не читалась. -->
         <span
-          class="shrink-0 rounded-[calc(var(--radius)*0.5)] bg-[var(--meta-badge-surface,var(--control-surface))] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide"
+          class="shrink-0 rounded-[calc(var(--radius)*0.5)] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide [background:var(--meta-badge-surface,var(--control-surface))]"
           data-testid={`${item.testId ?? 'meta'}-badge`}
         >
           {item.badge}

@@ -94,7 +94,7 @@
    */
   const rowStyle = $derived(
     style
-      ? `${style}; --meta-ink: var(${selected ? '--row-ink-selected' : '--row-ink'}, var(--muted-foreground)); --meta-strong-ink: var(${selected ? '--row-ink-selected' : '--row-ink'}, var(--foreground));`
+      ? `${style}; --meta-ink: var(${selected ? '--row-ink-selected' : '--row-ink'}, var(--muted-foreground)); --meta-strong-ink: var(${selected ? '--row-ink-selected' : '--row-ink'}, var(--foreground)); --meta-badge-surface: color-mix(in oklab, var(${selected ? '--row-ink-selected' : '--row-ink'}, var(--foreground)) 16%, transparent);`
       : undefined,
   );
 </script>

@@ -28,7 +28,7 @@
   import { noteColorLabel, NOTE_COLOR_SWATCHES } from '../notes/notes';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { openBookFile } from '../reader/reader';
-  import { tabColorFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabColorFill, tabIdleFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -256,21 +256,19 @@
    * фоном темы делала цветной пункт серым, и подпись под заливку не подходила.
    */
   function itemFill(tab: WorkspaceTab): string {
-    const base = tabColorFill(tab.color, false);
+    // Невыбранный пункт — тихая ступень, выбранный — плотная: разница видна
+    // сразу, и оба остаются приглушёнными.
+    const idle = tabIdleFill(tab.color);
     const active = tabColorFill(tab.color, true);
     const hover = tabColorFill(tab.color, false);
-    const ink = accentText(tab.color, { strength: 'soft' });
+    const ink = accentText(tab.color, { strength: 'tint' });
     const inkActive = accentText(tab.color, { strength: 'active' });
-    if (!base || !active || !ink || !inkActive) {
+    if (!idle || !active || !ink || !inkActive) {
       return '';
     }
-    // Вторичный текст пункта (описание, формат, путь) берёт подпись своей
-    // заливки: приглушённый цвет темы на плотной плашке не читается.
-    const selected = tab.id === activeTabId;
-    const metaInk = selected ? inkActive : ink;
-    // Метка формата стоит на своей подложке в тон подписи: светлая метка темы
-    // на плотной заливке не читалась.
-    return ` --item-fill: ${base}; --item-fill-active: ${active}; --item-fill-hover: ${hover}; --item-ink: ${ink}; --item-ink-active: ${inkActive}; --meta-ink: ${metaInk}; --meta-strong-ink: ${metaInk}; --meta-badge-surface: color-mix(in oklab, ${metaInk} 14%, transparent);`;
+    // Подпись вторичного текста — та же, что у пункта: цвет задаёт её один раз
+    // на все ступени, поэтому строка списка и карточка не расходятся.
+    return ` --item-fill: ${idle}; --item-fill-active: ${active}; --item-fill-hover: ${hover}; --item-ink: ${ink}; --item-ink-active: ${inkActive}; --meta-ink: ${ink}; --meta-strong-ink: ${ink}; --meta-badge-surface: color-mix(in oklab, ${ink} 16%, transparent);`;
   }
 
   /** Классы пункта с учётом пользовательского цвета и активности.

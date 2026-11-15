@@ -36,7 +36,9 @@ describe('MetaList', () => {
     expect(badge.textContent).toBe('PDF');
     // Фон по умолчанию — группа контролов; цветной пункт задаёт свою поверхность
     // (`--meta-badge-surface`), иначе метка пропадала на цветной заливке.
-    expect(badge.className).toContain('bg-[var(--meta-badge-surface,var(--control-surface))]');
+    expect(badge.className).toContain(
+      '[background:var(--meta-badge-surface,var(--control-surface))]',
+    );
     expect(badge.className).not.toContain('border');
   });
 });

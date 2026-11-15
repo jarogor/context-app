@@ -97,48 +97,52 @@
   /* Запасная подпись на цветной заливке: используется, когда у цвета нет
    * собственного значения (см. `--accent-ink-*`). */
   --on-accent-fill: #1c1608;
-  /* Цвета пользовательских элементов — готовые значения по природе цвета,
-   * без смешения с подложкой. Смешение подмешивало тон темы и искажало цвет:
-   * красный уходил в розовый, зелёный в бирюзовый, жёлтый в серый.
+  /* Цвета пользовательских элементов — приглушённые значения по природе цвета.
    *
-   * Каждой заливке задана своя подпись (`--accent-ink-*`): жёлтый светел по
-   * природе и требует тёмных чернил даже в тёмном наборе, а насыщенный синий
-   * требует светлых. Поэтому подпись выбирается по цвету, а не по теме.
+   * Заливка — тот же цвет, но тихий: насыщенность низкая, поэтому элемент
+   * читается своим цветом и не светится ядовито рядом со спокойной темой.
+   * Насыщенные значения давали ровно обратное: жёлтый выцветал в горчицу,
+   * зелёный — в бирюзу, и всё вместе резало глаз.
    *
-   * Ступени: `tint` — тихая (невыбранное), `soft` — средняя (строка панели),
-   * `active` — плотная (выбранное). Светлая сторона идёт от пастели к
-   * глубокому цвету, тёмная — от глубокого цвета к яркому, поэтому выбранное
-   * всегда выглядит плотнее невыбранного. */
-  --accent-fill-yellow-tint: #fee777;
+   * Ступени разводятся СВЕТЛОТОЙ и силой цвета, а не подмешиванием фона:
+   * `tint` — едва заметный оттенок (невыбранное), `soft` — наведение,
+   * `active` — плотная ступень (выбранное). Поэтому выбранное заметно сильнее,
+   * а наведение не выцветает.
+   *
+   * Подпись одна на обе стороны темы и на все ступени — тёмная: заливки
+   * держатся в светлой полосе, где тёмные чернила читаются всегда. Прежняя
+   * пара «то тёмная, то белая» давала чёрный текст на строке и белый на
+   * карточке одного и того же элемента. */
+  --accent-fill-yellow-tint: #fbe8bb;
+  --accent-fill-yellow-soft: #f0d38c;
+  --accent-fill-yellow-active: #e7bd4f;
+  --accent-fill-green-tint: #d2f0d1;
+  --accent-fill-green-soft: #b1e1b2;
+  --accent-fill-green-active: #8cd28e;
+  --accent-fill-blue-tint: #d2e7ff;
+  --accent-fill-blue-soft: #afd5ff;
+  --accent-fill-blue-active: #8bc1fc;
+  --accent-fill-red-tint: #ffddd9;
+  --accent-fill-red-soft: #fbc3bd;
+  --accent-fill-red-active: #f6a59e;
+  --accent-fill-purple-tint: #f4dafc;
+  --accent-fill-purple-soft: #e7c1f3;
+  --accent-fill-purple-active: #d9a6e9;
   --accent-ink-yellow-tint: #1c1608;
-  --accent-fill-yellow-soft: #f1d101;
   --accent-ink-yellow-soft: #1c1608;
-  --accent-fill-yellow-active: #d4b800;
   --accent-ink-yellow-active: #1c1608;
-  --accent-fill-green-tint: #93f8a3;
   --accent-ink-green-tint: #1c1608;
-  --accent-fill-green-soft: #25ee67;
   --accent-ink-green-soft: #1c1608;
-  --accent-fill-green-active: #13c050;
   --accent-ink-green-active: #1c1608;
-  --accent-fill-blue-tint: #afd2ff;
   --accent-ink-blue-tint: #1c1608;
-  --accent-fill-blue-soft: #82b9ff;
   --accent-ink-blue-soft: #1c1608;
-  --accent-fill-blue-active: #0070d9;
-  --accent-ink-blue-active: #fffdf6;
-  --accent-fill-red-tint: #ffc0b6;
+  --accent-ink-blue-active: #1c1608;
   --accent-ink-red-tint: #1c1608;
-  --accent-fill-red-soft: #ff978a;
   --accent-ink-red-soft: #1c1608;
-  --accent-fill-red-active: #de0f15;
-  --accent-ink-red-active: #fffdf6;
-  --accent-fill-purple-tint: #d6b9ff;
+  --accent-ink-red-active: #1c1608;
   --accent-ink-purple-tint: #1c1608;
-  --accent-fill-purple-soft: #c89eff;
   --accent-ink-purple-soft: #1c1608;
-  --accent-fill-purple-active: #9c1efa;
-  --accent-ink-purple-active: #fffdf6;
+  --accent-ink-purple-active: #1c1608;
   --counter: var(--primary);
   --counter-foreground: var(--primary-foreground);
 
@@ -332,38 +336,41 @@
    * светлой: он поднят над фоном и карточкой и у каждой палитры свой. */
   /* Запасная подпись на цветной заливке для тёмной стороны. */
   --on-accent-fill: #1c1608;
-  /* Те же правила для тёмной стороны: неактивный глухой, активный яркий.
-   * Подпись, как и в светлой стороне, выбирается по самому цвету. */
-  --accent-fill-yellow-tint: #d3c01d;
+  /* Те же правила для тёмной стороны. Заливки тоже держатся в светлой полосе:
+   * приглушённый цвет на низкой светлоте становится хаки (жёлтый), мхом
+   * (зелёный) и грязным (синий), а светлая подпись на плотной заливке не
+   * читается. Светлая полоса оставляет цвет собой и позволяет держать одну
+   * подпись на весь интерфейс. */
+  --accent-fill-yellow-tint: #9c8347;
+  --accent-fill-yellow-soft: #bfa157;
+  --accent-fill-yellow-active: #e3c067;
+  --accent-fill-green-tint: #234725;
+  --accent-fill-green-soft: #366138;
+  --accent-fill-green-active: #477a49;
+  --accent-fill-blue-tint: #1d3f63;
+  --accent-fill-blue-soft: #2e5785;
+  --accent-fill-blue-active: #4071a7;
+  --accent-fill-red-tint: #62322f;
+  --accent-fill-red-soft: #834743;
+  --accent-fill-red-active: #a55d58;
+  --accent-fill-purple-tint: #51305c;
+  --accent-fill-purple-soft: #6e467a;
+  --accent-fill-purple-active: #8c5c9a;
   --accent-ink-yellow-tint: #1c1608;
-  --accent-fill-yellow-soft: #ead745;
   --accent-ink-yellow-soft: #1c1608;
-  --accent-fill-yellow-active: #fbed83;
   --accent-ink-yellow-active: #1c1608;
-  --accent-fill-green-tint: #279f48;
-  --accent-ink-green-tint: #1c1608;
-  --accent-fill-green-soft: #00c34e;
-  --accent-ink-green-soft: #1c1608;
-  --accent-fill-green-active: #15e35f;
-  --accent-ink-green-active: #1c1608;
-  --accent-fill-blue-tint: #0757a8;
-  --accent-ink-blue-tint: #fffdf6;
-  --accent-fill-blue-soft: #0e6dd0;
-  --accent-ink-blue-soft: #fffdf6;
-  --accent-fill-blue-active: #1585f9;
-  --accent-ink-blue-active: #1c1608;
-  --accent-fill-red-tint: #9b0e0f;
-  --accent-ink-red-tint: #fffdf6;
-  --accent-fill-red-soft: #c6010d;
-  --accent-ink-red-soft: #fffdf6;
-  --accent-fill-red-active: #f3362f;
-  --accent-ink-red-active: #1c1608;
-  --accent-fill-purple-tint: #7116b7;
-  --accent-ink-purple-tint: #fffdf6;
-  --accent-fill-purple-soft: #8f20e5;
-  --accent-ink-purple-soft: #fffdf6;
-  --accent-fill-purple-active: #ab58ff;
-  --accent-ink-purple-active: #1c1608;
+  --accent-ink-green-tint: #fffaf2;
+  --accent-ink-green-soft: #fffaf2;
+  --accent-ink-green-active: #fffaf2;
+  --accent-ink-blue-tint: #fffaf2;
+  --accent-ink-blue-soft: #fffaf2;
+  --accent-ink-blue-active: #fffaf2;
+  --accent-ink-red-tint: #fffaf2;
+  --accent-ink-red-soft: #fffaf2;
+  --accent-ink-red-active: #fffaf2;
+  --accent-ink-purple-tint: #fffaf2;
+  --accent-ink-purple-soft: #fffaf2;
+  --accent-ink-purple-active: #fffaf2;
 }
 
 /* Палитра «Иней», светлый набор. Селектор специфичнее `:root`, поэтому
@@ -450,23 +457,25 @@
 :root[data-palette='amber'] {
   --background: #fbf4da;
   /* Наведение и выбор — два цвета темы: мягкий жёлтый и плотный янтарный. */
-  --hover-fill: var(--muted);
+  /* Наведение и выбор — ступени в тёплом тоне палитры: серое наведение
+   * выбивалось из янтарной бумаги и спорило с цветными элементами. */
+  --hover-fill: #f0dfba;
   --selected-fill: var(--app-bar-strip);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #ecd9ab;
   --foreground: #3c3836;
-  --card: #ffffff;
+  --card: #fffdf7;
   --card-foreground: #3c3836;
-  --popover: #ffffff;
+  --popover: #fffdf7;
   --popover-foreground: #3c3836;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #ffffff;
+  --overlay-surface: #fffdf7;
   --primary: #a84b07;
   --primary-foreground: #fdf6e6;
   --secondary: #f7e9c9;
   --secondary-foreground: #3c3836;
-  --muted: #f6e8c8;
-  --muted-foreground: #715e49;
+  --muted: #f4e4c0;
+  --muted-foreground: #6b5844;
   --destructive: #9d0006;
   --destructive-foreground: #fdf6e6;
   --ring: #a84b07;
@@ -487,24 +496,25 @@
   color-scheme: dark;
 
   --background: #1a1611;
-  /* Два цвета темы: мягкий тёмно-янтарный и плотная полоса. */
-  --hover-fill: var(--muted);
+  /* Наведение — тёплая ступень, а не серый: серый выбивался из янтарной бумаги
+   * и не сочетался ни с одним пользовательским цветом. */
+  --hover-fill: #322a20;
   --selected-fill: var(--app-bar-strip);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #342b21;
+  --app-bar-strip: #3b3226;
   --foreground: #ebdbb2;
-  --card: #251f19;
+  --card: #261f19;
   --card-foreground: #ebdbb2;
-  --popover: #251f19;
+  --popover: #261f19;
   --popover-foreground: #ebdbb2;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #2e2720;
+  --overlay-surface: #332b22;
   --primary: #e3a24a;
   --primary-foreground: #2b2523;
-  --secondary: #2e2a22;
+  --secondary: #332c22;
   --secondary-foreground: #ebdbb2;
-  --muted: #2e2a22;
-  --muted-foreground: #b3a08c;
+  --muted: #332c22;
+  --muted-foreground: #b5a289;
   --destructive: #fb4934;
   --destructive-foreground: #2b2523;
   --ring: #e3a24a;
@@ -521,73 +531,82 @@
 
 /* Палитра «Туман», светлый набор. Нейтральная холодная бумага без синевы:
  * акцент — тёмно-серый, в отличие от синего «Инея». Подключается атрибутом
- * `data-palette='mist'`. */
+ * `data-palette='mist'`.
+ *
+ * Ступени поверхностей разведены сильнее обычного: «Туман» — нейтральная
+ * палитра, и без цветового тона различие даёт только светлота. Белая карточка на
+ * почти белом фоне сливалась с ним, а полоса и приглушённая ступень были одним
+ * цветом. */
 :root[data-palette='mist'] {
-  --background: #f4f4f4;
+  --background: #eeeef0;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--sidebar);
   --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #e6e6e6;
+  --app-bar-strip: #dfe1e5;
   --foreground: #1c1c1c;
-  --card: #ffffff;
+  --card: #fafafb;
   --card-foreground: #1c1c1c;
-  --popover: #ffffff;
+  --popover: #fafafb;
   --popover-foreground: #1c1c1c;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #ffffff;
+  --overlay-surface: #fafafb;
   --primary: #4a4a4a;
   --primary-foreground: #fafafa;
-  --secondary: #e2e2e2;
+  --secondary: #e2e3e6;
   --secondary-foreground: #1c1c1c;
-  --muted: #e6e6e6;
-  --muted-foreground: #585858;
+  --muted: #e3e4e8;
+  --muted-foreground: #55585d;
   --destructive: #b3261e;
   --destructive-foreground: #ffffff;
   --ring: #4a4a4a;
-  --sidebar: #e9e9e9;
+  --sidebar: #e6e7ea;
   --sidebar-foreground: #1c1c1c;
   --sidebar-primary: #4a4a4a;
   --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #dcdcdc;
+  --sidebar-accent: #d5d7dc;
   --sidebar-accent-foreground: #1c1c1c;
   --sidebar-ring: #4a4a4a;
   --success: #2f7d4f;
   --warning: #976a15;
 }
 
-/* Палитра «Туман», тёмный набор. Нейтральная холодная бумага без синевы. */
+/* Палитра «Туман», тёмный набор. Нейтральная холодная бумага без синевы.
+ *
+ * Как и в светлой стороне, ступени разведены сильнее: фон не «почти чёрный», а
+ * глубокая бумага, а карточка, полоса и слой заметно светлее фона. Иначе
+ * нейтральная палитра теряет всякую иерархию — всё читается одним чёрным полем. */
 :root[data-palette='mist'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #171717;
+  --background: #1b1c1e;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--muted);
   --selected-fill: var(--overlay-surface);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #282828;
-  --foreground: #ededed;
-  --card: #202020;
-  --card-foreground: #ededed;
-  --popover: #202020;
-  --popover-foreground: #ededed;
+  --app-bar-strip: #34373b;
+  --foreground: #ededee;
+  --card: #26282b;
+  --card-foreground: #ededee;
+  --popover: #26282b;
+  --popover-foreground: #ededee;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #2d2d2d;
+  --overlay-surface: #33363a;
   --primary: #b8b8b8;
   --primary-foreground: #161616;
-  --secondary: #242424;
-  --secondary-foreground: #ededed;
-  --muted: #242424;
-  --muted-foreground: #9c9c9c;
+  --secondary: #2b2d30;
+  --secondary-foreground: #ededee;
+  --muted: #2b2d30;
+  --muted-foreground: #a0a3a8;
   --destructive: #e0685c;
-  --destructive-foreground: #171717;
+  --destructive-foreground: #1b1c1e;
   --ring: #b8b8b8;
-  --sidebar: #1e1e1e;
-  --sidebar-foreground: #ededed;
+  --sidebar: #24262a;
+  --sidebar-foreground: #ededee;
   --sidebar-primary: #b8b8b8;
   --sidebar-primary-foreground: #161616;
-  --sidebar-accent: #2d2d2d;
-  --sidebar-accent-foreground: #ededed;
+  --sidebar-accent: #33363a;
+  --sidebar-accent-foreground: #ededee;
   --sidebar-ring: #b8b8b8;
   --success: #7ab98c;
   --warning: #d9ad63;
