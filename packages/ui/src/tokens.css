@@ -399,9 +399,9 @@
  * подключается атрибутом `data-palette='amber'`. */
 :root[data-palette='amber'] {
   --background: #fbf4da;
-  /* Наведение и выбор: тон палитры. */
-  --hover-fill: var(--sidebar);
-  --selected-fill: var(--sidebar-accent);
+  /* Наведение и выбор — два цвета темы: мягкий жёлтый и плотный янтарный. */
+  --hover-fill: var(--muted);
+  --selected-fill: var(--app-bar-strip);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #ecd9ab;
   --foreground: #3c3836;
@@ -413,18 +413,18 @@
   --overlay-surface: #ffffff;
   --primary: #a84b07;
   --primary-foreground: #fdf6e6;
-  --secondary: #ece3c9;
+  --secondary: #f7e9c9;
   --secondary-foreground: #3c3836;
   --muted: #f6e8c8;
-  --muted-foreground: #63513f;
+  --muted-foreground: #715e49;
   --destructive: #9d0006;
   --destructive-foreground: #fdf6e6;
   --ring: #a84b07;
-  --sidebar: #f3ebd5;
+  --sidebar: #fffaef;
   --sidebar-foreground: #3c3836;
   --sidebar-primary: #a84b07;
   --sidebar-primary-foreground: #fdf6e6;
-  --sidebar-accent: #e5dbc2;
+  --sidebar-accent: #f7e9c9;
   --sidebar-accent-foreground: #3c3836;
   --sidebar-ring: #a84b07;
   --success: #427b58;
@@ -437,8 +437,8 @@
   color-scheme: dark;
 
   --background: #1a1611;
-  /* Наведение и выбор: тон палитры. */
-  --hover-fill: var(--overlay-surface);
+  /* Два цвета темы: мягкий тёмно-янтарный и плотная полоса. */
+  --hover-fill: var(--muted);
   --selected-fill: var(--app-bar-strip);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #342b21;
@@ -451,18 +451,18 @@
   --overlay-surface: #2e2720;
   --primary: #e3a24a;
   --primary-foreground: #2b2523;
-  --secondary: #332d26;
+  --secondary: #2e2a22;
   --secondary-foreground: #ebdbb2;
-  --muted: #332d26;
+  --muted: #2e2a22;
   --muted-foreground: #b3a08c;
   --destructive: #fb4934;
   --destructive-foreground: #2b2523;
   --ring: #e3a24a;
-  --sidebar: #251f18;
+  --sidebar: #251f19;
   --sidebar-foreground: #ebdbb2;
   --sidebar-primary: #e3a24a;
   --sidebar-primary-foreground: #2b2523;
-  --sidebar-accent: #332d25;
+  --sidebar-accent: #2e2a22;
   --sidebar-accent-foreground: #ebdbb2;
   --sidebar-ring: #e3a24a;
   --success: #8ec07c;
