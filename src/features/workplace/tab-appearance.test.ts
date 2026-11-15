@@ -36,14 +36,14 @@ describe('вид вкладки', () => {
     // Основа фона неактивной цветной вкладки — общий фон неактивной вкладки, а
     // не полоса и не карточка: цветная и нецветная отличаются лишь оттенком.
     expect(tabIdleFill('blue')).toContain('var(--tab-idle-surface)');
-    expect(tabIdleFill('blue')).toContain('#2563eb 6%');
+    expect(tabIdleFill('blue')).toContain('#2563eb 16%');
     expect(tabIdleFill(undefined)).toBeUndefined();
   });
 
   it('делает активную цветную вкладку заметно плотнее неактивной', () => {
     // Активная залита цветом плотнее неактивной, чтобы читаться сразу; обе
-    // ступени приглушены, чтобы подпись оставалась контрастной.
-    expect(tabColorFill('blue', 'var(--card)', true)).toContain('#2563eb 20%');
-    expect(tabIdleFill('blue')).toContain('#2563eb 6%');
+    // ступени остаются ниже половины цвета, чтобы подпись была контрастной.
+    expect(tabColorFill('blue', 'var(--card)', true)).toContain('#2563eb 40%');
+    expect(tabIdleFill('blue')).toContain('#2563eb 16%');
   });
 });

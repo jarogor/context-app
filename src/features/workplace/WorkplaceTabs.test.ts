@@ -274,7 +274,7 @@ describe('панель вкладок: оформление вкладки', () 
     const active = screen.getAllByTestId('workplace-tab-item')[1];
     expect(active.className).toContain('bg-[var(--tab-fill-active)]');
     expect(active.getAttribute('style')).toContain('--tab-fill-active: color-mix');
-    expect(active.getAttribute('style')).toContain('#2563eb 20%');
+    expect(active.getAttribute('style')).toContain('#2563eb 40%');
   });
 
   it('оставляет прежний вид вкладки без оформления', () => {

@@ -22,13 +22,14 @@ describe('цвета оформления', () => {
     expect(fill).toContain('color-mix');
   });
 
-  it('держит заливку приглушённой на всех ступенях', () => {
-    // Насыщенная заливка заставила бы текст спорить с фоном: даже самая плотная
-    // ступень остаётся ниже половины цвета.
+  it('держит заливку ниже половины цвета на всех ступенях', () => {
+    // Доля цвета поднята, чтобы элемент читался цветным, но остаётся ниже
+    // половины: подпись на заливке сохраняет контраст.
     for (const strength of ['tint', 'soft', 'active'] as const) {
       const fill = accentFill('red', { strength }) ?? '';
       const percent = Number(fill.match(/(\d+)%/)?.[1] ?? '100');
-      expect(percent).toBeLessThanOrEqual(30);
+      expect(percent).toBeLessThan(50);
+      expect(percent).toBeGreaterThan(20);
     }
   });
 

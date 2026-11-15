@@ -208,8 +208,8 @@
   /* Палитра «Лён» по умолчанию, светлый набор. */
   --background: #f1ece1;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #d2ede6;
-  --selected-fill: #b7e2d7;
+  --hover-fill: #e1eae8;
+  --selected-fill: #d0dedb;
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #e6dfd0;
   --foreground: #1f1d1a;
@@ -219,17 +219,17 @@
   --popover-foreground: #1f1d1a;
   --primary: #2e5c52;
   --primary-foreground: #f4f1e9;
-  --secondary: #e4ddcf;
+  --secondary: #e4dccb;
   --secondary-foreground: #1f1d1a;
   --muted: #e7e0d3;
-  --muted-foreground: #6d675c;
+  --muted-foreground: #615a4e;
   --destructive: #9c3428;
   --destructive-foreground: #fbf8f1;
   /* Единая тонкая обводка областей и контролов: одно значение для полей ввода,
    * кнопок, карточек и пунктов списков. */
   --ring: #2e5c52;
   --radius: 0.5rem;
-  --sidebar: #eae4d8;
+  --sidebar: #ebe3d4;
   --sidebar-foreground: #1f1d1a;
   --sidebar-primary: #2e5c52;
   --sidebar-primary-foreground: #f4f1e9;
@@ -251,8 +251,8 @@
 
   --background: #17191a;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #1d332d;
-  --selected-fill: #21453b;
+  --hover-fill: #202624;
+  --selected-fill: #242f2b;
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #262728;
   --foreground: #e7e2d7;
@@ -269,22 +269,24 @@
   --destructive: #e2685c;
   --destructive-foreground: #17191a;
   --ring: #7db9a7;
-  --sidebar: #1c1f20;
+  --sidebar: #1d2022;
   --sidebar-foreground: #e7e2d7;
   --sidebar-primary: #7db9a7;
   --sidebar-primary-foreground: #12181a;
-  --sidebar-accent: #2c3132;
+  --sidebar-accent: #2b2f30;
   --sidebar-accent-foreground: #e7e2d7;
   --sidebar-ring: #7db9a7;
   --success: #86bd90;
   --warning: #e0b063;
-}
 
-/* Контролы на полосе под шапкой в тёмной стороне берут цвет шапки: он темнее
- * полосы, тогда элементы читаются как углубления, а не как светлые пятна.
- * Правило одно на все палитры: палитры этот токен не переопределяют. */
-:root[data-theme='dark'] {
+  /* Контролы на полосе под шапкой в тёмной стороне берут цвет шапки: он темнее
+   * полосы, тогда элементы читаются как углубления, а не как светлые пятна.
+   * Правило одно на все палитры: палитры этот токен не переопределяют. */
   --strip-control-surface: var(--card);
+  /* Врезка здесь считается от карточки, а не от фона: карточка уже отделена
+   * от фона светлотой, и доля чернил от фона давала врезку на 1% отличия от
+   * карточки — блок не читался. От карточки отличие заметное (×1.2). */
+  --surface-inset: color-mix(in oklab, var(--foreground) 8%, var(--card));
 }
 
 /* Палитра «Иней», светлый набор. Селектор специфичнее `:root`, поэтому
@@ -293,8 +295,8 @@
 :root[data-palette='frost'] {
   --background: #eef4fb;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #d8e9ff;
-  --selected-fill: #bed8ff;
+  --hover-fill: #e7ebf3;
+  --selected-fill: #d8e0ed;
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #d4e1f4;
   --foreground: #0f1622;
@@ -311,18 +313,18 @@
    * заливки даёт контраст 8.5. */
   --primary: #204592;
   --primary-foreground: #f7f9fc;
-  --secondary: #e2eafa;
+  --secondary: #d7e6f9;
   --secondary-foreground: #0f1622;
-  --muted: #e4eefa;
+  --muted: #dcebfe;
   --muted-foreground: #495a78;
   --destructive: #a83a2e;
   --destructive-foreground: #ffffff;
   --ring: #204592;
-  --sidebar: #f4f8fe;
+  --sidebar: #e0ecfc;
   --sidebar-foreground: #0f1622;
   --sidebar-primary: #204592;
   --sidebar-primary-foreground: #f7f9fc;
-  --sidebar-accent: #e2eafa;
+  --sidebar-accent: #cfdcef;
   --sidebar-accent-foreground: #0f1622;
   --sidebar-ring: #204592;
   --success: #2f7d4f;
@@ -335,8 +337,8 @@
 
   --background: #0c1526;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #1d2f53;
-  --selected-fill: #263e6f;
+  --hover-fill: #1c222c;
+  --selected-fill: #212938;
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #1d2d4c;
   --foreground: #e4e9f4;
@@ -355,7 +357,7 @@
   --destructive: #e0685c;
   --destructive-foreground: #0c1526;
   --ring: #608fed;
-  --sidebar: #101a2e;
+  --sidebar: #101c35;
   --sidebar-foreground: #e4e9f4;
   --sidebar-primary: #608fed;
   --sidebar-primary-foreground: #0a101c;
@@ -371,8 +373,8 @@
 :root[data-palette='amber'] {
   --background: #fbf4da;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #ffe3ce;
-  --selected-fill: #ffcead;
+  --hover-fill: #f2e9e2;
+  --selected-fill: #ebddd1;
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #ecd9ab;
   --foreground: #3c3836;
@@ -384,18 +386,18 @@
   --overlay-surface: #ffffff;
   --primary: #a84b07;
   --primary-foreground: #fdf6e6;
-  --secondary: #f7e9c9;
+  --secondary: #ece3c9;
   --secondary-foreground: #3c3836;
   --muted: #f6e8c8;
-  --muted-foreground: #715e49;
+  --muted-foreground: #6a5743;
   --destructive: #9d0006;
   --destructive-foreground: #fdf6e6;
   --ring: #a84b07;
-  --sidebar: #fffaef;
+  --sidebar: #f3ebd5;
   --sidebar-foreground: #3c3836;
   --sidebar-primary: #a84b07;
   --sidebar-primary-foreground: #fdf6e6;
-  --sidebar-accent: #f7e9c9;
+  --sidebar-accent: #e5dbc2;
   --sidebar-accent-foreground: #3c3836;
   --sidebar-ring: #a84b07;
   --success: #427b58;
@@ -409,8 +411,8 @@
 
   --background: #13100c;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #44311a;
-  --selected-fill: #5a3f19;
+  --hover-fill: #261f1a;
+  --selected-fill: #31261e;
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #342b21;
   --foreground: #ebdbb2;
@@ -429,11 +431,11 @@
   --destructive: #fb4934;
   --destructive-foreground: #2b2523;
   --ring: #e3a24a;
-  --sidebar: #251f19;
+  --sidebar: #1f1a12;
   --sidebar-foreground: #ebdbb2;
   --sidebar-primary: #e3a24a;
   --sidebar-primary-foreground: #2b2523;
-  --sidebar-accent: #2e2a22;
+  --sidebar-accent: #2e2820;
   --sidebar-accent-foreground: #ebdbb2;
   --sidebar-ring: #e3a24a;
   --success: #8ec07c;
@@ -446,8 +448,8 @@
 :root[data-palette='mist'] {
   --background: #f3f4f5;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #e2e9f0;
-  --selected-fill: #ced9e5;
+  --hover-fill: #e8ecef;
+  --selected-fill: #dae0e7;
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #dee0e2;
   --foreground: #1b1e21;
@@ -459,18 +461,18 @@
   --overlay-surface: #ffffff;
   --primary: #454b52;
   --primary-foreground: #fafbfc;
-  --secondary: #e5e7e9;
+  --secondary: #e2e5e8;
   --secondary-foreground: #1b1e21;
   --muted: #e7e9eb;
   --muted-foreground: #565b60;
   --destructive: #b3261e;
   --destructive-foreground: #ffffff;
   --ring: #454b52;
-  --sidebar: #ecf0f4;
+  --sidebar: #e8ebef;
   --sidebar-foreground: #1b1e21;
   --sidebar-primary: #454b52;
   --sidebar-primary-foreground: #fafbfc;
-  --sidebar-accent: #dfe2e4;
+  --sidebar-accent: #dadde0;
   --sidebar-accent-foreground: #1b1e21;
   --sidebar-ring: #454b52;
   --success: #2f7d4f;
@@ -483,8 +485,8 @@
 
   --background: #16181a;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #2b3137;
-  --selected-fill: #37414b;
+  --hover-fill: #202327;
+  --selected-fill: #252b30;
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #313336;
   --foreground: #eceef0;
@@ -503,7 +505,7 @@
   --destructive: #e0685c;
   --destructive-foreground: #16181a;
   --ring: #b4bbc3;
-  --sidebar: #191c1e;
+  --sidebar: #1c1f23;
   --sidebar-foreground: #eceef0;
   --sidebar-primary: #b4bbc3;
   --sidebar-primary-foreground: #14161a;
