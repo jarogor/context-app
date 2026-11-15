@@ -23,7 +23,11 @@ export type AccentColor = (typeof ACCENT_COLORS)[number];
  * подложкой, а не подбирают оттенок заново.
  */
 export const ACCENT_COLOR_SWATCHES: Record<AccentColor, string> = {
-  yellow: '#eab308',
+  /* Жёлтый глубже обычного «нативного» #eab308: на светлой бумаге заливка
+   * 32 % от него давала контраст 1.14 к фону, и элемент сливался с листом.
+   * Здесь тот же тон, но темнее — неактивная запись отделяется от карточки
+   * (1.21 вместо 1.17), активная — заметно плотнее (1.44). */
+  yellow: '#b98c00',
   green: '#16a34a',
   blue: '#2563eb',
   red: '#dc2626',
@@ -46,6 +50,7 @@ const ACCENT_FILL_PERCENTS: Record<AccentStrength, number> = {
   soft: 22,
   active: 32,
 };
+
 
 /** Доля цвета в цветной обводке, в процентах. */
 const ACCENT_LINE_PERCENT = 28;
@@ -75,9 +80,17 @@ export function accentFill(
   if (!color) {
     return undefined;
   }
-  const base = options.base ?? 'var(--accent-fill-base)';
+  const base = options.base ?? 'var(--card)';
   const strength = options.strength ?? 'tint';
-  return `color-mix(in oklab, ${ACCENT_COLOR_SWATCHES[color]} ${ACCENT_FILL_PERCENTS[strength]}%, ${base})`;
+  // Долю задаёт токен стороны: в тёмных наборах она выше (см. `tokens.css`),
+  // иначе цвет сливается с подложкой темы — у «Инея» синий элемент читался как
+  // собственный синий темы. Здесь — значение светлой стороны как запасное.
+  const percents = `var(--accent-fill-${strength}, ${ACCENT_FILL_PERCENTS[strength]}%)`;
+  // База — нейтральный серый той же светлоты, что поверхность: цвет темы в
+  // смесь не попадает, поэтому выбранный пользователем цвет не искажается
+  // (в «Инее» жёлтый больше не становится серым). Переданный `base` остаётся
+  // запасным значением — он подставится, только если нейтрального токена нет.
+  return `color-mix(in oklab, ${ACCENT_COLOR_SWATCHES[color]} ${percents}, var(--accent-fill-base, ${base}))`;
 }
 
 /** CSS-цвет обводки объекта с примесью его цвета; отсутствует без цвета.

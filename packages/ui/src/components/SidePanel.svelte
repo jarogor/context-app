@@ -116,7 +116,7 @@
 
 <aside
   class={cn(
-    'flex h-full min-w-0 flex-none flex-col  bg-[var(--panel)]',
+    'flex h-full min-w-0 flex-none flex-col bg-[var(--panel)]',
     positionClass,
     borderClass,
     className,
@@ -127,7 +127,7 @@
   style="padding-left: var(--safe-left); padding-right: var(--safe-right);"
 >
   <div
-    class="flex flex-wrap items-center gap-2 bg-[var(--panel)] px-3 py-2.5"
+    class="flex flex-wrap items-center gap-2 px-3 py-2.5"
   >
     {#if onClose && showClose}
       <span class={cn('flex', !overlay && 'large-tablet:hidden')}>
@@ -160,7 +160,7 @@
     собственные вкладки переносятся внутри неё, не меняя места.
   -->
   {#if tabs}
-    <div class="bg-[var(--panel)] px-2 py-1.5">
+    <div class="px-2 py-1.5">
       {@render tabs()}
     </div>
   {/if}

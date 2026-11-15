@@ -884,13 +884,19 @@
               {#if selectedEntry.icon}
                 <Icon name={selectedEntry.icon} class="mt-1 h-4 w-4 shrink-0" />
               {/if}
-              <span class="block min-w-0 break-words role-heading text-[var(--foreground)]">
+              <span
+                class="block min-w-0 break-words role-heading {selectedEntry.color
+                  ? 'text-[var(--on-accent-fill)]'
+                  : 'text-[var(--foreground)]'}"
+              >
                 {libraryLabel(selectedEntry)}
               </span>
             </span>
             {#if selectedEntry.description}
               <span
-                class="m-0 block whitespace-pre-wrap break-words role-body text-[var(--muted-foreground)]"
+                class="m-0 block whitespace-pre-wrap break-words role-body {selectedEntry.color
+                  ? 'text-[var(--on-accent-fill)] opacity-85'
+                  : 'text-[var(--muted-foreground)]'}"
                 data-testid="library-card-description"
               >
                 {selectedEntry.description}
@@ -1026,7 +1032,11 @@
                   onclick={() => pickEntry(entry)}
                 ></button>
 
-                <div class="pointer-events-none flex min-w-0 items-start gap-2">
+                <div
+                  class="pointer-events-none flex min-w-0 items-start gap-2 {entry.color
+                    ? 'text-[var(--on-accent-fill)]'
+                    : ''}"
+                >
                   {#if entry.icon}
                     <Icon name={entry.icon} class="mt-0.5 h-4 w-4 shrink-0" />
                   {/if}
@@ -1044,7 +1054,9 @@
                   </Badge>
                   {#if formatDateTime(entry.addedAtMillis)}
                     <span
-                      class="flex items-center gap-1.5 role-caption text-[var(--muted-foreground)]"
+                      class="flex items-center gap-1.5 role-caption {entry.color
+                        ? 'text-[var(--on-accent-fill)] opacity-80'
+                        : 'text-[var(--muted-foreground)]'}"
                     >
                       <Icon name="clock" class="h-3.5 w-3.5 shrink-0" />
                       {formatDateTime(entry.addedAtMillis)}

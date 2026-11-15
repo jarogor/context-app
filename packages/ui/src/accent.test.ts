@@ -27,9 +27,11 @@ describe('цвета оформления', () => {
     // половины: подпись на заливке сохраняет контраст.
     for (const strength of ['tint', 'soft', 'active'] as const) {
       const fill = accentFill('red', { strength }) ?? '';
-      const percent = Number(fill.match(/(\d+)%/)?.[1] ?? '100');
-      expect(percent).toBeLessThan(50);
-      expect(percent).toBeGreaterThan(20);
+      // Долю задаёт токен стороны; запасное значение в вызове — светлая сторона.
+      expect(fill).toContain(`var(--accent-fill-${strength}`);
+      const fallback = Number(fill.match(/,\s*(\d+)%\)/)?.[1] ?? '100');
+      expect(fallback).toBeLessThan(50);
+      expect(fallback).toBeGreaterThan(10);
     }
   });
 

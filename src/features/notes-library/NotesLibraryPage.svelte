@@ -611,11 +611,16 @@
     </EntityList>
     {#snippet side()}
     {#if selectedSet}
+        <!--
+          Панель оформлена как карточка библиотеки: тот же фон, то же скругление
+          и тот же отступ от края. Это одна и та же роль — сведения о выбранном
+          объекте, поэтому и вид у них общий.
+        -->
         <SidePanel
           title={selectedSet.name}
           testId="notes-set-panel"
           onClose={closePanel}
-          class="w-[var(--notes-panel-width)]"
+          class="my-3 mr-3 w-[var(--notes-panel-width)] rounded-[var(--radius)] bg-[var(--card)]"
         >
           {#snippet search()}
             <Input
