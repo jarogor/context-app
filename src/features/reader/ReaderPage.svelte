@@ -1234,7 +1234,7 @@
         {/if}
         {#if menuPosition && pendingAnchor}
           <div
-            class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-md bg-[var(--overlay-surface)] p-[0.25rem] shadow-overlay"
+            class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-[var(--radius)] bg-[var(--menu-surface)] p-[0.25rem] shadow-overlay"
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >

@@ -139,10 +139,13 @@
   /* Всплывающее меню и его наведение. В светлой стороне список берет цвет
    * страницы, а подсветка пункта — цвет полосы под шапкой; в тёмной — наоборот
    * (правило ниже). Так меню отделено от подложки и остаётся в тоне наборов. */
-  /* Меню и подсветка пункта: меню стоит на полосе, пункт под курсором —
-   * ступень от неё. Разница между ними видна сразу, а не «на полтона». */
-  --menu-surface: var(--app-bar-strip);
-  --menu-hover: var(--menu-hover-fill);
+  /* Выпадающий список, контекстное меню и поповер — та же поверхность, что у
+   * поля, которое их раскрывает: раскрытие продолжает контрол, а не спорит с
+   * ним, поэтому цвет при открытии не меняется. От подложки слой отделён
+   * тенью. Подсветка пункта — общий фон выделения (`--selected-fill`), поэтому
+   * строка под курсором совпадает с выделенной строкой списка. */
+  --menu-surface: var(--overlay-surface);
+  --menu-hover: var(--selected-fill);
   --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.12);
   --elevation-raised: none;
 
@@ -224,9 +227,8 @@
   /* Палитра «Лён» по умолчанию, светлый набор. */
   --background: #f1ece1;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #eae5d8;
-  --selected-fill: #dbd4c5;
-  --menu-hover-fill: #d3cdbe;
+  --hover-fill: var(--sidebar);
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #e6dfd0;
   --foreground: #1f1d1a;
@@ -268,9 +270,8 @@
 
   --background: #17191a;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #242424;
-  --selected-fill: #2f2f2f;
-  --menu-hover-fill: #343434;
+  --hover-fill: var(--muted);
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #262728;
   --foreground: #e7e2d7;
@@ -283,7 +284,7 @@
   --secondary: #262a2b;
   --secondary-foreground: #e7e2d7;
   --muted: #262a2b;
-  --muted-foreground: #9d968a;
+  --muted-foreground: #a6a096;
   --destructive: #e2685c;
   --destructive-foreground: #17191a;
   --ring: #7db9a7;
@@ -305,9 +306,8 @@
    * от фона светлотой, и доля чернил от фона давала врезку на 1% отличия от
    * карточки — блок не читался. От карточки отличие заметное (×1.2). */
   --surface-inset: color-mix(in oklab, var(--foreground) 8%, var(--card));
-  /* В тёмной стороне то же правило: меню на полосе, подсветка — ступень от неё. */
-  --menu-surface: var(--app-bar-strip);
-  --menu-hover: var(--menu-hover-fill);
+  /* Списки и меню в тёмной стороне берут тот же `--overlay-surface`, что и в
+   * светлой: он поднят над фоном и карточкой и у каждой палитры свой. */
   /* Подпись на цветной заливке почти белая: сама заливка светлее фона. */
   --on-accent-fill: #ffffff;
   --accent-fill-base: #1c1c1c;
@@ -322,9 +322,8 @@
 :root[data-palette='frost'] {
   --background: #eef4fb;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #e3edfd;
-  --selected-fill: #c9d6e9;
-  --menu-hover-fill: #c2cee0;
+  --hover-fill: var(--sidebar);
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #d4e1f4;
   --foreground: #0f1622;
@@ -365,9 +364,8 @@
 
   --background: #0c1526;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #162137;
-  --selected-fill: #263551;
-  --menu-hover-fill: #2b3a55;
+  --hover-fill: var(--muted);
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #1d2d4c;
   --foreground: #e4e9f4;
@@ -402,9 +400,8 @@
 :root[data-palette='amber'] {
   --background: #fbf4da;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #f8eccf;
-  --selected-fill: #decfac;
-  --menu-hover-fill: #d5c7a6;
+  --hover-fill: var(--sidebar);
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #ecd9ab;
   --foreground: #3c3836;
@@ -441,9 +438,8 @@
 
   --background: #1a1611;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #29221a;
-  --selected-fill: #3b3228;
-  --menu-hover-fill: #41382e;
+  --hover-fill: var(--overlay-surface);
+  --selected-fill: var(--app-bar-strip);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #342b21;
   --foreground: #ebdbb2;
@@ -479,9 +475,8 @@
 :root[data-palette='mist'] {
   --background: #f4f4f4;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #ececec;
-  --selected-fill: #dbdbdb;
-  --menu-hover-fill: #d3d3d3;
+  --hover-fill: var(--sidebar);
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #e6e6e6;
   --foreground: #1c1c1c;
@@ -517,9 +512,8 @@
 
   --background: #171717;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: #232323;
-  --selected-fill: #303030;
-  --menu-hover-fill: #353535;
+  --hover-fill: var(--muted);
+  --selected-fill: var(--overlay-surface);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #282828;
   --foreground: #ededed;

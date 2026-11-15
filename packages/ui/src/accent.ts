@@ -23,11 +23,7 @@ export type AccentColor = (typeof ACCENT_COLORS)[number];
  * подложкой, а не подбирают оттенок заново.
  */
 export const ACCENT_COLOR_SWATCHES: Record<AccentColor, string> = {
-  /* Жёлтый глубже обычного «нативного» #eab308: на светлой бумаге заливка
-   * 32 % от него давала контраст 1.14 к фону, и элемент сливался с листом.
-   * Здесь тот же тон, но темнее — неактивная запись отделяется от карточки
-   * (1.21 вместо 1.17), активная — заметно плотнее (1.44). */
-  yellow: '#b98c00',
+  yellow: '#eab308',
   green: '#16a34a',
   blue: '#2563eb',
   red: '#dc2626',
@@ -50,7 +46,6 @@ const ACCENT_FILL_PERCENTS: Record<AccentStrength, number> = {
   soft: 22,
   active: 32,
 };
-
 
 /** Доля цвета в цветной обводке, в процентах. */
 const ACCENT_LINE_PERCENT = 28;

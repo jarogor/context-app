@@ -86,7 +86,7 @@
 -->
 <div
   class={cn(
-    'bg-[var(--control-surface)] inline-flex h-9 items-center gap-[0.1875rem] rounded-[var(--radius)] px-2 py-1',
+    'inline-flex h-9 items-center gap-[0.1875rem] rounded-[var(--radius)] px-2 py-1',
     size === 'sm' && 'h-8 gap-[0.125rem] px-2 py-[0.1875rem]',
     className,
   )}

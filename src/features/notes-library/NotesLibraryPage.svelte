@@ -613,14 +613,17 @@
     {#if selectedSet}
         <!--
           Панель оформлена как карточка библиотеки: тот же фон, то же скругление
-          и тот же отступ от края. Это одна и та же роль — сведения о выбранном
-          объекте, поэтому и вид у них общий.
+          и те же отступы со всех сторон. Это одна и та же роль — сведения о
+          выбранном объекте, поэтому и вид у них общий. Высота уменьшена на сумму
+          отступов: панель стоит в раскладке на всю высоту, и без вычета нижний
+          край уходил бы за границу области. На узком окне панель накладная и
+          отступы не нужны — она занимает область целиком.
         -->
         <SidePanel
           title={selectedSet.name}
           testId="notes-set-panel"
           onClose={closePanel}
-          class="my-3 mr-3 w-[var(--notes-panel-width)] rounded-[var(--radius)] bg-[var(--card)]"
+          class="my-3 mr-3 h-[calc(100%_-_1.5rem)] w-[var(--notes-panel-width)] overflow-hidden rounded-[var(--radius)] bg-[var(--card)] max-large-tablet:my-0 max-large-tablet:mr-0 max-large-tablet:h-full"
         >
           {#snippet search()}
             <Input
