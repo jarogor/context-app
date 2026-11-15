@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { ACCENT_COLORS, ACCENT_COLOR_SWATCHES, accentFill, accentLine } from './accent';
+import {
+  ACCENT_COLORS,
+  ACCENT_COLOR_SWATCHES,
+  ACCENT_FILL_COLORS,
+  ACCENT_INK_COLORS,
+  accentFill,
+  accentLine,
+  accentText,
+} from './accent';
 
 describe('цвета оформления', () => {
   it('предлагает один набор цветов на всё приложение', () => {
@@ -10,44 +18,58 @@ describe('цвета оформления', () => {
     }
   });
 
-  it('не даёт заливки и обводки без цвета', () => {
+  it('не даёт заливки, подписи и обводки без цвета', () => {
     expect(accentFill(undefined)).toBeUndefined();
+    expect(accentText(undefined)).toBeUndefined();
     expect(accentLine(undefined)).toBeUndefined();
   });
 
-  it('смешивает цвет с указанным фоном', () => {
-    const fill = accentFill('blue', { base: 'var(--card)' });
-    expect(fill).toContain('#2563eb');
-    expect(fill).toContain('var(--card)');
-    expect(fill).toContain('color-mix');
+  it('берёт готовую заливку стороны, а не смешивает цвет с подложкой', () => {
+    // Смешение подмешивало тон темы и искажало сам цвет: красный уходил в
+    // розовый, зелёный в бирюзовый, жёлтый в серый. Поэтому значение готовое.
+    const fill = accentFill('blue');
+    expect(fill).toContain('var(--accent-fill-blue-tint');
+    expect(fill).not.toContain('color-mix');
+    expect(fill).toContain(ACCENT_FILL_COLORS.light.blue.tint);
   });
 
-  it('держит заливку ниже половины цвета на всех ступенях', () => {
-    // Доля цвета поднята, чтобы элемент читался цветным, но остаётся ниже
-    // половины: подпись на заливке сохраняет контраст.
-    for (const strength of ['tint', 'soft', 'active'] as const) {
-      const fill = accentFill('red', { strength }) ?? '';
-      // Долю задаёт токен стороны; запасное значение в вызове — светлая сторона.
-      expect(fill).toContain(`var(--accent-fill-${strength}`);
-      const fallback = Number(fill.match(/,\s*(\d+)%\)/)?.[1] ?? '100');
-      expect(fallback).toBeLessThan(50);
-      expect(fallback).toBeGreaterThan(10);
+  it('держит заливку и подпись заданными для каждой ступени и цвета', () => {
+    for (const color of ACCENT_COLORS) {
+      for (const strength of ['tint', 'soft', 'active'] as const) {
+        expect(ACCENT_FILL_COLORS.light[color][strength]).toMatch(/^#[0-9a-f]{6}$/);
+        expect(ACCENT_FILL_COLORS.dark[color][strength]).toMatch(/^#[0-9a-f]{6}$/);
+        expect(ACCENT_INK_COLORS.light[color][strength]).toMatch(/^#[0-9a-f]{6}$/);
+        expect(ACCENT_INK_COLORS.dark[color][strength]).toMatch(/^#[0-9a-f]{6}$/);
+        expect(accentText(color, { strength })).toContain(ACCENT_INK_COLORS.light[color][strength]);
+      }
     }
   });
 
-  it('делает плотнее ступень active, а не места применения', () => {
-    const tint = accentFill('green', { strength: 'tint' }) ?? '';
-    const soft = accentFill('green', { strength: 'soft' }) ?? '';
-    const active = accentFill('green', { strength: 'active' }) ?? '';
-    expect(tint).not.toBe(soft);
-    expect(soft).not.toBe(active);
+  it('делает плотную ступень плотнее тихой в обеих сторонах темы', () => {
+    // Выбранное должно выглядеть сильнее невыбранного: у светлой стороны
+    // плотная ступень темнее, у тёмной — светлее.
+    const luminance = (hex: string): number => {
+      const value = Number.parseInt(hex.slice(1), 16);
+      return ((value >> 16) & 255) * 0.299 + ((value >> 8) & 255) * 0.587 + (value & 255) * 0.114;
+    };
+    for (const color of ACCENT_COLORS) {
+      for (const side of ['light', 'dark'] as const) {
+        const tint = luminance(ACCENT_FILL_COLORS[side][color].tint);
+        const active = luminance(ACCENT_FILL_COLORS[side][color].active);
+        if (side === 'light') {
+          expect(active, `${color}: светлая сторона`).toBeLessThan(tint);
+        } else {
+          expect(active, `${color}: тёмная сторона`).toBeGreaterThan(tint);
+        }
+      }
+    }
   });
 
   it('смешивает оттенок объекта с нейтральным фоном темы', () => {
-    // База смешивания — нейтральный фон, а не заливка объекта: оттенок
-    // остаётся виден, но не превращается в яркое пятно.
+    // Обводка — единственное место, где цвет смешивается: она должна быть
+    // заметной, но не превращаться в яркую рамку.
     const line = accentLine('purple');
-    expect(line).toContain('#9333ea');
+    expect(line).toContain(ACCENT_COLOR_SWATCHES.purple);
     expect(line).toContain('var(--muted)');
   });
 

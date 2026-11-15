@@ -191,7 +191,7 @@ describe('панель вкладок: оформление вкладки', () 
     expect(item.querySelector('svg')).toBeTruthy();
     expect(item.getAttribute('title')).toBe('Черновик (Книга 1)');
     const box = screen.getAllByTestId('workplace-tab-item')[0];
-    expect(box.getAttribute('style')).toContain('#2563eb');
+    expect(box.getAttribute('style')).toContain('var(--accent-fill-blue');
   });
 
   it('даёт неактивной вкладке фон, отличный от полосы', () => {
@@ -213,9 +213,9 @@ describe('панель вкладок: оформление вкладки', () 
     expect(inactive.className).toContain('bg-[var(--tab-idle-surface)]');
   });
 
-  it('заливает неактивную цветную вкладку поверх общего фона', () => {
-    // Цветная неактивная отличается от нецветной только слабым оттенком
-    // цвета, а основа у них одна — фон неактивной вкладки.
+  it('заливает неактивную цветную вкладку тихой ступенью цвета', () => {
+    // Цветная неактивная отличается от нецветной оттенком цвета: нецветная
+    // берёт общий фон, цветная — тихую ступень своего цвета.
     mockWidth(320);
     render(WorkplaceTabs, {
       props: {
@@ -226,7 +226,23 @@ describe('панель вкладок: оформление вкладки', () 
     });
     const [, colored] = screen.getAllByTestId('workplace-tab-item');
     expect(colored.className).toContain('bg-[var(--tab-fill)]');
-    expect(colored.getAttribute('style')).toContain('var(--tab-idle-surface)');
+    expect(colored.getAttribute('style')).toContain('var(--accent-fill-blue-tint');
+  });
+
+  it('оставляет наведение цветной вкладки в её цвете', () => {
+    // Дефект: под курсором цветная вкладка подменялась акцентом темы и выглядела
+    // нативной — собственный цвет пользователя пропадал.
+    mockWidth(320);
+    render(WorkplaceTabs, {
+      props: {
+        tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
+        activeTabId: 't1',
+        ...handlers(),
+      },
+    });
+    const [, colored] = screen.getAllByTestId('workplace-tab-item');
+    expect(colored.className).toContain('hover:bg-[var(--tab-fill-hover)]');
+    expect(colored.className).not.toContain('hover:bg-[var(--primary)]');
   });
 
   it('не рисует обводку неактивной цветной вкладке', () => {
@@ -261,8 +277,8 @@ describe('панель вкладок: оформление вкладки', () 
   });
 
   it('заливает активную цветную вкладку плотнее неактивной', () => {
-    // Активная заливается плотнее неактивной: доля цвета берётся из общего
-    // реестра (ступени `active` и `tint`), а не подбирается на месте.
+    // Активная заливается плотной ступенью, неактивная — тихой: ступени берутся
+    // из общего реестра, а не подбираются на месте.
     mockWidth(320);
     render(WorkplaceTabs, {
       props: {
@@ -273,8 +289,13 @@ describe('панель вкладок: оформление вкладки', () 
     });
     const active = screen.getAllByTestId('workplace-tab-item')[1];
     expect(active.className).toContain('bg-[var(--tab-fill-active)]');
-    expect(active.getAttribute('style')).toContain('--tab-fill-active: color-mix');
-    expect(active.getAttribute('style')).toContain('#2563eb var(--accent-fill-active');
+    expect(active.getAttribute('style')).toContain(
+      '--tab-fill-active: var(--accent-fill-blue-active',
+    );
+    // Подпись на плотной заливке своя: на глубоком цвете тёмные чернила не читаются.
+    expect(active.getAttribute('style')).toContain(
+      '--tab-ink-active: var(--accent-ink-blue-active',
+    );
   });
 
   it('оставляет прежний вид вкладки без оформления', () => {
@@ -292,7 +313,7 @@ describe('панель вкладок: оформление вкладки', () 
     expect(item.querySelector('svg')).toBeNull();
     expect(item.getAttribute('title')).toBe('Книга 1');
     expect(screen.getAllByTestId('workplace-tab-item')[0].getAttribute('style')).not.toContain(
-      'color-mix',
+      '--accent-fill',
     );
   });
 });

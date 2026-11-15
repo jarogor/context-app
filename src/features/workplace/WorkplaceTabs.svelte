@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '@context/i18n';
     import { untrack } from 'svelte';
-  import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@context/ui';
+  import { ActionMenu, Button, Dialog, Icon, accentText, type MenuAction } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { logEvent } from '../../shared/app-log';
@@ -410,9 +410,12 @@
    */
   function tabFill(tab: WorkspaceTab): string {
     const base = tabIdleFill(tab.color);
-    const active = tabColorFill(tab.color, 'var(--muted)', true);
-    return base && active
-      ? ` --tab-fill: ${base}; --tab-fill-active: ${active};`
+    const active = tabColorFill(tab.color, true);
+    const hover = tabColorFill(tab.color, false);
+    const ink = accentText(tab.color, { strength: 'tint' });
+    const inkActive = accentText(tab.color, { strength: 'active' });
+    return base && active && ink && inkActive
+      ? ` --tab-fill: ${base}; --tab-fill-active: ${active}; --tab-fill-hover: ${hover}; --tab-ink: ${ink}; --tab-ink-active: ${inkActive};`
       : '';
   }
 
@@ -423,20 +426,20 @@
    * раздела в шапке: плотная акцентная заливка `--primary` и светлый текст
    * `--primary-foreground`, поэтому выделение в интерфейсе читается одинаково и
    * не зависит от того, насколько тёмен фон палитры. Цветная активная залита
-   * своим приглушённым цветом. Фон неактивной общий для всех
-   * (`--tab-idle-surface`), цветная неактивная — сверх него мягким оттенком
-   * своего цвета. Наведение — прежнее.
+   * плотной ступенью своего цвета, неактивная — тихой. Наведение цветной
+   * остаётся в её же цвете (`--tab-fill-hover`), нецветной — как прежде.
    *
-   * Подпись цветной вкладки остаётся цветом основного текста: приглушённая
-   * заливка светлая, и вторичный цвет на ней сливался с фоном. Обводок нет:
-   * вкладку выделяет заливка, а не контур.
+   * Подпись цветной вкладки берётся по своей заливке (`--tab-ink`), а наведение
+   * остаётся в её же цвете (`--tab-fill-hover`): подмена фоном акцента темы
+   * превращала цветную вкладку в нативную для темы, и цвет пропадал.
+   * Обводок нет: вкладку выделяет заливка, а не контур.
    */
   function tabFillClass(tab: WorkspaceTab): string {
     const active = tab.id === activeTabId;
     if (tab.color) {
       return active
-        ? 'bg-[var(--tab-fill-active)] text-[var(--on-accent-fill)]'
-        : 'bg-[var(--tab-fill)] text-[var(--on-accent-fill)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
+        ? 'bg-[var(--tab-fill-active)] text-[var(--tab-ink-active,var(--on-accent-fill))]'
+        : 'bg-[var(--tab-fill)] text-[var(--tab-ink,var(--on-accent-fill))] hover:bg-[var(--tab-fill-hover)]';
     }
     return active
       ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'

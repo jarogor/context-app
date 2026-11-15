@@ -15,6 +15,7 @@
     SegmentedControl,
     SortControl,
     Spinner,
+    accentText,
     type MenuAction,
     type MenuColor,
     type MenuIcon,
@@ -377,24 +378,28 @@
     }));
   }
 
-  /** CSS-переменные заливки и обводки строки или карточки библиотеки.
+  /** CSS-переменные заливки и подписи строки или карточки библиотеки.
    *
-   * Переменные задаются только при заданном цвете: без цвета фон и обводку
-   * берут классы. Обводка приглушена для всех состояний: она обозначает цвет
-   * записи, но не спорит с заливкой, текстом и выбором.
+   * Переменные задаются только при заданном цвете: без цвета фон и подпись
+   * берут классы. Подпись своя у каждой ступени — на плотной заливке тёмные
+   * чернила уже не читаются, — и у неё есть своё наведение: подмена фона цветом
+   * темы превращала цветную строку в серую, и подпись под заливку не подходила.
    */
-  function colorStyle(entry: HistoryEntry, base: string, selectedBase: string): string {
+  function colorStyle(entry: HistoryEntry): string {
     if (!entry.color) {
       return '';
     }
-    const fill = libraryColorFill(entry.color, { base });
-    const selected = libraryColorFill(entry.color, { base: selectedBase, selected: true });
-    return `--row-fill: ${fill}; --row-fill-selected: ${selected};`;
+    const fill = libraryColorFill(entry.color);
+    const selected = libraryColorFill(entry.color, { selected: true });
+    const ink = accentText(entry.color, { strength: 'tint' });
+    const inkSelected = accentText(entry.color, { strength: 'active' });
+    const hover = libraryColorFill(entry.color, { strength: 'soft' });
+    return `--row-fill: ${fill}; --row-fill-selected: ${selected}; --row-fill-hover: ${hover}; --row-ink: ${ink}; --row-ink-selected: ${inkSelected}; --meta-badge-surface: color-mix(in oklab, ${inkSelected} 14%, transparent);`;
   }
 
-  /** Цвет строки списка: заливка поверх карточки цветом записи. */
+  /** Цвет строки списка: заливка цветом записи. */
   function rowStyle(entry: HistoryEntry): string {
-    return colorStyle(entry, 'var(--card)', 'var(--card)');
+    return colorStyle(entry);
   }
 
   /** Цвет карточки: шапка и подвал лежат на разных фонах.
@@ -402,9 +407,7 @@
    * Цвет применяется к самой карточке, поэтому выбирается её собственный фон:
    * шапка стоит на карточке, а не на странице.
    */
-  const cardStyle = $derived(
-    selectedEntry ? colorStyle(selectedEntry, 'var(--card)', 'var(--card)') : undefined,
-  );
+  const cardStyle = $derived(selectedEntry ? colorStyle(selectedEntry) : undefined);
 
   /** Пункты меню карточки: те же действия, что у записи списка. */
   const cardActions = $derived(selectedEntry ? entryActions(selectedEntry) : []);
@@ -867,7 +870,7 @@
           названия, а текст занимает оставшуюся ширину и не обрезается.
         -->
         <div
-          class="relative flex w-full items-start gap-2 bg-[var(--row-fill-selected,var(--card))] py-4 pr-4 pl-4 transition-colors hover:bg-[var(--surface-hover)]"
+          class="relative flex w-full items-start gap-2 bg-[var(--row-fill-selected,var(--card))] py-4 pr-4 pl-4 transition-colors hover:bg-[var(--row-fill-hover,var(--surface-hover))]"
         >
           <button
             type="button"
@@ -886,7 +889,7 @@
               {/if}
               <span
                 class="block min-w-0 break-words role-heading {selectedEntry.color
-                  ? 'text-[var(--on-accent-fill)]'
+                  ? 'text-[var(--row-ink-selected,var(--on-accent-fill))]'
                   : 'text-[var(--foreground)]'}"
               >
                 {libraryLabel(selectedEntry)}
@@ -895,7 +898,7 @@
             {#if selectedEntry.description}
               <span
                 class="m-0 block whitespace-pre-wrap break-words role-body {selectedEntry.color
-                  ? 'text-[var(--on-accent-fill)] opacity-85'
+                  ? 'text-[var(--row-ink-selected,var(--on-accent-fill))] opacity-85'
                   : 'text-[var(--muted-foreground)]'}"
                 data-testid="library-card-description"
               >
@@ -1020,7 +1023,7 @@
                 class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] p-3 transition-colors {entry.path ===
  selectedEntry?.path
  ? ' bg-[var(--row-fill-selected,var(--surface-selected))]'
- : ' bg-[var(--row-fill,var(--card))] hover:bg-[var(--surface-hover)]'} {entry.available ? '' : 'opacity-60'}"
+ : ' bg-[var(--row-fill,var(--card))] hover:bg-[var(--row-fill-hover,var(--surface-hover))]'} {entry.available ? '' : 'opacity-60'}"
                 style={rowStyle(entry)}
                 data-selected={entry.path === selectedEntry?.path ? 'true' : undefined}
               >
@@ -1034,7 +1037,7 @@
 
                 <div
                   class="pointer-events-none flex min-w-0 items-start gap-2 {entry.color
-                    ? 'text-[var(--on-accent-fill)]'
+                    ? 'text-[var(--row-ink,var(--on-accent-fill))]'
                     : ''}"
                 >
                   {#if entry.icon}
@@ -1055,7 +1058,7 @@
                   {#if formatDateTime(entry.addedAtMillis)}
                     <span
                       class="flex items-center gap-1.5 role-caption {entry.color
-                        ? 'text-[var(--on-accent-fill)] opacity-80'
+                        ? 'text-[var(--row-ink,var(--on-accent-fill))] opacity-80'
                         : 'text-[var(--muted-foreground)]'}"
                     >
                       <Icon name="clock" class="h-3.5 w-3.5 shrink-0" />

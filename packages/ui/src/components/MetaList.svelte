@@ -42,7 +42,7 @@
 
 <div
   class={cn(
-    'flex flex-wrap items-center gap-x-3 gap-y-1 role-caption text-[var(--muted-foreground)]',
+    'flex flex-wrap items-center gap-x-3 gap-y-1 role-caption text-[var(--meta-ink,var(--muted-foreground))]',
     className,
   )}
 >
@@ -56,9 +56,12 @@
         <Icon name={item.icon} class="h-3.5 w-3.5" />
       {/if}
       {#if item.badge}
-        <!-- Метка вместо иконки: короткое служебное значение (формат файла). -->
+        <!-- Метка вместо иконки: короткое служебное значение (формат файла).
+             Фон метки по умолчанию — группа контролов; на цветной заливке пункт
+             задаёт свою поверхность, иначе светлая метка на светлой подписи не
+             читается. -->
         <span
-          class="shrink-0 rounded-[calc(var(--radius)*0.5)] bg-[var(--control-surface)] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide"
+          class="shrink-0 rounded-[calc(var(--radius)*0.5)] bg-[var(--meta-badge-surface,var(--control-surface))] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide"
           data-testid={`${item.testId ?? 'meta'}-badge`}
         >
           {item.badge}
@@ -70,7 +73,7 @@
       <span
         class={cn(
           'min-w-0 truncate',
-          item.strong ? 'font-medium text-[var(--foreground)]' : '',
+          item.strong ? 'font-medium text-[var(--meta-strong-ink,var(--foreground))]' : '',
           item.tone === 'danger' ? 'text-[var(--destructive)]' : '',
           item.mono
             ? 'rounded-[calc(var(--radius)*0.5)] bg-[var(--surface-inset)] px-1 font-mono text-[0.95em]'

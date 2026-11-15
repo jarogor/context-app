@@ -590,16 +590,16 @@ test('цвет вкладки заливает её и в панели, и на 
   await panel.getByLabel('Оформление вкладки').click();
   await page.getByTestId('menu-color-blue').click();
 
-  // Заливка приглушённым тоном цвета: смешивание с фоном области.
-  await expect(panel.getByTestId('open-books-item')).toHaveAttribute('style', /color-mix/);
-  await expect(tab(page, 'Демо-книга')).toHaveAttribute('style', /color-mix/);
+  // Заливка готовым цветом стороны: ступень выбирает реестр цветов, а не место.
+  await expect(panel.getByTestId('open-books-item')).toHaveAttribute('style', /--accent-fill-blue/);
+  await expect(tab(page, 'Демо-книга')).toHaveAttribute('style', /--accent-fill-blue/);
 
   // Сброс оформления снимает заливку.
   await panel.getByLabel('Оформление вкладки').click();
   await page.getByRole('menuitem', { name: 'Сбросить все изменения' }).click();
 
-  await expect(panel.getByTestId('open-books-item')).not.toHaveAttribute('style', /color-mix/);
-  await expect(tab(page, 'Демо-книга')).not.toHaveAttribute('style', /color-mix/);
+  await expect(panel.getByTestId('open-books-item')).not.toHaveAttribute('style', /--accent-fill/);
+  await expect(tab(page, 'Демо-книга')).not.toHaveAttribute('style', /--accent-fill/);
 });
 
 test('поиск по вкладкам фильтрует список и не меняет состав', async ({ page }) => {

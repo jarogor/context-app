@@ -11,6 +11,7 @@
  */
 
 import { ACCENT_COLORS, ACCENT_COLOR_SWATCHES, accentFill, TAB_ICON_NAMES } from '@context/ui';
+import type { AccentStrength } from '@context/ui';
 import type { NoteColor } from '../notes/model';
 
 /** Допустимая библиотеке иконка: подмножество набора иконок дизайн-системы.
@@ -56,17 +57,16 @@ export function optionalLibraryText(value: unknown): string | undefined {
 
 /** CSS-фон карточки или строки библиотеки; отсутствует, если цвет не задан.
  *
- * Заливка приглушена и смешивается с фоном, на котором лежит запись:
- * карточка читается цветом, но подпись на ней остаётся контрастной. Ступени те
- * же, что у вкладки: невыбранная запись — как неактивная вкладка, выбранная —
- * плотнее.
+ * Заливка берётся готовым значением цвета: карточка читается цветом, а подпись
+ * на ней остаётся контрастной. Ступени те же, что у вкладки: невыбранная запись
+ * — тихая, выбранная — плотная. `strength` нужен наведению: оно идёт в своей
+ * ступени цвета, а не подменяется фоном темы.
  */
 export function libraryColorFill(
   color: LibraryColor | undefined,
-  options: { base?: string; selected?: boolean } = {},
+  options: { strength?: AccentStrength; selected?: boolean } = {},
 ): string | undefined {
   return accentFill(color, {
-    base: options.base,
-    strength: options.selected ? 'active' : 'tint',
+    strength: options.strength ?? (options.selected ? 'active' : 'tint'),
   });
 }

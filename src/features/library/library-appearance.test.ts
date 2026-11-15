@@ -27,9 +27,9 @@ describe('оформление библиотеки', () => {
 
   it('даёт заливку строки только для известного цвета', () => {
     expect(libraryColorFill(undefined)).toBeUndefined();
-    expect(libraryColorFill('blue')).toContain('color-mix');
-    // Выбранная строка заливается плотнее невыбранной.
-    expect(libraryColorFill('blue', { selected: true })).not.toBe(libraryColorFill('blue'));
+    expect(libraryColorFill('blue')).toContain('var(--accent-fill-blue-tint');
+    // Выбранная строка заливается плотной ступенью, невыбранная — тихой.
+    expect(libraryColorFill('blue', { selected: true })).toContain('var(--accent-fill-blue-active');
   });
 
   it('берёт заливку из общего реестра цветов', () => {

@@ -94,21 +94,51 @@
    * у «Янтаря» янтарный, у «Тумана» серый). Отдельный «успешный» зелёный на
    * эту роль не годится: он одинаков во всех палитрах и режет глаз рядом с
    * акцентом темы. */
-  /* Цвет подписи на цветной заливке пользовательского элемента (вкладка,
-   * карточка библиотеки, строка заметки). В светлых наборах это обычные
-   * чернила, в тёмных — почти белые: заливка там светлее фона, и прежний
-   * приглушённый текст на ней не читался (хуже всего на жёлтой). */
-  --on-accent-fill: var(--foreground);
-  /* База смешивания пользовательского цвета: нейтральный серый той же
-   * светлоты, что карточка. Смешивание с цветной карточкой темы искажало сам
-   * цвет — жёлтый выглядел серым, зелёный бирюзовым, синий фиолетовым. */
-  --accent-fill-base: #f8f8f8;
-  /* Доля цвета в заливке пользовательского элемента. В тёмных наборах доля
-   * выше (см. ниже): там карточка и выбор сами цветные, и прежние 14–32 % давали
-   * заливку в цвет темы — синий читался своим, зелёный — выделением. */
-  --accent-fill-tint: 18%;
-  --accent-fill-soft: 22%;
-  --accent-fill-active: 32%;
+  /* Запасная подпись на цветной заливке: используется, когда у цвета нет
+   * собственного значения (см. `--accent-ink-*`). */
+  --on-accent-fill: #1c1608;
+  /* Цвета пользовательских элементов — готовые значения по природе цвета,
+   * без смешения с подложкой. Смешение подмешивало тон темы и искажало цвет:
+   * красный уходил в розовый, зелёный в бирюзовый, жёлтый в серый.
+   *
+   * Каждой заливке задана своя подпись (`--accent-ink-*`): жёлтый светел по
+   * природе и требует тёмных чернил даже в тёмном наборе, а насыщенный синий
+   * требует светлых. Поэтому подпись выбирается по цвету, а не по теме.
+   *
+   * Ступени: `tint` — тихая (невыбранное), `soft` — средняя (строка панели),
+   * `active` — плотная (выбранное). Светлая сторона идёт от пастели к
+   * глубокому цвету, тёмная — от глубокого цвета к яркому, поэтому выбранное
+   * всегда выглядит плотнее невыбранного. */
+  --accent-fill-yellow-tint: #fee777;
+  --accent-ink-yellow-tint: #1c1608;
+  --accent-fill-yellow-soft: #f1d101;
+  --accent-ink-yellow-soft: #1c1608;
+  --accent-fill-yellow-active: #d4b800;
+  --accent-ink-yellow-active: #1c1608;
+  --accent-fill-green-tint: #93f8a3;
+  --accent-ink-green-tint: #1c1608;
+  --accent-fill-green-soft: #25ee67;
+  --accent-ink-green-soft: #1c1608;
+  --accent-fill-green-active: #13c050;
+  --accent-ink-green-active: #1c1608;
+  --accent-fill-blue-tint: #afd2ff;
+  --accent-ink-blue-tint: #1c1608;
+  --accent-fill-blue-soft: #82b9ff;
+  --accent-ink-blue-soft: #1c1608;
+  --accent-fill-blue-active: #0070d9;
+  --accent-ink-blue-active: #fffdf6;
+  --accent-fill-red-tint: #ffc0b6;
+  --accent-ink-red-tint: #1c1608;
+  --accent-fill-red-soft: #ff978a;
+  --accent-ink-red-soft: #1c1608;
+  --accent-fill-red-active: #de0f15;
+  --accent-ink-red-active: #fffdf6;
+  --accent-fill-purple-tint: #d6b9ff;
+  --accent-ink-purple-tint: #1c1608;
+  --accent-fill-purple-soft: #c89eff;
+  --accent-ink-purple-soft: #1c1608;
+  --accent-fill-purple-active: #9c1efa;
+  --accent-ink-purple-active: #fffdf6;
   --counter: var(--primary);
   --counter-foreground: var(--primary-foreground);
 
@@ -300,12 +330,40 @@
   --surface-inset: var(--muted);
   /* Списки и меню в тёмной стороне берут тот же `--overlay-surface`, что и в
    * светлой: он поднят над фоном и карточкой и у каждой палитры свой. */
-  /* Подпись на цветной заливке почти белая: сама заливка светлее фона. */
-  --on-accent-fill: #ffffff;
-  --accent-fill-base: #1c1c1c;
-  --accent-fill-tint: 24%;
-  --accent-fill-soft: 34%;
-  --accent-fill-active: 48%;
+  /* Запасная подпись на цветной заливке для тёмной стороны. */
+  --on-accent-fill: #1c1608;
+  /* Те же правила для тёмной стороны: неактивный глухой, активный яркий.
+   * Подпись, как и в светлой стороне, выбирается по самому цвету. */
+  --accent-fill-yellow-tint: #d3c01d;
+  --accent-ink-yellow-tint: #1c1608;
+  --accent-fill-yellow-soft: #ead745;
+  --accent-ink-yellow-soft: #1c1608;
+  --accent-fill-yellow-active: #fbed83;
+  --accent-ink-yellow-active: #1c1608;
+  --accent-fill-green-tint: #279f48;
+  --accent-ink-green-tint: #1c1608;
+  --accent-fill-green-soft: #00c34e;
+  --accent-ink-green-soft: #1c1608;
+  --accent-fill-green-active: #15e35f;
+  --accent-ink-green-active: #1c1608;
+  --accent-fill-blue-tint: #0757a8;
+  --accent-ink-blue-tint: #fffdf6;
+  --accent-fill-blue-soft: #0e6dd0;
+  --accent-ink-blue-soft: #fffdf6;
+  --accent-fill-blue-active: #1585f9;
+  --accent-ink-blue-active: #1c1608;
+  --accent-fill-red-tint: #9b0e0f;
+  --accent-ink-red-tint: #fffdf6;
+  --accent-fill-red-soft: #c6010d;
+  --accent-ink-red-soft: #fffdf6;
+  --accent-fill-red-active: #f3362f;
+  --accent-ink-red-active: #1c1608;
+  --accent-fill-purple-tint: #7116b7;
+  --accent-ink-purple-tint: #fffdf6;
+  --accent-fill-purple-soft: #8f20e5;
+  --accent-ink-purple-soft: #fffdf6;
+  --accent-fill-purple-active: #ab58ff;
+  --accent-ink-purple-active: #1c1608;
 }
 
 /* Палитра «Иней», светлый набор. Селектор специфичнее `:root`, поэтому

@@ -11,6 +11,7 @@
     SidePanel,
     Input,
     TAB_ICON_NAMES,
+    accentText,
     type IconName,
     type MenuAction,
     type MenuColor,
@@ -251,32 +252,42 @@
   /** Стиль пункта: фон пользовательским цветом.
    *
    * Пункт повторяет вид строки заметок: у неактивного фон карточки, у выбранного
-   * — тон выбора. Если у вкладки задан цвет, он подмешивается в этот фон.
+   * — плотная ступень цвета. Наведение идёт в своей ступени цвета: подмена фона
+   * фоном темы делала цветной пункт серым, и подпись под заливку не подходила.
    */
   function itemFill(tab: WorkspaceTab): string {
-    const base = tabColorFill(tab.color, 'var(--card)', false);
-    const active = tabColorFill(tab.color, 'var(--card)', true);
-    if (!base || !active) {
+    const base = tabColorFill(tab.color, false);
+    const active = tabColorFill(tab.color, true);
+    const hover = tabColorFill(tab.color, false);
+    const ink = accentText(tab.color, { strength: 'soft' });
+    const inkActive = accentText(tab.color, { strength: 'active' });
+    if (!base || !active || !ink || !inkActive) {
       return '';
     }
-    return ` --item-fill: ${base}; --item-fill-active: ${active};`;
+    // Вторичный текст пункта (описание, формат, путь) берёт подпись своей
+    // заливки: приглушённый цвет темы на плотной плашке не читается.
+    const selected = tab.id === activeTabId;
+    const metaInk = selected ? inkActive : ink;
+    // Метка формата стоит на своей подложке в тон подписи: светлая метка темы
+    // на плотной заливке не читалась.
+    return ` --item-fill: ${base}; --item-fill-active: ${active}; --item-fill-hover: ${hover}; --item-ink: ${ink}; --item-ink-active: ${inkActive}; --meta-ink: ${metaInk}; --meta-strong-ink: ${metaInk}; --meta-badge-surface: color-mix(in oklab, ${metaInk} 14%, transparent);`;
   }
 
   /** Классы пункта с учётом пользовательского цвета и активности.
    *
    * Как в списке заметок: неактивный стоит на фоне карточки и подсвечивается
-   * наведением, выбранный — фоном выбора. Обводок нет: фоны разделяются
-   * заливкой. Цветная подпись остаётся цветом основного текста: приглушённая
-   * заливка светлая, и вторичный цвет на ней сливался бы с фоном.
+   * наведением, выбранный — заливкой плотной ступени. Обводок нет: фоны
+   * разделяются заливкой. Подпись цветного пункта берётся по своей заливке:
+   * приглушённая заливка светлая, и вторичный цвет темы на ней сливался бы.
    */
   function itemFillClass(tab: WorkspaceTab): string {
     if (tab.id === activeTabId) {
       return tab.color
-        ? 'bg-[var(--item-fill-active)] text-[var(--on-accent-fill)]'
+        ? 'bg-[var(--item-fill-active)] text-[var(--item-ink-active,var(--on-accent-fill))]'
         : 'bg-[var(--surface-selected)]';
     }
     return tab.color
-      ? 'bg-[var(--item-fill)]  text-[var(--on-accent-fill)] hover:bg-[var(--surface-hover)]'
+      ? 'bg-[var(--item-fill)]  text-[var(--item-ink,var(--on-accent-fill))] hover:bg-[var(--item-fill-hover,var(--surface-hover))]'
       : 'bg-[var(--card)]  hover:bg-[var(--surface-hover)]';
   }
 
@@ -414,7 +425,9 @@
         </div>
         {#if tab.description}
           <p
-            class="whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
+            class="whitespace-pre-wrap break-words pb-1.5 role-caption {tab.color
+              ? 'text-[var(--meta-ink,var(--muted-foreground))] opacity-85'
+              : 'text-[var(--muted-foreground)]'}"
             data-testid="open-books-item-description"
           >
             {tab.description}

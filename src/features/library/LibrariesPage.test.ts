@@ -817,6 +817,23 @@ describe('оформление библиотек', () => {
     );
   });
 
+  it('даёт цветной строке своё наведение и подпись вторичного текста', async () => {
+    // Дефекты: под курсором цветная строка становилась серой темой, а дата
+    // оставалась приглушённым цветом темы и не читалась на плотной заливке.
+    decoratedHistory();
+    render(LibrariesPage);
+
+    await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
+    const item = screen.getByTestId('library-item');
+    const style = item.querySelector('[style]')?.getAttribute('style') ?? '';
+    // Наведение и подпись обеих ступеней задаёт строка; вторичный текст берёт
+    // подпись из `--row-ink*` уже в `ListRow`.
+    expect(style).toContain('--row-fill-hover');
+    expect(style).toContain('--row-ink');
+    expect(style).toContain('--row-ink-selected');
+    expect(style).toContain('--meta-badge-surface');
+  });
+
   it('не задаёт цветовых переменных записи без цвета', async () => {
     // Без цвета фон берут классы: лишние переменные оставили бы строке
     // подкраску, которой у нецветной записи быть не должно.

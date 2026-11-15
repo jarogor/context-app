@@ -33,7 +33,9 @@
      *
      * Нужен для пользовательского оформления пункта (например, заливки цветом):
      * переменные `--row-fill` и `--row-fill-selected` задают фон обычной и
-     * выбранной строки, не отменяя наведение и подсветку выбора.
+     * выбранной строки, `--row-fill-hover` — наведение, `--row-ink` и
+     * `--row-ink-selected` — цвет подписи на своей заливке. Без них наведение и
+     * подсветка выбора остаются прежними, а подпись берёт цвет строки.
      */
     style?: string;
     /** Дополнительные классы. */
@@ -65,6 +67,9 @@
    *
    * Фон берётся из переменной `--row-fill`: оформление пункта (например, цвет)
    * задаёт её необязательным стилем, а без оформления остаётся фон карточки.
+   * Цветная строка задаёт и `--row-ink` — цвет подписи на своей заливке, и
+   * `--row-fill-hover` — наведение в семье своего цвета: подмена фона цветом
+   * темы делала цветную строку серой, и её подпись переставала читаться.
    * Своего контура строка не рисует: у списка уже есть обводка, и второй контур
    * рядом с ней читался бы двойной рамкой.
    */
@@ -72,11 +77,25 @@
     cn(
       'transition-colors',
       selected
-        ? 'bg-[var(--row-fill-selected,var(--surface-selected))]'
+        ? 'bg-[var(--row-fill-selected,var(--surface-selected))] text-[var(--row-ink-selected,inherit)]'
         : onclick && !disabled
-          ? 'bg-[var(--row-fill,var(--card))] hover:bg-[var(--surface-hover)]'
-          : 'bg-[var(--row-fill,var(--card))]',
+          ? 'bg-[var(--row-fill,var(--card))] text-[var(--row-ink,inherit)] hover:bg-[var(--row-fill-hover,var(--surface-hover))] hover:text-[var(--row-ink-hover,var(--row-ink,inherit))] hover:[--meta-ink:var(--row-ink-hover,var(--muted-foreground))] hover:[--meta-strong-ink:var(--row-ink-hover,var(--foreground))]'
+          : 'bg-[var(--row-fill,var(--card))] text-[var(--row-ink,inherit)]',
     ),
+  );
+
+  /**
+   * Стиль строки: оформление пункта плюс подпись вторичного текста.
+   *
+   * Вторичный текст (даты, служебные значения) берёт подпись той заливки,
+   * которая сейчас видна: на плотной заливке выбранной строки приглушённый цвет
+   * темы не читается, поэтому `--meta-ink` выводится из подписи строки. У
+   * бесцветной строки переменных нет, и `MetaList` берёт свои обычные цвета.
+   */
+  const rowStyle = $derived(
+    style
+      ? `${style}; --meta-ink: var(${selected ? '--row-ink-selected' : '--row-ink'}, var(--muted-foreground)); --meta-strong-ink: var(${selected ? '--row-ink-selected' : '--row-ink'}, var(--foreground));`
+      : undefined,
   );
 </script>
 
@@ -84,7 +103,7 @@
   class={cn(box, 'flex items-stretch', className)}
   data-testid={testId}
   data-selected={selected ? 'true' : undefined}
-  style={style || undefined}
+  style={rowStyle || undefined}
 >
   <button
     type="button"

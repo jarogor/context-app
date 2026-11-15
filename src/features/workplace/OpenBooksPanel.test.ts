@@ -61,7 +61,9 @@ describe('панель открытых книг: оформление', () => {
     expect(screen.getByTestId('open-books-item-description').textContent).toContain(
       'сравнение глав',
     );
-    expect(screen.getByTestId('open-books-item').getAttribute('style')).toContain('#2563eb');
+    expect(screen.getByTestId('open-books-item').getAttribute('style')).toContain(
+      'var(--accent-fill-blue',
+    );
     expect(screen.getByText('Черновик').closest('button')?.querySelector('svg')).toBeTruthy();
   });
 
@@ -165,9 +167,9 @@ describe('панель открытых книг: оформление', () => {
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    // Выбранный цветной — плотнее невыбранного, цвет в заливке.
+    // Выбранный цветной — плотная ступень, невыбранный — средняя.
     expect(items[0].className).toContain('bg-[var(--item-fill-active)]');
-    expect(items[0].getAttribute('style')).toContain('#2563eb');
+    expect(items[0].getAttribute('style')).toContain('var(--accent-fill-blue-active');
     // Невыбранный цветной — слабее, и тоже без контура.
     expect(items[1].className).toContain('bg-[var(--item-fill)]');
     for (const item of items) {

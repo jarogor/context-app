@@ -181,7 +181,7 @@
           стык фонов не виден, и выбор цвета с выбором иконки читается одним
           блоком, а не двумя соседними.
         -->
-        <div class="flex flex-col overflow-hidden rounded-[var(--radius)]">
+        <div class="flex flex-col overflow-hidden rounded-[var(--radius)] bg-[var(--card)]">
           {#if colors.length > 0}
             <ColorPicker
               colors={swatches}

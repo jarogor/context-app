@@ -76,4 +76,48 @@ describe('ListRow', () => {
     expect(row.className).not.toContain('shadow-[inset');
     expect(row.className).not.toContain('border');
   });
+
+  it('берёт подпись выбранной строки из подписи плотной заливки', () => {
+    // Дефект: на выбранной строке подпись бралась только у тихой ступени, и на
+    // плотной заливке она сливалась с фоном (тёмное на глубоком синем).
+    render(ListRow, {
+      props: {
+        testId: 'row',
+        titleContent: text('Название'),
+        selected: true,
+        style: '--row-ink: #1c1608; --row-ink-selected: #fffdf6',
+      },
+    });
+
+    const row = screen.getByTestId('row');
+    expect(row.className).toContain('text-[var(--row-ink-selected,inherit)]');
+    // Вторичный текст следует той же подписи, что и название.
+    expect(row.getAttribute('style')).toContain('--meta-ink: var(--row-ink-selected');
+  });
+
+  it('оставляет наведение в семье цвета строки', () => {
+    // Дефект: цветная строка под курсором становилась серой темой, и её подпись
+    // под заливку не подходила.
+    render(ListRow, {
+      props: {
+        testId: 'row',
+        titleContent: text('Название'),
+        onclick: vi.fn(),
+        style: '--row-fill: #afd2ff; --row-fill-hover: #82b9ff',
+      },
+    });
+
+    const row = screen.getByTestId('row');
+    expect(row.className).toContain('hover:bg-[var(--row-fill-hover,var(--surface-hover))]');
+  });
+
+  it('не задаёт подпись вторичного текста строке без оформления', () => {
+    // Без цвета фон и подпись берут классы: лишние переменные оставили бы
+    // строке подкраску, которой у нецветной записи быть не должно.
+    render(ListRow, {
+      props: { testId: 'row', titleContent: text('Название') },
+    });
+
+    expect(screen.getByTestId('row').getAttribute('style')).toBeNull();
+  });
 });

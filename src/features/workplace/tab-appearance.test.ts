@@ -28,23 +28,21 @@ describe('вид вкладки', () => {
 
   it('возвращает заливку только для заданного цвета', () => {
     expect(tabColorFill(undefined)).toBeUndefined();
-    expect(tabColorFill('blue')).toContain('#2563eb');
-    expect(tabColorFill('blue')).toContain('color-mix');
+    expect(tabColorFill('blue')).toContain('var(--accent-fill-blue-soft');
+    expect(tabColorFill('blue')).not.toContain('color-mix');
   });
 
-  it('смешивает цвет неактивной вкладки с фоном неактивной вкладки', () => {
-    // Основа фона неактивной цветной вкладки — общий фон неактивной вкладки, а
-    // не полоса и не карточка: цветная и нецветная отличаются лишь оттенком.
-    expect(tabIdleFill('blue')).toContain('var(--tab-idle-surface)');
-    // Долю задаёт токен стороны (`--accent-fill-tint`), а не число в вызове.
-    expect(tabIdleFill('blue')).toContain('#2563eb var(--accent-fill-tint');
+  it('берёт для неактивной вкладки тихую ступень цвета', () => {
+    // Неактивная вкладка — тихая ступень: цвет читается оттенком, а не
+    // плотной заливкой, поэтому не спорит с активной.
+    expect(tabIdleFill('blue')).toContain('var(--accent-fill-blue-tint');
     expect(tabIdleFill(undefined)).toBeUndefined();
   });
 
   it('делает активную цветную вкладку заметно плотнее неактивной', () => {
-    // Активная залита цветом плотнее неактивной, чтобы читаться сразу; обе
-    // ступени остаются ниже половины цвета, чтобы подпись была контрастной.
-    expect(tabColorFill('blue', 'var(--card)', true)).toContain('#2563eb var(--accent-fill-active');
-    expect(tabIdleFill('blue')).toContain('#2563eb var(--accent-fill-tint');
+    // Активная заливается плотной ступенью, неактивная — тихой: разницу
+    // задаёт общий реестр цветов, а не число на месте.
+    expect(tabColorFill('blue', true)).toContain('var(--accent-fill-blue-active');
+    expect(tabIdleFill('blue')).toContain('var(--accent-fill-blue-tint');
   });
 });

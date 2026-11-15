@@ -4,6 +4,7 @@ export {
   ACCENT_COLOR_SWATCHES,
   accentFill,
   accentLine,
+  accentText,
   type AccentColor,
   type AccentStrength,
 } from './accent';

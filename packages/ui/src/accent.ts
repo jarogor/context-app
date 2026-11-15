@@ -18,33 +18,77 @@ export type AccentColor = (typeof ACCENT_COLORS)[number];
 
 /** Насыщенные акценты палитры: образцы выбора цвета (панель, меню, список).
  *
- * Один набор на все области выбора: насыщенные базовые цвета, чтобы образец
- * был узнаваем. Заливка и обводка объекта берут этот же цвет и смешивают его с
- * подложкой, а не подбирают оттенок заново.
+ * Один набор на все области выбора. Образец узнаваем по самому цвету, поэтому
+ * взят в самой звонкой точке своего тона, а не «средним» оттенком.
  */
 export const ACCENT_COLOR_SWATCHES: Record<AccentColor, string> = {
-  yellow: '#eab308',
-  green: '#16a34a',
-  blue: '#2563eb',
-  red: '#dc2626',
-  purple: '#9333ea',
+  yellow: '#f7cd00',
+  green: '#00c650',
+  blue: '#0072dd',
+  red: '#e00010',
+  purple: '#9e11ff',
 };
 
 /** Ступень силы цвета в заливке объекта. */
 export type AccentStrength = 'tint' | 'soft' | 'active';
 
-/** Доля цвета в заливке ступени, в процентах.
+/** Готовые цвета заливки по ступеням и стороне темы.
  *
- * Цвет, выбранный пользователем в меню, обязан читаться цветом, но не спорить
- * с набором: ступень заливки держит насыщенность в пределах C 0.03–0.07 — этого
- * достаточно, чтобы элемент был явно цветным, и мало, чтобы он стал ярким
- * пятном рядом с приглушённой темой. `active` плотнее остальных, но остаётся
- * заметно ниже половины цвета.
+ * Цвет не смешивается с подложкой: смешение подмешивало тон темы и искажало
+ * сам цвет — красный уходил в розовый, зелёный в бирюзовый, жёлтый в серый.
+ *
+ * Ступени заданы прямыми значениями OKLCH, но записаны в hex:
+ *   - светлая сторона: неактивная — пастель с заметной насыщенностью, плотная —
+ *     глубокий насыщенный цвет;
+ *   - тёмная сторона: неактивная — глубокая цветная, плотная — яркая.
+ * Жёлтый и зелёный всюду остаются светлыми: на низкой светлоте они уходят в
+ * оливковый и болотный, то есть перестают выглядеть собой.
  */
-const ACCENT_FILL_PERCENTS: Record<AccentStrength, number> = {
-  tint: 14,
-  soft: 22,
-  active: 32,
+export const ACCENT_FILL_COLORS: Record<
+  'light' | 'dark',
+  Record<AccentColor, Record<AccentStrength, string>>
+> = {
+  light: {
+    yellow: { tint: '#fee777', soft: '#f1d101', active: '#d4b800' },
+    green: { tint: '#93f8a3', soft: '#25ee67', active: '#13c050' },
+    blue: { tint: '#afd2ff', soft: '#82b9ff', active: '#0070d9' },
+    red: { tint: '#ffc0b6', soft: '#ff978a', active: '#de0f15' },
+    purple: { tint: '#d6b9ff', soft: '#c89eff', active: '#9c1efa' },
+  },
+  dark: {
+    yellow: { tint: '#d3c01d', soft: '#ead745', active: '#fbed83' },
+    green: { tint: '#279f48', soft: '#00c34e', active: '#15e35f' },
+    blue: { tint: '#0757a8', soft: '#0e6dd0', active: '#1585f9' },
+    red: { tint: '#9b0e0f', soft: '#c6010d', active: '#f3362f' },
+    purple: { tint: '#7116b7', soft: '#8f20e5', active: '#ab58ff' },
+  },
+};
+
+/** Готовые цвета подписи на заливке: у каждого цвета своя.
+ *
+ * Подпись выбирается по контрасту с самой заливкой, а не по стороне темы:
+ * жёлтый светел по природе и требует тёмных чернил даже в тёмном наборе, а
+ * насыщенный синий — светлых. Один цвет подписи на тему давал нечитаемый текст
+ * на половине заливок.
+ */
+export const ACCENT_INK_COLORS: Record<
+  'light' | 'dark',
+  Record<AccentColor, Record<AccentStrength, string>>
+> = {
+  light: {
+    yellow: { tint: '#1c1608', soft: '#1c1608', active: '#1c1608' },
+    green: { tint: '#1c1608', soft: '#1c1608', active: '#1c1608' },
+    blue: { tint: '#1c1608', soft: '#1c1608', active: '#fffdf6' },
+    red: { tint: '#1c1608', soft: '#1c1608', active: '#fffdf6' },
+    purple: { tint: '#1c1608', soft: '#1c1608', active: '#fffdf6' },
+  },
+  dark: {
+    yellow: { tint: '#1c1608', soft: '#1c1608', active: '#1c1608' },
+    green: { tint: '#1c1608', soft: '#1c1608', active: '#1c1608' },
+    blue: { tint: '#fffdf6', soft: '#fffdf6', active: '#1c1608' },
+    red: { tint: '#fffdf6', soft: '#fffdf6', active: '#1c1608' },
+    purple: { tint: '#fffdf6', soft: '#fffdf6', active: '#1c1608' },
+  },
 };
 
 /** Доля цвета в цветной обводке, в процентах. */
@@ -57,35 +101,37 @@ const ACCENT_LINE_PERCENT = 28;
  */
 const ACCENT_LINE_WEAK_PERCENT = 14;
 
-/** CSS-фон с примесью цвета объекта; отсутствует без цвета.
+/** CSS-фон с цветом объекта по ступени; отсутствует без цвета.
  *
- * `base` — фон, на котором лежит объект (карточка, полоса вкладок,
- * фон неактивной вкладки): цвет смешивается с ней, поэтому объект выглядит
- * частью своего окружения, а не наклейкой.
- *
- * База смешивания по умолчанию — `--accent-fill-base`: нейтральный серый той же
- * светлоты, что карточка. Смешивание с самой карточкой тянуло цвет к тону темы
- * (жёлтый становился серым, зелёный бирюзовым, синий фиолетовым), и выбранный
- * пользователем цвет искажался.
+ * Значение готовое и своё у каждой стороны темы, поэтому объект остаётся собой
+ * на любой палитре: цвет не подмешивает фон и не глохнет рядом с ним.
+ * Сторону выбирает токен палитры, объявленный в `tokens.css`.
  */
 export function accentFill(
   color: AccentColor | undefined,
-  options: { base?: string; strength?: AccentStrength } = {},
+  options: { strength?: AccentStrength } = {},
 ): string | undefined {
   if (!color) {
     return undefined;
   }
-  const base = options.base ?? 'var(--card)';
   const strength = options.strength ?? 'tint';
-  // Долю задаёт токен стороны: в тёмных наборах она выше (см. `tokens.css`),
-  // иначе цвет сливается с подложкой темы — у «Инея» синий элемент читался как
-  // собственный синий темы. Здесь — значение светлой стороны как запасное.
-  const percents = `var(--accent-fill-${strength}, ${ACCENT_FILL_PERCENTS[strength]}%)`;
-  // База — нейтральный серый той же светлоты, что поверхность: цвет темы в
-  // смесь не попадает, поэтому выбранный пользователем цвет не искажается
-  // (в «Инее» жёлтый больше не становится серым). Переданный `base` остаётся
-  // запасным значением — он подставится, только если нейтрального токена нет.
-  return `color-mix(in oklab, ${ACCENT_COLOR_SWATCHES[color]} ${percents}, var(--accent-fill-base, ${base}))`;
+  return `var(--accent-fill-${color}-${strength}, ${ACCENT_FILL_COLORS.light[color][strength]})`;
+}
+
+/** CSS-цвет подписи на заливке объекта; отсутствует без цвета.
+ *
+ * Значение готовое, своё для каждого цвета и ступени: подпись должна читаться
+ * на самой заливке, а не подчиняться стороне темы.
+ */
+export function accentText(
+  color: AccentColor | undefined,
+  options: { strength?: AccentStrength } = {},
+): string | undefined {
+  if (!color) {
+    return undefined;
+  }
+  const strength = options.strength ?? 'tint';
+  return `var(--accent-ink-${color}-${strength}, ${ACCENT_INK_COLORS.light[color][strength]})`;
 }
 
 /** CSS-цвет обводки объекта с примесью его цвета; отсутствует без цвета.

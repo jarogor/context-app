@@ -13,10 +13,13 @@ describe('токены оформления', () => {
     expect(tokens).toContain('--card:');
   });
 
-  it('выводит фон панели производным от базовых токенов', () => {
+  it('выводит фон панели из ступени палитры, а не смеси с фоном', () => {
+    // Панель показывает содержимое выбранного набора, поэтому стоит с ним в
+    // одной ступени. Смесь чернил с фоном давала серое пятно вне тона темы.
     const panel = tokens.match(/--panel:\s*([^;]+);/);
     expect(panel).toBeTruthy();
-    expect(panel?.[1]).toContain('color-mix');
+    expect(panel?.[1]).toContain('var(--selected-fill)');
+    expect(panel?.[1]).not.toContain('color-mix');
   });
 
   it('объявляет единый набор теней и выводит его в утилиты', () => {
