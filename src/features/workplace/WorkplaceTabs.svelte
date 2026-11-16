@@ -1,12 +1,12 @@
 <script lang="ts">
   import { t } from '@context/i18n';
     import { untrack } from 'svelte';
-  import { ActionMenu, Button, Dialog, Icon, accentText, type MenuAction } from '@context/ui';
+  import { ActionMenu, Button, Dialog, Icon, type MenuAction } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
   import { logEvent } from '../../shared/app-log';
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
-  import { tabColorFill, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabColorMark, tabLabel, tabTooltip } from './tab-appearance';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { hotkeyHint } from '../hotkeys/registry';
 
@@ -402,48 +402,39 @@
     return tab ? tabLabel(tab) : '';
   });
 
-  /** Фрагмент стиля вкладки: заливка пользовательским цветом.
+  /** Фрагмент стиля вкладки: пользовательский цвет метки номера.
    *
-   * У вкладки без цвета фон задаётся классом (`--tab-idle-surface`), поэтому
-   * переменная не нужна. У цветной: неактивная залита слабым оттенком цвета
-   * поверх общего фона неактивной вкладки, активная — плотнее.
+   * Вкладку больше не заливает цвет: он переехал на номер, поэтому фон и
+   * подпись у всех вкладок одинаковы, а цвет остаётся опознавательным знаком.
+   * Метка — цветная плашка с собственной подписью, поэтому цвет остаётся собой
+   * и читается на любой теме. У вкладки без цвета переменные не нужны — номер
+   * берёт цвет текста.
    */
-  function tabFill(tab: WorkspaceTab): string {
-    const base = tabIdleFill(tab.color);
-    const active = tabColorFill(tab.color, true);
-    const hover = tabColorFill(tab.color, false);
-    const ink = accentText(tab.color, { strength: 'tint' });
-    const inkActive = accentText(tab.color, { strength: 'active' });
-    return base && active && ink && inkActive
-      ? ` --tab-fill: ${base}; --tab-fill-active: ${active}; --tab-fill-hover: ${hover}; --tab-ink: ${ink}; --tab-ink-active: ${inkActive};`
-      : '';
+  function tabColorStyle(tab: WorkspaceTab): string {
+    const mark = tabColorMark(tab.color);
+    return mark ? ` --tab-mark-fill: ${mark.fill}; --tab-mark-ink: ${mark.ink};` : '';
   }
 
-  /** Классы фона вкладки с учётом пользовательского цвета и активности.
+  /** Классы фона вкладки с учётом активности.
    *
-   * Вкладки — самостоятельные плашки на полосе: скруглены со всех сторон, не
-   * «стоят» на нижней границе. Активная вкладка оформлена как активный пункт
-   * раздела в шапке: плотная акцентная заливка `--primary` и светлый текст
-   * `--primary-foreground`, поэтому выделение в интерфейсе читается одинаково и
-   * не зависит от того, насколько тёмен фон палитры. Цветная активная залита
-   * плотной ступенью своего цвета, неактивная — тихой. Наведение цветной
-   * остаётся в её же цвете (`--tab-fill-hover`), нецветной — как прежде.
+   * Активная вкладка выделяется нейтральной поверхностью: белой в светлых
+   * наборах и тёмной в тёмных. Акцентная заливка (`--primary`) больше не
+   * используется: у каждой палитры акцент свой (в «Янтаре» жёлтый, в «Инее»
+   * синий), и любой пользовательский цвет рядом с ним спорил. Нейтральная
+   * поверхность держит выделение одинаковым во всех восьми наборах.
    *
-   * Подпись цветной вкладки берётся по своей заливке (`--tab-ink`), а наведение
-   * остаётся в её же цвете (`--tab-fill-hover`): подмена фоном акцента темы
-   * превращала цветную вкладку в нативную для темы, и цвет пропадал.
-   * Обводок нет: вкладку выделяет заливка, а не контур.
+   * Неактивная вкладка не рисует своей плашки: она стоит прямо на полосе, и её
+   * выдаёт только приглушённая подпись. Раньше у неё был отдельный фон, и в
+   * тёмных наборах он был настолько контрастным, что неактивная вкладка
+   * читалась как активная. Теперь плашку получает только активная вкладка,
+   * поэтому выделение однозначно. Наведение показывает тихую поверхность, чтобы
+   * отклик читался до нажатия. Обводок нет: вкладку выделяет заливка.
    */
   function tabFillClass(tab: WorkspaceTab): string {
     const active = tab.id === activeTabId;
-    if (tab.color) {
-      return active
-        ? 'bg-[var(--tab-fill-active)] text-[var(--tab-ink-active,var(--on-accent-fill))]'
-        : 'bg-[var(--tab-fill)] text-[var(--tab-ink,var(--on-accent-fill))] hover:bg-[var(--tab-fill-hover)]';
-    }
     return active
-      ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-      : 'bg-[var(--tab-idle-surface)] text-[var(--muted-foreground)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]';
+      ? 'bg-[var(--tab-active-surface)] text-[var(--tab-active-foreground)]'
+      : 'text-[var(--muted-foreground)] hover:bg-[var(--tab-hover-surface)] hover:text-[var(--tab-active-foreground)]';
   }
 
   /** Пункты контекстного меню рабочего места на телефоне. */
@@ -539,7 +530,7 @@
             : 'flex-none'} {tabFillClass(tab)} h-[var(--tab-height)] pointer-coarse:h-[var(--tab-height-touch)]"
           style="{stretched
             ? ''
-            : `width: ${TAB_WIDTH_REM}rem;`}--tab-height: {TAB_ROW_REM}rem; --tab-height-touch: {TAB_ROW_TOUCH_REM}rem;{tabFill(
+            : `width: ${TAB_WIDTH_REM}rem;`}--tab-height: {TAB_ROW_REM}rem; --tab-height-touch: {TAB_ROW_TOUCH_REM}rem;{tabColorStyle(
             tab,
           )}"
           data-testid="workplace-tab-item"
@@ -547,10 +538,14 @@
           <!--
             Номер вкладки — её место в составе рабочего места, тот же, что в
             панели списка. Стоит перед кнопкой, чтобы не попадать в её подпись:
-            подпись вкладки — только название.
+            подпись вкладки — только название. Это же место несёт
+            пользовательский цвет вкладки: он показывает номер цветной плашкой,
+            а не заливает всю вкладку.
           -->
           <span
-            class="shrink-0 pl-2 text-[0.7em] tabular-nums opacity-60"
+            class="shrink-0 text-[0.7em] font-semibold tabular-nums {tab.color
+              ? 'ml-1.5 rounded-[calc(var(--radius)*0.5)] bg-[var(--tab-mark-fill)] px-1 py-[0.05rem] text-[var(--tab-mark-ink)]'
+              : 'pl-2 opacity-60'}"
             data-testid="workplace-tab-number"
             >{tabNumbers.get(tab.id) ?? ''}</span
           >

@@ -54,10 +54,12 @@
   /* Линия-разделитель внутри списка: чуть заметнее обычной обводки, но тише
    * акцента; разделяет строки в едином листе, не превращая их в рамки. */
 
-  /* Фон панелей (боковые панели, полосы, шапки) — ровно фон выбранного
-   * элемента списка: панель показывает содержимое выбранного набора, поэтому
-   * стоит с ним в одной ступени и не спорит ни с фоном, ни с полосой. */
-  --panel: var(--selected-fill);
+  /* Фон панелей (боковые панели, полосы, шапки) — ступень между страницей и
+   * карточкой. Раньше панель совпадала с фоном выбранного элемента списка, и
+   * выделенная строка на ней сливалась с самой панелью — выбор был не виден.
+   * Теперь панель отделена от страницы, строки на ней стоят карточками, а
+   * выделение идёт своей ступенью и читается. */
+  --panel: var(--secondary);
   --panel-foreground: var(--foreground);
 
   /*
@@ -82,10 +84,11 @@
   /* Фон поля ввода и группы контролов: масштаб, навигация, типы заметок,
    * палитра цвета, поиск, выпадающие списки.
    *
-   * Цвет один на всё приложение — фон страницы. Поле читается углублением и на
-   * полосе под шапкой (полоса темнее или светлее страницы), и на карточке
-   * (карточка отделена от страницы ступенью), поэтому одинаково выглядит в
-   * любом месте, а не только там, где задан контекст. */
+   * Цвет один на всё приложение — фон страницы. Поле читается ступенью от
+   * окружения: на карточке оно темнее неё, на полосе под шапкой — светлее или
+   * темнее в зависимости от стороны темы. Полоса при этом разведена с фоном
+   * заметно сильнее прежнего, поэтому поиск и сортировка на ней больше не
+   * выглядят пятном одного цвета с полосой. */
   --control-surface: var(--background);
 
   /* Счётчик непрочитанного — метка действия, а не статус: цвет берётся из
@@ -96,63 +99,85 @@
    * акцентом темы. */
   /* Запасная подпись на цветной заливке: используется, когда у цвета нет
    * собственного значения (см. `--accent-ink-*`). */
-  --on-accent-fill: #1c1608;
-  /* Цвета пользовательских элементов — приглушённые значения по природе цвета.
+  --on-accent-fill: #23180a;
+  /* Цвета пользовательских элементов — яркие значения природы цвета.
    *
-   * Заливка — тот же цвет, но тихий: насыщенность низкая, поэтому элемент
-   * читается своим цветом и не светится ядовито рядом со спокойной темой.
-   * Насыщенные значения давали ровно обратное: жёлтый выцветал в горчицу,
-   * зелёный — в бирюзу, и всё вместе резало глаз.
+   * Раньше заливки были приглушены до насыщенности C 0.03–0.07, и цвет
+   * переставал быть собой: красный уходил в бледно-бордовый, жёлтый — в
+   * светло-коричневый, синий и зелёный становились неразличимы. Теперь каждая
+   * ступень держит насыщенность выбранного цвета (C 0.06–0.23) и его тон, так
+   * что элемент читается своим цветом без вглядывания.
    *
-   * Ступени разводятся СВЕТЛОТОЙ и силой цвета, а не подмешиванием фона:
-   * `tint` — едва заметный оттенок (невыбранное), `soft` — наведение,
-   * `active` — плотная ступень (выбранное). Поэтому выбранное заметно сильнее,
-   * а наведение не выцветает.
+   * Ступени разводятся СВЕТЛОТОЙ, а не подмешиванием фона: `tint` — лёгкий
+   * оттенок (невыбранное), `soft` — наведение, `active` — плотная ступень
+   * (выбранное). Поэтому выбранное заметно сильнее, а наведение не выцветает.
    *
-   * Подпись одна на обе стороны темы и на все ступени — тёмная: заливки
-   * держатся в светлой полосе, где тёмные чернила читаются всегда. Прежняя
-   * пара «то тёмная, то белая» давала чёрный текст на строке и белый на
-   * карточке одного и того же элемента. */
-  --accent-fill-yellow-tint: #fbe8bb;
-  --accent-fill-yellow-soft: #f0d38c;
-  --accent-fill-yellow-active: #e7bd4f;
-  --accent-fill-green-tint: #d2f0d1;
-  --accent-fill-green-soft: #b1e1b2;
-  --accent-fill-green-active: #8cd28e;
-  --accent-fill-blue-tint: #d2e7ff;
-  --accent-fill-blue-soft: #afd5ff;
-  --accent-fill-blue-active: #8bc1fc;
-  --accent-fill-red-tint: #ffddd9;
-  --accent-fill-red-soft: #fbc3bd;
-  --accent-fill-red-active: #f6a59e;
-  --accent-fill-purple-tint: #f4dafc;
-  --accent-fill-purple-soft: #e7c1f3;
-  --accent-fill-purple-active: #d9a6e9;
-  --accent-ink-yellow-tint: #1c1608;
-  --accent-ink-yellow-soft: #1c1608;
-  --accent-ink-yellow-active: #1c1608;
-  --accent-ink-green-tint: #1c1608;
-  --accent-ink-green-soft: #1c1608;
-  --accent-ink-green-active: #1c1608;
-  --accent-ink-blue-tint: #1c1608;
-  --accent-ink-blue-soft: #1c1608;
-  --accent-ink-blue-active: #1c1608;
-  --accent-ink-red-tint: #1c1608;
-  --accent-ink-red-soft: #1c1608;
-  --accent-ink-red-active: #1c1608;
-  --accent-ink-purple-tint: #1c1608;
-  --accent-ink-purple-soft: #1c1608;
-  --accent-ink-purple-active: #1c1608;
+   * Подпись на светлой стороне одна на все ступени — тёмная: заливки светлые,
+   * тёмные чернила читаются на любой из них. Прежняя пара «то тёмная, то
+   * белая» давала чёрный текст на строке и белый на карточке одного элемента. */
+  --accent-fill-yellow-tint: #fee19c;
+  --accent-fill-yellow-soft: #f4c649;
+  --accent-fill-yellow-active: #d7a91c;
+  --accent-fill-green-tint: #a3fea6;
+  --accent-fill-green-soft: #52f164;
+  --accent-fill-green-active: #22d243;
+  --accent-fill-blue-tint: #c2defd;
+  --accent-fill-blue-soft: #add0f8;
+  --accent-fill-blue-active: #73b4fc;
+  --accent-fill-red-tint: #fdcfcb;
+  --accent-fill-red-soft: #f8bbb5;
+  --accent-fill-red-active: #fe8880;
+  --accent-fill-purple-tint: #f5d8fe;
+  --accent-fill-purple-soft: #e8b7f8;
+  --accent-fill-purple-active: #e182fe;
+  --accent-ink-yellow-tint: #23180a;
+  --accent-ink-yellow-soft: #23180a;
+  --accent-ink-yellow-active: #23180a;
+  --accent-ink-green-tint: #23180a;
+  --accent-ink-green-soft: #23180a;
+  --accent-ink-green-active: #23180a;
+  --accent-ink-blue-tint: #23180a;
+  --accent-ink-blue-soft: #23180a;
+  --accent-ink-blue-active: #23180a;
+  --accent-ink-red-tint: #23180a;
+  --accent-ink-red-soft: #23180a;
+  --accent-ink-red-active: #23180a;
+  --accent-ink-purple-tint: #23180a;
+  --accent-ink-purple-soft: #23180a;
+  --accent-ink-purple-active: #23180a;
+  /* Метка цвета (номер вкладки, кнопка меню) — небольшая плашка с собственной
+   * подписью. Окрашенный текст малого кегля требовал контраста 4.5, и цвет
+   * можно было сохранить только у тёмных оттенков: жёлтый становился
+   * коричневым. Плашка берёт тихую ступень заливки и её подпись, поэтому цвет
+   * остаётся собой во всех восьми наборах, а строки списков — одинаковыми. */
+  --accent-mark-yellow: #fee19c;
+  --accent-mark-yellow-ink: #23180a;
+  --accent-mark-green: #a3fea6;
+  --accent-mark-green-ink: #23180a;
+  --accent-mark-blue: #c2defd;
+  --accent-mark-blue-ink: #23180a;
+  --accent-mark-red: #fdcfcb;
+  --accent-mark-red-ink: #23180a;
+  --accent-mark-purple: #f5d8fe;
+  --accent-mark-purple-ink: #23180a;
   --counter: var(--primary);
   --counter-foreground: var(--primary-foreground);
 
-  /* Фон неактивной вкладки. Вкладки стоят на полосе `--muted`; чтобы неактивную
-   * плашку было видно, её фон чуть отделён от полосы. Отличие намеренно лёгкое:
-   * вкладка читается как плашка, но не спорит ни с полосой, ни с активной
-   * вкладкой, которая залита фоном содержимого. Значение общее для обеих сторон
-   * темы: доля считается от чернил наборов, поэтому в тёмных наборах плашка
-   * светлее полосы, в светлых — чуть темнее. */
-  --tab-idle-surface: var(--background);
+  /* Неактивная вкладка не рисует своей плашки: она стоит прямо на полосе и
+   * отличается только приглушённой подписью. Раньше у неё был отдельный фон —
+   * в тёмных наборах он был контрастным и неактивная вкладка читалась как
+   * активная. Плашку получает только активная вкладка, поэтому выделение
+   * однозначно. Наведение показывает общий фон наведения: по нему видно, что
+   * элемент нажимается, но он слабее плашки активной вкладки. */
+  --tab-hover-surface: var(--surface-hover);
+
+  /* Активная вкладка — не акцентом темы, а нейтральной поверхностью: белой в
+   * светлых наборах и тёмной в тёмных. Акцент у каждой палитры свой (в «Янтаре»
+   * жёлтый, в «Инее» синий), и любой пользовательский цвет на такой вкладке
+   * спорил с ним. Нейтральная заливка держит выделение одинаковым во всех
+   * восьми наборах и оставляет цвет пользователя только для номера. */
+  --tab-active-surface: var(--card);
+  --tab-active-foreground: var(--foreground);
 
   /* Всплывающий слой (меню, диалог, список выбора) отделяется от подложки
    * **разными механизмами по стороне темы** — одним «тупым» приёмом не выходит:
@@ -253,38 +278,40 @@
   --properties-panel-width-wide: 23rem;
 
   /* Палитра «Лён» по умолчанию, светлый набор. */
-  --background: #f1ece1;
+  --background: #e6e1da;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--sidebar);
   --selected-fill: var(--sidebar-accent);
-  /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #e6dfd0;
-  --foreground: #1f1d1a;
-  --card: #fbf8f1;
-  --card-foreground: #1f1d1a;
-  --popover: #fbf8f1;
-  --popover-foreground: #1f1d1a;
-  --primary: #2e5c52;
-  --primary-foreground: #f4f1e9;
-  --secondary: #e4dccb;
-  --secondary-foreground: #1f1d1a;
-  --muted: #e7e0d3;
-  --muted-foreground: #615a4e;
-  --destructive: #9c3428;
-  --destructive-foreground: #fbf8f1;
+  /* Полоса под шапкой: ступень в тоне палитры. Разведена с фоном заметно
+   * сильнее прежнего: поиск, сортировка и переключатели стоят на ней и без
+   * этого сливались с подложкой. */
+  --app-bar-strip: #d1c5b7;
+  --foreground: #1e1b18;
+  --card: #fffefc;
+  --card-foreground: #1e1b18;
+  --popover: #fffefc;
+  --popover-foreground: #1e1b18;
+  --primary: #145442;
+  --primary-foreground: #faf8f6;
+  --secondary: #e1dad1;
+  --secondary-foreground: #1e1b18;
+  --muted: #ddd5cb;
+  --muted-foreground: #4c463e;
+  --destructive: #811817;
+  --destructive-foreground: #fcfaf7;
   /* Единая тонкая обводка областей и контролов: одно значение для полей ввода,
    * кнопок, карточек и пунктов списков. */
-  --ring: #2e5c52;
+  --ring: #145442;
   --radius: 0.5rem;
-  --sidebar: #ebe3d4;
-  --sidebar-foreground: #1f1d1a;
-  --sidebar-primary: #2e5c52;
-  --sidebar-primary-foreground: #f4f1e9;
-  --sidebar-accent: #ddd4c3;
-  --sidebar-accent-foreground: #26231e;
-  --sidebar-ring: #2e5c52;
-  --success: #3f7d52;
-  --warning: #a5741d;
+  --sidebar: #ded8cf;
+  --sidebar-foreground: #1e1b18;
+  --sidebar-primary: #145442;
+  --sidebar-primary-foreground: #faf8f6;
+  --sidebar-accent: #cbc0b2;
+  --sidebar-accent-foreground: #1e1b18;
+  --sidebar-ring: #145442;
+  --success: #1c5f31;
+  --warning: #7b4d00;
 }
 
 /* Палитра «Лён», тёмный набор. */
@@ -293,240 +320,250 @@
 
   /* Тёмная тема: затемнять нечего — слой поднимается светлотой своего оттенка,
    * тень лишь дополняет. Цвет у каждой палитры свой (ниже). */
-  --overlay-surface: #2a2e2f;
+  --overlay-surface: #48433d;
   --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.4);
 
-  --background: #17191a;
+  --background: #110f0d;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--muted);
   --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #262728;
-  --foreground: #e7e2d7;
-  --card: #1f2223;
-  --card-foreground: #e7e2d7;
-  --popover: #1f2223;
-  --popover-foreground: #e7e2d7;
-  --primary: #7db9a7;
-  --primary-foreground: #12181a;
-  --secondary: #262a2b;
-  --secondary-foreground: #e7e2d7;
-  --muted: #262a2b;
-  --muted-foreground: #a6a096;
-  --destructive: #e2685c;
-  --destructive-foreground: #17191a;
-  --ring: #7db9a7;
-  --sidebar: #1d2022;
-  --sidebar-foreground: #e7e2d7;
-  --sidebar-primary: #7db9a7;
-  --sidebar-primary-foreground: #12181a;
-  --sidebar-accent: #2b2f30;
-  --sidebar-accent-foreground: #e7e2d7;
-  --sidebar-ring: #7db9a7;
-  --success: #86bd90;
-  --warning: #e0b063;
+  --app-bar-strip: #24221e;
+  --foreground: #ede7df;
+  --card: #36322c;
+  --card-foreground: #ede7df;
+  --popover: #36322c;
+  --popover-foreground: #ede7df;
+  --primary: #83c8ae;
+  --primary-foreground: #0e0b07;
+  --secondary: #2e2b26;
+  --secondary-foreground: #ede7df;
+  --muted: #1f1b17;
+  --muted-foreground: #b9b2aa;
+  --destructive: #ed756a;
+  --destructive-foreground: #0a0704;
+  --ring: #83c8ae;
+  --sidebar: #2c2924;
+  --sidebar-foreground: #ede7df;
+  --sidebar-primary: #83c8ae;
+  --sidebar-primary-foreground: #0e0b07;
+  --sidebar-accent: #464039;
+  --sidebar-accent-foreground: #ede7df;
+  --sidebar-ring: #83c8ae;
+  --success: #8bcd99;
+  --warning: #f3bd5c;
 
-  /* Контролы на полосе под шапкой в тёмной стороне берут цвет шапки: он темнее
-   * полосы, тогда элементы читаются как углубления, а не как светлые пятна.
-   * Правило одно на все палитры: палитры этот токен не переопределяют. */
+  /* Контролы на полосе под шапкой в тёмной стороне берут цвет карточки: он
+   * светлее полосы, поэтому поля и переключатели читаются как ясные плашки,
+   * а не сливаются с полосой. Правило одно на все палитры. */
   --strip-control-surface: var(--control-surface);
   /* Врезка и в тёмной стороне — та же ступень палитры. */
   --surface-inset: var(--muted);
   /* Списки и меню в тёмной стороне берут тот же `--overlay-surface`, что и в
    * светлой: он поднят над фоном и карточкой и у каждой палитры свой. */
   /* Запасная подпись на цветной заливке для тёмной стороны. */
-  --on-accent-fill: #1c1608;
-  /* Те же правила для тёмной стороны. Заливки тоже держатся в светлой полосе:
-   * приглушённый цвет на низкой светлоте становится хаки (жёлтый), мхом
-   * (зелёный) и грязным (синий), а светлая подпись на плотной заливке не
-   * читается. Светлая полоса оставляет цвет собой и позволяет держать одну
-   * подпись на весь интерфейс. */
-  --accent-fill-yellow-tint: #9c8347;
-  --accent-fill-yellow-soft: #bfa157;
-  --accent-fill-yellow-active: #e3c067;
-  --accent-fill-green-tint: #234725;
-  --accent-fill-green-soft: #366138;
-  --accent-fill-green-active: #477a49;
-  --accent-fill-blue-tint: #1d3f63;
-  --accent-fill-blue-soft: #2e5785;
-  --accent-fill-blue-active: #4071a7;
-  --accent-fill-red-tint: #62322f;
-  --accent-fill-red-soft: #834743;
-  --accent-fill-red-active: #a55d58;
-  --accent-fill-purple-tint: #51305c;
-  --accent-fill-purple-soft: #6e467a;
-  --accent-fill-purple-active: #8c5c9a;
-  --accent-ink-yellow-tint: #1c1608;
-  --accent-ink-yellow-soft: #1c1608;
-  --accent-ink-yellow-active: #1c1608;
-  --accent-ink-green-tint: #fffaf2;
-  --accent-ink-green-soft: #fffaf2;
-  --accent-ink-green-active: #fffaf2;
-  --accent-ink-blue-tint: #fffaf2;
-  --accent-ink-blue-soft: #fffaf2;
-  --accent-ink-blue-active: #fffaf2;
-  --accent-ink-red-tint: #fffaf2;
-  --accent-ink-red-soft: #fffaf2;
-  --accent-ink-red-active: #fffaf2;
-  --accent-ink-purple-tint: #fffaf2;
-  --accent-ink-purple-soft: #fffaf2;
-  --accent-ink-purple-active: #fffaf2;
+  --on-accent-fill: #23180a;
+  /* Те же правила для тёмной стороны. Жёлтый остаётся золотым и со своей
+   * тёмной подписью: на низкой светлоте он неизбежно становится коричневым,
+   * каким и выглядел раньше. Остальные цвета держат тон и заметную
+   * насыщенность, поэтому зелёный, синий, красный и фиолетовый различаются
+   * между собой без вглядывания. */
+  --accent-fill-yellow-tint: #c4a452;
+  --accent-fill-yellow-soft: #e3b843;
+  --accent-fill-yellow-active: #fdce50;
+  --accent-fill-green-tint: #1c5522;
+  --accent-fill-green-soft: #1a6a25;
+  --accent-fill-green-active: #0f7f24;
+  --accent-fill-blue-tint: #1a497a;
+  --accent-fill-blue-soft: #185999;
+  --accent-fill-blue-active: #0d6abb;
+  --accent-fill-red-tint: #7f2020;
+  --accent-fill-red-soft: #a01e23;
+  --accent-fill-red-active: #c31223;
+  --accent-fill-purple-tint: #68207c;
+  --accent-fill-purple-soft: #831f9d;
+  --accent-fill-purple-active: #9e13c0;
+  --accent-ink-yellow-tint: #23180a;
+  --accent-ink-yellow-soft: #23180a;
+  --accent-ink-yellow-active: #23180a;
+  --accent-ink-green-tint: #f7f3ec;
+  --accent-ink-green-soft: #f7f3ec;
+  --accent-ink-green-active: #f7f3ec;
+  --accent-ink-blue-tint: #f7f3ec;
+  --accent-ink-blue-soft: #f7f3ec;
+  --accent-ink-blue-active: #f7f3ec;
+  --accent-ink-red-tint: #f7f3ec;
+  --accent-ink-red-soft: #f7f3ec;
+  --accent-ink-red-active: #f7f3ec;
+  --accent-ink-purple-tint: #f7f3ec;
+  --accent-ink-purple-soft: #f7f3ec;
+  --accent-ink-purple-active: #f7f3ec;
+  /* Метка цвета в тёмной стороне: светлый насыщенный знак на тёмной
+   * поверхности. Контраст не ниже 4.5 к каждой поверхности набора. */
+  /* Метка цвета в тёмной стороне: глубокая ступень с собственной подписью.
+   * У жёлтого подпись тёмная — золото светлое по природе. */
+  --accent-mark-yellow: #c4a452;
+  --accent-mark-yellow-ink: #23180a;
+  --accent-mark-green: #1c5522;
+  --accent-mark-green-ink: #f7f3ec;
+  --accent-mark-blue: #1a497a;
+  --accent-mark-blue-ink: #f7f3ec;
+  --accent-mark-red: #7f2020;
+  --accent-mark-red-ink: #f7f3ec;
+  --accent-mark-purple: #68207c;
+  --accent-mark-purple-ink: #f7f3ec;
 }
 
 /* Палитра «Иней», светлый набор. Селектор специфичнее `:root`, поэтому
  * перекрывает светлую сторону «Льна». Голубоватая бумага с насыщенным синим
  * акцентом — характер палитры задан цветностью фона и акцента. */
 :root[data-palette='frost'] {
-  --background: #eef4fb;
+  --background: #dae0e9;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--sidebar);
   --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #d4e1f4;
-  --foreground: #0f1622;
-  --card: #ffffff;
-  --card-foreground: #0f1622;
-  --popover: #ffffff;
-  --popover-foreground: #0f1622;
+  --app-bar-strip: #bac7d8;
+  --foreground: #151a20;
+  --card: #fdfeff;
+  --card-foreground: #151a20;
+  --popover: #fdfeff;
+  --popover-foreground: #151a20;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #ffffff;
-  /* Акцент приглушён и одновременно углублён: прежний #1d47a8 был слишком
-   * ярким, а ослабленный #2c4c91 — слишком бледным и «грязным» под тёмным
-   * текстом. Здесь цвет темнее (L 0.41) и насыщеннее (C 0.135) при том же тоне:
-   * на светлой подложке он читается глубоким синим, а светлый текст поверх
-   * заливки даёт контраст 8.5. */
-  --primary: #204592;
-  --primary-foreground: #f7f9fc;
-  --secondary: #d7e6f9;
-  --secondary-foreground: #0f1622;
-  --muted: #dcebfe;
-  --muted-foreground: #495a78;
-  --destructive: #a83a2e;
-  --destructive-foreground: #ffffff;
-  --ring: #204592;
-  --sidebar: #e0ecfc;
-  --sidebar-foreground: #0f1622;
-  --sidebar-primary: #204592;
-  --sidebar-primary-foreground: #f7f9fc;
-  --sidebar-accent: #cfdcef;
-  --sidebar-accent-foreground: #0f1622;
-  --sidebar-ring: #204592;
-  --success: #2f7d4f;
-  --warning: #8f6415;
+  --overlay-surface: #feffff;
+  /* Акцент глубокий и насыщенный: на светлой подложке он читается синим, а
+   * светлый текст поверх заливки даёт контраст выше 10. */
+  --primary: #0e398e;
+  --primary-foreground: #f9fafc;
+  --secondary: #d3dce6;
+  --secondary-foreground: #151a20;
+  --muted: #cdd6e3;
+  --muted-foreground: #3a4555;
+  --destructive: #811817;
+  --destructive-foreground: #f8fafd;
+  --ring: #0e398e;
+  --sidebar: #d0d9e4;
+  --sidebar-foreground: #151a20;
+  --sidebar-primary: #0e398e;
+  --sidebar-primary-foreground: #f9fafc;
+  --sidebar-accent: #b3c2d5;
+  --sidebar-accent-foreground: #151a20;
+  --sidebar-ring: #0e398e;
+  --success: #1c5f31;
+  --warning: #7b4d00;
 }
 
-/* Палитра «Иней», тёмный набор. Глубокий синий фон с ярким голубым акцентом. */
+/* Палитра «Иней», тёмный набор. Глубокий синий фон с ясным голубым акцентом. */
 :root[data-palette='frost'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #0c1526;
+  --background: #09101a;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--muted);
   --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #1d2d4c;
-  --foreground: #e4e9f4;
-  --card: #15203a;
-  --card-foreground: #e4e9f4;
-  --popover: #15203a;
-  --popover-foreground: #e4e9f4;
+  --app-bar-strip: #1a232e;
+  --foreground: #e3e8f0;
+  --card: #283341;
+  --card-foreground: #e3e8f0;
+  --popover: #283341;
+  --popover-foreground: #e3e8f0;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #1f2c4a;
-  --primary: #608fed;
-  --primary-foreground: #0a101c;
-  --secondary: #1b2740;
-  --secondary-foreground: #e4e9f4;
-  --muted: #1b2740;
-  --muted-foreground: #90a0bd;
-  --destructive: #e0685c;
-  --destructive-foreground: #0c1526;
-  --ring: #608fed;
-  --sidebar: #101c35;
-  --sidebar-foreground: #e4e9f4;
-  --sidebar-primary: #608fed;
-  --sidebar-primary-foreground: #0a101c;
-  --sidebar-accent: #1f2c4a;
-  --sidebar-accent-foreground: #e4e9f4;
-  --sidebar-ring: #608fed;
-  --success: #78b98a;
-  --warning: #dcae62;
+  --overlay-surface: #394554;
+  --primary: #87b1fd;
+  --primary-foreground: #050911;
+  --secondary: #222c39;
+  --secondary-foreground: #e3e8f0;
+  --muted: #141d28;
+  --muted-foreground: #adb8c6;
+  --destructive: #ed756a;
+  --destructive-foreground: #050911;
+  --ring: #87b1fd;
+  --sidebar: #202a37;
+  --sidebar-foreground: #e3e8f0;
+  --sidebar-primary: #87b1fd;
+  --sidebar-primary-foreground: #050911;
+  --sidebar-accent: #354253;
+  --sidebar-accent-foreground: #e3e8f0;
+  --sidebar-ring: #87b1fd;
+  --success: #8bcd99;
+  --warning: #f3bd5c;
 }
 
 /* Палитра «Янтарь», светлый набор. Тёплая бумага с янтарным акцентом;
  * подключается атрибутом `data-palette='amber'`. */
 :root[data-palette='amber'] {
-  --background: #fbf4da;
-  /* Наведение и выбор — два цвета темы: мягкий жёлтый и плотный янтарный. */
+  --background: #ecdccb;
   /* Наведение и выбор — ступени в тёплом тоне палитры: серое наведение
    * выбивалось из янтарной бумаги и спорило с цветными элементами. */
-  --hover-fill: #f0dfba;
-  --selected-fill: var(--app-bar-strip);
+  --hover-fill: #e6d4c2;
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #ecd9ab;
-  --foreground: #3c3836;
-  --card: #fffdf7;
-  --card-foreground: #3c3836;
-  --popover: #fffdf7;
-  --popover-foreground: #3c3836;
+  --app-bar-strip: #d8c0a7;
+  --foreground: #261f18;
+  --card: #fffefd;
+  --card-foreground: #261f18;
+  --popover: #fffefd;
+  --popover-foreground: #261f18;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #fffdf7;
-  --primary: #a84b07;
-  --primary-foreground: #fdf6e6;
-  --secondary: #f7e9c9;
-  --secondary-foreground: #3c3836;
-  --muted: #f4e4c0;
-  --muted-foreground: #6b5844;
-  --destructive: #9d0006;
-  --destructive-foreground: #fdf6e6;
-  --ring: #a84b07;
-  --sidebar: #fffaef;
-  --sidebar-foreground: #3c3836;
-  --sidebar-primary: #a84b07;
-  --sidebar-primary-foreground: #fdf6e6;
-  --sidebar-accent: #f7e9c9;
-  --sidebar-accent-foreground: #3c3836;
-  --sidebar-ring: #a84b07;
-  --success: #427b58;
-  --warning: #b57614;
+  --overlay-surface: #fffffe;
+  --primary: #913a02;
+  --primary-foreground: #fdf9f6;
+  --secondary: #e8d7c5;
+  --secondary-foreground: #261f18;
+  --muted: #e5d1bd;
+  --muted-foreground: #514334;
+  --destructive: #8d030c;
+  --destructive-foreground: #fcfaf7;
+  --ring: #913a02;
+  --sidebar: #e6d4c2;
+  --sidebar-foreground: #261f18;
+  --sidebar-primary: #913a02;
+  --sidebar-primary-foreground: #fdf9f6;
+  --sidebar-accent: #d5ba9e;
+  --sidebar-accent-foreground: #261f18;
+  --sidebar-ring: #913a02;
+  --success: #1c5f31;
+  --warning: #825100;
 }
 
 /* Палитра «Янтарь», тёмный набор. Фон сдвинут от нейтрального серого к
- * красноватому: та же тёплая бумага, только ночная. */
+ * тёплому: та же тёплая бумага, только ночная. */
 :root[data-palette='amber'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #1a1611;
-  /* Наведение — тёплая ступень, а не серый: серый выбивался из янтарной бумаги
+  --background: #140e0a;
+  /* Наведение — тёплая ступень, а не серый: серый выбивался из тёплой бумаги
    * и не сочетался ни с одним пользовательским цветом. */
-  --hover-fill: #322a20;
-  --selected-fill: var(--app-bar-strip);
+  --hover-fill: #221a14;
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #3b3226;
-  --foreground: #ebdbb2;
-  --card: #261f19;
-  --card-foreground: #ebdbb2;
-  --popover: #261f19;
-  --popover-foreground: #ebdbb2;
+  --app-bar-strip: #28201a;
+  --foreground: #f8e4d4;
+  --card: #3a3029;
+  --card-foreground: #f8e4d4;
+  --popover: #3a3029;
+  --popover-foreground: #f8e4d4;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #332b22;
-  --primary: #e3a24a;
-  --primary-foreground: #2b2523;
-  --secondary: #332c22;
-  --secondary-foreground: #ebdbb2;
-  --muted: #332c22;
-  --muted-foreground: #b5a289;
-  --destructive: #fb4934;
-  --destructive-foreground: #2b2523;
-  --ring: #e3a24a;
-  --sidebar: #251f19;
-  --sidebar-foreground: #ebdbb2;
-  --sidebar-primary: #e3a24a;
-  --sidebar-primary-foreground: #2b2523;
-  --sidebar-accent: #2e2a22;
-  --sidebar-accent-foreground: #ebdbb2;
-  --sidebar-ring: #e3a24a;
-  --success: #8ec07c;
-  --warning: #fabd2f;
+  --overlay-surface: #4c4139;
+  --primary: #fca466;
+  --primary-foreground: #110c08;
+  --secondary: #322922;
+  --secondary-foreground: #f8e4d4;
+  --muted: #221a14;
+  --muted-foreground: #c6b3a4;
+  --destructive: #f27166;
+  --destructive-foreground: #0a0704;
+  --ring: #fca466;
+  --sidebar: #302721;
+  --sidebar-foreground: #f8e4d4;
+  --sidebar-primary: #fca466;
+  --sidebar-primary-foreground: #110c08;
+  --sidebar-accent: #4a3f36;
+  --sidebar-accent-foreground: #f8e4d4;
+  --sidebar-ring: #fca466;
+  --success: #8bcd99;
+  --warning: #f3bd5c;
 }
 
 /* Палитра «Туман», светлый набор. Нейтральная холодная бумага без синевы:
@@ -538,78 +575,80 @@
  * почти белом фоне сливалась с ним, а полоса и приглушённая ступень были одним
  * цветом. */
 :root[data-palette='mist'] {
-  --background: #eeeef0;
+  --background: #dee0e2;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--sidebar);
   --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #dfe1e5;
-  --foreground: #1c1c1c;
-  --card: #fafafb;
-  --card-foreground: #1c1c1c;
-  --popover: #fafafb;
-  --popover-foreground: #1c1c1c;
+  --app-bar-strip: #c2c6cd;
+  --foreground: #191a1c;
+  --card: #fefeff;
+  --card-foreground: #191a1c;
+  --popover: #fefeff;
+  --popover-foreground: #191a1c;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #fafafb;
-  --primary: #4a4a4a;
-  --primary-foreground: #fafafa;
-  --secondary: #e2e3e6;
-  --secondary-foreground: #1c1c1c;
-  --muted: #e3e4e8;
-  --muted-foreground: #55585d;
-  --destructive: #b3261e;
-  --destructive-foreground: #ffffff;
-  --ring: #4a4a4a;
-  --sidebar: #e6e7ea;
-  --sidebar-foreground: #1c1c1c;
-  --sidebar-primary: #4a4a4a;
-  --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #d5d7dc;
-  --sidebar-accent-foreground: #1c1c1c;
-  --sidebar-ring: #4a4a4a;
-  --success: #2f7d4f;
-  --warning: #976a15;
+  --overlay-surface: #ffffff;
+  --primary: #373b41;
+  --primary-foreground: #fbfcfc;
+  --secondary: #d9dbde;
+  --secondary-foreground: #191a1c;
+  --muted: #d3d6d9;
+  --muted-foreground: #424548;
+  --destructive: #811817;
+  --destructive-foreground: #f8fafd;
+  --ring: #373b41;
+  --sidebar: #d6d8db;
+  --sidebar-foreground: #191a1c;
+  --sidebar-primary: #373b41;
+  --sidebar-primary-foreground: #fbfcfc;
+  --sidebar-accent: #bdc0c6;
+  --sidebar-accent-foreground: #191a1c;
+  --sidebar-ring: #373b41;
+  --success: #1c5f31;
+  --warning: #7b4d00;
 }
 
 /* Палитра «Туман», тёмный набор. Нейтральная холодная бумага без синевы.
  *
  * Как и в светлой стороне, ступени разведены сильнее: фон не «почти чёрный», а
  * глубокая бумага, а карточка, полоса и слой заметно светлее фона. Иначе
- * нейтральная палитра теряет всякую иерархию — всё читается одним чёрным полем. */
+ * нейтральная палитра теряет всякую иерархию — всё читается одним чёрным полем.
+ * Карточка здесь заметно светлее фона: на ней стоят списки и поля, и без
+ * контраста они сливались с подложкой и читались «грязно белыми». */
 :root[data-palette='mist'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #1b1c1e;
+  --background: #0f1012;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--muted);
-  --selected-fill: var(--overlay-surface);
+  --selected-fill: var(--sidebar-accent);
   /* Полоса под шапкой: ступень в тоне палитры. */
-  --app-bar-strip: #34373b;
-  --foreground: #ededee;
-  --card: #26282b;
-  --card-foreground: #ededee;
-  --popover: #26282b;
-  --popover-foreground: #ededee;
+  --app-bar-strip: #202225;
+  --foreground: #eaebed;
+  --card: #313235;
+  --card-foreground: #eaebed;
+  --popover: #313235;
+  --popover-foreground: #eaebed;
   /* Цвет всплывающего слоя в тон этой палитры. */
-  --overlay-surface: #33363a;
-  --primary: #b8b8b8;
-  --primary-foreground: #161616;
-  --secondary: #2b2d30;
-  --secondary-foreground: #ededee;
-  --muted: #2b2d30;
-  --muted-foreground: #a0a3a8;
-  --destructive: #e0685c;
-  --destructive-foreground: #1b1c1e;
-  --ring: #b8b8b8;
-  --sidebar: #24262a;
-  --sidebar-foreground: #ededee;
-  --sidebar-primary: #b8b8b8;
-  --sidebar-primary-foreground: #161616;
-  --sidebar-accent: #33363a;
-  --sidebar-accent-foreground: #ededee;
-  --sidebar-ring: #b8b8b8;
-  --success: #7ab98c;
-  --warning: #d9ad63;
+  --overlay-surface: #414448;
+  --primary: #e6e8ea;
+  --primary-foreground: #0a0b0c;
+  --secondary: #2a2b2e;
+  --secondary-foreground: #eaebed;
+  --muted: #1b1c1e;
+  --muted-foreground: #b6b8bc;
+  --destructive: #ed756a;
+  --destructive-foreground: #060709;
+  --ring: #e6e8ea;
+  --sidebar: #28292c;
+  --sidebar-foreground: #eaebed;
+  --sidebar-primary: #e6e8ea;
+  --sidebar-primary-foreground: #0a0b0c;
+  --sidebar-accent: #3f4145;
+  --sidebar-accent-foreground: #eaebed;
+  --sidebar-ring: #e6e8ea;
+  --success: #8bcd99;
+  --warning: #f3bd5c;
 }
 
 /* Токены области чтения: оформление чтения книги и метки заметок.
@@ -619,73 +658,73 @@
  * при тёмной книге и наоборот. Значения служат хосту и визуальной проверке;
  * изолированные документы читалки берут те же значения из `reader-theme.ts`. */
 :root[data-reader-theme='light'] {
-  --reader-background: #fbf8f1;
-  --reader-foreground: #1f1d1a;
-  --reader-muted-foreground: #6d675c;
-  --reader-link: #2e5c52;
+  --reader-background: #fffefc;
+  --reader-foreground: #1e1b18;
+  --reader-muted-foreground: #5c554b;
+  --reader-link: #145442;
   --reader-selection: rgba(96, 140, 180, 0.32);
   --reader-note-mark: #f2cd52;
 }
 
 :root[data-reader-theme='dark'] {
-  --reader-background: #17191a;
-  --reader-foreground: #e7e2d7;
-  --reader-muted-foreground: #9d968a;
-  --reader-link: #7db9a7;
+  --reader-background: #110f0d;
+  --reader-foreground: #ede7df;
+  --reader-muted-foreground: #a8a199;
+  --reader-link: #83c8ae;
   --reader-selection: rgba(120, 160, 195, 0.33);
   --reader-note-mark: rgba(214, 158, 46, 0.75);
 }
 
 :root[data-palette='frost'][data-reader-theme='light'] {
-  --reader-background: #ffffff;
-  --reader-foreground: #16191f;
-  --reader-muted-foreground: #616a77;
-  --reader-link: #2c4b86;
+  --reader-background: #fdfeff;
+  --reader-foreground: #151a20;
+  --reader-muted-foreground: #4c5767;
+  --reader-link: #0e398e;
   --reader-selection: rgba(59, 130, 246, 0.28);
   --reader-note-mark: #f2cd52;
 }
 
 :root[data-palette='frost'][data-reader-theme='dark'] {
-  --reader-background: #12151b;
-  --reader-foreground: #e6e9f0;
-  --reader-muted-foreground: #98a0ac;
-  --reader-link: #8cace6;
+  --reader-background: #09101a;
+  --reader-foreground: #e3e8f0;
+  --reader-muted-foreground: #909aa8;
+  --reader-link: #87b1fd;
   --reader-selection: rgba(96, 165, 250, 0.3);
   --reader-note-mark: rgba(202, 150, 40, 0.75);
 }
 
 :root[data-palette='amber'][data-reader-theme='light'] {
-  --reader-background: #f8e7c5;
-  --reader-foreground: #3c3836;
-  --reader-muted-foreground: #715e49;
-  --reader-link: #9c4a08;
+  --reader-background: #fffefd;
+  --reader-foreground: #261f18;
+  --reader-muted-foreground: #5e5142;
+  --reader-link: #913a02;
   --reader-selection: rgba(196, 130, 60, 0.32);
   --reader-note-mark: #f2cd52;
 }
 
 :root[data-palette='amber'][data-reader-theme='dark'] {
-  --reader-background: #2b2523;
-  --reader-foreground: #ebdbb2;
-  --reader-muted-foreground: #b3a08c;
-  --reader-link: #e3a24a;
+  --reader-background: #140e0a;
+  --reader-foreground: #f8e4d4;
+  --reader-muted-foreground: #a79585;
+  --reader-link: #fca466;
   --reader-selection: rgba(220, 165, 90, 0.3);
   --reader-note-mark: rgba(214, 158, 46, 0.75);
 }
 
 :root[data-palette='mist'][data-reader-theme='light'] {
-  --reader-background: #ffffff;
-  --reader-foreground: #1c1c1c;
-  --reader-muted-foreground: #6b6b6b;
-  --reader-link: #4a4a4a;
+  --reader-background: #fefeff;
+  --reader-foreground: #191a1c;
+  --reader-muted-foreground: #56595d;
+  --reader-link: #373b41;
   --reader-selection: rgba(59, 130, 246, 0.32);
   --reader-note-mark: #f2cd52;
 }
 
 :root[data-palette='mist'][data-reader-theme='dark'] {
-  --reader-background: #171717;
-  --reader-foreground: #ededed;
-  --reader-muted-foreground: #8c8c8c;
-  --reader-link: #b8b8b8;
+  --reader-background: #0f1012;
+  --reader-foreground: #eaebed;
+  --reader-muted-foreground: #9a9da2;
+  --reader-link: #e6e8ea;
   --reader-selection: rgba(96, 165, 250, 0.33);
   --reader-note-mark: rgba(202, 150, 40, 0.75);
 }
@@ -744,7 +783,9 @@
   --color-control-surface: var(--control-surface);
   --color-surface-hover: var(--surface-hover);
   --color-surface-selected: var(--surface-selected);
-  --color-tab-idle-surface: var(--tab-idle-surface);
+  --color-tab-hover-surface: var(--tab-hover-surface);
+  --color-tab-active-surface: var(--tab-active-surface);
+  --color-tab-active-foreground: var(--tab-active-foreground);
   --color-overlay-surface: var(--overlay-surface);
   --color-menu-surface: var(--menu-surface);
   --color-menu-hover: var(--menu-hover);

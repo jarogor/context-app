@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { tabColorFill, tabIdleFill, tabLabel, tabTooltip } from './tab-appearance';
+import { tabColorMark, tabLabel, tabTooltip } from './tab-appearance';
+import { accentMark } from '@context/ui';
 
 describe('вид вкладки', () => {
   it('показывает название книги, если имя не задано', () => {
@@ -26,23 +27,16 @@ describe('вид вкладки', () => {
     expect(tabTooltip(tab)).toBe('Имя (Книга)');
   });
 
-  it('возвращает заливку только для заданного цвета', () => {
-    expect(tabColorFill(undefined)).toBeUndefined();
-    expect(tabColorFill('blue')).toContain('var(--accent-fill-blue-soft');
-    expect(tabColorFill('blue')).not.toContain('color-mix');
+  it('даёт цвет метки только для заданного цвета', () => {
+    expect(tabColorMark(undefined)).toBeUndefined();
+    // Метка — пара «заливка и подпись», а не один цвет: так она читается.
+    expect(tabColorMark('blue')?.fill).toContain('var(--accent-mark-blue');
+    expect(tabColorMark('blue')?.ink).toContain('var(--accent-mark-blue-ink');
   });
 
-  it('берёт для неактивной вкладки тихую ступень цвета', () => {
-    // Неактивная вкладка — тихая ступень: цвет читается оттенком, а не
-    // плотной заливкой, поэтому не спорит с активной.
-    expect(tabIdleFill('blue')).toContain('var(--accent-fill-blue-tint');
-    expect(tabIdleFill(undefined)).toBeUndefined();
-  });
-
-  it('делает активную цветную вкладку заметно плотнее неактивной', () => {
-    // Активная заливается плотной ступенью, неактивная — тихой: разницу
-    // задаёт общий реестр цветов, а не число на месте.
-    expect(tabColorFill('blue', true)).toContain('var(--accent-fill-blue-active');
-    expect(tabIdleFill('blue')).toContain('var(--accent-fill-blue-tint');
+  it('берёт цвет метки из общего реестра, а не подбирает оттенок на месте', () => {
+    // Метка и кнопка меню библиотеки окрашены одной парой: разойдясь, они
+    // показывали бы «синюю» вкладку и «синюю» библиотеку разными цветами.
+    expect(tabColorMark('blue')).toEqual(accentMark('blue'));
   });
 });

@@ -191,12 +191,14 @@ describe('панель вкладок: оформление вкладки', () 
     expect(item.querySelector('svg')).toBeTruthy();
     expect(item.getAttribute('title')).toBe('Черновик (Книга 1)');
     const box = screen.getAllByTestId('workplace-tab-item')[0];
-    expect(box.getAttribute('style')).toContain('var(--accent-fill-blue');
+    // Пользовательский цвет показывается меткой номера, а не заливкой вкладки.
+    expect(box.getAttribute('style')).toContain('var(--accent-mark-blue');
+    expect(box.getAttribute('style')).not.toContain('--tab-fill');
   });
 
-  it('даёт неактивной вкладке фон, отличный от полосы', () => {
-    // Дефект: неактивная вкладка без цвета сливалась с полосой, потому что
-    // фон у неё отсутствовал. Фон общий для всех неактивных вкладок.
+  it('не рисует неактивной вкладке плашки', () => {
+    // Дефект: неактивная вкладка была залита отдельным фоном, и в тёмных
+    // наборах он читался как активный. Неактивная стоит прямо на полосе.
     mockWidth(320);
     render(WorkplaceTabs, {
       props: {
@@ -206,43 +208,51 @@ describe('панель вкладок: оформление вкладки', () 
       },
     });
     const [active, inactive] = screen.getAllByTestId('workplace-tab-item');
-    // Активная — как активный пункт раздела в шапке: акцентная заливка и
-    // светлый текст поверх неё. Неактивная — общий фон, отличный от полосы.
-    expect(active.className).toContain('bg-[var(--primary)]');
-    expect(active.className).toContain('text-[var(--primary-foreground)]');
-    expect(inactive.className).toContain('bg-[var(--tab-idle-surface)]');
+    // Активная — нейтральной поверхностью содержимого, а не акцентом темы:
+    // акцент у каждой палитры свой и спорил с пользовательскими цветами.
+    expect(active.className).toContain('bg-[var(--tab-active-surface)]');
+    expect(active.className).toContain('text-[var(--tab-active-foreground)]');
+    expect(active.className).not.toContain('bg-[var(--primary)]');
+    expect(inactive.className).not.toContain('bg-[var(--tab-active-surface)]');
+    // Постоянной заливки нет: только наведение.
+    expect(inactive.className).not.toMatch(/(?<!hover:)bg-\[var\(--/);
+    expect(inactive.className).toContain('text-[var(--muted-foreground)]');
   });
 
-  it('заливает неактивную цветную вкладку тихой ступенью цвета', () => {
-    // Цветная неактивная отличается от нецветной оттенком цвета: нецветная
-    // берёт общий фон, цветная — тихую ступень своего цвета.
+  it('показывает наведение неактивной вкладки тихой поверхностью', () => {
     mockWidth(320);
     render(WorkplaceTabs, {
       props: {
-        tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
+        tabs: [tab('t1', 'Книга 1'), tab('t2', 'Книга 2')],
         activeTabId: 't1',
         ...handlers(),
       },
     });
-    const [, colored] = screen.getAllByTestId('workplace-tab-item');
-    expect(colored.className).toContain('bg-[var(--tab-fill)]');
-    expect(colored.getAttribute('style')).toContain('var(--accent-fill-blue-tint');
+    const [, inactive] = screen.getAllByTestId('workplace-tab-item');
+    expect(inactive.className).toContain('hover:bg-[var(--tab-hover-surface)]');
   });
 
-  it('оставляет наведение цветной вкладки в её цвете', () => {
-    // Дефект: под курсором цветная вкладка подменялась акцентом темы и выглядела
-    // нативной — собственный цвет пользователя пропадал.
+  it('красит номер цветной вкладки и не трогает фон', () => {
+    // Цвет на вкладке остался только у номера: он работает знаком, а сама
+    // плашка одинакова у всех вкладок.
     mockWidth(320);
     render(WorkplaceTabs, {
       props: {
         tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
-        activeTabId: 't1',
+        activeTabId: null,
         ...handlers(),
       },
     });
-    const [, colored] = screen.getAllByTestId('workplace-tab-item');
-    expect(colored.className).toContain('hover:bg-[var(--tab-fill-hover)]');
-    expect(colored.className).not.toContain('hover:bg-[var(--primary)]');
+    const [plain, colored] = screen.getAllByTestId('workplace-tab-item');
+    // Обе неактивны: классы фона у цветной и нецветной совпадают, цвет живёт
+    // только в переменной метки.
+    expect(colored.className).toBe(plain.className);
+    const number = screen.getAllByTestId('workplace-tab-number')[1];
+    expect(number.className).toContain('bg-[var(--tab-mark-fill)]');
+    expect(number.className).toContain('text-[var(--tab-mark-ink)]');
+    expect(screen.getAllByTestId('workplace-tab-number')[0].className).not.toContain(
+      'bg-[var(--tab-mark-fill)]',
+    );
   });
 
   it('не рисует обводку неактивной цветной вкладке', () => {
@@ -260,7 +270,7 @@ describe('панель вкладок: оформление вкладки', () 
     expect(colored.className).not.toContain('shadow-[inset');
   });
 
-  it('выделяет выбранную цветную вкладку заливкой, без обводки', () => {
+  it('выделяет выбранную цветную вкладку так же, как нецветную', () => {
     mockWidth(320);
     render(WorkplaceTabs, {
       props: {
@@ -269,33 +279,14 @@ describe('панель вкладок: оформление вкладки', () 
         ...handlers(),
       },
     });
-    const active = screen.getAllByTestId('workplace-tab-item')[1];
-    // Контуров в интерфейсе нет: активную вкладку отличает плотная заливка.
-    expect(active.className).toContain('bg-[var(--tab-fill-active)]');
+    const [plain, active] = screen.getAllByTestId('workplace-tab-item');
+    // Цвет не меняет выделение: активная цветная и активная нецветная
+    // выглядят одинаково. Контуров в интерфейсе нет.
+    expect(active.className).toContain('bg-[var(--tab-active-surface)]');
+    expect(active.className).not.toContain('bg-[var(--tab-fill-active)]');
     expect(active.className).not.toContain('shadow-[inset');
     expect(active.getAttribute('style')).not.toContain('--tab-line');
-  });
-
-  it('заливает активную цветную вкладку плотнее неактивной', () => {
-    // Активная заливается плотной ступенью, неактивная — тихой: ступени берутся
-    // из общего реестра, а не подбираются на месте.
-    mockWidth(320);
-    render(WorkplaceTabs, {
-      props: {
-        tabs: [tab('t1', 'Книга 1'), { ...decorated(), id: 't2' }],
-        activeTabId: 't2',
-        ...handlers(),
-      },
-    });
-    const active = screen.getAllByTestId('workplace-tab-item')[1];
-    expect(active.className).toContain('bg-[var(--tab-fill-active)]');
-    expect(active.getAttribute('style')).toContain(
-      '--tab-fill-active: var(--accent-fill-blue-active',
-    );
-    // Подпись на плотной заливке своя: на глубоком цвете тёмные чернила не читаются.
-    expect(active.getAttribute('style')).toContain(
-      '--tab-ink-active: var(--accent-ink-blue-active',
-    );
+    expect(plain.className).not.toContain('bg-[var(--tab-active-surface)]');
   });
 
   it('оставляет прежний вид вкладки без оформления', () => {
@@ -313,7 +304,7 @@ describe('панель вкладок: оформление вкладки', () 
     expect(item.querySelector('svg')).toBeNull();
     expect(item.getAttribute('title')).toBe('Книга 1');
     expect(screen.getAllByTestId('workplace-tab-item')[0].getAttribute('style')).not.toContain(
-      '--accent-fill',
+      '--accent-mark',
     );
   });
 });

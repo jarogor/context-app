@@ -11,7 +11,6 @@
     SidePanel,
     Input,
     TAB_ICON_NAMES,
-    accentText,
     type IconName,
     type MenuAction,
     type MenuColor,
@@ -28,7 +27,7 @@
   import { noteColorLabel, NOTE_COLOR_SWATCHES } from '../notes/notes';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { openBookFile } from '../reader/reader';
-  import { tabColorFill, tabIdleFill, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabColorMark, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -249,44 +248,27 @@
     return items;
   }
 
-  /** Стиль пункта: фон пользовательским цветом.
+  /** Стиль пункта: пользовательский цвет метки номера.
    *
-   * Пункт повторяет вид строки заметок: у неактивного фон карточки, у выбранного
-   * — плотная ступень цвета. Наведение идёт в своей ступени цвета: подмена фона
-   * фоном темы делала цветной пункт серым, и подпись под заливку не подходила.
+   * Строка списка остаётся одинаковой у всех вкладок: цвет больше не заливает
+   * её, иначе одинаковые строки выглядели по-разному, а выделение терялось.
+   * Цвет остаётся на номере — цветной плашке — и на кнопке меню.
    */
-  function itemFill(tab: WorkspaceTab): string {
-    // Невыбранный пункт — тихая ступень, выбранный — плотная: разница видна
-    // сразу, и оба остаются приглушёнными.
-    const idle = tabIdleFill(tab.color);
-    const active = tabColorFill(tab.color, true);
-    const hover = tabColorFill(tab.color, false);
-    const ink = accentText(tab.color, { strength: 'tint' });
-    const inkActive = accentText(tab.color, { strength: 'active' });
-    if (!idle || !active || !ink || !inkActive) {
-      return '';
-    }
-    // Подпись вторичного текста — та же, что у пункта: цвет задаёт её один раз
-    // на все ступени, поэтому строка списка и карточка не расходятся.
-    return ` --item-fill: ${idle}; --item-fill-active: ${active}; --item-fill-hover: ${hover}; --item-ink: ${ink}; --item-ink-active: ${inkActive}; --meta-ink: ${ink}; --meta-strong-ink: ${ink}; --meta-badge-surface: color-mix(in oklab, ${ink} 16%, transparent);`;
+  function itemColorStyle(tab: WorkspaceTab): string {
+    const mark = tabColorMark(tab.color);
+    return mark ? ` --item-mark-fill: ${mark.fill}; --item-mark-ink: ${mark.ink};` : '';
   }
 
-  /** Классы пункта с учётом пользовательского цвета и активности.
+  /** Классы пункта с учётом активности.
    *
    * Как в списке заметок: неактивный стоит на фоне карточки и подсвечивается
-   * наведением, выбранный — заливкой плотной ступени. Обводок нет: фоны
-   * разделяются заливкой. Подпись цветного пункта берётся по своей заливке:
-   * приглушённая заливка светлая, и вторичный цвет темы на ней сливался бы.
+   * наведением, выбранный — фоном выбора. Цвет вкладки на фон не влияет:
+   * строки одинаковы, а цвет виден на номере и кнопке меню. Обводок нет.
    */
   function itemFillClass(tab: WorkspaceTab): string {
-    if (tab.id === activeTabId) {
-      return tab.color
-        ? 'bg-[var(--item-fill-active)] text-[var(--item-ink-active,var(--on-accent-fill))]'
-        : 'bg-[var(--surface-selected)]';
-    }
-    return tab.color
-      ? 'bg-[var(--item-fill)]  text-[var(--item-ink,var(--on-accent-fill))] hover:bg-[var(--item-fill-hover,var(--surface-hover))]'
-      : 'bg-[var(--card)]  hover:bg-[var(--surface-hover)]';
+    return tab.id === activeTabId
+      ? 'bg-[var(--surface-selected)]'
+      : 'bg-[var(--card)] hover:bg-[var(--surface-hover)]';
   }
 
   /** Начало правки текстового свойства вкладки. */
@@ -377,7 +359,7 @@
         class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] py-2.5 pr-2 pl-3 transition-colors {itemFillClass(
  tab,
  )}"
-        style={itemFill(tab)}
+        style={itemColorStyle(tab)}
         data-testid="open-books-item"
         data-tab-id={tab.id}
         data-active={tab.id === activeTabId ? 'true' : 'false'}
@@ -386,10 +368,13 @@
           <!--
             Номер — место вкладки в составе рабочего места, тот же, что в полосе
             вкладок: по нему вкладку находят в обоих местах. При поиске нумерация
-            не меняется. Стоит перед кнопкой, чтобы не попадать в её подпись.
+            не меняется. Стоит перед кнопкой, чтобы не попадать в её подпись. Это
+            же место несёт пользовательский цвет вкладки — цветной плашкой.
           -->
           <span
-            class="shrink-0 tabular-nums opacity-60 role-caption"
+            class="shrink-0 font-semibold tabular-nums {tab.color
+              ? 'rounded-[calc(var(--radius)*0.5)] bg-[var(--item-mark-fill)] px-1 text-[var(--item-mark-ink)] role-caption'
+              : 'opacity-60 role-caption'}"
             data-testid="open-books-item-number"
             >{tabNumber(tab.id)}</span
           >
@@ -410,6 +395,7 @@
               ariaLabel={t('app.workplace.tab.appearance')}
               title={overLimit ? t('app.workplace.limitExceeded') : t('app.workplace.tab.appearance')}
               class="h-7 w-7 {overLimit ? 'text-destructive' : ''}"
+              mark={tabColorMark(tab.color)}
               items={appearanceActions(tab)}
               icons={iconOptions(tab.icon)}
               iconsLabel={t('app.workplace.tab.iconLabel')}
@@ -423,9 +409,7 @@
         </div>
         {#if tab.description}
           <p
-            class="whitespace-pre-wrap break-words pb-1.5 role-caption {tab.color
-              ? 'text-[var(--meta-ink,var(--muted-foreground))] opacity-85'
-              : 'text-[var(--muted-foreground)]'}"
+            class="whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
             data-testid="open-books-item-description"
           >
             {tab.description}

@@ -590,16 +590,17 @@ test('цвет вкладки заливает её и в панели, и на 
   await panel.getByLabel('Оформление вкладки').click();
   await page.getByTestId('menu-color-blue').click();
 
-  // Заливка готовым цветом стороны: ступень выбирает реестр цветов, а не место.
-  await expect(panel.getByTestId('open-books-item')).toHaveAttribute('style', /--accent-fill-blue/);
-  await expect(tab(page, 'Демо-книга')).toHaveAttribute('style', /--accent-fill-blue/);
+  // Пользовательский цвет показывает метка номера: плашки вкладки и строки
+  // списка остаются одинаковыми у всех элементов.
+  await expect(panel.getByTestId('open-books-item')).toHaveAttribute('style', /--accent-mark-blue/);
+  await expect(tab(page, 'Демо-книга')).toHaveAttribute('style', /--accent-mark-blue/);
 
-  // Сброс оформления снимает заливку.
+  // Сброс оформления снимает цвет.
   await panel.getByLabel('Оформление вкладки').click();
   await page.getByRole('menuitem', { name: 'Сбросить все изменения' }).click();
 
-  await expect(panel.getByTestId('open-books-item')).not.toHaveAttribute('style', /--accent-fill/);
-  await expect(tab(page, 'Демо-книга')).not.toHaveAttribute('style', /--accent-fill/);
+  await expect(panel.getByTestId('open-books-item')).not.toHaveAttribute('style', /--accent-mark/);
+  await expect(tab(page, 'Демо-книга')).not.toHaveAttribute('style', /--accent-mark/);
 });
 
 test('поиск по вкладкам фильтрует список и не меняет состав', async ({ page }) => {

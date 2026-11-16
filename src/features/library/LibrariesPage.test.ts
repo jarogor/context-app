@@ -781,13 +781,17 @@ describe('оформление библиотек', () => {
     expect(screen.getByTestId('library-name').textContent).toContain('Домашняя');
     // Описание в элементе списка не показывается: оно принадлежит карточке.
     expect(screen.queryByTestId('library-item-description')).toBeNull();
-    // Цвет задаёт только заливку строки: контуров в интерфейсе нет.
+    // Строка списка остаётся одинаковой: цвет показывает кнопка меню, а не
+    // заливка. Контуров в интерфейсе нет.
     const item = screen.getByTestId('library-item');
     const style = item.querySelector('[style]')?.getAttribute('style') ?? '';
-    expect(style).toContain('--row-fill');
+    expect(style).not.toContain('--row-fill');
     expect(style).not.toContain('--row-line');
     const name = item.querySelector('[data-testid="library-name"]');
     expect(name?.parentElement?.querySelector('svg')).not.toBeNull();
+    // Кнопка меню строки окрашена цветом библиотеки.
+    const menu = item.querySelector('[aria-label="Действия с библиотекой"]');
+    expect(menu?.getAttribute('style') ?? '').toContain('var(--accent-mark-blue');
 
     // Выбор строки показывает название и описание в шапке карточки; «загружена»
     // стоит ниже, вне кликабельной области.
@@ -817,21 +821,29 @@ describe('оформление библиотек', () => {
     );
   });
 
-  it('даёт цветной строке своё наведение и подпись вторичного текста', async () => {
-    // Дефекты: под курсором цветная строка становилась серой темой, а дата
-    // оставалась приглушённым цветом темы и не читалась на плотной заливке.
+  it('даёт строке списка только цвет кнопки меню, а заливку — карточке', async () => {
+    // Дефект: строка списка заливалась цветом, и одинаковые библиотеки
+    // выглядели по-разному. Цвет остался у кнопки меню строки и у шапки
+    // карточки, которая показывает одну запись.
     decoratedHistory();
     render(LibrariesPage);
 
     await waitFor(() => expect(screen.getAllByTestId('library-item')).toHaveLength(1));
     const item = screen.getByTestId('library-item');
-    const style = item.querySelector('[style]')?.getAttribute('style') ?? '';
-    // Наведение и подпись обеих ступеней задаёт строка; вторичный текст берёт
-    // подпись из `--row-ink*` уже в `ListRow`.
-    expect(style).toContain('--row-fill-hover');
-    expect(style).toContain('--row-ink');
-    expect(style).toContain('--row-ink-selected');
-    expect(style).toContain('--meta-badge-surface');
+    await fireEvent.click(item.querySelector('[data-testid="library-item"] button') as HTMLElement);
+    const rowStyle = item.querySelector('[style]')?.getAttribute('style') ?? '';
+    // Строка не несёт своей заливки: фон берут классы выбора и карточки.
+    expect(rowStyle).not.toContain('--row-fill:');
+    expect(rowStyle).not.toContain('--row-fill-selected:');
+    expect(rowStyle).not.toContain('--row-fill-hover');
+    const menu = item.querySelector('[aria-label="Действия с библиотекой"]');
+    expect(menu?.getAttribute('style') ?? '').toContain('background-color: var(--accent-mark-blue');
+
+    const card = screen.getByTestId('library-card');
+    const cardStyle = card.getAttribute('style') ?? '';
+    expect(cardStyle).toContain('--row-fill-selected');
+    expect(cardStyle).toContain('--row-ink-selected');
+    expect(cardStyle).toContain('--meta-badge-surface');
   });
 
   it('не задаёт цветовых переменных записи без цвета', async () => {

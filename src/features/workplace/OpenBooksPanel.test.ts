@@ -61,9 +61,10 @@ describe('панель открытых книг: оформление', () => {
     expect(screen.getByTestId('open-books-item-description').textContent).toContain(
       'сравнение глав',
     );
-    expect(screen.getByTestId('open-books-item').getAttribute('style')).toContain(
-      'var(--accent-fill-blue',
-    );
+    // Цвет вкладки показывается меткой номера, а не заливкой строки.
+    const style = screen.getByTestId('open-books-item').getAttribute('style') ?? '';
+    expect(style).toContain('var(--accent-mark-blue');
+    expect(style).not.toContain('--item-fill');
     expect(screen.getByText('Черновик').closest('button')?.querySelector('svg')).toBeTruthy();
   });
 
@@ -157,7 +158,7 @@ describe('панель открытых книг: оформление', () => {
     }
   });
 
-  it('заливает выбранный цветной пункт цветом вкладки без контура', () => {
+  it('оставляет строку одинаковой у цветной и нецветной вкладки', () => {
     render(OpenBooksPanel, {
       props: {
         tabs: [tab('t1', { color: 'blue' }), tab('t2', { color: 'blue' })],
@@ -167,14 +168,30 @@ describe('панель открытых книг: оформление', () => {
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    // Выбранный цветной — плотная ступень, невыбранный — средняя.
-    expect(items[0].className).toContain('bg-[var(--item-fill-active)]');
-    expect(items[0].getAttribute('style')).toContain('var(--accent-fill-blue-active');
-    // Невыбранный цветной — слабее, и тоже без контура.
-    expect(items[1].className).toContain('bg-[var(--item-fill)]');
+    // Выбранная — фоном выбора, невыбранная — фоном карточки; цвет на фон
+    // не влияет, иначе одинаковые строки выглядели по-разному.
+    expect(items[0].className).toContain('bg-[var(--surface-selected)]');
+    expect(items[0].className).not.toContain('bg-[var(--item-fill-active)]');
+    expect(items[1].className).toContain('bg-[var(--card)]');
     for (const item of items) {
       expect(item.className).not.toContain('border');
     }
+  });
+
+  it('красит номер и кнопку меню цветной вкладки', () => {
+    render(OpenBooksPanel, {
+      props: {
+        tabs: [tab('t1', { color: 'blue' })],
+        activeTabId: 't1',
+        ...handlers(),
+      },
+    });
+
+    const number = screen.getByTestId('open-books-item-number');
+    expect(number.className).toContain('bg-[var(--item-mark-fill)]');
+    expect(number.className).toContain('text-[var(--item-mark-ink)]');
+    const menu = screen.getByLabelText('Оформление вкладки');
+    expect(menu.getAttribute('style')).toContain('var(--accent-mark-blue');
   });
 });
 

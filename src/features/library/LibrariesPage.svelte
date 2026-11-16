@@ -35,6 +35,7 @@
     LIBRARY_COLOR_SWATCHES,
     LIBRARY_ICONS,
     libraryColorFill,
+    libraryColorMark,
     normalizeLibraryColor,
     normalizeLibraryIcon,
     optionalLibraryText,
@@ -378,38 +379,24 @@
     }));
   }
 
-  /** CSS-переменные заливки и подписи строки или карточки библиотеки.
+  /** Цвет записи остаётся у шапки карточки, а строки списка одинаковы.
    *
-   * Переменные задаются только при заданном цвете: без цвета фон и подпись
-   * берут классы. Подпись своя у каждой ступени — на плотной заливке тёмные
-   * чернила уже не читаются, — и у неё есть своё наведение: подмена фона цветом
-   * темы превращала цветную строку в серую, и подпись под заливку не подходила.
+   * Карточка одна на весь список и стоит отдельно от строк, поэтому её шапка
+   * по-прежнему заливается цветом записи: заливка не мешает узнаванию списка, а
+   * подпись и значок берут свою пару чернил, чтобы читаться на ней. В строках
+   * списка цвет показывает только кнопка контекстного меню.
    */
-  function colorStyle(entry: HistoryEntry): string {
-    if (!entry.color) {
+  function cardStyle(entry: HistoryEntry | null): string {
+    if (!entry?.color) {
       return '';
     }
     const fill = libraryColorFill(entry.color);
     const selected = libraryColorFill(entry.color, { selected: true });
+    const hover = libraryColorFill(entry.color, { strength: 'soft' });
     const ink = accentText(entry.color, { strength: 'tint' });
     const inkSelected = accentText(entry.color, { strength: 'active' });
-    const hover = libraryColorFill(entry.color, { strength: 'soft' });
-    // Метка провайдера стоит на подложке в тон подписи: светлая метка темы на
-    // плотной заливке не читалась.
     return `--row-fill: ${fill}; --row-fill-selected: ${selected}; --row-fill-hover: ${hover}; --row-ink: ${ink}; --row-ink-selected: ${inkSelected}; --meta-ink: ${ink}; --meta-strong-ink: ${ink}; --meta-badge-surface: color-mix(in oklab, ${ink} 16%, transparent);`;
   }
-
-  /** Цвет строки списка: заливка цветом записи. */
-  function rowStyle(entry: HistoryEntry): string {
-    return colorStyle(entry);
-  }
-
-  /** Цвет карточки: шапка и подвал лежат на разных фонах.
-   *
-   * Цвет применяется к самой карточке, поэтому выбирается её собственный фон:
-   * шапка стоит на карточке, а не на странице.
-   */
-  const cardStyle = $derived(selectedEntry ? colorStyle(selectedEntry) : undefined);
 
   /** Пункты меню карточки: те же действия, что у записи списка. */
   const cardActions = $derived(selectedEntry ? entryActions(selectedEntry) : []);
@@ -834,7 +821,7 @@
          что та не загружена, а не исчезает, сдвигая список. -->
     <aside
       class="relative flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] bg-[var(--card)] large-tablet:h-full large-tablet:min-h-0"
-      style={cardStyle}
+      style={cardStyle(selectedEntry)}
       data-testid="library-card"
     >
       {#if opening}
@@ -887,7 +874,15 @@
           <span class="pointer-events-none flex min-w-0 flex-1 flex-col gap-2">
             <span class="flex min-w-0 items-start gap-2">
               {#if selectedEntry.icon}
-                <Icon name={selectedEntry.icon} class="mt-1 h-4 w-4 shrink-0" />
+                <!-- Значок берёт ту же подпись, что и название: на цветной
+                     заливке шапки светлый значок темы пропадал, а на жёлтой
+                     заливке он читался белым при тёмном тексте. -->
+                <Icon
+                  name={selectedEntry.icon}
+                  class="mt-1 h-4 w-4 shrink-0 {selectedEntry.color
+                    ? 'text-[var(--row-ink-selected,var(--on-accent-fill))]'
+                    : ''}"
+                />
               {/if}
               <span
                 class="block min-w-0 break-words role-heading {selectedEntry.color
@@ -909,11 +904,13 @@
             {/if}
           </span>
 
-          <!-- Меню карточки: то же оформление, что у записи списка. -->
+          <!-- Меню карточки: то же оформление, что у записи списка. Цвет
+               библиотеки показывает кнопка меню. -->
           <span class="relative z-[1] flex shrink-0">
             <ActionMenu
               ariaLabel={t('app.library.libraries.actionsLabel')}
               title={t('app.library.libraries.actionsLabel')}
+              mark={libraryColorMark(selectedEntry.color)}
               items={cardActions}
               icons={iconOptions(selectedEntry)}
               iconsLabel={t('app.library.libraries.iconLabel')}
@@ -1024,9 +1021,8 @@
               <article
                 class="relative flex h-full flex-col gap-2 rounded-[var(--radius)] p-3 transition-colors {entry.path ===
  selectedEntry?.path
- ? ' bg-[var(--row-fill-selected,var(--surface-selected))]'
- : ' bg-[var(--row-fill,var(--card))] hover:bg-[var(--row-fill-hover,var(--surface-hover))]'} {entry.available ? '' : 'opacity-60'}"
-                style={rowStyle(entry)}
+ ? ' bg-[var(--surface-selected)]'
+ : ' bg-[var(--card)] hover:bg-[var(--surface-hover)]'} {entry.available ? '' : 'opacity-60'}"
                 data-selected={entry.path === selectedEntry?.path ? 'true' : undefined}
               >
                 <button
@@ -1037,11 +1033,7 @@
                   onclick={() => pickEntry(entry)}
                 ></button>
 
-                <div
-                  class="pointer-events-none flex min-w-0 items-start gap-2 {entry.color
-                    ? 'text-[var(--row-ink,var(--on-accent-fill))]'
-                    : ''}"
-                >
+                <div class="pointer-events-none flex min-w-0 items-start gap-2">
                   {#if entry.icon}
                     <Icon name={entry.icon} class="mt-0.5 h-4 w-4 shrink-0" />
                   {/if}
@@ -1058,22 +1050,21 @@
                     {providerLabel(entry.providerName)}
                   </Badge>
                   {#if formatDateTime(entry.addedAtMillis)}
-                    <span
-                      class="flex items-center gap-1.5 role-caption {entry.color
-                        ? 'text-[var(--row-ink,var(--on-accent-fill))] opacity-80'
-                        : 'text-[var(--muted-foreground)]'}"
-                    >
+                    <span class="flex items-center gap-1.5 role-caption text-[var(--muted-foreground)]">
                       <Icon name="clock" class="h-3.5 w-3.5 shrink-0" />
                       {formatDateTime(entry.addedAtMillis)}
                     </span>
                   {/if}
                 </div>
 
-                <!-- Меню действий поверх наложения карточки. -->
+                <!-- Меню действий поверх наложения карточки. Цвет библиотеки
+                     показывает кнопка меню: плитка остаётся такой же, как
+                     соседние, и выбор читается по выделению. -->
                 <span class="absolute top-2 right-2 z-[1] flex">
                   <ActionMenu
                     ariaLabel={t('app.library.libraries.actionsLabel')}
                     title={t('app.library.libraries.actionsLabel')}
+                    mark={libraryColorMark(entry.color)}
                     items={entryActions(entry)}
                     icons={iconOptions(entry)}
                     iconsLabel={t('app.library.libraries.iconLabel')}
@@ -1101,7 +1092,7 @@
           onSelect={(entry) => pickEntry(entry)}
           metaItems={metaItems}
           metaTestId="library-meta"
-          rowStyle={rowStyle}
+          actionMark={(entry) => libraryColorMark(entry.color)}
           actions={entryActions}
           actionsLabel={t('app.library.libraries.actionsLabel')}
           colors={colorOptions}

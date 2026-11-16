@@ -1485,7 +1485,7 @@
           -->
           <Menu
             ariaLabel={t('app.settings.sections')}
-            class="shrink-0 gap-1 overflow-x-auto rounded-[var(--radius)] bg-[var(--card)] p-2 max-large-tablet:mx-4 max-large-tablet:mt-3 max-large-tablet:flex-row large-tablet:mx-3 large-tablet:my-3 large-tablet:w-[13rem] large-tablet:flex-none large-tablet:flex-col large-tablet:self-start"
+            class="shrink-0 gap-1 overflow-x-auto rounded-[var(--radius)] bg-[var(--card)] p-2 max-large-tablet:mx-4 max-large-tablet:mt-3 max-large-tablet:flex-row large-tablet:m-6 large-tablet:mr-0 large-tablet:w-[13rem] large-tablet:flex-none large-tablet:flex-col large-tablet:self-start"
           >
             <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
               {t('app.settings.general')}

@@ -4,8 +4,10 @@ export {
   ACCENT_COLOR_SWATCHES,
   accentFill,
   accentLine,
+  accentMark,
   accentText,
   type AccentColor,
+  type AccentMarkStyle,
   type AccentStrength,
 } from './accent';
 export { createAsyncState } from './async-state.svelte';
@@ -36,7 +38,7 @@ export { TAB_ICON_NAMES } from './components/Icon.svelte';
 export { default as IconButton } from './components/IconButton.svelte';
 export type { IconButtonAction } from './components/IconButton.svelte';
 export { default as ActionMenu } from './components/ActionMenu.svelte';
-export type { MenuAction, MenuColor, MenuIcon } from './components/ActionMenu.svelte';
+export type { MenuAction, MenuColor, MenuIcon, MenuMark } from './components/ActionMenu.svelte';
 export { default as ColorPicker } from './components/ColorPicker.svelte';
 export type { ColorSwatch } from './components/ColorPicker.svelte';
 export { default as IconPicker } from './components/IconPicker.svelte';

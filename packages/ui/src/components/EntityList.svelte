@@ -2,7 +2,12 @@
   import type { Snippet } from 'svelte';
   import ListRow from './ListRow.svelte';
   import MetaList, { type MetaItem } from './MetaList.svelte';
-  import ActionMenu, { type MenuAction, type MenuColor, type MenuIcon } from './ActionMenu.svelte';
+  import ActionMenu, {
+    type MenuAction,
+    type MenuColor,
+    type MenuIcon,
+    type MenuMark,
+  } from './ActionMenu.svelte';
   import { t } from '@context/i18n';
   import { cn } from '../utils';
 
@@ -51,8 +56,10 @@
     editContent?: Snippet<[T]>;
     /** Дополнительное содержимое под строкой (например, раскрытый список). */
     body?: Snippet<[T]>;
-    /** Фрагмент inline-стиля строки (оформление пункта: заливка цветом). */
+    /** Фрагмент inline-стиля строки (оформление пункта: цвет метки). */
     rowStyle?: (item: T) => string | undefined;
+    /** Пара «заливка и подпись» кнопки меню действий пункта (цвет элемента). */
+    actionMark?: (item: T) => MenuMark | undefined;
     /** Контейнер списка: `ul` (со `li`) или `div` (с `section`). */
     container?: 'ul' | 'div';
     /** Метка для тестов у каждого пункта. */
@@ -93,6 +100,7 @@
     editContent,
     body,
     rowStyle,
+    actionMark,
     container = 'ul',
     itemTestId,
     buttonTestId,
@@ -134,6 +142,7 @@
         <ActionMenu
           ariaLabel={actionsLabel ?? t('app.list.actions')}
           title={t('app.list.actions')}
+          mark={actionMark?.(item)}
           items={actionsFor(item)}
           colors={colors?.(item) ?? []}
           {colorsLabel}
