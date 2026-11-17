@@ -278,7 +278,7 @@
   --properties-panel-width-wide: 23rem;
 
   /* Палитра «Лён» по умолчанию, светлый набор. */
-  --background: #e6e1da;
+  --background: #eae5de;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--sidebar);
   --selected-fill: var(--sidebar-accent);
@@ -323,7 +323,7 @@
   --overlay-surface: #48433d;
   --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.4);
 
-  --background: #110f0d;
+  --background: #1b1815;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--muted);
   --selected-fill: var(--sidebar-accent);
@@ -418,7 +418,7 @@
  * перекрывает светлую сторону «Льна». Голубоватая бумага с насыщенным синим
  * акцентом — характер палитры задан цветностью фона и акцента. */
 :root[data-palette='frost'] {
-  --background: #dae0e9;
+  --background: #e4ebff;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--sidebar);
   --selected-fill: var(--sidebar-accent);
@@ -457,7 +457,7 @@
 :root[data-palette='frost'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #09101a;
+  --background: #101634;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--muted);
   --selected-fill: var(--sidebar-accent);
@@ -493,7 +493,7 @@
 /* Палитра «Янтарь», светлый набор. Тёплая бумага с янтарным акцентом;
  * подключается атрибутом `data-palette='amber'`. */
 :root[data-palette='amber'] {
-  --background: #ecdccb;
+  --background: #f1e9d5;
   /* Наведение и выбор — ступени в тёплом тоне палитры: серое наведение
    * выбивалось из янтарной бумаги и спорило с цветными элементами. */
   --hover-fill: #e6d4c2;
@@ -532,7 +532,7 @@
 :root[data-palette='amber'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #140e0a;
+  --background: #1d150e;
   /* Наведение — тёплая ступень, а не серый: серый выбивался из тёплой бумаги
    * и не сочетался ни с одним пользовательским цветом. */
   --hover-fill: #221a14;
@@ -575,7 +575,7 @@
  * почти белом фоне сливалась с ним, а полоса и приглушённая ступень были одним
  * цветом. */
 :root[data-palette='mist'] {
-  --background: #dee0e2;
+  --background: #e6e8ea;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--sidebar);
   --selected-fill: var(--sidebar-accent);
@@ -618,7 +618,7 @@
 :root[data-palette='mist'][data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #0f1012;
+  --background: #181a1d;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--muted);
   --selected-fill: var(--sidebar-accent);
