@@ -115,21 +115,21 @@
    * Подпись на светлой стороне одна на все ступени — тёмная: заливки светлые,
    * тёмные чернила читаются на любой из них. Прежняя пара «то тёмная, то
    * белая» давала чёрный текст на строке и белый на карточке одного элемента. */
-  --accent-fill-yellow-tint: #fee19c;
-  --accent-fill-yellow-soft: #f4c649;
-  --accent-fill-yellow-active: #d7a91c;
-  --accent-fill-green-tint: #a3fea6;
-  --accent-fill-green-soft: #52f164;
-  --accent-fill-green-active: #22d243;
-  --accent-fill-blue-tint: #c2defd;
-  --accent-fill-blue-soft: #add0f8;
-  --accent-fill-blue-active: #73b4fc;
-  --accent-fill-red-tint: #fdcfcb;
-  --accent-fill-red-soft: #f8bbb5;
-  --accent-fill-red-active: #fe8880;
-  --accent-fill-purple-tint: #f5d8fe;
-  --accent-fill-purple-soft: #e8b7f8;
-  --accent-fill-purple-active: #e182fe;
+  --accent-fill-yellow-tint: #feef9c;
+  --accent-fill-yellow-soft: #f4d549;
+  --accent-fill-yellow-active: #edd051;
+  --accent-fill-green-tint: #cafea3;
+  --accent-fill-green-soft: #97f152;
+  --accent-fill-green-active: #89e12a;
+  --accent-fill-blue-tint: #c2d8fd;
+  --accent-fill-blue-soft: #98bdfb;
+  --accent-fill-blue-active: #7eadfd;
+  --accent-fill-red-tint: #fdd3cb;
+  --accent-fill-red-soft: #f8bfb5;
+  --accent-fill-red-active: #fe9580;
+  --accent-fill-purple-tint: #e6d8fe;
+  --accent-fill-purple-soft: #caa1ff;
+  --accent-fill-purple-active: #be8cff;
   --accent-ink-yellow-tint: #23180a;
   --accent-ink-yellow-soft: #23180a;
   --accent-ink-yellow-active: #23180a;
@@ -150,15 +150,15 @@
    * можно было сохранить только у тёмных оттенков: жёлтый становился
    * коричневым. Плашка берёт тихую ступень заливки и её подпись, поэтому цвет
    * остаётся собой во всех восьми наборах, а строки списков — одинаковыми. */
-  --accent-mark-yellow: #fee19c;
+  --accent-mark-yellow: #feec9c;
   --accent-mark-yellow-ink: #23180a;
-  --accent-mark-green: #a3fea6;
+  --accent-mark-green: #caf884;
   --accent-mark-green-ink: #23180a;
-  --accent-mark-blue: #c2defd;
+  --accent-mark-blue: #b8d7fd;
   --accent-mark-blue-ink: #23180a;
-  --accent-mark-red: #fdcfcb;
+  --accent-mark-red: #fdc1bb;
   --accent-mark-red-ink: #23180a;
-  --accent-mark-purple: #f5d8fe;
+  --accent-mark-purple: #dbc3ff;
   --accent-mark-purple-ink: #23180a;
   --counter: var(--primary);
   --counter-foreground: var(--primary-foreground);
@@ -371,18 +371,18 @@
   --accent-fill-yellow-tint: #c4a452;
   --accent-fill-yellow-soft: #e3b843;
   --accent-fill-yellow-active: #fdce50;
-  --accent-fill-green-tint: #1c5522;
-  --accent-fill-green-soft: #1a6a25;
-  --accent-fill-green-active: #0f7f24;
+  --accent-fill-green-tint: #36551c;
+  --accent-fill-green-soft: #497f0f;
+  --accent-fill-green-active: #376613;
   --accent-fill-blue-tint: #1a497a;
   --accent-fill-blue-soft: #185999;
   --accent-fill-blue-active: #0d6abb;
-  --accent-fill-red-tint: #7f2020;
-  --accent-fill-red-soft: #a01e23;
-  --accent-fill-red-active: #c31223;
-  --accent-fill-purple-tint: #68207c;
-  --accent-fill-purple-soft: #831f9d;
-  --accent-fill-purple-active: #9e13c0;
+  --accent-fill-red-tint: #7f2b20;
+  --accent-fill-red-soft: #6b2519;
+  --accent-fill-red-active: #602319;
+  --accent-fill-purple-tint: #3d207c;
+  --accent-fill-purple-soft: #32157f;
+  --accent-fill-purple-active: #2b126b;
   --accent-ink-yellow-tint: #23180a;
   --accent-ink-yellow-soft: #23180a;
   --accent-ink-yellow-active: #23180a;
@@ -404,13 +404,13 @@
    * У жёлтого подпись тёмная — золото светлое по природе. */
   --accent-mark-yellow: #c4a452;
   --accent-mark-yellow-ink: #23180a;
-  --accent-mark-green: #1c5522;
+  --accent-mark-green: #325719;
   --accent-mark-green-ink: #f7f3ec;
   --accent-mark-blue: #1a497a;
   --accent-mark-blue-ink: #f7f3ec;
   --accent-mark-red: #7f2020;
   --accent-mark-red-ink: #f7f3ec;
-  --accent-mark-purple: #68207c;
+  --accent-mark-purple: #3a207c;
   --accent-mark-purple-ink: #f7f3ec;
 }
 
@@ -575,7 +575,7 @@
  * почти белом фоне сливалась с ним, а полоса и приглушённая ступень были одним
  * цветом. */
 :root[data-palette='mist'] {
-  --background: #e6e8ea;
+  --background: #ededef;
   /* Наведение и выбор: тон палитры. */
   --hover-fill: var(--sidebar);
   --selected-fill: var(--sidebar-accent);

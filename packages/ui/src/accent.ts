@@ -24,10 +24,10 @@ export type AccentColor = (typeof ACCENT_COLORS)[number];
  */
 export const ACCENT_COLOR_SWATCHES: Record<AccentColor, string> = {
   yellow: '#f8c506',
-  green: '#00a33a',
+  green: '#5ebf00',
   blue: '#007ce4',
-  red: '#df292e',
-  purple: '#a738cc',
+  red: '#df4729',
+  purple: '#6938cc',
 };
 
 /** Ступень силы цвета в заливке объекта. */
