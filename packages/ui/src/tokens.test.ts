@@ -95,4 +95,29 @@ describe('токены оформления', () => {
     }
     expect(seen.size).toBeGreaterThan(0);
   });
+
+  it('задаёт подсветку меню и подложку кода одним правилом на все наборы', () => {
+    // Дефект: цвет подсветки и подложки подбирался в каждой палитре отдельно, и
+    // стороны темы разъезжались — в светлой теме подсветка меню была втрое
+    // контрастнее тёмной, а подложка кода в тёмной выступала сильнее текста.
+    // Одно правило (доля текста в поверхности) не даёт им разойтись.
+    const menu = tokens.match(/--menu-hover:\s*([^;]+);/);
+    expect(menu?.[1]).toContain('color-mix');
+    expect(menu?.[1]).toContain('var(--foreground)');
+    expect(menu?.[1]).toContain('var(--overlay-surface)');
+
+    const code = tokens.match(/--code-surface:\s*([^;]+);/);
+    expect(code?.[1]).toContain('color-mix');
+    expect(code?.[1]).toContain('var(--foreground)');
+    expect(code?.[1]).toContain('var(--card)');
+
+    // В блоках палитр этих значений быть не должно: иначе сторона темы снова
+    // получит собственный цвет и разойдётся с остальными.
+    for (const match of tokens.matchAll(
+      /:root\[data-palette='[a-z]+'\](?:\[data-theme='dark'\])?\s*\{([\s\S]*?)\n\}/g,
+    )) {
+      expect(match[1], 'палитра не переопределяет подсветку меню').not.toContain('--menu-hover:');
+      expect(match[1], 'палитра не переопределяет подложку кода').not.toContain('--code-surface:');
+    }
+  });
 });
