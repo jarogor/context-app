@@ -468,7 +468,10 @@ body[data-tool='shape'] .overlay .note-shape .note-shape-hit {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #e5e7eb;
+  /* Надпись — вторичный текст темы области чтения: цвет приходит из палитры
+   * вместе с фоном, поэтому в светлой и тёмной стороне читается на своей
+   * подложке. Раньше здесь стоял зашитый светлый цвет, одинаковый для всех тем. */
+  color: var(--reader-muted-foreground, #6b7280);
   padding: 24px;
   text-align: center;
 }
