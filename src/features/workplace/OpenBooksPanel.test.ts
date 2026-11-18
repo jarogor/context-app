@@ -36,6 +36,7 @@ function handlers() {
     onSelect: vi.fn<(id: string) => void>(),
     onClose: vi.fn<(id: string) => void>(),
     onDuplicate: vi.fn<(id: string) => void>(),
+    onReorder: vi.fn<(id: string, toIndex: number) => void>(),
     onEditAppearance: vi.fn(),
   };
 }
@@ -61,11 +62,13 @@ describe('панель открытых книг: оформление', () => {
     expect(screen.getByTestId('open-books-item-description').textContent).toContain(
       'сравнение глав',
     );
-    // Цвет вкладки показывается меткой номера, а не заливкой строки.
-    const style = screen.getByTestId('open-books-item').getAttribute('style') ?? '';
-    expect(style).toContain('var(--accent-mark-blue');
-    expect(style).not.toContain('--item-fill');
-    expect(screen.getByText('Черновик').closest('button')?.querySelector('svg')).toBeTruthy();
+    // Цвет вкладки показывает кнопка меню: строка списка нейтральна, как и на
+    // полосе вкладок, где цвет живёт только на номере.
+    const menu = screen.getByLabelText('Оформление вкладки');
+    expect(menu.getAttribute('style') ?? '').toContain('var(--accent-fill-blue');
+    expect(screen.getByTestId('open-books-item').getAttribute('style')).toBeNull();
+    // Иконка вкладки стоит в строке рядом с названием.
+    expect(screen.getByTestId('open-books-item').querySelector('svg')).toBeTruthy();
   });
 
   it('показывает путь к файлу книги', () => {
@@ -127,7 +130,7 @@ describe('панель открытых книг: оформление', () => {
 
     expect(screen.getByText('Книга t1')).toBeTruthy();
     expect(screen.queryByTestId('open-books-item-description')).toBeNull();
-    expect(screen.getByTestId('open-books-item').getAttribute('style')).not.toContain('color-mix');
+    expect(screen.getByTestId('open-books-item').getAttribute('style')).toBeNull();
   });
 
   it('отмечает активную вкладку и не несёт отдельной кнопки закрытия', () => {
@@ -148,11 +151,12 @@ describe('панель открытых книг: оформление', () => {
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    // Невыбранный пункт — на фоне карточки.
-    expect(items[0].className).toContain('bg-[var(--card)]');
-    // Выбранный — фоном выбора. Контуров нет ни у кого: фоны
-    // разделяются заливкой.
-    expect(items[1].className).toContain('bg-[var(--surface-selected)]');
+    // Ровно как в полосе вкладок: активный пункт — поверхностью содержимого,
+    // неактивный плашки не рисует и отличается приглушённой подписью.
+    expect(items[0].className).toContain('text-[var(--muted-foreground)]');
+    expect(items[0].className).not.toContain('bg-[var(--tab-active-surface)]');
+    expect(items[1].className).toContain('bg-[var(--tab-active-surface)]');
+    expect(items[1].className).toContain('text-[var(--tab-active-foreground)]');
     for (const item of items) {
       expect(item.className).not.toContain('border');
     }
@@ -168,11 +172,12 @@ describe('панель открытых книг: оформление', () => {
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    // Выбранная — фоном выбора, невыбранная — фоном карточки; цвет на фон
-    // не влияет, иначе одинаковые строки выглядели по-разному.
-    expect(items[0].className).toContain('bg-[var(--surface-selected)]');
+    // Выбранная — поверхностью содержимого, невыбранная — без плашки; цвет на
+    // фон не влияет, иначе одинаковые строки выглядели по-разному.
+    expect(items[0].className).toContain('bg-[var(--tab-active-surface)]');
     expect(items[0].className).not.toContain('bg-[var(--item-fill-active)]');
-    expect(items[1].className).toContain('bg-[var(--card)]');
+    expect(items[1].className).not.toContain('bg-[var(--tab-active-surface)]');
+    expect(items[1].className).toContain('text-[var(--muted-foreground)]');
     for (const item of items) {
       expect(item.className).not.toContain('border');
     }
@@ -187,11 +192,11 @@ describe('панель открытых книг: оформление', () => {
       },
     });
 
+    // В списке номер нейтрален: цвет вкладки живёт только на полосе.
     const number = screen.getByTestId('open-books-item-number');
-    expect(number.className).toContain('bg-[var(--item-mark-fill)]');
-    expect(number.className).toContain('text-[var(--item-mark-ink)]');
+    expect(number.className).not.toContain('bg-[var(--item-mark-fill)]');
     const menu = screen.getByLabelText('Оформление вкладки');
-    expect(menu.getAttribute('style')).toContain('var(--accent-mark-blue');
+    expect(menu.getAttribute('style')).toContain('var(--accent-fill-blue');
   });
 });
 

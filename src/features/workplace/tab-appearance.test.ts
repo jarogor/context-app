@@ -30,13 +30,18 @@ describe('вид вкладки', () => {
   it('даёт цвет метки только для заданного цвета', () => {
     expect(tabColorMark(undefined)).toBeUndefined();
     // Метка — пара «заливка и подпись», а не один цвет: так она читается.
-    expect(tabColorMark('blue')?.fill).toContain('var(--accent-mark-blue');
-    expect(tabColorMark('blue')?.ink).toContain('var(--accent-mark-blue-ink');
+    expect(tabColorMark('blue')?.fill).toContain('var(--accent-fill-blue');
+    expect(tabColorMark('blue')?.ink).toContain('var(--accent-ink-blue');
   });
 
   it('берёт цвет метки из общего реестра, а не подбирает оттенок на месте', () => {
-    // Метка и кнопка меню библиотеки окрашены одной парой: разойдясь, они
-    // показывали бы «синюю» вкладку и «синюю» библиотеку разными цветами.
-    expect(tabColorMark('blue')).toEqual(accentMark('blue'));
+    // Метка строится из общего реестра: активная вкладка — плотная ступень,
+    // неактивная — тихая. Значения те же, что у кнопки меню библиотеки.
+    expect(tabColorMark('blue', { active: true })).toEqual(
+      accentMark('blue', { strength: 'soft' }),
+    );
+    expect(tabColorMark('blue', { active: false })).toEqual(
+      accentMark('blue', { strength: 'tint' }),
+    );
   });
 });

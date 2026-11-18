@@ -7,6 +7,7 @@
   import { logEvent } from '../../shared/app-log';
   import { clampWindowStart, visibleTabCount, windowStartForActive } from './tabs-window';
   import { tabColorMark, tabLabel, tabTooltip } from './tab-appearance';
+  import { trackPointerDrag } from './pointer-drag';
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { hotkeyHint } from '../hotkeys/registry';
 
@@ -29,6 +30,8 @@
     onClose: (id: string) => void;
     /** Дублирование вкладки. */
     onDuplicate: (id: string) => void;
+    /** Перемещение вкладки на новую позицию в составе рабочего места. */
+    onReorder: (id: string, toIndex: number) => void;
     /** Добавление книги (переход в библиотеку). */
     onAdd: () => void;
     /** Открытие книги с диска как произвольного файла. */
@@ -55,6 +58,7 @@
     onSelect,
     onClose,
     onDuplicate,
+    onReorder,
     onAdd,
     onAddFile,
     onToggleBooks,
@@ -246,8 +250,9 @@
     }
   }
 
-  /** Элемент списка вкладок для измерения ширины. */
-  let listEl: HTMLDivElement | undefined = $state();
+  /** Окно вкладок: по нему измеряется ширина и определяется вкладка под
+   * курсором при переносе. */
+  let windowEl: HTMLDivElement | undefined = $state();
 
   /** Ширина одной вкладки в пикселях по текущему масштабу интерфейса. */
   function measureTabWidth(): number {
@@ -316,7 +321,7 @@
 
   /** Слежение за шириной списка вкладок и масштабом интерфейса. */
   $effect(() => {
-    const el = listEl;
+    const el = windowEl;
     if (!el) {
       return;
     }
@@ -411,7 +416,7 @@
    * берёт цвет текста.
    */
   function tabColorStyle(tab: WorkspaceTab): string {
-    const mark = tabColorMark(tab.color);
+    const mark = tabColorMark(tab.color, { active: tab.id === activeTabId });
     return mark ? ` --tab-mark-fill: ${mark.fill}; --tab-mark-ink: ${mark.ink};` : '';
   }
 
@@ -437,8 +442,64 @@
       : 'text-[var(--muted-foreground)] hover:bg-[var(--tab-hover-surface)] hover:text-[var(--tab-active-foreground)]';
   }
 
-  /** Пункты контекстного меню рабочего места на телефоне. */
-</script>
+  /** Идентификатор перетаскиваемой вкладки; `null` — перетаскивания нет. */
+  let draggingId = $state<string | null>(null);
+
+  /** Идентификатор вкладки, на которую сейчас наведён перенос. */
+  let dropTargetId = $state<string | null>(null);
+
+  /** Начало переноса вкладки: запоминается нажатие до сдвига.
+   *
+   * Перенос строится на событиях указателя, а не на нативном перетаскивании:
+   * в окне приложения нативный перенос оставлял вкладку серой и заедал курсор.
+   */
+  function startDrag(event: PointerEvent, tab: WorkspaceTab) {
+    if (event.button !== 0) {
+      return;
+    }
+    const start = { x: event.clientX, y: event.clientY };
+    trackPointerDrag({
+      pointerId: event.pointerId,
+      startX: start.x,
+      startY: start.y,
+      hitTest: (x, y) => tabAtPoint(x, y),
+      onStart: () => {
+        draggingId = tab.id;
+        dropTargetId = null;
+      },
+      onMove: (target) => {
+        dropTargetId = target;
+      },
+      onEnd: (target, moved) => {
+        draggingId = null;
+        dropTargetId = null;
+        if (!moved || target === null || target === tab.id) {
+          return;
+        }
+        const to = tabs.findIndex((item) => item.id === target);
+        if (to >= 0) {
+          onReorder(tab.id, to);
+        }
+      },
+    });
+  }
+
+  /** Идентификатор вкладки под точкой экрана; `null` — точки вне вкладок. */
+  function tabAtPoint(x: number, y: number): string | null {
+    const el = windowEl;
+    if (!el) {
+      return null;
+    }
+    for (const item of Array.from(el.querySelectorAll<HTMLElement>('[data-tab-id]'))) {
+      const box = item.getBoundingClientRect();
+      if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) {
+        return item.dataset.tabId ?? null;
+      }
+    }
+    return null;
+  }
+
+  /** Пункты контекстного меню рабочего места на телефоне. */</script>
 
 <div
   class="flex flex-none items-center gap-2 overflow-hidden bg-[var(--app-bar-strip)] px-2 py-1.5 [--control-surface:var(--strip-control-surface)]"
@@ -520,20 +581,28 @@
     {/if}
     <div
       class="flex min-w-0 flex-1 items-center gap-[0.125rem] overflow-hidden"
-      bind:this={listEl}
+      bind:this={windowEl}
       data-testid="workplace-tabs-window"
     >
       {#each windowTabs as tab (tab.id)}
         <div
-          class="relative flex items-center overflow-hidden rounded-[var(--radius)] {stretched
+          class="relative flex cursor-grab items-center overflow-hidden rounded-[var(--radius)] transition-[opacity,box-shadow] {stretched
             ? 'min-w-0 flex-1'
-            : 'flex-none'} {tabFillClass(tab)} h-[var(--tab-height)] pointer-coarse:h-[var(--tab-height-touch)]"
+            : 'flex-none'} {tabFillClass(tab)} h-[var(--tab-height)] pointer-coarse:h-[var(--tab-height-touch)] {draggingId ===
+          tab.id
+            ? 'opacity-40'
+            : ''} {dropTargetId === tab.id && draggingId !== tab.id
+            ? 'ring-2 ring-[var(--ring)]/60'
+            : ''}"
           style="{stretched
             ? ''
             : `width: ${TAB_WIDTH_REM}rem;`}--tab-height: {TAB_ROW_REM}rem; --tab-height-touch: {TAB_ROW_TOUCH_REM}rem;{tabColorStyle(
             tab,
           )}"
           data-testid="workplace-tab-item"
+          data-tab-id={tab.id}
+          role="presentation"
+          onpointerdown={(event) => startDrag(event, tab)}
         >
           <!--
             Номер вкладки — её место в составе рабочего места, тот же, что в
@@ -584,19 +653,11 @@
               />
             </span>
           {:else}
-            <span class="flex" title={openButtonTitle(t('app.workplace.tab.duplicate'))}>
-              <button
-                type="button"
-                aria-label={t('app.workplace.tab.duplicate')}
-                disabled={openBlocked}
-                class="flex-none cursor-pointer px-[0.1875rem] opacity-60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 {overLimit
-                  ? 'text-destructive'
-                  : ''}"
-                onclick={() => onDuplicate(tab.id)}
-              >
-                <Icon name="duplicate" class="h-[0.85em] w-[0.85em]" />
-              </button>
-            </span>
+            <!--
+              Дублирование убрано из полосы: пункт есть в контекстном меню
+              вкладки. На плашке остаётся только закрытие — действие, которое
+              ищут в углу вкладки.
+            -->
             <button
               type="button"
               data-testid="workplace-tab-close"

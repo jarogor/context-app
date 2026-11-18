@@ -20,6 +20,7 @@ function handlers() {
     onSelectTab: vi.fn(),
     onCloseTab: vi.fn(),
     onDuplicateTab: vi.fn(),
+    onReorderTab: vi.fn(),
     onEditTabAppearance: vi.fn(),
     onAddBook: vi.fn(),
     onAddFile: vi.fn(),

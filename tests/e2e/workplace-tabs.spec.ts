@@ -147,7 +147,10 @@ test('дублирование вкладки создаёт независим�
   await page.goto('/');
   await addBook(page, 'Демо-книга');
 
-  await tab(page, 'Демо-книга').getByLabel('Дублировать вкладку').click();
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  await page.getByTestId('open-books-panel').getByLabel('Оформление вкладки').click();
+  await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
 
   await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
   await expect(page.getByTestId('workplace-tab').nth(1)).toHaveAttribute('aria-pressed', 'true');
@@ -295,15 +298,20 @@ test('вкладки остаются открытыми при переключ
   );
 });
 
-/** Дублирование активной вкладки заданное число раз. */
+/** Дублирование активной вкладки заданное число раз.
+ *
+ * Кнопки на плашке больше нет: действие живёт в контекстном меню вкладки,
+ * которое открывается из панели списка.
+ */
 async function duplicateActive(page: import('@playwright/test').Page, times: number) {
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  const panel = page.getByTestId('open-books-panel');
   for (let index = 0; index < times; index += 1) {
-    await page
-      .locator('[data-testid="workplace-tab-item"]:has([aria-pressed="true"])')
-      .getByLabel('Дублировать вкладку')
-      .first()
-      .click();
+    const active = panel.locator('[data-testid="open-books-item"][data-active="true"]');
+    await active.getByLabel('Оформление вкладки').click();
+    await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
   }
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
 }
 
 test('при переполнении вкладки ограничены по ширине, доступны навигация и счётчик', async ({
@@ -434,7 +442,8 @@ test('при лимите, равном числу вкладок, открыт�
   const add = page.getByLabel('Добавить книгу');
   await expect(add).toBeDisabled();
   await expect(page.getByLabel('Открыть файл с диска')).toBeDisabled();
-  await expect(page.getByLabel('Дублировать вкладку').first()).toBeDisabled();
+  // Кнопки дублирования на плашке нет: действие есть в контекстном меню.
+  await expect(page.getByLabel('Дублировать вкладку')).toHaveCount(0);
 
   // Достижение предела — ещё не превышение: подсказка без красного выделения.
   await expect(tooltip(page, 'Добавить книгу')).toHaveAttribute(
@@ -465,8 +474,6 @@ test('уменьшение лимита сохраняет вкладки и п�
     'Превышен лимит открытых вкладок',
   );
   await expect(add).toHaveClass(/text-destructive/);
-  // Кнопка дублирования вкладки тоже выделена как превышение.
-  await expect(page.getByLabel('Дублировать вкладку').first()).toHaveClass(/text-destructive/);
 
   // Отдельной ленты уведомлений нет: превышение пишется в журнал
   // диагностики, а пользователю о нём говорит сама подсказка кнопки.
@@ -479,7 +486,89 @@ test('уменьшение лимита сохраняет вкладки и п�
   await expect(add).toBeEnabled();
   await expect(add).not.toHaveClass(/text-destructive/);
   await expect(tooltip(page, 'Добавить книгу')).toHaveAttribute('title', 'Добавить книгу');
-  await expect(page.getByLabel('Дублировать вкладку').first()).not.toHaveClass(/text-destructive/);
+  await expect(page.getByLabel('Дублировать вкладку')).toHaveCount(0);
+});
+
+test('перетаскивание в списке меняет порядок и нумерацию вкладок', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+  await duplicateActive(page, 2);
+  await openBooks(page);
+
+  const panel = page.getByTestId('open-books-panel');
+  const items = panel.getByTestId('open-books-item');
+  const firstId = await items.nth(0).getAttribute('data-tab-id');
+  const secondId = await items.nth(1).getAttribute('data-tab-id');
+  const thirdId = await items.nth(2).getAttribute('data-tab-id');
+
+  // Первую строку переносим на место второй: порядок и нумерация меняются.
+  // Перенос строится на событиях указателя: нативный HTML5 drag-and-drop в
+  // окне приложения оставлял строку серой и заедал курсор.
+  const from = await items.nth(0).boundingBox();
+  const to = await items.nth(1).boundingBox();
+  if (!from || !to) {
+    throw new Error('строки не найдены');
+  }
+  await page.mouse.move(from.x + 40, from.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 40, to.y + 20, { steps: 10 });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () =>
+      panel.getByTestId('open-books-item').evaluateAll((els) => els.map((e) => e.dataset.tabId)),
+    )
+    .toEqual([secondId, firstId, thirdId]);
+  // Номера остаются местами в составе: 1, 2, 3.
+  await expect(panel.getByTestId('open-books-item-number')).toHaveText(['1', '2', '3']);
+  // Перенос не оставляет курсор в режиме перетаскивания.
+  await expect(page.locator('html')).not.toHaveAttribute('data-dragging');
+});
+
+test('случайный сдвиг не начинает перенос и не оставляет строку серой', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+  await duplicateActive(page, 1);
+  await openBooks(page);
+
+  const items = page.getByTestId('open-books-panel').getByTestId('open-books-item');
+  const before = await items.evaluateAll((els) => els.map((e) => e.dataset.tabId));
+  const box = await items.nth(0).boundingBox();
+  if (!box) {
+    throw new Error('строка не найдена');
+  }
+  await page.mouse.move(box.x + 40, box.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 42, box.y + 21);
+  await page.mouse.up();
+
+  // Порядок не изменился, строка не серая, курсор страницы обычный.
+  await expect
+    .poll(async () => items.evaluateAll((els) => els.map((e) => e.dataset.tabId)))
+    .toEqual(before);
+  await expect(items.nth(0)).toHaveCSS('opacity', '1');
+  await expect(page.locator('html')).not.toHaveAttribute('data-dragging');
+});
+
+test('нажатие на путь файла выбирает вкладку: кликабельна вся строка', async ({ page }) => {
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+  await duplicateActive(page, 1);
+  await openBooks(page);
+
+  const panel = page.getByTestId('open-books-panel');
+  // Первая вкладка неактивна: активна последняя после дублирования.
+  const path = panel.getByTestId('open-books-item-path').first();
+  const box = await path.boundingBox();
+  if (!box) {
+    throw new Error('путь не найден');
+  }
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
+  await expect(panel.locator('[data-testid="open-books-item"][data-active="true"]')).toHaveCount(1);
+  await expect(panel.getByTestId('open-books-item').first()).toHaveAttribute('data-active', 'true');
 });
 
 test('номера вкладок совпадают с полосой и списком и не меняются при поиске', async ({ page }) => {
@@ -590,17 +679,23 @@ test('цвет вкладки заливает её и в панели, и на 
   await panel.getByLabel('Оформление вкладки').click();
   await page.getByTestId('menu-color-blue').click();
 
-  // Пользовательский цвет показывает метка номера: плашки вкладки и строки
-  // списка остаются одинаковыми у всех элементов.
-  await expect(panel.getByTestId('open-books-item')).toHaveAttribute('style', /--accent-mark-blue/);
-  await expect(tab(page, 'Демо-книга')).toHaveAttribute('style', /--accent-mark-blue/);
+  // Пользовательский цвет показывает метка номера на полосе вкладок и кнопка
+  // меню в списке; сами плашки остаются одинаковыми у всех элементов.
+  await expect(tab(page, 'Демо-книга')).toHaveAttribute('style', /--accent-fill-blue/);
+  await expect(panel.getByLabel('Оформление вкладки')).toHaveAttribute(
+    'style',
+    /--accent-fill-blue/,
+  );
 
   // Сброс оформления снимает цвет.
   await panel.getByLabel('Оформление вкладки').click();
   await page.getByRole('menuitem', { name: 'Сбросить все изменения' }).click();
 
-  await expect(panel.getByTestId('open-books-item')).not.toHaveAttribute('style', /--accent-mark/);
-  await expect(tab(page, 'Демо-книга')).not.toHaveAttribute('style', /--accent-mark/);
+  await expect(tab(page, 'Демо-книга')).not.toHaveAttribute('style', /--accent-fill/);
+  await expect(panel.getByLabel('Оформление вкладки')).not.toHaveAttribute(
+    'style',
+    /--accent-fill/,
+  );
 });
 
 test('поиск по вкладкам фильтрует список и не меняет состав', async ({ page }) => {

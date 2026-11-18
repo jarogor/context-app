@@ -181,7 +181,10 @@ test('числа книг и вкладок совпадают, когда кн�
   await pickWorkspaceIfAsked(page);
 
   // Дублируем вкладку: книга та же, вкладок стало две.
-  await page.getByLabel('Дублировать вкладку').first().click();
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  await page.getByTestId('open-books-panel').getByLabel('Оформление вкладки').click();
+  await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await backToList(page);
 
   const meta = page.getByTestId('workspace-meta');

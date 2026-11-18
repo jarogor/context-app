@@ -292,6 +292,29 @@ export function duplicateTab(state: WorkspaceState, tabId: string, limit?: numbe
   return { tabs, activeTabId: copy.id };
 }
 
+/** Перемещение вкладки на новую позицию.
+ *
+ * Порядок вкладок — это место в составе рабочего места, поэтому перестановка
+ * меняет и нумерацию: вкладку берут и переносят левее или правее в полосе и
+ * выше или ниже в списке. Активная вкладка остаётся активной — переносится
+ * только место, а не выбор. Неизвестный идентификатор или позиция вне состава
+ * оставляют состояние как есть.
+ */
+export function moveTab(state: WorkspaceState, tabId: string, toIndex: number): WorkspaceState {
+  const from = state.tabs.findIndex((tab) => tab.id === tabId);
+  if (from < 0) {
+    return state;
+  }
+  const target = Math.max(0, Math.min(toIndex, state.tabs.length - 1));
+  if (target === from) {
+    return state;
+  }
+  const tabs = [...state.tabs];
+  const [moved] = tabs.splice(from, 1);
+  tabs.splice(target, 0, moved);
+  return { ...state, tabs };
+}
+
 /** Обновление полей вкладки. */
 export function updateTab(
   state: WorkspaceState,

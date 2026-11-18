@@ -662,7 +662,11 @@ test('удаление заметки убирает подсветку из к�
 test('заметки книги общие для двух вкладок', async ({ page }) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');
-  await page.getByLabel('Дублировать вкладку').click();
+  // Дублирование — пункт контекстного меню вкладки в панели списка.
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  await page.getByTestId('open-books-panel').getByLabel('Оформление вкладки').click();
+  await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
 
   await openNotes(page);

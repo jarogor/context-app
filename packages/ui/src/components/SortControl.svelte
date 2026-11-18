@@ -87,14 +87,16 @@
 </script>
 
 <!--
-  Один блок на оба элемента: рамка, фон и высота — как у остальных контролов
-  полосы (`h-9`, на грубом указателе `h-11`). Список стоит слева без своей
-  рамки, кнопка направления — справа вплотную: это части одного управления
-  порядком, а не два соседних.
+  Один блок на оба элемента: фон и высота — как у остальных контролов полосы
+  (`h-9`, на грубом указателе `h-11`). Список стоит слева без своей рамки,
+  кнопка направления — справа вплотную: это части одного управления порядком, а
+  не два соседних. Кнопка заполняет высоту блока за вычетом отступа, поэтому на
+  больших мониторах, где шкала растёт, она не отстаёт от блока и отступ сверху и
+  снизу остаётся одинаковым.
 -->
 <div
   class={cn(
-    'inline-flex h-9 min-w-0 shrink-0 items-center gap-0.5 rounded-[var(--radius)]  bg-[var(--control-surface)] p-0.5 pointer-coarse:h-11',
+    'inline-flex h-9 min-w-0 shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5 pointer-coarse:h-11',
     className,
   )}
   data-testid={testId}
@@ -115,7 +117,7 @@
     title={directionLabel}
     ariaLabel={directionLabel}
     testId="{testId}-direction"
-    class="size-[1.875rem] rounded-[calc(var(--radius)-0.125rem)] [&_svg]:size-[0.9375em] pointer-coarse:size-[2.375rem]"
+    class="aspect-square h-full w-auto min-w-0 shrink-0 rounded-[calc(var(--radius)-0.125rem)] [&_svg]:size-[0.9375em] pointer-coarse:h-full"
     onclick={() => ondirection(nextDirection)}
   >
     <Icon name={directionIcon} />

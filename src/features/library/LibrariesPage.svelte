@@ -818,9 +818,11 @@
     class="grid min-w-0 gap-4 large-tablet:h-full large-tablet:min-h-0 large-tablet:flex-1 large-tablet:grid-cols-[22rem_minmax(0,1fr)] large-tablet:items-start large-tablet:gap-6 desktop:grid-cols-[26rem_minmax(0,1fr)]"
   >
     <!-- Панель стоит на месте всегда: без загруженной библиотеки она объясняет,
-         что та не загружена, а не исчезает, сдвигая список. -->
+         что та не загружена, а не исчезает, сдвигая список. Высота карточки —
+         по содержимому: раньше она растягивалась на высоту списка и обрезала
+         всё, что не влезало (описание, путь, кнопку открытия папки). -->
     <aside
-      class="relative flex w-full min-w-0 flex-col self-start overflow-hidden rounded-[var(--radius)] bg-[var(--card)] large-tablet:h-full large-tablet:min-h-0"
+      class="relative flex w-full min-w-0 flex-col self-start rounded-[var(--radius)] bg-[var(--card)]"
       style={cardStyle(selectedEntry)}
       data-testid="library-card"
     >

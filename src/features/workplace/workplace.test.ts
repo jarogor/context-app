@@ -5,6 +5,7 @@ import {
   closeTab,
   duplicateTab,
   emptyWorkspace,
+  moveTab,
   normalizeOpenTabsLimit,
   normalizeWorkspace,
   openAvailability,
@@ -146,6 +147,60 @@ describe('рабочее место', () => {
     expect(second.tabs[0].zoom).toBe(100);
     expect(second.tabs[0].position).toBe(0);
     expect(second.tabs[0].path).toBe('/lib/b.epub');
+  });
+});
+
+describe('порядок вкладок', () => {
+  /** Место с тремя вкладками: A, B, C. */
+  function three() {
+    let state = openBook(emptyWorkspace(), { path: '/lib/a.epub', title: 'A' });
+    state = openBook(state, { path: '/lib/b.epub', title: 'B' });
+    state = openBook(state, { path: '/lib/c.epub', title: 'C' });
+    return state;
+  }
+
+  /** Названия вкладок в порядке показа. */
+  function titles(state: ReturnType<typeof three>): string[] {
+    return state.tabs.map((tab) => tab.title);
+  }
+
+  it('переносит вкладку вправо и меняет порядок', () => {
+    // Дефект: перестановки не было вовсе — вкладки жёстко держались порядка
+    // открытия, и нумерация не могла поменяться.
+    const state = three();
+    const first = state.tabs[0].id;
+
+    const moved = moveTab(state, first, 2);
+
+    expect(titles(moved)).toEqual(['B', 'C', 'A']);
+  });
+
+  it('переносит вкладку влево', () => {
+    const state = three();
+    const last = state.tabs[2].id;
+
+    const moved = moveTab(state, last, 0);
+
+    expect(titles(moved)).toEqual(['C', 'A', 'B']);
+  });
+
+  it('оставляет активную вкладку активной после переноса', () => {
+    // Переносится место, а не выбор: активная вкладка остаётся той же.
+    const state = three();
+    const active = state.activeTabId;
+
+    const moved = moveTab(state, state.tabs[0].id, 2);
+
+    expect(moved.activeTabId).toBe(active);
+  });
+
+  it('не меняет состояние при неизвестной вкладке или позиции вне состава', () => {
+    const state = three();
+
+    expect(moveTab(state, 'nope', 1)).toBe(state);
+    expect(titles(moveTab(state, state.tabs[0].id, 0))).toEqual(['A', 'B', 'C']);
+    // Позиция за пределами состава прижимается к последней.
+    expect(titles(moveTab(state, state.tabs[0].id, 99))).toEqual(['B', 'C', 'A']);
   });
 });
 

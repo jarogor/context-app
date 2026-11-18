@@ -32,15 +32,18 @@ export function tabFormatLabel(tab: { format?: string }): string | undefined {
   return format ? format.toUpperCase() : undefined;
 }
 
-/** Пара «заливка и подпись» метки вкладки; отсутствует без цвета.
+/** Метка вкладки в полосе: цвет и интенсивность зависят от активности.
  *
- * Пользовательский цвет на вкладке больше не заливает её: заливка спорила с
- * акцентом палитры (в «Янтаре» жёлтым, в «Инее» синим), и на части тем любой
- * выбранный цвет выглядел чужим. Цвет остаётся на номере — небольшой плашке,
- * которая читается на любой поверхности и не мешает узнавать активную вкладку.
+ * Активная вкладка несёт плотный цвет, неактивная — тот же цвет, но тише:
+ * цветные номера у неактивных вкладок не должны резать глаз среди спокойной
+ * полосы. У вкладки без пользовательского цвета метки нет: номер читается
+ * приглушённой подписью.
  */
-export function tabColorMark(color: TabColor | undefined): AccentMarkStyle | undefined {
-  return accentMark(color);
+export function tabColorMark(
+  color: TabColor | undefined,
+  options: { active?: boolean } = {},
+): AccentMarkStyle | undefined {
+  return accentMark(color, { strength: options.active ? 'soft' : 'tint' });
 }
 
 /** Подсказка вкладки: пользовательское имя и название книги.

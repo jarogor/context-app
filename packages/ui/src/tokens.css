@@ -54,12 +54,17 @@
   /* Линия-разделитель внутри списка: чуть заметнее обычной обводки, но тише
    * акцента; разделяет строки в едином листе, не превращая их в рамки. */
 
-  /* Фон панелей (боковые панели, полосы, шапки) — ступень между страницей и
-   * карточкой. Раньше панель совпадала с фоном выбранного элемента списка, и
-   * выделенная строка на ней сливалась с самой панелью — выбор был не виден.
-   * Теперь панель отделена от страницы, строки на ней стоят карточками, а
-   * выделение идёт своей ступенью и читается. */
-  --panel: var(--secondary);
+  /* Фон панелей (боковые панели, полосы, шапки) — та же ступень, что у полосы
+   * под шапкой: боковая панель и полоса вкладок стоят рядом и несут одинаковые
+   * элементы, поэтому один фон делает наведение и выделение одинаково
+   * заметными в обоих местах.
+   *
+   * Раньше панель совпадала с фоном выбранной строки (и выделение сливалось),
+   * а затем была отдельной ступенью — и тогда в светлой теме наведение на
+   * полосе осветляло элемент, а в списке затемняло. Общий фон убирает эту
+   * разницу: правила наведения и активности одни на оба места. Чтобы панель не
+   * сливалась с содержимым, её название остаётся своим цветом. */
+  --panel: var(--app-bar-strip);
   --panel-foreground: var(--foreground);
 
   /*
@@ -73,13 +78,11 @@
    */
   --app-bar-surface: var(--card);
 
-  /*
-   * Фон контролов на полосе под шапкой (поиск, сортировка,
-   * переключатели). В светлой стороне элементы светлее полосы, поэтому берут
-   * цвет страницы; в тёмной — темнее полосы, поэтому цвет шапки. Второе правило
-   * объявлено один раз для всех тёмных палитр (см. ниже).
-   */
-  --strip-control-surface: var(--control-surface);
+  /* Фон контролов на полосе под шапкой (поиск, сортировка, переключатели).
+   * В светлой стороне элементы берут цвет шапки: они стоят светлее полосы и
+   * отделены от неё так же, как сама шапка, поэтому полоса выглядит цельной, а
+   * не пёстрой. В тёмной стороне действует то же правило (см. ниже). */
+  --strip-control-surface: var(--app-bar-surface);
 
   /* Фон поля ввода и группы контролов: масштаб, навигация, типы заметок,
    * палитра цвета, поиск, выпадающие списки.
@@ -115,21 +118,21 @@
    * Подпись на светлой стороне одна на все ступени — тёмная: заливки светлые,
    * тёмные чернила читаются на любой из них. Прежняя пара «то тёмная, то
    * белая» давала чёрный текст на строке и белый на карточке одного элемента. */
-  --accent-fill-yellow-tint: #feef9c;
-  --accent-fill-yellow-soft: #f4d549;
-  --accent-fill-yellow-active: #edd051;
-  --accent-fill-green-tint: #cafea3;
-  --accent-fill-green-soft: #97f152;
-  --accent-fill-green-active: #89e12a;
-  --accent-fill-blue-tint: #c2d8fd;
-  --accent-fill-blue-soft: #98bdfb;
-  --accent-fill-blue-active: #7eadfd;
-  --accent-fill-red-tint: #fdd3cb;
-  --accent-fill-red-soft: #f8bfb5;
-  --accent-fill-red-active: #fe9580;
-  --accent-fill-purple-tint: #e6d8fe;
-  --accent-fill-purple-soft: #caa1ff;
-  --accent-fill-purple-active: #be8cff;
+  --accent-fill-yellow-tint: #ffecba;
+  --accent-fill-yellow-soft: #fed047;
+  --accent-fill-yellow-active: #f2c10d;
+  --accent-fill-green-tint: #c5ffaa;
+  --accent-fill-green-soft: #91f259;
+  --accent-fill-green-active: #79e134;
+  --accent-fill-blue-tint: #bddafc;
+  --accent-fill-blue-soft: #9ac8fe;
+  --accent-fill-blue-active: #76b5fe;
+  --accent-fill-red-tint: #fdd3ca;
+  --accent-fill-red-soft: #f9bbad;
+  --accent-fill-red-active: #ff9a84;
+  --accent-fill-purple-tint: #e0daff;
+  --accent-fill-purple-soft: #cdc3ff;
+  --accent-fill-purple-active: #b7a7fe;
   --accent-ink-yellow-tint: #23180a;
   --accent-ink-yellow-soft: #23180a;
   --accent-ink-yellow-active: #23180a;
@@ -145,21 +148,6 @@
   --accent-ink-purple-tint: #23180a;
   --accent-ink-purple-soft: #23180a;
   --accent-ink-purple-active: #23180a;
-  /* Метка цвета (номер вкладки, кнопка меню) — небольшая плашка с собственной
-   * подписью. Окрашенный текст малого кегля требовал контраста 4.5, и цвет
-   * можно было сохранить только у тёмных оттенков: жёлтый становился
-   * коричневым. Плашка берёт тихую ступень заливки и её подпись, поэтому цвет
-   * остаётся собой во всех восьми наборах, а строки списков — одинаковыми. */
-  --accent-mark-yellow: #feec9c;
-  --accent-mark-yellow-ink: #23180a;
-  --accent-mark-green: #caf884;
-  --accent-mark-green-ink: #23180a;
-  --accent-mark-blue: #b8d7fd;
-  --accent-mark-blue-ink: #23180a;
-  --accent-mark-red: #fdc1bb;
-  --accent-mark-red-ink: #23180a;
-  --accent-mark-purple: #dbc3ff;
-  --accent-mark-purple-ink: #23180a;
   --counter: var(--primary);
   --counter-foreground: var(--primary-foreground);
 
@@ -324,9 +312,15 @@
   --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.4);
 
   --background: #1b1815;
-  /* Наведение и выбор: тон палитры. */
-  --hover-fill: var(--muted);
-  --selected-fill: var(--sidebar-accent);
+  /* Наведение и выбор: тон палитры. Ступени светлее полосы на столько же,
+   * на сколько в светлой стороне, поэтому наведение и активная вкладка
+   * выглядят одинаково заметно на обеих сторонах темы. */
+  --hover-fill: #302e2a;
+  --selected-fill: #484541;
+  /* Активная вкладка в тёмной стороне берёт ступень выделения, а не карточку:
+   * карточка почти не отличается от полосы, и активная вкладка терялась.
+   * В светлой стороне активная остаётся карточкой — она светлее полосы. */
+  --tab-active-surface: var(--selected-fill);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #24221e;
   --foreground: #ede7df;
@@ -353,10 +347,10 @@
   --success: #8bcd99;
   --warning: #f3bd5c;
 
-  /* Контролы на полосе под шапкой в тёмной стороне берут цвет карточки: он
-   * светлее полосы, поэтому поля и переключатели читаются как ясные плашки,
-   * а не сливаются с полосой. Правило одно на все палитры. */
-  --strip-control-surface: var(--control-surface);
+  /* Контролы на полосе под шапкой берут поверхность шапки и в тёмной стороне:
+   * поле читается плашкой над полосой, а не пятном одного с ней цвета. Правило
+   * одно на все палитры. */
+  --strip-control-surface: var(--app-bar-surface);
   /* Врезка и в тёмной стороне — та же ступень палитры. */
   --surface-inset: var(--muted);
   /* Списки и меню в тёмной стороне берут тот же `--overlay-surface`, что и в
@@ -371,18 +365,18 @@
   --accent-fill-yellow-tint: #c4a452;
   --accent-fill-yellow-soft: #e3b843;
   --accent-fill-yellow-active: #fdce50;
-  --accent-fill-green-tint: #36551c;
-  --accent-fill-green-soft: #497f0f;
-  --accent-fill-green-active: #376613;
-  --accent-fill-blue-tint: #1a497a;
-  --accent-fill-blue-soft: #185999;
-  --accent-fill-blue-active: #0d6abb;
-  --accent-fill-red-tint: #7f2b20;
-  --accent-fill-red-soft: #6b2519;
-  --accent-fill-red-active: #602319;
-  --accent-fill-purple-tint: #3d207c;
-  --accent-fill-purple-soft: #32157f;
-  --accent-fill-purple-active: #2b126b;
+  --accent-fill-green-tint: #2d5118;
+  --accent-fill-green-soft: #356a0e;
+  --accent-fill-green-active: #3b7d01;
+  --accent-fill-blue-tint: #194779;
+  --accent-fill-blue-soft: #1b5c9f;
+  --accent-fill-blue-active: #106dc5;
+  --accent-fill-red-tint: #782819;
+  --accent-fill-red-soft: #9d301b;
+  --accent-fill-red-active: #be351a;
+  --accent-fill-purple-tint: #4a3387;
+  --accent-fill-purple-soft: #6040af;
+  --accent-fill-purple-active: #744cd4;
   --accent-ink-yellow-tint: #23180a;
   --accent-ink-yellow-soft: #23180a;
   --accent-ink-yellow-active: #23180a;
@@ -398,20 +392,6 @@
   --accent-ink-purple-tint: #f7f3ec;
   --accent-ink-purple-soft: #f7f3ec;
   --accent-ink-purple-active: #f7f3ec;
-  /* Метка цвета в тёмной стороне: светлый насыщенный знак на тёмной
-   * поверхности. Контраст не ниже 4.5 к каждой поверхности набора. */
-  /* Метка цвета в тёмной стороне: глубокая ступень с собственной подписью.
-   * У жёлтого подпись тёмная — золото светлое по природе. */
-  --accent-mark-yellow: #c4a452;
-  --accent-mark-yellow-ink: #23180a;
-  --accent-mark-green: #325719;
-  --accent-mark-green-ink: #f7f3ec;
-  --accent-mark-blue: #1a497a;
-  --accent-mark-blue-ink: #f7f3ec;
-  --accent-mark-red: #7f2020;
-  --accent-mark-red-ink: #f7f3ec;
-  --accent-mark-purple: #3a207c;
-  --accent-mark-purple-ink: #f7f3ec;
 }
 
 /* Палитра «Иней», светлый набор. Селектор специфичнее `:root`, поэтому
@@ -459,8 +439,9 @@
 
   --background: #101634;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: var(--muted);
-  --selected-fill: var(--sidebar-accent);
+  --hover-fill: #262f3b;
+  --selected-fill: #3d4753;
+  --tab-active-surface: var(--selected-fill);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #1a232e;
   --foreground: #e3e8f0;
@@ -535,8 +516,9 @@
   --background: #1d150e;
   /* Наведение — тёплая ступень, а не серый: серый выбивался из тёплой бумаги
    * и не сочетался ни с одним пользовательским цветом. */
-  --hover-fill: #221a14;
-  --selected-fill: var(--sidebar-accent);
+  --hover-fill: #352c26;
+  --selected-fill: #4e453e;
+  --tab-active-surface: var(--selected-fill);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #28201a;
   --foreground: #f8e4d4;
@@ -620,8 +602,9 @@
 
   --background: #181a1d;
   /* Наведение и выбор: тон палитры. */
-  --hover-fill: var(--muted);
-  --selected-fill: var(--sidebar-accent);
+  --hover-fill: #2c2e31;
+  --selected-fill: #444649;
+  --tab-active-surface: var(--selected-fill);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #202225;
   --foreground: #eaebed;

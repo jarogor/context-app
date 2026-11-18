@@ -24,7 +24,7 @@ export type AccentColor = (typeof ACCENT_COLORS)[number];
  */
 export const ACCENT_COLOR_SWATCHES: Record<AccentColor, string> = {
   yellow: '#f8c506',
-  green: '#5ebf00',
+  green: '#56bf00',
   blue: '#007ce4',
   red: '#df4729',
   purple: '#6938cc',
@@ -51,18 +51,18 @@ export const ACCENT_FILL_COLORS: Record<
   Record<AccentColor, Record<AccentStrength, string>>
 > = {
   light: {
-    yellow: { tint: '#fee19c', soft: '#f4c649', active: '#d7a91c' },
-    green: { tint: '#a3fea6', soft: '#52f164', active: '#22d243' },
-    blue: { tint: '#c2defd', soft: '#add0f8', active: '#73b4fc' },
-    red: { tint: '#fdcfcb', soft: '#f8bbb5', active: '#fe8880' },
-    purple: { tint: '#f5d8fe', soft: '#e8b7f8', active: '#e182fe' },
+    yellow: { tint: '#ffecba', soft: '#fed047', active: '#f2c10d' },
+    green: { tint: '#c5ffaa', soft: '#91f259', active: '#79e134' },
+    blue: { tint: '#bddafc', soft: '#9ac8fe', active: '#76b5fe' },
+    red: { tint: '#fdd3ca', soft: '#f9bbad', active: '#ff9a84' },
+    purple: { tint: '#e0daff', soft: '#cdc3ff', active: '#b7a7fe' },
   },
   dark: {
-    yellow: { tint: '#c4a452', soft: '#e3b843', active: '#fdce50' },
-    green: { tint: '#1c5522', soft: '#1a6a25', active: '#0f7f24' },
-    blue: { tint: '#1a497a', soft: '#185999', active: '#0d6abb' },
-    red: { tint: '#7f2020', soft: '#a01e23', active: '#c31223' },
-    purple: { tint: '#68207c', soft: '#831f9d', active: '#9e13c0' },
+    yellow: { tint: '#c4a651', soft: '#e1b942', active: '#face4e' },
+    green: { tint: '#2d5118', soft: '#356a0e', active: '#3b7d01' },
+    blue: { tint: '#194779', soft: '#1b5c9f', active: '#106dc5' },
+    red: { tint: '#782819', soft: '#9d301b', active: '#be351a' },
+    purple: { tint: '#4a3387', soft: '#6040af', active: '#744cd4' },
   },
 };
 
@@ -154,8 +154,10 @@ export interface AccentMarkStyle {
 
 /** Пара «заливка и подпись» метки по цвету и силе; отсутствует без цвета.
  *
- * По умолчанию берётся тихая ступень: метка — небольшой знак рядом с подписью, а
- * не самостоятельное пятно, поэтому плотная заливка перевешивала бы сам элемент.
+ * Метка — небольшая цветная плашка: она берёт готовую пару заливки и подписи,
+ * поэтому цвет остаётся собой, а текст на плашке читается. Сила задаёт разницу
+ * между состояниями: активный элемент несёт плотную ступень, неактивный —
+ * тихую, и цветной знак не режет глаз среди спокойных соседей.
  */
 export function accentMark(
   color: AccentColor | undefined,
@@ -164,10 +166,10 @@ export function accentMark(
   if (!color) {
     return undefined;
   }
-  const strength = options.strength ?? 'tint';
+  const strength = options.strength ?? 'soft';
   return {
-    fill: `var(--accent-mark-${color}, ${ACCENT_FILL_COLORS.light[color][strength]})`,
-    ink: `var(--accent-mark-${color}-ink, ${ACCENT_INK_COLORS.light[color][strength]})`,
+    fill: `var(--accent-fill-${color}-${strength}, ${ACCENT_FILL_COLORS.light[color][strength]})`,
+    ink: `var(--accent-ink-${color}-${strength}, ${ACCENT_INK_COLORS.light[color][strength]})`,
   };
 }
 

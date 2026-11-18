@@ -83,6 +83,8 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     onCloseTab: (id: string) => void;
     /** Дублирование вкладки. */
     onDuplicateTab: (id: string) => void;
+    /** Перемещение вкладки на новую позицию в составе рабочего места. */
+    onReorderTab: (id: string, toIndex: number) => void;
     /** Правка оформления вкладки. */
     onEditTabAppearance: (id: string, patch: TabAppearancePatch) => void;
     /** Добавление книги. */
@@ -183,6 +185,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
     onSelectTab,
     onCloseTab,
     onDuplicateTab,
+    onReorderTab,
     onEditTabAppearance,
     onAddBook,
     onAddFile,
@@ -748,6 +751,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       onSelect={onSelectTab}
       onClose={onCloseTab}
       onDuplicate={onDuplicateTab}
+      onReorder={onReorderTab}
       onAdd={onAddBook}
       onAddFile={onAddFile}
     />
@@ -767,6 +771,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
             onSelect={selectTabInPanel}
             onClose={onCloseTab}
             onDuplicate={onDuplicateTab}
+            onReorder={onReorderTab}
             onEditAppearance={onEditTabAppearance}
             onClosePanel={onToggleBooks}
           />

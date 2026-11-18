@@ -30,6 +30,7 @@
     applyTabAppearance,
     closeTab,
     duplicateTab,
+    moveTab,
     openBook,
     openOrActivateBook,
     replaceTabBook,
@@ -653,6 +654,11 @@
   /** Дублирование вкладки. */
   function duplicateCurrentTab(id: string) {
     registry = updateCurrentWorkspaceTabs(registry, (state) => duplicateTab(state, id, openTabsLimit));
+  }
+
+  /** Перемещение вкладки на новую позицию: меняет порядок и нумерацию. */
+  function reorderTab(id: string, toIndex: number) {
+    registry = updateCurrentWorkspaceTabs(registry, (state) => moveTab(state, id, toIndex));
   }
 
   /** Изменение состояния чтения вкладки. */
@@ -1379,6 +1385,7 @@
           onSelectTab={selectTab}
           onCloseTab={removeTab}
           onDuplicateTab={duplicateCurrentTab}
+          onReorderTab={reorderTab}
           onEditTabAppearance={editTabAppearance}
           onAddBook={requestAddBook}
           onAddFile={chooseBookFile}

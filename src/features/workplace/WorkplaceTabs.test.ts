@@ -37,6 +37,7 @@ function handlers() {
     onSelect: vi.fn<(id: string) => void>(),
     onClose: vi.fn<(id: string) => void>(),
     onDuplicate: vi.fn<(id: string) => void>(),
+    onReorder: vi.fn<(id: string, toIndex: number) => void>(),
     onAdd: vi.fn(),
     onAddFile: vi.fn(),
     onToggleBooks: vi.fn(),
@@ -192,7 +193,7 @@ describe('панель вкладок: оформление вкладки', () 
     expect(item.getAttribute('title')).toBe('Черновик (Книга 1)');
     const box = screen.getAllByTestId('workplace-tab-item')[0];
     // Пользовательский цвет показывается меткой номера, а не заливкой вкладки.
-    expect(box.getAttribute('style')).toContain('var(--accent-mark-blue');
+    expect(box.getAttribute('style')).toContain('var(--accent-fill-blue');
     expect(box.getAttribute('style')).not.toContain('--tab-fill');
   });
 
@@ -304,7 +305,7 @@ describe('панель вкладок: оформление вкладки', () 
     expect(item.querySelector('svg')).toBeNull();
     expect(item.getAttribute('title')).toBe('Книга 1');
     expect(screen.getAllByTestId('workplace-tab-item')[0].getAttribute('style')).not.toContain(
-      '--accent-mark',
+      '--accent-fill',
     );
   });
 });
@@ -379,7 +380,9 @@ describe('панель вкладок: подтверждение закрыти
       },
     });
 
-    expect(screen.getByLabelText('Дублировать вкладку')).toBeTruthy();
+    // Кнопки дублирования на плашке больше нет: действие есть в контекстном
+    // меню вкладки. На плашке остаётся закрытие.
+    expect(screen.queryByLabelText('Дублировать вкладку')).toBeNull();
     expect(screen.getByTestId('workplace-tab-close')).toBeTruthy();
   });
 
@@ -446,9 +449,8 @@ describe('панель вкладок: лимит открытых вкладо�
     expect(wrapperTitle(add)).toBe('Достигнут лимит открытых вкладок');
     expect(add.className).not.toContain('text-destructive');
 
-    const duplicate = screen.getAllByLabelText('Дублировать вкладку')[0] as HTMLButtonElement;
-    expect(duplicate.disabled).toBe(true);
-    expect(wrapperTitle(duplicate)).toBe('Достигнут лимит открытых вкладок');
+    // Дублирования на плашке нет — действие закрыто лимитом в меню вкладки.
+    expect(screen.queryByLabelText('Дублировать вкладку')).toBeNull();
     // Достижение лимита ещё не превышение: в журнал ничего не пишется.
     await Promise.resolve();
     expect(logEvent).not.toHaveBeenCalled();
@@ -476,12 +478,6 @@ describe('панель вкладок: лимит открытых вкладо�
     expect(add.disabled).toBe(true);
     expect(wrapperTitle(add)).toBe('Превышен лимит открытых вкладок');
     expect(add.className).toContain('text-destructive');
-
-    // Кнопка дублирования вкладки тоже выделяется как превышение.
-    const duplicate = screen.getAllByLabelText('Дублировать вкладку')[0] as HTMLButtonElement;
-    expect(duplicate.disabled).toBe(true);
-    expect(duplicate.className).toContain('text-destructive');
-    expect(wrapperTitle(duplicate)).toBe('Превышен лимит открытых вкладок');
 
     // Повторный рендер при том же превышении не пишет запись дважды.
     await rerender({

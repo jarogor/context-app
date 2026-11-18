@@ -791,7 +791,7 @@ describe('оформление библиотек', () => {
     expect(name?.parentElement?.querySelector('svg')).not.toBeNull();
     // Кнопка меню строки окрашена цветом библиотеки.
     const menu = item.querySelector('[aria-label="Действия с библиотекой"]');
-    expect(menu?.getAttribute('style') ?? '').toContain('var(--accent-mark-blue');
+    expect(menu?.getAttribute('style') ?? '').toContain('var(--accent-fill-blue');
 
     // Выбор строки показывает название и описание в шапке карточки; «загружена»
     // стоит ниже, вне кликабельной области.
@@ -837,7 +837,7 @@ describe('оформление библиотек', () => {
     expect(rowStyle).not.toContain('--row-fill-selected:');
     expect(rowStyle).not.toContain('--row-fill-hover');
     const menu = item.querySelector('[aria-label="Действия с библиотекой"]');
-    expect(menu?.getAttribute('style') ?? '').toContain('background-color: var(--accent-mark-blue');
+    expect(menu?.getAttribute('style') ?? '').toContain('background-color: var(--accent-fill-blue');
 
     const card = screen.getByTestId('library-card');
     const cardStyle = card.getAttribute('style') ?? '';

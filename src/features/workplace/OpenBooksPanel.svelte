@@ -28,6 +28,7 @@
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { openBookFile } from '../reader/reader';
   import { tabColorMark, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
+  import { trackPointerDrag } from './pointer-drag';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -42,6 +43,8 @@
     onClose: (id: string) => void;
     /** Дублирование вкладки. */
     onDuplicate: (id: string) => void;
+    /** Перемещение вкладки на новую позицию в составе рабочего места. */
+    onReorder: (id: string, toIndex: number) => void;
     /** Правка оформления вкладки. */
     onEditAppearance: (id: string, patch: TabAppearancePatch) => void;
     /** Закрытие панели (на узком окне панель перекрывает содержимое). */
@@ -57,6 +60,7 @@
     onSelect,
     onClose,
     onDuplicate,
+    onReorder,
     onEditAppearance,
     onClosePanel,
     overlay = false,
@@ -138,10 +142,13 @@
    * вкладку: тогда строки нет, и прокручивать нечего.
    */
   $effect(() => {
-    // Активная вкладка и состав видимых строк — зависимости эффекта.
+    // Активная вкладка, состав видимых строк и сам список — зависимости
+    // эффекта: список привязывается после первого кадра, и без него эффект
+    // выполнился бы вхолостую, оставив активную вкладку за пределами видимой
+    // части.
     const id = activeTabId;
     const shown = visible;
-    const el = untrack(() => listEl);
+    const el = listEl;
     if (id === null || !el || shown.length === 0) {
       return;
     }
@@ -178,7 +185,8 @@
    *
    * Название и описание называются по состоянию: пока значения нет, пункт
    * предлагает добавить его, а после — редактировать. Пользователь видит, что
-   * произойдёт, не открывая пункт.
+   * произойдёт, не открывая пункт. Иконка есть у каждого пункта: меню длинное, и
+   * значок помогает найти действие, не читая подписи.
    */
   function appearanceActions(tab: WorkspaceTab): MenuAction[] {
     const hasName = Boolean(tab.name?.trim());
@@ -187,17 +195,19 @@
       {
         id: 'rename',
         label: hasName ? t('app.workplace.tab.editName') : t('app.workplace.tab.addName'),
+        icon: 'tag',
       },
       {
         id: 'describe',
         label: hasDescription
           ? t('app.workplace.tab.editDescription')
           : t('app.workplace.tab.addDescription'),
+        icon: 'text',
       },
-      { id: 'duplicate', label: t('app.workplace.tab.duplicate'), disabled: openBlocked },
-      { id: 'external', label: t('app.workplace.tab.openExternal') },
-      { id: 'reset', label: t('app.workplace.tab.reset'), destructive: true },
-      { id: 'close', label: t('app.workplace.tab.close'), destructive: true },
+      { id: 'duplicate', label: t('app.workplace.tab.duplicate'), icon: 'duplicate', disabled: openBlocked },
+      { id: 'external', label: t('app.workplace.tab.openExternal'), icon: 'external-link' },
+      { id: 'reset', label: t('app.workplace.tab.reset'), icon: 'refresh', destructive: true },
+      { id: 'close', label: t('app.workplace.tab.close'), icon: 'close', destructive: true },
     ];
   }
 
@@ -248,27 +258,81 @@
     return items;
   }
 
-  /** Стиль пункта: пользовательский цвет метки номера.
-   *
-   * Строка списка остаётся одинаковой у всех вкладок: цвет больше не заливает
-   * её, иначе одинаковые строки выглядели по-разному, а выделение терялось.
-   * Цвет остаётся на номере — цветной плашке — и на кнопке меню.
-   */
-  function itemColorStyle(tab: WorkspaceTab): string {
-    const mark = tabColorMark(tab.color);
-    return mark ? ` --item-mark-fill: ${mark.fill}; --item-mark-ink: ${mark.ink};` : '';
-  }
-
   /** Классы пункта с учётом активности.
    *
-   * Как в списке заметок: неактивный стоит на фоне карточки и подсвечивается
-   * наведением, выбранный — фоном выбора. Цвет вкладки на фон не влияет:
-   * строки одинаковы, а цвет виден на номере и кнопке меню. Обводок нет.
+   * Ровно как в полосе вкладок: активный пункт — светлой поверхностью
+   * содержимого (в тёмных наборах — тёмной), неактивный плашки не рисует и
+   * отличается только приглушённой подписью. Раньше список шёл обратным ходом:
+   * в светлой теме неактивные строки были светлыми карточками, а активная —
+   * тёмной, и два места одного рабочего места выглядели по-разному.
    */
   function itemFillClass(tab: WorkspaceTab): string {
     return tab.id === activeTabId
-      ? 'bg-[var(--surface-selected)]'
-      : 'bg-[var(--card)] hover:bg-[var(--surface-hover)]';
+      ? 'bg-[var(--tab-active-surface)] text-[var(--tab-active-foreground)]'
+      : 'text-[var(--muted-foreground)] hover:bg-[var(--tab-hover-surface)] hover:text-[var(--tab-active-foreground)]';
+  }
+
+  /** Идентификатор перетаскиваемой вкладки; `null` — перетаскивания нет. */
+  let draggingId = $state<string | null>(null);
+
+  /** Идентификатор вкладки, на которую сейчас наведён перенос. */
+  let dropTargetId = $state<string | null>(null);
+
+  /** Начало переноса вкладки в списке: запоминается нажатие до сдвига.
+   *
+   * Перенос строится на событиях указателя: нативное перетаскивание в окне
+   * приложения оставляло строку серой и заедало курсор.
+   */
+  function startDrag(event: PointerEvent, tab: WorkspaceTab) {
+    if (event.button !== 0) {
+      return;
+    }
+    // Нажатие на кнопку меню и на поле формы не начинает перенос: это их
+    // действия. Кнопка выбора строки, наоборот, покрывает весь пункт — иначе
+    // перенос не начался бы нигде.
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, [aria-haspopup="menu"]')) {
+      return;
+    }
+    trackPointerDrag({
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      hitTest: (x, y) => tabAtPoint(x, y),
+      onStart: () => {
+        draggingId = tab.id;
+        dropTargetId = null;
+      },
+      onMove: (target2) => {
+        dropTargetId = target2;
+      },
+      onEnd: (target2, moved) => {
+        draggingId = null;
+        dropTargetId = null;
+        if (!moved || target2 === null || target2 === tab.id) {
+          return;
+        }
+        const to = tabs.findIndex((item) => item.id === target2);
+        if (to >= 0) {
+          onReorder(tab.id, to);
+        }
+      },
+    });
+  }
+
+  /** Идентификатор вкладки под точкой экрана; `null` — точки вне строк. */
+  function tabAtPoint(x: number, y: number): string | null {
+    const el = listEl;
+    if (!el) {
+      return null;
+    }
+    for (const item of Array.from(el.querySelectorAll<HTMLElement>('[data-tab-id]'))) {
+      const box = item.getBoundingClientRect();
+      if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) {
+        return item.dataset.tabId ?? null;
+      }
+    }
+    return null;
   }
 
   /** Начало правки текстового свойства вкладки. */
@@ -356,46 +420,55 @@
   >
     {#each visible as tab (tab.id)}
       <li
-        class="relative flex shrink-0 flex-col overflow-hidden rounded-[var(--radius)] py-2.5 pr-2 pl-3 transition-colors {itemFillClass(
- tab,
- )}"
-        style={itemColorStyle(tab)}
+        class="relative flex shrink-0 cursor-grab flex-col overflow-hidden rounded-[var(--radius)] px-3 py-2.5 transition-[background-color,color,opacity,box-shadow] {itemFillClass(
+          tab,
+        )} {draggingId === tab.id ? 'opacity-40' : ''} {dropTargetId === tab.id &&
+        draggingId !== tab.id
+          ? 'ring-2 ring-[var(--ring)]/60'
+          : ''}"
         data-testid="open-books-item"
         data-tab-id={tab.id}
         data-active={tab.id === activeTabId ? 'true' : 'false'}
+        onpointerdown={(event) => startDrag(event, tab)}
       >
-        <div class="flex items-start gap-2">
+        <!--
+          Вся строка — одна кнопка выбора: нажатие в любом месте пункта, включая
+          путь и дату, открывает вкладку. Раньше кликабельно было только
+          название, и над путём файла курсор терял отзыв. Меню и форма правки
+          стоят поверх кнопки и нажатие перехватывают сами.
+        -->
+        <button
+          type="button"
+          class="absolute inset-0 cursor-pointer [font:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset"
+          aria-pressed={tab.id === activeTabId}
+          aria-label={tabLabel(tab)}
+          title={tabTooltip(tab)}
+          onclick={() => onSelect(tab.id)}
+        ></button>
+        <div class="pointer-events-none relative z-[1] flex items-start gap-2">
           <!--
             Номер — место вкладки в составе рабочего места, тот же, что в полосе
             вкладок: по нему вкладку находят в обоих местах. При поиске нумерация
-            не меняется. Стоит перед кнопкой, чтобы не попадать в её подпись. Это
-            же место несёт пользовательский цвет вкладки — цветной плашкой.
+            не меняется. В списке номер нейтрален: цвет вкладки живёт только на
+            полосе, чтобы полосы и строки читались одинаково.
           -->
           <span
-            class="shrink-0 font-semibold tabular-nums {tab.color
-              ? 'rounded-[calc(var(--radius)*0.5)] bg-[var(--item-mark-fill)] px-1 text-[var(--item-mark-ink)] role-caption'
-              : 'opacity-60 role-caption'}"
+            class="shrink-0 tabular-nums opacity-60 role-caption"
             data-testid="open-books-item-number"
             >{tabNumber(tab.id)}</span
           >
-          <button
-            type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate text-left role-body [font:inherit]"
-            aria-pressed={tab.id === activeTabId}
-            title={tabTooltip(tab)}
-            onclick={() => onSelect(tab.id)}
-          >
+          <span class="flex min-w-0 flex-1 items-center gap-2 truncate text-left role-body">
             {#if tab.icon}
               <Icon name={tab.icon} class="h-3.5 w-3.5 flex-none" />
             {/if}
             <span class="min-w-0 flex-1 truncate">{tabLabel(tab)}</span>
-          </button>
-          <RowActions>
+          </span>
+          <RowActions class="pointer-events-auto">
             <ActionMenu
               ariaLabel={t('app.workplace.tab.appearance')}
               title={overLimit ? t('app.workplace.limitExceeded') : t('app.workplace.tab.appearance')}
               class="h-7 w-7 {overLimit ? 'text-destructive' : ''}"
-              mark={tabColorMark(tab.color)}
+              mark={tabColorMark(tab.color, { active: tab.id === activeTabId })}
               items={appearanceActions(tab)}
               icons={iconOptions(tab.icon)}
               iconsLabel={t('app.workplace.tab.iconLabel')}
@@ -409,7 +482,7 @@
         </div>
         {#if tab.description}
           <p
-            class="whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
+            class="pointer-events-none whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
             data-testid="open-books-item-description"
           >
             {tab.description}
@@ -422,7 +495,7 @@
         -->
         {#if editingTabId === tab.id && editingField}
           {@const field = editingField}
-          <div class="pb-1.5" data-testid="open-books-item-editor">
+          <div class="relative z-[1] pb-1.5" data-testid="open-books-item-editor">
             {#key `${tab.id}:${field}`}
               <NameDescriptionEditor
                 label={editingLabel}
@@ -435,7 +508,12 @@
           </div>
         {/if}
         {#if metaItems(tab).length > 0}
-          <div class="pb-1.5" data-testid="open-books-item-meta">
+          <!-- Путь и служебные сведения читаются приглушённой подписью: это
+               ориентир, а не главное в строке, поэтому они не должны бросаться
+               в глаза рядом с названием вкладки. Исключение — выделенная
+               книга: её начертание сильнее, потому что по нему вкладку и
+               узнают. -->
+          <div class="pointer-events-none pb-1.5" data-testid="open-books-item-meta">
             <MetaList items={metaItems(tab)} />
           </div>
         {/if}
