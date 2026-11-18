@@ -640,7 +640,7 @@
 
           <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3">
             <code
-              class="block break-all rounded-[var(--radius)] bg-[var(--surface-inset)] px-2 py-1.5 font-mono role-caption text-[var(--foreground)]"
+              class="block break-all rounded-[var(--radius)] bg-[var(--code-surface)] px-2 py-1.5 font-mono role-caption text-[var(--foreground)]"
               data-testid="notes-set-book"
             >
               {bookFileName(selectedSet.bookKey)}

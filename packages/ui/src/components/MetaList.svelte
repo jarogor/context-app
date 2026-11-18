@@ -75,7 +75,7 @@
           item.strong ? 'font-medium text-[var(--meta-strong-ink,var(--foreground))]' : '',
           item.tone === 'danger' ? 'text-[var(--destructive)]' : '',
           item.mono
-            ? 'rounded-[calc(var(--radius)*0.5)] bg-[var(--surface-inset)] px-1 font-mono text-[0.95em]'
+            ? 'rounded-[calc(var(--radius)*0.5)] bg-[var(--code-surface)] px-1 font-mono text-[0.95em]'
             : '',
         )}
         data-testid={item.testId}
