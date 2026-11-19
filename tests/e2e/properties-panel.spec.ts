@@ -173,8 +173,7 @@ test('на телефоне переход по закладке закрыва�
   await addBookToWorkspace(page, /Демо-книга/);
   await content(page).locator('.page canvas').first().waitFor({ timeout: 30000 });
 
-  await page.getByTestId('workplace-panel-menu').click();
-  await page.getByRole('menuitem', { name: 'Свойства файла', exact: true }).click();
+  await page.getByTestId('workplace-properties-toggle').click();
   const panel = page.getByTestId('properties-panel');
   await expect(panel).toBeVisible();
 

@@ -860,12 +860,13 @@ describe('комбинации клавиш в оболочке', () => {
     await fireEvent.click(screen.getByTestId('workspace-open'));
     await waitFor(() => expect(screen.getByTestId('workplace-tab-page')).toBeTruthy());
 
-    // Панель закрыта по умолчанию: клавиша открывает её, повторное нажатие — закрывает.
-    expect(screen.queryByTestId('open-books-panel')).toBeNull();
-    await fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true });
+    // Список вкладок открыт по умолчанию: это единственное место, где виден
+    // весь состав рабочего места. Клавиша закрывает его и открывает снова.
     expect(screen.getByTestId('open-books-panel')).toBeTruthy();
     await fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true });
     expect(screen.queryByTestId('open-books-panel')).toBeNull();
+    await fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true });
+    expect(screen.getByTestId('open-books-panel')).toBeTruthy();
   });
 
   it('Escape закрывает поиск по книге', async () => {

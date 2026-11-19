@@ -53,14 +53,8 @@ async function openWorkspace(page: import('@playwright/test').Page) {
 /** Добавление книги вкладкой в рабочее место. */
 async function addBook(page: import('@playwright/test').Page, title: string) {
   await openWorkspace(page);
-  // На узком окне кнопки открытия книги живут в меню панелей: в полосе их нет.
-  const addButton = page.getByRole('button', { name: /Добавить книгу/ });
-  if ((await addButton.count()) > 0 && (await addButton.first().isVisible())) {
-    await addButton.first().click();
-  } else {
-    await page.getByTestId('workplace-panel-menu').first().click();
-    await page.getByRole('menuitem', { name: /Добавить книгу/ }).click();
-  }
+  // Кнопка добавления стоит на панели активной вкладки на любой ширине окна.
+  await page.getByRole('button', { name: /Добавить книгу/ }).first().click();
   const library = page.locator('main');
   const back = library.getByRole('button', { name: /К списку книг/ });
   if ((await back.count()) > 0) {
@@ -77,15 +71,10 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
  * меню панелей слева от вкладки: там отдельных кнопок нет.
  */
 async function openPanel(page: import('@playwright/test').Page, label: string) {
-  // Поиск только в полосе вкладок: в навигации есть одноимённые разделы.
+  // Поиск только в панели рабочего места: в навигации есть одноимённые разделы.
   const bar = page.getByTestId('workplace-tabs');
   const direct = bar.getByRole('button', { name: label, exact: true });
-  if ((await direct.count()) > 0 && (await direct.first().isVisible())) {
-    await direct.first().click();
-    return;
-  }
-  await page.getByTestId('workplace-panel-menu').first().click();
-  await page.getByRole('menuitem', { name: label, exact: true }).click();
+  await direct.first().click();
 }
 
 /** Открытие панели заметок в рабочем месте. */
@@ -598,28 +587,31 @@ test('на узком окне строка книги остаётся одно
   expect(zoom!.y + zoom!.height).toBeLessThanOrEqual(bar!.y + bar!.height + 1);
 });
 
-test('на узком окне полоса вкладок показывает одну активную вкладку без навигации', async ({
-  page,
-}) => {
+test('на узком окне панель активной вкладки показывает книгу целиком', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
-  // На узком окне дублирование живёт в меню вкладки: отдельных кнопок нет.
-  for (let index = 0; index < 3; index += 1) {
-    await page.getByTestId('workplace-tab-menu').first().click();
-    await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
-  }
 
-  // Видна одна вкладка — активная; навигации по диапазону и счётчика нет.
-  await expect(page.getByTestId('workplace-tab-item')).toHaveCount(1);
+  // Горизонтальной полосы нет: панель называет одну активную книгу и не
+  // прокручивается, поэтому навигации по диапазону и счётчика тоже нет.
+  await expect(page.getByTestId('workplace-tab-item')).toHaveCount(0);
   await expect(page.getByLabel('Предыдущие вкладки')).toHaveCount(0);
   await expect(page.getByLabel('Следующие вкладки')).toHaveCount(0);
   await expect(page.getByTestId('workplace-tabs-counter')).toHaveCount(0);
 
-  // Остальные вкладки доступны в панели вкладок: на узком окне её открывают
-  // из меню панелей, отдельной кнопки в полосе нет.
+  // Название и путь видны целиком: на телефоне действия уходят на вторую строку.
+  const active = page.getByTestId('workplace-active-tab');
+  await expect(active.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+  const clipped = await active
+    .getByTestId('workplace-active-path')
+    .evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  expect(clipped).toBe(false);
+
+  // Весь состав места живёт в панели списка. На телефоне она закрыта по
+  // умолчанию: иначе панель на всю ширину накрыла бы книгу.
+  await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
   await openPanel(page, 'Вкладки');
-  await expect(page.getByTestId('open-books-panel').getByTestId('open-books-item')).toHaveCount(4);
+  await expect(page.getByTestId('open-books-panel').getByTestId('open-books-item')).toHaveCount(1);
 });
 
 test('на узком окне панель заметок — на всю ширину, а выбор заметки закрывает её', async ({
@@ -663,16 +655,17 @@ test('заметки книги общие для двух вкладок', asyn
   await page.goto('/');
   await addBook(page, 'Демо-книга');
   // Дублирование — пункт контекстного меню вкладки в панели списка.
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await page.getByTestId('open-books-panel').getByLabel('Оформление вкладки').click();
   await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+  await expect(page.getByTestId('open-books-item')).toHaveCount(2);
 
   await openNotes(page);
   await highlightParagraph(page, 'Первый абзац книги.');
 
-  await page.getByTestId('workplace-tab').first().click();
+  // Список вкладок и панель заметок занимают одно место: чтобы переключить
+  // вкладку, список открывают снова, а затем возвращаются к заметкам.
+  await openPanel(page, 'Вкладки');
+  await page.getByTestId('open-books-item').first().getByRole('button').first().click();
   await expect(bookDocument(page).locator('mark').first()).toHaveText('Первый абзац книги.');
 });
 
@@ -725,9 +718,10 @@ test('активный набор книги сохраняется при пе�
 
   // Переключение на другую книгу и обратно не сбрасывает выбор набора.
   await addBook(page, 'Третья книга');
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+  await openPanel(page, 'Вкладки');
+  await expect(page.getByTestId('open-books-item')).toHaveCount(2);
 
-  await page.getByTestId('workplace-tab').first().click();
+  await page.getByTestId('open-books-item').first().getByRole('button').first().click();
   if (
     !(await page
       .getByTestId('notes-panel')
@@ -750,7 +744,8 @@ test('наборы одной книги не появляются у друго
 
   // Вторая книга: наборов у неё ещё нет, чужие наборы показываться не должны.
   await addBook(page, 'Третья книга');
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(2);
+  await openPanel(page, 'Вкладки');
+  await expect(page.getByTestId('open-books-item')).toHaveCount(2);
   if (
     !(await page
       .getByTestId('notes-panel')
@@ -766,7 +761,8 @@ test('наборы одной книги не появляются у друго
   await createNoteSet(page, 'Вторая книга');
   await expect(noteSetSelect(page)).toContainText('Вторая книга');
 
-  await page.getByTestId('workplace-tab').first().click();
+  await openPanel(page, 'Вкладки');
+  await page.getByTestId('open-books-item').first().getByRole('button').first().click();
   if (
     !(await page
       .getByTestId('notes-panel')
@@ -1059,7 +1055,7 @@ test('реестр заметок ведёт к книге и заметке', a
   await panel.getByTestId('notes-set-history-item').first().click();
 
   await expect(page.getByTestId('workplace-area')).toBeVisible();
-  await expect(page.getByTestId('workplace-tab').last()).toHaveText('Демо-книга');
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
   await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
 });
 
@@ -1116,11 +1112,11 @@ test('реестр заметок предлагает места из исто�
   await expect(panel.getByTestId('notes-set-history-item').first()).toContainText('Рабочее место');
   // Реестр не закрывается: выбор места — панель поверх него.
   await expect(page.getByTestId('notes-library')).toBeVisible();
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 
   await panel.getByTestId('notes-set-history-item').first().click();
   await expect(page.getByTestId('workplace-area')).toBeVisible();
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
   await expect(page.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
 });
 
@@ -1146,7 +1142,7 @@ test('реестр заметок переключает набор уже от�
 
   // Книга и вкладка те же, но показан набор из реестра и выбрана его заметка.
   await expect(page.getByTestId('workplace-area')).toBeVisible();
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
   await expect(page.getByTestId('notes-item')).toHaveCount(1);
   await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
   await expect(page.getByTestId('notes-item-link')).toContainText('Второй абзац книги.');
@@ -1182,7 +1178,7 @@ test('реестр заметок создаёт рабочее место из 
   await panel.getByLabel('Создать', { exact: true }).click();
 
   await expect(page.getByTestId('workplace-area')).toBeVisible();
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(1);
+  await expect(page.getByTestId('open-books-item')).toHaveCount(1);
   await page.waitForFunction(() => {
     const registry = JSON.parse(window.localStorage.getItem('workspaces') ?? '{}') as {
       workspaces?: Array<{ name: string }>;

@@ -133,10 +133,12 @@ test('сосредоточенное чтение скрывает хром и �
   // остаются на полосе, и нажатие показывает саму панель, а не только
   // отмечает кнопку нажатой.
   await expect(page.getByTestId('workplace-tabs')).toBeVisible();
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  // Список вкладок открыт по умолчанию: кнопка его закрывает и открывает снова.
   await expect(page.getByTestId('open-books-panel')).toBeVisible();
   await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  await expect(page.getByTestId('open-books-panel')).toBeVisible();
   await page.getByTestId('workplace-notes-toggle').click();
   await expect(page.getByTestId('notes-panel')).toBeVisible();
   await page.getByTestId('workplace-notes-toggle').click();

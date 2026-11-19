@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '@context/i18n';
   import WorkplaceTabPage, { type TabReader } from './WorkplaceTabPage.svelte';
-  import WorkplaceTabs from './WorkplaceTabs.svelte';
+  import ActiveTabBar from './ActiveTabBar.svelte';
   import OpenBooksPanel from './OpenBooksPanel.svelte';
   import NotesPanel from '../notes/NotesPanel.svelte';
   import BookBar from '../reader/BookBar.svelte';
@@ -736,7 +736,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       data-testid="workplace-tabs-layer"
       data-shown={listMode ? 'false' : 'true'}
     >
-    <WorkplaceTabs
+    <ActiveTabBar
       tabs={workspace.tabs}
       activeTabId={workspace.activeTabId}
       {openTabsLimit}
@@ -748,10 +748,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       onToggleBooks={onToggleBooks}
       onToggleNotes={onToggleNotes}
       onToggleProperties={() => onToggleProperties?.()}
-      onSelect={onSelectTab}
-      onClose={onCloseTab}
-      onDuplicate={onDuplicateTab}
-      onReorder={onReorderTab}
       onAdd={onAddBook}
       onAddFile={onAddFile}
     />

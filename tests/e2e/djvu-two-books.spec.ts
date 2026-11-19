@@ -135,7 +135,7 @@ test('вторая книга DjVu открывается в том же раб�
   }
   await library.getByRole('button', { name: /Вторая книга/ }).click();
   await library.getByTestId('book-read-djvu').click();
-  await expect(page.getByTestId('workplace-tab').last()).toHaveText('Вторая книга');
+  await expect(page.getByTestId('workplace-tab')).toHaveText('Вторая книга');
 
   // Регрессия: открытие второй книги не должно оставлять пустые страницы.
   const content = page.frameLocator('iframe[title="Содержимое книги"]').last();

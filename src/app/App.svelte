@@ -254,8 +254,13 @@
   /** Книга, ожидающая выбора рабочего места при открытии из библиотеки. */
   let pendingBook: { path: string; title: string; format: string } | null = null;
 
-  /** Открыта ли панель списка открытых книг. */
-  let booksPanelOpen = $state(false);
+  /** Открыта ли панель списка открытых книг.
+   *
+   * Список вкладок — единственное место, где виден весь состав рабочего места:
+   * горизонтальной полосы вкладок больше нет. Поэтому панель открыта по
+   * умолчанию, а остальные панели временно занимают её место.
+   */
+  let booksPanelOpen = $state(true);
 
   /** Открыта ли панель заметок. */
   let notesPanelOpen = $state(false);
@@ -1139,8 +1144,13 @@
     // верхней панели в нижнюю полосу.
     const mobileQuery = window.matchMedia(NARROW_MAX_WIDTH);
     mobileWindow = mobileQuery.matches;
+    // Список вкладок открыт по умолчанию только там, где он стоит рядом с
+    // книгой. На телефоне панель занимает всю ширину области и накрыла бы
+    // книгу, поэтому там она закрыта, как и прежде.
+    booksPanelOpen = !mobileWindow;
     const onMobileChange = (event: MediaQueryListEvent) => {
       mobileWindow = event.matches;
+      booksPanelOpen = !event.matches;
     };
     mobileQuery.addEventListener('change', onMobileChange);
     // Тема операционной системы нужна кнопке в шапке: при предпочтении «как в

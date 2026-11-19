@@ -70,6 +70,32 @@ export async function showLibraryBookList(page: Page) {
   await expect(books).toBeVisible();
 }
 
+/** Панель списка открытых вкладок. */
+export function booksPanel(page: Page) {
+  return page.getByTestId('open-books-panel');
+}
+
+/** Показ панели списка вкладок, если она скрыта.
+ *
+ * Список вкладок — единственное место, где виден весь состав рабочего места,
+ * поэтому панель открыта по умолчанию: нажатие кнопки без проверки закрыло бы
+ * её, и список пропал бы.
+ */
+export async function ensureBooksPanel(page: Page) {
+  if (!(await booksPanel(page).isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  }
+  await expect(booksPanel(page)).toBeVisible();
+}
+
+/** Скрытие панели списка вкладок, если она показана. */
+export async function hideBooksPanel(page: Page) {
+  if (await booksPanel(page).isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  }
+  await expect(booksPanel(page)).toHaveCount(0);
+}
+
 /** Добавление книги вкладкой в текущее рабочее место.
  *
  * Открывает раздел рабочего места, затем список книг кнопкой «Добавить книгу»

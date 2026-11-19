@@ -66,7 +66,6 @@ test('состав и активная вкладка восстанавлива
     await openAfterReload.click();
   }
   await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
-  await expect(page.getByTestId('workplace-tab')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('прежнее одиночное состояние переносится в рабочее место', async ({ page }) => {

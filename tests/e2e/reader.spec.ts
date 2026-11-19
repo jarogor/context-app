@@ -129,6 +129,11 @@ test('открытие панели заметок не сбивает чита�
   await body.evaluate((element) => {
     element.ownerDocument.scrollingElement?.scrollTo(0, 900);
   });
+  // Список вкладок занимает то же место, что панель заметок: закрываем его,
+  // иначе ширина текста при открытии заметок не изменилась бы.
+  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
+
   const before = await body.evaluate(snapshot);
   const widthBefore = await frame.evaluate((element) => element.clientWidth);
 

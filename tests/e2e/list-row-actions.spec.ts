@@ -54,8 +54,7 @@ async function openBook(page: import('@playwright/test').Page) {
 test('меню в строке вкладки стоит так же, как меню в строке заметки', async ({ page }) => {
   await openBook(page);
 
-  // Строка списка вкладок.
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  // Строка списка вкладок: панель списка открыта по умолчанию.
   await expect(page.getByTestId('open-books-panel')).toBeVisible();
   const tabMenu = await page.evaluate(
     ({ row, label }) => {
@@ -78,7 +77,6 @@ test('меню в строке вкладки стоит так же, как м�
   expect(tabMenu).not.toBeNull();
 
   // Строка списка заметок: заметка создаётся выделением абзаца книги.
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await page.getByTestId('workplace-notes-toggle').click();
   await expect(page.getByTestId('notes-panel')).toBeVisible();
   const frame = page
@@ -130,7 +128,6 @@ test('номер, описание и мета пункта вкладки на�
   // Строка задаёт отступ один раз: номер, описание и мета начинаются у её
   // края, а название сдвинуто вправо колонкой номера.
   await openBook(page);
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await expect(page.getByTestId('open-books-panel')).toBeVisible();
 
   // Правка описания открывает под названием дополнительные строки пункта.

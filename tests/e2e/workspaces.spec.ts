@@ -181,10 +181,8 @@ test('числа книг и вкладок совпадают, когда кн�
   await pickWorkspaceIfAsked(page);
 
   // Дублируем вкладку: книга та же, вкладок стало две.
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await page.getByTestId('open-books-panel').getByLabel('Оформление вкладки').click();
   await page.getByRole('menuitem', { name: 'Дублировать вкладку' }).click();
-  await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await backToList(page);
 
   const meta = page.getByTestId('workspace-meta');
@@ -225,7 +223,7 @@ test('переключение между рабочими местами сох
 
   await backToList(page);
   await createWorkspace(page, 'Второе');
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(0);
+  await expect(page.getByTestId('workplace-active-tab')).toHaveCount(0);
 
   await backToList(page);
   await page
@@ -239,7 +237,7 @@ test('переключение между рабочими местами сох
     .locator('[data-testid="workspace-item"]', { hasText: 'Второе' })
     .getByTestId('workspace-open')
     .click();
-  await expect(page.getByTestId('workplace-tab')).toHaveCount(0);
+  await expect(page.getByTestId('workplace-active-tab')).toHaveCount(0);
 });
 
 test('переименование рабочего места отражается в списке', async ({ page }) => {

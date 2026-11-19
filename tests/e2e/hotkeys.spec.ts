@@ -127,6 +127,10 @@ test('книга прокручивается клавишами к началу
 test('панели рабочего места переключаются клавишами', async ({ page }) => {
   await openDemoBook(page);
 
+  // Список вкладок открыт по умолчанию: клавиша его закрывает и открывает снова.
+  await expect(page.getByTestId('open-books-panel')).toBeVisible();
+  await page.keyboard.press('Control+b');
+  await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
   await page.keyboard.press('Control+b');
   await expect(page.getByTestId('open-books-panel')).toBeVisible();
 

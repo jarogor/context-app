@@ -129,9 +129,8 @@ test('панель заметок на телефоне закрывается �
   }
   await expect(page.getByTestId('workplace-tabs')).toBeVisible();
 
-  // На телефоне панель открывается из меню слева от вкладки.
-  await page.getByTestId('workplace-panel-menu').first().click();
-  await page.getByRole('menuitem', { name: 'Заметки', exact: true }).click();
+  // Кнопки панелей стоят на панели активной вкладки и на телефоне.
+  await page.getByTestId('workplace-notes-toggle').click();
   const panel = page.getByTestId('notes-panel');
   await expect(panel).toBeVisible();
 
