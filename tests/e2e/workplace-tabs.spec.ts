@@ -876,3 +876,32 @@ test('на широком окне кнопки вкладки остаются 
   expect(add!.x).toBeLessThan(focus!.x);
   await expect(page.getByTestId('workplace-tabs').locator('.w-px')).toHaveCount(0);
 });
+
+test('высота вкладки совпадает с кнопками полосы на любом масштабе окна', async ({ page }) => {
+  // Дефект: высота вкладки была зашита в rem (2.25rem), а кнопки считаются от
+  // `--spacing`, который растёт на широких мониторах. На 1440px и больше
+  // вкладки становились ниже соседних кнопок, и полоса выглядела рваной.
+  for (const width of [1280, 1500, 2000]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    const heights = await page.evaluate(() => {
+      const height = (selector: string) => {
+        const el = document.querySelector(selector);
+        return el ? Math.round(el.getBoundingClientRect().height * 100) / 100 : null;
+      };
+      return {
+        tab: height('[data-testid="workplace-tab-item"]'),
+        panel: height('[data-testid="workplace-tabs-panels"] button'),
+        add: height('[data-testid="workplace-tabs-actions"] button'),
+        focus: height('[data-testid="workplace-focus-toggle"]'),
+      };
+    });
+
+    expect(heights.tab, `окно ${width}: высота вкладки`).not.toBeNull();
+    expect(heights.tab, `окно ${width}: вкладка и кнопка панели`).toBe(heights.panel);
+    expect(heights.tab, `окно ${width}: вкладка и кнопка добавления`).toBe(heights.add);
+    expect(heights.tab, `окно ${width}: вкладка и сосредоточенное чтение`).toBe(heights.focus);
+  }
+});

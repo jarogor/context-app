@@ -115,16 +115,15 @@
   const TAB_GAP_PX = 2;
 
   /**
-   * Высота вкладки в rem — та же, что у иконочных кнопок полосы.
+   * Высота вкладки берётся теми же утилитами, что у иконочных кнопок полосы
+   * (`h-9` и `pointer-coarse:h-11`), а не задаётся числом в `rem`.
    *
-   * Вкладка стоит в одном ряду с кнопками и не должна быть ниже: иначе полоса
-   * выглядит рваной. Значение повторяет `size-9` кнопки (`2.25rem`) и её
-   * сенсорную высоту `pointer-coarse:size-11` (`2.75rem`).
+   * Вкладка стоит в одном ряду с кнопками и не должна от них отставать. Раньше
+   * высота была зашита (`2.25rem`), а кнопки считаются от `--spacing`, который
+   * растёт на широких мониторах: там кнопки становились выше, и полоса
+   * выглядела рваной. Общая утилита держит их равными на любом масштабе.
    */
-  const TAB_ROW_REM = 2.25;
-
-  /** Высота вкладки на сенсорном указателе. */
-  const TAB_ROW_TOUCH_REM = 2.75;
+  const TAB_HEIGHT_CLASS = 'h-9 pointer-coarse:h-11';
 
   /** Ширина вкладки в rem. */
   const TAB_WIDTH_REM = 9;
@@ -588,7 +587,7 @@
         <div
           class="relative flex cursor-grab items-center overflow-hidden rounded-[var(--radius)] transition-[opacity,box-shadow] {stretched
             ? 'min-w-0 flex-1'
-            : 'flex-none'} {tabFillClass(tab)} h-[var(--tab-height)] pointer-coarse:h-[var(--tab-height-touch)] {draggingId ===
+            : 'flex-none'} {tabFillClass(tab)} {TAB_HEIGHT_CLASS} {draggingId ===
           tab.id
             ? 'opacity-40'
             : ''} {dropTargetId === tab.id && draggingId !== tab.id
@@ -596,9 +595,7 @@
             : ''}"
           style="{stretched
             ? ''
-            : `width: ${TAB_WIDTH_REM}rem;`}--tab-height: {TAB_ROW_REM}rem; --tab-height-touch: {TAB_ROW_TOUCH_REM}rem;{tabColorStyle(
-            tab,
-          )}"
+            : `width: ${TAB_WIDTH_REM}rem;`}{tabColorStyle(tab)}"
           data-testid="workplace-tab-item"
           data-tab-id={tab.id}
           role="presentation"
