@@ -57,7 +57,7 @@
       sideOffset={6}
       data-testid={testId}
       class={cn(
-        'bg-[var(--menu-surface)] text-popover-foreground z-[var(--layer-popup)] min-w-[12rem] rounded-[var(--radius)] p-2 shadow-overlay outline-none',
+        'bg-[var(--menu-surface)] text-popover-foreground z-[var(--layer-popup)] min-w-[calc(var(--spacing)*48)] rounded-[var(--radius)] p-2 shadow-overlay outline-none',
         className,
       )}
     >

@@ -39,7 +39,7 @@
   aria-current={active ? 'page' : undefined}
   {onclick}
   class={cn(
-    'w-full cursor-pointer rounded-[var(--radius)] px-3 py-2 text-left text-sm transition-colors [font:inherit] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
+    'w-full cursor-pointer rounded-[var(--radius)] px-3 py-2 text-left text-sm transition-colors [font-family:inherit] disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11',
     active
       ? 'bg-[var(--surface-selected)] font-semibold text-[var(--foreground)]'
       : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',

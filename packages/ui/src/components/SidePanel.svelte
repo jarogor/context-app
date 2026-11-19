@@ -133,7 +133,7 @@
       <span class={cn('flex', !overlay && 'large-tablet:hidden')}>
         <button
           type="button"
-          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font-family:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
           title={t('app.sidePanel.close')}
           aria-label={t('app.sidePanel.close')}
           data-testid="side-panel-close"

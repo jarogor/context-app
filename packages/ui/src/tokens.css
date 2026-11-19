@@ -259,8 +259,10 @@
   --properties-panel-width: 20rem;
 
   /* Высота строки книги: постоянная у всех форматов и состояний, поэтому
-   * появление инструментов не сдвигает содержимое книги. */
-  --book-bar-height: 2.75rem;
+   * появление инструментов не сдвигает содержимое книги. Считается от той же
+   * шкалы, что кнопки строки (`h-9` + поля): иначе на широких мониторах
+   * кнопки становились выше строки и обрезались. */
+  --book-bar-height: calc(var(--spacing) * 11);
 
   /* Наименьшая ширина колонки текста: уже неё доки становятся накладными,
    * чтобы книга не сжималась до нечитаемой полоски. */
@@ -914,17 +916,11 @@
   :root {
     --spacing: 0.28125rem;
     --text-xs: 0.84375rem;
-    --text-xs--line-height: calc(1.1 / 0.84375);
     --text-sm: 0.984375rem;
-    --text-sm--line-height: calc(1.25 / 0.984375);
     --text-base: 1.125rem;
-    --text-base--line-height: 1.5;
     --text-lg: 1.265625rem;
-    --text-lg--line-height: calc(1.75 / 1.265625);
     --text-xl: 1.40625rem;
-    --text-xl--line-height: calc(1.75 / 1.40625);
     --text-2xl: 1.6875rem;
-    --text-2xl--line-height: calc(2 / 1.6875);
     --radius: 0.5625rem;
 
     /* Сетка страницы: колонки списков и полки растут вместе с набором. */
@@ -962,17 +958,11 @@
   :root {
     --spacing: 0.3125rem;
     --text-xs: 0.9375rem;
-    --text-xs--line-height: calc(1.1 / 0.9375);
     --text-sm: 1.09375rem;
-    --text-sm--line-height: calc(1.25 / 1.09375);
     --text-base: 1.25rem;
-    --text-base--line-height: 1.5;
     --text-lg: 1.40625rem;
-    --text-lg--line-height: calc(1.75 / 1.40625);
     --text-xl: 1.5625rem;
-    --text-xl--line-height: calc(1.75 / 1.5625);
     --text-2xl: 1.875rem;
-    --text-2xl--line-height: calc(2 / 1.875);
     --radius: 0.625rem;
 
     --container-sm: 26rem;

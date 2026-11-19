@@ -871,7 +871,7 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
                 </span>
                 <button
                   type="button"
-                  class="flex shrink-0 cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] [font:inherit]"
+                  class="flex shrink-0 cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] [font-family:inherit]"
                   title={t('app.bookBar.modeExit')}
                   aria-label={t('app.bookBar.modeExit')}
                   data-testid="note-mode-exit"

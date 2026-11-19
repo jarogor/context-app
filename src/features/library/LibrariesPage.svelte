@@ -865,7 +865,7 @@
         >
           <button
             type="button"
-            class="absolute inset-0 cursor-pointer [font:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset disabled:cursor-not-allowed"
+            class="absolute inset-0 cursor-pointer [font-family:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset disabled:cursor-not-allowed"
             title={t('app.library.libraries.toBooks')}
             aria-label={t('app.library.libraries.toBooks')}
             disabled={!selectedEntry.available}
@@ -1029,7 +1029,7 @@
               >
                 <button
                   type="button"
-                  class="absolute inset-0 cursor-pointer rounded-[var(--radius)] [font:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
+                  class="absolute inset-0 cursor-pointer rounded-[var(--radius)] [font-family:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
                   aria-label={libraryLabel(entry)}
                   data-testid="library-open"
                   onclick={() => pickEntry(entry)}

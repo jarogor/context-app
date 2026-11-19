@@ -84,7 +84,7 @@
  value={item.value}
  label={item.label}
  disabled={item.disabled}
- class="data-[highlighted]:bg-[var(--menu-hover)] flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+ class="data-[highlighted]:bg-[var(--menu-hover)] flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-[calc(var(--spacing)*1.5)] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
  >
  {#snippet children({ selected })}
  <span class="flex-1 truncate text-left">{item.label}</span>

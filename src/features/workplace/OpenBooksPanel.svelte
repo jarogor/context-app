@@ -439,7 +439,7 @@
         -->
         <button
           type="button"
-          class="absolute inset-0 cursor-pointer [font:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset"
+          class="absolute inset-0 cursor-pointer [font-family:inherit] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset"
           aria-pressed={tab.id === activeTabId}
           aria-label={tabLabel(tab)}
           title={tabTooltip(tab)}

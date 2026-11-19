@@ -404,7 +404,7 @@
       onclick={onToggleFont}
     >
       <span
-        class="text-[0.95rem] leading-none"
+        class="text-base leading-none"
         style="font-family: {readerFont === 'serif'
           ?"system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
           :"Georgia, 'Times New Roman', serif"}"
@@ -443,7 +443,7 @@
         </span>
       {:else}
         <Input
-          class="h-8 w-[3.5rem] shrink-0 border-0 bg-transparent px-1 py-0 text-right text-sm"
+          class="h-8 w-[calc(var(--spacing)*14)] shrink-0 border-0 bg-transparent px-1 py-0 text-right text-sm"
           ariaLabel={t('app.reader.currentPage')}
           value={pageValue}
           oninput={(event) => (pageDraft = event.currentTarget.value)}
@@ -455,7 +455,7 @@
           onblur={commitPage}
         />
         <span
-          class="inline-block min-w-[3rem] shrink-0 pr-2 whitespace-nowrap text-left text-sm"
+          class="inline-block min-w-[calc(var(--spacing)*12)] shrink-0 pr-2 whitespace-nowrap text-left text-sm"
           data-testid="reader-page-count"
           >/ {pageCount ?? '?'}</span
         >
@@ -478,7 +478,7 @@
       сообщил свои возможности: это место «где я», и пустым оно быть не должно.
     -->
     <span
-      class="inline-block w-[2.75rem] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
+      class="inline-block w-[calc(var(--spacing)*11)] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
       data-testid="reader-progress"
       >{Math.round(progress)}%</span
     >
@@ -507,7 +507,7 @@
         disabled={zoom >= maxZoom}
         onclick={() => onStepZoom?.(1)}>+</Button
       >
-      <span class="inline-block w-[3.25rem] text-center text-sm" data-testid="reader-zoom"
+      <span class="inline-block w-[calc(var(--spacing)*13)] text-center text-sm" data-testid="reader-zoom"
         >{zoom}%</span
       >
     </div>

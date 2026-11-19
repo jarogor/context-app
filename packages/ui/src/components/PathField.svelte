@@ -78,12 +78,14 @@
       ? 'bg-[var(--destructive-soft)] text-[var(--destructive)]'
       : 'bg-[var(--code-surface)] text-[var(--foreground)]'}"
   >
-    <!-- Копирование внутри подложки: высота кнопки равна строке адреса, поэтому
-         верхний край иконки совпадает с верхом текста без дополнительных полей. -->
+    <!-- Копирование внутри подложки: ряд кнопки совпадает со строкой адреса, а
+         иконка растёт вместе со шкалой: раньше размер был зашит в rem и на
+         широких мониторах кнопка отставала от текста. -->
     <Button
       variant="ghost"
       size="icon"
-      class="h-[1.125rem] w-5 shrink-0 gap-0 rounded-[calc(var(--radius)*0.6)] p-0 {tone === 'danger'
+      class="h-[calc(var(--spacing)*4.5)] w-[calc(var(--spacing)*5)] shrink-0 gap-0 rounded-[calc(var(--radius)*0.6)] p-0 {tone ===
+      'danger'
         ? 'text-[var(--destructive)] hover:text-[var(--destructive)]'
         : ''}"
       title={copied ? t('app.library.book.pathCopied') : t('app.library.book.copyPath')}
@@ -91,7 +93,7 @@
       testId="path-copy"
       onclick={copy}
     >
-      <Icon name={copied ? 'check' : 'copy'} class="h-3.5 w-3.5" />
+      <Icon name={copied ? 'check' : 'copy'} class="size-[calc(var(--spacing)*3.5)]" />
     </Button>
     <!-- Сам адрес — одна строка с многоточием: длинный путь не переносится и не
          растягивает блок. Полное значение доступно подсказкой при наведении и

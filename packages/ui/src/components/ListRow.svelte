@@ -109,7 +109,7 @@
     type="button"
     data-testid={buttonTestId}
     class={cn(
-      'flex min-w-0 flex-1 flex-col gap-1.5 px-3.5 py-3 text-left [font:inherit]',
+      'flex min-w-0 flex-1 flex-col gap-1.5 px-3.5 py-3 text-left [font-family:inherit]',
       onclick && !disabled ? 'cursor-pointer' : 'cursor-default',
       disabled ? 'cursor-not-allowed opacity-60' : '',
       // Фон наведения/выбора — на всей строке (`ListRow`), а не на внутренней

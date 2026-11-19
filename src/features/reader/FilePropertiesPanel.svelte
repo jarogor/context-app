@@ -607,7 +607,7 @@
             -->
             <button
               type="button"
-              class="flex h-[10rem] cursor-pointer flex-col items-center gap-1 overflow-hidden rounded-[var(--radius)] p-1 transition-colors {currentPage ===
+              class="flex h-[calc(var(--spacing)*40)] cursor-pointer flex-col items-center gap-1 overflow-hidden rounded-[var(--radius)] p-1 transition-colors {currentPage ===
  page
  ? 'bg-[var(--surface-selected)]'
  : 'hover:bg-[var(--surface-hover)]'}"
@@ -727,7 +727,7 @@
               />
               <button
                 type="button"
-                class="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 text-left [font:inherit]"
+                class="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 text-left [font-family:inherit]"
                 title={t('app.properties.annotations.show')}
                 data-testid="properties-annotation-row"
                 onclick={() => showOnlyAnnotation(annotation)}

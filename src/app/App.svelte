@@ -1467,7 +1467,10 @@
           -->
           <!-- Показывается на всех ширинах, включая телефон и планшет: это
                важное сообщение, и прятать его на узком окне нельзя. -->
-          <span class="flex h-[1.375rem] flex-none items-center" aria-live="polite">
+          <span
+            class="flex h-[calc(var(--spacing)*5.5)] flex-none items-center"
+            aria-live="polite"
+          >
             {#if settingsNeedsAttention}
               <Badge variant="warning" title={t('app.store.restartRequired')} testId="plugins-restart-note">
                 {t('app.store.restartRequiredShort')}

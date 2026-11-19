@@ -794,7 +794,7 @@
                   >
                     <button
                       type="button"
-                      class="flex w-full cursor-pointer items-center gap-1.5 rounded-[var(--radius)] px-2 py-1 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
+                      class="flex w-full cursor-pointer items-center gap-1.5 rounded-[var(--radius)] px-2 py-1 text-left transition-colors [font-family:inherit] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
                       aria-expanded={!collapsedFacets[id]}
                       aria-controls="library-facet-{id}"
                       data-testid="library-facet-toggle-{id}"
@@ -859,7 +859,7 @@
             testId="library-not-selected"
           />
         {:else if loading && books.length === 0}
-          <Skeleton rows={3} rowClass="h-[16rem]" />
+          <Skeleton rows={3} rowClass="h-[calc(var(--spacing)*64)]" />
         {:else if error}
           <ErrorState message={error} testId="library-error" />
         {:else if books.length === 0}
@@ -884,7 +884,7 @@
             {#each pageBooksWithCovers as book (book.id)}
               <li>
                 <button
-                  class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                  class="group flex w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] p-2 text-left transition-colors [font-family:inherit] hover:bg-[var(--surface-hover)]"
                   type="button"
                   title={book.title}
                   onclick={() => openBook(book)}
@@ -917,13 +917,13 @@
                 class="even:bg-[var(--surface-inset)]"
               >
                 <button
-                  class="flex w-full cursor-pointer items-center gap-3 p-2 text-left transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                  class="flex w-full cursor-pointer items-center gap-3 p-2 text-left transition-colors [font-family:inherit] hover:bg-[var(--surface-hover)]"
                   type="button"
                   title={book.title}
                   onclick={() => openBook(book)}
                 >
-                  <span class="block h-[4.5rem] w-[3rem] shrink-0">
-                    <BookCover src={book.coverUri ?? null} class="h-full w-[3rem] rounded-sm" />
+                  <span class="block h-[calc(var(--spacing)*18)] w-[calc(var(--spacing)*12)] shrink-0">
+                    <BookCover src={book.coverUri ?? null} class="h-full w-[calc(var(--spacing)*12)] rounded-sm" />
                   </span>
                   <span class="min-w-0 flex-1">
                     <span class="block truncate role-title">{book.title}</span>

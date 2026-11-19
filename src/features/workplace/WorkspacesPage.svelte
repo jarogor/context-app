@@ -686,7 +686,7 @@
                 поэтому весь ряд помещается в карточку и не обрезается.
               -->
               <div
-                class="pointer-events-none flex h-[6.5rem] items-center gap-2 overflow-hidden bg-[var(--card)] px-3"
+                class="pointer-events-none flex h-[calc(var(--spacing)*26)] items-center gap-2 overflow-hidden bg-[var(--card)] px-3"
               >
                 {#if previewPaths(item).length > 0}
                   <span
@@ -696,13 +696,13 @@
                     {#each previewPaths(item) as path (path)}
                       <BookCover
                         src={covers[path]}
-                        class="h-[5rem] w-[3.4rem] shrink-0 rounded-sm"
+                        class="h-[calc(var(--spacing)*20)] w-[calc(var(--spacing)*13.6)] shrink-0 rounded-sm"
                         testId="workspace-cover"
                       />
                     {/each}
                     {#if hiddenCount(item) > 0}
                       <span
-                        class="flex h-[5rem] w-[3.4rem] shrink-0 items-center justify-center rounded-sm bg-[var(--muted)] role-caption text-[var(--muted-foreground)]"
+                        class="flex h-[calc(var(--spacing)*20)] w-[calc(var(--spacing)*13.6)] shrink-0 items-center justify-center rounded-sm bg-[var(--muted)] role-caption text-[var(--muted-foreground)]"
                         data-testid="workspace-covers-more"
                         title={t('app.workspace.moreBooks', { count: hiddenCount(item) })}
                       >
@@ -712,7 +712,7 @@
                   </span>
                 {:else}
                   <span class="flex flex-col items-center gap-1 text-[var(--muted-foreground)]">
-                    <Icon name="workspace" class="h-6 w-6" />
+                    <Icon name="workspace" class="size-6" />
                     <span class="role-caption">{t('app.workspace.emptyShelf')}</span>
                   </span>
                 {/if}

@@ -74,7 +74,7 @@
           <button
             type="button"
             data-testid="workspace-picker-item"
-            class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--primary-soft)]"
+            class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font-family:inherit] hover:bg-[var(--primary-soft)]"
             title={item.name}
             onclick={() => onSelect(item.id)}
           >

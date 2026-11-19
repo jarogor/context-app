@@ -58,7 +58,7 @@
   <div class="flex items-start gap-2">
     <button
       type="button"
-      class="min-w-0 flex-1 cursor-pointer text-left [font:inherit]"
+      class="min-w-0 flex-1 cursor-pointer text-left [font-family:inherit]"
       data-testid="notes-item-link"
       onclick={() => onclick?.(item.note)}
     >

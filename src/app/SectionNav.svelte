@@ -123,7 +123,7 @@
   -->
   <button
     type="button"
-    class="flex h-9 min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 {item.active
+    class="flex h-9 min-w-0 shrink cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font-family:inherit] pointer-coarse:h-11 {item.active
  ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
  : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'} px-2 tablet:px-3"
     aria-pressed={item.active}
@@ -132,7 +132,7 @@
     data-testid={`nav-${item.id}`}
     onclick={() => selectSection(item.id)}
   >
-    <Icon name={item.icon} class="h-[1.15rem] w-[1.15rem]" />
+    <Icon name={item.icon} class="size-[calc(var(--spacing)*4.5)]" />
     <span class="min-w-0 truncate role-subtitle">{item.label}</span>
   </button>
 {/snippet}
@@ -148,7 +148,7 @@
 })}
   <button
     type="button"
-    class="relative flex min-h-[var(--touch-target)] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius)] px-1 py-1 transition-colors [font:inherit] {item.active
+    class="relative flex min-h-[var(--touch-target)] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius)] px-1 py-1 transition-colors [font-family:inherit] {item.active
  ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
  : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'}"
     aria-pressed={item.active}
@@ -162,7 +162,7 @@
       и точка в её углу оказывалась в стороне от самого действия.
     -->
     <span class="relative flex">
-      <Icon name={item.icon} class="h-[1.375rem] w-[1.375rem]" />
+      <Icon name={item.icon} class="size-[calc(var(--spacing)*5.5)]" />
       {#if item.alert}
         <span
           class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-[var(--destructive)]"

@@ -656,7 +656,7 @@
                     <li>
                       <button
                         type="button"
-                        class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                        class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font-family:inherit] hover:bg-[var(--surface-hover)]"
                         data-testid="notes-set-history-item"
                         onclick={() => chooseWorkspace(item.id)}
                       >
@@ -679,7 +679,7 @@
                     <li>
                       <button
                         type="button"
-                        class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font:inherit] hover:bg-[var(--surface-hover)]"
+                        class="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-[var(--card)] px-3 py-2 text-left role-body transition-colors [font-family:inherit] hover:bg-[var(--surface-hover)]"
                         data-testid="notes-set-workspace-item"
                         onclick={() => chooseWorkspace(item.id)}
                       >
@@ -732,7 +732,7 @@
               {:else}
                 <button
                   type="button"
-                  class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-1 py-1 text-left role-body text-[var(--muted-foreground)] transition-colors [font:inherit] hover:text-[var(--foreground)]"
+                  class="flex cursor-pointer items-center gap-2 rounded-[var(--radius)] px-1 py-1 text-left role-body text-[var(--muted-foreground)] transition-colors [font-family:inherit] hover:text-[var(--foreground)]"
                   data-testid="notes-set-create-workspace"
                   onclick={startCreating}
                 >

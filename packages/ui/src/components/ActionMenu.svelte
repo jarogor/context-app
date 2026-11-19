@@ -199,7 +199,7 @@
     <DropdownMenu.Content
       sideOffset={4}
       align="end"
-      class="bg-[var(--menu-surface)] text-popover-foreground z-50 min-w-[11.25rem] overflow-hidden rounded-md p-1 shadow-overlay"
+      class="bg-[var(--menu-surface)] text-popover-foreground z-50 min-w-[calc(var(--spacing)*45)] overflow-hidden rounded-md p-1 shadow-overlay"
     >
       {#if colors.length > 0 || icons.length > 0}
         <!--
@@ -238,7 +238,7 @@
           disabled={item.disabled}
           onSelect={() => onselect?.(item.id)}
           class={cn(
-            'data-[highlighted]:bg-[var(--menu-hover)] flex cursor-pointer items-center rounded-sm px-2 py-[0.375rem] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+            'data-[highlighted]:bg-[var(--menu-hover)] flex cursor-pointer items-center rounded-sm px-2 py-[calc(var(--spacing)*1.5)] text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
             item.destructive &&
               'text-destructive data-[highlighted]:bg-destructive-soft data-[highlighted]:text-destructive',
           )}

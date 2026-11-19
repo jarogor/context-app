@@ -131,7 +131,7 @@
    * размера, что у мелких тегов.
    */
   const linkClass =
-    'cursor-pointer bg-transparent text-left underline decoration-dotted decoration-[var(--muted-foreground)] decoration-[1px] underline-offset-[0.3em] transition-colors [font:inherit] hover:text-[var(--primary)] hover:decoration-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none';
+    'cursor-pointer bg-transparent text-left underline decoration-dotted decoration-[var(--muted-foreground)] decoration-[1px] underline-offset-[0.3em] transition-colors [font-family:inherit] hover:text-[var(--primary)] hover:decoration-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none';
 
   /** Компактная кнопка правки поля: одна и та же на всей странице. */
   const fieldButtonClass = 'h-7 shrink-0 px-1.5';

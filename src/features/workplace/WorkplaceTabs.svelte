@@ -609,7 +609,7 @@
             а не заливает всю вкладку.
           -->
           <span
-            class="shrink-0 text-[0.7em] font-semibold tabular-nums {tab.color
+            class="shrink-0 text-[calc(var(--role-small-size)*0.9)] font-semibold tabular-nums {tab.color
               ? 'ml-1.5 rounded-[calc(var(--radius)*0.5)] bg-[var(--tab-mark-fill)] px-1 py-[0.05rem] text-[var(--tab-mark-ink)]'
               : 'pl-2 opacity-60'}"
             data-testid="workplace-tab-number"
@@ -618,7 +618,7 @@
           <button
             type="button"
             data-testid="workplace-tab"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 truncate py-[0.25rem] pl-1.5 text-left role-caption [font:inherit]"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 truncate py-[0.25rem] pl-1.5 text-left role-caption [font-family:inherit]"
             aria-pressed={tab.id === activeTabId}
             title={tabTooltip(tab)}
             onclick={() => selectTab(tab.id)}
@@ -663,7 +663,7 @@
               class="flex-none cursor-pointer px-[0.1875rem] pr-2 opacity-60 hover:opacity-100"
               onclick={() => askCloseTab(tab.id)}
             >
-              <Icon name="close" class="h-[0.85em] w-[0.85em]" />
+              <Icon name="close" class="size-[calc(var(--spacing)*3.4)]" />
             </button>
           {/if}
         </div>

@@ -26,8 +26,9 @@ describe('ColorPicker', () => {
     render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
 
     const picker = screen.getByTestId('color-picker');
-    // Ширина фиксирована числом: блок не растёт при наведении на образец.
-    expect(picker.style.width).toMatch(/^\d+px$/);
+    // Ширина фиксирована числом в долях шкалы: блок не растёт при наведении на
+    // образец, но растёт вместе со шкалой интерфейса на широких мониторах.
+    expect(picker.style.width).toContain('calc(var(--spacing)');
   });
 
   it('имеет высоту базового контрола, чтобы стоять вровень с кнопками', () => {
@@ -50,11 +51,11 @@ describe('ColorPicker', () => {
     render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
 
     const picker = screen.getByTestId('color-picker');
-    const width = Number.parseInt(picker.style.width, 10);
+    const width = Number.parseFloat(picker.style.width.match(/\*\s*([\d.]+)/)?.[1] ?? '0');
     const swatches = COLORS.length;
-    // Базовая ширина невыбранного образца — 16 px, зазоры по 3 px, боковые
-    // отступы 12 px, выбранный образец шире в 1.8 раза.
-    expect(width).toBeGreaterThanOrEqual(swatches * 16 + (swatches - 1) * 3);
+    // Базовая ширина невыбранного образца — 4 доли шкалы, зазоры по 0.75,
+    // отступы 4, выбранный образец шире в 1.8 раза.
+    expect(width).toBeGreaterThanOrEqual(swatches * 4 + (swatches - 1) * 0.75);
   });
 
   it('отделяет крайние образцы от границ так же, как сверху и снизу', () => {

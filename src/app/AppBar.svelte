@@ -150,18 +150,18 @@
       <div class="flex shrink-0 items-center gap-1">
         <button
           type="button"
-          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font-family:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
           title={themeTitle}
           aria-label={t('app.theme.switch')}
           data-testid="nav-theme"
           onclick={onTheme}
         >
-          <Icon name={themeIcon} class="h-[1.15rem] w-[1.15rem]" />
+          <Icon name={themeIcon} class="size-[calc(var(--spacing)*4.5)]" />
         </button>
 
         <button
           type="button"
-          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
+          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font-family:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
           class:bg-[var(--primary-soft)]={settingsOpen}
           title={settingsAlert ? t('app.settings.attention') : t('app.settings')}
           aria-label={t('app.settings')}
@@ -169,7 +169,7 @@
           data-testid="nav-settings"
           onclick={onSettings}
         >
-          <Icon name="menu" class="h-[1.15rem] w-[1.15rem]" />
+          <Icon name="menu" class="size-[calc(var(--spacing)*4.5)]" />
           {#if settingsAlert}
             <!-- Точка в углу кнопки: в настройках есть важное, не открывая их. -->
             <span
