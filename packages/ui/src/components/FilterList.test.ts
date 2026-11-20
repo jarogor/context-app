@@ -1,5 +1,4 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { createRawSnippet } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 
 import FilterList from './FilterList.svelte';

@@ -9,18 +9,6 @@ import {
   type ReaderBackend,
 } from './index';
 
-/** Мок-бэкенд с книгой заданного формата и содержимым. */
-function backendFor(_format: string, content: unknown = {}): ReaderBackend {
-  return {
-    invoke: async (command) => {
-      if (command === 'reader_content') {
-        return content;
-      }
-      return {};
-    },
-  };
-}
-
 describe('formatFromPath', () => {
   it('берёт расширение файла как формат', () => {
     expect(formatFromPath('/books/Книга.epub')).toBe('epub');

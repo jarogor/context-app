@@ -7,7 +7,6 @@
  * при смене книги и при внешнем изменении хранилища (`revision`).
  */
 
-import { untrack } from 'svelte';
 import {
   addQuote,
   addShapeNote,
@@ -32,7 +31,6 @@ import {
   updateNoteText,
   type Note,
   type NoteColor,
-  type NoteListItem,
   type NoteSetSummary,
   type NoteTool,
   type NoteType,

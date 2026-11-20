@@ -64,7 +64,7 @@ describe('токены оформления', () => {
     // У каждой ступени роль определена: иначе на широком окне кегль «прыгал»
     // бы обратно к базовому.
     const steps = [
-      ...tokens.matchAll(/@media \(min-width: (\d+)rem\)\s*\{\s*:root\s*\{([\s\S]*?)\n  \}/g),
+      ...tokens.matchAll(/@media \(min-width: (\d+)rem\)\s*\{\s*:root\s*\{([\s\S]*?)\n {2}\}/g),
     ];
     expect(steps.length).toBeGreaterThanOrEqual(2);
     for (const [, width, body] of steps) {

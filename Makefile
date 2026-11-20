@@ -40,7 +40,8 @@ run-release: ## Собрать release без упаковки и запусти
 	npm run tauri build -- --no-bundle
 	./src-tauri/target/release/jarogor-texture
 
-check: ## Проверки фронтенда: типы и форматирование
+check: ## Проверки фронтенда: линтер, типы и форматирование
+	npm run lint
 	npm run check
 	npm run check:ts
 

@@ -58,15 +58,12 @@
   let { workspaces, currentId, onCreate, onOpen, onRename, onRemove }: Props = $props();
 
   /**
-   * Узкое окно (телефон и планшет).
+   * Открыто ли поле создания.
    *
-   * На узком экране поле создания занимает всю ширину полосы управления и
-   * оттесняет поиск. Поэтому поле показывается только по нажатию кнопки
-   * создания, а по умолчанию на его месте стоит сама кнопка.
+   * На узком экране поле занимает всю ширину полосы управления и оттесняет
+   * поиск. Поэтому оно показывается только по нажатию кнопки создания, а по
+   * умолчанию на его месте стоит сама кнопка.
    */
-  let narrow = $state(false);
-
-  /** Открыто ли поле создания на узком окне. */
   let composerOpen = $state(false);
 
   /** Узел поля создания: к нему ставится фокус при открытии. */
@@ -74,10 +71,8 @@
 
   onMount(() => {
     const query = window.matchMedia(NARROW_MAX_WIDTH);
-    narrow = query.matches;
-    const onChange = (event: MediaQueryListEvent) => {
-      narrow = event.matches;
-      // Смена ширины закрывает поле: в широком окне оно и так всегда видно.
+    // Смена ширины закрывает поле: в широком окне оно и так всегда видно.
+    const onChange = () => {
       composerOpen = false;
     };
     query.addEventListener('change', onChange);
@@ -600,7 +595,7 @@
         {/if}
       {/snippet}
 
-      {#snippet editContent(item)}
+      {#snippet editContent()}
         <div class="flex flex-col gap-2 p-3">
           <span class="role-eyebrow text-[var(--muted-foreground)]"
             >{t('app.workspace.renameEyebrow')}</span

@@ -302,15 +302,6 @@
     untrack(() => normalizePaletteId(initialAppearance.palette ?? DEFAULT_PALETTE)),
   );
 
-  /** Названия сторон темы для показа. */
-  const themeTitles: Record<ResolvedTheme, string> = {
-    get light() {
-      return t('app.theme.light');
-    },
-    get dark() {
-      return t('app.theme.dark');
-    },
-  };
   /** Тёмное предпочтение темы операционной системы.
    *
    * Нужно кнопке в шапке: при предпочтении «как в системе» интерфейс показывает

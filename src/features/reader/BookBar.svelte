@@ -39,8 +39,6 @@
    */
 
   interface Props {
-    /** Текучая ли книга: текст течёт по колонке, страниц нет. */
-    flowing?: boolean;
     /** Поддерживает ли формат страницы. */
     pages?: boolean;
     /** Текущая страница или `null`. */
@@ -92,7 +90,6 @@
   }
 
   let {
-    flowing = false,
     pages = false,
     page = null,
     pageCount = null,

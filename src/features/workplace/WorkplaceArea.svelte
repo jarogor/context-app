@@ -8,7 +8,6 @@
   import { noteTypeLabel } from '../notes/notes';
   import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
-import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   import { EmptyState, Icon } from '@context/ui';
   import { activeTab } from './workplace';
   import FilePropertiesPanel from '../reader/FilePropertiesPanel.svelte';
@@ -447,13 +446,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
   function goToPage(page: number) {
     if (tab) {
       readers.get(tab.id)?.gotoFooterPage(page);
-    }
-  }
-
-  /** Переключение панели поиска по книге активной вкладки. */
-  function toggleSearch() {
-    if (tab) {
-      readers.get(tab.id)?.toggleFooterSearch();
     }
   }
 
@@ -941,7 +933,6 @@ import { cachedCovers, loadCovers, type CoverMap } from '../library/covers';
       -->
       {#if workspace.tabs.length > 0}
         <BookBar
-          flowing={flowingBook}
           {tool}
           allowedTypes={allowedNoteTypes}
           onToolChange={onToolChange}

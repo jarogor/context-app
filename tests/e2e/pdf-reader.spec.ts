@@ -580,7 +580,6 @@ test('тема области чтения перекрашивает и фон 
   const lightBackground = await body.evaluate(
     (element) => getComputedStyle(element).backgroundColor,
   );
-  const lightPaper = await paperColor(canvas);
 
   await page.getByLabel('Тёмная тема области чтения').click();
 

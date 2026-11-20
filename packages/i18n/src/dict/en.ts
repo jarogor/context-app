@@ -1,5 +1,5 @@
 /** Словарь английских текстов интерфейса. */
-import type { Dictionary, MessageKey } from '../messages';
+import type { Dictionary } from '../messages';
 
 /** Английский словарь; ключи обязаны совпадать с русским.
  *

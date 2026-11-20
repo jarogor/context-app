@@ -9,7 +9,6 @@
     ErrorToast,
     Icon,
     IconButton,
-    Input,
     ScrollArea,
     createAsyncState,
   } from '@context/ui';
@@ -115,18 +114,13 @@
   // Ошибка, переданная с бутстрапа, показывается сразу при монтировании.
   asyncState.error = untrack(() => initialError ?? '');
 
-  /**
-   * Есть ли изменения активности, которые применятся после перезапуска.
+  /** Обновление признака неприменённых изменений.
    *
    * Сообщение живёт здесь, на странице настроек: плагины включают и выключают
    * в этом разделе, и требование перезапуска относится к тому же месту. В шапке
    * индикатора замечаний нет — она не место для настроек плагинов.
    */
-  let activationPending = $state(untrack(() => initialPending ?? false));
-
-  /** Обновление признака неприменённых изменений. */
   function setPending(pending: boolean) {
-    activationPending = pending;
     onPendingChange?.(pending);
   }
 

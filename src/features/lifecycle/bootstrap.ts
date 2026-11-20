@@ -29,7 +29,7 @@ import {
   persistBootAppearance,
 } from '../appearance/theme';
 import { applyAppLocale, loadInterfaceLocale } from '../appearance/locale';
-import { DEFAULT_LOCALE, t, type Locale } from '@context/i18n';
+import { DEFAULT_LOCALE, type Locale } from '@context/i18n';
 import {
   DEFAULT_PALETTE,
   DEFAULT_READER_FONT,

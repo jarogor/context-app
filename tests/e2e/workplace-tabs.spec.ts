@@ -1,11 +1,5 @@
 import { expect, test } from '@playwright/test';
-import {
-  addBookToWorkspace,
-  booksPanel,
-  ensureBooksPanel,
-  hideBooksPanel,
-  openWorkspaceArea,
-} from './workplace-area';
+import { addBookToWorkspace, booksPanel, ensureBooksPanel, hideBooksPanel } from './workplace-area';
 
 /** Ответ активной библиотеки для сценариев вкладок. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };

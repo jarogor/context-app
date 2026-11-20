@@ -82,7 +82,11 @@ export function booksPanel(page: Page) {
  * её, и список пропал бы.
  */
 export async function ensureBooksPanel(page: Page) {
-  if (!(await booksPanel(page).isVisible().catch(() => false))) {
+  if (
+    !(await booksPanel(page)
+      .isVisible()
+      .catch(() => false))
+  ) {
     await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   }
   await expect(booksPanel(page)).toBeVisible();
@@ -90,7 +94,11 @@ export async function ensureBooksPanel(page: Page) {
 
 /** Скрытие панели списка вкладок, если она показана. */
 export async function hideBooksPanel(page: Page) {
-  if (await booksPanel(page).isVisible().catch(() => false)) {
+  if (
+    await booksPanel(page)
+      .isVisible()
+      .catch(() => false)
+  ) {
     await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   }
   await expect(booksPanel(page)).toHaveCount(0);

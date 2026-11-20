@@ -54,7 +54,10 @@ async function openWorkspace(page: import('@playwright/test').Page) {
 async function addBook(page: import('@playwright/test').Page, title: string) {
   await openWorkspace(page);
   // Кнопка добавления стоит на панели активной вкладки на любой ширине окна.
-  await page.getByRole('button', { name: /Добавить книгу/ }).first().click();
+  await page
+    .getByRole('button', { name: /Добавить книгу/ })
+    .first()
+    .click();
   const library = page.locator('main');
   const back = library.getByRole('button', { name: /К списку книг/ });
   if ((await back.count()) > 0) {

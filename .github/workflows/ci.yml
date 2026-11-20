@@ -29,6 +29,11 @@ jobs:
 
       - run: npm ci
 
+      # Линтер идёт первым: мусор в коде (неиспользуемые импорты и переменные,
+      # мёртвые функции) должен всплывать раньше тестов, а не после них.
+      - name: Линтер
+        run: npm run lint
+
       - name: Форматирование
         run: npm run check:ts
 
@@ -74,6 +79,9 @@ jobs:
             patchelf
 
       - run: npm ci
+
+      - name: Линтер
+        run: npm run lint
 
       # Плагины собираются тем же скриптом, что и локально: артефакты в git
       # не хранятся, а тесты чтения и браузерные сценарии их требуют.
@@ -127,6 +135,12 @@ jobs:
             src-wasm-sdk -> target
 
       - run: npm ci
+
+      - name: Линтер
+        run: npm run lint
+
+      - name: Форматирование
+        run: npm run check:ts
 
       - name: Браузер для Playwright
         run: npx playwright install --with-deps chromium

@@ -6,7 +6,6 @@
   import {
     formatFromPath,
     openBookFile,
-    openBookLink,
     selectWorkplacePlugin,
     type WorkplaceSelection,
   } from './reader';
@@ -45,7 +44,6 @@
     type FileBookmark,
     type FileChapter,
     type FilePropertiesSnapshot,
-    type PropertiesTabId,
   } from './file-properties';
   import type { WorkplaceFootnote, WorkplaceThumbnail } from './workplace-protocol';
   import {
@@ -528,11 +526,6 @@
     if (menu) {
       openNoteTextEditor(menu.noteId);
     }
-  }
-
-  /** Открытие окна правки текста заметки типа `text`. */
-  function startEditNoteTextInReader(noteId: string) {
-    openNoteTextEditor(noteId);
   }
 
   /** Открытие окна правки текста: заметка ищется в активном наборе по типу. */

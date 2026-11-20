@@ -6,14 +6,6 @@ import { viewerBundle } from './plugin-viewer';
 /** Ответ активной библиотеки для сценариев сохранения рабочего места. */
 const ACTIVE_LIBRARY = { path: '/demo-library', provider_name: 'books-source' };
 
-/** Выбор рабочего места в диалоге, если он появился при открытии книги. */
-async function pickWorkspaceIfAsked(page: import('@playwright/test').Page) {
-  const list = page.getByTestId('workspace-picker-list');
-  if (await list.isVisible().catch(() => false)) {
-    await page.getByTestId('workspace-picker-item').first().click();
-  }
-}
-
 test('состав и активная вкладка восстанавливаются после перезагрузки', async ({ page }) => {
   await page.addInitScript((active) => {
     (window as unknown as { __TEXTURE_MOCK_OVERRIDES__: unknown }).__TEXTURE_MOCK_OVERRIDES__ = {
