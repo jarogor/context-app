@@ -439,6 +439,9 @@ test('нажатие на путь файла выбирает вкладку: �
   const panel = booksPanel(page);
   // Первая вкладка неактивна: активна последняя после дублирования.
   const path = panel.getByTestId('open-books-item-path').first();
+  // Панель подводит к активной строке, поэтому первая может быть за пределами
+  // видимой части: без прокрутки клик пришёлся бы мимо строки.
+  await path.scrollIntoViewIfNeeded();
   const box = await path.boundingBox();
   if (!box) {
     throw new Error('путь не найден');

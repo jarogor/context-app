@@ -64,9 +64,12 @@ test('меню в строке вкладки стоит так же, как м�
       if (!button) return null;
       const rowBox = element.getBoundingClientRect();
       const buttonBox = button.getBoundingClientRect();
+      const style = getComputedStyle(element);
       return {
+        // Отступ от внутреннего края строки: у строк разный padding, а меню
+        // в обоих списках прижато к содержимому, а не к внешней границе.
+        inset: Math.round(rowBox.right - buttonBox.right - parseFloat(style.paddingRight)),
         top: Math.round(buttonBox.top - rowBox.top),
-        right: Math.round(rowBox.right - buttonBox.right),
         bottom: Math.round(rowBox.bottom - buttonBox.bottom),
         width: Math.round(buttonBox.width),
         height: Math.round(buttonBox.height),
@@ -104,9 +107,10 @@ test('меню в строке вкладки стоит так же, как м�
       if (!button) return null;
       const rowBox = element.getBoundingClientRect();
       const buttonBox = button.getBoundingClientRect();
+      const style = getComputedStyle(element);
       return {
+        inset: Math.round(rowBox.right - buttonBox.right - parseFloat(style.paddingRight)),
         top: Math.round(buttonBox.top - rowBox.top),
-        right: Math.round(rowBox.right - buttonBox.right),
         bottom: Math.round(rowBox.bottom - buttonBox.bottom),
         width: Math.round(buttonBox.width),
         height: Math.round(buttonBox.height),
@@ -119,7 +123,7 @@ test('меню в строке вкладки стоит так же, как м�
   // Одинаковый вид меню: те же размеры и отступы, что в списке заметок.
   expect(tabMenu!.height).toBe(noteMenu!.height);
   expect(tabMenu!.width).toBe(noteMenu!.width);
-  expect(Math.abs(tabMenu!.right - noteMenu!.right)).toBeLessThanOrEqual(1);
+  expect(Math.abs(tabMenu!.inset - noteMenu!.inset)).toBeLessThanOrEqual(1);
   expect(Math.abs(tabMenu!.top - noteMenu!.top)).toBeLessThanOrEqual(1);
   expect(Math.abs(tabMenu!.bottom - noteMenu!.bottom)).toBeLessThanOrEqual(1);
 });
@@ -156,7 +160,7 @@ test('номер, описание и мета пункта вкладки на�
       number: left('[data-testid="open-books-item-number"]'),
       description: left('[data-testid="open-books-item-description"]'),
       meta: left('[data-testid="open-books-item-meta"]'),
-      title: left('[aria-pressed]'),
+      title: left('.role-body'),
       bottom: bottom('[data-testid="open-books-item-meta"]'),
     };
   });
