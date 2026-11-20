@@ -3,7 +3,7 @@
   import { Button, Icon } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { openAvailability } from './workplace';
-  import { tabColorMark, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabColorMark, tabLabel, tabTooltip } from './tab-appearance';
   import { hotkeyHint } from '../hotkeys/registry';
   import { logEvent } from '../../shared/app-log';
 
@@ -105,9 +105,6 @@
 
   /** Пользовательский цвет вкладки — на номере, как в списке вкладок. */
   const mark = $derived(tab ? tabColorMark(tab.color, { active: true }) : undefined);
-
-  /** Подпись формата книги: показывает, какой файл открыт. */
-  const format = $derived(tab ? tabFormatLabel(tab) : undefined);
 </script>
 
 <!--
@@ -199,13 +196,6 @@
           <span class="min-w-0 truncate role-subtitle" data-testid="workplace-tab"
             >{tabLabel(tab)}</span
           >
-          {#if format}
-            <span
-              class="shrink-0 rounded-[calc(var(--radius)*0.5)] bg-[var(--control-surface)] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide text-[var(--muted-foreground)]"
-              data-testid="workplace-active-format"
-              >{format}</span
-            >
-          {/if}
         </span>
         <!--
           Путь стоит под названием приглушённой подписью: он называет файл, но не

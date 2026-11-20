@@ -81,9 +81,7 @@ async function duplicateActive(page: import('@playwright/test').Page, times: num
   }
 }
 
-test('панель активной вкладки показывает номер, название, формат и путь книги', async ({
-  page,
-}) => {
+test('панель активной вкладки показывает номер, название и путь книги', async ({ page }) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');
 
@@ -91,7 +89,6 @@ test('панель активной вкладки показывает номе
   await expect(active).toBeVisible();
   await expect(active.getByTestId('workplace-tab-number')).toHaveText('1');
   await expect(active.getByTestId('workplace-tab')).toHaveText('Демо-книга');
-  await expect(active.getByTestId('workplace-active-format')).toHaveText('EPUB');
 
   // Путь стоит под названием и виден целиком: панель широкая, обрезки нет.
   const path = active.getByTestId('workplace-active-path');

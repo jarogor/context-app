@@ -169,7 +169,7 @@
           data-testid="nav-settings"
           onclick={onSettings}
         >
-          <Icon name="menu" class="size-[calc(var(--spacing)*4.5)]" />
+          <Icon name="gear" class="size-[calc(var(--spacing)*4.5)]" />
           {#if settingsAlert}
             <!-- Точка в углу кнопки: в настройках есть важное, не открывая их. -->
             <span
