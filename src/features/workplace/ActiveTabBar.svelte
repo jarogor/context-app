@@ -118,25 +118,58 @@
   название и путь под ним. Места в одной строке достаточно на всю ширину окна,
   поэтому путь помещается целиком, а не обрезается, как в узкой вкладке.
 
-  Справа — действия над этой книгой: заметки, свойства, сосредоточенное чтение
-  и добавление. Так одна активная вкладка открывает сразу всё пространство
-  работы с книгой.
+  Слева — открытие книги: переключатель списка вкладок и добавление новой книги.
+  Это одно действие: вкладку создаёт новая книга. Справа — действия над уже
+  открытой книгой: заметки, свойства и сосредоточенное чтение. Так одна активная
+  вкладка открывает сразу всё пространство работы с книгой.
 -->
 <div
   class="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 overflow-hidden bg-[var(--app-bar-strip)] px-3 py-2 large-tablet:flex-nowrap [--control-surface:var(--strip-control-surface)]"
   data-testid="workplace-tabs"
 >
-  <Button
-    variant={booksOpen ? 'primary' : 'ghost'}
-    size="icon"
-    title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
-    ariaLabel={t('app.workplace.tabs')}
-    ariaPressed={booksOpen}
-    testId="workplace-books-toggle"
-    onclick={onToggleBooks}
-  >
-    <Icon name="tabs" />
-  </Button>
+  <!--
+    Открытие вкладки и открытие книги — одно действие: новую вкладку создаёт
+    новая книга. Поэтому добавление стоит рядом с переключателем списка вкладок,
+    а не среди действий над текущей книгой.
+  -->
+  <div class="flex flex-none items-center gap-0.5" data-testid="workplace-open-actions">
+    <Button
+      variant={booksOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.books', t('app.workplace.tabs'))}
+      ariaLabel={t('app.workplace.tabs')}
+      ariaPressed={booksOpen}
+      testId="workplace-books-toggle"
+      onclick={onToggleBooks}
+    >
+      <Icon name="tabs" />
+    </Button>
+    <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
+      <Button
+        size="icon"
+        variant={overLimit ? 'ghost-danger' : 'ghost'}
+        ariaLabel={t('app.workplace.addBook')}
+        disabled={openBlocked}
+        onclick={onAdd}
+      >
+        <Icon name="plus" />
+      </Button>
+    </span>
+    <span
+      class="flex"
+      title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
+    >
+      <Button
+        size="icon"
+        variant={overLimit ? 'ghost-danger' : 'ghost'}
+        ariaLabel={t('app.workplace.addFile')}
+        disabled={openBlocked}
+        onclick={onAddFile}
+      >
+        <Icon name="folder" />
+      </Button>
+    </span>
+  </div>
 
   {#if tab}
     <div
@@ -192,9 +225,10 @@
   {/if}
 
   <!--
-    Действия над активной книгой. Панели, сосредоточенное чтение и добавление
-    стоят одним рядом справа: состав панели от их состояния не меняется, поэтому
-    нажатие не сдвигает соседние кнопки.
+    Действия над активной книгой. Панели и сосредоточенное чтение стоят одним
+    рядом справа: состав панели от их состояния не меняется, поэтому нажатие не
+    сдвигает соседние кнопки. Добавление сюда не входит — оно открывает новую
+    книгу, а не действует на текущую.
   -->
   <div
     class="ml-auto flex flex-none items-center gap-0.5 large-tablet:ml-0"
@@ -238,30 +272,5 @@
         <Icon name="focus" />
       </Button>
     {/if}
-    <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
-      <Button
-        size="icon"
-        variant={overLimit ? 'ghost-danger' : 'ghost'}
-        ariaLabel={t('app.workplace.addBook')}
-        disabled={openBlocked}
-        onclick={onAdd}
-      >
-        <Icon name="plus" />
-      </Button>
-    </span>
-    <span
-      class="flex"
-      title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
-    >
-      <Button
-        size="icon"
-        variant={overLimit ? 'ghost-danger' : 'ghost'}
-        ariaLabel={t('app.workplace.addFile')}
-        disabled={openBlocked}
-        onclick={onAddFile}
-      >
-        <Icon name="folder" />
-      </Button>
-    </span>
   </div>
 </div>

@@ -186,9 +186,7 @@ test('дублирование вкладки создаёт независим�
   await expect(page.getByTestId('workplace-tab-number')).toHaveText('2');
 });
 
-test('переключение вкладки в списке подводит активную строку в видимую часть', async ({
-  page,
-}) => {
+test('переключение вкладки в списке подводит активную строку в видимую часть', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 600 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
@@ -202,7 +200,12 @@ test('переключение вкладки в списке подводит �
   await expect.poll(async () => await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 
   // Переключение на первую вкладку: строка в панели выше видимой части.
-  await panel.locator('[data-testid="open-books-item"]').first().getByRole('button').first().click();
+  await panel
+    .locator('[data-testid="open-books-item"]')
+    .first()
+    .getByRole('button')
+    .first()
+    .click();
 
   // Список панели подводит выбранную строку в видимую часть.
   await expect
@@ -671,6 +674,37 @@ test('на панели активной вкладки действия над 
   await expect(page.getByTestId('workplace-focus-toggle')).toBeVisible();
   await expect(page.getByLabel('Добавить книгу')).toBeVisible();
   await expect(page.getByLabel('Открыть файл с диска')).toBeVisible();
+});
+
+test('открытие книги стоит рядом с переключателем вкладок', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+
+  // Вкладку создаёт новая книга, поэтому добавление живёт в одной группе с
+  // переключателем списка вкладок, а не среди действий над текущей книгой.
+  const open = await page.getByTestId('workplace-open-actions').boundingBox();
+  const tabs = await page.getByTestId('workplace-books-toggle').boundingBox();
+  const add = await page.getByLabel('Добавить книгу').boundingBox();
+  const file = await page.getByLabel('Открыть файл с диска').boundingBox();
+  const actions = await page.getByTestId('workplace-tabs-actions').boundingBox();
+  const active = await page.getByTestId('workplace-active-tab').boundingBox();
+
+  expect(open).not.toBeNull();
+  expect(tabs).not.toBeNull();
+  expect(add).not.toBeNull();
+  expect(file).not.toBeNull();
+  expect(actions).not.toBeNull();
+  expect(active).not.toBeNull();
+
+  // Обе кнопки внутри группы открытия.
+  expect(tabs!.x).toBeGreaterThanOrEqual(open!.x);
+  expect(add!.x).toBeGreaterThanOrEqual(open!.x);
+  expect(file!.x + file!.width).toBeLessThanOrEqual(open!.x + open!.width + 1);
+
+  // Группа стоит слева от названия книги, действия над книгой — справа.
+  expect(open!.x + open!.width).toBeLessThan(active!.x);
+  expect(actions!.x).toBeGreaterThan(active!.x + active!.width);
 });
 
 test('высота панели совпадает с кнопками действий на любом масштабе окна', async ({ page }) => {
