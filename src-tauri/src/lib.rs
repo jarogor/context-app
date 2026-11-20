@@ -168,6 +168,8 @@ pub fn run() {
             commands::get_workspaces,
             commands::save_workspaces,
             commands::plugin_activation_pending,
+            commands::interface_mode,
+            commands::interface_scale,
             commands::theme_preference,
             commands::theme_palette,
             commands::interface_locale,

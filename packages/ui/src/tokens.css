@@ -202,33 +202,11 @@
   --elevation-overlay: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.12);
   --elevation-raised: none;
 
-  /* Размеры ролей текста. Объявлены переменными, чтобы широкие окна меняли
-   * набор одним движением, а утилиты ролей оставались единственным местом
-   * выбора кегля. Значения — ступень для ноутбука. */
-  --role-display-size: 1.5rem;
-  --role-heading-size: 1.125rem;
-  --role-title-size: 1rem;
-  --role-subtitle-size: 0.875rem;
-  --role-body-size: 0.875rem;
-  --role-small-size: 0.75rem;
-
-  /* Единая максимальная ширина контента страницы: широкие окна не растягивают
-   * списки в одну строку. На узком окне предел не действует. На больших
-   * мониторах предел растёт вместе с кеглем: иначе страница читалась бы узкой
-   * полосой посреди пустого окна. */
-  --content-max-width: 1440px;
-
-  /* Предел ширины страницы книги: колонка текста не растягивается на весь
-   * монитор, но на большом экране растёт ступенью вместе с набором. */
-  --book-page-max-width: 68rem;
-
-  /* Точки перелома интерфейса — единая шкала режимов (см. ROADMAP.md).
-   * `phone` — подступень смартфона, `tablet` — маленький планшет,
-   * `large-tablet` — большой планшет, `desktop` — десктоп,
-   * `large-desktop` — крупный десктоп, `huge-desktop` — очень крупный.
-   * Смена компоновки (навигация, панели, полосы управления) происходит ровно
-   * по одному порогу — `large-tablet`. Значения совпадают с утилитами Tailwind
-   * в `@theme inline` и с константами `src/shared/breakpoints.ts`. */
+  /* Точки перелома интерфейса. Режимов два: узкий (смартфон и планшет) и
+   * десктопный; граница — `large-tablet`, её выбирает настройка `interface.mode`
+   * (см. `src/shared/breakpoints.ts`). `phone` и `tablet` — подступени плотности
+   * внутри узкого режима: они меняют отступы и ширину полей, но не компоновку.
+   * Значения совпадают с утилитами Tailwind в `@theme inline`. */
   --breakpoint-phone: 30rem;
   --breakpoint-tablet: 48rem;
   --breakpoint-large-tablet: 64rem;
@@ -268,16 +246,56 @@
    * чтобы книга не сжималась до нечитаемой полоски. */
   --reader-column-min: 32rem;
 
-  /* Высота глобальной шапки и полосы контекста: единые для расчёта отступов. */
-  --app-bar-height: 3.25rem;
-  /* На широком окне шапка чуть выше: знак и действия читаются свободнее. */
-  --app-bar-height-wide: 3.5rem;
-  --context-bar-height: 3.5rem;
-
   /* Ширины боковых панелей на больших мониторах: панель не теряется рядом с
    * широким содержимым. */
   --notes-panel-width-wide: 23rem;
   --properties-panel-width-wide: 23rem;
+
+  /* Масштаб интерфейса — настройка пользователя.
+   *
+   * Шкала задана **одной** ступенью и умножается на `--ui-scale` — множитель,
+   * который выставляет оболочка из настройки `interface.scale`. Пользователь сам
+   * решает, крупнее или мельче должен быть интерфейс: широкий монитор сам по себе
+   * не повод делать текст больше.
+   *
+   * Масштабируется **шкала целиком**, а не отдельные роли: переопределяются
+   * переменные, из которых Tailwind строит все утилиты (`--spacing` — отступы,
+   * высоты и ширины; `--text-*` — кегли; `--radius` — скругления). Поэтому растут
+   * кнопки, поля, карточки, списки и панели во всём приложении, а не только текст.
+   *
+   * Базовый кегль `html` не меняется: масштабируется шкала утилит, а не документ,
+   * поэтому раскладка остаётся предсказуемой, а читалка книги (она масштабируется
+   * отдельно и живёт в изолированном документе) не затрагивается.
+   */
+
+  /* Множитель масштаба: `1` — исходная ступень. Оболочка выставляет его из
+   * настройки `interface.scale` (80–140%). */
+  --ui-scale: 1;
+
+  --spacing: calc(0.25rem * var(--ui-scale));
+  --text-xs: calc(0.75rem * var(--ui-scale));
+  --text-sm: calc(0.875rem * var(--ui-scale));
+  --text-base: calc(1rem * var(--ui-scale));
+  --text-lg: calc(1.125rem * var(--ui-scale));
+  --text-xl: calc(1.25rem * var(--ui-scale));
+  --text-2xl: calc(1.5rem * var(--ui-scale));
+  --radius: calc(0.5rem * var(--ui-scale));
+
+  /* Роли текста повторяют шкалу. */
+  --role-display-size: calc(1.5rem * var(--ui-scale));
+  --role-heading-size: calc(1.125rem * var(--ui-scale));
+  --role-title-size: calc(1rem * var(--ui-scale));
+  --role-subtitle-size: calc(0.875rem * var(--ui-scale));
+  --role-body-size: calc(0.875rem * var(--ui-scale));
+  --role-small-size: calc(0.75rem * var(--ui-scale));
+
+  /* Пределы и полосы растут вместе со шкалой: иначе на крупном масштабе
+   * интерфейс упирался бы в прежнюю ширину, а полосы становились низкими. */
+  --content-max-width: calc(1440px * var(--ui-scale));
+  --book-page-max-width: calc(68rem * var(--ui-scale));
+  --app-bar-height: calc(3.25rem * var(--ui-scale));
+  --app-bar-height-wide: calc(3.5rem * var(--ui-scale));
+  --context-bar-height: calc(3.5rem * var(--ui-scale));
 
   /* Палитра «Лён» по умолчанию, светлый набор. */
   --background: #eae5de;
@@ -304,7 +322,6 @@
   /* Единая тонкая обводка областей и контролов: одно значение для полей ввода,
    * кнопок, карточек и пунктов списков. */
   --ring: #145442;
-  --radius: 0.5rem;
   --sidebar: #ded8cf;
   --sidebar-foreground: #1e1b18;
   --sidebar-primary: #145442;
@@ -883,110 +900,4 @@
 
 .marker-black {
   background-color: rgba(31, 29, 26, 0.16);
-}
-
-/* Широкие окна: крупнее набор и просторнее страница.
- *
- * На мониторе от 1440px интерфейс, рассчитанный на ноутбук, читается мелким, а
- * предел ширины оставляет его узкой полосой посреди пустого окна. Здесь набор
- * растёт ступенью (не непрерывно с окном): роли текста, элементы управления и
- * предел ширины контента. Ступень выбрана так, чтобы на 27" экране строка
- * оставалась той же длины в знаках, а поля и кнопки — той же площади под
- * курсором. Базовый кегль `html` не меняется: масштабируется набор ролей, а не
- * весь документ, поэтому раскладка остаётся предсказуемой.
- */
-
-/* Общий масштаб интерфейса на больших мониторах.
- *
- * До этой ступени интерфейс рассчитан на ноутбук: на мониторе от 1440px набор
- * текста, отступы, высоты элементов и радиусы читаются мелкими, а окно остаётся
- * наполовину пустым. Ступень поднимает **шкалу целиком**, а не отдельные роли:
- * переопределяются переменные, из которых Tailwind строит все утилиты
- * (`--spacing` — отступы, высоты и ширины; `--text-*` — кегли; `--radius` —
- * скругления). Поэтому растут кнопки, поля, карточки, списки и панели во всём
- * приложении, а не только текст.
- *
- * Базовый кегль `html` не меняется: масштабируется шкала утилит, а не документ,
- * поэтому раскладка остаётся предсказуемой, а читалка книги (она масштабируется
- * отдельно и живёт в изолированном документе) не затрагивается.
- */
-
-/* Шаг 1: монитор от 1440px — шкала на четверть крупнее. */
-@media (min-width: 90rem) {
-  :root {
-    --spacing: 0.28125rem;
-    --text-xs: 0.84375rem;
-    --text-sm: 0.984375rem;
-    --text-base: 1.125rem;
-    --text-lg: 1.265625rem;
-    --text-xl: 1.40625rem;
-    --text-2xl: 1.6875rem;
-    --radius: 0.5625rem;
-
-    /* Сетка страницы: колонки списков и полки растут вместе с набором. */
-    --container-sm: 24rem;
-    --container-md: 28rem;
-    --container-lg: 32rem;
-    --container-xl: 36rem;
-    --container-2xl: 42rem;
-    --container-3xl: 48rem;
-    --container-4xl: 56rem;
-    --container-5xl: 64rem;
-    --container-6xl: 72rem;
-    --container-7xl: 80rem;
-
-    /* Роли текста повторяют ступень шкалы. */
-    --role-display-size: 1.75rem;
-    --role-heading-size: 1.25rem;
-    --role-title-size: 1.125rem;
-    --role-subtitle-size: 0.984375rem;
-    --role-body-size: 0.984375rem;
-    --role-small-size: 0.84375rem;
-
-    --content-max-width: 1600px;
-    --book-page-max-width: 80rem;
-    --app-bar-height: 3.75rem;
-    --app-bar-height-wide: 4rem;
-    --context-bar-height: 4rem;
-    --notes-panel-width: var(--notes-panel-width-wide);
-    --properties-panel-width: var(--properties-panel-width-wide);
-  }
-}
-
-/* Шаг 2: очень большой монитор от 1920px — шкала на половину крупнее базовой. */
-@media (min-width: 120rem) {
-  :root {
-    --spacing: 0.3125rem;
-    --text-xs: 0.9375rem;
-    --text-sm: 1.09375rem;
-    --text-base: 1.25rem;
-    --text-lg: 1.40625rem;
-    --text-xl: 1.5625rem;
-    --text-2xl: 1.875rem;
-    --radius: 0.625rem;
-
-    --container-sm: 26rem;
-    --container-md: 30rem;
-    --container-lg: 34rem;
-    --container-xl: 38rem;
-    --container-2xl: 44rem;
-    --container-3xl: 50rem;
-    --container-4xl: 58rem;
-    --container-5xl: 66rem;
-    --container-6xl: 74rem;
-    --container-7xl: 82rem;
-
-    --role-display-size: 2rem;
-    --role-heading-size: 1.375rem;
-    --role-title-size: 1.25rem;
-    --role-subtitle-size: 1.09375rem;
-    --role-body-size: 1.09375rem;
-    --role-small-size: 0.9375rem;
-
-    --content-max-width: 1840px;
-    --book-page-max-width: 92rem;
-    --app-bar-height: 4rem;
-    --app-bar-height-wide: 4.25rem;
-    --context-bar-height: 4.25rem;
-  }
 }

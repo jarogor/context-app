@@ -176,6 +176,8 @@ describe('загрузка начального состояния', () => {
       readerTheme: 'dark',
       readerFont: 'sans',
       locale: 'en',
+      interfaceMode: 'auto',
+      interfaceScale: 100,
     });
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.documentElement.dataset.palette).toBe('frost');
@@ -216,6 +218,8 @@ describe('загрузка начального состояния', () => {
       readerTheme: 'light',
       readerFont: 'serif',
       locale: 'ru',
+      interfaceMode: 'auto',
+      interfaceScale: 100,
     });
     expect(document.documentElement.dataset.theme).toBe('light');
     expect(document.documentElement.dataset.palette).toBe('mist');

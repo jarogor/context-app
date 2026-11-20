@@ -187,7 +187,7 @@
     <div class="flex flex-col gap-1.5">
       <Select
         id={controlId}
-        class="max-w-[26.25rem]"
+        class="w-fit min-w-[8rem] max-w-[26.25rem]"
         value={text()}
         items={selectOptions}
         ariaLabel={label || undefined}

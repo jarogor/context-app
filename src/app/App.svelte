@@ -73,7 +73,7 @@
   import { invokeCommand, listenEvent, openDialog } from '../shared/app-bridge';
   import { hotkeys } from '../features/hotkeys';
   import { dismissTopLayer } from '../features/hotkeys/dismiss-layer';
-  import { NARROW_MAX_WIDTH } from '../shared/breakpoints';
+  import { modeForWidth, NARROW_MAX_WIDTH } from '../shared/breakpoints';
   import { activeLibrary as fetchActiveLibrary } from '../shared/base-plugin';
   import { lastSegment } from '../shared/path';
   import {
@@ -91,6 +91,13 @@
     THEME_SETTING_KEY,
     themeFromSettingsEvent,
   } from '../features/appearance/theme';
+  import {
+    applyInterfaceMode,
+    applyInterfaceScale,
+    interfaceModeFromSettingsEvent,
+    interfaceScaleFromSettingsEvent,
+    type InterfaceMode,
+  } from '../features/appearance/interface-mode';
   import { saveSettingsValues } from '../features/settings/settings';
   import { applyAppLocale, localeFromSettingsEvent } from '../features/appearance/locale';
   import { currentLocale, t } from '@context/i18n';
@@ -296,6 +303,23 @@
 
   /** Лимит числа открытых вкладок рабочего места. */
   let openTabsLimit = $state(untrack(() => normalizeOpenTabsLimit(initialOpenTabsLimit)));
+
+  /** Выбор режима интерфейса из настроек: `auto`, `tablet` или `desktop`. */
+  let interfaceMode = $state<InterfaceMode>(untrack(() => initialAppearance.interfaceMode ?? 'auto'));
+
+  /** Масштаб шкалы интерфейса в процентах. */
+  let interfaceScale = $state<number>(untrack(() => initialAppearance.interfaceScale ?? 100));
+
+  /**
+   * Пересчёт узкой раскладки по ширине окна и выбранному режиму.
+   *
+   * Принудительный «Планшет» держит узкую раскладку и на широком окне, поэтому
+   * режим решается не одной шириной, а парой «ширина + выбор пользователя».
+   */
+  function syncMobileMode(narrow: boolean): void {
+    mobileWindow = (interfaceMode === 'auto' ? modeForWidth(narrow) : interfaceMode) === 'tablet';
+    booksPanelOpen = !mobileWindow;
+  }
 
   /** Активная палитра оформления: общий реестр дизайн-системы. */
   let palette = $state<PaletteId>(
@@ -1134,14 +1158,12 @@
     // Отслеживание ширины окна: на телефонной ширине вкладки разделов уходят из
     // верхней панели в нижнюю полосу.
     const mobileQuery = window.matchMedia(NARROW_MAX_WIDTH);
-    mobileWindow = mobileQuery.matches;
-    // Список вкладок открыт по умолчанию только там, где он стоит рядом с
-    // книгой. На телефоне панель занимает всю ширину области и накрыла бы
-    // книгу, поэтому там она закрыта, как и прежде.
-    booksPanelOpen = !mobileWindow;
+    syncMobileMode(mobileQuery.matches);
     const onMobileChange = (event: MediaQueryListEvent) => {
-      mobileWindow = event.matches;
-      booksPanelOpen = !event.matches;
+      // Принудительный выбор не зависит от ширины: пересчёт нужен только «Авто».
+      if (interfaceMode === 'auto') {
+        syncMobileMode(event.matches);
+      }
     };
     mobileQuery.addEventListener('change', onMobileChange);
     // Тема операционной системы нужна кнопке в шапке: при предпочтении «как в
@@ -1213,6 +1235,25 @@
         const nextOpenTabsLimit = openTabsLimitFromSettingsEvent(value);
         if (nextOpenTabsLimit !== null && nextOpenTabsLimit !== openTabsLimit) {
           openTabsLimit = nextOpenTabsLimit;
+        }
+        // Режим интерфейса выбирается в настройках. Смена режима пересчитывает
+        // раскладку сразу: принудительный выбор не ждёт изменения ширины окна.
+        const nextInterfaceMode = interfaceModeFromSettingsEvent(value);
+        if (nextInterfaceMode !== null && nextInterfaceMode !== interfaceMode) {
+          interfaceMode = nextInterfaceMode;
+          applyInterfaceMode(
+            nextInterfaceMode === 'auto'
+              ? modeForWidth(window.matchMedia(NARROW_MAX_WIDTH).matches)
+              : nextInterfaceMode,
+          );
+          syncMobileMode(window.matchMedia(NARROW_MAX_WIDTH).matches);
+        }
+        // Масштаб шкалы меняется в настройках; применяется одной переменной и
+        // пересчитывает всю шкалу без перезапуска.
+        const nextInterfaceScale = interfaceScaleFromSettingsEvent(value);
+        if (nextInterfaceScale !== null && nextInterfaceScale !== interfaceScale) {
+          interfaceScale = nextInterfaceScale;
+          applyInterfaceScale(nextInterfaceScale);
         }
         // Язык интерфейса применяется к текстам и формату дат целиком: смена
         // настройки перерисовывает все области без перезапуска.

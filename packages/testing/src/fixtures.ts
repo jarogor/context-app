@@ -88,6 +88,38 @@ const SETTINGS_FIELDS: Record<
       ],
     },
     {
+      key: 'interface.mode',
+      title: 'app.settings.app.general.interface.mode.label',
+      type: 'select',
+      default: 'auto',
+      description: 'app.settings.app.general.interface.mode.description',
+      options: [
+        {
+          value: 'auto',
+          title: 'app.settings.app.general.interface.mode.option.auto',
+        },
+        {
+          value: 'tablet',
+          title: 'app.settings.app.general.interface.mode.option.tablet',
+        },
+        {
+          value: 'desktop',
+          title: 'app.settings.app.general.interface.mode.option.desktop',
+        },
+      ],
+    },
+    {
+      key: 'interface.scale',
+      title: 'app.settings.app.general.interface.scale.label',
+      type: 'select',
+      default: '100',
+      description: 'app.settings.app.general.interface.scale.description',
+      options: [70, 80, 90, 100, 110, 125, 150, 175, 200].map((step) => ({
+        value: String(step),
+        title: `${step}%`,
+      })),
+    },
+    {
       key: 'window.open_tabs_limit',
       title: 'app.settings.app.general.window.open_tabs_limit.label',
       type: 'number',
@@ -114,6 +146,8 @@ const SETTINGS_VALUES: Record<string, Record<string, unknown>> = {
     'reader.theme': 'light',
     'reader.font': 'serif',
     'window.open_tabs_limit': 50,
+    'interface.mode': 'auto',
+    'interface.scale': '100',
   },
 };
 
@@ -885,6 +919,8 @@ export function defaultMockConfig(): MockBridgeConfig {
       reader_theme: () => SETTINGS_VALUES['app.general']['reader.theme'],
       reader_font: () => SETTINGS_VALUES['app.general']['reader.font'],
       window_open_tabs_limit: () => SETTINGS_VALUES['app.general']['window.open_tabs_limit'],
+      interface_mode: () => SETTINGS_VALUES['app.general']['interface.mode'],
+      interface_scale: () => SETTINGS_VALUES['app.general']['interface.scale'],
       show_window: () => null,
       app_title_set: () => null,
       app_name_set: () => null,

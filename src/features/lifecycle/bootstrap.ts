@@ -31,6 +31,16 @@ import {
 import { applyAppLocale, loadInterfaceLocale } from '../appearance/locale';
 import { DEFAULT_LOCALE, type Locale } from '@context/i18n';
 import {
+  DEFAULT_INTERFACE_MODE,
+  DEFAULT_INTERFACE_SCALE,
+  applyInterfaceMode,
+  applyInterfaceScale,
+  loadInterfaceMode,
+  loadInterfaceScale,
+  type InterfaceMode,
+} from '../appearance/interface-mode';
+import { modeForWidth, NARROW_MAX_WIDTH } from '../../shared/breakpoints';
+import {
   DEFAULT_PALETTE,
   DEFAULT_READER_FONT,
   DEFAULT_READER_THEME,
@@ -90,6 +100,10 @@ export interface AppearanceBootstrap {
   readerFont: ReaderFontId;
   /** Язык интерфейса, применённый до первого рендера. */
   locale: Locale;
+  /** Выбор режима интерфейса из настроек. */
+  interfaceMode: InterfaceMode;
+  /** Масштаб шкалы интерфейса в процентах. */
+  interfaceScale: number;
 }
 
 /** Декларации интерфейса настроек и ошибка их загрузки на бутстрапе. */
@@ -184,13 +198,16 @@ async function loadWorkspaceCovers(registry: unknown): Promise<void> {
  * светлая область чтения) и не прерывает вход.
  */
 async function applyAppearance(): Promise<AppearanceBootstrap> {
-  const [theme, palette, readerTheme, readerFont, locale] = await Promise.all([
-    loadThemePreference().catch(() => 'system' as ThemePreference),
-    loadThemePalette().catch(() => DEFAULT_PALETTE),
-    loadReaderTheme().catch(() => DEFAULT_READER_THEME),
-    loadReaderFont().catch(() => DEFAULT_READER_FONT),
-    loadInterfaceLocale().catch(() => DEFAULT_LOCALE),
-  ]);
+  const [theme, palette, readerTheme, readerFont, locale, interfaceMode, interfaceScale] =
+    await Promise.all([
+      loadThemePreference().catch(() => 'system' as ThemePreference),
+      loadThemePalette().catch(() => DEFAULT_PALETTE),
+      loadReaderTheme().catch(() => DEFAULT_READER_THEME),
+      loadReaderFont().catch(() => DEFAULT_READER_FONT),
+      loadInterfaceLocale().catch(() => DEFAULT_LOCALE),
+      loadInterfaceMode().catch(() => DEFAULT_INTERFACE_MODE),
+      loadInterfaceScale().catch(() => DEFAULT_INTERFACE_SCALE),
+    ]);
   applyAppThemeTracked(theme);
   applyAppPalette(palette);
   applyAppReaderTheme(readerTheme);
@@ -198,9 +215,17 @@ async function applyAppearance(): Promise<AppearanceBootstrap> {
   // Язык применяется до первого кадра: экран загрузки и оболочка читают одни
   // и те же словари, и подмена языка не видна пользователю.
   applyAppLocale(locale);
+  // Режим и масштаб применяются до первого кадра: иначе окно успело бы
+  // показаться в чужой раскладке и дёрнулось бы на первом рендере.
+  const narrow =
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(NARROW_MAX_WIDTH).matches
+      : false;
+  applyInterfaceMode(interfaceMode === 'auto' ? modeForWidth(narrow) : interfaceMode);
+  applyInterfaceScale(interfaceScale);
   // Зеркало оформления для статичного экрана загрузки следующего запуска.
   persistBootAppearance({ theme, palette });
-  return { theme, palette, readerTheme, readerFont, locale };
+  return { theme, palette, readerTheme, readerFont, locale, interfaceMode, interfaceScale };
 }
 
 /** Загрузка деклараций настроек; ошибка даёт пустое пространство с диагностикой. */

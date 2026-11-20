@@ -13,6 +13,10 @@
   import { normalizeRegistry } from '../features/workplace/workspace-registry';
   import { DEFAULT_OPEN_TABS_LIMIT } from '../features/workplace/workplace';
   import { DEFAULT_PALETTE, DEFAULT_READER_FONT, DEFAULT_READER_THEME } from '@context/ui';
+  import {
+    DEFAULT_INTERFACE_MODE,
+    DEFAULT_INTERFACE_SCALE,
+  } from '../features/appearance/interface-mode';
   import { DEFAULT_LOCALE } from '@context/i18n';
 
   /** Фаза начальной загрузки приложения. */
@@ -37,6 +41,8 @@
     readerTheme: DEFAULT_READER_THEME,
     readerFont: DEFAULT_READER_FONT,
     locale: DEFAULT_LOCALE,
+    interfaceMode: DEFAULT_INTERFACE_MODE,
+    interfaceScale: DEFAULT_INTERFACE_SCALE,
   });
 
   /** Декларации настроек, загруженные до первого рендера. */

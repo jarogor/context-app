@@ -54,6 +54,8 @@ function appProps(sets: Array<Record<string, unknown>> = []) {
       readerTheme: 'light' as const,
       readerFont: 'serif' as const,
       locale: 'ru' as const,
+      interfaceMode: 'auto' as const,
+      interfaceScale: 100,
     },
     initialSettings: { declarations: [], error: '' },
     initialStore: { plugins: [], stores: [], activationPending: false, error: '' },

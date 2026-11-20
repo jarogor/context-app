@@ -659,4 +659,13 @@ export const ru = {
   'app.settings.app.general.window.open_tabs_limit.label': 'Лимит открытых вкладок',
   'app.settings.app.general.window.open_tabs_limit.description':
     'Наибольшее число одновременно открытых вкладок рабочего места.',
+  'app.settings.app.general.interface.mode.label': 'Режим интерфейса',
+  'app.settings.app.general.interface.mode.description':
+    'Какой вид интерфейса включить. «Авто» выбирает по ширине окна.',
+  'app.settings.app.general.interface.mode.option.auto': 'Авто',
+  'app.settings.app.general.interface.mode.option.tablet': 'Планшет',
+  'app.settings.app.general.interface.mode.option.desktop': 'Десктоп',
+  'app.settings.app.general.interface.scale.label': 'Масштаб, %',
+  'app.settings.app.general.interface.scale.description':
+    'Масштаб интерфейса.',
 } as const;

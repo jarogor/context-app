@@ -5,6 +5,38 @@
 @source '../../packages/ui/src';
 
 /*
+ * Режим интерфейса выбирает пользователь в настройках (`interface.mode`):
+ * «Авто» следует ширине окна, «Планшет» и «Десктоп» задают режим принудительно.
+ * Поэтому компоновочные утилиты смотрят не только на ширину, но и на атрибут
+ * `data-ui-mode` на корне документа.
+ *
+ * Переопределены ровно две утилиты — те, что меняют раскладку: `large-tablet:`
+ * (десктопный режим) и `max-large-tablet:` (узкий). Подступени плотности
+ * (`phone:`, `tablet:`) остаются медиазапросами: они ширину не отменяют.
+ */
+@custom-variant large-tablet {
+  @media (min-width: 64rem) {
+    &:where(:root[data-ui-mode='auto'] *) {
+      @slot;
+    }
+  }
+  &:where(:root[data-ui-mode='desktop'] *) {
+    @slot;
+  }
+}
+
+@custom-variant max-large-tablet {
+  @media (width < 64rem) {
+    &:where(:root[data-ui-mode='auto'] *) {
+      @slot;
+    }
+  }
+  &:where(:root[data-ui-mode='tablet'] *) {
+    @slot;
+  }
+}
+
+/*
  * Обводок в интерфейсе нет: границы блоков, полей и карточек не рисуются
  * контуром. Отделение одного блока от другого задаётся фоном (ступени
  * `--background` → `--panel` → `--card` → `--control-surface`) и тенью у

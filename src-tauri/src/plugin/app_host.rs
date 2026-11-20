@@ -60,6 +60,36 @@ const APP_SETTINGS_SCHEMA: &str = r#"{
           "type": "number",
           "description": "app.settings.app.general.window.open_tabs_limit.description",
           "default": 50
+        },
+        {
+          "key": "interface.mode",
+          "title": "app.settings.app.general.interface.mode.label",
+          "type": "select",
+          "description": "app.settings.app.general.interface.mode.description",
+          "default": "auto",
+          "options": [
+            { "value": "auto", "title": "app.settings.app.general.interface.mode.option.auto" },
+            { "value": "tablet", "title": "app.settings.app.general.interface.mode.option.tablet" },
+            { "value": "desktop", "title": "app.settings.app.general.interface.mode.option.desktop" }
+          ]
+        },
+        {
+          "key": "interface.scale",
+          "title": "app.settings.app.general.interface.scale.label",
+          "type": "select",
+          "description": "app.settings.app.general.interface.scale.description",
+          "default": "100",
+          "options": [
+            { "value": "70", "title": "70%" },
+            { "value": "80", "title": "80%" },
+            { "value": "90", "title": "90%" },
+            { "value": "100", "title": "100%" },
+            { "value": "110", "title": "110%" },
+            { "value": "125", "title": "125%" },
+            { "value": "150", "title": "150%" },
+            { "value": "175", "title": "175%" },
+            { "value": "200", "title": "200%" }
+          ]
         }
       ]
     }
@@ -388,6 +418,49 @@ impl AppPluginHost {
             .filter(|value| value.is_finite())
             .map(|value| u32::try_from((value.trunc() as i64).max(1)).unwrap_or(DEFAULT_LIMIT))
             .unwrap_or(DEFAULT_LIMIT)
+    }
+
+    /// Выбор режима интерфейса из настроек приложения.
+    ///
+    /// `auto` — следовать ширине окна; `tablet` и `desktop` задают режим
+    /// принудительно. Неизвестное или отсутствующее значение трактуется как
+    /// `auto`, чтобы интерфейс не оказался заперт в чужом режиме.
+    pub fn interface_mode(&mut self) -> String {
+        match self.app_setting_string("interface.mode").as_deref() {
+            Some("tablet") => "tablet".to_string(),
+            Some("desktop") => "desktop".to_string(),
+            _ => "auto".to_string(),
+        }
+    }
+
+    /// Масштаб шкалы интерфейса из настроек приложения, процентов.
+    ///
+    /// Допустимые значения — ступени прогрессивной шкалы: 70, 80, 90, 100, 110,
+    /// 125, 150, 175, 200. Ступень выбрана из списка, поэтому между ними нет
+    /// произвольных значений: масштаб меняется заметно, а не по проценту.
+    /// Неизвестное или отсутствующее значение трактуется как `100`; значение
+    /// между ступенями приводится к ближайшей ступени.
+    pub fn interface_scale(&mut self) -> String {
+        const DEFAULT_SCALE: u32 = 100;
+        const STEPS: [u32; 9] = [70, 80, 90, 100, 110, 125, 150, 175, 200];
+        let percent = self
+            .app_setting_value("interface.scale")
+            .and_then(|value| {
+                value
+                    .as_f64()
+                    .or_else(|| value.as_str().and_then(|text| text.parse::<f64>().ok()))
+            })
+            .filter(|value| value.is_finite())
+            .map(|value| value.round() as i64);
+        let Some(percent) = percent else {
+            return DEFAULT_SCALE.to_string();
+        };
+        let nearest = STEPS
+            .iter()
+            .copied()
+            .min_by_key(|step| (i64::from(*step) - percent).abs())
+            .unwrap_or(DEFAULT_SCALE);
+        nearest.to_string()
     }
 
     /// Чтение строкового значения из секции настроек приложения.

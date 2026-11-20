@@ -212,6 +212,15 @@ export const en: Dictionary = {
   'app.settings.app.general.window.open_tabs_limit.label': 'Open tabs limit',
   'app.settings.app.general.window.open_tabs_limit.description':
     'Maximum number of open workspace tabs.',
+  'app.settings.app.general.interface.mode.label': 'Interface mode',
+  'app.settings.app.general.interface.mode.description':
+    'Which interface layout to use. “Auto” chooses by window width.',
+  'app.settings.app.general.interface.mode.option.auto': 'Auto',
+  'app.settings.app.general.interface.mode.option.tablet': 'Tablet',
+  'app.settings.app.general.interface.mode.option.desktop': 'Desktop',
+  'app.settings.app.general.interface.scale.label': 'Scale, %',
+  'app.settings.app.general.interface.scale.description':
+    'Size of the whole interface: text, buttons, padding.',
   'app.settings.app.owner': 'Application',
 
   'app.workspace.title': 'Workspace',
