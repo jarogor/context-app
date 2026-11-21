@@ -23,7 +23,7 @@ test('выбор языка переводит интерфейс без пер�
   // настроек и меню разделов уже английские.
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   // Шапка настроек называет раздел постоянно, а не выбранную страницу.
-  await expect(page.getByTestId('settings-header')).toContainText('Settings');
+  await expect(page.getByTestId('page-header')).toContainText('Settings');
   await expect(page.locator('main').getByRole('button', { name: 'General' })).toBeVisible();
   // Поле осталось выбранным и показывает тот же язык уже по-английски.
   await expect(

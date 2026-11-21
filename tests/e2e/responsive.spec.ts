@@ -98,29 +98,22 @@ test('все основные экраны без горизонтальной �
   }
 });
 
-test('меню разделов настроек на телефоне — полоса сверху, на большом планшете — колонка', async ({
-  page,
-}) => {
-  // Телефон: настройки открываются из нижней навигации, меню разделов — полоса.
-  await page.setViewportSize({ width: 390, height: 800 });
-  await page.goto('/');
-  await page.getByTestId('nav-settings').click();
+test('разделы настроек стоят полосой под заголовком на любой ширине', async ({ page }) => {
+  // Настройки — такая же страница, как остальные разделы: разделы идут полосой
+  // в области управления, а не отдельной колонкой.
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/');
+    await page.getByTestId('nav-settings').click();
 
-  const menu = () => page.getByRole('navigation', { name: 'Разделы настроек' });
-  const narrow = await menu().boundingBox();
-  const page390 = 390;
-  expect(narrow).not.toBeNull();
-  // На телефоне меню занимает всю ширину области: это полоса, а не колонка.
-  expect(narrow!.width).toBeGreaterThan(page390 * 0.6);
-  await page.getByLabel('Закрыть настройки').click();
+    const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
+    const box = await menu.boundingBox();
+    expect(box, `окно ${width}`).not.toBeNull();
+    // Полоса занимает ширину области: колонки слева нет.
+    expect(box!.width, `окно ${width}`).toBeGreaterThan(width * 0.5);
 
-  // Десктоп: настройки открываются из левого меню, разделы — колонка.
-  await page.setViewportSize({ width: 1440, height: 800 });
-  await page.getByTestId('nav-settings').click();
-  const wide = await menu().boundingBox();
-  expect(wide).not.toBeNull();
-  // На десктопе меню — узкая колонка слева.
-  expect(wide!.width).toBeLessThan(page390);
+    await page.getByLabel('Закрыть настройки').click();
+  }
 });
 
 test('панель заметок на телефоне закрывается кнопкой', async ({ page }) => {

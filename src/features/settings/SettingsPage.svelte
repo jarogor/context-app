@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Button, ErrorToast, ScrollArea, UiRenderer, collectValues, createAsyncState } from '@context/ui';
+  import { Button, ErrorToast, UiRenderer, collectValues, createAsyncState } from '@context/ui';
   import { t } from '@context/i18n';
   import type { UiIntent, UiNode, UiSpaceDeclaration } from '@context/ui-schema';
   import { listenEvent } from '../../shared/app-bridge';
@@ -26,23 +26,12 @@
      * сохранение, черновик и подсветка изменений остаются общими.
      */
     only?: readonly string[];
-    /**
-     * Встроенный режим: без собственной прокрутки и рамки страницы.
-     *
-     * Нужен, когда секции рисуются внутри чужой страницы (например, в разделе
-     * «Система» рядом с обновлениями): внешняя прокрутка уже есть, а вложенная
-     * дала бы двойную полосу.
-     */
-    embedded?: boolean;
-  }
+    }
 
-  let { initialDeclarations, initialError = '', only, embedded = false }: Props = $props();
+  let { initialDeclarations, initialError = '', only }: Props = $props();
 
   /** Декларации пространства «секция настроек», отданные плагином. */
   let declarations = $state<NormalizedDeclaration[]>(untrack(() => initialDeclarations ?? []));
-
-  /** Постоянная нижняя панель сохранения: у встроенного режима её нет. */
-  const ownFooter = $derived(!embedded);
 
   /** Декларации с учётом фильтра секций. */
   const visible = $derived(
@@ -250,46 +239,31 @@
     другим фоном выбивалась из страницы и читалась как чужая плашка.
 
     Панель закреплена снизу и не уезжает при прокрутке: правки копятся в
-    черновике, и кнопка должна быть под рукой. Встроенный режим показывает её
-    только при несохранённых правках — страница-хозяин живёт без постоянной
-    полосы.
+    черновике, и кнопка должна быть под рукой.
   -->
-  {#if ownFooter || dirty}
+  <div
+    class="flex flex-none px-4 pb-[max(0.75rem,var(--safe-bottom))] tablet:px-6"
+    data-testid="settings-footer"
+  >
     <div
-      class="flex flex-none px-4 tablet:px-6 {embedded ? '' : 'pb-[max(0.75rem,var(--safe-bottom))]'}"
-      data-testid="settings-footer"
+      class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] bg-[var(--card)] px-4 py-3"
     >
-      <div
-        class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] bg-[var(--card)] px-4 py-3"
-      >
-        <span class="role-caption text-[var(--muted-foreground)]">
-          {dirty ? t('app.settings.dirty') : t('app.settings.saved')}
-        </span>
-        <Button variant="primary" disabled={!dirty} onclick={save}>{t('app.action.save')}</Button>
-      </div>
+      <span class="role-caption text-[var(--muted-foreground)]">
+        {dirty ? t('app.settings.dirty') : t('app.settings.saved')}
+      </span>
+      <Button variant="primary" disabled={!dirty} onclick={save}>{t('app.action.save')}</Button>
     </div>
-  {/if}
+  </div>
 {/snippet}
 
-{#if embedded}
-  <!--
-    Встроенный режим: секции рисуются внутри чужой страницы (раздел «Система»).
-    Собственной прокрутки нет — она уже есть у страницы-хозяина; кнопка
-    сохранения остаётся, но без отдельной нижней панели.
-  -->
-  <div class="flex w-full flex-col gap-6" data-testid="settings-embedded">
-    {@render sectionsContent()}
-    {@render footerContent()}
-  </div>
-{:else}
-  <div class="flex min-h-0 flex-1 flex-col" data-testid="settings-page">
-    <ScrollArea testId="settings-sections" class="p-4 tablet:p-6">
-      <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-6">
-        {@render sectionsContent()}
-      </div>
-    </ScrollArea>
-    {@render footerContent()}
-  </div>
-{/if}
+<!--
+  Секции настроек — часть страницы раздела: собственной прокрутки и рамки у них
+  нет, её даёт страница-хозяин. Здесь остаются только сами секции и панель
+  сохранения, чтобы не появилось второй полосы прокрутки.
+-->
+<div class="flex w-full flex-col gap-6" data-testid="settings-embedded">
+  {@render sectionsContent()}
+  {@render footerContent()}
+</div>
 
 <ErrorToast message={asyncState.error} />

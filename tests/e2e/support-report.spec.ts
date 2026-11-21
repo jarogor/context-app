@@ -92,7 +92,7 @@ test('важное в настройках отмечается точкой н�
     .click();
 
   // Высота шапки до изменения: значок не должен её менять.
-  const headerHeightBefore = (await page.getByTestId('settings-header').boundingBox())!.height;
+  const headerHeightBefore = (await page.getByTestId('page-header').boundingBox())!.height;
 
   // Положение списка и источника до изменения: контекст сдвигаться не должен.
   const listBefore = await page.getByTestId('store-plugins').boundingBox();
@@ -109,7 +109,7 @@ test('важное в настройках отмечается точкой н�
   expect(sourceAfter!.y).toBe(sourceBefore!.y);
 
   // Значок стоит в шапке настроек — над разделом, а не внутри него.
-  const header = page.getByTestId('settings-header');
+  const header = page.getByTestId('page-header');
   const note = header.getByTestId('plugins-restart-note');
   await expect(note).toBeVisible();
   await expect(note).toHaveText('Нужен перезапуск');

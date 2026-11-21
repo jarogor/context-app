@@ -9,8 +9,7 @@
     ErrorToast,
     Icon,
     IconButton,
-    ScrollArea,
-    createAsyncState,
+      createAsyncState,
   } from '@context/ui';
   import { listenEvent, openDialog } from '../../shared/app-bridge';
   import AppInfoPage from '../settings/AppInfoPage.svelte';
@@ -452,8 +451,11 @@
   });
 </script>
 
-<ScrollArea testId="store-page" class="p-4 tablet:p-6">
-  <div class="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-5">
+<!--
+  Содержимое раздела без собственной прокрутки: её даёт страница-хозяин, иначе
+  внутри страницы появилась бы вторая полоса.
+-->
+<div class="flex w-full flex-col gap-5" data-testid="store-page">
     <!--
       Приложение и плагины — два самостоятельных раздела. У каждого свои
       обновления, свои источники и своя проверка: приложение обновляется
@@ -680,7 +682,6 @@
     <div data-testid="app-info-page">
       <AppInfoPage />
     </div>
-  </div>
-</ScrollArea>
+</div>
 
 <ErrorToast message={asyncState.error} />

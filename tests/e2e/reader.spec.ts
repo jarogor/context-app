@@ -158,6 +158,9 @@ test('масштаб интерфейса не меняет масштаб те�
   await page.setViewportSize({ width: 1600, height: 800 });
   await openWorkplace(page);
   const body = page.frameLocator('iframe[title="Содержимое книги"]').locator('body');
+  // Документ книги грузится в `srcdoc`: до его готовности измерения попадали бы
+  // в уничтоженный контекст.
+  await expect(body.getByText('Первый абзац книги.')).toBeVisible();
 
   /** Кегль корня книги при текущем масштабе интерфейса. */
   const measure = async () =>

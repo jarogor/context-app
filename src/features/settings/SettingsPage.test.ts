@@ -348,16 +348,15 @@ describe('страница настроек из декларации', () => {
     expect(screen.queryByText('общее')).toBeNull();
   });
 
-  it('во встроенном режиме не держит постоянную панель сохранения', async () => {
+  it('держит панель сохранения, но не заводит собственной прокрутки', async () => {
     invoke.mockResolvedValue(uiResponse([{ type: 'Text', props: { text: 'поле' } }]));
 
-    const { container } = render(SettingsPage, { embedded: true });
+    const { container } = render(SettingsPage);
 
     await waitFor(() => expect(screen.getByText('поле')).toBeTruthy());
-    // Внутри чужой страницы панель не висит посреди содержимого: она появляется
-    // только когда есть что сохранять.
-    expect(screen.queryByTestId('settings-footer')).toBeNull();
-    // Собственной прокрутки у встроенного режима нет.
+    // Панель сохранения принадлежит странице настроек и стоит всегда.
+    expect(screen.getByTestId('settings-footer')).toBeTruthy();
+    // Прокрутку даёт страница-хозяин: второй полосы быть не должно.
     expect(container.querySelector('[data-testid="settings-sections"]')).toBeNull();
   });
 });

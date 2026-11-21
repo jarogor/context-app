@@ -194,14 +194,14 @@ test('раздел «Система» показывает версию и ра�
   await expect(info.getByText('Кэш плагинов')).toHaveCount(0);
 });
 
-test('настройки открываются на всё окно без меню разделов', async ({ page }) => {
+test('настройки открываются справа от меню, как остальные разделы', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('section-nav')).toBeVisible();
 
   await page.getByTestId('nav-settings').click();
 
-  // Меню разделов скрыто, доступны только настройки.
-  await expect(page.getByTestId('section-nav')).toBeHidden();
+  // Меню разделов остаётся на месте: настройки — такая же страница.
+  await expect(page.getByTestId('section-nav')).toBeVisible();
   await expect(page.getByTestId('settings-page')).toBeVisible();
   // Кнопка закрытия — в шапке настроек.
   await expect(page.getByLabel('Закрыть настройки')).toBeVisible();
@@ -230,14 +230,14 @@ test('кнопка закрытия и Escape возвращают прежню�
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
 
   await page.getByTestId('nav-settings').click();
-  await expect(page.getByTestId('section-nav')).toBeHidden();
+  await expect(page.getByTestId('settings-page')).toBeVisible();
   await page.getByLabel('Закрыть настройки').click();
   await expect(page.getByTestId('section-nav')).toBeVisible();
   await expect(page.getByTestId('workspaces-page')).toBeVisible();
 
   // Escape закрывает раздел тем же действием.
   await page.getByTestId('nav-settings').click();
-  await expect(page.getByTestId('section-nav')).toBeHidden();
+  await expect(page.getByTestId('settings-page')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('settings-page')).toBeHidden();
   await expect(page.getByTestId('workspaces-page')).toBeVisible();

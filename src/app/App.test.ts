@@ -556,45 +556,42 @@ describe('активность кнопки рабочего места', () => 
   });
 });
 
-describe('полноэкранный раздел настроек', () => {
-  /** Видны ли меню разделов в шапке (скрыто при открытых настройках). */
-  function chromeHidden(): boolean {
-    return document.querySelector('[data-testid="section-nav"]') === null;
+describe('раздел настроек как обычная страница', () => {
+  /** Видны ли разделы приложения в левом меню. */
+  function sectionsVisible(): boolean {
+    return document.querySelector('[data-testid="section-nav"]') !== null;
   }
 
-  it('открывается на всё окно без меню разделов', async () => {
+  it('открывается справа от меню, а не во всё окно', async () => {
     render(App, { props: appProps() });
 
-    expect(chromeHidden()).toBe(false);
+    expect(sectionsVisible()).toBe(true);
 
     await fireEvent.click(screen.getByTestId('nav-settings'));
 
-    // Полноэкранные настройки: меню разделов и панель раздела скрыты.
-    expect(chromeHidden()).toBe(true);
+    // Настройки — такая же страница, как остальные разделы: меню остаётся.
+    expect(sectionsVisible()).toBe(true);
     expect(screen.getByTestId('settings-page')).toBeTruthy();
   });
 
-  it('закрывается кнопкой в углу и возвращает прежнюю область', async () => {
+  it('закрывается кнопкой в шапке и возвращает прежнюю область', async () => {
     render(App, { props: appProps() });
     await fireEvent.click(screen.getByTestId('nav-settings'));
-    expect(chromeHidden()).toBe(true);
 
     await fireEvent.click(screen.getByLabelText('Закрыть настройки'));
 
-    // Раздел настроек скрыт, меню разделов вернулось.
     expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
-    expect(chromeHidden()).toBe(false);
+    expect(sectionsVisible()).toBe(true);
   });
 
   it('закрывается клавишей Escape', async () => {
     render(App, { props: appProps() });
     await fireEvent.click(screen.getByTestId('nav-settings'));
-    expect(chromeHidden()).toBe(true);
 
     await fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(screen.getByTestId('settings-page').closest('.hidden')).toBeTruthy();
-    expect(chromeHidden()).toBe(false);
+    expect(sectionsVisible()).toBe(true);
   });
 
   it('возвращает область, из которой настройки открывали', async () => {

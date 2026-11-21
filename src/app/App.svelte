@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Badge, Button, Icon, Menu, MenuItem } from '@context/ui';
+  import { Badge, Button, Icon, PageShell } from '@context/ui';
   import AppBar from './AppBar.svelte';
   import SectionNav from './SectionNav.svelte';
   import SideNav from './SideNav.svelte';
@@ -1383,7 +1383,7 @@
   содержимое. На телефоне меню нет: там прежняя шапка и нижняя навигация.
 -->
 <div class="flex h-full" data-mobile={mobileWindow ? 'true' : 'false'}>
-  {#if !mobileWindow && !focusMode && !settingsOpen}
+  {#if !mobileWindow && !focusMode}
     <SideNav
       workspaceActive={workspaceListVisible}
       libraryActive={librariesVisible}
@@ -1523,90 +1523,93 @@
         </div>
       </div>
       <!--
-        Полноэкранный раздел настроек: собственный «корешок» раздела слева
-        (на узком окне — прокручиваемая полоса сверху), а справа — содержимое
-        выбранной страницы. Шапка настроек несёт заголовок и закрытие.
+        Настройки — такая же страница, как остальные разделы: шапка с заголовком
+        и полосой управления, меню разделов слева и прокручиваемое содержимое.
+        Собственной рамки у раздела нет, поэтому он читается как часть общего
+        каркаса, а не как отдельное окно поверх него.
       -->
       <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={!settingsOpen}>
-        <!--
-          Шапка настроек одна на все их страницы: заголовок текущего раздела и
-          закрытие справа. Раньше закрытие было только у страницы «Общие» и с
-          других вкладок из настроек нельзя было выйти — теперь оно всегда на
-          месте.
-        -->
-        <header
-          class="flex min-h-[var(--app-bar-height)] flex-none items-center gap-2 bg-[var(--app-bar-surface)] px-3 large-tablet:min-h-14 large-tablet:gap-4 large-tablet:px-6"
-          data-testid="settings-header"
+        <PageShell
+          testId="settings-page"
+          width="full"
+          title={t('app.settings')}
         >
-          <span class="min-w-0 flex-1 truncate role-heading text-[var(--foreground)]"
-            >{t('app.settings')}</span
-          >
-          <!--
-            Требование перезапуска стоит в шапке настроек: оно относится ко всем
-            настройкам, а не к разделу плагинов, и должно быть видно сразу.
-            Место под значок занято постоянной обёрткой: появление сообщения
-            ничего не сдвигает, а сам значок монтируется целиком и сразу в
-            окончательном виде.
-          -->
-          <!-- Показывается на всех ширинах, включая телефон и планшет: это
-               важное сообщение, и прятать его на узком окне нельзя. -->
-          <span
-            class="flex h-[calc(var(--spacing)*5.5)] flex-none items-center"
-            aria-live="polite"
-          >
-            {#if settingsNeedsAttention}
-              <Badge variant="warning" title={t('app.store.restartRequired')} testId="plugins-restart-note">
-                {t('app.store.restartRequiredShort')}
-              </Badge>
-            {/if}
-          </span>
-          <Button
-            variant="secondary"
-            size="icon"
-            title={t('app.settings.close')}
-            ariaLabel={t('app.settings.close')}
-            onclick={closeSettings}
-          >
-            <Icon name="close" />
-          </Button>
-        </header>
-        <div class="flex min-h-0 min-w-0 flex-1 flex-col large-tablet:flex-row">
-          <!--
-            Меню разделов — та же карточка, что и секции настроек: мягкое
-            скругление и общий фон, а не контурная полоса сбоку. На узком окне
-            оно становится прокручиваемой строкой сверху.
-          -->
-          <Menu
-            ariaLabel={t('app.settings.sections')}
-            class="shrink-0 gap-1 overflow-x-auto rounded-[var(--radius)] bg-[var(--card)] p-2 max-large-tablet:mx-4 max-large-tablet:mt-3 max-large-tablet:flex-row large-tablet:m-6 large-tablet:mr-0 large-tablet:w-[13rem] large-tablet:flex-none large-tablet:flex-col large-tablet:self-start"
-          >
-            <MenuItem active={settingsSection === 'general'} onclick={() => selectSettingsSection('general')}>
-              {t('app.settings.general')}
-            </MenuItem>
-            <MenuItem active={settingsSection === 'system'} onclick={() => selectSettingsSection('system')}>
-              {t('app.settings.updates')}
-            </MenuItem>
-          </Menu>
-          <div class="flex min-h-0 min-w-0 flex-1">
-            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'general'}>
-              <SettingsPage
-                initialDeclarations={initialSettings.declarations}
-                initialError={initialSettings.error}
-              />
+          {#snippet actions()}
+            <!--
+              Требование перезапуска стоит в шапке: оно относится ко всем
+              настройкам, а не к разделу плагинов, и должно быть видно сразу.
+              Место под значок занято постоянной обёрткой: появление сообщения
+              ничего не сдвигает, а сам значок монтируется целиком и сразу в
+              окончательном виде.
+            -->
+            <span
+              class="flex h-[calc(var(--spacing)*5.5)] flex-none items-center"
+              aria-live="polite"
+            >
+              {#if settingsNeedsAttention}
+                <Badge
+                  variant="warning"
+                  title={t('app.store.restartRequired')}
+                  testId="plugins-restart-note"
+                >
+                  {t('app.store.restartRequiredShort')}
+                </Badge>
+              {/if}
+            </span>
+            <Button
+              variant="secondary"
+              size="icon"
+              title={t('app.settings.close')}
+              ariaLabel={t('app.settings.close')}
+              onclick={closeSettings}
+            >
+              <Icon name="close" />
+            </Button>
+          {/snippet}
+
+          {#snippet controls()}
+            <div
+              class="flex w-full min-w-0 flex-wrap items-center gap-2"
+              role="navigation"
+              aria-label={t('app.settings.sections')}
+            >
+              <Button
+                variant={settingsSection === 'general' ? 'primary' : 'ghost'}
+                ariaPressed={settingsSection === 'general'}
+                testId="settings-section-general"
+                onclick={() => selectSettingsSection('general')}
+              >
+                {t('app.settings.general')}
+              </Button>
+              <Button
+                variant={settingsSection === 'system' ? 'primary' : 'ghost'}
+                ariaPressed={settingsSection === 'system'}
+                testId="settings-section-system"
+                onclick={() => selectSettingsSection('system')}
+              >
+                {t('app.settings.updates')}
+              </Button>
             </div>
-            <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'system'}>
-              <StorePage
-                initialPlugins={initialStore.plugins}
-                initialStores={initialStore.stores}
-                initialError={initialStore.error}
-                initialPending={initialStore.activationPending}
-                initialUpdate={initialUpdate.status}
-                initialPluginUpdates={updatePlugins}
-                onPendingChange={(pending) => (settingsNeedsAttention = pending)}
-              />
-            </div>
+          {/snippet}
+
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'general'}>
+            <SettingsPage
+              initialDeclarations={initialSettings.declarations}
+              initialError={initialSettings.error}
+            />
           </div>
-        </div>
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col" class:hidden={settingsSection !== 'system'}>
+            <StorePage
+              initialPlugins={initialStore.plugins}
+              initialStores={initialStore.stores}
+              initialError={initialStore.error}
+              initialPending={initialStore.activationPending}
+              initialUpdate={initialUpdate.status}
+              initialPluginUpdates={updatePlugins}
+              onPendingChange={(pending) => (settingsNeedsAttention = pending)}
+            />
+          </div>
+        </PageShell>
       </div>
     </main>
     </div>

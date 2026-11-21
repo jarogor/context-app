@@ -61,9 +61,9 @@ test('оболочка показывает панель и переключае
   await expect(page.getByTestId('section-nav')).toBeVisible();
   await expect(page.getByTestId('workplace-area')).toBeVisible();
 
-  // Полноэкранные настройки: меню разделов скрыто.
+  // Настройки — страница справа от меню: меню остаётся на месте.
   await page.getByTestId('nav-settings').click();
-  await expect(page.getByTestId('section-nav')).toBeHidden();
+  await expect(page.getByTestId('section-nav')).toBeVisible();
 
   const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
   await expect(menu.getByRole('button', { name: 'Общие' })).toBeVisible();
@@ -95,10 +95,10 @@ test('разделы меню показывают активный раздел
   await expect(workspace).toHaveAttribute('aria-pressed', 'true');
   await expect(libraries).toHaveAttribute('aria-pressed', 'false');
 
-  // Открытие настроек показывает полноэкранный раздел, а меню скрывается.
+  // Настройки — такая же страница, как остальные разделы: меню остаётся.
   await page.getByTestId('nav-settings').click();
   await expect(page.getByTestId('settings-page')).toBeVisible();
-  await expect(page.getByTestId('section-nav')).toBeHidden();
+  await expect(page.getByTestId('section-nav')).toBeVisible();
 });
 
 test('при запуске открыт список рабочих мест', async ({ page }) => {
