@@ -174,6 +174,53 @@ async function highlightParagraph(page: import('@playwright/test').Page, text: s
   await expect(page.getByTestId('notes-item-link').filter({ hasText: text }).first()).toBeVisible();
 }
 
+test('меню создания заметки закрывается кликом мимо него', async ({ page }) => {
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+  await openNotes(page);
+
+  const paragraph = bookDocument(page).getByText('Первый абзац книги.');
+  await paragraph.evaluate((element) => {
+    const range = element.ownerDocument.createRange();
+    range.selectNodeContents(element);
+    const selection = element.ownerDocument.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
+  await expect(page.getByTestId('quote-menu')).toBeVisible();
+
+  // Клик в стороне от меню — по левому меню, вне области книги.
+  await page.mouse.click(80, 400);
+
+  // Меню не остаётся висеть: заметка без подтверждения не создаётся.
+  await expect(page.getByTestId('quote-menu')).toHaveCount(0);
+});
+
+test('кнопка поиска гаснет, когда панель книги уступает место другой', async ({ page }) => {
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+
+  // Поиск открывает панель книги и зажигает свою кнопку.
+  await page.getByTestId('reader-search-toggle').click();
+  await expect(page.getByTestId('properties-panel')).toBeVisible();
+  await expect(page.getByTestId('reader-search-toggle')).toHaveAttribute('aria-pressed', 'true');
+
+  // Переход к вкладкам закрывает панель книги: кнопка поиска больше не нажата.
+  await page.getByTestId('workplace-books-toggle').click();
+  await expect(page.getByTestId('open-books-panel')).toBeVisible();
+  await expect(page.getByTestId('reader-search-toggle')).toHaveAttribute('aria-pressed', 'false');
+
+  // И у заметок то же: панель одна, кнопки отражают её состояние.
+  await page.getByTestId('workplace-notes-toggle').click();
+  await expect(page.getByTestId('notes-panel')).toBeVisible();
+  await expect(page.getByTestId('workplace-books-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('workplace-properties-toggle')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+});
+
 test('выделение показывает меню создания и отмены', async ({ page }) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');
@@ -543,6 +590,60 @@ test('клик по подсветке открывает панель заме�
 
   await expect(page.getByTestId('notes-panel')).toBeVisible();
   await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
+});
+
+test('клик по подсветке закрывает открытую чужую панель', async ({ page }) => {
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+  await openNotes(page);
+  await highlightParagraph(page, 'Первый абзац книги.');
+
+  // Открываем чужую панель — вкладки. Заметки при этом закрываются.
+  await page.getByTestId('workplace-books-toggle').click();
+  await expect(page.getByTestId('open-books-panel')).toBeVisible();
+  await expect(page.getByTestId('notes-panel')).toHaveCount(0);
+
+  await bookDocument(page).locator('mark').first().click();
+
+  // Клик по подсветке заменяет панель: заметки открываются, вкладки уходят,
+  // и кнопки показывают ровно одну открытую панель.
+  await expect(page.getByTestId('notes-panel')).toBeVisible();
+  await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
+  await expect(page.getByTestId('workplace-notes-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('workplace-books-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('workplace-properties-toggle')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
+});
+
+test('меню заметки закрывается кликом мимо него', async ({ page }) => {
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+  await openNotes(page);
+  await highlightParagraph(page, 'Первый абзац книги.');
+  await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+  const mark = bookDocument(page).locator('mark').first();
+
+  // Клик по подсветке открывает меню заметки.
+  await mark.click();
+  await expect(page.getByTestId('note-menu')).toBeVisible();
+
+  // Клик мимо — по пустому месту в книге: меню закрывается.
+  const box = await page.locator('iframe[title="Содержимое книги"]').boundingBox();
+  if (!box) {
+    throw new Error('область книги не найдена');
+  }
+  await page.mouse.click(box.x + box.width - 40, box.y + box.height - 40);
+  await expect(page.getByTestId('note-menu')).toHaveCount(0);
+
+  // И клик по панели заметок тоже закрывает его.
+  await mark.click();
+  await expect(page.getByTestId('note-menu')).toBeVisible();
+  await page.getByTestId('notes-panel').click({ position: { x: 100, y: 600 } });
+  await expect(page.getByTestId('note-menu')).toHaveCount(0);
 });
 
 test('клик по заметке ведёт к выделению в книге', async ({ page }) => {

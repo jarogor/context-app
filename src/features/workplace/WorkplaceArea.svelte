@@ -26,7 +26,6 @@
   import { NOTE_TYPES } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
-  import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import { PANEL_WIDTH_REM, panelOverlayFlags } from './panel-layout';
   import { EMPTY_SEARCH_STATE } from '../reader/search-state';
   import { hotkeys } from '../hotkeys';
@@ -312,23 +311,20 @@
   /** Элемент рабочей части. */
   let row: HTMLDivElement | undefined = $state();
 
-  /** Ширина, ниже которой панель всегда накладная, в пикселях.
-   *
-   * Совпадает с точкой перелома `large-tablet`: раскладка панелей и остального
-   * интерфейса переключается одним порогом, а не двумя разными.
-   */
-  const NARROW_ROW_MIN_PX = 64 * 16;
-
   /** Корневой кегль: ширины панелей заданы в rem и растут с масштабом. */
   let rootFont = $state(16);
 
-  /** Узкая ли область: панель рядом с книгой всё равно стала бы накладной. */
-  const narrowRow = $derived(rowWidth > 0 && rowWidth < NARROW_ROW_MIN_PX);
-
-  /** Накрывает ли книгу открытая панель. */
+  /**
+   * Накрывает ли книгу открытая панель.
+   *
+   * Решает одно правило: рядом с книгой должно остаться место для колонки
+   * текста. Отдельного порога «узкая область» нет — он был грубее и объявлял
+   * панель накладной там, где текст ещё помещался, из-за чего один и тот же
+   * экран вёл себя по-разному в зависимости от того, свёрнуто ли меню.
+   */
   const panelOverlay = $derived(
     (notesOpen || propertiesOpen || booksOpen) &&
-      (narrowRow || (panelOverlayFlags(rowWidth, rootFont, [PANEL_WIDTH_REM])[0] ?? false)),
+      (panelOverlayFlags(rowWidth, rootFont, [PANEL_WIDTH_REM])[0] ?? false),
   );
 
   /*
@@ -403,15 +399,16 @@
     onFlowingChange?.(flowingBook);
   });
 
-  /** Точка перелома «узкое окно»: та же, что у общего компонента боковой панели. */
-  const NARROW_WINDOW_QUERY = NARROW_MAX_WIDTH;
-
-  /** Узкое ли сейчас окно (для автозакрытия панели заметок на её ширине). */
-  function isNarrowWindow(): boolean {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
-    }
-    return window.matchMedia(NARROW_WINDOW_QUERY).matches;
+  /**
+   * Накрывает ли открытая панель книгу прямо сейчас.
+   *
+   * Это единственное условие автозакрытия панели после выбора. Ширина окна для
+   * него не годится: панель накрывает книгу и на широком окне, когда рядом с
+   * текстом не остаётся места. Правило одно — накрыла, значит после выбора
+   * закрывается, иначе пользователь не увидит результат выбора.
+   */
+  function overlaysReading(): boolean {
+    return panelOverlay;
   }
 
   /** Регистрация читалки вкладки и снятие её при размонтировании. */
@@ -525,12 +522,25 @@
     }
   }
 
+  /**
+   * Закрытие поиска по книге активной вкладки.
+   *
+   * Поиск живёт в панели книги: когда панель закрывают или уступают место
+   * другой, поиск должен закрыться вместе с ней. Иначе его кнопка в строке
+   * книги остаётся нажатой при открытой чужой панели.
+   */
+  export function closeBookSearch() {
+    if (tab) {
+      readers.get(tab.id)?.closeFooterSearch();
+    }
+  }
+
   /** Переход к главе текучей книги активной вкладки; на узком окне — с закрытием. */
   function goToChapter(chapter: FileChapter) {
     if (tab) {
       readers.get(tab.id)?.goToChapter(chapter);
     }
-    if (isNarrowWindow()) {
+    if (overlaysReading()) {
       onToggleProperties?.();
     }
   }
@@ -545,7 +555,7 @@
     if (tab) {
       readers.get(tab.id)?.goToFilePage(page);
     }
-    if (isNarrowWindow()) {
+    if (overlaysReading()) {
       onToggleProperties?.();
     }
   }
@@ -555,7 +565,7 @@
     if (tab) {
       readers.get(tab.id)?.goToBookmark(bookmark);
     }
-    if (isNarrowWindow()) {
+    if (overlaysReading()) {
       onToggleProperties?.();
     }
   }
@@ -598,7 +608,7 @@
     if (tab) {
       readers.get(tab.id)?.toggleAnnotation(annotation, shown);
     }
-    if (shown && isNarrowWindow()) {
+    if (shown && overlaysReading()) {
       onToggleProperties?.();
     }
   }
@@ -610,7 +620,7 @@
    */
   function selectNoteInPanel(note: Note) {
     onGoToNote(note);
-    if (isNarrowWindow()) {
+    if (overlaysReading()) {
       onCloseNotes();
     }
   }
@@ -624,7 +634,7 @@
    */
   function selectTabInPanel(id: string) {
     onSelectTab(id);
-    if (isNarrowWindow()) {
+    if (overlaysReading()) {
       onToggleBooks();
     }
   }
@@ -905,6 +915,7 @@
                     {palette}
                     active={item.id === workspace.activeTabId}
                     visible={visible && item.id === workspace.activeTabId && !listMode}
+                    panel={notesOpen ? 'notes' : propertiesOpen ? 'properties' : booksOpen ? 'books' : null}
                     onReader={registerReader}
                     onStateChange={(state) => onTabState(item.id, state)}
                     onFooter={(snapshot) => handleFooter(item.id, snapshot)}

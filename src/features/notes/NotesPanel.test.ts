@@ -36,8 +36,9 @@ describe('панель заметок-цитат', () => {
     const panel = screen.getByTestId('notes-panel');
     expect(panel.getAttribute('data-overlay')).toBe('true');
     expect(panel.className).toContain('absolute');
-    // Нижняя граница — высота строки книги: её переключатель остаётся доступен.
-    expect(panel.className).toContain('bottom-[var(--book-bar-height)]');
+    // Панель занимает контейнер целиком: строка книги лежит вне его, поэтому
+    // нижняя граница — край области, а не высота строки.
+    expect(panel.className).toContain('bottom-0');
   });
 
   it('показывает цитаты, место и дату', () => {

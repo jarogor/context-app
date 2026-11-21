@@ -704,6 +704,12 @@ function handleClick(event: MouseEvent): void {
   }
   const element = target?.closest?.(`mark.${NOTE_CLASS}, .${NOTE_OVERLAY_CLASS}`) as Element | null;
   const noteId = (element as HTMLElement | null)?.dataset.noteId;
+  if (!noteId) {
+    // Щелчок мимо заметки закрывает её меню: оно относится к конкретной
+    // заметке и без неё повисает в пустом месте.
+    post({ type: 'note-menu-close' });
+    return;
+  }
   if (noteId && element) {
     const shape = element.querySelector('line,rect,ellipse');
     const rect = (shape ?? element).getBoundingClientRect();

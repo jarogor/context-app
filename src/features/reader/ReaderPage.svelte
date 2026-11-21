@@ -64,6 +64,15 @@
     initialPosition?: number;
     /** Видима ли область рабочего места. */
     visible?: boolean;
+    /**
+     * Какая боковая панель открыта: вкладки, заметки, книга или никакая.
+     *
+     * Меню заметки стоит в координатах книги. Пока панель открыта, меню
+     * относится к тексту, которого не видно или который сдвинут, поэтому оно
+     * закрывается при любой смене панели — одно правило для всех панелей и
+     * обоих их режимов, рядом и поверх.
+     */
+    panel?: 'books' | 'notes' | 'properties' | null;
     /** Заметки книги для подсветки. */
     notes?: Note[];
     /** Активный инструмент создания заметок. */
@@ -140,6 +149,7 @@
     initialZoom = 100,
     initialPosition = 0,
     visible = true,
+    panel = null,
     notes = [],
     tool = DEFAULT_NOTE_TOOL,
     readerTheme = DEFAULT_READER_THEME,
@@ -348,6 +358,73 @@
       return;
     }
     return pushDismissLayer(dismissWorkplaceMenu);
+  });
+
+  /**
+   * Клик мимо меню создания заметки закрывает его.
+   *
+   * Само меню и выделение живут в документе читалки, поэтому щелчок в любом
+   * другом месте — и в оболочке, и в тексте книги — означает отказ от заметки.
+   * Слушается фаза перехвата: иначе щелчок по странице книги не дошёл бы до
+   * документа оболочки, потому что книга — отдельный документ внутри iframe.
+   */
+  $effect(() => {
+    if (!menuPosition || !pendingAnchor) {
+      return;
+    }
+    /** Закрытие меню, если щелчок пришёлся мимо него. */
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-testid="quote-menu"]')) {
+        return;
+      }
+      dismissWorkplaceMenu();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  });
+
+  /**
+   * Смена боковой панели закрывает меню заметки.
+   *
+   * Меню привязано к прямоугольнику заметки в книге: когда панель открыта,
+   * текст под ней сдвинут или накрыт, и меню висит над панелью, не относясь ни
+   * к чему. Правило одно на все панели и оба их режима. Начальное значение
+   * панели не считается сменой: меню в этот момент ещё не открыто.
+   */
+  let lastPanel = $state(untrack(() => panel));
+  $effect(() => {
+    const current = panel;
+    if (current === lastPanel) {
+      return;
+    }
+    lastPanel = current;
+    noteMenu = null;
+    dismissWorkplaceMenu();
+  });
+
+  /**
+   * Клик мимо меню заметки закрывает его.
+   *
+   * Правило то же, что у меню создания: меню относится к прямоугольнику заметки,
+   * и щелчок в любом другом месте — по книге, панели или строке книги — означает
+   * конец работы с ним. Слушается фаза перехвата, иначе щелчок внутри книги не
+   * дошёл бы до документа оболочки.
+   */
+  $effect(() => {
+    if (!noteMenu) {
+      return;
+    }
+    /** Закрытие меню, если щелчок пришёлся мимо него. */
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-testid="note-menu"]')) {
+        return;
+      }
+      closeNoteMenu();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
   });
 
   /** Регистрация контекстного меню заметки слоем закрытия. */

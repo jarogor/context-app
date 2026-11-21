@@ -1456,6 +1456,10 @@ function kt(e) {
 		return;
 	}
 	let i = t?.closest?.(`mark.${S}, .${P}`), a = i?.dataset.noteId;
+	if (!a) {
+		U({ type: "note-menu-close" });
+		return;
+	}
 	if (a && i) {
 		let e = (i.querySelector("line,rect,ellipse") ?? i).getBoundingClientRect();
 		U({

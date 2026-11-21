@@ -1859,11 +1859,9 @@ test('клик по заметке не переключает инструме�
   // Инструмент фигуры активен: клик по карточке не меняет инструмент, а лишь
   // открывает меню заметки (и панель с выбранной заметкой).
   await selectTool(page, 'Фигура');
-  const card = content(page).locator('.note-card').first();
-  await card.click();
-  await expect(page.getByTestId('note-menu')).toBeVisible();
-  await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
   // Выбранный тип виден в поповере инструмента: он не сбрасывается кликом.
+  // Поповер проверяется до клика по карточке: любой щелчок мимо меню заметки
+  // закрывает его, в том числе по кнопке инструмента.
   await page.getByTestId('book-bar-tool').click();
   const toolMenu = page.getByTestId('book-tool-menu');
   await expect(toolMenu.getByRole('button', { name: 'Фигура' })).toHaveAttribute(
@@ -1875,6 +1873,11 @@ test('клик по заметке не переключает инструме�
     'false',
   );
   await page.keyboard.press('Escape');
+
+  const card = content(page).locator('.note-card').first();
+  await card.click();
+  await expect(page.getByTestId('note-menu')).toBeVisible();
+  await expect(page.getByTestId('text-card-editor')).toHaveCount(0);
 
   await page.getByTestId('note-menu').getByRole('button', { name: 'Переместить' }).click();
   await expect(content(page).locator('.note-move-guide')).toBeVisible();

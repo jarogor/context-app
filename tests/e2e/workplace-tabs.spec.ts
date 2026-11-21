@@ -616,6 +616,49 @@ test('правка имени открывается снова после от�
   await expect(page.getByLabel('Название вкладки')).toBeVisible();
 });
 
+test('накладная панель доходит до строки книги, а не обрезается', async ({ page }) => {
+  // Узкое окно: панель накрывает книгу. Раньше она вычитала высоту строки книги
+  // из своего контейнера, хотя строка лежит вне его, и обрывалась с зазором.
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+
+  const panel = booksPanel(page);
+  await expect(panel).toHaveAttribute('data-overlay', 'true');
+
+  const panelBox = await panel.boundingBox();
+  const barBox = await page.getByTestId('book-bar').boundingBox();
+  expect(panelBox).not.toBeNull();
+  expect(barBox).not.toBeNull();
+  // Панель заканчивается там же, где начинается строка книги, без зазора.
+  expect(Math.abs(panelBox!.y + panelBox!.height - barBox!.y)).toBeLessThanOrEqual(1);
+});
+
+test('панель стоит рядом с книгой, пока в области остаётся место для текста', async ({ page }) => {
+  // Решает не ширина окна, а место, оставшееся книге. Раньше был отдельный
+  // порог «узкая область», и один и тот же экран вёл себя по-разному в
+  // зависимости от того, свёрнуто ли меню.
+  for (const width of [1400, 1200, 1100]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await addBook(page, 'Демо-книга');
+
+    const panel = booksPanel(page);
+    await expect(panel).toHaveAttribute('data-overlay', 'false');
+
+    // Панель не заходит на книгу: её правый край совпадает с левым краем области
+    // чтения.
+    const panelBox = await panel.boundingBox();
+    const reading = await page.getByTestId('workplace-reading').boundingBox();
+    expect(panelBox, `окно ${width}`).not.toBeNull();
+    expect(reading, `окно ${width}`).not.toBeNull();
+    expect(
+      Math.abs(panelBox!.x + panelBox!.width - reading!.x),
+      `окно ${width}`,
+    ).toBeLessThanOrEqual(1);
+  }
+});
+
 test('панели заметок и открытых книг взаимоисключающие', async ({ page }) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');

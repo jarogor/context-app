@@ -372,8 +372,9 @@
   const resolvedTheme: ResolvedTheme = $derived(resolveTheme(themePreference, systemPrefersDark));
 
   /** Читалка активной вкладки для перехода к заметке. */
-  let reader: { goto: (note: Note) => void; hideAnnotations?: () => void } | undefined =
-    $state();
+  let reader:
+    | { goto: (note: Note) => void; hideAnnotations?: () => void; closeBookSearch?: () => void }
+    | undefined = $state();
 
   /** Реестр рабочих мест и активное место (загружен до первого рендера). */
   let registry: WorkspaceRegistry = $state(untrack(() => initialRegistry));
@@ -734,18 +735,43 @@
     booksPanelOpen = !booksPanelOpen;
     if (booksPanelOpen) {
       notesPanelOpen = false;
-      propertiesPanelOpen = false;
+      if (propertiesPanelOpen) {
+        // Поиск живёт в панели книги: при переходе к вкладкам он закрывается,
+        // иначе его кнопка остаётся нажатой без своей панели.
+        propertiesPanelOpen = false;
+        reader?.hideAnnotations?.();
+        reader?.closeBookSearch?.();
+      }
+      propertiesTab = null;
     }
   }
 
   /** Переключение панели заметок. */
   function toggleNotesPanel() {
-    notesPanelOpen = !notesPanelOpen;
     if (notesPanelOpen) {
-      booksPanelOpen = false;
-      propertiesPanelOpen = false;
-      void notesController.load();
+      notesPanelOpen = false;
+      return;
     }
+    openNotesPanel();
+  }
+
+  /**
+   * Открытие панели заметок.
+   *
+   * Панели занимают одно место, поэтому открытие заметок закрывает вкладки и
+   * свойства книги: иначе осталась бы открытой чужая панель, а её кнопка
+   * выглядела бы нажатой.
+   */
+  function openNotesPanel() {
+    notesPanelOpen = true;
+    booksPanelOpen = false;
+    if (propertiesPanelOpen) {
+      propertiesPanelOpen = false;
+      reader?.hideAnnotations?.();
+      reader?.closeBookSearch?.();
+    }
+    propertiesTab = null;
+    void notesController.load();
   }
 
   /** Переключение панели книги (содержание, поиск, закладки, страницы, пометки). */
@@ -756,8 +782,10 @@
       notesPanelOpen = false;
     } else {
       // Закрытие панели снимает показ встроенных пометок активной вкладки:
-      // без панели у них не осталось бы управления.
+      // без панели у них не осталось бы управления. Поиск закрывается там же:
+      // он живёт в этой панели.
       reader?.hideAnnotations?.();
+      reader?.closeBookSearch?.();
     }
   }
 
@@ -778,10 +806,9 @@
   /** Клик по подсветке заметки в книге: панель открывается, заметка выбирается. */
   function selectNote(noteId: string) {
     selectedNoteId = noteId;
-    notesPanelOpen = true;
     // Клик по заметке лишь выбирает её и открывает панель: активный инструмент
     // не переключается, чтобы создание заметок не зависело от прежнего выбора.
-    void notesController.load();
+    openNotesPanel();
   }
 
 

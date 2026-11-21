@@ -78,6 +78,8 @@
     active: boolean;
     /** Видима ли область рабочего места. */
     visible: boolean;
+    /** Какая боковая панель области открыта: смена закрывает меню заметки. */
+    panel?: 'books' | 'notes' | 'properties' | null;
     /** Регистрация читалки вкладки в оболочке. */
     onReader?: (tabId: string, reader: TabReader | null) => void;
     /** Сообщение об изменении состояния чтения. */
@@ -114,6 +116,7 @@
     onFooter,
     active,
     visible,
+    panel = null,
     onReader,
     onStateChange,
     onQuote,
@@ -147,6 +150,7 @@
   {readerFont}
   {palette}
   visible={visible && active}
+  {panel}
   {onStateChange}
   {onFooter}
   {onQuote}
