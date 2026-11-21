@@ -101,6 +101,26 @@ test('разделы меню показывают активный раздел
   await expect(page.getByTestId('section-nav')).toBeVisible();
 });
 
+test('левое меню запоминает свёрнутость между запусками', async ({ page }) => {
+  // Дефект: значение записывалось, но не читалось — ключ объявлялся ниже вызова,
+  // и чтение падало в `catch`, оставляя меню развёрнутым при каждом запуске.
+  await page.goto('/');
+  await expect(page.getByTestId('side-nav')).toHaveAttribute('data-collapsed', 'false');
+
+  await page.getByTestId('nav-collapse').click();
+  await expect(page.getByTestId('side-nav')).toHaveAttribute('data-collapsed', 'true');
+
+  // Перезапуск приложения — перезагрузка окна с тем же хранилищем.
+  await page.reload();
+  await expect(page.getByTestId('side-nav')).toHaveAttribute('data-collapsed', 'true');
+
+  // Обратно: развёрнутое состояние тоже запоминается.
+  await page.getByTestId('nav-collapse').click();
+  await expect(page.getByTestId('side-nav')).toHaveAttribute('data-collapsed', 'false');
+  await page.reload();
+  await expect(page.getByTestId('side-nav')).toHaveAttribute('data-collapsed', 'false');
+});
+
 test('при запуске открыт список рабочих мест', async ({ page }) => {
   await page.goto('/');
 
