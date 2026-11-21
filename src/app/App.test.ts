@@ -294,7 +294,9 @@ describe('раздел «Заметки» в оболочке', () => {
     await fireEvent.click(within(panel).getByTestId('notes-set-history-item'));
     await waitFor(() => expect(screen.queryByTestId('notes-library')).toBeNull());
     expect(screen.getAllByTestId('workplace-tab')).toHaveLength(1);
-    expect(screen.getByTestId('app-context').textContent).toContain('Исследование');
+    // Открыто нужное место: в рабочем месте его называет вкладка, а имя места
+    // видно в списке рабочих мест.
+    expect(screen.getByTestId('workplace-tab').textContent).toContain('Книга');
   });
 
   it('открывает набор в другом месте, выбранном пользователем', async () => {
@@ -309,7 +311,6 @@ describe('раздел «Заметки» в оболочке', () => {
 
     await waitFor(() => expect(screen.queryByTestId('notes-library')).toBeNull());
     expect(screen.getByTestId('workplace-tab').textContent).toContain('Книга A');
-    expect(screen.getByTestId('app-context').textContent).toContain('Текущее');
   });
 
   it('создаёт рабочее место из панели и открывает в нём набор', async () => {

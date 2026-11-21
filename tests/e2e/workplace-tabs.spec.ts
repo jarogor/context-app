@@ -139,10 +139,10 @@ test('переключение вкладок в списке меняет ак�
   await addBook(page, 'Демо-книга');
   await addBook(page, 'Третья книга');
 
-  // Имя открытого рабочего места видно в навигационном тексте шапки.
-  await expect(page.getByTestId('app-context')).toContainText('Рабочее место');
+  // Шапки в рабочем месте нет: место работы называет панель активной вкладки.
+  await expect(page.getByTestId('app-context')).toHaveCount(0);
 
-  // Верхняя панель называет только активную книгу — последнюю открытую.
+  // Панель называет только активную книгу — последнюю открытую.
   await expect(page.getByTestId('workplace-tab')).toHaveText('Третья книга');
 
   await row(page, 'Демо-книга').getByRole('button').first().click();

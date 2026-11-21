@@ -364,8 +364,7 @@ test('на узком окне шапка показывает только им
     await picker.first().click();
   }
   await expect(page.getByTestId('workplace-tab')).toHaveText('Демо-книга');
-  // Имя рабочего места здесь совпадает с названием раздела, поэтому проверяется
-  // отсутствие разделителя: показывается только выбор, без «раздел · имя».
-  await expect(context).not.toContainText('·');
-  await expect(context).toHaveAttribute('title', /Рабочее место · /);
+  // В рабочем месте шапки с контекстом нет: сверху стоит панель активной
+  // вкладки, и она называет книгу.
+  await expect(page.getByTestId('app-context')).toHaveCount(0);
 });
