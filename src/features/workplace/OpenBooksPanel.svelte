@@ -56,7 +56,6 @@
     /** Закрытие панели (на узком окне панель перекрывает содержимое). */
     onClosePanel?: () => void;
     /** Панель накрывает книгу, а не стоит рядом с ней. */
-    overlay?: boolean;
   }
 
   let {
@@ -71,7 +70,6 @@
     onAddBook,
     onAddFile,
     onClosePanel,
-    overlay = false,
   }: Props = $props();
 
   /** Доступность создания новых вкладок при текущем лимите. */
@@ -412,8 +410,6 @@
   title={t('app.workplace.tabs')}
   testId="open-books-panel"
   side="left"
-  {overlay}
-  responsive={false}
   class="w-[var(--notes-panel-width)]"
   onClose={onClosePanel}
 >

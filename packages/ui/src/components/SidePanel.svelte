@@ -37,12 +37,6 @@
     testId?: string;
     /** Сторона панели относительно содержимого: справа (по умолчанию) или слева. */
     side?: 'left' | 'right';
-    /** Панель накрывает содержимое, а не стоит рядом с ним.
-     *
-     * Задаёт тот, кто знает ширину области, а не окна: панель перекрывает
-     * книгу, когда рядом с ней тексту не остаётся места для чтения.
-     */
-    overlay?: boolean;
     /** Слушать ли ширину окна: ниже `large-tablet` панель становится накладной.
      *
      * Так ведут себя разделы библиотеки и заметок. Область чтения выключает
@@ -64,7 +58,6 @@
     onClose,
     testId,
     side = 'right',
-    overlay = false,
     responsive = true,
     class: className = '',
   }: Props = $props();
@@ -76,41 +69,24 @@
       : ' ',
   );
 
-  /**
-   * Классы накладной панели.
+  /*
+   * Панель накрывает содержимое только на узкой компоновке — телефоне и
+   * планшете, — где рядом с книгой места нет вовсе.
    *
-   * Накладная панель не занимает места в раскладке, но и не растягивается на
-   * всю область: она встаёт над книгой у своей стороны и держит ширину
-   * потребителя. Так панели с обеих сторон не накрывают друг друга, а книга
-   * остаётся видимой между ними.
-   *
-   * Панель занимает контейнер целиком: строка книги лежит вне его, поэтому
-   * вычитать её высоту не нужно. `h-full` из общего набора здесь не годится:
-   * при заданной высоте нижняя граница игнорируется, а она нужна для растяжки.
+   * На десктопе режим один: панель стоит рядом и никогда не накрывает книгу.
+   * Второго режима «поверх, когда стало тесно» больше нет: он срабатывал в
+   * середине диапазона, и один и тот же экран вёл себя по-разному в зависимости
+   * от ширины. Тесноту на десктопе не даёт создать минимальный размер окна.
    */
-  const overlayClass = $derived(
-    cn(
-      'absolute z-[var(--layer-panel)]',
-      side === 'left' ? 'left-0' : 'right-0',
-      'top-0 bottom-0 h-auto',
-      // На узком окне панель занимает всю ширину области. Ширина задаётся
-      // шириной, а не парой `left`/`right`: при заданной ширине второе из них
-      // игнорируется, и панель с правой стороны встала бы слева.
-      'max-large-tablet:w-full max-large-tablet:top-0 max-large-tablet:bottom-0',
-    ),
-  );
-
-  /** Классы положения: накладная панель либо обычная в потоке раскладки. */
   const positionClass = $derived(
-    overlay
-      ? overlayClass
-      : responsive
-        ? 'max-large-tablet:absolute max-large-tablet:inset-0 max-large-tablet:z-[var(--layer-panel)] max-large-tablet:w-auto'
-        : '',
+    responsive
+      ? 'max-large-tablet:absolute max-large-tablet:inset-0 max-large-tablet:z-[var(--layer-panel)] max-large-tablet:w-auto'
+      : '',
   );
 
-  /** Показывать ли крестик: у накладной панели он нужен всегда. */
-  const showClose = $derived(overlay || responsive);
+
+  /** Показывать ли крестик: он есть там, где панель можно закрыть. */
+  const showClose = $derived(Boolean(onClose));
 </script>
 
 <aside
@@ -121,7 +97,6 @@
     className,
   )}
   data-side={side}
-  data-overlay={overlay ? 'true' : 'false'}
   data-testid={testId}
   style="padding-left: var(--safe-left); padding-right: var(--safe-right);"
 >
@@ -129,7 +104,7 @@
     class="flex flex-wrap items-center gap-2 px-3 py-2.5"
   >
     {#if onClose && showClose}
-      <span class={cn('flex', !overlay && 'large-tablet:hidden')}>
+      <span class="flex large-tablet:hidden">
         <button
           type="button"
           class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font-family:inherit] pointer-coarse:h-11 pointer-coarse:w-11"

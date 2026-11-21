@@ -19,26 +19,16 @@ describe('панель заметок-цитат', () => {
     expect(screen.getByTestId('notes-panel-empty')).toBeTruthy();
   });
 
-  it('адаптируется к области: ширина токеном и переключение в накладную панель', () => {
+  it('на десктопе стоит рядом с книгой, накладная — только на узкой компоновке', () => {
     render(NotesPanel, { props: { items: [], sets: [], activeSetId: null, hasBook: true } });
     const panel = screen.getByTestId('notes-panel');
+    // Ширина — токеном панели области.
     expect(panel.className).toContain('var(--notes-panel-width)');
-    // Панель области чтения не подчиняется ширине окна: накладной её делает
-    // область, которой не хватает места рядом с книгой (`overlay`).
-    expect(panel.className).not.toContain('max-large-tablet:absolute');
-    expect(panel.getAttribute('data-overlay')).toBe('false');
-  });
-
-  it('в накладном режиме накрывает книгу, не занимая места в раскладке', () => {
-    render(NotesPanel, {
-      props: { items: [], sets: [], activeSetId: null, hasBook: true, overlay: true },
-    });
-    const panel = screen.getByTestId('notes-panel');
-    expect(panel.getAttribute('data-overlay')).toBe('true');
-    expect(panel.className).toContain('absolute');
-    // Панель занимает контейнер целиком: строка книги лежит вне его, поэтому
-    // нижняя граница — край области, а не высота строки.
-    expect(panel.className).toContain('bottom-0');
+    // Поверх книги панель ложится только на телефоне и планшете. На десктопе
+    // режим один — рядом с книгой: второго режима «поверх, когда тесно» нет,
+    // он и порождал налезание на текст в середине диапазона.
+    expect(panel.className).toContain('max-large-tablet:absolute');
+    expect(panel.className).not.toMatch(/(^|\s)absolute(\s|$)/);
   });
 
   it('показывает цитаты, место и дату', () => {

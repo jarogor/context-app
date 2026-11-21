@@ -35,7 +35,6 @@
     /** Закрытие панели (на узком окне панель перекрывает содержимое). */
     onClose?: () => void;
     /** Панель накрывает книгу, а не стоит рядом с ней. */
-    overlay?: boolean;
     /** Текущий запрос поиска по книге. */
     searchQuery?: string;
     /** Состояние поиска по книге. */
@@ -66,7 +65,6 @@
     onToggleAnnotation,
     onRegenerateThumbs,
     onClose,
-    overlay = false,
     searchQuery = '',
     searchState = EMPTY_SEARCH_STATE,
     searchBusy = false,
@@ -484,8 +482,6 @@
   title={t('app.bookDock.title')}
   testId="properties-panel"
   side="left"
-  {overlay}
-  responsive={false}
   showSearch={activeTab === 'contents' || activeTab === 'bookmarks' || activeTab === 'annotations'}
   class="w-[var(--properties-panel-width)]"
   tabs={tabs.length > 0 ? tabsSnippet : undefined}

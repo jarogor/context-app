@@ -22,11 +22,11 @@
   } from '../reader/file-properties';
   import type { TabAppearancePatch } from './workplace';
   import type { WorkspaceRecord } from './workspace-registry';
+  import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import type { Note, NoteListItem, NoteSetSummary, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { NOTE_TYPES } from '../notes/notes';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
-  import { PANEL_WIDTH_REM, panelOverlayFlags } from './panel-layout';
   import { EMPTY_SEARCH_STATE } from '../reader/search-state';
   import { hotkeys } from '../hotkeys';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
@@ -299,66 +299,30 @@
   const activeFooter = $derived(tab ? (footerByTab[tab.id] ?? null) : null);
 
   /**
-   * Ширина рабочей части — панели и книги вместе.
+   * Узкая компоновка: панель области накрывает книгу целиком.
    *
-   * Меряется именно этот контейнер, а не сама область чтения: открытая панель
-   * сужает книгу, и мера по книге зависела бы от собственного решения —
-   * панель накрывает книгу, книга шире, панель снова встаёт рядом, — и
-   * раскладка мигала бы. Ширина контейнера от панелей не зависит.
+   * Это не «второй режим панели на всякий случай», а отдельная компоновка —
+   * телефон и планшет, — где рядом с книгой места нет вовсе. На десктопе её не
+   * бывает: минимальный размер окна не даёт уйти ниже порога.
    */
-  let rowWidth = $state(0);
-
-  /** Элемент рабочей части. */
-  let row: HTMLDivElement | undefined = $state();
-
-  /** Корневой кегль: ширины панелей заданы в rem и растут с масштабом. */
-  let rootFont = $state(16);
-
-  /**
-   * Накрывает ли книгу открытая панель.
-   *
-   * Решает одно правило: рядом с книгой должно остаться место для колонки
-   * текста. Отдельного порога «узкая область» нет — он был грубее и объявлял
-   * панель накладной там, где текст ещё помещался, из-за чего один и тот же
-   * экран вёл себя по-разному в зависимости от того, свёрнуто ли меню.
-   */
-  const panelOverlay = $derived(
-    (notesOpen || propertiesOpen || booksOpen) &&
-      (panelOverlayFlags(rowWidth, rootFont, [PANEL_WIDTH_REM])[0] ?? false),
-  );
+  function coversReading(): boolean {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia(NARROW_MAX_WIDTH).matches;
+  }
 
   /*
+   * Панель всегда стоит рядом с книгой и никогда её не накрывает.
+   *
+   * Раньше у панели было два режима: рядом и поверх. Второй появлялся, когда
+   * рядом не оставалось места, и это порождало целый класс дефектов: панель
+   * налезала на текст, меню заметки висело поверх неё, кнопки показывали не то
+   * состояние. Режим один, а тесноту не даёт создать минимальный размер окна.
+   *
    * Три панели занимают одно и то же место — слева от книги, — поэтому открыта
-   * может быть только одна. Вкладки, содержание книги и заметки нужны в разных
-   * задачах, но не одновременно: вторая панель рядом съедала книгу, а на узком
-   * окне ещё и накрывала первую.
+   * может быть только одна.
    */
-
-  /** Слежение за шириной рабочей части и корневым кеглем. */
-  $effect(() => {
-    const el = row;
-    if (!el) {
-      return;
-    }
-    let frame = 0;
-    const apply = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        rowWidth = el.clientWidth;
-        const size = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
-        rootFont = Number.isFinite(size) && size > 0 ? size : 16;
-      });
-    };
-    apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(el);
-    window.addEventListener('resize', apply);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      window.removeEventListener('resize', apply);
-    };
-  });
 
   /** Плагин сообщил, что книга текучая: текст течёт и гарнитура применима.
    *
@@ -398,18 +362,6 @@
   $effect(() => {
     onFlowingChange?.(flowingBook);
   });
-
-  /**
-   * Накрывает ли открытая панель книгу прямо сейчас.
-   *
-   * Это единственное условие автозакрытия панели после выбора. Ширина окна для
-   * него не годится: панель накрывает книгу и на широком окне, когда рядом с
-   * текстом не остаётся места. Правило одно — накрыла, значит после выбора
-   * закрывается, иначе пользователь не увидит результат выбора.
-   */
-  function overlaysReading(): boolean {
-    return panelOverlay;
-  }
 
   /** Регистрация читалки вкладки и снятие её при размонтировании. */
   function registerReader(tabId: string, reader: TabReader | null) {
@@ -535,37 +487,32 @@
     }
   }
 
-  /** Переход к главе текучей книги активной вкладки; на узком окне — с закрытием. */
+  /** Переход к главе книги; на узкой компоновке — с закрытием панели. */
   function goToChapter(chapter: FileChapter) {
     if (tab) {
       readers.get(tab.id)?.goToChapter(chapter);
     }
-    if (overlaysReading()) {
+    if (coversReading()) {
       onToggleProperties?.();
     }
   }
 
-  /** Переход к странице из панели свойств активной вкладки.
-   *
-   * На узком окне панель перекрывает содержимое целиком, поэтому после перехода
-   * она закрывается — иначе не видно, к чему привёл выбор. На широком окне
-   * панель стоит рядом с книгой и остаётся открытой.
-   */
+  /** Переход к странице из панели свойств; на узкой компоновке — с закрытием. */
   function goToFilePage(page: number) {
     if (tab) {
       readers.get(tab.id)?.goToFilePage(page);
     }
-    if (overlaysReading()) {
+    if (coversReading()) {
       onToggleProperties?.();
     }
   }
 
-  /** Переход к закладке файла активной вкладки; на узком окне — с закрытием. */
+  /** Переход к закладке файла; на узкой компоновке — с закрытием панели. */
   function goToBookmark(bookmark: FileBookmark) {
     if (tab) {
       readers.get(tab.id)?.goToBookmark(bookmark);
     }
-    if (overlaysReading()) {
+    if (coversReading()) {
       onToggleProperties?.();
     }
   }
@@ -601,40 +548,37 @@
   /** Показ или снятие показа встроенной пометки на странице.
    *
    * На узком окне панель закрывается после показа: пометка появляется на
-   * странице, и без закрытия пользователь её не увидит. Снятие показа панель не
-   * закрывает — оно ничего не показывает.
+   * странице. Панель стоит рядом и остаётся открытой: снимать её после показа
+   * незачем. Снятие показа панель тоже не закрывает.
    */
   function toggleAnnotation(annotation: FileAnnotation, shown: boolean) {
     if (tab) {
       readers.get(tab.id)?.toggleAnnotation(annotation, shown);
     }
-    if (shown && overlaysReading()) {
+    if (shown && coversReading()) {
       onToggleProperties?.();
     }
   }
 
-  /** Выбор заметки в панели: переход к ней, на узком окне — автозакрытие панели.
+  /** Выбор заметки в панели: переход к ней.
    *
-   * Панель на всю ширину кроет страницу текста, и без закрытия пользователь не
-   * увидел бы результат перехода. На широком окне панель остаётся открытой.
+   * Панель стоит рядом с книгой и остаётся открытой: результат перехода виден
+   * сразу, а список нужен для следующей заметки.
    */
   function selectNoteInPanel(note: Note) {
     onGoToNote(note);
-    if (overlaysReading()) {
+    if (coversReading()) {
       onCloseNotes();
     }
   }
 
-  /** Выбор вкладки в панели: переход к ней, на узком окне — автозакрытие панели.
+  /** Выбор вкладки в панели: переход к ней.
    *
-   * На узком окне панель занимает всю область: выбрав вкладку, пользователь
-   * иначе остался бы в списке и не увидел бы результат выбора. На широком окне
-   * панель стоит рядом с книгой и остаётся открытой — её показывает и скрывает
-   * кнопка панели.
+   * Панель остаётся открытой — её показывает и скрывает кнопка панели.
    */
   function selectTabInPanel(id: string) {
     onSelectTab(id);
-    if (overlaysReading()) {
+    if (coversReading()) {
       onToggleBooks();
     }
   }
@@ -756,13 +700,12 @@
         содержание книги или заметки; они занимают одно место и открываются
         взаимоисключающе, потому что две панели подряд перекрывали бы книгу.
       -->
-      <div class="relative flex min-h-0 flex-1" bind:this={row}>
+      <div class="relative flex min-h-0 flex-1">
         {#if booksOpen}
           <OpenBooksPanel
             tabs={workspace.tabs}
             activeTabId={workspace.activeTabId}
             {openTabsLimit}
-            overlay={panelOverlay}
             onAddBook={onAddBook}
             onAddFile={onAddFile}
             onSelect={selectTabInPanel}
@@ -782,7 +725,6 @@
             loading={notesLoading}
             {hasBook}
             selectedId={selectedNoteId}
-            overlay={panelOverlay}
             onGoToNote={selectNoteInPanel}
             onDeleteNote={onDeleteNote}
             onChangeColor={onChangeNoteColor}
@@ -808,8 +750,7 @@
               snapshot={activeProperties ?? emptyProperties(formatFromPath(tab?.path ?? ''))}
               tab={propertiesTab}
               currentPage={activeFooter?.page ?? null}
-              overlay={panelOverlay}
-              searchQuery={activeFooter?.searchQuery ?? ''}
+                searchQuery={activeFooter?.searchQuery ?? ''}
               searchState={activeFooter?.searchState ?? EMPTY_SEARCH_STATE}
               searchBusy={activeFooter?.searchBusy ?? false}
               searchError={activeFooter?.searchError ?? null}
