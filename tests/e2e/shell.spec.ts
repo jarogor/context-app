@@ -283,12 +283,12 @@ test('реестр заметок и библиотеки используют �
   await expect(page.getByTestId('notes-library').getByTestId('page-controls')).toBeVisible();
 });
 
-test('меню разделов показывает разделы вкладками верхней панели', async ({ page }) => {
+test('меню разделов показывает разделы левого меню с подписями', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 800 });
   await page.goto('/');
 
   const nav = page.getByTestId('section-nav');
-  // Вкладки верхней панели показывают названия разделов.
+  // Разделы левого меню показывают названия.
   await expect(nav).toHaveAttribute('data-mobile', 'false');
   await expect(nav.getByText('Заметки')).toBeVisible();
   await expect(page.getByTestId('nav-notes')).toHaveAttribute('aria-label', 'Заметки');
@@ -299,25 +299,30 @@ test('меню разделов показывает разделы вкладк
   await expect(page.getByTestId('nav-workspace')).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('панель разделов держит вкладки и действия внутри своих границ', async ({ page }) => {
-  // Панель разделов не должна обрезать вкладки: их границы внутри панели.
+test('левое меню держит разделы и действия внутри своих границ', async ({ page }) => {
+  // Разделы стоят сверху, служебные действия — внизу меню: колонка не обрезает
+  // ни то, ни другое.
   await page.setViewportSize({ width: 1600, height: 800 });
   await page.goto('/');
 
-  const bar = page.getByTestId('app-bar');
-  const barBox = await bar.boundingBox();
+  const side = page.getByTestId('side-nav');
+  const sideBox = await side.boundingBox();
   const nav = page.getByTestId('section-nav');
   const navBox = await nav.boundingBox();
   const settings = page.getByTestId('nav-settings');
   const settingsBox = await settings.boundingBox();
-  expect(barBox).not.toBeNull();
+  expect(sideBox).not.toBeNull();
   expect(navBox).not.toBeNull();
   expect(settingsBox).not.toBeNull();
 
-  // Служебное действие — справа от вкладок разделов и внутри верхней панели.
-  expect(settingsBox!.x).toBeGreaterThanOrEqual(navBox!.x + navBox!.width - 1);
-  expect(settingsBox!.x + settingsBox!.width).toBeLessThanOrEqual(barBox!.x + barBox!.width + 1);
-  expect(settingsBox!.y + settingsBox!.height).toBeLessThanOrEqual(barBox!.y + barBox!.height + 1);
+  // Разделы сверху, действия — ниже них и внутри меню.
+  expect(navBox!.y).toBeGreaterThanOrEqual(sideBox!.y - 1);
+  expect(settingsBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height - 1);
+  expect(settingsBox!.y + settingsBox!.height).toBeLessThanOrEqual(
+    sideBox!.y + sideBox!.height + 1,
+  );
+  expect(settingsBox!.x).toBeGreaterThanOrEqual(sideBox!.x - 1);
+  expect(settingsBox!.x + settingsBox!.width).toBeLessThanOrEqual(sideBox!.x + sideBox!.width + 1);
 
   // Порядок разделов слева направо: рабочие места, библиотека, заметки.
   const order = await nav

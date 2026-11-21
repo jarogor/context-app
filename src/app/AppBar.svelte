@@ -1,89 +1,31 @@
 <script lang="ts">
-  import { Icon, type IconName, type ResolvedTheme } from '@context/ui';
   import { t } from '@context/i18n';
   import logoMarkup from './context-logo.svg?raw';
-  import SectionNav from './SectionNav.svelte';
 
   /**
-   * Верхняя панель приложения — постоянный «корешок» оболочки.
+   * Верхняя панель приложения — строка контекста.
    *
-   * Слева — название приложения и навигационный текст: где находится
-   * пользователь и что выбрано (раздел или имя открытого рабочего места). Справа
-   * — меню разделов и служебные действия: индикатор замечаний, переключатель
-   * темы и настройки. Панель не прокручивается и держит разделы всегда
-   * доступными. На телефоне она сжимается до названия и действий, а разделы
-   * переезжают в нижнюю навигацию.
+   * На десктопе несёт только контекст: где находится пользователь и что
+   * выбрано (раздел или имя открытого рабочего места). Разделы, тема и
+   * настройки живут в левом меню, поэтому шапка не повторяет навигацию.
+   *
+   * На телефоне меню нет — там шапка остаётся прежней: знак приложения, контекст
+   * и нижняя навигация с разделами и служебными действиями.
    */
   interface Props {
     /** Название раздела: где находится пользователь. */
     section: string;
     /** Имя выбранного объекта раздела (рабочее место, библиотека), либо `null`. */
     selection: string | null;
-    /** Открыт ли список рабочих мест. */
-    workspaceActive: boolean;
-    /** Открыт ли раздел «Библиотеки». */
-    libraryActive: boolean;
-    /** Открыт ли раздел «Заметки». */
-    notesActive: boolean;
-    /** Открыт ли раздел настроек. */
-    settingsOpen: boolean;
-    /** В настройках есть важное, что ждёт внимания: точка на кнопке. */
-    settingsAlert?: boolean;
-    /** Число замечаний (неприменённые изменения, ошибки работы). */
-    /** Показанная сейчас сторона темы. */
-    theme: ResolvedTheme;
-    /** Сторона, которую поставит нажатие кнопки. */
-    themeNext: ResolvedTheme;
-    /** Узкое окно: разделы показываются кнопками-иконками без подписей. */
+    /** Узкое окно: шапка несёт знак приложения и подписи. */
     mobile: boolean;
-    /** Выбор раздела «Рабочие места». */
-    onWorkspace: () => void;
-    /** Выбор раздела «Библиотеки». */
-    onLibrary: () => void;
-    /** Выбор раздела «Заметки». */
-    onNotes: () => void;
-    /** Открытие раздела настроек. */
-    onSettings: () => void;
-    /** Переключение темы. */
-    onTheme: () => void;
   }
 
-  let {
-    section,
-    selection,
-    workspaceActive,
-    libraryActive,
-    notesActive,
-    settingsOpen,
-    settingsAlert = false,
-    theme,
-    themeNext,
-    mobile,
-    onWorkspace,
-    onLibrary,
-    onNotes,
-    onSettings,
-    onTheme,
-  }: Props = $props();
+  let { section, selection, mobile }: Props = $props();
 
   /** Подсказка навигационного текста: полный путь к выбранному объекту. */
   const contextTitle = $derived(
     selection ? `${section}${t('app.context.separator')}${selection}` : section,
-  );
-
-  /** Иконка кнопки: показывает текущую сторону темы.
-   *
-   * Третьего положения «как в системе» у кнопки нет — этот режим выбирают в
-   * настройках. Поэтому при системном предпочтении иконка показывает тему,
-   * которую сейчас видит пользователь, а не состояние настройки.
-   */
-  const themeIcon: IconName = $derived(theme === 'dark' ? 'moon' : 'sun');
-
-  /** Подпись кнопки: называет сторону, на которую она переключит. */
-  const themeTitle = $derived(
-    t('app.theme.title', {
-      theme: themeNext === 'dark' ? t('app.theme.dark') : t('app.theme.light'),
-    }),
   );
 </script>
 
@@ -103,15 +45,17 @@
     задан в `rem` (2.25rem) и остаётся меньше высоты шапки, поэтому знак
     заметный, но высоту шапки не меняет.
   -->
-  <span
-    class="text-[var(--primary)] flex size-9 shrink-0 items-center justify-center [&>svg]:size-full"
-    data-testid="app-name"
-    role="img"
-    aria-label={t('app.name')}
-    title={t('app.name')}
-  >
-    {@html logoMarkup}
-  </span>
+  {#if mobile}
+    <span
+      class="text-[var(--primary)] flex size-9 shrink-0 items-center justify-center [&>svg]:size-full"
+      data-testid="app-name"
+      role="img"
+      aria-label={t('app.name')}
+      title={t('app.name')}
+    >
+      {@html logoMarkup}
+    </span>
+  {/if}
   <!--
     Навигационный текст. На узком окне (телефон, планшет) остаётся только имя
     выбранного объекта: название раздела уже показано меню-иконками, и «Рабочее
@@ -130,56 +74,5 @@
     {/if}
   </span>
 
-  <!--
-    Действия верхней панели. На телефоне они переезжают в нижнюю навигацию
-    (`SectionNav`), и здесь не рисуются вовсе: активна ровно одна компоновка, а
-    не две с повторяющимися доступными именами и метками для тестов.
-  -->
-  {#if !mobile}
-    <div class="ml-auto flex min-w-0 items-center gap-2 tablet:gap-4">
-      <SectionNav
-        {workspaceActive}
-        {libraryActive}
-        {notesActive}
-        {mobile}
-        {onWorkspace}
-        {onLibrary}
-        {onNotes}
-      />
 
-      <div class="flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font-family:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
-          title={themeTitle}
-          aria-label={t('app.theme.switch')}
-          data-testid="nav-theme"
-          onclick={onTheme}
-        >
-          <Icon name={themeIcon} class="size-[calc(var(--spacing)*4.5)]" />
-        </button>
-
-        <button
-          type="button"
-          class="text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors [font-family:inherit] pointer-coarse:h-11 pointer-coarse:w-11"
-          class:bg-[var(--primary-soft)]={settingsOpen}
-          title={settingsAlert ? t('app.settings.attention') : t('app.settings')}
-          aria-label={t('app.settings')}
-          aria-pressed={settingsOpen}
-          data-testid="nav-settings"
-          onclick={onSettings}
-        >
-          <Icon name="gear" class="size-[calc(var(--spacing)*4.5)]" />
-          {#if settingsAlert}
-            <!-- Точка в углу кнопки: в настройках есть важное, не открывая их. -->
-            <span
-              class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[var(--destructive)]"
-              aria-hidden="true"
-              data-testid="settings-alert-dot"
-            ></span>
-          {/if}
-        </button>
-      </div>
-    </div>
-  {/if}
 </header>

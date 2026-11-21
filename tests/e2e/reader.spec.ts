@@ -110,7 +110,9 @@ test('масштаб удерживает читаемую строку на м�
 });
 
 test('открытие панели заметок не сбивает читаемое место', async ({ page }) => {
-  await page.setViewportSize({ width: 1200, height: 700 });
+  // Ширина с запасом: панель должна стоять рядом с книгой, а не накрывать её —
+  // иначе ширина текста не меняется и проверка ничего не значит.
+  await page.setViewportSize({ width: 1600, height: 700 });
   await openWorkplace(page);
   const frameLocator = page.frameLocator('iframe[title="Содержимое книги"]');
   await expect(frameLocator.getByText('Первый абзац книги.')).toBeVisible();
@@ -129,8 +131,8 @@ test('открытие панели заметок не сбивает чита�
   await body.evaluate((element) => {
     element.ownerDocument.scrollingElement?.scrollTo(0, 900);
   });
-  // Список вкладок занимает то же место, что панель заметок: закрываем его,
-  // иначе ширина текста при открытии заметок не изменилась бы.
+  // Панели занимают одно место: пока открыт список вкладок, заметки его
+  // заменяют и ширина текста не меняется. Поэтому сначала закрываем список.
   await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
 
@@ -139,7 +141,7 @@ test('открытие панели заметок не сбивает чита�
 
   await page.getByTestId('workplace-notes-toggle').click();
   await expect(page.getByTestId('notes-panel')).toBeVisible();
-  // Дожидаемся перестройки текста под новую ширину области чтения.
+  // Панель занимает место слева и сужает текст — ждём перестройки.
   await expect
     .poll(async () => frame.evaluate((element) => element.clientWidth))
     .toBeLessThan(widthBefore);

@@ -23,6 +23,8 @@ export const ru = {
   'app.sections.label': 'Разделы приложения',
   'app.context.separator': ' · ',
 
+  'app.sideNav.collapse': 'Свернуть меню',
+  'app.sideNav.expand': 'Развернуть меню',
   'app.settings': 'Настройки',
   'app.settings.short': 'Настройки',
   'app.settings.attention': 'Настройки: есть важное',
@@ -666,6 +668,5 @@ export const ru = {
   'app.settings.app.general.interface.mode.option.tablet': 'Планшет',
   'app.settings.app.general.interface.mode.option.desktop': 'Десктоп',
   'app.settings.app.general.interface.scale.label': 'Масштаб, %',
-  'app.settings.app.general.interface.scale.description':
-    'Масштаб интерфейса.',
+  'app.settings.app.general.interface.scale.description': 'Масштаб интерфейса.',
 } as const;

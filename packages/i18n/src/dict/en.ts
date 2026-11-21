@@ -23,6 +23,8 @@ export const en: Dictionary = {
   'app.sections.label': 'Application sections',
   'app.context.separator': ' · ',
 
+  'app.sideNav.collapse': 'Collapse menu',
+  'app.sideNav.expand': 'Expand menu',
   'app.settings': 'Settings',
   'app.settings.short': 'Settings',
   'app.settings.attention': 'Settings: something needs attention',

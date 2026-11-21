@@ -3,6 +3,7 @@
   import { Badge, Button, Icon, Menu, MenuItem } from '@context/ui';
   import AppBar from './AppBar.svelte';
   import SectionNav from './SectionNav.svelte';
+  import SideNav from './SideNav.svelte';
   import SettingsPage from '../features/settings/SettingsPage.svelte';
   import StorePage from '../features/store/StorePage.svelte';
   import LibraryPage from '../features/library/LibraryPage.svelte';
@@ -196,6 +197,36 @@
   /** Узкое окно (телефон и планшеты): меню разделов показывается иконками без
    * подписей. Точка совпадает с токеном `--breakpoint-large-tablet`. */
   let mobileWindow = $state(false);
+
+  /**
+   * Свёрнуто ли левое меню десктопа.
+   *
+   * Свёрнутое меню — узкая полоса иконок: навигация остаётся доступной, но не
+   * занимает место у содержимого. Выбор запоминается между запусками.
+   */
+  let navCollapsed = $state(readCollapsedPreference());
+
+  /** Ключ запомненного состояния левого меню. */
+  const NAV_COLLAPSED_KEY = 'context.nav-collapsed';
+
+  /** Чтение запомненного состояния меню. */
+  function readCollapsedPreference(): boolean {
+    try {
+      return localStorage.getItem(NAV_COLLAPSED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  /** Переключение левого меню: свёрнутое состояние запоминается. */
+  function toggleNavCollapsed(): void {
+    navCollapsed = !navCollapsed;
+    try {
+      localStorage.setItem(NAV_COLLAPSED_KEY, String(navCollapsed));
+    } catch {
+      // Недоступное хранилище не мешает переключению в текущей сессии.
+    }
+  }
 
   /** Есть ли неприменённые изменения активности плагинов. */
 
@@ -1163,6 +1194,9 @@
       // Принудительный выбор не зависит от ширины: пересчёт нужен только «Авто».
       if (interfaceMode === 'auto') {
         syncMobileMode(event.matches);
+        // Режим тоже следует ширине: атрибут раскладки меняется вместе с ней,
+        // иначе десктопные правила не включатся после расширения окна.
+        applyInterfaceMode(modeForWidth(event.matches));
       }
     };
     mobileQuery.addEventListener('change', onMobileChange);
@@ -1349,16 +1383,13 @@
   });
 </script>
 
-<div class="flex h-full flex-col" data-mobile={mobileWindow ? 'true' : 'false'}>
-  <!--
-    Верхняя панель — постоянный «корешок»: имя приложения, вкладки разделов и
-    служебные действия. Скрывается в сосредоточенном чтении (книге — всё окно)
-    и в полноэкранных настройках (у них своя шапка с закрытием).
-  -->
-  {#if !focusMode && !settingsOpen}
-    <AppBar
-      section={appContext.section}
-      selection={appContext.selection}
+<!--
+  Оболочка: на десктопе слева постоянное меню, справа — шапка с контекстом и
+  содержимое. На телефоне меню нет: там прежняя шапка и нижняя навигация.
+-->
+<div class="flex h-full" data-mobile={mobileWindow ? 'true' : 'false'}>
+  {#if !mobileWindow && !focusMode && !settingsOpen}
+    <SideNav
       workspaceActive={workspaceListVisible}
       libraryActive={librariesVisible}
       notesActive={notesLibraryVisible}
@@ -1366,12 +1397,27 @@
       settingsAlert={settingsNeedsAttention}
       theme={resolvedTheme}
       themeNext={oppositeTheme(resolvedTheme)}
-      mobile={mobileWindow}
+      collapsed={navCollapsed}
       onWorkspace={toggleWorkspace}
       onLibrary={toggleLibraries}
       onNotes={toggleNotesLibrary}
       onSettings={toggleSettings}
       onTheme={toggleTheme}
+      onToggleCollapsed={toggleNavCollapsed}
+    />
+  {/if}
+
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+  <!--
+    Строка контекста: где находится пользователь и что выбрано. На десктопе
+    навигации в ней нет — она в левом меню. Скрывается в сосредоточенном чтении
+    и в полноэкранных настройках.
+  -->
+  {#if !focusMode && !settingsOpen}
+    <AppBar
+      section={appContext.section}
+      selection={appContext.selection}
+      mobile={mobileWindow}
     />
   {/if}
 
@@ -1619,9 +1665,10 @@
         onWorkspace={toggleWorkspace}
         onLibrary={toggleLibraries}
         onNotes={toggleNotesLibrary}
-          onSettings={toggleSettings}
+        onSettings={toggleSettings}
         onTheme={toggleTheme}
       />
     </div>
   {/if}
+  </div>
 </div>

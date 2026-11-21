@@ -35,7 +35,16 @@
     /** Сторона, которую поставит нажатие кнопки темы (телефонная компоновка). */
     themeNext?: 'light' | 'dark';
     /** Телефонная компоновка: нижняя навигация вместо вкладок. */
-    mobile: boolean;
+    mobile?: boolean;
+    /**
+     * Компоновка меню разделов.
+     *
+     * `tabs` — вкладки в шапке, `mobile` — нижняя навигация, `sidebar` — колонка
+     * разделов в левом меню десктопа. В разметке активна ровно одна.
+     */
+    layout?: 'tabs' | 'mobile' | 'sidebar';
+    /** Меню свёрнуто: только иконки, без подписей (компоновка `sidebar`). */
+    collapsed?: boolean;
     /** Выбор раздела «Рабочие места». */
     onWorkspace: () => void;
     /** Выбор раздела «Библиотеки». */
@@ -59,6 +68,8 @@
     theme = 'light',
     themeNext = 'dark',
     mobile,
+    layout = mobile === true ? 'mobile' : 'tabs',
+    collapsed = false,
     onWorkspace,
     onLibrary,
     onNotes,
@@ -112,6 +123,32 @@
     }
   }
 </script>
+
+{#snippet sidebarItem(item: { id: string; label: string; icon: IconName; active: boolean })}
+  <!--
+    Раздел левого меню: иконка и подпись в столбик. Активный раздел выделяется
+    той же акцентной заливкой, что и вкладка в шапке: выделение одно на всё
+    приложение. В свёрнутом меню подпись прячется, остаётся иконка по центру.
+  -->
+  <button
+    type="button"
+    class="flex h-9 min-w-0 shrink-0 cursor-pointer items-center gap-2 rounded-[var(--radius)] transition-colors [font-family:inherit] pointer-coarse:h-11 {collapsed
+      ? 'w-10 justify-center self-center'
+      : 'w-full px-2'} {item.active
+      ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+      : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'}"
+    aria-pressed={item.active}
+    aria-label={item.label}
+    title={item.label}
+    data-testid={`nav-${item.id}`}
+    onclick={() => selectSection(item.id)}
+  >
+    <Icon name={item.icon} class="size-[calc(var(--spacing)*4.5)] shrink-0" />
+    {#if !collapsed}
+      <span class="min-w-0 truncate role-subtitle">{item.label}</span>
+    {/if}
+  </button>
+{/snippet}
 
 {#snippet sectionTab(item: { id: string; label: string; icon: IconName; active: boolean })}
   <!--
@@ -175,7 +212,24 @@
   </button>
 {/snippet}
 
-{#if mobile}
+{#if layout === 'sidebar'}
+  <!--
+    Разделы левого меню десктопа: колонка кнопок с подписями. Состав тот же, что
+    у вкладок в шапке, — служебные действия (тема, настройки) живут внизу меню и
+    сюда не входят.
+  -->
+  <nav
+    class="flex w-full flex-none flex-col gap-0.5 {className}"
+    aria-label={t('app.sections.label')}
+    data-testid="section-nav"
+    data-mobile="false"
+    data-layout="sidebar"
+  >
+    {#each sections as item (item.id)}
+      {@render sidebarItem(item)}
+    {/each}
+  </nav>
+{:else if layout === 'mobile'}
   <!--
     Нижняя навигация телефона: те же разделы и служебные действия, что и в
     верхней панели, но прижатые к нижнему краю и удобные пальцу. Высота — от
@@ -213,7 +267,7 @@
       id: 'settings',
       label: t('app.settings.short'),
       title: settingsAlert ? t('app.settings.attention') : t('app.settings'),
-      icon: 'menu',
+      icon: 'gear',
       active: settingsOpen,
       alert: settingsAlert,
       onClick: () => onSettings?.(),

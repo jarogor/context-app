@@ -29,9 +29,7 @@ async function hasHorizontalScroll(page: import('@playwright/test').Page): Promi
  */
 const WIDTHS = [360, 480, 767, 768, 1023, LARGE_TABLET, 1439, 1440, 1919, 1920, 2559, 2560];
 
-test('на телефоне разделы уходят в нижнюю навигацию, на большом планшете — в шапку', async ({
-  page,
-}) => {
+test('на узком окне разделы в нижней навигации, на десктопе — в левом меню', async ({ page }) => {
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/');
@@ -52,8 +50,13 @@ test('на телефоне разделы уходят в нижнюю нави
       expect(navBox!.y).toBeGreaterThanOrEqual(barBox!.y + barBox!.height - 1);
       expect(navBox!.y + navBox!.height).toBeGreaterThanOrEqual(800 - 1);
     } else {
-      // Большой планшет и шире: разделы стоят вкладками в верхней панели.
-      expect(navBox!.y).toBeLessThan(barBox!.y + barBox!.height + 1);
+      // Десктоп: разделы стоят колонкой в левом меню, левее шапки.
+      const side = page.getByTestId('side-nav');
+      await expect(side).toBeVisible();
+      const sideBox = await side.boundingBox();
+      expect(sideBox).not.toBeNull();
+      expect(navBox!.x).toBeGreaterThanOrEqual(sideBox!.x - 1);
+      expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(sideBox!.x + sideBox!.width + 1);
     }
 
     // Разделы и служебные действия доступны на любой ширине — ровно один раз:
@@ -98,19 +101,23 @@ test('все основные экраны без горизонтальной �
 test('меню разделов настроек на телефоне — полоса сверху, на большом планшете — колонка', async ({
   page,
 }) => {
+  // Телефон: настройки открываются из нижней навигации, меню разделов — полоса.
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto('/');
   await page.getByTestId('nav-settings').click();
 
-  const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
-  const narrow = await menu.boundingBox();
+  const menu = () => page.getByRole('navigation', { name: 'Разделы настроек' });
+  const narrow = await menu().boundingBox();
   const page390 = 390;
   expect(narrow).not.toBeNull();
   // На телефоне меню занимает всю ширину области: это полоса, а не колонка.
   expect(narrow!.width).toBeGreaterThan(page390 * 0.6);
+  await page.getByLabel('Закрыть настройки').click();
 
+  // Десктоп: настройки открываются из левого меню, разделы — колонка.
   await page.setViewportSize({ width: 1440, height: 800 });
-  const wide = await menu.boundingBox();
+  await page.getByTestId('nav-settings').click();
+  const wide = await menu().boundingBox();
   expect(wide).not.toBeNull();
   // На десктопе меню — узкая колонка слева.
   expect(wide!.width).toBeLessThan(page390);

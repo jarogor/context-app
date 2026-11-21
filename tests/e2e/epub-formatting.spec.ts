@@ -185,11 +185,11 @@ test('текст книги не прижимается к левому краю
       viewport: document.documentElement.clientWidth,
     };
   });
-  // Текст отступает от краёв области с обеих сторон, а сам документ уже окна.
+  // Текст отступает от краёв области с обеих сторон: поля принадлежат читалке,
+  // а не книге, и CSS книги их не сбрасывает.
   expect(layout.paddingLeft).toBeGreaterThanOrEqual(24);
   expect(layout.paddingRight).toBeGreaterThanOrEqual(24);
-  expect(layout.width).toBeLessThan(layout.viewport);
-  // Колонка центрирована: слева и справа остаётся примерно одинаковый запас.
+  // Колонка центрирована внутри области чтения: слева и справа одинаковый запас.
   const right = layout.viewport - (layout.left + layout.width);
   expect(Math.abs(layout.left - right)).toBeLessThanOrEqual(2);
 });

@@ -424,19 +424,19 @@ describe('тема области чтения в оболочке', () => {
 });
 
 describe('состав меню разделов', () => {
-  /** Метки пунктов верхней панели и навигации в порядке слева направо. */
+  /** Метки пунктов меню разделов в порядке сверху вниз. */
   function navLabels(): string[] {
-    const bar = document.querySelector('[data-testid="app-bar"]') as HTMLElement;
-    const nav = bar.querySelector('[data-testid="section-nav"]') as HTMLElement;
+    const side = document.querySelector('[data-testid="side-nav"]') as HTMLElement;
+    const nav = side.querySelector('[data-testid="section-nav"]') as HTMLElement;
     return Array.from(nav.querySelectorAll('button')).map(
       (node) => node.getAttribute('aria-label') ?? '',
     );
   }
 
-  /** Метки служебных действий верхней панели. */
+  /** Метки служебных действий левого меню. */
   function serviceLabels(): string[] {
-    const bar = document.querySelector('[data-testid="app-bar"]') as HTMLElement;
-    return Array.from(bar.querySelectorAll('[data-testid^="nav-"]')).map(
+    const side = document.querySelector('[data-testid="side-nav"]') as HTMLElement;
+    return Array.from(side.querySelectorAll('[data-testid^="nav-"]')).map(
       (node) => node.getAttribute('aria-label') ?? '',
     );
   }
