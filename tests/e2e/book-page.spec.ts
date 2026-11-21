@@ -366,27 +366,31 @@ test('на телефоне действие и содержание досту�
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
-test('на большом мониторе страница не зажата в узкую колонку', async ({ page }) => {
-  // Ширина окна сама по себе не увеличивает набор: масштаб задаёт пользователь.
-  // Здесь проверяется только, что страница использует доступное место.
-  await page.setViewportSize({ width: 1920, height: 1080 });
+test('масштаб интерфейса увеличивает набор страницы книги', async ({ page }) => {
+  // Ширина окна набор не меняет: его задаёт настройка масштаба. Проверяется,
+  // что настройка действительно доходит до текста страницы.
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const library = await openBookPage(page, [FULL_BOOK], /Книга с авторами/);
 
-  const metrics = await library.getByTestId('book-page').evaluate((element) => {
-    const title = element.querySelector('[data-testid="book-title"]') as HTMLElement;
-    const description = element.querySelector('[data-testid="book-description"]') as HTMLElement;
-    const grid = element.querySelector('.grid') as HTMLElement;
-    return {
-      title: parseFloat(getComputedStyle(title).fontSize),
-      body: parseFloat(getComputedStyle(description).fontSize),
-      width: grid.getBoundingClientRect().width,
-    };
-  });
+  /** Кегль заголовка страницы при текущем масштабе. */
+  const measure = async () =>
+    library.getByTestId('book-page').evaluate((element) => {
+      const title = element.querySelector('[data-testid="book-title"]') as HTMLElement;
+      return Number.parseFloat(getComputedStyle(title).fontSize);
+    });
 
-  // Набор не зависит от ширины окна: он задан масштабом интерфейса.
-  expect(metrics.title).toBeGreaterThan(20);
-  expect(metrics.body).toBeGreaterThan(12);
-  // Страница не зажата в узкую колонку: предел ширины контента держит её
-  // просторной на большом мониторе.
-  expect(metrics.width).toBeGreaterThan(1000);
+  const normal = await measure();
+
+  // Масштаб 150% ставится через настройки — тем же путём, что и пользователь.
+  await page.getByTestId('nav-settings').click();
+  const scale = page.getByLabel('Масштаб, %');
+  await scale.click();
+  await page.getByRole('option', { name: '150%' }).click();
+  await page.getByRole('button', { name: 'Сохранить' }).first().click();
+  await expect(page.locator('html')).toHaveCSS('--ui-scale', '1.5');
+  await page.getByLabel('Закрыть настройки').click();
+
+  const scaled = await measure();
+  // Заголовок вырос вместе со шкалой: настройка применена ко всему интерфейсу.
+  expect(scaled).toBeGreaterThan(normal);
 });

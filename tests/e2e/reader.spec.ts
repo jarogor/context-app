@@ -152,6 +152,35 @@ test('открытие панели заметок не сбивает чита�
   expect(Math.abs(after.top - before.top)).toBeLessThan(30);
 });
 
+test('масштаб интерфейса не меняет масштаб текста книги', async ({ page }) => {
+  // Книга живёт в изолированном документе и масштабируется своим ползунком.
+  // Масштаб интерфейса — про оболочку, книги он не касается.
+  await page.setViewportSize({ width: 1600, height: 800 });
+  await openWorkplace(page);
+  const body = page.frameLocator('iframe[title="Содержимое книги"]').locator('body');
+
+  /** Кегль корня книги при текущем масштабе интерфейса. */
+  const measure = async () =>
+    body.evaluate((element) => {
+      const root = element.ownerDocument.documentElement;
+      return Number.parseFloat(getComputedStyle(root).fontSize);
+    });
+
+  const normal = await measure();
+
+  // Масштаб интерфейса 150% — тем же путём, что и пользователь.
+  await page.getByTestId('nav-settings').click();
+  await page.getByLabel('Масштаб, %').click();
+  await page.getByRole('option', { name: '150%' }).click();
+  await page.getByRole('button', { name: 'Сохранить' }).first().click();
+  await expect(page.locator('html')).toHaveCSS('--ui-scale', '1.5');
+  await page.getByLabel('Закрыть настройки').click();
+
+  // Оболочка выросла, книга — нет: её масштаб задаёт только читалка.
+  const scaled = await measure();
+  expect(scaled).toBe(normal);
+});
+
 test('прогресс обновляется при прокрутке книги', async ({ page }) => {
   await openWorkplace(page);
 

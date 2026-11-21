@@ -23,8 +23,8 @@ export const ru = {
   'app.sections.label': 'Разделы приложения',
   'app.context.separator': ' · ',
 
-  'app.sideNav.collapse': 'Свернуть меню',
-  'app.sideNav.expand': 'Развернуть меню',
+  'app.sideNav.collapse': 'Свернуть',
+  'app.sideNav.expand': 'Развернуть',
   'app.settings': 'Настройки',
   'app.settings.short': 'Настройки',
   'app.settings.attention': 'Настройки: есть важное',
