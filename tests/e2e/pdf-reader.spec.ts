@@ -882,6 +882,24 @@ test('прокрутка не оставляет белых полос на ст
   await openPdf(page, 1);
   await setZoom(page, 200);
 
+  // После смены масштаба страницы перерисовываются. На медленной машине замер,
+  // начатый сразу, попадал на ещё не нарисованный растр и считал всё пустым.
+  const frame = content(page);
+  await expect
+    .poll(
+      async () =>
+        frame.locator('.page canvas').evaluateAll(
+          (canvases) =>
+            canvases.filter((canvas) => {
+              const rect = canvas.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            }).length,
+        ),
+      { timeout: 15000 },
+    )
+    .toBeGreaterThan(0);
+  await page.waitForTimeout(300);
+
   const blanks = await content(page)
     .locator('#viewer')
     .evaluate(async (viewer) => {

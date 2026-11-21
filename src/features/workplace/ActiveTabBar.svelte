@@ -67,7 +67,7 @@
   вкладка открывает сразу всё пространство работы с книгой.
 -->
 <div
-  class="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 overflow-hidden bg-[var(--app-bar-strip)] px-3 py-2 large-tablet:flex-nowrap [--control-surface:var(--strip-control-surface)]"
+  class="flex flex-none flex-wrap items-center gap-x-2 gap-y-1 overflow-hidden bg-[var(--app-bar-strip)] px-2 py-2 large-tablet:flex-nowrap large-tablet:gap-x-3 large-tablet:px-3 [--control-surface:var(--strip-control-surface)]"
   data-testid="workplace-tabs"
 >
   <!--
@@ -113,7 +113,7 @@
 
   {#if tab}
     <div
-      class="flex min-w-[10rem] flex-1 items-center gap-2"
+      class="flex min-w-0 flex-1 items-center gap-2"
       style={mark ? `--tab-mark-fill: ${mark.fill}; --tab-mark-ink: ${mark.ink};` : ''}
       data-testid="workplace-active-tab"
     >
