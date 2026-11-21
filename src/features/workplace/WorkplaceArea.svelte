@@ -731,7 +731,6 @@
     <ActiveTabBar
       tabs={workspace.tabs}
       activeTabId={workspace.activeTabId}
-      {openTabsLimit}
       {focusMode}
       {booksOpen}
       {notesOpen}
@@ -740,8 +739,6 @@
       onToggleBooks={onToggleBooks}
       onToggleNotes={onToggleNotes}
       onToggleProperties={() => onToggleProperties?.()}
-      onAdd={onAddBook}
-      onAddFile={onAddFile}
     />
     <div class="relative flex min-h-0 flex-1 flex-col">
       <!--
@@ -756,6 +753,8 @@
             activeTabId={workspace.activeTabId}
             {openTabsLimit}
             overlay={panelOverlay}
+            onAddBook={onAddBook}
+            onAddFile={onAddFile}
             onSelect={selectTabInPanel}
             onClose={onCloseTab}
             onDuplicate={onDuplicateTab}

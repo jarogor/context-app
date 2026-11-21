@@ -670,35 +670,28 @@ test('на панели активной вкладки действия над 
   await expect(page.getByLabel('Открыть файл с диска')).toBeVisible();
 });
 
-test('открытие книги стоит рядом с переключателем вкладок', async ({ page }) => {
+test('открытие книги стоит в панели вкладок, действия над книгой — сверху', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/');
   await addBook(page, 'Демо-книга');
+  await ensureBooksPanel(page);
 
-  // Вкладку создаёт новая книга, поэтому добавление живёт в одной группе с
-  // переключателем списка вкладок, а не среди действий над текущей книгой.
-  const open = await page.getByTestId('workplace-open-actions').boundingBox();
-  const tabs = await page.getByTestId('workplace-books-toggle').boundingBox();
-  const add = await page.getByLabel('Добавить книгу').boundingBox();
-  const file = await page.getByLabel('Открыть файл с диска').boundingBox();
-  const actions = await page.getByTestId('workplace-tabs-actions').boundingBox();
-  const active = await page.getByTestId('workplace-active-tab').boundingBox();
-
-  expect(open).not.toBeNull();
-  expect(tabs).not.toBeNull();
+  // Вкладку создаёт новая книга, поэтому добавление живёт в панели списка
+  // вкладок, а не в полосе активной вкладки.
+  const panel = await booksPanel(page).boundingBox();
+  const add = await booksPanel(page).getByLabel('Добавить книгу').boundingBox();
+  const file = await booksPanel(page).getByLabel('Открыть файл с диска').boundingBox();
+  expect(panel).not.toBeNull();
   expect(add).not.toBeNull();
   expect(file).not.toBeNull();
-  expect(actions).not.toBeNull();
-  expect(active).not.toBeNull();
+  expect(add!.x).toBeGreaterThanOrEqual(panel!.x);
+  expect(file!.x + file!.width).toBeLessThanOrEqual(panel!.x + panel!.width + 1);
 
-  // Обе кнопки внутри группы открытия.
-  expect(tabs!.x).toBeGreaterThanOrEqual(open!.x);
-  expect(add!.x).toBeGreaterThanOrEqual(open!.x);
-  expect(file!.x + file!.width).toBeLessThanOrEqual(open!.x + open!.width + 1);
-
-  // Группа стоит слева от названия книги, действия над книгой — справа.
-  expect(open!.x + open!.width).toBeLessThan(active!.x);
-  expect(actions!.x).toBeGreaterThan(active!.x + active!.width);
+  // В полосе активной вкладки открытия нет: там заметки и свойства.
+  const bar = page.getByTestId('workplace-tabs');
+  await expect(bar.getByLabel('Добавить книгу')).toHaveCount(0);
+  await expect(bar.getByTestId('workplace-notes-toggle')).toBeVisible();
+  await expect(bar.getByTestId('workplace-properties-toggle')).toBeVisible();
 });
 
 test('высота панели совпадает с кнопками действий на любом масштабе окна', async ({ page }) => {

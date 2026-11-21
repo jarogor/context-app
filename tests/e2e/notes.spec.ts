@@ -53,7 +53,15 @@ async function openWorkspace(page: import('@playwright/test').Page) {
 /** Добавление книги вкладкой в рабочее место. */
 async function addBook(page: import('@playwright/test').Page, title: string) {
   await openWorkspace(page);
-  // Кнопка добавления стоит на панели активной вкладки на любой ширине окна.
+  // Добавление живёт в панели вкладок: на узком окне она закрыта по умолчанию.
+  if (
+    !(await page
+      .getByTestId('open-books-panel')
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
+  }
   await page
     .getByRole('button', { name: /Добавить книгу/ })
     .first()
@@ -74,6 +82,22 @@ async function addBook(page: import('@playwright/test').Page, title: string) {
  * меню панелей слева от вкладки: там отдельных кнопок нет.
  */
 async function openPanel(page: import('@playwright/test').Page, label: string) {
+  // Кнопка панели переключает её: нажатие на уже открытую закрыло бы панель.
+  const panelByLabel: Record<string, string> = {
+    Вкладки: 'open-books-panel',
+    Заметки: 'notes-panel',
+    Книга: 'properties-panel',
+  };
+  const testId = panelByLabel[label];
+  if (
+    testId &&
+    (await page
+      .getByTestId(testId)
+      .isVisible()
+      .catch(() => false))
+  ) {
+    return;
+  }
   // Поиск только в панели рабочего места: в навигации есть одноимённые разделы.
   const bar = page.getByTestId('workplace-tabs');
   const direct = bar.getByRole('button', { name: label, exact: true });
@@ -610,9 +634,8 @@ test('на узком окне панель активной вкладки по
     .evaluate((el) => el.scrollWidth > el.clientWidth + 1);
   expect(clipped).toBe(false);
 
-  // Весь состав места живёт в панели списка. На телефоне она закрыта по
-  // умолчанию: иначе панель на всю ширину накрыла бы книгу.
-  await expect(page.getByTestId('open-books-panel')).toHaveCount(0);
+  // Весь состав места живёт в панели списка. Книгу добавляли из этой панели,
+  // поэтому она открыта; на телефоне видна только активная вкладка.
   await openPanel(page, 'Вкладки');
   await expect(page.getByTestId('open-books-panel').getByTestId('open-books-item')).toHaveCount(1);
 });

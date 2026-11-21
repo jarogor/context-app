@@ -228,7 +228,7 @@ export const ru = {
     'Воспользуйтесь кнопкой «Добавить книгу» в полосе вкладок выше: книга появится здесь и встретится с заметками.',
   'app.workplace.tabs': 'Вкладки',
   'app.workplace.notes': 'Заметки',
-  'app.workplace.properties': 'Свойства файла',
+  'app.workplace.properties': 'Книга',
   'app.workplace.notesTitle': 'Заметки',
   'app.workplace.openBooks': 'Открытые вкладки',
   'app.workplace.focus': 'Сосредоточенное чтение',

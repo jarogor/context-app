@@ -116,14 +116,20 @@ export async function addBookToWorkspace(page: Page, title: string | RegExp) {
   if (await open.isVisible().catch(() => false)) {
     await open.click();
   }
-  // На узком окне кнопки открытия книги живут в меню панелей: в полосе их нет.
-  const addButton = page.getByRole('button', { name: /Добавить книгу/ });
-  if ((await addButton.count()) > 0 && (await addButton.first().isVisible())) {
-    await addButton.first().click();
-  } else {
-    await page.getByTestId('workplace-panel-menu').first().click();
-    await page.getByRole('menuitem', { name: /Добавить книгу/ }).click();
+  // Добавление книги живёт в панели вкладок. На узком окне панель закрыта по
+  // умолчанию — сначала открываем её.
+  if (
+    !(await page
+      .getByTestId('open-books-panel')
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page.getByRole('button', { name: 'Вкладки', exact: true }).click();
   }
+  await page
+    .getByRole('button', { name: /Добавить книгу/ })
+    .first()
+    .click();
   const library = page.locator('main');
   const back = library.getByRole('button', { name: /К списку книг/ });
   if ((await back.count()) > 0) {

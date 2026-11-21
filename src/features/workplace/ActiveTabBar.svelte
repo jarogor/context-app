@@ -2,18 +2,14 @@
   import { t } from '@context/i18n';
   import { Button, Icon } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
-  import { openAvailability } from './workplace';
   import { tabColorMark, tabLabel, tabTooltip } from './tab-appearance';
   import { hotkeyHint } from '../hotkeys/registry';
-  import { logEvent } from '../../shared/app-log';
 
   interface Props {
     /** Вкладки рабочего места: по ним считается доступность добавления. */
     tabs: WorkspaceTab[];
     /** Активная вкладка; `null` — открытых книг нет. */
     activeTabId: string | null;
-    /** Лимит числа открытых вкладок рабочего места. */
-    openTabsLimit: number;
     /** Открыта ли панель списка вкладок. */
     booksOpen: boolean;
     /** Открыта ли панель заметок. */
@@ -28,10 +24,6 @@
     onToggleNotes: () => void;
     /** Переключение панели свойств книги. */
     onToggleProperties: () => void;
-    /** Добавление книги (переход в библиотеку). */
-    onAdd: () => void;
-    /** Открытие книги с диска. */
-    onAddFile: () => void;
     /** Переключение режима сосредоточенного чтения. */
     onToggleFocus?: () => void;
   }
@@ -39,7 +31,6 @@
   let {
     tabs,
     activeTabId,
-    openTabsLimit,
     booksOpen,
     notesOpen,
     propertiesOpen,
@@ -47,8 +38,6 @@
     onToggleBooks,
     onToggleNotes,
     onToggleProperties,
-    onAdd,
-    onAddFile,
     onToggleFocus,
   }: Props = $props();
 
@@ -59,49 +48,6 @@
   const tabNumber = $derived(
     tab ? tabs.findIndex((item) => item.id === tab.id) + 1 : null,
   );
-
-  /** Доступность добавления книги при текущем лимите вкладок. */
-  const availability = $derived(openAvailability(tabs.length, openTabsLimit));
-
-  /** Создание новых вкладок заблокировано: лимит достигнут или превышен. */
-  const openBlocked = $derived(availability !== 'available');
-
-  /** Лимит превышен: вкладок больше, чем разрешено. */
-  const overLimit = $derived(availability === 'over-limit');
-
-  /** Краткая подсказка заблокированным кнопкам открытия. */
-  const openBlockedTitle = $derived(
-    overLimit ? t('app.workplace.limitExceeded') : t('app.workplace.limitReached'),
-  );
-
-  /** Подсказка кнопке открытия: краткая при блокировке, обычная иначе. */
-  function openButtonTitle(base: string): string {
-    return openBlocked ? openBlockedTitle : base;
-  }
-
-  /** Признак того, что о превышении лимита уже сообщено (для дедупликации). */
-  let overLimitReported = false;
-
-  /** Запись пояснения о превышении лимита в журнал с дедупликацией. */
-  $effect(() => {
-    if (!overLimit) {
-      overLimitReported = false;
-      return;
-    }
-    if (overLimitReported) {
-      return;
-    }
-    overLimitReported = true;
-    void logEvent({
-      message: t('app.workplace.limitExceededMessage', {
-        opened: tabs.length,
-        limit: openTabsLimit,
-      }),
-      severity: 'warn',
-      source: 'workplace',
-      details: { tabs: tabs.length, limit: openTabsLimit },
-    }).catch(() => undefined);
-  });
 
   /** Пользовательский цвет вкладки — на номере, как в списке вкладок. */
   const mark = $derived(tab ? tabColorMark(tab.color, { active: true }) : undefined);
@@ -125,9 +71,9 @@
   data-testid="workplace-tabs"
 >
   <!--
-    Открытие вкладки и открытие книги — одно действие: новую вкладку создаёт
-    новая книга. Поэтому добавление стоит рядом с переключателем списка вкладок,
-    а не среди действий над текущей книгой.
+    Слева — работа с книгой: переключатель списка вкладок, заметки и свойства.
+    Это действия над открытой книгой, поэтому они стоят рядом с её названием.
+    Открытие новой книги живёт в панели вкладок: новую вкладку создаёт книга.
   -->
   <div class="flex flex-none items-center gap-0.5" data-testid="workplace-open-actions">
     <Button
@@ -141,31 +87,28 @@
     >
       <Icon name="tabs" />
     </Button>
-    <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
-      <Button
-        size="icon"
-        variant={overLimit ? 'ghost-danger' : 'ghost'}
-        ariaLabel={t('app.workplace.addBook')}
-        disabled={openBlocked}
-        onclick={onAdd}
-      >
-        <Icon name="plus" />
-      </Button>
-    </span>
-    <span
-      class="flex"
-      title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
+    <Button
+      variant={notesOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
+      ariaLabel={t('app.workplace.notes')}
+      testId="workplace-notes-toggle"
+      ariaPressed={notesOpen}
+      onclick={onToggleNotes}
     >
-      <Button
-        size="icon"
-        variant={overLimit ? 'ghost-danger' : 'ghost'}
-        ariaLabel={t('app.workplace.addFile')}
-        disabled={openBlocked}
-        onclick={onAddFile}
-      >
-        <Icon name="folder" />
-      </Button>
-    </span>
+      <Icon name="note" />
+    </Button>
+    <Button
+      variant={propertiesOpen ? 'primary' : 'ghost'}
+      size="icon"
+      title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
+      ariaLabel={t('app.workplace.properties')}
+      testId="workplace-properties-toggle"
+      ariaPressed={propertiesOpen}
+      onclick={onToggleProperties}
+    >
+      <Icon name="book" />
+    </Button>
   </div>
 
   {#if tab}
@@ -224,28 +167,6 @@
     class="ml-auto flex flex-none items-center gap-0.5 large-tablet:ml-0"
     data-testid="workplace-tabs-actions"
   >
-    <Button
-      variant={notesOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.notes', t('app.workplace.notes'))}
-      ariaLabel={t('app.workplace.notes')}
-      testId="workplace-notes-toggle"
-      ariaPressed={notesOpen}
-      onclick={onToggleNotes}
-    >
-      <Icon name="note" />
-    </Button>
-    <Button
-      variant={propertiesOpen ? 'primary' : 'ghost'}
-      size="icon"
-      title={hotkeyHint('workplace.properties', t('app.workplace.properties'))}
-      ariaLabel={t('app.workplace.properties')}
-      testId="workplace-properties-toggle"
-      ariaPressed={propertiesOpen}
-      onclick={onToggleProperties}
-    >
-      <Icon name="layers" />
-    </Button>
     {#if onToggleFocus}
       <Button
         variant={focusMode ? 'primary' : 'ghost'}

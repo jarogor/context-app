@@ -4,6 +4,7 @@
   import {
     ActionMenu,
     Badge,
+    Button,
     Icon,
     MetaList,
     NameDescriptionEditor,
@@ -29,6 +30,7 @@
   import { openBookFile } from '../reader/reader';
   import { tabColorMark, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
   import { trackPointerDrag } from './pointer-drag';
+  import { hotkeyHint } from '../hotkeys/registry';
 
   interface Props {
     /** Вкладки рабочего места. */
@@ -47,6 +49,10 @@
     onReorder: (id: string, toIndex: number) => void;
     /** Правка оформления вкладки. */
     onEditAppearance: (id: string, patch: TabAppearancePatch) => void;
+    /** Добавление книги (переход в библиотеку). */
+    onAddBook: () => void;
+    /** Открытие книги с диска. */
+    onAddFile: () => void;
     /** Закрытие панели (на узком окне панель перекрывает содержимое). */
     onClosePanel?: () => void;
     /** Панель накрывает книгу, а не стоит рядом с ней. */
@@ -62,6 +68,8 @@
     onDuplicate,
     onReorder,
     onEditAppearance,
+    onAddBook,
+    onAddFile,
     onClosePanel,
     overlay = false,
   }: Props = $props();
@@ -74,6 +82,16 @@
 
   /** Лимит превышен: вкладок больше, чем разрешено. */
   const overLimit = $derived(availability === 'over-limit');
+
+  /** Краткая подсказка заблокированным кнопкам открытия. */
+  const openBlockedTitle = $derived(
+    overLimit ? t('app.workplace.limitExceeded') : t('app.workplace.limitReached'),
+  );
+
+  /** Подсказка кнопке открытия: краткая при блокировке, обычная иначе. */
+  function openButtonTitle(base: string): string {
+    return openBlocked ? openBlockedTitle : base;
+  }
 
   /** Строка поиска по вкладкам. */
   let query = $state('');
@@ -401,6 +419,35 @@
 >
   {#snippet headerActions()}
     <Badge variant={overLimit ? 'warning' : 'outline'}>{tabs.length} / {openTabsLimit}</Badge>
+    <!--
+      Открытие книги — действие над составом вкладок, поэтому живёт здесь, рядом
+      со списком: новую вкладку создаёт новая книга.
+    -->
+    <span class="flex" title={openButtonTitle(t('app.workplace.addBook'))}>
+      <Button
+        size="icon"
+        variant={overLimit ? 'ghost-danger' : 'ghost'}
+        ariaLabel={t('app.workplace.addBook')}
+        disabled={openBlocked}
+        onclick={onAddBook}
+      >
+        <Icon name="plus" />
+      </Button>
+    </span>
+    <span
+      class="flex"
+      title={openButtonTitle(hotkeyHint('workplace.add.book', t('app.workplace.addFile')))}
+    >
+      <Button
+        size="icon"
+        variant={overLimit ? 'ghost-danger' : 'ghost'}
+        ariaLabel={t('app.workplace.addFile')}
+        disabled={openBlocked}
+        onclick={onAddFile}
+      >
+        <Icon name="folder" />
+      </Button>
+    </span>
   {/snippet}
 
   {#snippet search()}

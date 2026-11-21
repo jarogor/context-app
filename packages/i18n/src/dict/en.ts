@@ -253,7 +253,7 @@ export const en: Dictionary = {
     'Use the «Add book» button in the tabs bar above: the book will appear here and meet your notes.',
   'app.workplace.tabs': 'Tabs',
   'app.workplace.notes': 'Notes',
-  'app.workplace.properties': 'File properties',
+  'app.workplace.properties': 'Book',
   'app.workplace.notesTitle': 'Notes',
   'app.workplace.openBooks': 'Open tabs',
   'app.workplace.focus': 'Focused reading',

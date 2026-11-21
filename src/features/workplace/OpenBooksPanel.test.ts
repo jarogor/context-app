@@ -38,6 +38,8 @@ function handlers() {
     onDuplicate: vi.fn<(id: string) => void>(),
     onReorder: vi.fn<(id: string, toIndex: number) => void>(),
     onEditAppearance: vi.fn(),
+    onAddBook: vi.fn(),
+    onAddFile: vi.fn(),
   };
 }
 
