@@ -22,7 +22,8 @@ test('выбор языка переводит интерфейс без пер�
   // Язык меняется сразу после сохранения, не дожидаясь перезапуска: шапка
   // настроек и меню разделов уже английские.
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.getByTestId('settings-header')).toContainText('General');
+  // Шапка настроек называет раздел постоянно, а не выбранную страницу.
+  await expect(page.getByTestId('settings-header')).toContainText('Settings');
   await expect(page.locator('main').getByRole('button', { name: 'General' })).toBeVisible();
   // Поле осталось выбранным и показывает тот же язык уже по-английски.
   await expect(

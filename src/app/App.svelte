@@ -485,11 +485,6 @@
    */
   let settingsNeedsAttention = $state(untrack(() => initialStore.activationPending));
 
-  /** Название текущей страницы настроек для их шапки. */
-  const settingsSectionTitle = $derived(
-    settingsSection === 'system' ? t('app.settings.updates') : t('app.settings.general'),
-  );
-
   /** Переключение раздела настроек как модального окна.
    *
    * Настройки не меняют базовую область: при закрытии пользователь
@@ -1544,7 +1539,7 @@
           data-testid="settings-header"
         >
           <span class="min-w-0 flex-1 truncate role-heading text-[var(--foreground)]"
-            >{settingsSectionTitle}</span
+            >{t('app.settings')}</span
           >
           <!--
             Требование перезапуска стоит в шапке настроек: оно относится ко всем
