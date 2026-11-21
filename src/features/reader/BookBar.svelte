@@ -1,30 +1,7 @@
 <script lang="ts">
   import { t } from '@context/i18n';
-  import {
-    ActionMenu,
-    Button,
-    ColorPicker,
-    Icon,
-    Input,
-    Popover,
-    type ColorSwatch,
-    type MenuAction,
-  } from '@context/ui';
+  import { Button, Icon, Input, PathField } from '@context/ui';
   import { hotkeyHint } from '../hotkeys/registry';
-  import {
-    NOTE_COLORS,
-    NOTE_COLOR_SWATCHES,
-    NOTE_TYPES,
-    noteColorLabel,
-    noteTypeLabel,
-    SHAPE_KINDS,
-    shapeKindLabel,
-    type NoteColor,
-    type NoteTool,
-    type NoteType,
-    type ShapeKind,
-  } from '../notes/notes';
-  import type { PropertiesTabId } from './file-properties';
 
   /**
    * Строка книги — управление чтением под текстом.
@@ -55,32 +32,12 @@
     maxZoom?: number;
     /** Поддерживает ли формат изменение масштаба. */
     showZoom?: boolean;
+    /** Путь к файлу книги: стоит в начале строки вместо действий. */
+    path?: string;
     /** Текущая тема области чтения. */
     readerTheme?: 'light' | 'dark';
     /** Переключение темы области чтения. */
     onToggleTheme?: () => void;
-    /** Применима ли гарнитура книги (текучий текст). */
-    fontAvailable?: boolean;
-    /** Текущая гарнитура книги. */
-    readerFont?: 'serif' | 'sans';
-    /** Переключение гарнитуры книги. */
-    onToggleFont?: () => void;
-    /** Открыта ли панель поиска по книге. */
-    searchOpen?: boolean;
-    /** Переключение поиска по книге. */
-    onToggleSearch?: () => void;
-    /** Активный инструмент создания заметок. */
-    tool?: NoteTool;
-    /** Доступные формату типы заметок; один тип — переключать нечего. */
-    allowedTypes?: readonly NoteType[];
-    /** Смена инструмента заметок. */
-    onToolChange?: (tool: NoteTool) => void;
-    /** Доступные разделы панели книги. */
-    dockTabs?: readonly PropertiesTabId[];
-    /** Открытие раздела панели книги. */
-    onOpenDockTab?: (tab: PropertiesTabId) => void;
-    /** Открытие панели открытых вкладок. */
-    onOpenBooks?: () => void;
     /** Переход к соседней странице. */
     onStepPage?: (delta: number) => void;
     /** Переход к введённому номеру страницы. */
@@ -98,19 +55,9 @@
     minZoom = 60,
     maxZoom = 220,
     showZoom = true,
+    path = '',
     readerTheme = 'light',
     onToggleTheme,
-    fontAvailable = false,
-    readerFont = 'serif',
-    onToggleFont,
-    searchOpen = false,
-    onToggleSearch,
-    tool,
-    allowedTypes = NOTE_TYPES,
-    onToolChange,
-    dockTabs = [],
-    onOpenDockTab,
-    onOpenBooks,
     onStepPage,
     onGoToPage,
     onStepZoom,
@@ -152,74 +99,6 @@
 
   /** Видимое значение поля страницы. */
   const pageValue = $derived(pageDraft ?? (page === null ? '' : String(page)));
-
-  /** Состояние поповера инструмента заметок. */
-  let toolOpen = $state(false);
-
-  /** Названия разделов панели книги. */
-  const DOCK_LABELS: Record<PropertiesTabId, string> = $derived({
-    contents: t('app.properties.contents'),
-    search: t('app.bookDock.search'),
-    bookmarks: t('app.properties.bookmarks'),
-    pages: t('app.properties.pages'),
-    annotations: t('app.properties.annotations'),
-  });
-
-  /** Пункты меню: разделы книги, вкладки и то, что не влезло в строку. */
-  const moreItems = $derived<MenuAction[]>([
-    ...(['contents', 'search', 'bookmarks', 'pages', 'annotations'] as PropertiesTabId[])
-      .filter((id) => dockTabs.includes(id))
-      .map((id) => ({ id: `dock:${id}`, label: DOCK_LABELS[id] })),
-    ...(narrow && onToggleSearch
-      ? [
-          {
-            id: 'search',
-            label: t('app.reader.searchShort'),
-            icon: 'search' as const,
-            separatorBefore: true,
-          },
-        ]
-      : []),
-    ...(narrow && fontAvailable && onToggleFont
-      ? [
-          {
-            id: 'font',
-            label: readerFont === 'serif' ? t('app.font.toSans') : t('app.font.toSerif'),
-            icon: 'text' as const,
-          },
-        ]
-      : []),
-    ...(onOpenBooks
-      ? [
-          {
-            id: 'books',
-            label: t('app.workplace.openBooks'),
-            icon: 'tabs' as const,
-            separatorBefore: true,
-          },
-        ]
-      : []),
-  ]);
-
-  /** Выполнение пункта меню. */
-  function runMore(id: string) {
-    if (id.startsWith('dock:')) {
-      onOpenDockTab?.(id.slice(5) as PropertiesTabId);
-      return;
-    }
-    switch (id) {
-      case 'search':
-        onToggleSearch?.();
-        break;
-      case 'font':
-        onToggleFont?.();
-        break;
-      case 'books':
-        onOpenBooks?.();
-        break;
-    }
-  }
-
   /** Переход к введённому номеру страницы. */
   function commitPage() {
     const draft = pageDraft?.trim();
@@ -241,176 +120,28 @@
   const themeLabel = $derived(
     readerTheme === 'dark' ? t('app.theme.reader.light') : t('app.theme.reader.dark'),
   );
-
-  /** Подпись кнопки гарнитуры. */
-  const fontTitle = $derived(
-    readerFont === 'serif' ? t('app.font.switchToSans') : t('app.font.switchToSerif'),
-  );
-
-  /** Есть ли что выбирать в инструменте заметок. */
-  const toolChoosable = $derived(allowedTypes.length > 1 && tool !== undefined);
-
-  /** Доступные типы в порядке панели. */
-  const typeOptions = $derived(NOTE_TYPES.filter((type) => allowedTypes.includes(type)));
-
-  /** Образцы цвета заметки. */
-  const colorSwatches = $derived<ColorSwatch[]>(
-    NOTE_COLORS.map((color) => ({
-      id: color,
-      label: noteColorLabel(color),
-      value: NOTE_COLOR_SWATCHES[color],
-      selected: tool?.color === color,
-    })),
-  );
-
-  /** Выбор типа заметки. */
-  function selectType(type: NoteType) {
-    if (tool && type !== tool.type) {
-      onToolChange?.({ ...tool, type });
-    }
-  }
-
-  /** Выбор вида фигуры. */
-  function selectShape(shape: ShapeKind) {
-    if (tool) {
-      onToolChange?.({ ...tool, shape });
-    }
-  }
-
-  /** Выбор цвета заметки. */
-  function selectColor(color: NoteColor) {
-    if (tool && color !== tool.color) {
-      onToolChange?.({ ...tool, color });
-    }
-  }
 </script>
 
 <div
   bind:this={bar}
-  class="flex h-[var(--book-bar-height)] flex-none flex-nowrap items-center gap-1.5 overflow-hidden bg-[var(--card)] px-2 text-sm [font-variant-numeric:tabular-nums]"
+  class="flex h-[var(--book-bar-height)] flex-none flex-nowrap items-center gap-1 overflow-hidden bg-[var(--card)] px-1.5 text-sm [font-variant-numeric:tabular-nums] large-tablet:gap-1.5 large-tablet:px-2"
   data-testid="book-bar"
   role="toolbar"
   aria-label={t('app.bookBar.label')}
 >
   <!--
-    Слева — действия над текстом книги: меню, поиск, инструмент заметки и
-    гарнитура. Это то, что делают с текстом, поэтому группа стоит у начала
-    строки, где её ищут.
+    Слева — путь к открытому файлу: та же врезка с копированием, что на странице
+    книги в библиотеке. Свой показ пути здесь не повторяется — адрес должен
+    выглядеть и вести себя одинаково везде.
+
+    Действия над текстом (поиск, инструмент заметки, гарнитура) переехали на
+    панель активной вкладки: это работа с книгой целиком, и ей там место.
   -->
-  <ActionMenu
-    items={moreItems}
-    onselect={runMore}
-    ariaLabel={t('app.bookBar.more')}
-    title={t('app.bookBar.more')}
-    testId="book-bar-more"
-    class="size-9"
+  <PathField
+    value={path}
+    class="min-w-0 flex-1"
+    testId="book-bar-path"
   />
-
-  {#if onToggleSearch && !narrow}
-    <Button
-      size="icon"
-      variant={searchOpen ? 'primary' : 'ghost'}
-      title={hotkeyHint('reader.search', t('app.reader.searchShort'))}
-      ariaLabel={t('app.reader.searchShort')}
-      ariaPressed={searchOpen}
-      testId="reader-search-toggle"
-      onclick={onToggleSearch}
-    >
-      <Icon name="search" />
-    </Button>
-  {/if}
-
-  {#if toolChoosable && tool}
-    <Popover bind:open={toolOpen} side="top" align="start" class="w-[15rem]" testId="book-tool-menu">
-      {#snippet trigger({ props })}
-        <button
-          type="button"
-          {...props}
-          class="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-hover)] {tool.type ===
- 'quote'
- ? 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
- : 'bg-[var(--primary)] text-[var(--primary-foreground)]'}"
-          title={t('app.bookBar.tool')}
-          aria-label={t('app.bookBar.tool')}
-          aria-pressed={tool.type !== 'quote'}
-          data-testid="book-bar-tool"
-        >
-          <Icon name="pencil" />
-        </button>
-      {/snippet}
-      <div class="flex flex-col gap-2">
-        <div
-          class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
-          role="group"
-          aria-label={t('app.note.typeLabel')}
-        >
-          {#each typeOptions as type (type)}
-            <Button
-              variant={tool.type === type ? 'primary' : 'ghost'}
-              size="sm"
-              title={noteTypeLabel(type)}
-              ariaLabel={noteTypeLabel(type)}
-              ariaPressed={tool.type === type}
-              class="flex-1"
-              onclick={() => selectType(type)}
-            >
-              <Icon name={type} />
-            </Button>
-          {/each}
-        </div>
-        {#if tool.type === 'shape' && typeOptions.includes('shape')}
-          <div
-            class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
-            role="group"
-            aria-label={t('app.note.shapeLabel')}
-            data-testid="note-tool-shape"
-          >
-            {#each SHAPE_KINDS as shape (shape)}
-              <Button
-                variant={tool.shape === shape ? 'primary' : 'ghost'}
-                size="sm"
-                title={shapeKindLabel(shape)}
-                ariaLabel={shapeKindLabel(shape)}
-                ariaPressed={tool.shape === shape}
-                class="flex-1"
-                onclick={() => selectShape(shape)}
-              >
-                <Icon name="shape" />
-              </Button>
-            {/each}
-          </div>
-          <ColorPicker
-            colors={colorSwatches}
-            onpick={(id) => selectColor(id as NoteColor)}
-            ariaLabel={t('app.note.colorMenuLabel')}
-            testIdPrefix="note-tool-color"
-            size="sm"
-          />
-        {/if}
-      </div>
-    </Popover>
-  {/if}
-
-  {#if fontAvailable && onToggleFont && !narrow}
-    <Button
-      size="icon"
-      variant="ghost"
-      title={fontTitle}
-      ariaLabel={fontTitle}
-      testId="reader-font-toggle"
-      onclick={onToggleFont}
-    >
-      <span
-        class="text-base leading-none"
-        style="font-family: {readerFont === 'serif'
-          ?"system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-          :"Georgia, 'Times New Roman', serif"}"
-        aria-hidden="true">Аа</span
-      >
-    </Button>
-  {/if}
-
-  <div class="min-w-0 flex-1"></div>
 
   <!--
     Справа — положение и вид книги: страницы или прогресс, масштаб, тема.

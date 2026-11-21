@@ -476,7 +476,7 @@ test('поиск по книге PDF: находит текст, переход�
   // найденное, не дожидаясь разбора всех страниц.
   await openPdf(page, 120);
 
-  await page.getByTestId('book-bar').getByRole('button', { name: 'Поиск по книге' }).click();
+  await page.getByTestId('reader-search-toggle').click();
   const search = page.getByTestId('reader-search');
   const started = Date.now();
   await search.getByRole('textbox', { name: 'Поиск по книге' }).fill('Page 90');

@@ -1,9 +1,22 @@
 <script lang="ts">
   import { t } from '@context/i18n';
-  import { Button, Icon } from '@context/ui';
+  import { Button, ColorPicker, Icon, Popover, type ColorSwatch } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
   import { tabColorMark, tabLabel, tabTooltip } from './tab-appearance';
   import { hotkeyHint } from '../hotkeys/registry';
+  import {
+    NOTE_COLORS,
+    NOTE_COLOR_SWATCHES,
+    NOTE_TYPES,
+    noteColorLabel,
+    noteTypeLabel,
+    SHAPE_KINDS,
+    shapeKindLabel,
+    type NoteColor,
+    type NoteTool,
+    type NoteType,
+    type ShapeKind,
+  } from '../notes/notes';
 
   interface Props {
     /** Вкладки рабочего места: по ним считается доступность добавления. */
@@ -26,6 +39,22 @@
     onToggleProperties: () => void;
     /** Переключение режима сосредоточенного чтения. */
     onToggleFocus?: () => void;
+    /** Применима ли гарнитура книги: у постраничных форматов текст — растр. */
+    fontAvailable?: boolean;
+    /** Текущая гарнитура книги. */
+    readerFont?: 'serif' | 'sans';
+    /** Переключение гарнитуры книги. */
+    onToggleFont?: () => void;
+    /** Открыта ли панель поиска по книге. */
+    searchOpen?: boolean;
+    /** Переключение поиска по книге. */
+    onToggleSearch?: () => void;
+    /** Активный инструмент создания заметок. */
+    tool?: NoteTool;
+    /** Доступные формату типы заметок; один тип — переключать нечего. */
+    allowedTypes?: readonly NoteType[];
+    /** Смена инструмента заметок. */
+    onToolChange?: (tool: NoteTool) => void;
   }
 
   let {
@@ -39,6 +68,14 @@
     onToggleNotes,
     onToggleProperties,
     onToggleFocus,
+    fontAvailable = false,
+    readerFont = 'serif',
+    onToggleFont,
+    searchOpen = false,
+    onToggleSearch,
+    tool,
+    allowedTypes = NOTE_TYPES,
+    onToolChange,
   }: Props = $props();
 
   /** Активная вкладка — единственная, о которой говорит панель. */
@@ -51,6 +88,51 @@
 
   /** Пользовательский цвет вкладки — на номере, как в списке вкладок. */
   const mark = $derived(tab ? tabColorMark(tab.color, { active: true }) : undefined);
+
+  /** Состояние поповера инструмента заметок. */
+  let toolOpen = $state(false);
+
+  /** Подпись кнопки гарнитуры. */
+  const fontTitle = $derived(
+    readerFont === 'serif' ? t('app.font.switchToSans') : t('app.font.switchToSerif'),
+  );
+
+  /** Есть ли что выбирать в инструменте заметок. */
+  const toolChoosable = $derived(allowedTypes.length > 1 && tool !== undefined);
+
+  /** Доступные типы заметок в порядке панели. */
+  const typeOptions = $derived(NOTE_TYPES.filter((type) => allowedTypes.includes(type)));
+
+  /** Образцы цвета заметки. */
+  const colorSwatches = $derived<ColorSwatch[]>(
+    NOTE_COLORS.map((color) => ({
+      id: color,
+      label: noteColorLabel(color),
+      value: NOTE_COLOR_SWATCHES[color],
+      selected: tool?.color === color,
+    })),
+  );
+
+  /** Выбор типа заметки. */
+  function selectType(type: NoteType) {
+    if (tool && type !== tool.type) {
+      onToolChange?.({ ...tool, type });
+    }
+  }
+
+  /** Выбор вида фигуры. */
+  function selectShape(shape: ShapeKind) {
+    if (tool) {
+      onToolChange?.({ ...tool, shape });
+    }
+  }
+
+  /** Выбор цвета заметки. */
+  function selectColor(color: NoteColor) {
+    if (tool && color !== tool.color) {
+      onToolChange?.({ ...tool, color });
+    }
+  }
 </script>
 
 <!--
@@ -128,30 +210,23 @@
         data-testid="workplace-tab-number"
         >{tabNumber}</span
       >
-      <div class="flex min-w-0 flex-1 flex-col" title={tabTooltip(tab)}>
-        <span
-          class="flex min-w-0 items-center gap-1.5"
-          data-testid="workplace-active-title"
-        >
-          {#if tab.icon}
-            <Icon name={tab.icon} class="size-4 shrink-0" />
-          {/if}
-          <span class="min-w-0 truncate role-subtitle" data-testid="workplace-tab"
-            >{tabLabel(tab)}</span
-          >
-        </span>
+      <span
+        class="flex min-w-0 flex-1 items-center gap-1.5"
+        title={tabTooltip(tab)}
+        data-testid="workplace-active-title"
+      >
+        {#if tab.icon}
+          <Icon name={tab.icon} class="size-4 shrink-0" />
+        {/if}
         <!--
-          Путь стоит под названием приглушённой подписью: он называет файл, но не
-          спорит с названием книги. Подсказка повторяет путь целиком — на узком
-          окне строка обрезается многоточием.
+          Подпись — имя вкладки, если оно задано, иначе название книги. Путь
+          переехал в строку книги: он нужен реже и не должен делить место с
+          названием.
         -->
-        <span
-          class="min-w-0 truncate role-caption text-[var(--muted-foreground)]"
-          title={tab.path}
-          data-testid="workplace-active-path"
-          >{tab.path}</span
+        <span class="min-w-0 truncate role-subtitle" data-testid="workplace-tab"
+          >{tabLabel(tab)}</span
         >
-      </div>
+      </span>
     </div>
   {:else}
     <div class="min-w-0 flex-1"></div>
@@ -167,6 +242,121 @@
     class="ml-auto flex flex-none items-center gap-0.5 large-tablet:ml-0"
     data-testid="workplace-tabs-actions"
   >
+    <!--
+      Работа с текстом книги: поиск, инструмент заметки и гарнитура. Раньше эти
+      кнопки стояли в строке книги; они переехали сюда, потому что относятся к
+      книге целиком, а строка внизу освободилась под путь к файлу.
+    -->
+    {#if onToggleSearch}
+      <Button
+        size="icon"
+        variant={searchOpen ? 'primary' : 'ghost'}
+        title={hotkeyHint('reader.search', t('app.reader.searchShort'))}
+        ariaLabel={t('app.reader.searchShort')}
+        ariaPressed={searchOpen}
+        testId="reader-search-toggle"
+        onclick={onToggleSearch}
+      >
+        <Icon name="search" />
+      </Button>
+    {/if}
+
+    {#if toolChoosable && tool}
+      <Popover
+        bind:open={toolOpen}
+        side="bottom"
+        align="end"
+        class="w-[15rem]"
+        testId="book-tool-menu"
+      >
+        {#snippet trigger({ props })}
+          <button
+            type="button"
+            {...props}
+            class="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-hover)] {tool.type ===
+ 'quote'
+ ? 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+ : 'bg-[var(--primary)] text-[var(--primary-foreground)]'}"
+            title={t('app.bookBar.tool')}
+            aria-label={t('app.bookBar.tool')}
+            aria-pressed={tool.type !== 'quote'}
+            data-testid="book-bar-tool"
+          >
+            <Icon name="pencil" />
+          </button>
+        {/snippet}
+        <div class="flex flex-col gap-2">
+          <div
+            class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
+            role="group"
+            aria-label={t('app.note.typeLabel')}
+          >
+            {#each typeOptions as type (type)}
+              <Button
+                variant={tool.type === type ? 'primary' : 'ghost'}
+                size="sm"
+                title={noteTypeLabel(type)}
+                ariaLabel={noteTypeLabel(type)}
+                ariaPressed={tool.type === type}
+                class="flex-1"
+                onclick={() => selectType(type)}
+              >
+                <Icon name={type} />
+              </Button>
+            {/each}
+          </div>
+          {#if tool.type === 'shape' && typeOptions.includes('shape')}
+            <div
+              class="flex items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
+              role="group"
+              aria-label={t('app.note.shapeLabel')}
+              data-testid="note-tool-shape"
+            >
+              {#each SHAPE_KINDS as shape (shape)}
+                <Button
+                  variant={tool.shape === shape ? 'primary' : 'ghost'}
+                  size="sm"
+                  title={shapeKindLabel(shape)}
+                  ariaLabel={shapeKindLabel(shape)}
+                  ariaPressed={tool.shape === shape}
+                  class="flex-1"
+                  onclick={() => selectShape(shape)}
+                >
+                  <Icon name="shape" />
+                </Button>
+              {/each}
+            </div>
+            <ColorPicker
+              colors={colorSwatches}
+              onpick={(id) => selectColor(id as NoteColor)}
+              ariaLabel={t('app.note.colorMenuLabel')}
+              testIdPrefix="note-tool-color"
+              size="sm"
+            />
+          {/if}
+        </div>
+      </Popover>
+    {/if}
+
+    {#if fontAvailable && onToggleFont}
+      <Button
+        size="icon"
+        variant="ghost"
+        title={fontTitle}
+        ariaLabel={fontTitle}
+        testId="reader-font-toggle"
+        onclick={onToggleFont}
+      >
+        <span
+          class="text-base leading-none"
+          style="font-family: {readerFont === 'serif'
+            ?"system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            :"Georgia, 'Times New Roman', serif"}"
+          aria-hidden="true">Аа</span
+        >
+      </Button>
+    {/if}
+
     {#if onToggleFocus}
       <Button
         variant={focusMode ? 'primary' : 'ghost'}
@@ -183,5 +373,6 @@
         <Icon name="focus" />
       </Button>
     {/if}
+
   </div>
 </div>

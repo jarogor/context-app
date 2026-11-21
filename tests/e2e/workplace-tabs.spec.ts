@@ -75,7 +75,9 @@ async function duplicateActive(page: import('@playwright/test').Page, times: num
   }
 }
 
-test('панель активной вкладки показывает номер, название и путь книги', async ({ page }) => {
+test('панель активной вкладки показывает номер и название, путь — в строке книги', async ({
+  page,
+}) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');
 
@@ -84,28 +86,51 @@ test('панель активной вкладки показывает номе
   await expect(active.getByTestId('workplace-tab-number')).toHaveText('1');
   await expect(active.getByTestId('workplace-tab')).toHaveText('Демо-книга');
 
-  // Путь стоит под названием и виден целиком: панель широкая, обрезки нет.
-  const path = active.getByTestId('workplace-active-path');
+  // Пути на панели нет: он переехал в строку книги, где под него освободилось
+  // место после переноса действий над текстом.
+  await expect(active.getByTestId('workplace-active-path')).toHaveCount(0);
+  const path = page.getByTestId('book-bar-path');
   await expect(path).toHaveText('/demo-library/demo-1.epub');
   await expect(path).toHaveAttribute('title', '/demo-library/demo-1.epub');
-  const clipped = await path.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-  expect(clipped).toBe(false);
 });
 
-test('путь под названием приглушён: он не спорит с названием книги', async ({ page }) => {
+test('на панели вкладки имя вкладки, а без него — название книги', async ({ page }) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');
 
-  const colors = await page.evaluate(() => {
-    const path = document.querySelector('[data-testid="workplace-active-path"]');
-    const title = document.querySelector('[data-testid="workplace-tab"]');
-    if (!path || !title) {
-      return null;
-    }
-    return { path: getComputedStyle(path).color, title: getComputedStyle(title).color };
-  });
-  expect(colors).not.toBeNull();
-  expect(colors!.path).not.toBe(colors!.title);
+  // Без пользовательского имени подпись — название книги.
+  const active = page.getByTestId('workplace-active-tab');
+  await expect(active.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+
+  // Имя вкладки перекрывает название книги.
+  await page.getByTestId('open-books-panel').getByLabel('Оформление вкладки').click();
+  await page.getByRole('menuitem', { name: 'Добавить название' }).click();
+  await page.getByLabel('Название вкладки').fill('Черновик');
+  await page.getByLabel('Сохранить').click();
+
+  await expect(active.getByTestId('workplace-tab')).toHaveText('Черновик');
+  // Подсказка по-прежнему называет книгу: по одному имени вкладки её не узнать.
+  await expect(active.getByTestId('workplace-active-title')).toHaveAttribute(
+    'title',
+    'Черновик (Демо-книга)',
+  );
+});
+
+test('путь в строке книги — та же врезка с копированием, что на странице книги', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+
+  const bar = page.getByTestId('book-bar');
+  const path = bar.getByTestId('book-bar-path');
+  await expect(path).toHaveText('/demo-library/demo-1.epub');
+
+  // Показ пути не повторяется «своим» блоком: это общий компонент — врезка с
+  // моноширинным адресом и отдельной кнопкой копирования рядом с ним.
+  const mono = await path.evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(mono).toContain('monospace');
+  await expect(bar.getByTestId('path-copy')).toBeVisible();
 });
 
 test('в приложении нет горизонтальной полосы вкладок', async ({ page }) => {

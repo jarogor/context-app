@@ -11,7 +11,7 @@
   import { EmptyState, Icon } from '@context/ui';
   import { activeTab } from './workplace';
   import FilePropertiesPanel from '../reader/FilePropertiesPanel.svelte';
-  import { emptyProperties, propertyTabs } from '../reader/file-properties';
+  import { emptyProperties } from '../reader/file-properties';
   import { formatFromPath } from '../reader/reader';
   import type {
     FileAnnotation,
@@ -398,14 +398,6 @@
     }
   }
 
-  /** Открытие раздела панели книги по кнопке строки книги. */
-  function openDockTab(next: PropertiesTabId) {
-    if (!propertiesOpen) {
-      onToggleProperties?.();
-    }
-    onSelectPropertiesTab?.(next);
-  }
-
   /** Переключение поиска по книге: он живёт на вкладке панели книги. */
   function toggleSearchInDock() {
     if (!tab) {
@@ -454,11 +446,6 @@
     }
     searchWasOpen = open;
   });
-
-  /** Доступные разделы панели книги активной книги. */
-  const activeDockTabs = $derived(
-    activeProperties ? propertyTabs(activeProperties) : [],
-  );
 
   /** Переход к заметке в читалке активной вкладки. */
   export function goto(note: Note) {
@@ -693,6 +680,14 @@
       onToggleBooks={onToggleBooks}
       onToggleNotes={onToggleNotes}
       onToggleProperties={() => onToggleProperties?.()}
+      fontAvailable={flowingBook}
+      {readerFont}
+      onToggleFont={() => onChangeReaderFont?.(readerFont === 'serif' ? 'sans' : 'serif')}
+      searchOpen={activeFooter?.searchOpen ?? false}
+      onToggleSearch={toggleSearchInDock}
+      {tool}
+      allowedTypes={allowedNoteTypes}
+      {onToolChange}
     />
     <div class="relative flex min-h-0 flex-1 flex-col">
       <!--
@@ -884,9 +879,7 @@
       -->
       {#if workspace.tabs.length > 0}
         <BookBar
-          {tool}
-          allowedTypes={allowedNoteTypes}
-          onToolChange={onToolChange}
+          path={tab?.path ?? ''}
           pages={activeFooter?.workplacePages ?? false}
           page={activeFooter?.page ?? null}
           pageCount={activeFooter?.pageCount ?? null}
@@ -898,14 +891,6 @@
           {readerTheme}
           onToggleTheme={() =>
             onChangeReaderTheme?.(readerTheme === 'dark' ? 'light' : 'dark')}
-          fontAvailable={flowingBook}
-          {readerFont}
-          onToggleFont={() => onChangeReaderFont?.(readerFont === 'serif' ? 'sans' : 'serif')}
-          searchOpen={activeFooter?.searchOpen ?? false}
-          onToggleSearch={toggleSearchInDock}
-          onOpenDockTab={openDockTab}
-          dockTabs={activeDockTabs}
-          onOpenBooks={onToggleBooks}
           onStepPage={stepPage}
           onGoToPage={goToPage}
           onStepZoom={changeZoom}

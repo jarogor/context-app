@@ -176,7 +176,7 @@ test('DjVu открывается плагином страницами с те�
 test('поиск по книге DjVu: находит текст и показывает найденное на странице', async ({ page }) => {
   await openDjvu(page);
 
-  await page.getByTestId('book-bar').getByRole('button', { name: 'Поиск по книге' }).click();
+  await page.getByTestId('reader-search-toggle').click();
   const search = page.getByTestId('reader-search');
   // Запрос короче двух букв не ищется, поэтому берётся слово из текстового слоя.
   const spans = await content(page).locator('.textLayer span').allTextContents();

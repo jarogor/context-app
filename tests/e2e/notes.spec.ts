@@ -727,13 +727,15 @@ test('на узком окне панель активной вкладки по
   await expect(page.getByLabel('Следующие вкладки')).toHaveCount(0);
   await expect(page.getByTestId('workplace-tabs-counter')).toHaveCount(0);
 
-  // Название и путь видны целиком: на телефоне действия уходят на вторую строку.
+  // На панели — название книги целиком, без пути: путь переехал в строку книги.
   const active = page.getByTestId('workplace-active-tab');
   await expect(active.getByTestId('workplace-tab')).toHaveText('Демо-книга');
-  const clipped = await active
-    .getByTestId('workplace-active-path')
-    .evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-  expect(clipped).toBe(false);
+  await expect(active.getByTestId('workplace-active-path')).toHaveCount(0);
+  // В строке книги путь — та же врезка с копированием, что на странице книги:
+  // длинный адрес обрезается многоточием, полное значение — в подсказке.
+  const path = page.getByTestId('book-bar').getByTestId('book-bar-path');
+  await expect(path).toHaveText('/demo-library/demo-1.epub');
+  await expect(path).toHaveAttribute('title', '/demo-library/demo-1.epub');
 
   // Весь состав места живёт в панели списка. Книгу добавляли из этой панели,
   // поэтому она открыта; на телефоне видна только активная вкладка.

@@ -236,7 +236,7 @@ test('поиск по книге: поле на панели книги, кор�
   page,
 }) => {
   await openWorkplace(page);
-  await page.getByTestId('book-bar').getByRole('button', { name: 'Поиск по книге' }).click();
+  await page.getByTestId('reader-search-toggle').click();
   const search = page.getByTestId('reader-search');
   const reader = page.frameLocator('iframe[title="Содержимое книги"]');
   const field = search.getByRole('textbox', { name: 'Поиск по книге' });
@@ -267,7 +267,7 @@ test('поиск по книге: поле на панели книги, кор�
   await expect(reader.locator('mark.context-search-hit-active')).toHaveCount(1);
 
   // Закрытие поиска снимает подсветку: она рабочий слой, а не заметка.
-  await page.getByTestId('book-bar').getByRole('button', { name: 'Поиск по книге' }).click();
+  await page.getByTestId('reader-search-toggle').click();
   await expect(page.getByTestId('reader-search')).toHaveCount(0);
   await expect(reader.locator('mark.context-search-hit')).toHaveCount(0);
 });
