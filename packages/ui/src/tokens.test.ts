@@ -47,11 +47,11 @@ describe('токены оформления', () => {
   });
 
   it('не опускает размер ролей ниже 0.75rem', () => {
-    // Размер роли задан переменной: проверяются все её значения — базовая
-    // ступень и ступени больших мониторов.
+    // Каждая роль задана базовым размером в `rem`, умноженным на масштаб
+    // интерфейса: сам размер от ширины окна не зависит.
     const sizes = [
       ...tokens.matchAll(
-        /--role-(?:display|heading|title|subtitle|body|small)-size:\s*([\d.]+)rem/g,
+        /--role-(?:display|heading|title|subtitle|body|small)-size:\s*calc\(([\d.]+)rem/g,
       ),
     ];
     expect(sizes.length).toBeGreaterThan(0);
@@ -60,18 +60,16 @@ describe('токены оформления', () => {
     }
   });
 
-  it('крупнее набор на больших мониторах', () => {
-    // У каждой ступени роль определена: иначе на широком окне кегль «прыгал»
-    // бы обратно к базовому.
-    const steps = [
-      ...tokens.matchAll(/@media \(min-width: (\d+)rem\)\s*\{\s*:root\s*\{([\s\S]*?)\n {2}\}/g),
-    ];
-    expect(steps.length).toBeGreaterThanOrEqual(2);
-    for (const [, width, body] of steps) {
-      expect(Number(width)).toBeGreaterThanOrEqual(90);
-      expect(body).toContain('--role-body-size');
-      expect(body).toContain('--content-max-width');
+  it('масштаб задаётся множителем, а не шириной окна', () => {
+    // Шкала одна: от ширины монитора она не растёт, зато умножается на
+    // `--ui-scale`, который выставляет настройка пользователя.
+    expect(tokens).toContain('--ui-scale: 1;');
+    for (const token of ['--spacing', '--role-body-size', '--radius']) {
+      const declaration = tokens.split('\n').find((line) => line.trim().startsWith(`${token}:`));
+      expect(declaration, token).toContain('var(--ui-scale)');
     }
+    // Ступеней от ширины окна больше нет: масштаб не зависит от монитора.
+    expect(tokens).not.toMatch(/@media \(min-width: (?:90|120)rem\)/);
   });
 
   it('различает палитры фоном и акцентом', () => {

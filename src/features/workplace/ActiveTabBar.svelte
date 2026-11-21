@@ -113,7 +113,7 @@
 
   {#if tab}
     <div
-      class="flex min-w-0 flex-1 items-center gap-2.5 min-w-[10rem]"
+      class="flex min-w-[10rem] flex-1 items-center gap-2"
       style={mark ? `--tab-mark-fill: ${mark.fill}; --tab-mark-ink: ${mark.ink};` : ''}
       data-testid="workplace-active-tab"
     >

@@ -45,12 +45,12 @@ describe('SegmentedControl', () => {
     // Та же высота, что у кнопок, полей и списков базового размера (`h-9`).
     expect(group.className).toContain('h-9');
 
-    // Внутренняя кнопка укладывается в высоту блока вместе с рамкой и отступом,
-    // а её иконка и скругление уменьшены пропорционально, а не оставлены базовыми.
+    // Внутренняя кнопка заполняет высоту блока за вычетом отступа, поэтому
+    // растёт вместе со шкалой, а не отстаёт от неё на крупном масштабе.
     const button = screen.getByRole('button', { name: 'Плитка' });
-    expect(button.className).toContain('size-[1.875rem]');
+    expect(button.className).toContain('h-full');
+    expect(button.className).toContain('aspect-square');
     expect(button.className).toContain('rounded-[calc(var(--radius)-0.125rem)]');
     expect(button.className).toContain('[&_svg]:size-[0.9375em]');
-    expect(button.className).toContain('pointer-coarse:size-[2.375rem]');
   });
 });
