@@ -395,7 +395,7 @@
     const hover = libraryColorFill(entry.color, { strength: 'soft' });
     const ink = accentText(entry.color, { strength: 'tint' });
     const inkSelected = accentText(entry.color, { strength: 'active' });
-    return `--row-fill: ${fill}; --row-fill-selected: ${selected}; --row-fill-hover: ${hover}; --row-ink: ${ink}; --row-ink-selected: ${inkSelected}; --meta-ink: ${ink}; --meta-strong-ink: ${ink}; --meta-badge-surface: color-mix(in oklab, ${ink} 16%, transparent);`;
+    return `--row-fill: ${fill}; --row-fill-selected: ${selected}; --row-fill-hover: ${hover}; --row-ink: ${ink}; --row-ink-selected: ${inkSelected}; --meta-ink: ${ink}; --meta-strong-ink: ${ink};;`;
   }
 
   /** Пункты меню карточки: те же действия, что у записи списка. */

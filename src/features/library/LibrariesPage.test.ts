@@ -843,7 +843,6 @@ describe('оформление библиотек', () => {
     const cardStyle = card.getAttribute('style') ?? '';
     expect(cardStyle).toContain('--row-fill-selected');
     expect(cardStyle).toContain('--row-ink-selected');
-    expect(cardStyle).toContain('--meta-badge-surface');
   });
 
   it('не задаёт цветовых переменных записи без цвета', async () => {

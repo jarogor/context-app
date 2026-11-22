@@ -23,7 +23,13 @@
 
 <span
   class={cn(
-    'shrink-0 rounded-[calc(var(--radius)*0.5)] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide [background:var(--meta-badge-surface,var(--control-surface))]',
+    // Подложка — нейтральная врезка системы (`--code-surface`), а не цвет
+    // строки: на цветном тексте подложка из `currentColor` съедала контраст
+    // собственной подписи, и метка становилась нечитаемой. Нейтральная врезка
+    // отделяет метку от строки в обеих сторонах темы и оставляет подпись
+    // читаемой.
+    'shrink-0 rounded-[calc(var(--radius)*0.5)] bg-[var(--code-surface)] px-[0.4em]',
+    'text-[0.85em] leading-[1.5] tracking-wide',
     className,
   )}
   data-testid={testId}

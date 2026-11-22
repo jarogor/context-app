@@ -24,7 +24,7 @@ describe('MetaList', () => {
     expect(screen.getByText('Автор')).toBeTruthy();
   });
 
-  it('ставит метку на фон группы контролов', () => {
+  it('ставит метку на подложку из цвета строки', () => {
     render(MetaList, {
       props: {
         items: [{ badge: 'PDF', value: 'книга.pdf' }],
@@ -33,11 +33,9 @@ describe('MetaList', () => {
 
     const badge = screen.getByTestId('meta-badge');
     expect(badge.textContent).toBe('PDF');
-    // Фон по умолчанию — группа контролов; цветной пункт задаёт свою поверхность
-    // (`--meta-badge-surface`), иначе метка пропадала на цветной заливке.
-    expect(badge.className).toContain(
-      '[background:var(--meta-badge-surface,var(--control-surface))]',
-    );
+    // Подложка — нейтральная врезка системы: на цветном тексте подложка из
+    // `currentColor` съедала контраст подписи, и метка становилась нечитаемой.
+    expect(badge.className).toContain('bg-[var(--code-surface)]');
     expect(badge.className).not.toContain('border');
   });
 });

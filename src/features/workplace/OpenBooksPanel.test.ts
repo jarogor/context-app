@@ -153,9 +153,11 @@ describe('панель открытых книг: оформление', () => {
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    // Ровно как в полосе вкладок: активный пункт — поверхностью содержимого,
-    // неактивный плашки не рисует и отличается приглушённой подписью.
-    expect(items[0].className).toContain('text-[var(--muted-foreground)]');
+    // Каждая строка на своей поверхности, поэтому список читается списком, а
+    // не пустым фоном: активная — поверхность содержимого, неактивная —
+    // промежуточная ступень, отделённая и от полосы, и от активной.
+    expect(items[0].className).toContain('bg-[var(--tab-inactive-surface)]');
+    expect(items[0].className).toContain('text-[var(--tab-inactive-foreground)]');
     expect(items[0].className).not.toContain('bg-[var(--tab-active-surface)]');
     expect(items[1].className).toContain('bg-[var(--tab-active-surface)]');
     expect(items[1].className).toContain('text-[var(--tab-active-foreground)]');
@@ -174,12 +176,13 @@ describe('панель открытых книг: оформление', () => {
     });
 
     const items = screen.getAllByTestId('open-books-item');
-    // Выбранная — поверхностью содержимого, невыбранная — без плашки; цвет на
-    // фон не влияет, иначе одинаковые строки выглядели по-разному.
+    // Цвет вкладки на фон строки не влияет: активная на поверхности
+    // содержимого, неактивная — на промежуточной ступени, как у строк без цвета.
     expect(items[0].className).toContain('bg-[var(--tab-active-surface)]');
     expect(items[0].className).not.toContain('bg-[var(--item-fill-active)]');
+    expect(items[1].className).toContain('bg-[var(--tab-inactive-surface)]');
     expect(items[1].className).not.toContain('bg-[var(--tab-active-surface)]');
-    expect(items[1].className).toContain('text-[var(--muted-foreground)]');
+    expect(items[1].className).toContain('text-[var(--tab-inactive-foreground)]');
     for (const item of items) {
       expect(item.className).not.toContain('border');
     }

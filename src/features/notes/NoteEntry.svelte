@@ -11,10 +11,10 @@
    * кликабельна, а действия и дополнительное содержимое передаются снаружи
    * снипетами.
    *
-   * Вид строки повторяет список вкладок: активная строка несёт поверхность
-   * содержимого, неактивная — только приглушённую подпись и подсветку при
-   * наведении. Цвет заметки живёт на лейбле её типа, а не полосой сбоку: полоса
-   * добавляла строке второй край и спорила с фоном списка.
+   * Вид строки повторяет строку списка вкладок: активная — поверхность
+   * содержимого, неактивная — промежуточная ступень между ней и полосой,
+   * наведение — общая подсветка. Цвет заметки живёт на лейбле её типа, а не
+   * полосой сбоку: полоса добавляла строке второй край и спорила с фоном.
    */
   interface Props {
     /** Элемент списка заметок. */
@@ -38,7 +38,7 @@
 <li
   class="group relative flex shrink-0 flex-col rounded-[var(--radius)] px-3 py-2.5 transition-[background-color,color] {selected
     ? 'bg-[var(--tab-active-surface)] text-[var(--tab-active-foreground)]'
-    : 'text-[var(--muted-foreground)] hover:bg-[var(--tab-hover-surface)] hover:text-[var(--tab-active-foreground)]'}"
+    : 'bg-[var(--tab-inactive-surface)] text-[var(--tab-inactive-foreground)] hover:bg-[var(--tab-hover-surface)] hover:text-[var(--tab-active-foreground)]'}"
   data-testid="notes-item"
   data-color={item.note.color}
   data-selected={selected ? 'true' : 'false'}

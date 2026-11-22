@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '@context/i18n';
-  import { Button, Icon, Input, PathField } from '@context/ui';
+  import { Button, FormatBadge, Icon, Input, PathField } from '@context/ui';
   import { hotkeyHint } from '../hotkeys/registry';
 
   /**
@@ -147,14 +147,21 @@
 >
   <!--
     Слева — формат и путь к открытому файлу: та же врезка с копированием, что на
-    странице книги в библиотеке. Блок занимает ширину своего содержимого, а не
-    всю строку: короткий адрес не растягивается на пустую полосу. `max-w-full`
-    не даёт длинному пути вытолкнуть навигацию справа.
+    странице книги в библиотеке. Метка формата стоит перед компонентом пути, а не
+    внутри него: путь — самостоятельный компонент системы. Блок занимает ширину
+    своего содержимого, а не всю строку, и держит одну строку: `max-w-full` не
+    даёт длинному пути вытолкнуть навигацию справа, `nowrap` — сломать высоту
+    строки.
   -->
+  {#if format}
+    <span class="shrink-0" data-testid="book-bar-format">
+      <FormatBadge label={format.toUpperCase()} />
+    </span>
+  {/if}
   <PathField
     value={path}
-    badge={format ? format.toUpperCase() : ''}
     class="mr-auto max-w-full"
+    nowrap
     testId="book-bar-path"
   />
 

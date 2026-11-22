@@ -17,6 +17,12 @@
     strong?: boolean;
     /** Показать значение моноширинным шрифтом как целое (путь к файлу). */
     mono?: boolean;
+    /**
+     * Служебное значение-ориентир: мельче обычного и моноширинное, без
+     * подложки. Путь к файлу нужен, чтобы узнать книгу, но не должен
+     * перетягивать внимание с названия.
+     */
+    hint?: boolean;
     /** Подсказка; по умолчанию совпадает со значением. */
     title?: string;
     /** Метка значения для тестов. */
@@ -71,6 +77,7 @@
           'min-w-0 truncate',
           item.strong ? 'font-medium text-[var(--meta-strong-ink,var(--foreground))]' : '',
           item.tone === 'danger' ? 'text-[var(--destructive)]' : '',
+          item.hint ? 'font-mono text-[0.85em] opacity-80' : '',
           item.mono
             ? 'rounded-[calc(var(--radius)*0.5)] bg-[var(--code-surface)] px-1 font-mono text-[0.95em]'
             : '',
