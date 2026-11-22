@@ -63,42 +63,56 @@
     onStepZoom,
   }: Props = $props();
 
-  /** Ширина строки: по ней убираются второстепенные действия, но строка не переносится. */
-  let barWidth = $state(0);
-
-  /** Элемент строки для измерения ширины. */
-  let bar: HTMLDivElement | undefined = $state();
-
-  /** Узко: поиск и шрифт уходят в меню; номер страницы становится подписью. */
-  const narrow = $derived(barWidth > 0 && barWidth < 34 * 16);
-
-  /** Слежение за шириной строки. */
-  $effect(() => {
-    const el = bar;
-    if (!el) {
-      return;
-    }
-    let frame = 0;
-    const apply = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        barWidth = el.clientWidth;
-      });
-    };
-    apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(el);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  });
-
   /** Черновик поля номера страницы; `null` — поле показывает текущую страницу. */
   let pageDraft = $state<string | null>(null);
 
   /** Видимое значение поля страницы. */
   const pageValue = $derived(pageDraft ?? (page === null ? '' : String(page)));
+
+  /** Элемент поля номера страницы. */
+  let pageInput: HTMLInputElement | undefined = $state();
+
+  /**
+   * Выделение номера целиком при входе в поле.
+   *
+   * Действие браузера по `mousedown` ставит каретку и снимает выделение уже
+   * после обработчиков `focus`/`mouseup` — поэтому клик, который забирает фокус,
+   * отменяется, и фокус с выделением ставятся сами. Повторный клик внутри уже
+   * активного поля не перехватывается: там каретка нужна как обычно.
+   */
+  $effect(() => {
+    const field = pageInput;
+    if (!field) {
+      return;
+    }
+    const onFocus = () => field.select();
+    const onMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0 || document.activeElement === field) {
+        return;
+      }
+      event.preventDefault();
+      field.focus();
+      field.select();
+    };
+    field.addEventListener('focus', onFocus);
+    field.addEventListener('mousedown', onMouseDown);
+    return () => {
+      field.removeEventListener('focus', onFocus);
+      field.removeEventListener('mousedown', onMouseDown);
+    };
+  });
+
+  /**
+   * Ширина поля номера по разрядности: под число страниц и текущую страницу.
+   *
+   * Фиксированной ширины нет — «9» не должно занимать место «999». Минимум в
+   * два знака и внутренние отступы оставляют поле похожим на поле, а не на
+   * цифру в строке.
+   */
+  const pageInputWidth = $derived(
+    `calc(${Math.max(2, String(pageCount ?? 0).length, String(page ?? 0).length)}ch + 0.75rem)`,
+  );
+
   /** Переход к введённому номеру страницы. */
   function commitPage() {
     const draft = pageDraft?.trim();
@@ -123,7 +137,6 @@
 </script>
 
 <div
-  bind:this={bar}
   class="flex h-[var(--book-bar-height)] flex-none flex-nowrap items-center gap-1 overflow-hidden bg-[var(--card)] px-1.5 text-sm [font-variant-numeric:tabular-nums] large-tablet:gap-1.5 large-tablet:px-2"
   data-testid="book-bar"
   role="toolbar"
@@ -165,29 +178,40 @@
       >
         <Icon name="chevron-up" />
       </Button>
-      {#if narrow}
-        <span class="px-1 text-sm whitespace-nowrap" data-testid="reader-page-count">
-          {page} / {pageCount ?? '?'}
-        </span>
-      {:else}
-        <Input
-          class="h-8 w-[calc(var(--spacing)*14)] shrink-0 border-0 bg-transparent px-1 py-0 text-right text-sm"
-          ariaLabel={t('app.reader.currentPage')}
-          value={pageValue}
-          oninput={(event) => (pageDraft = event.currentTarget.value)}
-          onkeydown={(event) => {
-            if (event.key === 'Enter') {
-              commitPage();
-            }
-          }}
-          onblur={commitPage}
-        />
-        <span
-          class="inline-block min-w-[calc(var(--spacing)*12)] shrink-0 pr-2 whitespace-nowrap text-left text-sm"
-          data-testid="reader-page-count"
-          >/ {pageCount ?? '?'}</span
-        >
-      {/if}
+      <!--
+        Текущая страница — поле ввода, но в покое оно не выделяется цветом: иначе
+        строка выглядит пёстрой. Поле обнаруживается при наведении: подложка и
+        курсор-указатель показывают, что сюда можно ткнуть, а внутри поля курсор
+        снова текстовый. По клику число выделяется целиком — иначе его пришлось бы
+        стирать перед вводом нового. Ширина — по разрядности номера, а не
+        фиксированная: «9» не занимает место «999».
+      -->
+      <Input
+        bind:element={pageInput}
+        class="h-8 cursor-pointer bg-transparent px-1.5 py-0 text-right text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)] focus:cursor-text focus-visible:bg-[var(--surface-hover)]"
+        ariaLabel={t('app.reader.currentPage')}
+        value={pageValue}
+        style="width: {pageInputWidth}"
+        oninput={(event) => (pageDraft = event.currentTarget.value)}
+        onkeydown={(event) => {
+          if (event.key === 'Enter') {
+            commitPage();
+          }
+          if (event.key === 'Escape') {
+            // Отмена возвращает текущую страницу и уводит курсор из поля: ввод
+            // начат по ошибке, и держать фокус в нём незачем.
+            event.preventDefault();
+            pageDraft = null;
+            pageInput?.blur();
+          }
+        }}
+        onblur={commitPage}
+      />
+      <span
+        class="inline-block shrink-0 whitespace-nowrap text-left text-sm text-[var(--muted-foreground)]"
+        data-testid="reader-page-count"
+        >/ {pageCount ?? '?'}</span
+      >
       <Button
         size="icon"
         variant="ghost"
@@ -206,7 +230,7 @@
       сообщил свои возможности: это место «где я», и пустым оно быть не должно.
     -->
     <span
-      class="inline-block w-[calc(var(--spacing)*11)] shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
+      class="inline-block shrink-0 text-right whitespace-nowrap text-sm text-[var(--muted-foreground)]"
       data-testid="reader-progress"
       >{Math.round(progress)}%</span
     >
@@ -217,6 +241,10 @@
       class="flex shrink-0 items-center gap-0.5 rounded-[var(--radius)] bg-[var(--control-surface)] p-0.5"
       data-testid="reader-zoom-group"
     >
+      <!--
+        Кнопки стоят по бокам индикатора, как у страничной навигации: одно
+        правило на оба компонента, «меньше» слева, «больше» справа.
+      -->
       <Button
         size="icon"
         variant="ghost"
@@ -226,6 +254,7 @@
         disabled={zoom <= minZoom}
         onclick={() => onStepZoom?.(-1)}>−</Button
       >
+      <span class="min-w-9 px-1 text-center text-sm" data-testid="reader-zoom">{zoom}%</span>
       <Button
         size="icon"
         variant="ghost"
@@ -234,9 +263,6 @@
         class="size-8"
         disabled={zoom >= maxZoom}
         onclick={() => onStepZoom?.(1)}>+</Button
-      >
-      <span class="inline-block w-[calc(var(--spacing)*13)] text-center text-sm" data-testid="reader-zoom"
-        >{zoom}%</span
       >
     </div>
   {/if}
