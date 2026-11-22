@@ -256,8 +256,17 @@
 
   /** Точка клика для окна ввода текста: там оно и открывается. */
   let pendingTextPoint: { x: number; y: number } | null = $state(null);
-  /** Правка текста существующей карточки: заметка и её текущие значения. */
-  let editingTextNote: { noteId: string; text: string; color: NoteColor } | null = $state(null);
+  /** Правка текста существующей карточки: заметка, её текст, цвет и место. */
+  let editingTextNote:
+    | {
+        noteId: string;
+        text: string;
+        color: NoteColor;
+        point: { x: number; y: number } | null;
+      }
+    | null = $state(null);
+  /** Область содержимого: по ней считаются экранные координаты заметки. */
+  let readerArea: HTMLDivElement | undefined = $state();
   /** Ширина области содержимого: по ней ограничивается позиция меню. */
   let readerAreaWidth = $state(0);
   /** Высота области содержимого: по ней меню переносится выше выделения. */
@@ -604,17 +613,40 @@
     const menu = noteMenu;
     noteMenu = null;
     if (menu) {
-      openNoteTextEditor(menu.noteId);
+      openNoteTextEditor(menu.noteId, { x: menu.left, y: menu.top });
     }
   }
 
-  /** Открытие окна правки текста: заметка ищется в активном наборе по типу. */
-  function openNoteTextEditor(noteId: string) {
+  /** Открытие окна правки текста: заметка ищется в активном наборе по типу.
+   *
+   * Точка приходит в координатах области чтения (плагин сообщает прямоугольник
+   * заметки в её документе). Окно ввода открывается у самой заметки: там, где
+   * пользователь её выбрал, а не внизу области.
+   */
+  function openNoteTextEditor(noteId: string, at?: { x: number; y: number }) {
     const note = notes.find((candidate) => candidate.id === noteId);
     if (!note || note.type !== 'text') {
       return;
     }
-    editingTextNote = { noteId: note.id, text: note.text, color: note.color };
+    editingTextNote = {
+      noteId: note.id,
+      text: note.text,
+      color: note.color,
+      point: at ? areaPoint(at) : null,
+    };
+  }
+
+  /** Перевод точки области чтения в экранные координаты окна.
+   *
+   * Заметка живёт в документе книги, а окно правки — в документе оболочки:
+   * без перевода оно открывалось бы со сдвигом на положение области.
+   */
+  function areaPoint(at: { x: number; y: number }): { x: number; y: number } {
+    const box = readerArea?.getBoundingClientRect();
+    if (!box) {
+      return at;
+    }
+    return { x: box.left + at.x, y: box.top + at.y };
   }
 
   /** Подтверждение правки текста карточки: сохранение текста и цвета заметки. */
@@ -1172,6 +1204,7 @@
     {:else if workplace}
       <div
         class="relative h-full w-full"
+        bind:this={readerArea}
         bind:clientWidth={readerAreaWidth}
         bind:clientHeight={readerAreaHeight}
       >
@@ -1338,6 +1371,7 @@
           <NoteTextEditor
             initialText={editingTextNote.text}
             initialColor={editingTextNote.color}
+            point={editingTextNote.point}
             onConfirm={commitEditNoteText}
             onCancel={cancelEditNoteText}
           />
