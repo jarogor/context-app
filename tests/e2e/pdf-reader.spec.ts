@@ -1643,8 +1643,8 @@ test('текстовая карточка создаётся кликом по �
   // сразу поставить следующую заметку того же вида.
   const afterCreate = page.getByTestId('note-tool-menu');
   await expect(afterCreate.getByRole('button', { name: 'Текст' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
+    'aria-current',
+    'page',
   );
 
   // Закрытие меню возвращает тип «цитата»: следующая заметка по умолчанию снова
@@ -1654,12 +1654,12 @@ test('текстовая карточка создаётся кликом по �
   await page.getByTestId('note-tool-toggle').click();
   const reopened = page.getByTestId('note-tool-menu');
   await expect(reopened.getByRole('button', { name: 'Цитата' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
+    'aria-current',
+    'page',
   );
-  await expect(reopened.getByRole('button', { name: 'Текст' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
+  await expect(reopened.getByRole('button', { name: 'Текст' })).not.toHaveAttribute(
+    'aria-current',
+    'page',
   );
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('note-tool-menu')).toHaveCount(0);
@@ -1692,10 +1692,17 @@ test('текст карточки правится из её контекстн�
   // Правка текста доступна из меню карточки на странице: открывается то же
   // модальное окно, что при создании, с текущим текстом и цветом.
   const card = content(page).locator('.note-card').first();
+  const cardBox = await card.boundingBox();
+  expect(cardBox).not.toBeNull();
   await card.click();
   await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить текст' }).click();
   const edit = page.getByTestId('text-card-editor');
   await expect(edit).toBeVisible();
+  // Окно правки открывается у самой заметки, а не внизу области чтения.
+  const editBox = await edit.boundingBox();
+  expect(editBox).not.toBeNull();
+  expect(Math.abs(editBox!.y - cardBox!.y)).toBeLessThan(120);
+  expect(Math.abs(editBox!.x - cardBox!.x)).toBeLessThan(120);
   await expect(edit.getByLabel('Текст заметки')).toHaveValue('Первая мысль');
   await edit.getByLabel('Текст заметки').fill('Уточнённая мысль');
   await edit.getByRole('button', { name: 'синий' }).click();
@@ -1886,12 +1893,12 @@ test('клик по заметке не переключает инструме�
   // Выбранный тип виден в открытом меню: он не сбрасывается кликом по заметке.
   const toolMenu = page.getByTestId('note-tool-menu');
   await expect(toolMenu.getByRole('button', { name: 'Фигура' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
+    'aria-current',
+    'page',
   );
-  await expect(toolMenu.getByRole('button', { name: 'Текст' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
+  await expect(toolMenu.getByRole('button', { name: 'Текст' })).not.toHaveAttribute(
+    'aria-current',
+    'page',
   );
 
   const card = content(page).locator('.note-card').first();

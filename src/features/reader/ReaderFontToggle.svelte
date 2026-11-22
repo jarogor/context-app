@@ -28,7 +28,6 @@
   <Button
     variant="secondary"
     size="icon"
-    class="shadow-overlay"
     title={title}
     ariaLabel={title}
     testId="reader-font-toggle"

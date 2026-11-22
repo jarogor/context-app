@@ -1,5 +1,14 @@
 <script lang="ts">
-  import { ColorPicker, Icon, type ColorSwatch } from '@context/ui';
+  import {
+    Button,
+    ColorPicker,
+    Icon,
+    Menu,
+    MenuItem,
+    SegmentedControl,
+    type ColorSwatch,
+    type SegmentedItem,
+  } from '@context/ui';
   import { t } from '@context/i18n';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import {
@@ -46,6 +55,11 @@
   /** Типы заметок в общем порядке: только доступные формату. */
   const typeOptions = $derived(NOTE_TYPES.filter((type) => allowedTypes.includes(type)));
 
+  /** Виды фигур в форме общего переключателя вариантов. */
+  const shapeItems = $derived<SegmentedItem[]>(
+    SHAPE_KINDS.map((shape) => ({ value: shape, label: shapeKindLabel(shape), icon: shape })),
+  );
+
   /** Образцы цвета заметки. */
   const colorSwatches = $derived<ColorSwatch[]>(
     NOTE_COLORS.map((color) => ({
@@ -62,8 +76,8 @@
   }
 
   /** Выбор вида фигуры: меню остаётся открытым. */
-  function selectShape(shape: ShapeKind) {
-    onToolChange({ ...tool, shape });
+  function selectShape(shape: string) {
+    onToolChange({ ...tool, shape: shape as ShapeKind });
   }
 
   /** Выбор цвета заметки. */
@@ -106,67 +120,46 @@
   class="absolute right-2 top-2 z-[calc(var(--layer-panel)-1)] flex flex-col items-end gap-1"
   data-testid="note-tool"
 >
-  <button
-    type="button"
-    class="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius)] bg-[var(--menu-surface)] text-[var(--foreground)] shadow-overlay transition-colors hover:bg-[var(--surface-hover)]"
+  <Button
+    variant="secondary"
+    size="icon"
     title={open ? t('app.modal.close') : t('app.bookBar.tool')}
-    aria-label={open ? t('app.modal.close') : t('app.bookBar.tool')}
-    aria-expanded={open}
-    aria-pressed={!open && tool.type !== DEFAULT_NOTE_TYPE}
-    data-testid={open ? 'note-tool-close' : 'note-tool-toggle'}
+    ariaLabel={open ? t('app.modal.close') : t('app.bookBar.tool')}
+    ariaPressed={open}
+    testId={open ? 'note-tool-close' : 'note-tool-toggle'}
     onclick={toggle}
   >
     <Icon name={open ? 'close' : 'pencil'} />
-  </button>
+  </Button>
 
   {#if open}
     <div
-      class="flex w-[13rem] flex-col gap-2 rounded-[var(--radius)] bg-[var(--menu-surface)] p-2 text-[var(--foreground)] shadow-overlay"
+      class="flex w-[13rem] flex-col gap-2 rounded-[var(--radius)] bg-[var(--menu-surface)] p-2 shadow-overlay"
       data-testid="note-tool-menu"
       role="dialog"
       aria-label={t('app.bookBar.tool')}
     >
-      <div class="flex flex-col gap-0.5">
+      <Menu ariaLabel={t('app.note.typeLabel')}>
         {#each typeOptions as type (type)}
-          <button
-            type="button"
-            class="flex w-full cursor-pointer items-center gap-2 rounded-[calc(var(--radius)*0.75)] px-2 py-1.5 text-left text-sm transition-colors {tool.type ===
-            type
-              ? 'bg-[var(--primary)] font-semibold text-[var(--primary-foreground)]'
-              : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'}"
-            aria-pressed={tool.type === type}
-            onclick={() => selectType(type)}
-          >
-            <Icon name={type} class="size-4 shrink-0" />
-            <span class="min-w-0 flex-1 truncate">{noteTypeLabel(type)}</span>
-            {#if tool.type === type}
-              <Icon name="check" class="size-4 shrink-0" />
-            {/if}
-          </button>
+          <MenuItem active={tool.type === type} onclick={() => selectType(type)}>
+            <span class="flex min-w-0 items-center gap-2">
+              <Icon name={type} class="size-4 shrink-0" />
+              <span class="min-w-0 flex-1 truncate">{noteTypeLabel(type)}</span>
+            </span>
+          </MenuItem>
         {/each}
-      </div>
+      </Menu>
 
       {#if tool.type === 'shape' && typeOptions.includes('shape')}
-        <!--
-          Вид фигуры — ряд иконок без подписей, заголовка и разделителей: иконка
-          уже показывает фигуру, а подпись появляется подсказкой при наведении.
-        -->
-        <div class="flex items-center gap-1" data-testid="note-tool-shape">
-          {#each SHAPE_KINDS as shape (shape)}
-            <button
-              type="button"
-              class="flex h-9 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-[calc(var(--radius)*0.75)] transition-colors {tool.shape ===
-              shape
-                ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-                : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'}"
-              title={shapeKindLabel(shape)}
-              aria-label={shapeKindLabel(shape)}
-              aria-pressed={tool.shape === shape}
-              onclick={() => selectShape(shape)}
-            >
-              <Icon name={shape} class="size-4 shrink-0" />
-            </button>
-          {/each}
+        <!-- Вид фигуры — общий переключатель вариантов: ряд иконок в один ряд,
+             подпись видна подсказкой при наведении. -->
+        <div data-testid="note-tool-shape">
+          <SegmentedControl
+            items={shapeItems}
+            value={tool.shape}
+            ariaLabel={t('app.note.shapeLabel')}
+            onchange={selectShape}
+          />
         </div>
 
         <ColorPicker
