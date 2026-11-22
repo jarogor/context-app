@@ -128,7 +128,7 @@ describe('панель заметок-цитат', () => {
     expect(onDeleteNote).toHaveBeenCalledWith('note-1');
   });
 
-  it('показывает цвет заметки боковой полосой', () => {
+  it('показывает цвет заметки меткой на типе', () => {
     render(NotesPanel, {
       props: {
         items: items({ id: 'note-1', quote: 'Цветная', color: 'purple' }),
@@ -140,7 +140,11 @@ describe('панель заметок-цитат', () => {
 
     const item = screen.getByTestId('notes-item');
     expect(item.getAttribute('data-color')).toBe('purple');
-    expect(screen.getByTestId('notes-item-color')).toBeTruthy();
+    // Цвет живёт на лейбле типа, а не полосой сбоку: полоса добавляла строке
+    // второй край и сливалась с подложкой списка.
+    const type = screen.getByTestId('notes-item-type');
+    const badge = type.querySelector('span') as HTMLElement;
+    expect(badge.getAttribute('style')).toContain('background');
   });
 
   it('показывает название, тип и начало цитаты, а также комментарий', () => {

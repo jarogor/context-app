@@ -2,25 +2,25 @@
   import { Badge, RowActions } from '@context/ui';
   import type { Snippet } from 'svelte';
   import { formatDateTime } from '../../shared/format';
-  import { noteMarkerColor, noteTypeLabel, type NoteListItem } from './notes';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@context/ui';
+  import { noteColorMark, noteTypeLabel, type NoteListItem } from './notes';
 
-  /** Общая карточка заметки в списке: цветовая полоса, тип, место, дата и содержимое.
+  /** Общая карточка заметки в списке: тип, место, дата и содержимое.
    *
    * Один компонент на все списки заметок — панель рабочего места и реестр
    * заметок, — чтобы вид и поведение записи не расходились. Основная область
    * кликабельна, а действия и дополнительное содержимое передаются снаружи
-   * снипетами. Цветовая полоса берёт мягкий тон темы области чтения.
+   * снипетами.
+   *
+   * Вид строки повторяет список вкладок: активная строка несёт поверхность
+   * содержимого, неактивная — только приглушённую подпись и подсветку при
+   * наведении. Цвет заметки живёт на лейбле её типа, а не полосой сбоку: полоса
+   * добавляла строке второй край и спорила с фоном списка.
    */
   interface Props {
     /** Элемент списка заметок. */
     item: NoteListItem;
     /** Отмечена ли заметка как выбранная. */
     selected?: boolean;
-    /** Тема области чтения: цвет полосы следует ей. */
-    readerTheme?: ReaderThemeId;
-    /** Палитра оформления: общий реестр дизайн-системы. */
-    palette?: PaletteId;
     /** Переход к заметке в книге. */
     onclick?: (note: NoteListItem['note']) => void;
     /** Правый блок действий над заметкой. */
@@ -29,32 +29,20 @@
     children?: Snippet;
   }
 
-  let {
-    item,
-    selected = false,
-    readerTheme = DEFAULT_READER_THEME,
-    palette = DEFAULT_PALETTE,
-    onclick,
-    actions,
-    children,
-  }: Props = $props();
+  let { item, selected = false, onclick, actions, children }: Props = $props();
+
+  /** Метка цвета заметки: заливка и подпись на ней. */
+  const mark = $derived(noteColorMark(item.note.color));
 </script>
 
 <li
-  class="group relative shrink-0 overflow-hidden rounded-[var(--radius)] py-2.5 pr-2 pl-4 transition-colors {selected
- ? 'bg-[var(--surface-selected)]'
- : ' bg-[var(--card)] hover:bg-[var(--surface-hover)]'}"
-  style="--note-edge: {noteMarkerColor(item.note, readerTheme, palette)}"
+  class="group relative flex shrink-0 flex-col rounded-[var(--radius)] px-3 py-2.5 transition-[background-color,color] {selected
+    ? 'bg-[var(--tab-active-surface)] text-[var(--tab-active-foreground)]'
+    : 'text-[var(--muted-foreground)] hover:bg-[var(--tab-hover-surface)] hover:text-[var(--tab-active-foreground)]'}"
   data-testid="notes-item"
   data-color={item.note.color}
   data-selected={selected ? 'true' : 'false'}
 >
-  <span
-    class="absolute inset-y-0 left-0 w-1"
-    style="background: {noteMarkerColor(item.note, readerTheme, palette)}"
-    data-testid="notes-item-color"
-    aria-hidden="true"
-  ></span>
   <div class="flex items-start gap-2">
     <button
       type="button"
@@ -64,28 +52,27 @@
     >
       <span class="mb-1 flex items-center gap-2">
         <span data-testid="notes-item-type">
-          <Badge>{noteTypeLabel(item.note.type)}</Badge>
+          <Badge style="background: {mark.fill}; color: {mark.ink};"
+            >{noteTypeLabel(item.note.type)}</Badge
+          >
         </span>
         {#if item.place}
-          <span class="role-caption text-[var(--muted-foreground)]" data-testid="notes-item-place"
-            >{item.place}</span
-          >
+          <span class="role-caption" data-testid="notes-item-place">{item.place}</span>
         {/if}
-        <span
-          class="ml-auto role-caption text-[var(--muted-foreground)]"
-          data-testid="notes-item-date">{formatDateTime(item.createdAtMillis)}</span
+        <span class="ml-auto role-caption" data-testid="notes-item-date"
+          >{formatDateTime(item.createdAtMillis)}</span
         >
       </span>
       <span class="block role-body">{item.name}</span>
       {#if item.note.title.trim() && item.preview}
         <span
-          class="mt-0.5 block whitespace-pre-wrap role-caption italic text-[var(--muted-foreground)]"
+          class="mt-0.5 block whitespace-pre-wrap role-caption italic"
           data-testid="notes-item-preview">«{item.preview}»</span
         >
       {/if}
       {#if item.note.comment}
         <span
-          class="mt-0.5 block whitespace-pre-wrap role-caption text-[var(--muted-foreground)]"
+          class="mt-0.5 block whitespace-pre-wrap role-caption"
           data-testid="notes-item-comment">{item.note.comment}</span
         >
       {/if}

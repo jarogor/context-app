@@ -9,9 +9,11 @@ import { t } from '@context/i18n';
 import {
   ACCENT_COLORS,
   ACCENT_COLOR_SWATCHES,
+  accentMark,
   DEFAULT_PALETTE,
   DEFAULT_READER_THEME,
   readerThemeNoteTones,
+  type AccentMarkStyle,
   type PaletteId,
   type ReaderThemeId,
 } from '@context/ui';
@@ -85,6 +87,16 @@ export function noteMarkerColor(
   palette: PaletteId = DEFAULT_PALETTE,
 ): string {
   return noteHighlights(readerTheme, palette)[note.color];
+}
+
+/** Метка цвета заметки в списке: заливка и подпись на ней.
+ *
+ * Тот же вид, что у номера вкладки: пара «заливка и подпись» из общего реестра
+ * акцентов. Цвет остаётся собой во всех восьми наборах темы и не смешивается с
+ * фоном строки — полоса сбоку, наоборот, сливалась с подложкой списка.
+ */
+export function noteColorMark(color: NoteColor): AccentMarkStyle {
+  return accentMark(color, { strength: 'soft' }) ?? { fill: 'transparent', ink: 'inherit' };
 }
 
 /** Тип заметки по умолчанию: цитата. */

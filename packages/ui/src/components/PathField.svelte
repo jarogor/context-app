@@ -14,6 +14,7 @@
 <script lang="ts">
   import { t } from '@context/i18n';
   import Button from './Button.svelte';
+  import FormatBadge from './FormatBadge.svelte';
   import Icon from './Icon.svelte';
   import { cn } from '../utils';
 
@@ -26,13 +27,26 @@
     tone?: 'danger';
     /** Подпись рядом с адресом (например, «отсутствует»). */
     note?: string;
+    /** Метка формата перед адресом (например, `EPUB`). */
+    badge?: string;
+    /** Блок сжимается по ширине контейнера; по умолчанию — по своему контенту. */
+    fit?: boolean;
     /** Дополнительные классы контейнера. */
     class?: string;
     /** Метка для тестов у блока адреса. */
     testId?: string;
   }
 
-  let { value, label = '', tone, note = '', class: className = '', testId }: Props = $props();
+  let {
+    value,
+    label = '',
+    tone,
+    note = '',
+    badge = '',
+    fit = false,
+    class: className = '',
+    testId,
+  }: Props = $props();
 
   /** Скопирован ли адрес: подтверждение живёт короткое время. */
   let copied = $state(false);
@@ -62,15 +76,19 @@
   }
 </script>
 
-<div class={cn('flex min-w-0 flex-col gap-1', className)}>
+<div class={cn('flex min-w-0 flex-col gap-1', fit ? 'w-full' : 'w-fit max-w-full', className)}>
   {#if label}
     <span class="role-caption text-[var(--muted-foreground)]">{label}</span>
   {/if}
   <!--
-    Расположение — одна залитая подложка: адрес и копирование внутри неё.
-    Подложка из полупрозрачного тона чернил, поэтому блок отделяется и на
-    странице, и на карточке в обеих темах. У отсутствующей библиотеки вся
+    Расположение — одна залитая подложка: метка формата, адрес и копирование
+    внутри неё. Подложка из полупрозрачного тона чернил, поэтому блок отделяется
+    и на странице, и на карточке в обеих темах. У отсутствующей библиотеки вся
     подложка, текст и кнопка получают один предупреждающий тон.
+
+    По умолчанию блок сжимается по своему контенту: короткий адрес не должен
+    растягивать полосу на всю ширину. `fit` оставляет прежнее поведение — блок
+    занимает доступную ширину и обрезает длинный путь.
   -->
   <div
     class="flex min-w-0 items-start gap-1 rounded-[calc(var(--radius)*0.6)] px-0.5 py-0.5 {tone ===
@@ -95,11 +113,14 @@
     >
       <Icon name={copied ? 'check' : 'copy'} class="size-[calc(var(--spacing)*3.5)]" />
     </Button>
+    {#if badge}
+      <FormatBadge label={badge} class="my-[0.1875rem]" testId={`${testId ?? 'path'}-format`} />
+    {/if}
     <!-- Сам адрес — одна строка с многоточием: длинный путь не переносится и не
          растягивает блок. Полное значение доступно подсказкой при наведении и
          кнопкой копирования. -->
     <span
-      class="min-w-0 flex-1 truncate font-mono text-xs leading-[1.5]"
+      class="min-w-0 truncate font-mono text-xs leading-[1.5] {fit ? 'flex-1' : ''}"
       title={value}
       data-testid={testId}
     >

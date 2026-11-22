@@ -26,7 +26,7 @@ import {
   serializeGeometry,
 } from './overlay';
 import { chapterAt, charOffset, clamp01, pointFraction, rangeHandleRect } from './geometry';
-import { applyZoom, captureAnchor, restoreAnchor } from './zoom-anchor';
+import { applyWithAnchor, applyZoom, captureAnchor, restoreAnchor } from './zoom-anchor';
 import { anchorTarget, parseBookLink } from './book-link';
 import {
   FOOTNOTE_BACK_CLASS,
@@ -205,6 +205,23 @@ function syncNotes(previous: ViewerNote[]): void {
       drawOverlay(note);
     }
   }
+}
+
+/** Применение изменения документа с удержанием места чтения.
+ *
+ * Смена гарнитуры или темы перестраивает поток текста: строки получают другую
+ * ширину, и читаемое место уезжало вверх или вниз на несколько экранов. Опорой
+ * служит верхняя видимая строка: её диапазон запоминается живой ссылкой до
+ * изменения и восстанавливает своё экранное место после него. Это тот же
+ * приём, что у масштаба, поэтому любая перестройка текста оставляет читателя
+ * на том же месте.
+ */
+function holdTopLine(apply: () => void): void {
+  const doc = bookDocument();
+  applyWithAnchor(doc, apply);
+  // Новый якорь снимается после восстановления: следующая перестройка (их
+  // часто несколько за один кадр) опирается на уже устоявшееся место.
+  zoomAnchor = captureAnchor(doc);
 }
 
 /** Прокрутка к абсолютной позиции в документе с отступом сверху.
@@ -480,8 +497,14 @@ function handleMessage(event: MessageEvent): void {
     case 'reader-theme':
       // Тема запоминается: документ книги пересобирается при открытии, и
       // присланные ранее переменные нужно применить к новому корню.
+      //
+      // Смена гарнитуры перестраивает поток текста: строки становятся другой
+      // ширины, и место чтения уезжало. Поэтому тема применяется с удержанием
+      // опорной строки — тем же приёмом, что и масштаб: строка у верха области
+      // остаётся на своём экранном месте, и пользователь читает дальше с того
+      // же места.
       state.theme = message.value;
-      applyReaderTheme(bookDocument().documentElement, message.value);
+      holdTopLine(() => applyReaderTheme(bookDocument().documentElement, message.value));
       drawNotes();
       break;
     case 'reader-locale':

@@ -689,8 +689,6 @@
             items={tabItems}
             sets={noteSets}
             activeSetId={activeSetId}
-            {readerTheme}
-            {palette}
             loading={notesLoading}
             {hasBook}
             selectedId={selectedNoteId}
@@ -834,6 +832,7 @@
       {#if workspace.tabs.length > 0}
         <BookBar
           path={tab?.path ?? ''}
+          format={tab?.format ?? ''}
           pages={activeFooter?.workplacePages ?? false}
           page={activeFooter?.page ?? null}
           pageCount={activeFooter?.pageCount ?? null}

@@ -2,11 +2,12 @@
   import { Button } from '@context/ui';
   import { t } from '@context/i18n';
 
-  /** Переключатель гарнитуры книги в правом верхнем углу области чтения.
+  /** Переключатель гарнитуры книги в левом верхнем углу области чтения.
    *
    * Стоит на том же месте, что и меню инструмента заметок: у текучей книги
    * доступна только цитата, выбирать тип нечего, и вместо меню — переключение
-   * шрифта.
+   * шрифта. Кнопка та же, что у меню: одно место не должно выглядеть двумя
+   * разными кнопками.
    */
 
   interface Props {
@@ -24,9 +25,9 @@
   );
 </script>
 
-<div class="absolute right-2 top-2 z-[calc(var(--layer-panel)-1)]" data-testid="note-tool">
+<div class="absolute left-2 top-2 z-[calc(var(--layer-panel)-1)]" data-testid="note-tool">
   <Button
-    variant="secondary"
+    variant="primary"
     size="icon"
     title={title}
     ariaLabel={title}

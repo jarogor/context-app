@@ -1628,7 +1628,7 @@ test('текстовая карточка создаётся кликом по �
   await content(page)
     .locator('.page')
     .first()
-    .click({ position: { x: 120, y: 120 } });
+    .click({ position: { x: 300, y: 260 } });
 
   const editor = page.getByTestId('text-card-editor');
   await expect(editor).toBeVisible();
@@ -1683,7 +1683,7 @@ test('текст карточки правится из её контекстн�
   await content(page)
     .locator('.page')
     .first()
-    .click({ position: { x: 120, y: 120 } });
+    .click({ position: { x: 300, y: 260 } });
   const editor = page.getByTestId('text-card-editor');
   await editor.getByLabel('Текст заметки').fill('Первая мысль');
   await editor.getByRole('button', { name: 'Сохранить' }).click();
@@ -1724,7 +1724,7 @@ test('над существующей заметкой под инструмен
   await content(page)
     .locator('.page')
     .first()
-    .click({ position: { x: 120, y: 120 } });
+    .click({ position: { x: 300, y: 260 } });
   const editor = page.getByTestId('text-card-editor');
   await editor.getByLabel('Текст заметки').fill('Мысль');
   await editor.getByRole('button', { name: 'Сохранить' }).click();
@@ -1747,8 +1747,8 @@ test('фигура рисуется протяжкой по странице', a
   await selectTool(page, 'Фигура');
   const pageEl = content(page).locator('.page').first();
   await pageEl.dragTo(pageEl, {
-    sourcePosition: { x: 80, y: 80 },
-    targetPosition: { x: 220, y: 180 },
+    sourcePosition: { x: 300, y: 260 },
+    targetPosition: { x: 460, y: 360 },
   });
 
   await expect(page.getByTestId('notes-item')).toHaveCount(1);
@@ -1802,8 +1802,8 @@ test('фигура-эллипс рисуется и переживает сме�
 
   const pageEl = content(page).locator('.page').first();
   await pageEl.dragTo(pageEl, {
-    sourcePosition: { x: 80, y: 80 },
-    targetPosition: { x: 220, y: 180 },
+    sourcePosition: { x: 300, y: 260 },
+    targetPosition: { x: 460, y: 360 },
   });
   await expect(content(page).locator('.note-shape ellipse')).toHaveCount(1);
 
@@ -1838,7 +1838,7 @@ test('текстовую карточку в PDF можно переместит
   await content(page)
     .locator('.page')
     .first()
-    .click({ position: { x: 120, y: 120 } });
+    .click({ position: { x: 300, y: 260 } });
   const editor = page.getByTestId('text-card-editor');
   await editor.getByLabel('Текст заметки').fill('Сдвинь меня');
   await editor.getByRole('button', { name: 'Сохранить' }).click();
@@ -1881,7 +1881,7 @@ test('клик по заметке не переключает инструме�
   await content(page)
     .locator('.page')
     .first()
-    .click({ position: { x: 120, y: 120 } });
+    .click({ position: { x: 300, y: 260 } });
   const editor = page.getByTestId('text-card-editor');
   await editor.getByLabel('Текст заметки').fill('Сдвинь');
   await editor.getByRole('button', { name: 'Сохранить' }).click();
@@ -1927,8 +1927,8 @@ test('фигуру в PDF можно выбрать кликом по конту
   await selectTool(page, 'Фигура');
   const pageEl = content(page).locator('.page').first();
   await pageEl.dragTo(pageEl, {
-    sourcePosition: { x: 80, y: 80 },
-    targetPosition: { x: 240, y: 160 },
+    sourcePosition: { x: 300, y: 260 },
+    targetPosition: { x: 460, y: 340 },
   });
   await expect(page.getByTestId('notes-item')).toHaveCount(1);
 

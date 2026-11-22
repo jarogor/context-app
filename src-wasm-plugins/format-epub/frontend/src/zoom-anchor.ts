@@ -43,6 +43,19 @@ export function restoreAnchor(doc: Document | null, anchor: ZoomAnchor): void {
   }
 }
 
+/** Применение изменения документа с удержанием места чтения.
+ *
+ * Смена гарнитуры или темы перестраивает поток текста: строки получают другую
+ * ширину, и читаемое место уезжало вверх или вниз на несколько экранов. Опорой
+ * служит верхняя видимая строка: её диапазон запоминается живой ссылкой до
+ * изменения и восстанавливает своё экранное место после него.
+ */
+export function applyWithAnchor(doc: Document | null, apply: () => void): void {
+  const before = captureAnchor(doc);
+  apply();
+  restoreAnchor(doc, before);
+}
+
 /** Применение масштаба с удержанием опорной строки на месте. */
 export function applyZoom(doc: Document | null, percent: number): void {
   const win = doc?.defaultView;

@@ -5,7 +5,7 @@
   import NoteEntry from './NoteEntry.svelte';
   import NoteSetsControl from './NoteSetsControl.svelte';
   import NoteEditor from './NoteEditor.svelte';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@context/ui';
+
   interface Props {
     /** Элементы списка заметок активного набора. */
     items: NoteListItem[];
@@ -13,10 +13,6 @@
     sets: NoteSetSummary[];
     /** Идентификатор активного набора книги. */
     activeSetId: string | null;
-    /** Тема области чтения: цвет меток заметок следует ей. */
-    readerTheme?: ReaderThemeId;
-    /** Палитра оформления: общий реестр дизайн-системы. */
-    palette?: PaletteId;
     /** Загружаются ли заметки книги. */
     loading?: boolean;
     /** Есть ли активная книга. */
@@ -48,8 +44,6 @@
     items,
     sets,
     activeSetId,
-    readerTheme = DEFAULT_READER_THEME,
-    palette = DEFAULT_PALETTE,
     loading = false,
     hasBook = true,
     onGoToNote,
@@ -182,8 +176,6 @@
           <NoteEntry
             {item}
             selected={selectedId === item.note.id}
-            {readerTheme}
-            {palette}
             onclick={(note) => onGoToNote?.(note)}
           >
             {#snippet actions()}

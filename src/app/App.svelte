@@ -1456,8 +1456,6 @@
             workspaceHistory={registry.noteSetWorkspaces}
             loading={notesLibraryLoading}
             error={notesLibraryError}
-            {readerTheme}
-            {palette}
             onOpenSet={openNotesLibrarySet}
             onOpenNote={openNotesLibraryNote}
             onCreateWorkspace={createWorkspaceForNotes}

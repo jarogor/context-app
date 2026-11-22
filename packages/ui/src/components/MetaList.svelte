@@ -28,6 +28,7 @@
 
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import FormatBadge from './FormatBadge.svelte';
   import { cn } from '../utils';
 
   interface Props {
@@ -58,13 +59,9 @@
       {#if item.badge}
         <!-- Метка вместо иконки: короткое служебное значение (формат файла).
              Подложка метки выводится из подписи, а не из поверхности темы: на
-             цветной заливке светлая подложка со светлой подписью не читалась. -->
-        <span
-          class="shrink-0 rounded-[calc(var(--radius)*0.5)] px-[0.4em] text-[0.85em] leading-[1.5] tracking-wide [background:var(--meta-badge-surface,var(--control-surface))]"
-          data-testid={`${item.testId ?? 'meta'}-badge`}
-        >
-          {item.badge}
-        </span>
+             цветной заливке светлая подложка со светлой подписью не читалась.
+             Вид метки — общий компонент системы, тот же, что в строке книги. -->
+        <FormatBadge label={item.badge} testId={`${item.testId ?? 'meta'}-badge`} />
       {/if}
       {#if item.label}
         <span class="shrink-0">{item.label}</span>

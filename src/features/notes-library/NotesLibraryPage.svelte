@@ -34,7 +34,6 @@
   import { bookChoices, type BookChoice } from '../library/library';
   import SetBookDialog, { type SetBookTarget } from './SetBookDialog.svelte';
   import { bookFileName, librarySets, noteCountLabel } from './notes-library';
-  import { DEFAULT_PALETTE, DEFAULT_READER_THEME, type PaletteId, type ReaderThemeId } from '@context/ui';
 
   /** Рабочее место для выбора места открытия набора. */
   interface WorkspaceOption {
@@ -52,10 +51,6 @@
     workspaces?: WorkspaceOption[];
     /** Где открывали наборы: набор → места, свежие первыми. */
     workspaceHistory?: Record<string, string[]>;
-    /** Тема области чтения: цвет меток заметок следует ей. */
-    readerTheme?: ReaderThemeId;
-    /** Палитра оформления: общий реестр дизайн-системы. */
-    palette?: PaletteId;
     /** Загружается ли реестр. */
     loading?: boolean;
     /** Ошибка загрузки реестра, иначе пустая строка. */
@@ -72,8 +67,6 @@
     sets,
     workspaces = [],
     workspaceHistory = {},
-    readerTheme = DEFAULT_READER_THEME,
-    palette = DEFAULT_PALETTE,
     loading = false,
     error = '',
     onOpenSet,
@@ -597,8 +590,6 @@
                 {#each set.noteItems as item (item.note.id)}
                   <NoteEntry
                     {item}
-                    {readerTheme}
-                    {palette}
                     selected={selectedNoteId === item.note.id}
                     onclick={(note) => selectNote(set.id, note)}
                   />

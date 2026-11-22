@@ -35,6 +35,8 @@
     variant?: 'default' | 'muted' | 'outline' | 'success' | 'warning';
     /** Дополнительные классы. */
     class?: string;
+    /** Inline-стиль: цвет метки данных (например, цвет элемента списка). */
+    style?: string;
     /** Подпись-подсказка. */
     title?: string;
     /** Метка для тестов. */
@@ -43,9 +45,16 @@
     children: Snippet;
   }
 
-  let { variant = 'muted', class: className = '', title, testId, children }: Props = $props();
+  let {
+    variant = 'muted',
+    class: className = '',
+    style,
+    title,
+    testId,
+    children,
+  }: Props = $props();
 </script>
 
-<span class={cn(badgeVariants({ variant }), className)} {title} data-testid={testId}>
+<span class={cn(badgeVariants({ variant }), className)} {style} {title} data-testid={testId}>
   {@render children()}
 </span>

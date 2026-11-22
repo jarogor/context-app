@@ -196,7 +196,7 @@ test('текст книги не прижимается к левому краю
 
 // Кнопка шрифта относится к текучему тексту: у постраничных форматов (PDF,
 // DjVu) текст — часть растра, и выбор гарнитуры там ничего не меняет.
-test('кнопка шрифта есть у EPUB и висит в правом верхнем углу области чтения', async ({
+test('кнопка шрифта есть у EPUB и висит в левом верхнем углу области чтения', async ({
   page,
 }) => {
   await openBook(page);
@@ -210,16 +210,16 @@ test('кнопка шрифта есть у EPUB и висит в правом �
     const toggleEl = document.querySelector('[data-testid="reader-font-toggle"]') as HTMLElement;
     return {
       areaTop: area.getBoundingClientRect().top,
-      areaRight: area.getBoundingClientRect().right,
+      areaLeft: area.getBoundingClientRect().left,
       toggleTop: toggleEl.getBoundingClientRect().top,
-      toggleRight: toggleEl.getBoundingClientRect().right,
+      toggleLeft: toggleEl.getBoundingClientRect().left,
     };
   });
-  // Отступ сверху и справа одинаковый: кнопка «висит» в правом верхнем углу.
+  // Отступ сверху и слева одинаковый: кнопка «висит» в левом верхнем углу.
   const topGap = layout.toggleTop - layout.areaTop;
-  const rightGap = layout.areaRight - layout.toggleRight;
+  const leftGap = layout.toggleLeft - layout.areaLeft;
   expect(topGap).toBeGreaterThan(0);
-  expect(Math.abs(topGap - rightGap)).toBeLessThanOrEqual(1);
+  expect(Math.abs(topGap - leftGap)).toBeLessThanOrEqual(1);
   // В строке книги её больше нет: там путь к файлу.
   await expect(page.getByTestId('book-bar').getByTestId('reader-font-toggle')).toHaveCount(0);
   await expect(page.getByTestId('book-bar-path')).toBeVisible();

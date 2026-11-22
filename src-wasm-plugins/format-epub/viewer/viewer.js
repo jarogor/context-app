@@ -131,12 +131,12 @@ function re(e) {
 	let n = e.closest(ne);
 	return n && n.tagName !== "BODY" ? n : e;
 }
-function g(e) {
+function ie(e) {
 	return Array.from(e.querySelectorAll("a[href]"));
 }
-function ie(e, t, n) {
+function ae(e, t, n) {
 	let r = te(t);
-	for (let t of g(r)) {
+	for (let t of ie(r)) {
 		if (t === e) continue;
 		let r = c(t.getAttribute("href"));
 		if (r.kind !== "anchor" || !r.anchor) continue;
@@ -145,14 +145,14 @@ function ie(e, t, n) {
 	}
 	return !1;
 }
-function ae(e) {
+function oe(e) {
 	return /^(n|fn|fnt|note|footnote|endnote|fnref|noteref)[-_.]?\d+$/i.test(e.trim());
 }
-function oe(e) {
+function se(e) {
 	let t = (e.textContent ?? "").trim();
 	return /^\[?\d{1,3}\]?$/.test(t);
 }
-function se(e, t) {
+function ce(e, t) {
 	let n = e.getAttribute("href") ?? "", r = c(n);
 	if (r.kind !== "anchor" || !r.anchor || h(e)) return null;
 	let i = l(t, r.anchor);
@@ -161,12 +161,12 @@ function se(e, t) {
 	return o ? {
 		anchor: r.anchor,
 		target: re(o)
-	} : f(e) || ee(n) || ie(e, a, t) || ae(r.anchor) && oe(e) ? {
+	} : f(e) || ee(n) || ae(e, a, t) || oe(r.anchor) && se(e) ? {
 		anchor: r.anchor,
 		target: a
 	} : null;
 }
-var ce = /* @__PURE__ */ new Set([
+var le = /* @__PURE__ */ new Set([
 	"script",
 	"style",
 	"link",
@@ -179,16 +179,16 @@ var ce = /* @__PURE__ */ new Set([
 	"textarea",
 	"select"
 ]);
-function le(e) {
+function ue(e) {
 	return /^data:image\//i.test(e.trim());
 }
-function ue(e) {
+function de(e) {
 	for (let t of Array.from(e.querySelectorAll("*"))) {
 		if (t.classList.contains("context-footnote-back")) {
 			t.remove();
 			continue;
 		}
-		if (ce.has(t.tagName.toLowerCase())) {
+		if (le.has(t.tagName.toLowerCase())) {
 			t.remove();
 			continue;
 		}
@@ -198,26 +198,26 @@ function ue(e) {
 				t.removeAttribute(e.name);
 				continue;
 			}
-			(n.startsWith("on") || (n === "src" || n === "srcset") && !le(e.value)) && t.removeAttribute(e.name);
+			(n.startsWith("on") || (n === "src" || n === "srcset") && !ue(e.value)) && t.removeAttribute(e.name);
 		}
 	}
 }
-function de(e) {
+function fe(e) {
 	let t = e.cloneNode(!0);
-	return ue(t), t.innerHTML;
+	return de(t), t.innerHTML;
 }
-function fe(e, t) {
+function pe(e, t) {
 	let n = e.createElement("a");
 	return n.className = u, n.setAttribute("href", `#${t}`), n.setAttribute("title", s("footnoteBack")), n.textContent = "↩", n;
 }
-function pe(e, t, n) {
+function me(e, t, n) {
 	if (t.id) return t.id;
 	let r = `context-noteref-${n}`, i = r, a = 1;
 	for (; e.getElementById(i);) a += 1, i = `${r}-${a}`;
 	return t.id = i, t.setAttribute(d, ""), i;
 }
-function me(e, t) {
-	for (let n of g(e)) {
+function he(e, t) {
+	for (let n of ie(e)) {
 		let e = c(n.getAttribute("href"));
 		if (e.kind !== "anchor" || !e.anchor) continue;
 		let r = l(t, e.anchor);
@@ -225,20 +225,20 @@ function me(e, t) {
 	}
 	return !1;
 }
-function he(e) {
+function ge(e) {
 	let t = /* @__PURE__ */ new Set(), n = 0;
 	for (let r of Array.from(e.querySelectorAll("a[href]"))) {
 		if (r.classList.contains("context-footnote-back")) continue;
-		let i = se(r, e);
-		i && !t.has(i.target) && (t.add(i.target), !i.target.querySelector(".context-footnote-back") && (me(i.target, e) || (i.target.append(fe(e, pe(e, r, i.anchor))), n += 1)));
+		let i = ce(r, e);
+		i && !t.has(i.target) && (t.add(i.target), !i.target.querySelector(".context-footnote-back") && (he(i.target, e) || (i.target.append(pe(e, me(e, r, i.anchor))), n += 1)));
 	}
 	return n;
 }
 //#endregion
 //#region src/search-mark.ts
-var _ = "context-search-hit", v = "context-search-hit-active";
-function y(e) {
-	for (let t of Array.from(e.querySelectorAll(`mark.${_}`))) {
+var g = "context-search-hit", _ = "context-search-hit-active";
+function _e(e) {
+	for (let t of Array.from(e.querySelectorAll(`mark.${g}`))) {
 		let e = t.parentNode;
 		if (e) {
 			for (; t.firstChild;) e.insertBefore(t.firstChild, t);
@@ -246,7 +246,7 @@ function y(e) {
 		}
 	}
 }
-function ge(e) {
+function ve(e) {
 	let t = e.ownerDocument;
 	if (!t) return [];
 	let n = t.createTreeWalker(e, NodeFilter.SHOW_TEXT), r = [], i = 0, a = n.nextNode();
@@ -260,7 +260,7 @@ function ge(e) {
 	}
 	return r;
 }
-function _e(e, t) {
+function ye(e, t) {
 	if (e.length === 0) return null;
 	let n = 0, r = e.length - 1;
 	for (; n < r;) {
@@ -273,32 +273,32 @@ function _e(e, t) {
 		offset: t - i.start
 	};
 }
-function ve(e, t, n = null) {
+function be(e, t, n = null) {
 	let r = e.ownerDocument;
 	if (!r || t.length === 0) return !1;
-	let i = ge(e);
+	let i = ve(e);
 	if (i.length === 0) return !1;
 	let a = /* @__PURE__ */ new Map();
 	for (let e of t) {
-		let t = _e(i, e.start), n = _e(i, e.end);
+		let t = ye(i, e.start), n = ye(i, e.end);
 		if (!t || !n) continue;
 		let r = t.node, o = n.node;
 		if (r === o) {
-			b(a, r, t.offset, n.offset, e.start);
+			v(a, r, t.offset, n.offset, e.start);
 			continue;
 		}
 		let s = !1;
 		for (let c of i) {
 			if (c.node === r) {
-				s = !0, b(a, c.node, t.offset, c.length, e.start);
+				s = !0, v(a, c.node, t.offset, c.length, e.start);
 				continue;
 			}
 			if (s) {
 				if (c.node === o) {
-					b(a, c.node, 0, n.offset, e.start);
+					v(a, c.node, 0, n.offset, e.start);
 					break;
 				}
-				b(a, c.node, 0, c.length, e.start);
+				v(a, c.node, 0, c.length, e.start);
 			}
 		}
 	}
@@ -311,7 +311,7 @@ function ve(e, t, n = null) {
 			let t = Math.max(c, Math.min(e.from, i.length)), a = Math.max(t, Math.min(e.to, i.length));
 			if (t > c && s.append(i.slice(c, t)), a > t) {
 				let c = r.createElement("mark");
-				c.dataset.start = String(e.start), c.className = e.start === n ? `${_} ${v}` : _, c.textContent = i.slice(t, a), s.append(c), o = !0;
+				c.dataset.start = String(e.start), c.className = e.start === n ? `${g} ${_}` : g, c.textContent = i.slice(t, a), s.append(c), o = !0;
 			}
 			c = Math.max(c, a);
 		}
@@ -319,7 +319,7 @@ function ve(e, t, n = null) {
 	}
 	return o;
 }
-function b(e, t, n, r, i) {
+function v(e, t, n, r, i) {
 	let a = e.get(t);
 	a ? a.push({
 		from: n,
@@ -333,7 +333,7 @@ function b(e, t, n, r, i) {
 }
 //#endregion
 //#region src/document.ts
-var x = "context-chapter", S = "context-note", C = "context-note-flash", w = "context-footnote-flash", ye = "context-resize-preview", T = "context-selection-layer", E = "context-selection-band", be = [
+var y = "context-chapter", b = "context-note", x = "context-note-flash", S = "context-footnote-flash", xe = "context-resize-preview", C = "context-selection-layer", w = "context-selection-band", Se = [
 	"html{font-size:100%;position:relative;}",
 	"body{margin:0 auto !important;width:100% !important;",
 	"max-width:48rem !important;padding:1.5rem 2rem !important;box-sizing:border-box;}",
@@ -368,27 +368,27 @@ var x = "context-chapter", S = "context-note", C = "context-note-flash", w = "co
 	"body[data-tool=\"text\"] .context-note-shape path,body[data-tool=\"shape\"] .context-note-shape path",
 	"{cursor:pointer !important;}",
 	"::selection{background:transparent;}",
-	`.${T}{position:absolute;left:0;top:0;pointer-events:none;z-index:1;`,
+	`.${C}{position:absolute;left:0;top:0;pointer-events:none;z-index:1;`,
 	"mix-blend-mode:multiply;}",
-	`html[data-reader-theme='dark'] .${T}{mix-blend-mode:screen;}`,
-	`.${E}{position:absolute;border-radius:2px;background:var(--rt-selection);}`,
-	`.${E}::before,.${E}::after{content:none;position:absolute;`,
+	`html[data-reader-theme='dark'] .${C}{mix-blend-mode:screen;}`,
+	`.${w}{position:absolute;border-radius:2px;background:var(--rt-selection);}`,
+	`.${w}::before,.${w}::after{content:none;position:absolute;`,
 	"top:-0.5px;bottom:-0.5px;width:var(--rt-selection-edge-width,1px);",
 	"background:var(--rt-selection-edge);border-radius:calc(0.5 * var(--rt-selection-edge-width,1px));}",
-	`.${E}[data-edge="start"]::before,`,
-	`.${E}[data-edge="both"]::before{content:"";`,
+	`.${w}[data-edge="start"]::before,`,
+	`.${w}[data-edge="both"]::before{content:"";`,
 	"left:calc(-0.5 * var(--rt-selection-edge-width,1px));}",
-	`.${E}[data-edge="end"]::after,`,
-	`.${E}[data-edge="both"]::after{content:"";`,
+	`.${w}[data-edge="end"]::after,`,
+	`.${w}[data-edge="both"]::after{content:"";`,
 	"right:calc(-0.5 * var(--rt-selection-edge-width,1px));}",
-	`.${S}{border-radius:2px;cursor:pointer;color:inherit;`,
+	`.${b}{border-radius:2px;cursor:pointer;color:inherit;`,
 	"box-decoration-break:clone;-webkit-box-decoration-break:clone;}",
-	`.${S}[data-color="yellow"]{background:var(--note-solid-yellow);}`,
-	`.${S}[data-color="green"]{background:var(--note-solid-green);}`,
-	`.${S}[data-color="blue"]{background:var(--note-solid-blue);}`,
-	`.${S}[data-color="red"]{background:var(--note-solid-red);}`,
-	`.${S}[data-color="purple"]{background:var(--note-solid-purple);}`,
-	`.${x}{position:relative;}`,
+	`.${b}[data-color="yellow"]{background:var(--note-solid-yellow);}`,
+	`.${b}[data-color="green"]{background:var(--note-solid-green);}`,
+	`.${b}[data-color="blue"]{background:var(--note-solid-blue);}`,
+	`.${b}[data-color="red"]{background:var(--note-solid-red);}`,
+	`.${b}[data-color="purple"]{background:var(--note-solid-purple);}`,
+	`.${y}{position:relative;}`,
 	".context-note-card{position:absolute;max-width:220px;padding:6px 8px;border-radius:6px;",
 	"font-size:13px;line-height:1.4;white-space:pre-wrap;cursor:pointer;z-index:2;}",
 	".context-note-card[data-color=\"yellow\"]{background:var(--note-yellow);}",
@@ -425,13 +425,13 @@ var x = "context-chapter", S = "context-note", C = "context-note-flash", w = "co
 	".context-note-shape[data-color=\"purple\"] rect,",
 	".context-note-shape[data-color=\"purple\"] ellipse{fill:var(--note-purple);}",
 	".context-note-shape[data-color=\"purple\"] line{stroke:var(--note-purple);}",
-	`.${S}.${C}{background:#f59e0b;}`,
-	`.${S}.${v}{background:var(--rt-search-active);}`,
-	`.${_}{border-radius:2px;background:var(--rt-search);`,
+	`.${b}.${x}{background:#f59e0b;}`,
+	`.${b}.${_}{background:var(--rt-search-active);}`,
+	`.${g}{border-radius:2px;background:var(--rt-search);`,
 	"color:inherit;box-decoration-break:clone;-webkit-box-decoration-break:clone;}",
-	`.${_}.${v}{background:var(--rt-search-active);}`,
-	`.context-overlay.${C}{opacity:0.4;}`,
-	`.${w}{background:#f59e0b;border-radius:2px;}`,
+	`.${g}.${_}{background:var(--rt-search-active);}`,
+	`.context-overlay.${x}{opacity:0.4;}`,
+	`.${S}{background:#f59e0b;border-radius:2px;}`,
 	`.${u}{font-size:0.85em;margin-left:0.35em;text-decoration:none;`,
 	"vertical-align:super;line-height:0;opacity:0.65;}",
 	`.${u}:hover{opacity:1;}`,
@@ -441,28 +441,28 @@ var x = "context-chapter", S = "context-note", C = "context-note-flash", w = "co
 	".context-note-handle{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;",
 	"border-radius:50%;background:#1d4ed8;border:2px solid #fff;",
 	"box-shadow:0 1px 4px rgba(0,0,0,0.4);cursor:ew-resize;z-index:5;}",
-	`.${ye}{position:absolute;pointer-events:none;opacity:0.45;z-index:1;}`
+	`.${xe}{position:absolute;pointer-events:none;opacity:0.45;z-index:1;}`
 ].join("");
-function xe() {
-	return be;
+function Ce() {
+	return Se;
 }
-var Se = [
+var we = [
 	"yellow",
 	"green",
 	"blue",
 	"red",
 	"purple"
 ];
-function Ce(e, t) {
+function T(e, t) {
 	let n = t.tokens ?? {}, r = (t, n) => {
 		n != null && n !== "" && e.style.setProperty(t, String(n));
 	};
 	r("--rt-background", n.background), r("--rt-foreground", n.text), r("--rt-muted", n.muted), r("--rt-link", n.link), r("--rt-selection", n.selection), r("--rt-selection-edge", n.selectionEdge), n.selectionEdgeWidth !== void 0 && n.selectionEdgeWidth !== null && r("--rt-selection-edge-width", `${n.selectionEdgeWidth}px`), r("--rt-search", n.search), r("--rt-search-active", n.searchActive), r("--rt-font", t.font), (t.fontId === "serif" || t.fontId === "sans") && (e.dataset.readerFont = t.fontId);
 	let i = t.notes ?? {}, a = t.solid ?? {};
-	for (let e of Se) r(`--note-${e}`, i[e]), r(`--note-solid-${e}`, a[e] ?? i[e]);
+	for (let e of we) r(`--note-${e}`, i[e]), r(`--note-solid-${e}`, a[e] ?? i[e]);
 	(t.id === "dark" || t.id === "light") && (e.dataset.readerTheme = t.id);
 }
-function D(e) {
+function E(e) {
 	let t = e.kind === "page" ? "page" : e.kind === "point" ? "point" : "text", n = {
 		v: 1,
 		kind: t,
@@ -473,9 +473,9 @@ function D(e) {
 		percent: Number.isFinite(e.percent) ? Number(e.percent) : 0,
 		page: Number.isFinite(e.page) ? Number(e.page) : null
 	};
-	return t === "page" && (n.rects = we(e.rects)), t === "point" && (n.x = Number.isFinite(e.x) ? Number(e.x) : 0, n.y = Number.isFinite(e.y) ? Number(e.y) : 0), n;
+	return t === "page" && (n.rects = Te(e.rects)), t === "point" && (n.x = Number.isFinite(e.x) ? Number(e.x) : 0, n.y = Number.isFinite(e.y) ? Number(e.y) : 0), n;
 }
-function we(e) {
+function Te(e) {
 	if (!Array.isArray(e)) return [];
 	let t = [];
 	for (let n of e) {
@@ -494,45 +494,45 @@ function we(e) {
 	}
 	return t;
 }
-function O(e) {
+function D(e) {
 	if (!e) return null;
 	try {
 		let t = JSON.parse(e);
 		if (typeof t != "object" || !t) return null;
 		let n = t.kind === "page", r = t.kind === "point";
-		return r && (typeof t.x != "number" || typeof t.y != "number") || !n && !r && (typeof t.chapter != "number" || typeof t.start != "number") ? null : D(t);
+		return r && (typeof t.x != "number" || typeof t.y != "number") || !n && !r && (typeof t.chapter != "number" || typeof t.start != "number") ? null : E(t);
 	} catch {
 		return null;
 	}
 }
-function Te(e, t, n, r) {
+function O(e, t, n, r) {
 	let i = e.createRange();
 	return i.setStart(t, 0), i.setEnd(n, r), i.toString().length;
 }
 function Ee(e, t) {
 	let n = e.ownerDocument;
 	if (!n || !e.contains(t.startContainer) || !e.contains(t.endContainer)) return null;
-	let r = Te(n, e, t.startContainer, t.startOffset), i = Te(n, e, t.endContainer, t.endOffset);
+	let r = O(n, e, t.startContainer, t.startOffset), i = O(n, e, t.endContainer, t.endOffset);
 	return i <= r ? null : {
 		start: r,
 		end: i
 	};
 }
-var De = /* @__PURE__ */ new WeakMap();
-function Oe(e) {
+var k = /* @__PURE__ */ new WeakMap();
+function De(e) {
 	return e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function ke(e) {
-	let t = e.trim().split(/\s+/).filter((e) => e.length > 0).map(Oe);
+function Oe(e) {
+	let t = e.trim().split(/\s+/).filter((e) => e.length > 0).map(De);
 	return t.length === 0 ? null : new RegExp(t.join("\\s+"));
 }
-function Ae(e) {
-	return k(e)?.raw ?? null;
+function A(e) {
+	return j(e)?.raw ?? null;
 }
-function k(e) {
+function j(e) {
 	let t = e.ownerDocument;
 	if (!t) return null;
-	let n = e.textContent?.length ?? 0, r = De.get(e);
+	let n = e.textContent?.length ?? 0, r = k.get(e);
 	if (r && r.length === n) return r;
 	let i = t.createTreeWalker(e, NodeFilter.SHOW_TEXT), a = [], o = i.nextNode();
 	for (; o;) a.push(o.nodeValue ?? ""), o = i.nextNode();
@@ -540,19 +540,19 @@ function k(e) {
 		raw: s,
 		length: s.length
 	};
-	return De.set(e, c), c;
+	return k.set(e, c), c;
 }
-function A(e) {
+function M(e) {
 	return e.replace(/\s+/g, " ").trim();
 }
-function je(e, t) {
-	let n = ke(t);
+function ke(e, t) {
+	let n = Oe(t);
 	if (!n) return null;
-	let r = k(e);
+	let r = j(e);
 	if (!r) return null;
 	let i = n.exec(r.raw);
 	if (!i || i[0].length === 0) return null;
-	let a = i.index, o = a + i[0].length, s = M(e, a, o);
+	let a = i.index, o = a + i[0].length, s = P(e, a, o);
 	return s ? {
 		range: s,
 		start: a,
@@ -560,11 +560,11 @@ function je(e, t) {
 		byText: !0
 	} : null;
 }
-function j(e, t) {
+function N(e, t) {
 	if (t.kind !== "text") return null;
-	let n = M(e, t.start, t.end), r = A(t.quote);
+	let n = P(e, t.start, t.end), r = M(t.quote);
 	if (n && !n.collapsed) {
-		let e = A(n.toString());
+		let e = M(n.toString());
 		if (e.length > 0 && (e === r || e.startsWith(r) || r.startsWith(e))) return {
 			range: n,
 			start: t.start,
@@ -572,9 +572,9 @@ function j(e, t) {
 			byText: !1
 		};
 	}
-	return je(e, t.quote);
+	return ke(e, t.quote);
 }
-function M(e, t, n) {
+function P(e, t, n) {
 	let r = e.ownerDocument;
 	if (!r) return null;
 	let i = r.createTreeWalker(e, NodeFilter.SHOW_TEXT), a = 0, o = null, s = 0, c = null, l = 0, u = i.nextNode();
@@ -596,7 +596,7 @@ function M(e, t, n) {
 }
 //#endregion
 //#region src/highlight.ts
-function N(e, t) {
+function F(e, t) {
 	for (let n of Array.from(e.querySelectorAll(t))) {
 		let e = n.parentNode;
 		if (e) {
@@ -605,7 +605,7 @@ function N(e, t) {
 		}
 	}
 }
-function Me(e, t, n, r, i, a = "yellow") {
+function Ae(e, t, n, r, i, a = "yellow") {
 	let o = e.ownerDocument;
 	if (!o || n <= t) return !1;
 	let s = [], c = o.createTreeWalker(e, NodeFilter.SHOW_TEXT), l = 0, u = c.nextNode();
@@ -623,11 +623,11 @@ function Me(e, t, n, r, i, a = "yellow") {
 		let t = o.createRange();
 		t.setStart(e.node, e.from), t.setEnd(e.node, e.to);
 		let n = o.createElement("mark");
-		n.className = r, n.dataset.noteId = i, n.dataset.color = a, t.surroundContents(n), Ne(n);
+		n.className = r, n.dataset.noteId = i, n.dataset.color = a, t.surroundContents(n), je(n);
 	}
 	return s.length > 0;
 }
-function Ne(e) {
+function je(e) {
 	let t = e.ownerDocument.defaultView, n = e.parentElement, r = t && n ? t.getComputedStyle(n) : null, i = r ? Number.parseFloat(r.lineHeight) : NaN, a = r ? Number.parseFloat(r.fontSize) : NaN, o = e.getClientRects()[0];
 	if (!r || !Number.isFinite(i) || !Number.isFinite(a) || a <= 0 || !o || o.height <= 0) return;
 	let s = (i - o.height) / 2 / a;
@@ -638,8 +638,8 @@ function Ne(e) {
 }
 //#endregion
 //#region src/overlay.ts
-var P = "context-overlay", Pe = "context-note-card", Fe = "context-note-shape";
-function F(e) {
+var I = "context-overlay", Me = "context-note-card", Ne = "context-note-shape";
+function Pe(e) {
 	if (!e) return null;
 	try {
 		let t = JSON.parse(e);
@@ -658,23 +658,23 @@ function F(e) {
 		return null;
 	}
 }
-function Ie(e) {
+function Fe(e) {
 	return JSON.stringify(e);
 }
-function I(e, t) {
+function Ie(e, t) {
 	for (let n of Array.from(e.querySelectorAll(t))) n.remove();
 }
 function Le(e, t) {
-	let n = O(t.anchor);
+	let n = D(t.anchor);
 	if (!n || n.kind !== "point") return !1;
 	let r = e.ownerDocument.createElement("div");
-	return r.className = `${P} ${Pe}`, r.dataset.noteId = t.id, r.dataset.color = t.color ?? "yellow", r.style.left = `${(n.x ?? 0) * 100}%`, r.style.top = `${(n.y ?? 0) * 100}%`, r.textContent = t.text ?? "", e.appendChild(r), !0;
+	return r.className = `${I} ${Me}`, r.dataset.noteId = t.id, r.dataset.color = t.color ?? "yellow", r.style.left = `${(n.x ?? 0) * 100}%`, r.style.top = `${(n.y ?? 0) * 100}%`, r.textContent = t.text ?? "", e.appendChild(r), !0;
 }
 function Re(e, t) {
-	let n = O(t.anchor), r = F(t.geometry);
+	let n = D(t.anchor), r = Pe(t.geometry);
 	if (!n || n.kind !== "point" || !r) return !1;
 	let i = e.ownerDocument, a = i.createElementNS("http://www.w3.org/2000/svg", "svg");
-	a.setAttribute("class", `${P} ${Fe}`);
+	a.setAttribute("class", `${I} ${Ne}`);
 	let o = ze(r, e), s = (e) => (e - o.left) / o.width, c = (e) => (e - o.top) / o.height;
 	a.setAttribute("viewBox", "0 0 1 1"), a.setAttribute("preserveAspectRatio", "none"), a.style.left = `${L(o.left * 100)}%`, a.style.top = `${L(o.top * 100)}%`, a.style.width = `${L(o.width * 100)}%`, a.style.height = `${L(o.height * 100)}%`, a.dataset.noteId = t.id, a.dataset.color = t.color, a.dataset.shape = t.shape ?? "line";
 	let l = {
@@ -729,23 +729,23 @@ function Ve(e, t, n) {
 function R(e) {
 	return Math.max(0, Math.min(1, e));
 }
-function z(e, t, n) {
+function He(e, t, n) {
 	let r = e.getBoundingClientRect(), i = r.width > 0 ? (t - r.left) / r.width : 0, a = r.height > 0 ? (n - r.top) / r.height : 0;
 	return {
 		x: R(i),
 		y: R(a)
 	};
 }
-function He(e, t, n) {
+function Ue(e, t, n) {
 	return (e?.elementFromPoint(t, n))?.closest?.(".context-chapter") ?? null;
 }
-function Ue(e, t, n) {
+function We(e, t, n) {
 	let r = e.ownerDocument;
 	if (!r || !e.contains(t)) return null;
 	let i = r.createRange();
 	return i.setStart(e, 0), i.setEnd(t, n), i.toString().length;
 }
-function B(e, t, n) {
+function z(e, t, n) {
 	if (!t) return null;
 	let r = Array.from(t.getClientRects()), i = n === "start" ? r[0] : r[r.length - 1] ?? r[0], a = e.getBoundingClientRect();
 	return i ? {
@@ -757,14 +757,14 @@ function B(e, t, n) {
 }
 //#endregion
 //#region src/zoom-anchor.ts
-function V(e) {
-	let t = e ? Ke(e) : null;
+function B(e) {
+	let t = e ? qe(e) : null;
 	return {
 		range: t,
 		top: t ? t.getBoundingClientRect().top : 0
 	};
 }
-function We(e, t) {
+function V(e, t) {
 	let n = e?.scrollingElement ?? e?.documentElement, r = t.range;
 	if (!e || !n || !r) return;
 	try {
@@ -776,14 +776,18 @@ function We(e, t) {
 	i && (n.scrollTop += i);
 }
 function Ge(e, t) {
+	let n = B(e);
+	t(), V(e, n);
+}
+function Ke(e, t) {
 	let n = e?.defaultView, r = e?.scrollingElement ?? e?.documentElement;
 	if (!e || !n || !r) return;
-	let i = Ke(e), a = i ? i.getBoundingClientRect().top : 0;
+	let i = qe(e), a = i ? i.getBoundingClientRect().top : 0;
 	e.documentElement.style.fontSize = `${t}%`;
 	let o = (i ? i.getBoundingClientRect().top : 0) - a;
 	o && (r.scrollTop += o);
 }
-function Ke(e) {
+function qe(e) {
 	let t = e.defaultView;
 	if (!t) return null;
 	let n = Math.round(t.innerWidth / 2), r = e.body ?? e.documentElement, i = r && parseFloat(t.getComputedStyle(r).lineHeight) || 24, a = Math.round(18 + i), o = e.caretRangeFromPoint;
@@ -803,7 +807,7 @@ function Ke(e) {
 }
 //#endregion
 //#region src/selection.ts
-function qe(e) {
+function Je(e) {
 	let t = (e ?? []).filter((e) => e.width > 0 && e.height > 0).sort((e, t) => e.y + e.height / 2 - (t.y + t.height / 2) || e.x - t.x), n = [];
 	for (let e of t) {
 		let t = n[n.length - 1];
@@ -834,13 +838,13 @@ function qe(e) {
 	}
 	return r;
 }
-function Je(e) {
+function Ye(e) {
 	let t = e?.lineHeight;
 	if (!t || t === "normal") return null;
 	let n = Number.parseFloat(t);
 	return Number.isFinite(n) && n > 0 ? n : null;
 }
-function Ye(e, t, n, r) {
+function Xe(e, t, n, r) {
 	let i = [], a = t.commonAncestorContainer, o = a.nodeType === 3 ? a.parentNode : a;
 	if (!o) return i;
 	let s = e.defaultView, c = e.createTreeWalker(o, (s ? s.NodeFilter : NodeFilter).SHOW_TEXT), l = c.nextNode();
@@ -850,7 +854,7 @@ function Ye(e, t, n, r) {
 			if (c > o) {
 				let t = e.createRange();
 				t.setStart(a, o), t.setEnd(a, c);
-				let l = s && a.parentElement ? Je(s.getComputedStyle(a.parentElement)) : null;
+				let l = s && a.parentElement ? Ye(s.getComputedStyle(a.parentElement)) : null;
 				for (let e of Array.from(t.getClientRects())) {
 					if (e.width <= 0 || e.height <= 0) continue;
 					let t = e.height, a = e.top + r, o = l !== null && l > t;
@@ -867,23 +871,23 @@ function Ye(e, t, n, r) {
 	}
 	return i;
 }
-function Xe(e) {
+function Ze(e) {
 	for (let t of Array.from(e?.querySelectorAll(".context-selection-layer") ?? [])) t.remove();
 }
 function H(e, t) {
-	if (Xe(e), !e || !t) return;
-	let n = e.scrollingElement ?? e.documentElement, r = qe(Ye(e, t, n?.scrollLeft ?? 0, n?.scrollTop ?? 0));
+	if (Ze(e), !e || !t) return;
+	let n = e.scrollingElement ?? e.documentElement, r = Je(Xe(e, t, n?.scrollLeft ?? 0, n?.scrollTop ?? 0));
 	if (r.length === 0) return;
 	let i = e.createElement("div");
-	i.className = T, i.style.position = "absolute", i.style.left = "0", i.style.top = "0", r.forEach((t, n) => {
+	i.className = C, i.style.position = "absolute", i.style.left = "0", i.style.top = "0", r.forEach((t, n) => {
 		let a = e.createElement("div");
-		a.className = E, a.style.left = `${t.x}px`, a.style.top = `${t.y}px`, a.style.width = `${t.width}px`, a.style.height = `${t.height}px`;
+		a.className = w, a.style.left = `${t.x}px`, a.style.top = `${t.y}px`, a.style.width = `${t.width}px`, a.style.height = `${t.height}px`;
 		let o = n === 0, s = n === r.length - 1;
 		a.dataset.edge = o && s ? "both" : o ? "start" : s ? "end" : "none", i.append(a);
 	}), e.documentElement.append(i);
 }
-var Ze = 60, Qe = /* @__PURE__ */ new WeakMap();
-function $e(e) {
+var Qe = 60, $e = /* @__PURE__ */ new WeakMap();
+function et(e) {
 	let t = "", n = [], r = !1;
 	for (let i = 0; i < e.length; i += 1) {
 		let a = e[i];
@@ -900,23 +904,23 @@ function $e(e) {
 		offsets: n
 	};
 }
-function et(e, t) {
-	let n = Qe.get(e);
+function tt(e, t) {
+	let n = $e.get(e);
 	if (n && n.raw === t) return n;
 	let r = {
 		raw: t,
-		...$e(t)
+		...et(t)
 	};
-	return Qe.set(e, r), r;
+	return $e.set(e, r), r;
 }
-function tt(e) {
-	return $e(e).text;
+function nt(e) {
+	return et(e).text;
 }
-function nt(e, t, n) {
-	let r = Math.max(0, t - Ze), i = Math.min(e.length, n + Ze), a = e.slice(r, i).replace(/\s+/g, " ").trim();
+function rt(e, t, n) {
+	let r = Math.max(0, t - Qe), i = Math.min(e.length, n + Qe), a = e.slice(r, i).replace(/\s+/g, " ").trim();
 	return `${r > 0 ? "…" : ""}${a}${i < e.length ? "…" : ""}`;
 }
-function rt(e, t) {
+function it(e, t) {
 	let n = [];
 	if (!t) return n;
 	let r = 0;
@@ -926,14 +930,14 @@ function rt(e, t) {
 		n.push(i), r = i + Math.max(1, t.length);
 	}
 }
-function it(e, t, n, r, i) {
+function at(e, t, n, r, i) {
 	let a = [];
 	if (!n || i <= 0) return {
 		hits: a,
 		truncated: !1
 	};
 	let { text: o, offsets: s } = e, c = !1;
-	for (let e of rt(o, n)) {
+	for (let e of it(o, n)) {
 		if (a.length >= i) {
 			c = !0;
 			break;
@@ -943,7 +947,7 @@ function it(e, t, n, r, i) {
 			chapter: r,
 			start: o,
 			end: l,
-			preview: nt(t, o, l)
+			preview: rt(t, o, l)
 		});
 	}
 	return {
@@ -951,8 +955,8 @@ function it(e, t, n, r, i) {
 		truncated: c
 	};
 }
-function at(e, t, n, r = 500) {
-	let i = tt(t), a = [], o = !1;
+function ot(e, t, n, r = 500) {
+	let i = nt(t), a = [], o = !1;
 	if (!i) return {
 		hits: a,
 		truncated: o
@@ -964,7 +968,7 @@ function at(e, t, n, r = 500) {
 		}
 		let e = n(t);
 		if (!e) continue;
-		let s = Number(t.dataset.chapter ?? "0"), c = it(et(t, e), e, i, Number.isFinite(s) ? s : 0, r - a.length);
+		let s = Number(t.dataset.chapter ?? "0"), c = at(tt(t, e), e, i, Number.isFinite(s) ? s : 0, r - a.length);
 		a.push(...c.hits), o ||= c.truncated;
 	}
 	return {
@@ -974,14 +978,14 @@ function at(e, t, n, r = 500) {
 }
 //#endregion
 //#region src/protocol.ts
-var ot = "context-workplace";
+var st = "context-workplace";
 function U(e) {
 	parent.postMessage({
-		channel: ot,
+		channel: st,
 		...e
 	}, "*");
 }
-function st(e) {
+function ct(e) {
 	if (!e || typeof e != "object") return null;
 	let t = e;
 	if (t.channel !== "context-workplace" || typeof t.type != "string") return null;
@@ -1074,13 +1078,13 @@ function st(e) {
 		default: return null;
 	}
 }
-function ct(e) {
+function lt(e) {
 	let t = atob(String(e || "")), n = new Uint8Array(t.length);
 	for (let e = 0; e < t.length; e += 1) n[e] = t.charCodeAt(e);
 	return n;
 }
-function lt(e) {
-	return new TextDecoder("utf-8").decode(ct(e));
+function ut(e) {
+	return new TextDecoder("utf-8").decode(lt(e));
 }
 //#endregion
 //#region src/main.ts
@@ -1106,16 +1110,16 @@ function G() {
 	return e.ownerDocument;
 }
 function K(t) {
-	return e.querySelector(`.${x}[data-chapter="${t}"]`);
+	return e.querySelector(`.${y}[data-chapter="${t}"]`);
 }
 function q() {
-	return Array.from(e.querySelectorAll(`.${x}`));
+	return Array.from(e.querySelectorAll(`.${y}`));
 }
-function ut(e) {
+function dt(e) {
 	if (e.kind !== "text") return null;
 	let t = K(e.chapter);
 	if (t) {
-		let n = j(t, e);
+		let n = N(t, e);
 		if (n) return {
 			section: t,
 			range: n.range,
@@ -1125,7 +1129,7 @@ function ut(e) {
 	}
 	for (let n of q()) {
 		if (n === t) continue;
-		let r = j(n, e);
+		let r = N(n, e);
 		if (r) return {
 			section: n,
 			range: r.range,
@@ -1135,18 +1139,18 @@ function ut(e) {
 	}
 	return null;
 }
-function dt() {
+function ft() {
 	let e = G().body;
 	e.dataset.tool = W.tool.type;
 }
-function ft(e, t) {
-	let n = t ?? O(e.anchor ?? "");
+function pt(e, t) {
+	let n = t ?? D(e.anchor ?? "");
 	if (!n || e.type !== "quote") return;
-	let r = ut(n);
-	r && Me(r.section, r.start, r.end, S, e.id, e.color ?? "yellow");
+	let r = dt(n);
+	r && Ae(r.section, r.start, r.end, b, e.id, e.color ?? "yellow");
 }
-function pt(e, t, n) {
-	let r = t ?? O(e.anchor ?? "");
+function mt(e, t, n) {
+	let r = t ?? D(e.anchor ?? "");
 	if (!r) return;
 	let i = K(r.chapter);
 	if (!i) return;
@@ -1159,22 +1163,26 @@ function pt(e, t, n) {
 		geometry: n ?? e.geometry
 	});
 }
-function mt(e) {
+function ht(e) {
 	let t = G();
-	N(t, `mark.${S}[data-note-id="${e}"]`), I(t, `.${P}[data-note-id="${e}"]`);
+	F(t, `mark.${b}[data-note-id="${e}"]`), Ie(t, `.${I}[data-note-id="${e}"]`);
 }
 function J() {
 	let e = G();
-	N(e, `mark.${S}`), I(e, `.${P}`);
-	for (let e of W.notes) e.type === "quote" || e.type === void 0 ? ft(e) : pt(e);
+	F(e, `mark.${b}`), Ie(e, `.${I}`);
+	for (let e of W.notes) e.type === "quote" || e.type === void 0 ? pt(e) : mt(e);
 }
-function ht(e) {
+function gt(e) {
 	let t = new Map(W.notes.map((e) => [e.id, e]));
-	for (let n of e) t.has(n.id) || mt(n.id);
+	for (let n of e) t.has(n.id) || ht(n.id);
 	for (let t of W.notes) {
 		let n = e.find((e) => e.id === t.id);
-		(n === void 0 || n.type !== t.type || n.anchor !== t.anchor || n.color !== t.color) && (mt(t.id), t.type === "quote" || t.type === void 0 ? ft(t) : pt(t));
+		(n === void 0 || n.type !== t.type || n.anchor !== t.anchor || n.color !== t.color) && (ht(t.id), t.type === "quote" || t.type === void 0 ? pt(t) : mt(t));
 	}
+}
+function _t(e) {
+	let t = G();
+	Ge(t, e), Q = B(t);
 }
 function Y(e, t) {
 	let r = n(), i = r.clientHeight, a = Math.max(0, e - t);
@@ -1185,31 +1193,31 @@ function Y(e, t) {
 		behavior: o > i * 1.5 ? "auto" : "smooth"
 	});
 }
-function gt(e) {
+function vt(e) {
 	let t = n(), r = t.scrollHeight - t.clientHeight;
 	r > 0 && t.scrollTo({ top: Math.max(0, Math.min(100, e)) / 100 * r });
 }
-function _t(e) {
-	let t = O(e.anchor ?? ""), r = t ? ut(t) : null, i = r?.section ?? (t ? K(t.chapter) : null);
-	t?.kind === "point" && i ? Y(i.getBoundingClientRect().top + n().scrollTop, 120) : r ? Y(r.range.getBoundingClientRect().top + n().scrollTop, 80) : t && t.percent > 0 && gt(t.percent);
-	for (let t of Array.from(G().querySelectorAll(`mark.${S}[data-note-id="${e.id}"]`))) t.classList.add(C), setTimeout(() => t.classList.remove(C), 300);
-	for (let t of Array.from(G().querySelectorAll(`.${P}[data-note-id="${e.id}"]`))) t.classList.add(C), setTimeout(() => t.classList.remove(C), 300);
+function yt(e) {
+	let t = D(e.anchor ?? ""), r = t ? dt(t) : null, i = r?.section ?? (t ? K(t.chapter) : null);
+	t?.kind === "point" && i ? Y(i.getBoundingClientRect().top + n().scrollTop, 120) : r ? Y(r.range.getBoundingClientRect().top + n().scrollTop, 80) : t && t.percent > 0 && vt(t.percent);
+	for (let t of Array.from(G().querySelectorAll(`mark.${b}[data-note-id="${e.id}"]`))) t.classList.add(x), setTimeout(() => t.classList.remove(x), 300);
+	for (let t of Array.from(G().querySelectorAll(`.${I}[data-note-id="${e.id}"]`))) t.classList.add(x), setTimeout(() => t.classList.remove(x), 300);
 }
-function vt(e) {
+function bt(e) {
 	let t = K(e);
 	t && (Y(t.getBoundingClientRect().top + n().scrollTop, 80), X());
 }
-function yt() {
-	y(G());
+function xt() {
+	_e(G());
 	let e = W.activeHit === null ? null : W.hits[W.activeHit];
 	for (let t of q()) {
 		let n = Number(t.dataset.chapter ?? "0"), r = W.hits.filter((e) => e.chapter === n);
-		r.length !== 0 && ve(t, r, e && e.chapter === n ? e.start : null);
+		r.length !== 0 && be(t, r, e && e.chapter === n ? e.start : null);
 	}
 }
-function bt(e) {
+function St(e) {
 	if (W.query = e.trim(), !W.query) {
-		W.hits = [], W.activeHit = null, y(G()), U({
+		W.hits = [], W.activeHit = null, _e(G()), U({
 			type: "search",
 			value: {
 				query: "",
@@ -1219,8 +1227,8 @@ function bt(e) {
 		});
 		return;
 	}
-	let t = at(q(), W.query, Ae);
-	W.hits = t.hits, W.activeHit = t.hits.length > 0 ? 0 : null, yt(), U({
+	let t = ot(q(), W.query, A);
+	W.hits = t.hits, W.activeHit = t.hits.length > 0 ? 0 : null, xt(), U({
 		type: "search",
 		value: {
 			query: W.query,
@@ -1230,16 +1238,16 @@ function bt(e) {
 		}
 	});
 }
-function xt(e) {
+function Ct(e) {
 	if (W.hits.length === 0) return;
 	let t = W.activeHit === null ? 0 : (W.activeHit + e + W.hits.length) % W.hits.length;
 	W.activeHit = t;
 	let r = G();
-	for (let e of Array.from(r.querySelectorAll(`mark.${_}`))) e.classList.remove(v);
+	for (let e of Array.from(r.querySelectorAll(`mark.${g}`))) e.classList.remove(_);
 	let i = W.hits[t], a = K(i.chapter);
 	if (a) {
-		for (let e of Array.from(a.querySelectorAll(`mark.${_}`))) e.dataset.start === String(i.start) && e.classList.add(v);
-		let e = a.querySelector(`mark.${v}`);
+		for (let e of Array.from(a.querySelectorAll(`mark.${g}`))) e.dataset.start === String(i.start) && e.classList.add(_);
+		let e = a.querySelector(`mark.${_}`);
 		e && Y(e.getBoundingClientRect().top + n().scrollTop, 120);
 	}
 	U({
@@ -1258,10 +1266,10 @@ function X() {
 		value: W.progress
 	});
 }
-function St(n, r) {
+function wt(n, r) {
 	W.chapters = n;
 	let i = G(), a = i.getElementById("context-book-style");
-	a || (a = i.createElement("style"), a.id = "context-book-style", i.head.appendChild(a)), a.textContent = xe(), e.innerHTML = n.map((e, t) => `<section class="${x}" data-chapter="${t}">${e.html}</section>`).join("\n"), W.theme && Ce(G().documentElement, W.theme), W.opened = !0, t.hidden = !0, dt(), J(), r > 0 && gt(r), he(G()), X(), U({
+	a || (a = i.createElement("style"), a.id = "context-book-style", i.head.appendChild(a)), a.textContent = Ce(), e.innerHTML = n.map((e, t) => `<section class="${y}" data-chapter="${t}">${e.html}</section>`).join("\n"), W.theme && T(G().documentElement, W.theme), W.opened = !0, t.hidden = !0, ft(), J(), r > 0 && vt(r), ge(G()), X(), U({
 		type: "state",
 		value: {
 			page: null,
@@ -1283,26 +1291,26 @@ function St(n, r) {
 		}
 	});
 }
-function Ct(e) {
-	W.tool = e, dt();
+function Tt(e) {
+	W.tool = e, ft();
 }
-function wt(e) {
-	let t = st(e.data);
+function Et(e) {
+	let t = ct(e.data);
 	if (t) switch (t.type) {
 		case "open": {
-			let e = JSON.parse(lt(t.data));
-			W.title = String(e.title ?? ""), W.zoom = t.zoom, Ge(G(), t.zoom), St(e.chapters ?? [], t.position);
+			let e = JSON.parse(ut(t.data));
+			W.title = String(e.title ?? ""), W.zoom = t.zoom, Ke(G(), t.zoom), wt(e.chapters ?? [], t.position);
 			break;
 		}
 		case "zoom":
-			W.zoom = t.value, Ge(G(), t.value), Xe(G());
+			W.zoom = t.value, Ke(G(), t.value), Ze(G());
 			break;
 		case "goto": {
 			let e = t.value;
 			if (e.noteId) {
 				let t = W.notes.find((t) => t.id === e.noteId);
-				t && _t(t);
-			} else typeof e.chapter == "number" ? vt(e.chapter) : typeof e.page == "number" ? vt(e.page) : e.anchor && _t({
+				t && yt(t);
+			} else typeof e.chapter == "number" ? bt(e.chapter) : typeof e.page == "number" ? bt(e.page) : e.anchor && yt({
 				id: "",
 				type: "quote",
 				anchor: e.anchor,
@@ -1312,18 +1320,18 @@ function wt(e) {
 			break;
 		}
 		case "note-menu-action":
-			Pt(t.value.noteId, t.value.action);
+			It(t.value.noteId, t.value.action);
 			break;
 		case "notes": {
 			let e = W.notes;
-			W.notes = t.value, e.length === 0 ? J() : ht(e);
+			W.notes = t.value, e.length === 0 ? J() : gt(e);
 			break;
 		}
 		case "tool":
-			Ct(t.value);
+			Tt(t.value);
 			break;
 		case "reader-theme":
-			W.theme = t.value, Ce(G().documentElement, t.value), J();
+			W.theme = t.value, _t(() => T(G().documentElement, t.value)), J();
 			break;
 		case "reader-locale":
 			o(t.value);
@@ -1340,18 +1348,18 @@ function wt(e) {
 			break;
 		}
 		case "search":
-			bt(t.value.query);
+			St(t.value.query);
 			break;
 		case "search-step":
-			xt(t.value.delta < 0 ? -1 : 1);
+			Ct(t.value.delta < 0 ? -1 : 1);
 			break;
 		case "hotkey-bindings":
 			W.bindings = t.value;
 			break;
-		case "command": Tt(t.value.id);
+		case "command": Dt(t.value.id);
 	}
 }
-function Tt(e) {
+function Dt(e) {
 	switch (e) {
 		case "reader.screen.next":
 			n().scrollTop += n().clientHeight, X();
@@ -1365,7 +1373,7 @@ function Tt(e) {
 		case "reader.book.end": n().scrollTop = n().scrollHeight, X();
 	}
 }
-function Et(e) {
+function Ot(e) {
 	if (e.defaultPrevented || e.isComposing) return;
 	let t = e.target;
 	if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
@@ -1375,13 +1383,13 @@ function Et(e) {
 		value: { id: n.id }
 	}));
 }
-function Dt() {
+function kt() {
 	let e = G(), t = e.getSelection();
 	if (H(e, t && !t.isCollapsed && t.rangeCount > 0 ? t.getRangeAt(0) : null), !t || t.isCollapsed || t.rangeCount === 0) {
 		U({ type: "selection-cleared" });
 		return;
 	}
-	let r = t.getRangeAt(0), i = (e) => e ? e.nodeType === Node.ELEMENT_NODE ? e : e.parentElement : null, a = i(r.startContainer)?.closest(`.${x}`), o = i(r.endContainer)?.closest(`.${x}`);
+	let r = t.getRangeAt(0), i = (e) => e ? e.nodeType === Node.ELEMENT_NODE ? e : e.parentElement : null, a = i(r.startContainer)?.closest(`.${y}`), o = i(r.endContainer)?.closest(`.${y}`);
 	if (!a || a !== o) {
 		U({ type: "selection-cleared" });
 		return;
@@ -1391,7 +1399,7 @@ function Dt() {
 		U({ type: "selection-cleared" });
 		return;
 	}
-	let l = r.getBoundingClientRect(), u = n().scrollHeight, d = u > 0 ? Math.max(0, Math.min(100, (l.top + n().scrollTop) / u * 100)) : 0, f = Number(a.dataset.chapter ?? "0"), ee = D({
+	let l = r.getBoundingClientRect(), u = n().scrollHeight, d = u > 0 ? Math.max(0, Math.min(100, (l.top + n().scrollTop) / u * 100)) : 0, f = Number(a.dataset.chapter ?? "0"), ee = E({
 		chapter: Number.isFinite(f) ? f : 0,
 		start: s.start,
 		end: s.end,
@@ -1408,24 +1416,24 @@ function Dt() {
 		}
 	});
 }
-function Ot(e) {
+function At(e) {
 	let t = n().scrollHeight;
 	return t > 0 ? Math.max(0, Math.min(100, (e + n().scrollTop) / t * 100)) : 0;
 }
 var Z = null;
-function kt(e) {
+function jt(e) {
 	let t = e.target, r = t?.closest?.("a[href]");
 	if (r) {
 		e.preventDefault();
 		let t = G();
 		if (r.classList.contains("context-footnote-back")) {
 			let e = l(t, (r.getAttribute("href") ?? "").replace(/^#/, ""));
-			e && (Y(e.getBoundingClientRect().top + n().scrollTop, 120), e.classList.add(w), setTimeout(() => e.classList.remove(w), 600));
+			e && (Y(e.getBoundingClientRect().top + n().scrollTop, 120), e.classList.add(S), setTimeout(() => e.classList.remove(S), 600));
 			return;
 		}
 		let i = c(r.getAttribute("href"));
 		if (i.kind === "anchor" && i.anchor) {
-			let e = se(r, t);
+			let e = ce(r, t);
 			if (e) {
 				if (Z === r) {
 					Z = null, U({ type: "footnote-close" });
@@ -1436,7 +1444,7 @@ function kt(e) {
 				U({
 					type: "footnote",
 					value: {
-						html: de(e.target),
+						html: fe(e.target),
 						anchor: e.anchor,
 						left: t.left,
 						top: t.top,
@@ -1455,7 +1463,7 @@ function kt(e) {
 		});
 		return;
 	}
-	let i = t?.closest?.(`mark.${S}, .${P}`), a = i?.dataset.noteId;
+	let i = t?.closest?.(`mark.${b}, .${I}`), a = i?.dataset.noteId;
 	if (!a) {
 		U({ type: "note-menu-close" });
 		return;
@@ -1477,7 +1485,7 @@ function kt(e) {
 		});
 	}
 }
-function At(e) {
+function Mt(e) {
 	let t = e.target?.closest?.("[data-note-handle]");
 	if (!$ || !t) return !1;
 	e.preventDefault();
@@ -1486,35 +1494,35 @@ function At(e) {
 		if (!t) return;
 		let r = K(t.anchor.chapter);
 		if (!r) return;
-		let i = Ft(r, e.clientX, e.clientY);
+		let i = Lt(r, e.clientX, e.clientY);
 		if (i === null) return;
 		let a = t.anchor.start, o = t.anchor.end;
 		n === "start" ? a = Math.max(0, Math.min(i, o - 1)) : o = Math.max(a + 1, i);
-		let s = M(r, a, o), c = s ? s.toString().replace(/\s+/g, " ").trim() : t.anchor.quote;
+		let s = P(r, a, o), c = s ? s.toString().replace(/\s+/g, " ").trim() : t.anchor.quote;
 		$ = {
 			...t,
-			anchor: D({
+			anchor: E({
 				...t.anchor,
 				start: a,
 				end: o,
 				quote: c
 			})
-		}, Nt();
+		}, Ft();
 	}, a = () => {
-		r.removeEventListener("mousemove", i), r.removeEventListener("mouseup", a), removeEventListener("mousemove", i), removeEventListener("mouseup", a), It();
+		r.removeEventListener("mousemove", i), r.removeEventListener("mouseup", a), removeEventListener("mousemove", i), removeEventListener("mouseup", a), Rt();
 	};
 	return r.addEventListener("mousemove", i), r.addEventListener("mouseup", a), addEventListener("mousemove", i), addEventListener("mouseup", a), !0;
 }
-function jt(e) {
-	if (At(e) || W.tool.type !== "text" && W.tool.type !== "shape" || e.target?.closest?.("mark.context-note, .context-overlay")) return;
-	let t = He(G(), e.clientX, e.clientY);
+function Nt(e) {
+	if (Mt(e) || W.tool.type !== "text" && W.tool.type !== "shape" || e.target?.closest?.("mark.context-note, .context-overlay")) return;
+	let t = Ue(G(), e.clientX, e.clientY);
 	if (!t) return;
-	let n = z(t, e.clientX, e.clientY), r = Number(t.dataset.chapter ?? "0"), i = D({
+	let n = He(t, e.clientX, e.clientY), r = Number(t.dataset.chapter ?? "0"), i = E({
 		kind: "point",
 		chapter: Number.isFinite(r) ? r : 0,
 		x: n.x,
 		y: n.y,
-		percent: Ot(e.clientY)
+		percent: At(e.clientY)
 	});
 	if (W.tool.type === "text") {
 		U({
@@ -1527,14 +1535,14 @@ function jt(e) {
 		return;
 	}
 	let a = n, o = n, s = (e) => {
-		o = z(t, e.clientX, e.clientY);
+		o = He(t, e.clientX, e.clientY);
 	}, c = () => {
 		window.removeEventListener("mousemove", s), window.removeEventListener("mouseup", c), (Math.abs(o.x - a.x) > .005 || Math.abs(o.y - a.y) > .005) && U({
 			type: "shape",
 			value: {
 				anchor: i,
 				shape: W.tool.shape,
-				geometry: Ie({
+				geometry: Fe({
 					x1: a.x,
 					y1: a.y,
 					x2: o.x,
@@ -1546,15 +1554,15 @@ function jt(e) {
 	};
 	window.addEventListener("mousemove", s), window.addEventListener("mouseup", c);
 }
-var Q = V(G()), $ = null;
-function Mt() {
+var Q = B(G()), $ = null;
+function Pt() {
 	for (let e of Array.from(G().querySelectorAll(".context-note-handle"))) e.remove();
 }
-function Nt() {
-	Mt();
+function Ft() {
+	Pt();
 	let e = $, t = e?.anchor, n = t ? K(t.chapter) : null;
 	if (!e || !t || !n) return;
-	let r = M(n, Math.max(0, t.start), Math.max(0, t.start + 1)), i = M(n, Math.max(0, t.end - 1), Math.max(0, t.end)), a = B(n, r, "start"), o = B(n, i, "end");
+	let r = P(n, Math.max(0, t.start), Math.max(0, t.start + 1)), i = P(n, Math.max(0, t.end - 1), Math.max(0, t.end)), a = z(n, r, "start"), o = z(n, i, "end");
 	if (!a || !o) return;
 	let s = G();
 	for (let [e, t] of [["start", a], ["end", o]]) {
@@ -1564,23 +1572,23 @@ function Nt() {
 		r.style.left = `${t.x + (e === "start" ? i.left : i.left + t.width)}px`, r.style.top = `${t.y + i.top + t.height / 2}px`, s.body.appendChild(r);
 	}
 }
-function Pt(e, t) {
-	let n = W.notes.find((t) => t.id === e), r = n ? O(n.anchor ?? "") : null;
+function It(e, t) {
+	let n = W.notes.find((t) => t.id === e), r = n ? D(n.anchor ?? "") : null;
 	n && r && t === "resize" && ($ = {
 		noteId: e,
 		anchor: r,
 		marker: null
-	}, Nt());
+	}, Ft());
 }
-function Ft(e, t, n) {
+function Lt(e, t, n) {
 	let r = G(), i = r.caretRangeFromPoint;
 	if (typeof i != "function") return null;
 	let a = i.call(r, t, n);
-	return !a || ((e) => e.nodeType === Node.ELEMENT_NODE ? e : e.parentElement)(a.startContainer)?.closest(".context-chapter") !== e ? null : Ue(e, a.startContainer, a.startOffset);
+	return !a || ((e) => e.nodeType === Node.ELEMENT_NODE ? e : e.parentElement)(a.startContainer)?.closest(".context-chapter") !== e ? null : We(e, a.startContainer, a.startOffset);
 }
-function It() {
+function Rt() {
 	let e = $;
-	$ = null, Mt(), e && U({
+	$ = null, Pt(), e && U({
 		type: "place-note",
 		value: {
 			noteId: e.noteId,
@@ -1588,15 +1596,15 @@ function It() {
 		}
 	});
 }
-function Lt() {
+function zt() {
 	t.textContent = s("opening"), addEventListener("scroll", () => {
-		X(), Q = V(G());
-	}, { passive: !0 }), document.addEventListener("mouseup", Dt), document.addEventListener("mousedown", jt), document.addEventListener("selectionchange", () => {
+		X(), Q = B(G());
+	}, { passive: !0 }), document.addEventListener("mouseup", kt), document.addEventListener("mousedown", Nt), document.addEventListener("selectionchange", () => {
 		let e = G().getSelection(), t = e && !e.isCollapsed && e.rangeCount > 0 ? e.getRangeAt(0) : null;
 		H(G(), t), t || U({ type: "selection-cleared" });
-	}), e.addEventListener("click", kt), addEventListener("keydown", Et), addEventListener("resize", () => {
-		We(G(), Q), Q = V(G()), X();
-	}), addEventListener("message", wt), document.body.dataset.tool = W.tool.type, U({
+	}), e.addEventListener("click", jt), addEventListener("keydown", Ot), addEventListener("resize", () => {
+		V(G(), Q), Q = B(G()), X();
+	}), addEventListener("message", Et), document.body.dataset.tool = W.tool.type, U({
 		type: "capabilities",
 		value: {
 			zoom: !0,
@@ -1606,6 +1614,6 @@ function Lt() {
 		}
 	}), U({ type: "ready" });
 }
-Lt();
+zt();
 //#endregion
-export { Ae as chapterTextOf, Ue as charOffset, R as clamp01, F as parseGeometry, M as rangeFromOffsets, B as rangeHandleRect };
+export { A as chapterTextOf, We as charOffset, R as clamp01, Pe as parseGeometry, P as rangeFromOffsets, z as rangeHandleRect };
