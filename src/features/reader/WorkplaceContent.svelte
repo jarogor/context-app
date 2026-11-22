@@ -76,8 +76,11 @@
     onSelection?: (anchor: QuoteAnchor, position: { x: number; y: number }) => void;
     /** Выделение снято: меню создания заметки следует закрыть. */
     onSelectionCleared?: () => void;
-    /** Точка создания текстовой карточки, выбранная в книге. */
-    onTextPoint?: (anchor: QuoteAnchor, color: NoteColor) => void;
+    /** Точка создания текстовой карточки, выбранная в книге.
+     *
+     * `point` — место клика в координатах оболочки: окно ввода открывается там,
+     * куда нажали, а не внизу области. */
+    onTextPoint?: (anchor: QuoteAnchor, color: NoteColor, point: { x: number; y: number }) => void;
     /** Готовая заметка-фигура, нарисованная в книге. */
     onShape?: (anchor: QuoteAnchor, shape: ShapeKind, geometry: string, color: NoteColor) => void;
     /** Клик по подсветке заметки: открыть панель и выбрать заметку. */
@@ -171,6 +174,21 @@
   let frame: HTMLIFrameElement | undefined = $state();
   /** Фон области чтения: убирает белую вспышку до отрисовки содержимого. */
   const readerBackground = $derived(readerThemeTokens(palette, readerTheme).background);
+
+  /**
+   * Перевод точки из координат книги в координаты оболочки.
+   *
+   * Книга живёт в `iframe`: плагин сообщает координаты своего документа, а
+   * всплывающие окна оболочки ставятся по её собственным. Без перевода окно
+   * ввода текста открывалось бы со сдвигом на рамку и прокрутку области.
+   */
+  function viewerPoint(x: number, y: number): { x: number; y: number } {
+    const box = frame?.getBoundingClientRect();
+    if (!box) {
+      return { x, y };
+    }
+    return { x: box.left + x, y: box.top + y };
+  }
 
   /** Отправка сообщения модулю рисования. */
   function post(message: object) {
@@ -339,7 +357,7 @@
         onSelectionCleared?.();
         break;
       case 'text-point':
-        onTextPoint?.(message.anchor, message.color);
+        onTextPoint?.(message.anchor, message.color, viewerPoint(message.x, message.y));
         break;
       case 'shape':
         onShape?.(message.anchor, message.shape, message.geometry, message.color);

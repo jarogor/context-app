@@ -89,6 +89,8 @@ describe('протокол рабочего места: разбор сообщ�
       type: 'text-point',
       anchor,
       color: 'blue',
+      x: 0,
+      y: 0,
     });
     expect(parseViewerMessage(message('shape', { anchor }), TOOL)).toEqual({
       type: 'shape',

@@ -162,7 +162,14 @@ export type ViewerMessage =
   | { type: 'progress'; value: number }
   | { type: 'selection'; anchor: QuoteAnchor; x: number; y: number }
   | { type: 'selection-cleared' }
-  | { type: 'text-point'; anchor: QuoteAnchor; color: NoteColor }
+  | {
+      type: 'text-point';
+      anchor: QuoteAnchor;
+      color: NoteColor;
+      /** Точка клика в координатах книги; окно ввода открывается здесь. */
+      x: number;
+      y: number;
+    }
   | { type: 'shape'; anchor: QuoteAnchor; shape: ShapeKind; geometry: string; color: NoteColor }
   | { type: 'note-click'; noteId: string }
   | { type: 'note-menu'; value: WorkplaceNoteMenu }
@@ -234,7 +241,9 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
     case 'selection-cleared':
       return { type: 'selection-cleared' };
     case 'text-point': {
-      const value = (message.value as { anchor?: QuoteAnchor; color?: unknown }) ?? {};
+      const value =
+        (message.value as { anchor?: QuoteAnchor; color?: unknown; x?: unknown; y?: unknown }) ??
+        {};
       if (!value.anchor) {
         return null;
       }
@@ -242,6 +251,8 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
         type: 'text-point',
         anchor: value.anchor,
         color: String(value.color ?? fallback.color) as NoteColor,
+        x: Number(value.x) || 0,
+        y: Number(value.y) || 0,
       };
     }
     case 'shape': {

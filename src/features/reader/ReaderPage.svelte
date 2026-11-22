@@ -253,6 +253,9 @@
   } | null = $state(null);
   /** Незавершённая точка создания текстовой карточки. */
   let pendingTextAnchor: QuoteAnchor | null = $state(null);
+
+  /** Точка клика для окна ввода текста: там оно и открывается. */
+  let pendingTextPoint: { x: number; y: number } | null = $state(null);
   /** Правка текста существующей карточки: заметка и её текущие значения. */
   let editingTextNote: { noteId: string; text: string; color: NoteColor } | null = $state(null);
   /** Ширина области содержимого: по ней ограничивается позиция меню. */
@@ -629,14 +632,16 @@
   }
 
   /** Начало ввода текстовой карточки в выбранной точке. */
-  function startTextCard(anchor: QuoteAnchor) {
+  function startTextCard(anchor: QuoteAnchor, point?: { x: number; y: number }) {
     pendingTextAnchor = anchor;
+    pendingTextPoint = point ?? null;
   }
 
   /** Подтверждение текстовой карточки: пустой текст не сохраняется. */
   function commitTextCard(text: string, color: NoteColor) {
     const anchor = pendingTextAnchor;
     pendingTextAnchor = null;
+    pendingTextPoint = null;
     if (anchor) {
       onTextNote?.(anchor, text, color);
     }
@@ -645,6 +650,7 @@
   /** Отмена ввода текстовой карточки. */
   function cancelTextCard() {
     pendingTextAnchor = null;
+    pendingTextPoint = null;
   }
 
   /** Загрузка содержимого книги.
@@ -1235,7 +1241,7 @@
             menuPosition = position;
           }}
           onSelectionCleared={dismissWorkplaceMenu}
-          onTextPoint={(anchor) => startTextCard(anchor)}
+          onTextPoint={(anchor, _color, point) => startTextCard(anchor, point)}
           onShape={(anchor, shape, geometry, color) =>
             onShape?.(anchor, shape, geometry, color)}
           onNoteClick={(noteId) => onNoteClick?.(noteId)}
@@ -1323,6 +1329,7 @@
         {#if pendingTextAnchor}
           <NoteTextEditor
             initialColor={tool.color}
+            point={pendingTextPoint}
             onConfirm={commitTextCard}
             onCancel={cancelTextCard}
           />

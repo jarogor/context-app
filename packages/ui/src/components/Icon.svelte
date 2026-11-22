@@ -26,6 +26,10 @@
     | 'quote'
     | 'text'
     | 'shape'
+    | 'line'
+    | 'square'
+    | 'rectangle'
+    | 'ellipse'
     | 'layers'
     | 'circle'
     | 'gear'
@@ -161,6 +165,12 @@
   {:else if name === 'shape'}
     <rect x="4" y="6" width="11" height="9" rx="1.5" />
     <circle cx="16.5" cy="15.5" r="4.5" />
+  {:else if name === 'line'}
+    <path d="M4 20 20 4" />
+  {:else if name === 'square' || name === 'rectangle'}
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+  {:else if name === 'ellipse'}
+    <ellipse cx="12" cy="12" rx="9" ry="7" />
   {:else if name === 'layers'}
     <path d="M12 3l9 5-9 5-9-5z" />
     <path d="M3 13l9 5 9-5M3 16.5l9 5 9-5" />

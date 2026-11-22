@@ -1585,11 +1585,12 @@ test('клик по подсветке открывает панель заме�
 
 /** Выбор инструмента заметок в панели инструментов рабочего места. */
 async function selectTool(page: Page, name: string) {
-  // Инструмент заметки выбирается в поповере строки книги: в постоянной строке
-  // стоит одна кнопка, чтобы её высота не росла вместе с числом типов.
+  // Инструмент заметки выбирается в меню на панели вкладок: в постоянной строке
+  // стоит одна кнопка, чтобы её высота не росла вместе с числом типов. Меню
+  // закрывает только кнопка инструмента.
   await page.getByTestId('book-bar-tool').click();
   await page.getByTestId('book-tool-menu').getByRole('button', { name }).click();
-  await page.keyboard.press('Escape');
+  await page.getByTestId('book-tool-close').click();
 }
 
 test('меню цитаты копирует текст в буфер обмена', async ({ page, context }) => {
@@ -1782,10 +1783,11 @@ test('фигура-эллипс рисуется и переживает сме�
   await page.getByTestId('workplace-notes-toggle').click();
 
   await selectTool(page, 'Фигура');
-  // Вид фигуры — в том же поповере инструмента, он появляется для фигуры.
+  // Вид фигуры выбирается в том же меню инструмента: для фигуры там появляется
+  // её вид.
   await page.getByTestId('book-bar-tool').click();
   await page.getByTestId('note-tool-shape').getByRole('button', { name: 'Эллипс' }).click();
-  await page.keyboard.press('Escape');
+  await page.getByTestId('book-tool-close').click();
 
   const pageEl = content(page).locator('.page').first();
   await pageEl.dragTo(pageEl, {

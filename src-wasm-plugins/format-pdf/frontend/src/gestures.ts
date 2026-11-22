@@ -337,7 +337,14 @@ export function finishGesture(event: PointerEvent): void {
     const point = pointFraction(pageEl, event.clientX, event.clientY);
     post({
       type: 'text-point',
-      value: { anchor: pointAnchor(pageEl, point.x, point.y), color: state.tool.color },
+      value: {
+        anchor: pointAnchor(pageEl, point.x, point.y),
+        color: state.tool.color,
+        // Экранная точка клика: окно ввода текста открывается здесь, а не внизу
+        // области — пользователь смотрит туда, куда нажал.
+        x: event.clientX,
+        y: event.clientY,
+      },
     });
   }
 }

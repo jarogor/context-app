@@ -5,10 +5,9 @@
   import OpenBooksPanel from './OpenBooksPanel.svelte';
   import NotesPanel from '../notes/NotesPanel.svelte';
   import BookBar from '../reader/BookBar.svelte';
-  import { noteTypeLabel } from '../notes/notes';
   import type { FooterSnapshot } from '../reader/ReaderPage.svelte';
   import WorkspacesPage from './WorkspacesPage.svelte';
-  import { EmptyState, Icon } from '@context/ui';
+  import { EmptyState } from '@context/ui';
   import { activeTab } from './workplace';
   import FilePropertiesPanel from '../reader/FilePropertiesPanel.svelte';
   import { emptyProperties } from '../reader/file-properties';
@@ -334,15 +333,25 @@
   /**
    * Активный инструмент заметок, когда он отличается от цитаты.
    *
-   * Цитата — обычное чтение с выделением: режима нет и подсказки нет. Текст и
-   * фигура меняют смысл клика по странице, поэтому о них сообщает плашка над
-   * книгой: иначе пользователь не знает, почему клик не выделяет текст.
+   * Цитата — обычное чтение с выделением: режима нет. Текст и фигура меняют
+   * смысл клика по странице, и в этом режиме Esc возвращает цитату. Подсказки-
+   * плашки над книгой нет: выбранный инструмент виден в меню, а плашка
+   * закрывала собой текст и требовала отдельного нажатия.
    */
   const modeTool = $derived(
     hasBook && tool.type !== 'quote' && allowedNoteTypes.includes(tool.type)
       ? tool.type
       : null,
   );
+
+  /**
+   * Открытость меню инструмента заметок.
+   *
+   * Состоянием владеет область, а не панель вкладки: щелчок в книгу приходит
+   * сигналом от плагина формата, и меню закрывает та же сторона, что его
+   * принимает.
+   */
+  let toolMenuOpen = $state(false);
 
   /**
    * Выход из режима заметок по Escape.
@@ -688,6 +697,7 @@
       {tool}
       allowedTypes={allowedNoteTypes}
       {onToolChange}
+      bind:toolMenuOpen
     />
     <div class="relative flex min-h-0 flex-1 flex-col">
       <!--
@@ -778,44 +788,6 @@
             />
           </div>
         {:else}
-          <!--
-            Строка режима: короткая плашка над книгой, пока выбран инструмент
-            создания заметок. Она не занимает места в раскладке — лежит поверх
-            области и исчезает вместе с выходом из режима. Кнопки режима нет в
-            строке книги: инструмент выбирают из поповера, а выходят здесь или
-            клавишей Escape.
-          -->
-          {#if modeTool}
-            <div
-              class="pointer-events-none absolute inset-x-0 top-1 z-[var(--layer-popup)] flex justify-center"
-              data-testid="note-mode-hud"
-            >
-              <div
-                class="pointer-events-auto flex items-center gap-2 rounded-full bg-[var(--overlay-surface)] px-3 py-1 text-xs shadow-overlay"
-              >
-                <span class="flex items-center gap-1.5 font-medium">
-                  <Icon name="pencil" class="h-3.5 w-3.5 text-[var(--primary)]" />
-                  {t('app.bookBar.mode', { tool: noteTypeLabel(modeTool) })}
-                </span>
-                <span class="text-[var(--muted-foreground)]">
-                  {modeTool === 'shape'
-                    ? t('app.bookBar.modeHintShape')
-                    : t('app.bookBar.modeHintText')}
-                </span>
-                <button
-                  type="button"
-                  class="flex shrink-0 cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] [font-family:inherit]"
-                  title={t('app.bookBar.modeExit')}
-                  aria-label={t('app.bookBar.modeExit')}
-                  data-testid="note-mode-exit"
-                  onclick={() => onToolChange?.({ ...tool, type: 'quote' })}
-                >
-                  <Icon name="close" class="h-3 w-3" />
-                  Esc
-                </button>
-              </div>
-            </div>
-          {/if}
           <!--
             Вкладки остаются смонтированными, но книга открывается не в каждой:
             читалка монтируется только для вкладки, которую уже открывали (или
