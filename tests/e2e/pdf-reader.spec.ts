@@ -1583,14 +1583,16 @@ test('клик по подсветке открывает панель заме�
   await expect(page.getByTestId('notes-item')).toHaveAttribute('data-selected', 'true');
 });
 
-/** Выбор инструмента заметок в панели инструментов рабочего места. */
+/** Выбор инструмента заметок в меню области чтения.
+ *
+ * Меню «висит» в правом верхнем углу области чтения и не закрывается само:
+ * выбранный тип действует, пока меню открыто. Закрывает его только пользователь.
+ */
 async function selectTool(page: Page, name: string) {
-  // Инструмент заметки выбирается в меню на панели вкладок: в постоянной строке
-  // стоит одна кнопка, чтобы её высота не росла вместе с числом типов. Меню
-  // закрывает только кнопка инструмента.
-  await page.getByTestId('book-bar-tool').click();
-  await page.getByTestId('book-tool-menu').getByRole('button', { name }).click();
-  await page.getByTestId('book-tool-close').click();
+  if (!(await page.getByTestId('note-tool-menu').isVisible().catch(() => false))) {
+    await page.getByTestId('note-tool-toggle').click();
+  }
+  await page.getByTestId('note-tool-menu').getByRole('button', { name }).click();
 }
 
 test('меню цитаты копирует текст в буфер обмена', async ({ page, context }) => {
@@ -1616,15 +1618,13 @@ test('текстовая карточка создаётся кликом по �
   await openPdf(page, 3);
   await page.getByTestId('workplace-notes-toggle').click();
 
-  // Страничный формат сохраняет все три типа: они в поповере инструмента.
-  await page.getByTestId('book-bar-tool').click();
-  const toolMenu = page.getByTestId('book-tool-menu');
+  // Страничный формат сохраняет все три типа: они в меню области чтения.
+  await selectTool(page, 'Текст');
+  const toolMenu = page.getByTestId('note-tool-menu');
   await expect(toolMenu.getByRole('button', { name: 'Цитата' })).toBeVisible();
   await expect(toolMenu.getByRole('button', { name: 'Текст' })).toBeVisible();
   await expect(toolMenu.getByRole('button', { name: 'Фигура' })).toBeVisible();
-  await page.keyboard.press('Escape');
 
-  await selectTool(page, 'Текст');
   await content(page)
     .locator('.page')
     .first()
@@ -1639,19 +1639,30 @@ test('текстовая карточка создаётся кликом по �
   await expect(page.getByTestId('notes-item-type')).toHaveText('Текст');
   await expect(content(page).locator('.note-card').first()).toHaveText('Мысль о странице');
 
-  // После создания карточки инструмент возвращается к «цитате»: следующая
-  // заметка по умолчанию снова цитата.
-  await page.getByTestId('book-bar-tool').click();
-  const afterCreate = page.getByTestId('book-tool-menu');
-  await expect(afterCreate.getByRole('button', { name: 'Цитата' })).toHaveAttribute(
+  // Меню не закрывается само после создания: выбранный тип остаётся, и можно
+  // сразу поставить следующую заметку того же вида.
+  const afterCreate = page.getByTestId('note-tool-menu');
+  await expect(afterCreate.getByRole('button', { name: 'Текст' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await expect(afterCreate.getByRole('button', { name: 'Текст' })).toHaveAttribute(
+
+  // Закрытие меню возвращает тип «цитата»: следующая заметка по умолчанию снова
+  // цитата.
+  await page.getByTestId('note-tool-close').click();
+  await expect(page.getByTestId('note-tool-menu')).toHaveCount(0);
+  await page.getByTestId('note-tool-toggle').click();
+  const reopened = page.getByTestId('note-tool-menu');
+  await expect(reopened.getByRole('button', { name: 'Цитата' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(reopened.getByRole('button', { name: 'Текст' })).toHaveAttribute(
     'aria-pressed',
     'false',
   );
   await page.keyboard.press('Escape');
+  await expect(page.getByTestId('note-tool-menu')).toHaveCount(0);
 
   // Название и комментарий доступны заметке любого типа и правятся в панели.
   await page.getByLabel('Действия с заметкой').first().click();
@@ -1749,10 +1760,6 @@ test('на узком окне строка книги не переноситс
   await page.setViewportSize({ width: 390, height: 800 });
   await openPdf(page, 3);
 
-  // Фигура — самая широкая панель инструмента: вида и цвета в строке нет, они
-  // живут в поповере, поэтому высота строки не меняется.
-  await selectTool(page, 'Фигура');
-
   const bar = await page.getByTestId('book-bar').boundingBox();
   const theme = await page.getByTestId('reader-theme-toggle').boundingBox();
   const zoom = await page.getByTestId('reader-zoom-group').boundingBox();
@@ -1761,8 +1768,7 @@ test('на узком окне строка книги не переноситс
     expect(box).not.toBeNull();
   }
 
-  // Строка — одна линия постоянной высоты, а не две: инструмент в поповере её
-  // не растягивает.
+  // Строка — одна линия постоянной высоты, а не две.
   expect(bar!.height).toBeLessThanOrEqual(48);
   const rows = new Set([theme!, zoom!, pages!].map((box) => Math.round(box.y + box.height / 2)));
   expect(rows.size).toBe(1);
@@ -1783,11 +1789,9 @@ test('фигура-эллипс рисуется и переживает сме�
   await page.getByTestId('workplace-notes-toggle').click();
 
   await selectTool(page, 'Фигура');
-  // Вид фигуры выбирается в том же меню инструмента: для фигуры там появляется
-  // её вид.
-  await page.getByTestId('book-bar-tool').click();
+  // Вид фигуры выбирается в том же открытом меню: для фигуры там появляется её
+  // вид — ряд иконок без подписей.
   await page.getByTestId('note-tool-shape').getByRole('button', { name: 'Эллипс' }).click();
-  await page.getByTestId('book-tool-close').click();
 
   const pageEl = content(page).locator('.page').first();
   await pageEl.dragTo(pageEl, {
@@ -1879,11 +1883,8 @@ test('клик по заметке не переключает инструме�
   // Инструмент фигуры активен: клик по карточке не меняет инструмент, а лишь
   // открывает меню заметки (и панель с выбранной заметкой).
   await selectTool(page, 'Фигура');
-  // Выбранный тип виден в поповере инструмента: он не сбрасывается кликом.
-  // Поповер проверяется до клика по карточке: любой щелчок мимо меню заметки
-  // закрывает его, в том числе по кнопке инструмента.
-  await page.getByTestId('book-bar-tool').click();
-  const toolMenu = page.getByTestId('book-tool-menu');
+  // Выбранный тип виден в открытом меню: он не сбрасывается кликом по заметке.
+  const toolMenu = page.getByTestId('note-tool-menu');
   await expect(toolMenu.getByRole('button', { name: 'Фигура' })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -1892,7 +1893,6 @@ test('клик по заметке не переключает инструме�
     'aria-pressed',
     'false',
   );
-  await page.keyboard.press('Escape');
 
   const card = content(page).locator('.note-card').first();
   await card.click();

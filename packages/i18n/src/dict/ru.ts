@@ -578,7 +578,7 @@ export const ru = {
   'app.bookBar.label': 'Управление чтением',
   'app.bookBar.more': 'Ещё действия',
   'app.bookBar.view': 'Вид книги',
-  'app.bookBar.tool': 'Инструмент заметок',
+  'app.bookBar.tool': 'Заметка',
   'app.bookBar.zoomPreset': 'Масштаб {value}%',
   'app.bookDock.search': 'Поиск',
   'app.bookDock.title': 'Книга',

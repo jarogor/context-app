@@ -24,11 +24,12 @@
   import { NARROW_MAX_WIDTH } from '../../shared/breakpoints';
   import type { Note, NoteListItem, NoteSetSummary, NoteTool, NoteType, ShapeKind } from '../notes/notes';
   import { NOTE_TYPES } from '../notes/notes';
+  import NoteToolMenu from '../notes/NoteToolMenu.svelte';
+  import ReaderFontToggle from '../reader/ReaderFontToggle.svelte';
   import type { QuoteAnchor } from '../reader/reader/anchor';
   import type { NoteColor } from '../notes/notes';
   import { EMPTY_SEARCH_STATE } from '../reader/search-state';
   import { hotkeys } from '../hotkeys';
-  import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import {
     DEFAULT_READER_FONT,
     DEFAULT_READER_THEME,
@@ -330,42 +331,12 @@
    */
   const flowingBook = $derived(activeFooter?.flowing === true);
 
-  /**
-   * Активный инструмент заметок, когда он отличается от цитаты.
+  /** Доступные формату типы заметок.
    *
-   * Цитата — обычное чтение с выделением: режима нет. Текст и фигура меняют
-   * смысл клика по странице, и в этом режиме Esc возвращает цитату. Подсказки-
-   * плашки над книгой нет: выбранный инструмент виден в меню, а плашка
-   * закрывала собой текст и требовала отдельного нажатия.
+   * У текучей книги доступна только цитата: выбирать нечего, и на месте меню
+   * инструмента показывается переключатель гарнитуры.
    */
-  const modeTool = $derived(
-    hasBook && tool.type !== 'quote' && allowedNoteTypes.includes(tool.type)
-      ? tool.type
-      : null,
-  );
-
-  /**
-   * Открытость меню инструмента заметок.
-   *
-   * Состоянием владеет область, а не панель вкладки: щелчок в книгу приходит
-   * сигналом от плагина формата, и меню закрывает та же сторона, что его
-   * принимает.
-   */
-  let toolMenuOpen = $state(false);
-
-  /**
-   * Выход из режима заметок по Escape.
-   *
-   * Режим — слой: пока он включён, он сообщает о себе общему стеку закрытия.
-   * Меню и правка текста, открытые поверх, закрываются первыми, потому что
-   * стек закрывает последний открытый слой.
-   */
-  $effect(() => {
-    if (!modeTool) {
-      return;
-    }
-    return pushDismissLayer(() => onToolChange?.({ ...tool, type: 'quote' }));
-  });
+  const noteTypesChoosable = $derived(allowedNoteTypes.length > 1);
 
   /** Передача признака текучести оболочке: от него зависит набор типов заметок. */
   $effect(() => {
@@ -689,15 +660,8 @@
       onToggleBooks={onToggleBooks}
       onToggleNotes={onToggleNotes}
       onToggleProperties={() => onToggleProperties?.()}
-      fontAvailable={flowingBook}
-      {readerFont}
-      onToggleFont={() => onChangeReaderFont?.(readerFont === 'serif' ? 'sans' : 'serif')}
       searchOpen={activeFooter?.searchOpen ?? false}
       onToggleSearch={toggleSearchInDock}
-      {tool}
-      allowedTypes={allowedNoteTypes}
-      {onToolChange}
-      bind:toolMenuOpen
     />
     <div class="relative flex min-h-0 flex-1 flex-col">
       <!--
@@ -779,6 +743,24 @@
           class="relative flex min-h-0 min-w-0 flex-1 flex-col"
           data-testid="workplace-reading"
         >
+        <!--
+          Инструмент заметок «висит» в правом верхнем углу области чтения с
+          одинаковым отступом от обоих краёв. У страничной книги это меню выбора
+          типа, у текучей — переключатель гарнитуры: выбирать там нечего, кроме
+          цитаты.
+        -->
+        {#if hasBook && tool && activeFooter}
+          {#if flowingBook}
+            {#if onChangeReaderFont}
+              <ReaderFontToggle
+                {readerFont}
+                onToggle={() => onChangeReaderFont?.(readerFont === 'serif' ? 'sans' : 'serif')}
+              />
+            {/if}
+          {:else if noteTypesChoosable}
+            <NoteToolMenu {tool} allowedTypes={allowedNoteTypes} onToolChange={onToolChange} />
+          {/if}
+        {/if}
         {#if workspace.tabs.length === 0}
           <div class="flex h-full items-center justify-center p-6" data-testid="workplace-empty">
             <EmptyState

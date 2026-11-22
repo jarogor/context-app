@@ -23,7 +23,6 @@ import {
   noteList,
   normalizeNoteTool,
   renameSet,
-  resetToolTypeAfterCreate,
   resolveActiveSetId,
   setActiveSet,
   updateNoteDetails,
@@ -109,16 +108,6 @@ export function createNotesController(
   /** Смена активного инструмента заметок. */
   function setTool(value: NoteTool) {
     tool = normalizeNoteTool(value, allowedTypesOf());
-  }
-
-  /** Сброс инструмента на «цитату» после создания текста или фигуры.
-   *
-   * Пользователь сам выбирает кнопку «текст» или «фигура», ставит заметку — и
-   * возвращается к цитате, чтобы следующая заметка по умолчанию снова была
-   * цитатой. Выбранный цвет и вид фигуры сохраняются.
-   */
-  function resetToolAfterCreate() {
-    tool = resetToolTypeAfterCreate(tool);
   }
 
   /** Показ заметок набора, запоминание выбора для книги и кеш загруженных наборов. */
@@ -409,7 +398,6 @@ export function createNotesController(
       const updated = await addTextNote(key, activeId, anchor, text, color);
       showSetNotes(key, activeId, updated.notes);
       error = null;
-      resetToolAfterCreate();
     } catch (cause) {
       error = String(cause);
     }
@@ -431,7 +419,6 @@ export function createNotesController(
       const updated = await addShapeNote(key, activeId, anchor, shape, geometry, color);
       showSetNotes(key, activeId, updated.notes);
       error = null;
-      resetToolAfterCreate();
     } catch (cause) {
       error = String(cause);
     }

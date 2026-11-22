@@ -36,7 +36,6 @@ import {
   NOTE_TYPES,
   renameSet,
   resolveActiveSetId,
-  resetToolTypeAfterCreate,
   setActiveSet,
   SHAPE_KINDS,
   updateNoteDetails,
@@ -655,20 +654,5 @@ describe('доступные типы заметок по режиму чтен�
     });
     // Доступный инструмент не меняется.
     expect(normalizeNoteTool(tool, NOTE_TYPES)).toEqual(tool);
-  });
-
-  it('после создания заметки сбрасывает тип на цитату, сохраняя цвет и вид фигуры', () => {
-    const tool = {
-      ...DEFAULT_NOTE_TOOL,
-      type: 'shape' as const,
-      shape: 'rectangle' as const,
-      color: 'green' as const,
-    };
-    expect(resetToolTypeAfterCreate(tool)).toEqual({
-      ...tool,
-      type: 'quote',
-    });
-    // Цитата как активный инструмент не меняется.
-    expect(resetToolTypeAfterCreate(DEFAULT_NOTE_TOOL)).toEqual(DEFAULT_NOTE_TOOL);
   });
 });

@@ -196,33 +196,31 @@ test('текст книги не прижимается к левому краю
 
 // Кнопка шрифта относится к текучему тексту: у постраничных форматов (PDF,
 // DjVu) текст — часть растра, и выбор гарнитуры там ничего не меняет.
-test('кнопка шрифта есть у EPUB и стоит на панели активной вкладки', async ({ page }) => {
+test('кнопка шрифта есть у EPUB и висит в правом верхнем углу области чтения', async ({
+  page,
+}) => {
   await openBook(page);
-  // Действия над текстом живут на панели вкладки: строка книги освобождена под
-  // путь к файлу.
+  // У текучей книги выбирать тип заметки нечего — только цитата, — поэтому на
+  // месте меню инструмента стоит переключатель гарнитуры.
   const toggle = page.getByTestId('reader-font-toggle');
   await expect(toggle).toBeVisible();
 
   const layout = await page.evaluate(() => {
-    const bar = document.querySelector('[data-testid="workplace-tabs"]') as HTMLElement;
-    const toggleEl = bar.querySelector('[data-testid="reader-font-toggle"]') as HTMLElement;
-    const search = bar.querySelector('[data-testid="reader-search-toggle"]') as HTMLElement;
-    const focus = bar.querySelector('[data-testid="workplace-focus-toggle"]') as HTMLElement;
+    const area = document.querySelector('[data-testid="workplace-reading"]') as HTMLElement;
+    const toggleEl = document.querySelector('[data-testid="reader-font-toggle"]') as HTMLElement;
     return {
-      inBar: Boolean(toggleEl),
-      toggleLeft: toggleEl.getBoundingClientRect().left,
-      searchLeft: search.getBoundingClientRect().left,
-      focusLeft: focus.getBoundingClientRect().left,
-      barLeft: bar.getBoundingClientRect().left,
+      areaTop: area.getBoundingClientRect().top,
+      areaRight: area.getBoundingClientRect().right,
+      toggleTop: toggleEl.getBoundingClientRect().top,
+      toggleRight: toggleEl.getBoundingClientRect().right,
     };
   });
-  // Кнопки стоят на панели вкладки, справа от названия книги.
-  expect(layout.inBar).toBe(true);
-  expect(layout.toggleLeft).toBeGreaterThan(layout.barLeft);
-  expect(layout.searchLeft).toBeLessThan(layout.toggleLeft);
-  // И левее сосредоточенного чтения: оно замыкает ряд действий над книгой.
-  expect(layout.toggleLeft).toBeLessThan(layout.focusLeft);
-  // В строке книги их больше нет: там путь к файлу.
+  // Отступ сверху и справа одинаковый: кнопка «висит» в правом верхнем углу.
+  const topGap = layout.toggleTop - layout.areaTop;
+  const rightGap = layout.areaRight - layout.toggleRight;
+  expect(topGap).toBeGreaterThan(0);
+  expect(Math.abs(topGap - rightGap)).toBeLessThanOrEqual(1);
+  // В строке книги её больше нет: там путь к файлу.
   await expect(page.getByTestId('book-bar').getByTestId('reader-font-toggle')).toHaveCount(0);
   await expect(page.getByTestId('book-bar-path')).toBeVisible();
 });

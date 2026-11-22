@@ -154,19 +154,6 @@ export function normalizeNoteTool(tool: NoteTool, types: readonly NoteType[]): N
   return { ...tool, type: DEFAULT_NOTE_TYPE };
 }
 
-/** Сброс типа инструмента на «цитату» после создания заметки.
- *
- * Пользователь сам выбирает кнопку «текст» или «фигура», ставит заметку — и
- * возвращается к цитате, чтобы следующая заметка по умолчанию снова была
- * цитатой. Выбранный цвет и вид фигуры сохраняются: их пользователь задал явно.
- */
-export function resetToolTypeAfterCreate(tool: NoteTool): NoteTool {
-  if (tool.type === DEFAULT_NOTE_TYPE) {
-    return tool;
-  }
-  return { ...tool, type: DEFAULT_NOTE_TYPE };
-}
-
 /** Русские названия видов фигур для интерфейса.
  *
  * Названия короткие: список вида фигуры в панели чтения равен ширине самого
