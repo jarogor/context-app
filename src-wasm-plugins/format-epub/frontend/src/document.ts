@@ -242,3 +242,25 @@ export function applyReaderTheme(root: HTMLElement, message: ReaderThemeMessage)
     root.dataset.readerTheme = message.id;
   }
 }
+
+/** Принудительная перерисовка показанного текста после смены темы.
+ *
+ * Тема меняет переменные оформления на уже отрисованном документе. WebKitGTK
+ * не перерисовывает текст до следующего изменения разметки, и книга оставалась
+ * пустой, пока пользователь не прокрутит её. Сдвиг прокрутки на пиксель и
+ * обратно — тот же сигнал, что даёт прокрутка колесом, но положение чтения не
+ * меняется.
+ */
+export function forceRepaint(root: HTMLElement): void {
+  const doc = root.ownerDocument;
+  const view = doc.defaultView;
+  if (!view) {
+    return;
+  }
+  view.requestAnimationFrame(() => {
+    const scrolling = doc.scrollingElement ?? doc.documentElement;
+    const top = scrolling.scrollTop;
+    scrolling.scrollTop = top + 1;
+    scrolling.scrollTop = top;
+  });
+}

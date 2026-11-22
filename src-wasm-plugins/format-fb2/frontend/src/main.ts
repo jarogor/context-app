@@ -6,7 +6,7 @@
  */
 
 import { chaptersEl, scrollProgress, scrollRoot, status } from './dom';
-import { applyReaderTheme, bookStyle, CHAPTER_CLASS } from './document';
+import { applyReaderTheme, bookStyle, CHAPTER_CLASS, forceRepaint } from './document';
 import {
   createAnchor,
   chapterTextOf,
@@ -477,13 +477,18 @@ function handleMessage(event: MessageEvent): void {
     case 'tool':
       applyToolMessage(message.value);
       break;
-    case 'reader-theme':
+    case 'reader-theme': {
       // Тема запоминается: документ книги пересобирается при открытии, и
       // присланные ранее переменные нужно применить к новому корню.
       state.theme = message.value;
-      applyReaderTheme(bookDocument().documentElement, message.value);
+      const root = bookDocument().documentElement;
+      applyReaderTheme(root, message.value);
+      // Тема применена к уже показанному тексту: движок перерисовывает его
+      // только по внешнему сигналу, иначе книга остаётся пустой до прокрутки.
+      forceRepaint(root);
       drawNotes();
       break;
+    }
     case 'reader-locale':
       setViewerLocale(message.value);
       break;
