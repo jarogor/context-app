@@ -5,10 +5,11 @@
  * заметки из темы области чтения.
  */
 import { NOTE_CARD_CLASS, NOTE_CLASS, NOTE_SHAPE_CLASS, overlayOf } from './dom';
+import { state, type RenderedEntry } from './state';
 import { editor } from './editing-state';
 import { parseGeometry, shapeElement, shapeHitElement } from './geometry';
 import { tileLineRects } from './lines';
-import { noteColor } from './theme';
+import { highlightTone, noteColor } from './theme';
 import type { NoteAnchor, ViewerNote } from './types';
 
 /** Разбор якоря заметки; повреждённая строка даёт null. */
@@ -26,6 +27,69 @@ export function anchorOf(note: ViewerNote | null | undefined): NoteAnchor | null
 /** Заметка по идентификатору из локального списка. */
 export function noteById(notes: ViewerNote[], noteId: string): ViewerNote | null {
   return notes.find((note) => note.id === noteId) || null;
+}
+
+/** Перерисовка растра страницы с подсветками цитат.
+ *
+ * Подсветка накладывается **в растре** (`multiply` на канвасе), а не слоем над
+ * текстом: в WebKitGTK CSS-наложение не применяется, и непрозрачная подсветка
+ * закрывала строку целиком. В канвасе умножение работает всегда, поэтому текст
+ * остаётся прежним цветом, а бумага становится цветной.
+ *
+ * Кадр строится от чистой копии растра: повторная перерисовка не копит цвет.
+ */
+function paintHighlights(
+  canvas: HTMLCanvasElement,
+  entry: RenderedEntry,
+  pageEl: HTMLElement,
+  notes: ViewerNote[],
+): void {
+  const context = canvas.getContext('2d');
+  if (!context) {
+    return;
+  }
+  context.globalCompositeOperation = 'source-over';
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(entry.base, 0, 0);
+
+  const index = Number(pageEl.dataset.page);
+  // Размеры страницы в CSS-пикселях и плотность растра: подсветка задана долями
+  // страницы, а рисуется в пикселях канваса. Канвас может быть окном страницы
+  // (сильное увеличение), поэтому его смещение вычитается.
+  const pageWidth = pageEl.clientWidth;
+  const pageHeight = pageEl.clientHeight;
+  if (!pageWidth || !pageHeight) {
+    return;
+  }
+  const ratioX = canvas.width / entry.info.width;
+  const ratioY = canvas.height / entry.info.height;
+  const offsetX = -entry.info.x * ratioX;
+  const offsetY = -entry.info.y * ratioY;
+
+  for (const note of notes) {
+    const anchor = anchorOf(note);
+    if (!anchor || (note.type || 'quote') !== 'quote' || anchor.page !== index) {
+      continue;
+    }
+    const rects = editor.resizeDrag && editor.resizeDrag.note.id === note.id && editor.resizeDrag.draft
+      ? editor.resizeDrag.draft
+      : anchor.rects || [];
+    for (const rect of tileLineRects(rects)) {
+      // Сторона темы задаёт способ наложения: на светлой бумаге умножение
+      // сохраняет тёмный текст, на перекрашенной тёмной странице оно давало бы
+      // почти невидимую тёмную подложку — там подсветка осветляет.
+      const dark = state.readerTheme === 'dark';
+      context.globalCompositeOperation = dark ? 'screen' : 'multiply';
+      context.fillStyle = dark ? highlightTone(note.color) : noteColor(note.color);
+      context.fillRect(
+        offsetX + rect.x * pageWidth * ratioX,
+        offsetY + rect.y * pageHeight * ratioY,
+        rect.width * pageWidth * ratioX,
+        rect.height * pageHeight * ratioY,
+      );
+    }
+  }
+  context.globalCompositeOperation = 'source-over';
 }
 
 /** Наложение текстовой карточки по точке её якоря на странице. */
@@ -84,11 +148,19 @@ export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
   if (!overlay) {
     return;
   }
+  const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
+  const entry = state.rendered.get(pageEl);
+  if (canvas && entry) {
+    paintHighlights(canvas, entry, pageEl, notes);
+  }
   // Слой фигур сохраняется: во время протяжки по нему ведётся предпросмотр,
   // а замена содержимого разрушила бы захваченный указатель.
   overlay
     .querySelectorAll(`.${NOTE_CLASS}, .${NOTE_CARD_CLASS}, .${NOTE_SHAPE_CLASS}`)
     .forEach((element) => element.remove());
+  // Подсветка цитаты нарисована в растре страницы: здесь остаётся только
+  // прозрачная мишень того же места — по ней приходит клик, и на ней
+  // показывается вспышка перехода. Красить её нельзя: она лежит над текстом.
   const index = Number(pageEl.dataset.page);
   for (const note of notes) {
     if (!note.anchor) {
@@ -124,7 +196,6 @@ export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
         const element = document.createElement('div');
         element.className = NOTE_CLASS;
         element.dataset.noteId = note.id;
-        element.style.background = noteColor(note.color);
         element.style.left = rect.x * 100 + '%';
         element.style.top = rect.y * 100 + '%';
         element.style.width = rect.width * 100 + '%';

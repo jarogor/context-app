@@ -24,6 +24,25 @@ export function noteColor(color: string | undefined): string {
   return (color && noteTones[color]) || noteTones.yellow;
 }
 
+/** Тон подсветки для наложения на перекрашенную тёмную страницу.
+ *
+ * Тёмные тона темы приходят полупрозрачными: на тёмной бумаге они дают спокойную
+ * цветную подложку. Для наложения `screen` этого мало — подсветка почти
+ * растворялась в странице. Здесь прозрачность поднимается, чтобы подсветка была
+ * заметной, а тон оставался прежним.
+ */
+export function highlightTone(color: string | undefined, minimumAlpha = 0.7): string {
+  const tone = noteColor(color);
+  const rgba = /^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)$/i.exec(
+    tone.trim(),
+  );
+  if (!rgba) {
+    return tone;
+  }
+  const alpha = Math.max(Number(rgba[4]), minimumAlpha);
+  return `rgba(${rgba[1]}, ${rgba[2]}, ${rgba[3]}, ${alpha})`;
+}
+
 /** Токены области чтения из сообщения приложения. */
 export interface ReaderThemeTokens {
   /** Фон области чтения. */

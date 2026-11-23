@@ -340,7 +340,8 @@ export function renderPage(
 
   const textLayerEl = document.createElement('div');
   textLayerEl.className = TEXT_LAYER_CLASS;
-  const entry: RenderedEntry = { canvas, textLayer: textLayerEl, info, paint: state.paintKey };
+  const baseCanvas = document.createElement('canvas');
+  const entry: RenderedEntry = { canvas, base: baseCanvas, textLayer: textLayerEl, info, paint: state.paintKey };
 
   try {
     const dpi = rasterDpi(page, canvas);
@@ -413,6 +414,10 @@ export function renderPage(
     // Перекраска растра в тёмной теме: светлый фон страницы становится тёмным,
     // тёмный текст — светлым, оттенок сохраняется.
     recolorCanvas(canvas, state.readerTheme, state.pageColors);
+    // Копия чистого растра: каждый кадр подсветок начинается с неё.
+    baseCanvas.width = canvas.width;
+    baseCanvas.height = canvas.height;
+    baseCanvas.getContext('2d')?.drawImage(canvas, 0, 0);
     const zones = page.text_zones_json(dpi);
     if (zones) {
       // Слова строятся прямо в слое страницы: `buildTextLayer` собирает готовый

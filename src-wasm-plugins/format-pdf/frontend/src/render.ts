@@ -261,7 +261,8 @@ export async function renderPage(
 
   const textLayerEl = document.createElement('div');
   textLayerEl.className = TEXT_LAYER_CLASS;
-  const entry: RenderedEntry = { canvas, textLayer: textLayerEl, info, paint: state.paintKey };
+  const baseCanvas = document.createElement('canvas');
+  const entry: RenderedEntry = { canvas, base: baseCanvas, textLayer: textLayerEl, info, paint: state.paintKey };
 
   // Дополнительное преобразование сдвигает страницу в начало координат окна (её
   // левый верх не совпадает с углом страницы) и задаёт плотность экрана: без него
@@ -302,6 +303,12 @@ export async function renderPage(
     // Перекраска растра в тёмной теме: светлый фон страницы становится тёмным,
     // тёмный текст — светлым, оттенок сохраняется.
     recolorCanvas(canvas, state.readerTheme, state.pageColors);
+    // Копия чистого растра: каждый кадр подсветок начинается с неё. Наложение
+    // рисуется в растре, а не слоем поверх него, потому что CSS-наложение в
+    // WebKitGTK не применяется и непрозрачная подсветка закрывала текст.
+    baseCanvas.width = canvas.width;
+    baseCanvas.height = canvas.height;
+    baseCanvas.getContext('2d')?.drawImage(canvas, 0, 0);
     let textContentSource: PdfTextContent | ReadableStream<Uint8Array> =
       page.streamTextContent() as unknown as ReadableStream<Uint8Array>;
     if (!scan) {

@@ -492,10 +492,7 @@ test('поиск по книге PDF: находит текст, переход�
   await expect(layer.locator('.search-hit').first()).toBeAttached();
   expect(await content(page).locator('.textLayer mark').count()).toBe(0);
   // Полосы смешиваются с растром наложением и текст не закрывают.
-  const blend = await layer
-    .locator('.search-hit')
-    .first()
-    .evaluate((el) => getComputedStyle(el as HTMLElement).mixBlendMode);
+  const blend = await layer.evaluate((el) => getComputedStyle(el as HTMLElement).mixBlendMode);
   expect(blend).toBe('multiply');
   // Активное вхождение отличается от остальных цветом, а не только
   // плотностью: на светлой бумаге плотный жёлтый и янтарный неразличимы.
@@ -516,12 +513,7 @@ test('поиск по книге PDF: находит текст, переход�
     .getByRole('button', { name: 'Тёмная тема области чтения' })
     .click();
   await expect
-    .poll(async () =>
-      layer
-        .locator('.search-hit')
-        .first()
-        .evaluate((el) => getComputedStyle(el as HTMLElement).mixBlendMode),
-    )
+    .poll(async () => layer.evaluate((el) => getComputedStyle(el as HTMLElement).mixBlendMode))
     .toBe('screen');
   // В тёмной теме тон — синий: синий канал выше красного, в отличие от
   // жёлтого в светлой.
@@ -1095,12 +1087,14 @@ test('выделение текста создаёт заметку-цитату
   await expect(page.getByTestId('notes-item-link')).toContainText('Page 1');
   await expect(content(page).locator('.note')).toHaveCount(1);
 
-  // Подсветка ложится умножением: текст остаётся контрастным, а не выбеливается.
-  const blend = await content(page)
+  // Подсветка нарисована в растре страницы, а в разметке остаётся прозрачная
+  // мишень для клика: красить её нельзя, она лежит над текстом, и в WebKitGTK
+  // CSS-наложение не применяется — строка под подсветкой пропадала.
+  const highlight = await content(page)
     .locator('.note')
     .first()
-    .evaluate((element) => getComputedStyle(element).mixBlendMode);
-  expect(blend).toBe('multiply');
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(highlight).toBe('rgba(0, 0, 0, 0)');
 });
 
 test('полосы подсветки соседних строк не накладываются друг на друга', async ({ page }) => {
@@ -1223,8 +1217,13 @@ test('выделение текста ложится ровными полоса
       return span ? getComputedStyle(span, '::selection').backgroundColor : '';
     });
   expect(native).toBe('rgba(0, 0, 0, 0)');
-  // Заливка ложится на страницу умножением, а не поверх текста.
-  const blend = await fill.evaluate((element) => getComputedStyle(element).mixBlendMode);
+  // Наложение задаётся на слое выделения, а не на заливке внутри него: на
+  // дочерних элементах слоя в WebKit режим не применяется, и заливка ложилась
+  // плёнкой поверх букв.
+  const blend = await content(page)
+    .locator('.selection-layer')
+    .first()
+    .evaluate((element) => getComputedStyle(element).mixBlendMode);
   expect(blend).toBe('multiply');
   // Маска заливки совпадает с нативным выделением по горизонтали; по
   // вертикали полосы приводятся к межстрочному шагу (см. `tileByLine`).

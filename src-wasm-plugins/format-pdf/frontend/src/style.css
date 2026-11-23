@@ -86,25 +86,20 @@ body {
      с канвасом страницы, и полупрозрачный цвет выбеливал бы текст. */
   pointer-events: none;
 }
+/* Подсветка цитаты нарисована в растре страницы (наложение `multiply` на
+   канвасе): в WebKitGTK CSS-наложение не применяется, и непрозрачная заливка
+   слоем закрывала текст. Здесь — только прозрачная мишень того же места: по ней
+   приходит клик, и на ней показывается вспышка перехода. Красить её нельзя, она
+   лежит над текстом. */
 .overlay .note {
   position: absolute;
-  /* Цвет подсветки задаётся приложением по теме области чтения; запасной —
-     прежний жёлтый. */
-  background: var(--note-yellow, rgba(253, 224, 71, 0.65));
-  /* Умножение сохраняет тёмный текст контрастным, а фон делает цветным. */
-  mix-blend-mode: multiply;
+  background: transparent;
   border-radius: 2px;
   pointer-events: auto;
   cursor: pointer;
 }
-/* Тёмная страница: умножение на тёмном фоне давало бы невидимую тёмную
-   подложку, поэтому подсветка и фигура ложатся осветлением. */
-html[data-reader-theme='dark'] .overlay .note,
-html[data-reader-theme='dark'] .overlay .note-shape {
-  mix-blend-mode: screen;
-}
 .overlay .note[data-flash='true'] {
-  background: rgba(245, 158, 11, 0.85) !important;
+  background: rgba(245, 158, 11, 0.35) !important;
 }
 /* Карточка текстовой заметки в долях страницы. */
 .overlay .note-card {
@@ -339,17 +334,19 @@ html[data-reader-theme='dark'] .overlay .file-annotation {
    синий. Жёлтый на тёмной странице совпадал по светлоте с цветом текста и
    сливался с ним; синий отличается оттенком, поэтому найденное видно, а буквы
    остаются различимыми. */
+/* Наложение — на слое поиска, а не на полосах: на дочерних элементах слоя в
+   WebKit режим не применяется, и полосы темнили текст. */
 .search-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  mix-blend-mode: multiply;
 }
 .search-layer .search-hit {
   position: absolute;
   border-radius: 2px;
   /* Мягкость даёт наложение: полупрозрачная заливка слоем темнила бы текст. */
   background: var(--reader-search, rgba(242, 205, 82, 0.38));
-  mix-blend-mode: multiply;
 }
 /* Текущее вхождение отличается плотнее и ярче остальных: место, к которому
    ведёт переход, видно сразу. */
@@ -358,8 +355,7 @@ html[data-reader-theme='dark'] .overlay .file-annotation {
 }
 /* Тёмная страница: умножение на тёмном фоне дало бы невидимую тёмную подложку,
    поэтому подсветка осветляет. */
-html[data-reader-theme='dark'] .search-layer .search-hit,
-html[data-reader-theme='dark'] .search-layer .search-hit.search-hit-active {
+html[data-reader-theme='dark'] .search-layer {
   mix-blend-mode: screen;
 }
 /* Во время протяжки выделения нативное выделение выключено: браузер достраивает
@@ -383,16 +379,20 @@ html[data-text-selecting] .textLayer[data-selecting] span {
    заливке темнеть на стыках и не сужает полосы до середины букв. Заливка
    ложится на страницу умножением (на тёмной стороне — осветлением), как
    подсветка цитаты, поэтому растр текста остаётся чётким. */
+/* Режим наложения задаётся на самом слое выделения, а не на заливке внутри
+   него: в WebKit `mix-blend-mode` не действует на дочерних элементах слоя, и
+   заливка ложилась плёнкой поверх букв — текст под выделением тускнел и
+   смешивался с его цветом. Так же устроено выделение в EPUB. */
 .selection-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  mix-blend-mode: multiply;
 }
 .selection-layer .selection-fill {
   position: absolute;
   inset: 0;
   background: var(--reader-selection, rgba(37, 99, 235, 0.35));
-  mix-blend-mode: multiply;
 }
 .selection-layer .selection-fill svg {
   position: absolute;
@@ -400,7 +400,7 @@ html[data-text-selecting] .textLayer[data-selecting] span {
   width: 100%;
   height: 100%;
 }
-html[data-reader-theme='dark'] .selection-layer .selection-fill {
+html[data-reader-theme='dark'] .selection-layer {
   mix-blend-mode: screen;
 }
 .selection-layer .selection-band {
