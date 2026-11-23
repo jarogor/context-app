@@ -65,6 +65,8 @@ export interface ReaderThemeTokens {
 export const READER_NOTE_COLOR_IDS = ['yellow', 'green', 'blue', 'red', 'purple'] as const;
 
 /** Идентификатор цвета заметки. */
+import { ACCENT_FILL_COLORS } from './accent';
+
 export type ReaderNoteColorId = (typeof READER_NOTE_COLOR_IDS)[number];
 
 /** Мягкие тона заметок: подсветка цитаты, заливка фигуры, фон карточки, метка. */
@@ -181,6 +183,22 @@ const MIST_DARK_NOTE_TONES: ReaderNoteTones = {
   red: 'rgba(214, 88, 88, 0.4)',
   purple: 'rgba(158, 116, 204, 0.45)',
 };
+
+/** Плотные тона подсветки для тёмной страницы.
+ *
+ * На перекрашенной тёмной бумаге мягкий тон заметки приходится осветлять
+ * наложением `screen`, и он выцветает: под ним почти белый текст, а разница
+ * с бумагой мала. Те же цвета, что у лейбла заметки в списке, держат
+ * насыщенность и остаются контрастными светлому тексту. Ступень `active`
+ * самая плотная из трёх и применяется одинаково во всех палитрах.
+ */
+export function darkHighlightTones(): ReaderNoteTones {
+  const tones = {} as ReaderNoteTones;
+  for (const color of READER_NOTE_COLOR_IDS) {
+    tones[color] = ACCENT_FILL_COLORS.dark[color].active;
+  }
+  return tones;
+}
 
 /** Мягкие тона заметок для палитры и стороны темы области чтения. */
 export function readerThemeNoteTones(palette: PaletteId, id: ReaderThemeId): ReaderNoteTones {

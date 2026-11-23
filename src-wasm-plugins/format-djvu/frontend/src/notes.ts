@@ -14,7 +14,7 @@ import { editor } from './editing-state';
 import { parseGeometry, shapeElement, shapeHitElement } from './geometry';
 import { tileLineRects } from './lines';
 import { state, type RenderedEntry } from './state';
-import { highlightTone, noteColor } from './theme';
+import { highlightColor, noteColor } from './theme';
 import type { NoteAnchor, ViewerNote } from './types';
 
 /** Разбор якоря заметки; повреждённая строка даёт null. */
@@ -83,7 +83,7 @@ function paintHighlights(
       // почти невидимую тёмную подложку — там подсветка осветляет.
       const dark = state.readerTheme === 'dark';
       context.globalCompositeOperation = dark ? 'screen' : 'multiply';
-      context.fillStyle = dark ? highlightTone(note.color) : noteColor(note.color);
+      context.fillStyle = highlightColor(note.color, dark, state.pageColors);
       context.fillRect(
         offsetX + rect.x * pageWidth * ratioX,
         offsetY + rect.y * pageHeight * ratioY,

@@ -19,28 +19,97 @@ export const NOTE_COLOR_FALLBACKS: Record<string, string> = {
 /** Действующие мягкие тона заметок по идентификаторам цвета. */
 export const noteTones: Record<string, string> = { ...NOTE_COLOR_FALLBACKS };
 
+/** Действующие плотные тона подсветки для тёмной страницы. */
+export const highlightTones: Record<string, string> = { ...NOTE_COLOR_FALLBACKS };
+
+/** Относительная яркость цвета по WCAG. */
+function luminance(red: number, green: number, blue: number): number {
+  const channel = (value: number): number => {
+    const unit = value / 255;
+    return unit <= 0.04045 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
+}
+
+/** Контраст двух цветов по WCAG. */
+function contrast(
+  first: { r: number; g: number; b: number },
+  second: { r: number; g: number; b: number },
+): number {
+  const [light, dark] = [
+    luminance(first.r, first.g, first.b),
+    luminance(second.r, second.g, second.b),
+  ].sort((a, b) => b - a);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+/** Разбор плотного тона `#rrggbb` или `rgba()` в каналы. */
+function toneChannels(tone: string): { r: number; g: number; b: number } | null {
+  const hex = /^#([0-9a-f]{6})$/i.exec(tone.trim());
+  if (hex) {
+    const value = Number.parseInt(hex[1], 16);
+    return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+  }
+  const rgba = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(tone.trim());
+  if (!rgba) {
+    return null;
+  }
+  return { r: Number(rgba[1]), g: Number(rgba[2]), b: Number(rgba[3]) };
+}
+
+/** Минимальный контраст подсветки с текстом книги.
+ *
+ * Светлый текст на подсветке должен читаться: порог обычного текста по WCAG.
+ */
+const MIN_HIGHLIGHT_CONTRAST = 4.5;
+
+/**
+ * Цвет подсветки цитаты с учётом стороны темы.
+ *
+ * На перекрашенной тёмной странице подсветка ложится осветлением (`screen`):
+ * мягкий тон выцветал и сливался с бумагой под почти белым текстом. Здесь тон
+ * палитры затемняется ровно настолько, чтобы текст остался читаемым, и не
+ * сильнее: цвет держится максимально насыщенным при заданном контрасте. Иначе
+ * приходилось бы выбирать между бледным пятном и нечитаемой строкой.
+ */
+export function highlightColor(
+  color: string | undefined,
+  dark: boolean,
+  page?: { paper?: Rgb; ink?: Rgb },
+): string {
+  if (!dark) {
+    return (color && noteTones[color]) || noteTones.yellow;
+  }
+  const tone = (color && highlightTones[color]) || highlightTones.yellow;
+  const channels = toneChannels(tone);
+  const paper = page && page.paper;
+  const ink = page && page.ink;
+  if (!channels || !paper || !ink) {
+    return tone;
+  }
+  // Осветление в растре: итог = 255 − (255 − бумага)(255 − тон).
+  const screen = (scale: number): { r: number; g: number; b: number } => ({
+    r: 255 - ((255 - paper.r) * (255 - channels.r * scale)) / 255,
+    g: 255 - ((255 - paper.g) * (255 - channels.g * scale)) / 255,
+    b: 255 - ((255 - paper.b) * (255 - channels.b * scale)) / 255,
+  });
+  // Наибольшая насыщенность, при которой текст ещё читается.
+  let low = 0;
+  let high = 1;
+  for (let step = 0; step < 20; step += 1) {
+    const middle = (low + high) / 2;
+    if (contrast(screen(middle), ink) >= MIN_HIGHLIGHT_CONTRAST) {
+      low = middle;
+    } else {
+      high = middle;
+    }
+  }
+  return `rgb(${Math.round(channels.r * low)}, ${Math.round(channels.g * low)}, ${Math.round(channels.b * low)})`;
+}
+
 /** Цвет подсветки заметки; неизвестный идентификатор даёт жёлтый. */
 export function noteColor(color: string | undefined): string {
   return (color && noteTones[color]) || noteTones.yellow;
-}
-
-/** Тон подсветки для наложения на перекрашенную тёмную страницу.
- *
- * Тёмные тона темы приходят полупрозрачными: на тёмной бумаге они дают спокойную
- * цветную подложку. Для наложения `screen` этого мало — подсветка почти
- * растворялась в странице. Здесь прозрачность поднимается, чтобы подсветка была
- * заметной, а тон оставался прежним.
- */
-export function highlightTone(color: string | undefined, minimumAlpha = 0.7): string {
-  const tone = noteColor(color);
-  const rgba = /^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)$/i.exec(
-    tone.trim(),
-  );
-  if (!rgba) {
-    return tone;
-  }
-  const alpha = Math.max(Number(rgba[4]), minimumAlpha);
-  return `rgba(${rgba[1]}, ${rgba[2]}, ${rgba[3]}, ${alpha})`;
 }
 
 /** Токены области чтения из сообщения приложения. */
@@ -73,6 +142,8 @@ export interface ReaderThemeInput {
   tokens?: ReaderThemeTokens;
   /** Мягкие тона заметок. */
   notes?: Record<string, string>;
+  /** Плотные тона подсветки для перекрашенной тёмной страницы. */
+  highlight?: Record<string, string>;
   /** Цвета перекраски страницы. */
   page?: { paper?: string; ink?: string };
 }
@@ -134,9 +205,11 @@ export function applyReaderTheme(value: ReaderThemeInput | null | undefined): Ap
     '--page-background',
     theme === 'dark' ? pageColors.paperCss : '#ffffff',
   );
+  const highlights = (value && value.highlight) || {};
   for (const color of Object.keys(NOTE_COLOR_FALLBACKS)) {
     const tone = tones[color] || NOTE_COLOR_FALLBACKS[color];
     noteTones[color] = tone;
+    highlightTones[color] = highlights[color] || tone;
     rootStyle.setProperty('--note-' + color, tone);
   }
   return { theme, paintKey, pageColors };
