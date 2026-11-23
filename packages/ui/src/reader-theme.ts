@@ -65,8 +65,6 @@ export interface ReaderThemeTokens {
 export const READER_NOTE_COLOR_IDS = ['yellow', 'green', 'blue', 'red', 'purple'] as const;
 
 /** Идентификатор цвета заметки. */
-import { ACCENT_FILL_COLORS } from './accent';
-
 export type ReaderNoteColorId = (typeof READER_NOTE_COLOR_IDS)[number];
 
 /** Мягкие тона заметок: подсветка цитаты, заливка фигуры, фон карточки, метка. */
@@ -184,20 +182,16 @@ const MIST_DARK_NOTE_TONES: ReaderNoteTones = {
   purple: 'rgba(158, 116, 204, 0.45)',
 };
 
-/** Плотные тона подсветки для тёмной страницы.
+/** Тона подсветки цитаты на странице.
  *
- * На перекрашенной тёмной бумаге мягкий тон заметки приходится осветлять
- * наложением `screen`, и он выцветает: под ним почти белый текст, а разница
- * с бумагой мала. Те же цвета, что у лейбла заметки в списке, держат
- * насыщенность и остаются контрастными светлому тексту. Ступень `active`
- * самая плотная из трёх и применяется одинаково во всех палитрах.
+ * Подсветка ложится умножением на светлый растр страницы — и в светлой, и в
+ * тёмной теме. На тёмной странице участок цитаты берётся до перекраски, поэтому
+ * остаётся светлой полосой с тёмным текстом: тот же вид, что на бумаге, и тот же
+ * цвет палитры. Осветление мягкого тона поверх перекрашенной страницы давало
+ * бледное пятно, а тёмный текст на светлой полосе — читается всегда.
  */
-export function darkHighlightTones(): ReaderNoteTones {
-  const tones = {} as ReaderNoteTones;
-  for (const color of READER_NOTE_COLOR_IDS) {
-    tones[color] = ACCENT_FILL_COLORS.dark[color].active;
-  }
-  return tones;
+export function highlightTones(): ReaderNoteTones {
+  return LIGHT_NOTE_TONES;
 }
 
 /** Мягкие тона заметок для палитры и стороны темы области чтения. */

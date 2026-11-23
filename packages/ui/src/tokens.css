@@ -125,6 +125,22 @@
    * Подпись на светлой стороне одна на все ступени — тёмная: заливки светлые,
    * тёмные чернила читаются на любой из них. Прежняя пара «то тёмная, то
    * белая» давала чёрный текст на строке и белый на карточке одного элемента. */
+  /* Метка цвета заметки в списках: заливка и подпись.
+   *
+   * Цвет тот же, что у подсветки цитаты на странице, чтобы метка и выделение
+   * читались одним цветом. Подпись выбрана по контрасту: жёлтый, зелёный,
+   * красный и фиолетовый светлы по природе — им нужны тёмные чернила; синий
+   * взят плотной ступенью под белую подпись, иначе он выглядел грязным. */
+  --note-mark-yellow-fill: #f2cd52;
+  --note-mark-yellow-ink: #23180a;
+  --note-mark-green-fill: #82d991;
+  --note-mark-green-ink: #23180a;
+  --note-mark-blue-fill: #106dc5;
+  --note-mark-blue-ink: #f7f3ec;
+  --note-mark-red-fill: #ef817b;
+  --note-mark-red-ink: #23180a;
+  --note-mark-purple-fill: #bba0e8;
+  --note-mark-purple-ink: #23180a;
   --accent-fill-yellow-tint: #ffecba;
   --accent-fill-yellow-soft: #fed047;
   --accent-fill-yellow-active: #f2c10d;
@@ -430,6 +446,21 @@
   --accent-ink-purple-tint: #f7f3ec;
   --accent-ink-purple-soft: #f7f3ec;
   --accent-ink-purple-active: #f7f3ec;
+
+  /* Метка заметки в тёмной стороне: те же цвета, что у подсветки на странице.
+   * Жёлтый светел по природе и несёт тёмную подпись — как и на бумаге, где
+   * подсветка остаётся светлой полосой с чёрным текстом. Остальные цвета
+   * плотные и подписаны светлыми чернилами. */
+  --note-mark-yellow-fill: #f2cd52;
+  --note-mark-yellow-ink: #23180a;
+  --note-mark-green-fill: #3b7d01;
+  --note-mark-green-ink: #f7f3ec;
+  --note-mark-blue-fill: #106dc5;
+  --note-mark-blue-ink: #f7f3ec;
+  --note-mark-red-fill: #be351a;
+  --note-mark-red-ink: #f7f3ec;
+  --note-mark-purple-fill: #744cd4;
+  --note-mark-purple-ink: #f7f3ec;
 }
 
 /* Палитра «Иней», светлый набор. Селектор специфичнее `:root`, поэтому

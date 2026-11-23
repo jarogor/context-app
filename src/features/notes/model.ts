@@ -9,7 +9,6 @@ import { t } from '@context/i18n';
 import {
   ACCENT_COLORS,
   ACCENT_COLOR_SWATCHES,
-  accentMark,
   DEFAULT_PALETTE,
   DEFAULT_READER_THEME,
   readerThemeNoteTones,
@@ -91,12 +90,17 @@ export function noteMarkerColor(
 
 /** Метка цвета заметки в списке: заливка и подпись на ней.
  *
- * Тот же вид, что у номера вкладки: пара «заливка и подпись» из общего реестра
- * акцентов. Цвет остаётся собой во всех восьми наборах темы и не смешивается с
- * фоном строки — полоса сбоку, наоборот, сливалась с подложкой списка.
+ * Цвет тот же, что у подсветки цитаты на странице, — метка и выделение читаются
+ * одним цветом. Подпись задаётся парой из токенов (`--note-mark-*-ink`): светлые
+ * по природе жёлтый, зелёный, красный и фиолетовый несут тёмные чернила, синий —
+ * светлые. Один цвет «в среднем» не годится: на светлой заливке белый текст
+ * нечитаем.
  */
 export function noteColorMark(color: NoteColor): AccentMarkStyle {
-  return accentMark(color, { strength: 'soft' }) ?? { fill: 'transparent', ink: 'inherit' };
+  return {
+    fill: `var(--note-mark-${color}-fill)`,
+    ink: `var(--note-mark-${color}-ink)`,
+  };
 }
 
 /** Тип заметки по умолчанию: цитата. */

@@ -75,18 +75,34 @@ function paintHighlights(
       ? editor.resizeDrag.draft
       : anchor.rects || [];
     for (const rect of tileLineRects(rects)) {
-      // Сторона темы задаёт способ наложения: на светлой бумаге умножение
-      // сохраняет тёмный текст, на перекрашенной тёмной странице оно давало бы
-      // почти невидимую тёмную подложку — там подсветка осветляет.
-      const dark = state.readerTheme === 'dark';
-      context.globalCompositeOperation = dark ? 'screen' : 'multiply';
-      context.fillStyle = highlightColor(note.color, dark, state.pageColors);
-      context.fillRect(
-        offsetX + rect.x * pageWidth * ratioX,
-        offsetY + rect.y * pageHeight * ratioY,
-        rect.width * pageWidth * ratioX,
-        rect.height * pageHeight * ratioY,
-      );
+      const x = offsetX + rect.x * pageWidth * ratioX;
+      const y = offsetY + rect.y * pageHeight * ratioY;
+      const width = rect.width * pageWidth * ratioX;
+      const height = rect.height * pageHeight * ratioY;
+      if (state.readerTheme === 'dark') {
+        // Тёмная страница: участок берётся из растра до перекраски и
+        // умножается на цвет заметки. Так подсветка остаётся цветом палитры, а
+        // текст под ней — тёмным, как на светлой бумаге. Осветление поверх
+        // перекрашенной страницы давало бледное пятно и белый текст на нём.
+        // Отсечение по полосе: иначе `copy`/рисование затронуло бы остальную
+        // страницу. Внутри полосы ставится светлый участок и умножается на цвет.
+        context.save();
+        context.beginPath();
+        context.rect(x, y, width, height);
+        context.clip();
+        context.globalCompositeOperation = 'source-over';
+        context.drawImage(entry.light, x, y, width, height, x, y, width, height);
+        context.globalCompositeOperation = 'multiply';
+        context.fillStyle = highlightColor(note.color);
+        context.fillRect(x, y, width, height);
+        context.restore();
+      } else {
+        // Светлая бумага: умножение сохраняет тёмный текст и делает бумагу
+        // цветной.
+        context.globalCompositeOperation = 'multiply';
+        context.fillStyle = highlightColor(note.color);
+        context.fillRect(x, y, width, height);
+      }
     }
   }
   context.globalCompositeOperation = 'source-over';

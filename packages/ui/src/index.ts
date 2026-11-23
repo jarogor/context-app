@@ -98,7 +98,7 @@ export {
   READER_NOTE_COLOR_IDS,
   READER_THEMES,
   readerFontFamily,
-  darkHighlightTones,
+  highlightTones,
   readerOverlayTokens,
   readerPageColors,
   readerThemeNoteTones,

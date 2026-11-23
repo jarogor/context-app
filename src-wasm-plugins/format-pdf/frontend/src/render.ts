@@ -262,7 +262,15 @@ export async function renderPage(
   const textLayerEl = document.createElement('div');
   textLayerEl.className = TEXT_LAYER_CLASS;
   const baseCanvas = document.createElement('canvas');
-  const entry: RenderedEntry = { canvas, base: baseCanvas, textLayer: textLayerEl, info, paint: state.paintKey };
+  const lightCanvas = document.createElement('canvas');
+  const entry: RenderedEntry = {
+    canvas,
+    base: baseCanvas,
+    light: lightCanvas,
+    textLayer: textLayerEl,
+    info,
+    paint: state.paintKey,
+  };
 
   // Дополнительное преобразование сдвигает страницу в начало координат окна (её
   // левый верх не совпадает с углом страницы) и задаёт плотность экрана: без него
@@ -300,6 +308,12 @@ export async function renderPage(
     if (scan) {
       await waitForRasterInk(canvas);
     }
+    // Растр до перекраски: подсветка на тёмной странице берётся из него, чтобы
+    // цвет ложился умножением на светлую бумагу — так он остаётся цветом
+    // палитры, а текст под ним тёмным.
+    lightCanvas.width = canvas.width;
+    lightCanvas.height = canvas.height;
+    lightCanvas.getContext('2d')?.drawImage(canvas, 0, 0);
     // Перекраска растра в тёмной теме: светлый фон страницы становится тёмным,
     // тёмный текст — светлым, оттенок сохраняется.
     recolorCanvas(canvas, state.readerTheme, state.pageColors);

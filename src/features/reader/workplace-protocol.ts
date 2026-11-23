@@ -12,7 +12,7 @@ import type { FileAnnotationBatch, FileBookmark, FileChapter } from './file-prop
 import { normalizeBookmarks, parseFileAnnotationBatch } from './file-properties';
 import {
   readerPageColors,
-  darkHighlightTones,
+  highlightTones,
   readerThemeNoteTones,
   readerThemeTokens,
   type PaletteId,
@@ -64,7 +64,7 @@ export function buildReaderThemeMessage(
       notes: readerThemeNoteTones(palette, theme),
       // Плотные тона для подсветки на перекрашенной тёмной странице: мягкий
       // тон под светлым текстом выцветал и сливался с бумагой.
-      highlight: darkHighlightTones(),
+      highlight: highlightTones(),
       page: readerPageColors(palette),
     },
   };
