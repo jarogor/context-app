@@ -468,22 +468,33 @@ test('создание заметки с выбранным цветом и см
   await expect(page.getByTestId('notes-item-link')).toContainText('Первый абзац книги.');
 
   await expect(page.getByTestId('notes-item')).toHaveAttribute('data-color', 'blue');
-  const blueBackground = await bookDocument(page)
+  // Подсветка на странице и метка заметки в списке — одна пара «заливка и
+  // подпись»: синий плотный, текст под ним светлый, как в лейбле.
+  const blue = await bookDocument(page)
     .locator('mark.context-note')
     .first()
-    .evaluate((element) => getComputedStyle(element).backgroundColor);
-  expect(blueBackground).toBe('rgb(132, 173, 240)');
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, color: style.color };
+    });
+  expect(blue.background).toBe('rgb(16, 109, 197)');
+  expect(blue.color).toBe('rgb(247, 243, 236)');
 
   // Смена цвета из меню заметки: полоса и подсветка становятся зелёными.
   await page.getByLabel('Действия с заметкой').first().click();
   await page.getByTestId('menu-color-green').click();
 
   await expect(page.getByTestId('notes-item')).toHaveAttribute('data-color', 'green');
-  const greenBackground = await bookDocument(page)
+  const green = await bookDocument(page)
     .locator('mark.context-note')
     .first()
-    .evaluate((element) => getComputedStyle(element).backgroundColor);
-  expect(greenBackground).toBe('rgb(130, 217, 145)');
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, color: style.color };
+    });
+  // Зелёный светлый по природе — текст на нём тёмный, как у метки.
+  expect(green.background).toBe('rgb(130, 217, 145)');
+  expect(green.color).toBe('rgb(35, 24, 10)');
 });
 
 test('подсветка заметок разных цветов видна одновременно', async ({ page }) => {

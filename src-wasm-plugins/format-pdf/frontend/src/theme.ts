@@ -19,22 +19,36 @@ export const NOTE_COLOR_FALLBACKS: Record<string, string> = {
 /** Действующие мягкие тона заметок по идентификаторам цвета. */
 export const noteTones: Record<string, string> = { ...NOTE_COLOR_FALLBACKS };
 
-/** Действующие тона подсветки цитаты на странице. */
-export const highlightTones: Record<string, string> = { ...NOTE_COLOR_FALLBACKS };
+/** Пара оформления подсветки цитаты: заливка и цвет её текста. */
+export interface HighlightPair {
+  /** Заливка подсветки. */
+  fill: string;
+  /** Цвет текста под подсветкой. */
+  ink: string;
+}
+
+/** Действующие пары подсветки по цветам заметок. */
+export const highlightPairs: Record<string, HighlightPair> = {};
+
+/** Каналы цвета `#rrggbb`; `null` — неизвестный формат. */
+export function parseTone(value: string): { r: number; g: number; b: number } | null {
+  const hex = /^#([0-9a-f]{6})$/i.exec(value.trim());
+  if (!hex) {
+    return null;
+  }
+  const number = Number.parseInt(hex[1], 16);
+  return { r: (number >> 16) & 255, g: (number >> 8) & 255, b: number & 255 };
+}
+
+/** Пара подсветки заметки; неизвестный цвет даёт жёлтый. */
+export function highlightPair(color: string | undefined): HighlightPair {
+  const key = color || 'yellow';
+  return highlightPairs[key] || highlightPairs.yellow || { fill: '#f2cd52', ink: '#23180a' };
+}
 
 /** Цвет подсветки заметки; неизвестный идентификатор даёт жёлтый. */
 export function noteColor(color: string | undefined): string {
   return (color && noteTones[color]) || noteTones.yellow;
-}
-
-/** Тон подсветки цитаты на странице.
- *
- * Подсветка ложится умножением на светлый растр: на тёмной странице участок
- * цитаты берётся до перекраски. Поэтому цвет — всегда светлый тон палитры, а
- * текст под ним остаётся тёмным, как на бумаге.
- */
-export function highlightColor(color: string | undefined): string {
-  return (color && highlightTones[color]) || highlightTones.yellow;
 }
 
 /** Токены области чтения из сообщения приложения. */
@@ -67,8 +81,8 @@ export interface ReaderThemeInput {
   tokens?: ReaderThemeTokens;
   /** Мягкие тона заметок. */
   notes?: Record<string, string>;
-  /** Плотные тона подсветки для перекрашенной тёмной страницы. */
-  highlight?: Record<string, string>;
+  /** Пары подсветки цитат: заливка и цвет текста под ней. */
+  highlightPairs?: Record<string, HighlightPair>;
   /** Цвета перекраски страницы. */
   page?: { paper?: string; ink?: string };
 }
@@ -130,11 +144,15 @@ export function applyReaderTheme(value: ReaderThemeInput | null | undefined): Ap
     '--page-background',
     theme === 'dark' ? pageColors.paperCss : '#ffffff',
   );
-  const highlights = (value && value.highlight) || {};
+  const pairs = (value && value.highlightPairs) || {};
   for (const color of Object.keys(NOTE_COLOR_FALLBACKS)) {
     const tone = tones[color] || NOTE_COLOR_FALLBACKS[color];
     noteTones[color] = tone;
-    highlightTones[color] = highlights[color] || tone;
+    const pair = pairs[color];
+    if (pair && pair.fill && pair.ink) {
+      highlightPairs[color] = pair;
+    }
+    highlightPairs[color] = highlightPairs[color] || { fill: tone, ink: '#23180a' };
     rootStyle.setProperty('--note-' + color, tone);
   }
   return { theme, paintKey, pageColors };

@@ -9,7 +9,7 @@ import { state, type RenderedEntry } from './state';
 import { editor } from './editing-state';
 import { parseGeometry, shapeElement, shapeHitElement } from './geometry';
 import { tileLineRects } from './lines';
-import { highlightColor, noteColor } from './theme';
+import { highlightPair, noteColor, parseTone } from './theme';
 import type { NoteAnchor, ViewerNote } from './types';
 
 /** Разбор якоря заметки; повреждённая строка даёт null. */
@@ -79,33 +79,65 @@ function paintHighlights(
       const y = offsetY + rect.y * pageHeight * ratioY;
       const width = rect.width * pageWidth * ratioX;
       const height = rect.height * pageHeight * ratioY;
-      if (state.readerTheme === 'dark') {
-        // Тёмная страница: участок берётся из растра до перекраски и
-        // умножается на цвет заметки. Так подсветка остаётся цветом палитры, а
-        // текст под ней — тёмным, как на светлой бумаге. Осветление поверх
-        // перекрашенной страницы давало бледное пятно и белый текст на нём.
-        // Отсечение по полосе: иначе `copy`/рисование затронуло бы остальную
-        // страницу. Внутри полосы ставится светлый участок и умножается на цвет.
-        context.save();
-        context.beginPath();
-        context.rect(x, y, width, height);
-        context.clip();
-        context.globalCompositeOperation = 'source-over';
-        context.drawImage(entry.light, x, y, width, height, x, y, width, height);
-        context.globalCompositeOperation = 'multiply';
-        context.fillStyle = highlightColor(note.color);
-        context.fillRect(x, y, width, height);
-        context.restore();
-      } else {
-        // Светлая бумага: умножение сохраняет тёмный текст и делает бумагу
-        // цветной.
-        context.globalCompositeOperation = 'multiply';
-        context.fillStyle = highlightColor(note.color);
-        context.fillRect(x, y, width, height);
-      }
+      // Участок перекрашивается в пару «заливка и подпись» метки заметки:
+      // бумага становится заливкой, буквы — цветом подписи. Подсветка на
+      // странице и метка в списке читаются одним цветом, а текст под ней
+      // остаётся читаемым: у синего подпись светлая, у жёлтого и красного —
+      // тёмная, как в лейблах.
+      const pair = highlightPair(note.color);
+      const source = state.readerTheme === 'dark' ? entry.light : entry.base;
+      paintDuotone(context, source, x, y, width, height, pair.fill, pair.ink);
     }
   }
   context.globalCompositeOperation = 'source-over';
+}
+
+/** Перекраска участка страницы в пару «заливка и подпись».
+ *
+ * Заливка ложится на бумагу, а буквы получают цвет подписи: яркость исходного
+ * пикселя задаёт долю между ними. Так подсветка точно совпадает с меткой
+ * заметки, а текст под ней остаётся того же цвета, что у метки. Работает в
+ * самом растре, потому что CSS-наложение в WebKitGTK не применяется.
+ */
+function paintDuotone(
+  context: CanvasRenderingContext2D,
+  source: HTMLCanvasElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fill: string,
+  ink: string,
+): void {
+  const fillColor = parseTone(fill);
+  const inkColor = parseTone(ink);
+  const box = {
+    x: Math.max(0, Math.floor(x)),
+    y: Math.max(0, Math.floor(y)),
+    width: Math.max(1, Math.ceil(width)),
+    height: Math.max(1, Math.ceil(height)),
+  };
+  const sourceContext = source.getContext('2d', { willReadFrequently: true });
+  if (!fillColor || !inkColor || !sourceContext) {
+    return;
+  }
+  let image: ImageData;
+  try {
+    image = sourceContext.getImageData(box.x, box.y, box.width, box.height);
+  } catch (error) {
+    return;
+  }
+  const data = image.data;
+  for (let offset = 0; offset < data.length; offset += 4) {
+    // Яркость исходного пикселя: тёмные буквы дают единицу, бумага — ноль.
+    const darkness =
+      1 - (0.299 * data[offset] + 0.587 * data[offset + 1] + 0.114 * data[offset + 2]) / 255;
+    data[offset] = Math.round(fillColor.r + (inkColor.r - fillColor.r) * darkness);
+    data[offset + 1] = Math.round(fillColor.g + (inkColor.g - fillColor.g) * darkness);
+    data[offset + 2] = Math.round(fillColor.b + (inkColor.b - fillColor.b) * darkness);
+    data[offset + 3] = 255;
+  }
+  context.putImageData(image, box.x, box.y);
 }
 
 /** Наложение текстовой карточки по точке её якоря на странице. */

@@ -84,13 +84,16 @@ const BASE_STYLE = [
   `.${SELECTION_BAND_CLASS}[data-edge="end"]::after,`,
   `.${SELECTION_BAND_CLASS}[data-edge="both"]::after{content:"";`,
   'right:calc(-0.5 * var(--rt-selection-edge-width,1px));}',
-  `.${NOTE_CLASS}{border-radius:2px;cursor:pointer;color:inherit;`,
+  // Подсветка берёт ту же пару «заливка и подпись», что метка заметки в
+  // списке: цвет текста под цитатой совпадает с цветом подписи метки. Синий
+  // поэтому несёт светлый текст, жёлтый и красный — тёмный.
+  `.${NOTE_CLASS}{border-radius:2px;cursor:pointer;`,
   'box-decoration-break:clone;-webkit-box-decoration-break:clone;}',
-  `.${NOTE_CLASS}[data-color="yellow"]{background:var(--note-solid-yellow);}`,
-  `.${NOTE_CLASS}[data-color="green"]{background:var(--note-solid-green);}`,
-  `.${NOTE_CLASS}[data-color="blue"]{background:var(--note-solid-blue);}`,
-  `.${NOTE_CLASS}[data-color="red"]{background:var(--note-solid-red);}`,
-  `.${NOTE_CLASS}[data-color="purple"]{background:var(--note-solid-purple);}`,
+  `.${NOTE_CLASS}[data-color="yellow"]{background:var(--note-mark-yellow-fill);color:var(--note-mark-yellow-ink);}`,
+  `.${NOTE_CLASS}[data-color="green"]{background:var(--note-mark-green-fill);color:var(--note-mark-green-ink);}`,
+  `.${NOTE_CLASS}[data-color="blue"]{background:var(--note-mark-blue-fill);color:var(--note-mark-blue-ink);}`,
+  `.${NOTE_CLASS}[data-color="red"]{background:var(--note-mark-red-fill);color:var(--note-mark-red-ink);}`,
+  `.${NOTE_CLASS}[data-color="purple"]{background:var(--note-mark-purple-fill);color:var(--note-mark-purple-ink);}`,
   `.${CHAPTER_CLASS}{position:relative;}`,
   '.context-note-card{position:absolute;max-width:220px;padding:6px 8px;border-radius:6px;',
   'font-size:13px;line-height:1.4;white-space:pre-wrap;cursor:pointer;z-index:2;}',
@@ -198,6 +201,8 @@ export interface ReaderThemeMessage {
   notes?: Record<string, string>;
   /** Плоские непрозрачные тона подсветки цитат (`--note-solid-*`). */
   solid?: Record<string, string>;
+  /** Пары подсветки: заливка и цвет текста под ней (как у метки заметки). */
+  highlightPairs?: Record<string, { fill: string; ink: string }>;
   /** Гарнитура книги (CSS `font-family`). */
   font?: string;
   /** Идентификатор гарнитуры: `serif` или `sans`. */
@@ -234,9 +239,13 @@ export function applyReaderTheme(root: HTMLElement, message: ReaderThemeMessage)
   }
   const notes = message.notes ?? {};
   const solid = message.solid ?? {};
+  const pairs = message.highlightPairs ?? {};
   for (const color of NOTE_COLORS) {
     set(`--note-${color}`, notes[color]);
     set(`--note-solid-${color}`, solid[color] ?? notes[color]);
+    // Пара «заливка и подпись»: подсветка цитаты совпадает с меткой заметки.
+    set(`--note-mark-${color}-fill`, pairs[color]?.fill);
+    set(`--note-mark-${color}-ink`, pairs[color]?.ink);
   }
   if (message.id === 'dark' || message.id === 'light') {
     root.dataset.readerTheme = message.id;
