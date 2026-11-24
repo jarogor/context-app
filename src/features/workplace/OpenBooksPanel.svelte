@@ -504,31 +504,16 @@
             >{tabNumber(tab.id)}</span
           >
           <!--
-            Иконка стоит в одной строке с названием книги; ниже идут своё имя
-            и описание — без отступа слева, от того же края, что и иконка.
+            Иконка стоит в одной строке с названием книги: это подпись самой
+            книги, как у вкладки без оформления.
           -->
-          <span class="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
-            <span class="flex min-w-0 items-center gap-1.5 role-body">
-              {#if tab.icon}
-                <Icon name={tab.icon} class="h-3.5 w-3.5 flex-none" />
-              {/if}
-              <span class="min-w-0 truncate" data-testid="open-books-item-book"
-                >{tabBookTitle(tab)}</span
-              >
-            </span>
-            {#if tabCustomName(tab)}
-              <span class="min-w-0 truncate role-caption" data-testid="open-books-item-name"
-                >{tabCustomName(tab)}</span
-              >
+          <span class="flex min-w-0 flex-1 items-center gap-1.5 role-body">
+            {#if tab.icon}
+              <Icon name={tab.icon} class="h-3.5 w-3.5 flex-none" />
             {/if}
-            {#if tab.description}
-              <p
-                class="pointer-events-none m-0 whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
-                data-testid="open-books-item-description"
-              >
-                {tab.description}
-              </p>
-            {/if}
+            <span class="min-w-0 flex-1 truncate" data-testid="open-books-item-book"
+              >{tabBookTitle(tab)}</span
+            >
           </span>
           <RowActions class="pointer-events-auto">
             <ActionMenu
@@ -548,6 +533,26 @@
           </RowActions>
         </div>
 
+        <!--
+          Своё имя и описание — строки под шапкой во всю ширину: они начинаются
+          там же, где номер, без отступа, который давала бы колонка с иконкой.
+        -->
+        {#if tabCustomName(tab)}
+          <p
+            class="pointer-events-none m-0 min-w-0 truncate pb-0.5 role-caption"
+            data-testid="open-books-item-name"
+          >
+            {tabCustomName(tab)}
+          </p>
+        {/if}
+        {#if tab.description}
+          <p
+            class="pointer-events-none whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
+            data-testid="open-books-item-description"
+          >
+            {tab.description}
+          </p>
+        {/if}
         <!--
           Форма правки стоит сразу под описанием и выше сведений о книге: она
           меняет то, что пользователь видит первым, и не должна оказаться ниже
