@@ -118,8 +118,14 @@
   </div>
 
   {#if tab}
+    <!--
+      Активная вкладка панели оформлена как выбранная строка списка слева:
+      та же поверхность (`--tab-active-surface`), то же скругление и отступы.
+      Одного текста рядом с кнопками было мало — подпись сливалась с ними, и
+      было не понять, что книга открыта. Цвет вкладки остаётся на номере.
+    -->
     <div
-      class="flex min-w-0 flex-1 items-center gap-2"
+      class="flex min-w-0 flex-1 items-center gap-2 rounded-[var(--radius)] bg-[var(--tab-active-surface)] px-2.5 py-1.5 text-[var(--tab-active-foreground)]"
       style={mark ? `--tab-mark-fill: ${mark.fill}; --tab-mark-ink: ${mark.ink};` : ''}
       data-testid="workplace-active-tab"
     >
