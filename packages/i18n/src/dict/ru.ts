@@ -445,6 +445,7 @@ export const ru = {
   'app.note.menu.copy': 'Копировать текст',
   'app.note.menu.resize': 'Изменить выделение',
   'app.note.menu.editText': 'Изменить текст',
+  'app.note.menu.label': 'Действия с заметкой',
   'app.note.menu.move': 'Переместить',
   'app.notes.sets.actionsLabel': 'Действия с набором заметок',
   'app.notes.sets.new': 'Новый набор',

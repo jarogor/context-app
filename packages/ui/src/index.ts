@@ -30,6 +30,7 @@ export { default as FilterList } from './components/FilterList.svelte';
 export type { FilterListItem } from './components/FilterList.svelte';
 export { default as SegmentedControl } from './components/SegmentedControl.svelte';
 export type { SegmentedItem } from './components/SegmentedControl.svelte';
+export { default as ActionGroup } from './components/ActionGroup.svelte';
 export { default as SortControl } from './components/SortControl.svelte';
 export type { SortOption, SortDirection } from './components/SortControl.svelte';
 export { default as Icon } from './components/Icon.svelte';

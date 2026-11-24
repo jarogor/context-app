@@ -469,6 +469,7 @@ export const en: Dictionary = {
   'app.note.menu.copy': 'Copy text',
   'app.note.menu.resize': 'Change selection',
   'app.note.menu.editText': 'Edit text',
+  'app.note.menu.label': 'Note actions',
   'app.note.menu.move': 'Move',
   'app.notes.sets.actionsLabel': 'Note set actions',
   'app.notes.sets.new': 'New set',

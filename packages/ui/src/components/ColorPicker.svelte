@@ -71,6 +71,9 @@
   Палитра — ряд круглых образцов в слотах фиксированного размера. Высота блока
   совпадает с высотой кнопок, полей и выпадающих списков дизайн-системы (`h-9`):
   палитра стоит в одном ряду с ними и не должна выглядеть мельче.
+  Ячейка образца квадратная и прозрачная: круглым рисуется только сам цвет.
+  Поэтому наведение срабатывает по всей ячейке, а не по видимому кругу — в
+  маленький круг трудно попасть курсором.
   Круг при наведении увеличивается, а выбранный цвет становится квадратом с
   закруглёнными углами: различие читается формой, а не шириной. Растёт только
   фигура внутри слота, поэтому ни наведение, ни выбор не сдвигают соседей и не
@@ -94,7 +97,7 @@
   {#each colors as color (color.id)}
     <button
       type="button"
-      class="group flex shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {size ===
+      class="group flex shrink-0 cursor-pointer items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none {size ===
       'sm'
         ? 'size-4'
         : 'size-5'}"

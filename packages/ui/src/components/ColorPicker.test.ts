@@ -57,6 +57,18 @@ describe('ColorPicker', () => {
     }
   });
 
+  it('ловит наведение по всей ячейке, а не по видимому кругу', () => {
+    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
+
+    // Круглая ячейка обрезала бы углы: наведение в углу не срабатывало, хотя
+    // ячейка логически вся принадлежит образцу.
+    for (const color of COLORS) {
+      const slot = screen.getByTestId(`color-${color.id}`);
+      expect(slot.className).not.toContain('rounded-full');
+      expect(slot.className).toContain('group');
+    }
+  });
+
   it('рисует невыбранный цвет кругом, который при наведении заполняет слот', () => {
     render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
 

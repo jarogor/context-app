@@ -1342,8 +1342,14 @@
           />
         {/if}
         {#if menuPosition && pendingAnchor}
+          <!--
+            Меню создания заметки — «висячие» контролы без общего каркаса:
+            палитра уже несёт свою подложку, кнопка отмены стоит рядом с ней.
+            Общая рамка вокруг обоих добавляла отступы по краям и выглядела
+            громоздко.
+          -->
           <div
-            class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-[var(--radius)] bg-[var(--menu-surface)] p-[0.25rem] shadow-overlay"
+            class="absolute z-[var(--layer-popup)] flex items-center gap-1"
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >
@@ -1351,6 +1357,7 @@
             <Button
               variant="ghost"
               size="icon"
+              class="bg-[var(--menu-surface)] shadow-overlay"
               title={t('app.reader.cancel')}
               ariaLabel={t('app.reader.cancel')}
               onclick={cancelWorkplaceQuote}

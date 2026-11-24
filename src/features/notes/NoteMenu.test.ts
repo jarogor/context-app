@@ -13,6 +13,11 @@ function buttonOrder(): string[] {
   );
 }
 
+/** Кнопки группы действий над заметкой (без закрытия меню). */
+function groupButtons(): HTMLElement[] {
+  return Array.from(screen.getByTestId('note-menu-actions').querySelectorAll('button'));
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -132,6 +137,51 @@ describe('контекстное меню заметки', () => {
     expect(screen.queryByRole('button', { name: 'Изменить текст' })).toBeNull();
     // Порядок фигуры: переместить → закрыть.
     expect(buttonOrder()).toEqual(['Переместить', 'Закрыть']);
+  });
+
+  it('собирает действия над заметкой в одну группу, а закрытие ставит рядом', () => {
+    render(NoteMenu, {
+      props: {
+        type: 'text',
+        at: AT,
+        area: AREA,
+        onMove: vi.fn(),
+        onResize: vi.fn(),
+        onEditText: vi.fn(),
+        onClose: vi.fn(),
+      },
+    });
+
+    const group = screen.getByTestId('note-menu-actions');
+    expect(group.getAttribute('role')).toBe('group');
+    // В группе только действия над заметкой: правка текста и перемещение.
+    expect(groupButtons().map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Изменить текст',
+      'Переместить',
+    ]);
+    // Закрытие — вне группы: оно завершает меню, а не правит заметку.
+    const close = screen.getByRole('button', { name: 'Закрыть' });
+    expect(group.contains(close)).toBe(false);
+  });
+
+  it('помечает правку выделения карандашом, а не стрелками', () => {
+    render(NoteMenu, {
+      props: {
+        type: 'quote',
+        quote: 'Текст',
+        at: AT,
+        area: AREA,
+        onMove: vi.fn(),
+        onResize: vi.fn(),
+        onClose: vi.fn(),
+      },
+    });
+
+    const resize = screen.getByRole('button', { name: 'Изменить выделение' });
+    // Карандаш — ожидаемый признак правки; прежняя иконка со стрелками
+    // читалась как изменение размера, а не как редактирование.
+    expect(resize.innerHTML).toContain('M4 20h4l10-10-4-4L4 16z');
+    expect(resize.innerHTML).not.toContain('M4 9h13');
   });
 
   it('закрывается кнопкой закрытия', async () => {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Icon } from '@context/ui';
+  import { ActionGroup, Button, Icon } from '@context/ui';
   import { t } from '@context/i18n';
   import type { NoteType } from './notes';
 
@@ -11,7 +11,11 @@
    * присылает обратно команды перемещения или правки границ. Так вид и поведение
    * совпадают по построению.
    *
-   * Порядок кнопок слева направо — от основной правки к завершению: у цитаты
+   * Действия над заметкой собраны в одну группу с общей подложкой: они относятся
+   * к одному предмету и читаются одним блоком. Кнопка закрытия стоит рядом, но
+   * вне группы: это завершение меню, а не действие над заметкой.
+   *
+   * Порядок действий слева направо — от основной правки к завершению: у цитаты
    * «копировать → изменить выделение → закрыть», у карточки «изменить текст →
    * переместить → закрыть», у фигуры «переместить → закрыть».
    */
@@ -71,54 +75,69 @@
 </script>
 
 <div
-  class="absolute z-[var(--layer-popup)] flex items-center gap-1 rounded-[var(--radius)] bg-[var(--menu-surface)] p-1 shadow-overlay"
+  class="absolute z-[var(--layer-popup)] flex items-center gap-1"
   data-testid="note-menu"
   {style}
 >
-  {#if type === 'quote'}
-    <Button
-      variant="secondary"
-      size="icon"
-      title={t('app.note.menu.copy')}
-      ariaLabel={t('app.note.menu.copy')}
-      onclick={copyQuote}
-    >
-      <Icon name="copy" />
-    </Button>
-    <Button
-      variant="secondary"
-      size="icon"
-      title={t('app.note.menu.resize')}
-      ariaLabel={t('app.note.menu.resize')}
-      onclick={onResize}
-    >
-      <Icon name="resize" />
-    </Button>
-  {:else}
-    {#if type === 'text'}
+  <!--
+    Действия над заметкой — одной группой: у них общая подложка, поэтому они не
+    выглядят рядом независимых кнопок с отступами между ними.
+  -->
+  <ActionGroup ariaLabel={t('app.note.menu.label')} testId="note-menu-actions" class="bg-[var(--menu-surface)] shadow-overlay">
+    {#if type === 'quote'}
       <Button
-        variant="secondary"
+        variant="ghost"
         size="icon"
-        title={t('app.note.menu.editText')}
-        ariaLabel={t('app.note.menu.editText')}
-        onclick={onEditText}
+        class="aspect-square h-full w-auto min-w-0 shrink-0 rounded-[calc(var(--radius)-0.125rem)]"
+        title={t('app.note.menu.copy')}
+        ariaLabel={t('app.note.menu.copy')}
+        onclick={copyQuote}
+      >
+        <Icon name="copy" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        class="aspect-square h-full w-auto min-w-0 shrink-0 rounded-[calc(var(--radius)-0.125rem)]"
+        title={t('app.note.menu.resize')}
+        ariaLabel={t('app.note.menu.resize')}
+        onclick={onResize}
       >
         <Icon name="pencil" />
       </Button>
+    {:else}
+      {#if type === 'text'}
+        <Button
+          variant="ghost"
+          size="icon"
+          class="aspect-square h-full w-auto min-w-0 shrink-0 rounded-[calc(var(--radius)-0.125rem)]"
+          title={t('app.note.menu.editText')}
+          ariaLabel={t('app.note.menu.editText')}
+          onclick={onEditText}
+        >
+          <Icon name="pencil" />
+        </Button>
+      {/if}
+      <Button
+        variant="ghost"
+        size="icon"
+        class="aspect-square h-full w-auto min-w-0 shrink-0 rounded-[calc(var(--radius)-0.125rem)]"
+        title={t('app.note.menu.move')}
+        ariaLabel={t('app.note.menu.move')}
+        onclick={onMove}
+      >
+        <Icon name="move" />
+      </Button>
     {/if}
-    <Button
-      variant="secondary"
-      size="icon"
-      title={t('app.note.menu.move')}
-      ariaLabel={t('app.note.menu.move')}
-      onclick={onMove}
-    >
-      <Icon name="move" />
-    </Button>
-  {/if}
+  </ActionGroup>
+  <!--
+    Закрытие — отдельная кнопка рядом с группой: оно завершает меню, а не
+    относится к самой заметке.
+  -->
   <Button
     variant="ghost"
     size="icon"
+    class="bg-[var(--menu-surface)] shadow-overlay"
     title={t('app.modal.close')}
     ariaLabel={t('app.modal.close')}
     onclick={onClose}
