@@ -294,7 +294,7 @@
   function quoteMenuStyle(): string {
     const width = readerAreaWidth;
     const height = readerAreaHeight;
-    const menuWidth = 190;
+    const menuWidth = 132;
     const menuHeight = 40;
     const x = Math.max(8, Math.min(menuPosition?.x ?? 0, Math.max(8, width - menuWidth - 8)));
     const preferred = (menuPosition?.y ?? 0) + 6;
@@ -579,19 +579,6 @@
   function dismissWorkplaceMenu() {
     pendingAnchor = null;
     menuPosition = null;
-  }
-
-  /**
-   * Явная отмена создания заметки пользователем.
-   *
-   * Здесь выделение снимается командой: пользователь отказался от заметки, и
-   * полосы выделения не должны остаться на странице. Сигнал плагина сюда не
-   * идёт — иначе получилась бы петля (см. `dismissWorkplaceMenu`).
-   */
-  function cancelWorkplaceQuote() {
-    dismissWorkplaceMenu();
-    // Выделение живёт в документе плагина: снимает его он по команде.
-    workplaceContent?.clearSelection();
   }
 
   /** Закрытие контекстного меню заметки страничного формата. */
@@ -1343,27 +1330,15 @@
         {/if}
         {#if menuPosition && pendingAnchor}
           <!--
-            Меню создания заметки — «висячие» контролы без общего каркаса:
-            палитра уже несёт свою подложку, кнопка отмены стоит рядом с ней.
-            Общая рамка вокруг обоих добавляла отступы по краям и выглядела
-            громоздко.
+            Меню создания заметки — одна палитра, без каркаса и без кнопки
+            отмены: заметка создаётся цветом, а отказ — клик мимо меню.
           -->
           <div
-            class="absolute z-[var(--layer-popup)] flex items-center gap-1"
+            class="absolute z-[var(--layer-popup)] flex items-center"
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >
             <NoteColorMenu labelPrefix={t('app.reader.note.createPrefix')} onpick={confirmWorkplaceQuote} />
-            <Button
-              variant="ghost"
-              size="icon"
-              class="bg-[var(--menu-surface)] shadow-overlay"
-              title={t('app.reader.cancel')}
-              ariaLabel={t('app.reader.cancel')}
-              onclick={cancelWorkplaceQuote}
-            >
-              <Icon name="close" />
-            </Button>
           </div>
         {/if}
         {#if pendingTextAnchor}

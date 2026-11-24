@@ -226,7 +226,7 @@ test('кнопка поиска гаснет, когда панель поиск
   );
 });
 
-test('выделение показывает меню создания и отмены', async ({ page }) => {
+test('выделение показывает меню создания одной палитрой', async ({ page }) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');
   await openNotes(page);
@@ -249,24 +249,17 @@ test('выделение показывает меню создания и от�
   await expect(page.getByTestId('quote-menu').getByTestId('note-color-black')).toHaveCount(0);
   await expect(page.getByTestId('quote-menu').getByTestId('note-color-purple')).toBeVisible();
 
-  // Палитра одной высоты с соседней иконочной кнопкой: контролы базового
-  // размера не должны выглядеть разного масштаба.
-  const paletteBox = await page.getByTestId('note-color-picker').boundingBox();
-  const cancelBox = await page
-    .getByTestId('quote-menu')
-    .getByRole('button', { name: 'Отмена' })
-    .boundingBox();
-  expect(Math.abs(paletteBox!.height - cancelBox!.height)).toBeLessThanOrEqual(1);
+  // Кнопки закрытия у меню нет: отказ — клик мимо него. Лишняя кнопка рядом
+  // с палитрой занимала место и дублировала то, что и так работает.
+  await expect(page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' })).toHaveCount(
+    0,
+  );
+  await expect(page.getByTestId('quote-menu').getByRole('button', { name: 'Закрыть' })).toHaveCount(
+    0,
+  );
 
-  // Отмена — иконочная кнопка с доступным именем «Отмена»: крестик есть,
-  // текстовой подписи внутри нет.
-  const cancel = page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' });
-  await expect(cancel.locator('svg')).toBeVisible();
-  await expect(cancel).toHaveText('');
-
-  await cancel.click();
-
-  // Отмена убирает меню и не создаёт заметку.
+  // Клик мимо меню закрывает его и не создаёт заметку.
+  await page.mouse.click(80, 400);
   await expect(page.getByTestId('quote-menu')).toHaveCount(0);
   await expect(page.getByTestId('notes-item')).toHaveCount(0);
 });
@@ -384,7 +377,14 @@ test('активное выделение показывает метки тол
   expect(Math.abs(fill.height - lineHeight)).toBeLessThan(1);
 
   // Снятие выделения убирает слой и метки.
-  await page.getByTestId('quote-menu').getByRole('button', { name: 'Отмена' }).click();
+  await bookDocument(page)
+    .locator('p')
+    .first()
+    .evaluate((element) => {
+      element.ownerDocument.getSelection()?.removeAllRanges();
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+  await expect(page.getByTestId('quote-menu')).toHaveCount(0);
   await expect(bookDocument(page).locator('.context-selection-layer')).toHaveCount(0);
 });
 
