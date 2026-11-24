@@ -106,23 +106,27 @@ describe('панель открытых книг: оформление', () => {
     expect(screen.queryByTestId('open-books-item-path-badge')).toBeNull();
   });
 
-  it('называет книгу отдельно, если вкладка переименована', () => {
+  it('называет книгу первой строкой, а своё имя — второй', () => {
     render(OpenBooksPanel, {
       props: { tabs: [tab('t1', { name: 'Черновик' })], activeTabId: 't1', ...handlers() },
     });
 
+    // Книга остаётся там, где её ожидает пользователь: первой строкой вкладки.
+    expect(screen.getByTestId('open-books-item-book').textContent).toBe('Книга t1');
+    // Своё имя встаёт ниже и не вытесняет книгу.
+    expect(screen.getByTestId('open-books-item-name').textContent).toBe('Черновик');
     const meta = screen.getByTestId('open-books-item-meta');
-    expect(meta.textContent).toContain('Книга t1');
+    expect(meta.textContent).not.toContain('Книга t1');
     expect(meta.textContent).toContain('/lib/t1.epub');
   });
 
-  it('не повторяет название книги, когда вкладка не переименована', () => {
+  it('не показывает второй строки, когда вкладка не переименована', () => {
     render(OpenBooksPanel, {
       props: { tabs: [tab('t1')], activeTabId: 't1', ...handlers() },
     });
 
-    const meta = screen.getByTestId('open-books-item-meta');
-    expect(meta.textContent).not.toContain('Книга t1');
+    expect(screen.getByTestId('open-books-item-book').textContent).toBe('Книга t1');
+    expect(screen.queryByTestId('open-books-item-name')).toBeNull();
   });
 
   it('оставляет прежний вид пункта без оформления', () => {

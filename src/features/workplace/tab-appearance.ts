@@ -21,6 +21,25 @@ export function tabLabel(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
   return tab.name?.trim() || tab.title;
 }
 
+/** Название книги для строки вкладки.
+ *
+ * Книга называется первой строкой всегда: по ней вкладку узнают. Своё имя
+ * вкладки встаёт под ним второй строкой, а не вместо него.
+ */
+export function tabBookTitle(tab: Pick<WorkspaceTab, 'title'>): string {
+  return tab.title?.trim() ?? '';
+}
+
+/** Заданное пользователем имя вкладки; пустая строка, если имени нет.
+ *
+ * Имя совпадает с названием книги — это не отдельная подпись, а тот же текст:
+ * показывать его второй строкой незачем.
+ */
+export function tabCustomName(tab: Pick<WorkspaceTab, 'name' | 'title'>): string {
+  const name = tab.name?.trim() ?? '';
+  return name && name !== tabBookTitle(tab) ? name : '';
+}
+
 /** Короткая метка формата книги: `EPUB`, `FB2`, `PDF`, `DJVU`.
  *
  * Формат показывается так же, как на странице книги — заглавными буквами.

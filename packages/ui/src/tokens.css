@@ -369,12 +369,14 @@
    * выглядят одинаково заметно на обеих сторонах темы. */
   --hover-fill: #302e2a;
   --selected-fill: #484541;
-  /* Активная вкладка в тёмной стороне — ступень выделения, поднятая к цвету
-   * текста: одна ступень выделения почти совпадала с полосой, и активная
-   * вкладка терялась. Подмешивание текста задаёт запас светлоты, заметный в
-   * любой палитре, и не привязывает его к одной палитре отдельным цветом.
-   * В светлой стороне активная остаётся карточкой — она светлее полосы. */
-  --tab-active-surface: color-mix(in oklab, var(--foreground) 10%, var(--selected-fill));
+  /* Активная вкладка в тёмной стороне — та же ступень, что у неактивной строки
+   * в светлой: она отступает от полосы, но не светлеет до карточки. Яркая
+   * ступень выделения выбивалась из спокойной гаммы тёмной темы.
+   *
+   * Неактивная строка затемняется от полосы: на тёмной стороне выбор читается
+   * по светлоте, и «тише фона» — значит темнее, а не светлее. */
+  --tab-active-surface: var(--hover-fill);
+  --tab-inactive-surface: color-mix(in oklab, var(--app-bar-strip) 75%, #000);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #24221e;
   --foreground: #ede7df;
@@ -510,7 +512,8 @@
   /* Наведение и выбор: тон палитры. */
   --hover-fill: #262f3b;
   --selected-fill: #3d4753;
-  --tab-active-surface: color-mix(in oklab, var(--foreground) 10%, var(--selected-fill));
+  --tab-active-surface: var(--hover-fill);
+  --tab-inactive-surface: color-mix(in oklab, var(--app-bar-strip) 75%, #000);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #1a232e;
   --foreground: #e3e8f0;
@@ -587,7 +590,8 @@
    * и не сочетался ни с одним пользовательским цветом. */
   --hover-fill: #352c26;
   --selected-fill: #4e453e;
-  --tab-active-surface: color-mix(in oklab, var(--foreground) 10%, var(--selected-fill));
+  --tab-active-surface: var(--hover-fill);
+  --tab-inactive-surface: color-mix(in oklab, var(--app-bar-strip) 75%, #000);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #28201a;
   --foreground: #f8e4d4;
@@ -673,7 +677,8 @@
   /* Наведение и выбор: тон палитры. */
   --hover-fill: #2c2e31;
   --selected-fill: #444649;
-  --tab-active-surface: color-mix(in oklab, var(--foreground) 10%, var(--selected-fill));
+  --tab-active-surface: var(--hover-fill);
+  --tab-inactive-surface: color-mix(in oklab, var(--app-bar-strip) 75%, #000);
   /* Полоса под шапкой: ступень в тоне палитры. */
   --app-bar-strip: #202225;
   --foreground: #eaebed;

@@ -108,12 +108,24 @@ test('на панели вкладки имя вкладки, а без него
   await page.getByLabel('Название вкладки').fill('Черновик');
   await page.getByLabel('Сохранить').click();
 
-  await expect(active.getByTestId('workplace-tab')).toHaveText('Черновик');
+  // Первой строкой остаётся книга, своё имя встаёт под ней второй строкой.
+  await expect(active.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+  await expect(active.getByTestId('workplace-tab-name')).toHaveText('Черновик');
+  // Вторая строка набрана мельче первой.
+  const [bookSize, nameSize] = await active.evaluate((el) => [
+    Number.parseFloat(getComputedStyle(el.querySelector('[data-testid="workplace-tab"]')!).fontSize),
+    Number.parseFloat(getComputedStyle(el.querySelector('[data-testid="workplace-tab-name"]')!).fontSize),
+  ]);
+  expect(nameSize).toBeLessThan(bookSize);
   // Подсказка по-прежнему называет книгу: по одному имени вкладки её не узнать.
   await expect(active.getByTestId('workplace-active-title')).toHaveAttribute(
     'title',
     'Черновик (Демо-книга)',
   );
+  // В списке слева тот же порядок: книга первой строкой, имя ниже.
+  const row = page.getByTestId('open-books-item').first();
+  await expect(row.getByTestId('open-books-item-book')).toHaveText('Демо-книга');
+  await expect(row.getByTestId('open-books-item-name')).toHaveText('Черновик');
 });
 
 test('путь в строке книги — та же врезка с копированием, что на странице книги', async ({
@@ -547,14 +559,17 @@ test('правка оформления вкладки видна и в спис
   await panel.getByLabel('Оформление вкладки').click();
   await page.getByTestId('menu-icon-star').click();
 
-  // Панель списка: имя, иконка и описание отдельной строкой.
+  // Панель списка: книгу первой строкой, своё имя и описание ниже.
   await expect(panel.getByRole('button', { name: /Черновик/ })).toBeVisible();
+  await expect(panel.getByTestId('open-books-item-book')).toHaveText('Демо-книга');
+  await expect(panel.getByTestId('open-books-item-name')).toHaveText('Черновик');
   await expect(panel.getByTestId('open-books-item-description')).toHaveText('сравнение глав');
 
-  // Панель активной вкладки: та же подпись и иконка; в подсказке — книга.
+  // Панель активной вкладки устроена так же: книга первой строкой, имя ниже,
+  // иконка стоит у книги.
   const active = page.getByTestId('workplace-active-tab');
-  await expect(active.getByTestId('workplace-tab')).toHaveText('Черновик');
-  await expect(active.getByTestId('workplace-tab').locator('svg')).toHaveCount(0);
+  await expect(active.getByTestId('workplace-tab')).toHaveText('Демо-книга');
+  await expect(active.getByTestId('workplace-tab-name')).toHaveText('Черновик');
   await expect(active.locator('[title="Черновик (Демо-книга)"]')).toHaveCount(1);
   await expect(active.locator('svg').first()).toBeVisible();
 });

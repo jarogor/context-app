@@ -57,12 +57,13 @@ function declaration(name: string): string {
 
 /** Блоки тем: у каждого объявлен фон полосы — это все восемь наборов. */
 function themeBlocks(): Array<{ name: string; dark: boolean; block: string }> {
-  return Array.from(tokens.matchAll(/:root([^{]*)\{([\s\S]*?)\n\}/g))
+  // Комментарии снимаются: в них упоминается селектор тёмной стороны, и
+  // проверка по селектору иначе срабатывала бы на светлом блоке.
+  const source = tokens.replace(/\/\*[\s\S]*?\*\//g, '');
+  return Array.from(source.matchAll(/:root([^{]*)\{([\s\S]*?)\n\}/g))
     .map((match) => ({
       name: match[1].trim() || 'по умолчанию',
-      // Тёмную сторону определяет объявленная ступень активной строки: в
-      // светлой она берётся из общего токена карточки, в тёмной — своя.
-      dark: match[2].includes('--tab-active-surface: color-mix'),
+      dark: /data-theme='dark'/.test(match[1]),
       block: match[2],
     }))
     .filter(({ block }) => block.includes('--app-bar-strip:'));
@@ -87,11 +88,9 @@ describe('ступени строк списков во всех наборах 
     dark: boolean,
   ): { panel: string; inactive: string; hover: string; active: string } {
     const panel = color(block, 'app-bar-strip');
-    // Светлая сторона: активная — карточка. Тёмная: ступень выделения,
-    // поднятая к цвету текста, — иначе активная почти совпадала с полосой.
-    const active = dark
-      ? mix(color(block, 'foreground'), color(block, 'selected-fill'), 0.1)
-      : color(block, 'card');
+    // Светлая сторона: активная — карточка. Тёмная: ступень выделения; она
+    // заметно светлее полосы и не выбивается из гаммы, как подмешивание текста.
+    const active = dark ? color(block, 'selected-fill') : color(block, 'card');
     // Неактивная — тихая ступень наведения, курсор — середина до выбранной.
     const inactive = color(block, 'hover-fill');
     const hover = mix(active, panel, 0.5);

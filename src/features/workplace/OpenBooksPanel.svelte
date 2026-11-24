@@ -28,7 +28,14 @@
   import { noteColorLabel, NOTE_COLOR_SWATCHES } from '../notes/notes';
   import { pushDismissLayer } from '../hotkeys/dismiss-layer';
   import { openBookFile } from '../reader/reader';
-  import { tabColorMark, tabFormatLabel, tabLabel, tabTooltip } from './tab-appearance';
+  import {
+    tabBookTitle,
+    tabColorMark,
+    tabCustomName,
+    tabFormatLabel,
+    tabLabel,
+    tabTooltip,
+  } from './tab-appearance';
   import { trackPointerDrag } from './pointer-drag';
   import { hotkeyHint } from '../hotkeys/registry';
 
@@ -255,17 +262,7 @@
    */
   function metaItems(tab: WorkspaceTab): MetaItem[] {
     const items: MetaItem[] = [];
-    const book = tab.title.trim();
-    if (book && book !== tabLabel(tab)) {
-      // Название книги под чужим именем вкладки — главное, по чему вкладку
-      // узнают, поэтому оно выделено начертанием, а не тонет в мелкой строке.
-      items.push({
-        icon: 'book',
-        value: book,
-        strong: true,
-        title: t('app.workplace.tab.book', { book }),
-      });
-    }
+    // Книга названа первой строкой вкладки — в метаинформации её не повторяем.
     if (tab.path) {
       items.push({
         badge: tabFormatLabel(tab),
@@ -506,11 +503,32 @@
             data-testid="open-books-item-number"
             >{tabNumber(tab.id)}</span
           >
-          <span class="flex min-w-0 flex-1 items-center gap-2 truncate text-left role-body">
-            {#if tab.icon}
-              <Icon name={tab.icon} class="h-3.5 w-3.5 flex-none" />
+          <!--
+            Иконка стоит в одной строке с названием книги; ниже идут своё имя
+            и описание — без отступа слева, от того же края, что и иконка.
+          -->
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+            <span class="flex min-w-0 items-center gap-1.5 role-body">
+              {#if tab.icon}
+                <Icon name={tab.icon} class="h-3.5 w-3.5 flex-none" />
+              {/if}
+              <span class="min-w-0 truncate" data-testid="open-books-item-book"
+                >{tabBookTitle(tab)}</span
+              >
+            </span>
+            {#if tabCustomName(tab)}
+              <span class="min-w-0 truncate role-caption" data-testid="open-books-item-name"
+                >{tabCustomName(tab)}</span
+              >
             {/if}
-            <span class="min-w-0 flex-1 truncate">{tabLabel(tab)}</span>
+            {#if tab.description}
+              <p
+                class="pointer-events-none m-0 whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
+                data-testid="open-books-item-description"
+              >
+                {tab.description}
+              </p>
+            {/if}
           </span>
           <RowActions class="pointer-events-auto">
             <ActionMenu
@@ -529,14 +547,7 @@
             />
           </RowActions>
         </div>
-        {#if tab.description}
-          <p
-            class="pointer-events-none whitespace-pre-wrap break-words pb-1.5 role-caption text-[var(--muted-foreground)]"
-            data-testid="open-books-item-description"
-          >
-            {tab.description}
-          </p>
-        {/if}
+
         <!--
           Форма правки стоит сразу под описанием и выше сведений о книге: она
           меняет то, что пользователь видит первым, и не должна оказаться ниже

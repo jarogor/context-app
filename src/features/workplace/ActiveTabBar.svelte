@@ -2,7 +2,7 @@
   import { t } from '@context/i18n';
   import { Button, Icon } from '@context/ui';
   import type { WorkspaceTab } from './workplace';
-  import { tabColorMark, tabLabel, tabTooltip } from './tab-appearance';
+  import { tabBookTitle, tabColorMark, tabCustomName, tabTooltip } from './tab-appearance';
   import { hotkeyHint } from '../hotkeys/registry';
 
   interface Props {
@@ -73,7 +73,7 @@
   вкладка открывает сразу всё пространство работы с книгой.
 -->
 <div
-  class="flex flex-none flex-wrap items-center gap-x-2 gap-y-1 overflow-hidden bg-[var(--app-bar-strip)] px-2 py-2 large-tablet:flex-nowrap large-tablet:gap-x-3 large-tablet:px-3 [--control-surface:var(--strip-control-surface)]"
+  class="flex flex-none flex-wrap items-center gap-x-2 gap-y-1 overflow-hidden bg-[var(--app-bar-strip)] px-2 large-tablet:flex-nowrap large-tablet:gap-x-3 large-tablet:px-3 [--control-surface:var(--strip-control-surface)]"
   data-testid="workplace-tabs"
 >
   <!--
@@ -81,7 +81,7 @@
     Это действия над открытой книгой, поэтому они стоят рядом с её названием.
     Открытие новой книги живёт в панели вкладок: новую вкладку создаёт книга.
   -->
-  <div class="flex flex-none items-center gap-0.5" data-testid="workplace-open-actions">
+  <div class="flex flex-none items-center gap-0.5 py-2" data-testid="workplace-open-actions">
     <Button
       variant={booksOpen ? 'primary' : 'ghost'}
       size="icon"
@@ -119,13 +119,14 @@
 
   {#if tab}
     <!--
-      Активная вкладка панели оформлена как выбранная строка списка слева:
-      та же поверхность (`--tab-active-surface`), то же скругление и отступы.
-      Одного текста рядом с кнопками было мало — подпись сливалась с ними, и
-      было не понять, что книга открыта. Цвет вкладки остаётся на номере.
+      Активная вкладка — не отдельная плашка внутри панели, а её собственная
+      секция: заливка идёт от края до края по высоте панели, поля дают воздух
+      содержимому, а не уменьшают его. Поэтому две строки подписи не растягивают
+      панель: место занимает сама секция, а не её внешние отступы.
+      Цвет вкладки остаётся на номере.
     -->
     <div
-      class="flex min-w-0 flex-1 items-center gap-2 rounded-[var(--radius)] bg-[var(--tab-active-surface)] px-2.5 py-1.5 text-[var(--tab-active-foreground)]"
+      class="flex min-w-0 flex-1 items-center gap-2 self-stretch bg-[var(--tab-active-surface)] px-2 text-[var(--tab-active-foreground)] large-tablet:px-3"
       style={mark ? `--tab-mark-fill: ${mark.fill}; --tab-mark-ink: ${mark.ink};` : ''}
       data-testid="workplace-active-tab"
     >
@@ -140,22 +141,28 @@
         data-testid="workplace-tab-number"
         >{tabNumber}</span
       >
+      <!--
+        Иконка, название книги и своё имя стоят в одном столбце: иконка в
+        строке книги, имя ниже — без отступа слева, от того же края.
+      -->
       <span
-        class="flex min-w-0 flex-1 items-center gap-1.5"
+        class="flex min-w-0 flex-1 flex-col gap-0.5"
         title={tabTooltip(tab)}
         data-testid="workplace-active-title"
       >
-        {#if tab.icon}
-          <Icon name={tab.icon} class="size-4 shrink-0" />
+        <span class="flex min-w-0 items-center gap-1.5">
+          {#if tab.icon}
+            <Icon name={tab.icon} class="size-4 shrink-0" />
+          {/if}
+          <span class="min-w-0 truncate role-subtitle" data-testid="workplace-tab"
+            >{tabBookTitle(tab)}</span
+          >
+        </span>
+        {#if tabCustomName(tab)}
+          <span class="min-w-0 truncate role-caption" data-testid="workplace-tab-name"
+            >{tabCustomName(tab)}</span
+          >
         {/if}
-        <!--
-          Подпись — имя вкладки, если оно задано, иначе название книги. Путь
-          переехал в строку книги: он нужен реже и не должен делить место с
-          названием.
-        -->
-        <span class="min-w-0 truncate role-subtitle" data-testid="workplace-tab"
-          >{tabLabel(tab)}</span
-        >
       </span>
     </div>
   {:else}
@@ -169,7 +176,7 @@
     книгу, а не действует на текущую.
   -->
   <div
-    class="ml-auto flex flex-none items-center gap-0.5 large-tablet:ml-0"
+    class="ml-auto flex flex-none items-center gap-0.5 py-2 large-tablet:ml-0"
     data-testid="workplace-tabs-actions"
   >
     <!--
