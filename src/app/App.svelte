@@ -306,6 +306,14 @@
   /** Открыта ли панель свойств файла. */
   let propertiesPanelOpen = $state(false);
 
+  /** Открыта ли панель поиска по книге.
+   *
+   * Поиск — своя панель, а не раздел панели книги: его кнопка не должна
+   * зажигать кнопку книги, а в дальнейшем он расширится до поиска по всем
+   * книгам. Панели занимают одно место, поэтому открыта всегда одна.
+   */
+  let searchPanelOpen = $state(false);
+
   /** Выбранная вкладка панели свойств файла; `null` — первая доступная. */
   let propertiesTab: PropertiesTabId | null = $state(null);
 
@@ -373,7 +381,11 @@
 
   /** Читалка активной вкладки для перехода к заметке. */
   let reader:
-    | { goto: (note: Note) => void; hideAnnotations?: () => void; closeBookSearch?: () => void }
+    | {
+        goto: (note: Note) => void;
+        hideAnnotations?: () => void;
+        closeBookSearch?: () => void;
+      }
     | undefined = $state();
 
   /** Реестр рабочих мест и активное место (загружен до первого рендера). */
@@ -735,15 +747,44 @@
     booksPanelOpen = !booksPanelOpen;
     if (booksPanelOpen) {
       notesPanelOpen = false;
+      if (searchPanelOpen) {
+        searchPanelOpen = false;
+        reader?.closeBookSearch?.();
+      }
       if (propertiesPanelOpen) {
-        // Поиск живёт в панели книги: при переходе к вкладкам он закрывается,
-        // иначе его кнопка остаётся нажатой без своей панели.
         propertiesPanelOpen = false;
         reader?.hideAnnotations?.();
         reader?.closeBookSearch?.();
       }
       propertiesTab = null;
     }
+  }
+
+  /**
+   * Открытие панели поиска по книге.
+   *
+   * Открытие поиска закрывает остальные панели: место у книги одно. Функция
+   * только открывает: её зовут и кнопка, и эффект читалки, поэтому повторный
+   * вызов не должен закрывать уже открытую панель.
+   */
+  function openSearchPanel() {
+    if (searchPanelOpen) {
+      return;
+    }
+    searchPanelOpen = true;
+    booksPanelOpen = false;
+    notesPanelOpen = false;
+    if (propertiesPanelOpen) {
+      propertiesPanelOpen = false;
+      propertiesTab = null;
+      reader?.hideAnnotations?.();
+    }
+  }
+
+  /** Закрытие панели поиска вместе с подсветкой найденного. */
+  function closeSearchPanel() {
+    searchPanelOpen = false;
+    reader?.closeBookSearch?.();
   }
 
   /** Переключение панели заметок. */
@@ -765,6 +806,10 @@
   function openNotesPanel() {
     notesPanelOpen = true;
     booksPanelOpen = false;
+    if (searchPanelOpen) {
+      searchPanelOpen = false;
+      reader?.closeBookSearch?.();
+    }
     if (propertiesPanelOpen) {
       propertiesPanelOpen = false;
       reader?.hideAnnotations?.();
@@ -780,12 +825,14 @@
     if (propertiesPanelOpen) {
       booksPanelOpen = false;
       notesPanelOpen = false;
+      if (searchPanelOpen) {
+        searchPanelOpen = false;
+        reader?.closeBookSearch?.();
+      }
     } else {
       // Закрытие панели снимает показ встроенных пометок активной вкладки:
-      // без панели у них не осталось бы управления. Поиск закрывается там же:
-      // он живёт в этой панели.
+      // без панели у них не осталось бы управления.
       reader?.hideAnnotations?.();
-      reader?.closeBookSearch?.();
     }
   }
 
@@ -1474,6 +1521,9 @@
           booksOpen={booksPanelOpen}
           notesOpen={notesPanelOpen}
           propertiesOpen={propertiesPanelOpen}
+          searchOpen={searchPanelOpen}
+          onOpenSearchPanel={openSearchPanel}
+          onCloseSearch={closeSearchPanel}
           propertiesTab={propertiesTab}
           notes={notesController.items}
           noteSets={notesController.sets}

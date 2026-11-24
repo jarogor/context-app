@@ -197,16 +197,21 @@ test('меню создания заметки закрывается клико
   await expect(page.getByTestId('quote-menu')).toHaveCount(0);
 });
 
-test('кнопка поиска гаснет, когда панель книги уступает место другой', async ({ page }) => {
+test('кнопка поиска гаснет, когда панель поиска уступает место другой', async ({ page }) => {
   await page.goto('/');
   await addBook(page, 'Демо-книга');
 
-  // Поиск открывает панель книги и зажигает свою кнопку.
+  // Поиск открывает свою панель и зажигает свою кнопку; кнопка книги при этом
+  // не нажата — это разные панели.
   await page.getByTestId('reader-search-toggle').click();
-  await expect(page.getByTestId('properties-panel')).toBeVisible();
+  await expect(page.getByTestId('search-panel')).toBeVisible();
   await expect(page.getByTestId('reader-search-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('workplace-properties-toggle')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 
-  // Переход к вкладкам закрывает панель книги: кнопка поиска больше не нажата.
+  // Переход к вкладкам закрывает панель поиска: кнопка поиска больше не нажата.
   await page.getByTestId('workplace-books-toggle').click();
   await expect(page.getByTestId('open-books-panel')).toBeVisible();
   await expect(page.getByTestId('reader-search-toggle')).toHaveAttribute('aria-pressed', 'false');

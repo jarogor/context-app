@@ -79,7 +79,7 @@
     /** Видима ли область рабочего места. */
     visible: boolean;
     /** Какая боковая панель области открыта: смена закрывает меню заметки. */
-    panel?: 'books' | 'notes' | 'properties' | null;
+    panel?: 'books' | 'notes' | 'properties' | 'search' | null;
     /** Регистрация читалки вкладки в оболочке. */
     onReader?: (tabId: string, reader: TabReader | null) => void;
     /** Сообщение об изменении состояния чтения. */

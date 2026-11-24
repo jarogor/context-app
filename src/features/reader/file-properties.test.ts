@@ -125,8 +125,9 @@ describe('вкладки панели свойств', () => {
       chapters: [{ index: 0, title: 'Глава' }],
     };
     expect(propertyTabs(flowing)).toEqual(['contents']);
-    // Поиск — режим: его вкладка появляется, только пока поиск открыт.
-    expect(propertyTabs(flowing, true)).toEqual(['contents', 'search']);
+    // Поиск — своя панель, а не вкладка панели книги: среди разделов файла
+    // его нет ни в одном состоянии.
+    expect(propertyTabs(flowing)).not.toContain('search');
   });
 
   it('не показывает превью и пометки без поддержки формата', () => {

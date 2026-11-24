@@ -875,12 +875,15 @@ describe('комбинации клавиш в оболочке', () => {
     await waitFor(() => expect(screen.getByTestId('workplace-tab-page')).toBeTruthy());
 
     await fireEvent.keyDown(window, { key: 'f', code: 'KeyF', ctrlKey: true });
-    // Поиск живёт на вкладке панели книги: панель открывается вместе с ним.
-    expect(screen.getByTestId('properties-panel')).toBeTruthy();
+    // Поиск — своя панель: панель книги при этом не открывается, иначе
+    // нажатыми оказались бы две кнопки сразу.
+    expect(screen.getByTestId('search-panel')).toBeTruthy();
+    expect(screen.queryByTestId('properties-panel')).toBeNull();
     expect(screen.getByTestId('reader-search')).toBeTruthy();
 
     await fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
-    // Escape снимает поиск: вкладка остаётся, поля запроса больше нет.
+    // Escape снимает поиск вместе с его панелью.
     expect(screen.queryByTestId('reader-search')).toBeNull();
+    expect(screen.queryByTestId('search-panel')).toBeNull();
   });
 });

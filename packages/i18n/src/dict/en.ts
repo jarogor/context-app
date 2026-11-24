@@ -598,7 +598,6 @@ export const en: Dictionary = {
   'app.bookBar.view': 'Book appearance',
   'app.bookBar.tool': 'Note',
   'app.bookBar.zoomPreset': 'Zoom {value}%',
-  'app.bookDock.search': 'Search',
   'app.bookDock.title': 'Book',
   'app.bookDock.tabs': 'Book sections',
 

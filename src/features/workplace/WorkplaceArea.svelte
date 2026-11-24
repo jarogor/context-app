@@ -10,6 +10,7 @@
   import { EmptyState } from '@context/ui';
   import { activeTab } from './workplace';
   import FilePropertiesPanel from '../reader/FilePropertiesPanel.svelte';
+  import SearchPanel from '../reader/SearchPanel.svelte';
   import { emptyProperties } from '../reader/file-properties';
   import { formatFromPath } from '../reader/reader';
   import type {
@@ -53,6 +54,12 @@
     notesOpen: boolean;
     /** Открыта ли панель свойств файла. */
     propertiesOpen?: boolean;
+    /** Открыта ли панель поиска по книге. */
+    searchOpen?: boolean;
+    /** Открытие панели поиска по книге. */
+    onOpenSearchPanel?: () => void;
+    /** Закрытие панели поиска по книге. */
+    onCloseSearch?: () => void;
     /** Выбранная вкладка панели свойств. */
     propertiesTab?: PropertiesTabId | null;
     /** Снимки свойств открытых книг по идентификатору вкладки. */
@@ -169,6 +176,9 @@
     booksOpen,
     notesOpen,
     propertiesOpen = false,
+    searchOpen = false,
+    onOpenSearchPanel,
+    onCloseSearch,
     propertiesTab = null,
     propertiesByTab = {},
     onToggleProperties,
@@ -378,7 +388,12 @@
     }
   }
 
-  /** Переключение поиска по книге: он живёт на вкладке панели книги. */
+  /** Переключение панели поиска по книге.
+   *
+   * Поиск — отдельная панель, а не вкладка панели книги: это действие над
+   * книгой, и оно не должно зажигать чужие кнопки. Панели занимают одно место,
+   * поэтому открытие поиска закрывает остальные.
+   */
   function toggleSearchInDock() {
     if (!tab) {
       return;
@@ -387,10 +402,7 @@
       readers.get(tab.id)?.closeFooterSearch();
       return;
     }
-    if (!propertiesOpen) {
-      onToggleProperties?.();
-    }
-    onSelectPropertiesTab?.('search');
+    onOpenSearchPanel?.();
     readers.get(tab.id)?.openFooterSearch();
   }
 
@@ -409,20 +421,22 @@
   }
 
   /**
-   * Поиск, открытый клавишей, показывает свою вкладку.
+   * Поиск, открытый клавишей, показывает свою панель.
    *
-   * Поиском владеет читалка (она его выполняет), а показывает его панель книги.
-   * Эффект реагирует только на переход «закрыт → открыт», поэтому выбор другой
-   * вкладки панели не возвращает поиск обратно.
+   * Поиском владеет читалка (она его выполняет), а показывает его оболочка.
+   * Эффект реагирует на переход «закрыт → открыт», поэтому кнопка панели не
+   * дёргает уже открытый поиск.
    */
   let searchWasOpen = $state(false);
   $effect(() => {
     const open = activeFooter?.searchOpen === true;
     if (open && !searchWasOpen) {
-      if (!propertiesOpen) {
-        onToggleProperties?.();
-      }
-      onSelectPropertiesTab?.('search');
+      onOpenSearchPanel?.();
+    }
+    // Поиск закрылся в читалке (Escape или снятие запроса) — его панель уходит
+    // вместе с ним: панель показывает то, чего уже нет.
+    if (!open && searchWasOpen && searchOpen) {
+      onCloseSearch?.();
     }
     searchWasOpen = open;
   });
@@ -444,9 +458,9 @@
   /**
    * Закрытие поиска по книге активной вкладки.
    *
-   * Поиск живёт в панели книги: когда панель закрывают или уступают место
-   * другой, поиск должен закрыться вместе с ней. Иначе его кнопка в строке
-   * книги остаётся нажатой при открытой чужой панели.
+   * Поиск — своя панель: когда её закрывают или она уступает место другой,
+   * поиск должен закрыться вместе с ней. Иначе его кнопка в строке книги
+   * остаётся нажатой при открытой чужой панели.
    */
   export function closeBookSearch() {
     if (tab) {
@@ -660,7 +674,7 @@
       onToggleBooks={onToggleBooks}
       onToggleNotes={onToggleNotes}
       onToggleProperties={() => onToggleProperties?.()}
-      searchOpen={activeFooter?.searchOpen ?? false}
+      searchOpen={searchOpen}
       onToggleSearch={toggleSearchInDock}
     />
     <div class="relative flex min-h-0 flex-1 flex-col">
@@ -702,6 +716,16 @@
             onRemoveSet={onRemoveSet}
             onClose={onCloseNotes}
           />
+        {:else if searchOpen}
+          <SearchPanel
+            query={activeFooter?.searchQuery ?? ''}
+            state={activeFooter?.searchState ?? EMPTY_SEARCH_STATE}
+            busy={activeFooter?.searchBusy ?? false}
+            error={activeFooter?.searchError ?? null}
+            onQuery={setSearchQuery}
+            onStep={stepSearch}
+            onClose={() => (onCloseSearch ? onCloseSearch() : closeBookSearch())}
+          />
         {:else if propertiesOpen}
           <!--
             Панель открывается и до того, как пришли свойства вкладки: иначе
@@ -717,13 +741,6 @@
               snapshot={activeProperties ?? emptyProperties(formatFromPath(tab?.path ?? ''))}
               tab={propertiesTab}
               currentPage={activeFooter?.page ?? null}
-                searchQuery={activeFooter?.searchQuery ?? ''}
-              searchState={activeFooter?.searchState ?? EMPTY_SEARCH_STATE}
-              searchBusy={activeFooter?.searchBusy ?? false}
-              searchError={activeFooter?.searchError ?? null}
-              searchVisible={activeFooter?.searchOpen ?? false}
-              onSearchQuery={setSearchQuery}
-              onSearchStep={stepSearch}
               onGoToChapter={goToChapter}
               onGoToBookmark={goToBookmark}
               onGoToPage={goToFilePage}
@@ -803,7 +820,17 @@
                     {palette}
                     active={item.id === workspace.activeTabId}
                     visible={visible && item.id === workspace.activeTabId && !listMode}
-                    panel={notesOpen ? 'notes' : propertiesOpen ? 'properties' : booksOpen ? 'books' : null}
+                    panel={
+                      notesOpen
+                        ? 'notes'
+                        : searchOpen
+                          ? 'search'
+                          : propertiesOpen
+                            ? 'properties'
+                            : booksOpen
+                              ? 'books'
+                              : null
+                    }
                     onReader={registerReader}
                     onStateChange={(state) => onTabState(item.id, state)}
                     onFooter={(snapshot) => handleFooter(item.id, snapshot)}

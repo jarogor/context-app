@@ -580,7 +580,6 @@ export const ru = {
   'app.bookBar.view': 'Вид книги',
   'app.bookBar.tool': 'Заметка',
   'app.bookBar.zoomPreset': 'Масштаб {value}%',
-  'app.bookDock.search': 'Поиск',
   'app.bookDock.title': 'Книга',
   'app.bookDock.tabs': 'Разделы книги',
 

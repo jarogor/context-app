@@ -232,7 +232,7 @@ test('переключатель меняет тему области чтени
   await expect(readerHtml).toHaveAttribute('data-reader-theme', 'light');
 });
 
-test('поиск по книге: поле на панели книги, короткий запрос не ищется, найденное подсвечено', async ({
+test('поиск по книге: своя панель, короткий запрос не ищется, найденное подсвечено', async ({
   page,
 }) => {
   await openWorkplace(page);
@@ -241,10 +241,14 @@ test('поиск по книге: поле на панели книги, кор�
   const reader = page.frameLocator('iframe[title="Содержимое книги"]');
   const field = search.getByRole('textbox', { name: 'Поиск по книге' });
 
-  // Поиск живёт на своей вкладке панели книги, а не плавает над текстом:
-  // панель открыта, и книга остаётся видимой рядом с ней.
-  await expect(page.getByTestId('properties-panel')).toBeVisible();
-  await expect(page.getByTestId('properties-tab-search')).toHaveAttribute('aria-selected', 'true');
+  // Поиск — своя панель, а не раздел панели книги: книга остаётся видимой
+  // рядом, а кнопка книги не зажигается вместе с поиском.
+  await expect(page.getByTestId('search-panel')).toBeVisible();
+  await expect(page.getByTestId('properties-panel')).toHaveCount(0);
+  await expect(page.getByTestId('workplace-properties-toggle')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 
   // Пока результата нет, счётчика нет вовсе: он не резервирует место справа
   // от поля, и поле тянется до кнопок без пустоты.

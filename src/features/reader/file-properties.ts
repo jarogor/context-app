@@ -115,7 +115,7 @@ export interface FilePropertiesSnapshot {
 }
 
 /** Вкладка панели книги: разделы файла и поиск по тексту. */
-export type PropertiesTabId = 'contents' | 'search' | 'bookmarks' | 'pages' | 'annotations';
+export type PropertiesTabId = 'contents' | 'bookmarks' | 'pages' | 'annotations';
 
 /** Пустой снимок свойств для книги, которая ещё не открыта. */
 export function emptyProperties(format = ''): FilePropertiesSnapshot {
@@ -279,19 +279,11 @@ export function mergeFileAnnotations(
  * оглавлением, закладки — у страничных с встроенными закладками, превью и
  * пометки — у форматов, которые их умеют.
  *
- * @param searchVisible Открыт ли поиск: это режим, а не раздел файла, поэтому
- * его вкладка живёт, только пока поиск открыт.
  */
-export function propertyTabs(
-  snapshot: FilePropertiesSnapshot,
-  searchVisible = false,
-): PropertiesTabId[] {
+export function propertyTabs(snapshot: FilePropertiesSnapshot): PropertiesTabId[] {
   const tabs: PropertiesTabId[] = [];
   if (snapshot.chapters.length > 0) {
     tabs.push('contents');
-  }
-  if (searchVisible) {
-    tabs.push('search');
   }
   if (!snapshot.flowing && snapshot.bookmarksSupported) {
     tabs.push('bookmarks');
