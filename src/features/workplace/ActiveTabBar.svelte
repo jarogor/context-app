@@ -115,6 +115,23 @@
     >
       <Icon name="book" />
     </Button>
+    <!--
+      Поиск по книге стоит сразу за её панелями: это действие над открытой
+      книгой, поэтому оно в одном ряду с вкладками, заметками и свойствами.
+    -->
+    {#if onToggleSearch}
+      <Button
+        size="icon"
+        variant={searchOpen ? 'primary' : 'ghost'}
+        title={hotkeyHint('reader.search', t('app.reader.searchShort'))}
+        ariaLabel={t('app.reader.searchShort')}
+        ariaPressed={searchOpen}
+        testId="reader-search-toggle"
+        onclick={onToggleSearch}
+      >
+        <Icon name="search" />
+      </Button>
+    {/if}
   </div>
 
   {#if tab}
@@ -179,25 +196,6 @@
     class="ml-auto flex flex-none items-center gap-0.5 py-2 large-tablet:ml-0"
     data-testid="workplace-tabs-actions"
   >
-    <!--
-      Работа с текстом книги: поиск. Раньше кнопки инструмента заметки и
-      гарнитуры стояли здесь; они переехали в область чтения, потому что
-      относятся к самой странице книги.
-    -->
-    {#if onToggleSearch}
-      <Button
-        size="icon"
-        variant={searchOpen ? 'primary' : 'ghost'}
-        title={hotkeyHint('reader.search', t('app.reader.searchShort'))}
-        ariaLabel={t('app.reader.searchShort')}
-        ariaPressed={searchOpen}
-        testId="reader-search-toggle"
-        onclick={onToggleSearch}
-      >
-        <Icon name="search" />
-      </Button>
-    {/if}
-
     {#if onToggleFocus}
       <Button
         variant={focusMode ? 'primary' : 'ghost'}
