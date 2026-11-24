@@ -29,11 +29,8 @@ import {
   normalizeShapeKind,
   normalizeType,
   NOTE_COLORS,
-  NOTE_COLOR_HIGHLIGHTS,
-  NOTE_COLOR_SWATCHES,
-  noteHighlights,
-  noteMarkerColor,
   NOTE_TYPES,
+  noteColorMark,
   renameSet,
   resolveActiveSetId,
   setActiveSet,
@@ -174,27 +171,17 @@ describe('нормализация', () => {
     expect(normalizeShapeKind('hexagon')).toBe(DEFAULT_SHAPE_KIND);
   });
 
-  it('метка заметки берёт один мягкий тон по цвету', () => {
-    // Вид заметки на странице и метка в списке совпадают: жёлтая заметка
-    // светло-жёлтая и для цитаты, и для текста, и для фигуры, поэтому тип
-    // на цвет метки не влияет.
-    expect(noteMarkerColor({ color: 'yellow' })).toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
-    expect(noteMarkerColor({ color: 'purple' })).toBe(NOTE_COLOR_HIGHLIGHTS.purple);
-    // Насыщенный акцент остаётся только у образцов выбора цвета.
-    expect(NOTE_COLOR_SWATCHES.yellow).not.toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
-  });
-
-  it('метка заметки следует стороне темы области чтения', () => {
-    const dark = noteMarkerColor({ color: 'yellow' }, 'dark', 'linen');
-    const light = noteMarkerColor({ color: 'yellow' }, 'light', 'linen');
-    expect(dark).not.toBe(light);
-    expect(light).toBe(NOTE_COLOR_HIGHLIGHTS.yellow);
-    // Тёмная сторона задана и различима для всех цветов.
-    const tones = noteHighlights('dark', 'linen');
+  it('метка заметки задаёт заливку и подпись для любого типа', () => {
+    // Вид заметки один на все типы: цитата, текст и фигура берут одну пару
+    // «заливка и подпись». Синий плотный и подписан светлым, остальные цвета
+    // светлые и подписаны тёмным — как их выделение на странице.
+    const blue = noteColorMark('blue');
+    expect(blue.fill).toContain('--note-mark-blue-fill');
+    expect(blue.ink).toContain('--note-mark-blue-ink');
     for (const color of NOTE_COLORS) {
-      expect(tones[color]).toBeTruthy();
-      expect(tones[color]).not.toBe(NOTE_COLOR_HIGHLIGHTS[color]);
-      expect(noteMarkerColor({ color }, 'dark', 'linen')).toBe(tones[color]);
+      const mark = noteColorMark(color);
+      expect(mark.fill, color).toContain(`--note-mark-${color}-fill`);
+      expect(mark.ink, color).toContain(`--note-mark-${color}-ink`);
     }
   });
 

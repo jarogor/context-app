@@ -9,12 +9,7 @@ import { t } from '@context/i18n';
 import {
   ACCENT_COLORS,
   ACCENT_COLOR_SWATCHES,
-  DEFAULT_PALETTE,
-  DEFAULT_READER_THEME,
-  readerThemeNoteTones,
   type AccentMarkStyle,
-  type PaletteId,
-  type ReaderThemeId,
 } from '@context/ui';
 
 /** Идентификатор активной библиотеки в ключе книги. */
@@ -50,43 +45,10 @@ export function noteColorLabel(color: NoteColor): string {
 /** Насыщенные акценты палитры: образцы выбора цвета (панель, меню, список).
  *
  * Один набор на все области выбора: насыщенные базовые цвета, чтобы образец
- * был узнаваем. Сам вид заметки на странице и её метка в списке берут мягкий тон
- * (`NOTE_COLOR_HIGHLIGHTS`), а не этот акцент.
+ * был узнаваем. Вид заметки на странице и её метка в списке берут плотную
+ * ступень палитры (`--note-mark-*`), а не этот образец.
  */
 export const NOTE_COLOR_SWATCHES: Record<NoteColor, string> = ACCENT_COLOR_SWATCHES;
-
-/** Мягкие тона заметок: фон цитаты, заливка фигуры и карточки, метка списка.
- *
- * Один набор на все типы и области: заметка видна, но не затемняет текст.
- * Тот же тон используется и как цвет карточки, и как метка в списке, поэтому
- * жёлтая заметка выглядит жёлтой одинаково везде — и в книге, и в списке.
- *
- * Значения заданы дизайн-системой (`@context/ui`) по палитре и стороне темы
- * области чтения: цвет заметки следует выбранной теме, как и оформление чтения книги.
- */
-export function noteHighlights(
-  readerTheme: ReaderThemeId = DEFAULT_READER_THEME,
-  palette: PaletteId = DEFAULT_PALETTE,
-): Record<NoteColor, string> {
-  return readerThemeNoteTones(palette, readerTheme);
-}
-
-/** Мягкие тона заметок светлой стороны: значения по умолчанию для совместимости. */
-export const NOTE_COLOR_HIGHLIGHTS: Record<NoteColor, string> = noteHighlights();
-
-/** Цвет метки заметки в списке: он совпадает с её видом на странице.
- *
- * Заметка любого типа показывается мягким тоном (подсветка цитаты, заливка
- * фигуры, фон карточки), поэтому и метка в списке мягкая — жёлтая заметка
- * одинакова в списке и в книге. Тон берётся из темы области чтения.
- */
-export function noteMarkerColor(
-  note: { color: NoteColor },
-  readerTheme: ReaderThemeId = DEFAULT_READER_THEME,
-  palette: PaletteId = DEFAULT_PALETTE,
-): string {
-  return noteHighlights(readerTheme, palette)[note.color];
-}
 
 /** Метка цвета заметки в списке: заливка и подпись на ней.
  *

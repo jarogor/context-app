@@ -14,7 +14,7 @@ import { editor } from './editing-state';
 import { parseGeometry, shapeElement, shapeHitElement } from './geometry';
 import { tileLineRects } from './lines';
 import { state, type RenderedEntry } from './state';
-import { highlightPair, noteColor, parseTone } from './theme';
+import { highlightPair, parseTone } from './theme';
 import type { NoteAnchor, ViewerNote } from './types';
 
 /** Разбор якоря заметки; повреждённая строка даёт null. */
@@ -150,8 +150,11 @@ function drawTextCard(overlay: Element, note: ViewerNote, anchor: NoteAnchor): v
   element.dataset.noteId = note.id;
   element.style.left = (anchor.x ?? 0) * 100 + '%';
   element.style.top = (anchor.y ?? 0) * 100 + '%';
-  // Карточка окрашена тем же мягким тоном, что цитата и фигура.
-  element.style.background = noteColor(note.color);
+  // Карточка берёт ту же пару «заливка и подпись», что цитата и метка в
+  // списке: цвет текста на карточке — цвет подписи метки, а не темы.
+  const pair = highlightPair(note.color);
+  element.style.background = pair.fill;
+  element.style.color = pair.ink;
   element.textContent = note.text || '';
   overlay.appendChild(element);
 }
@@ -172,7 +175,9 @@ function drawShape(
   svg.setAttribute('viewBox', '0 0 1 1');
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.dataset.noteId = note.id;
-  const color = noteColor(note.color);
+  // Фигура — тот же цвет, что заливка подсветки: заметка одного цвета
+  // выглядит одинаково в любом своём виде.
+  const color = highlightPair(note.color).fill;
   const shape = note.shape || 'line';
   const element = shapeElement(shape, geometry);
   if (shape === 'line') {
