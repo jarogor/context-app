@@ -12,6 +12,11 @@ const COLORS: ColorSwatch[] = [
   { id: 'blue', label: 'синий', value: '#2563eb' },
 ];
 
+/** Фигура цвета внутри образца. */
+function figure(id: string): HTMLElement {
+  return screen.getByTestId(`color-${id}`).firstElementChild as HTMLElement;
+}
+
 describe('ColorPicker', () => {
   it('передаёт выбранный цвет в обработчик', async () => {
     const onpick = vi.fn();
@@ -31,6 +36,56 @@ describe('ColorPicker', () => {
     expect(picker.style.width).toContain('calc(var(--spacing)');
   });
 
+  it('складывает ширину блока из слотов, зазоров и отступов', () => {
+    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
+
+    const picker = screen.getByTestId('color-picker');
+    const width = Number.parseFloat(picker.style.width.match(/\*\s*([\d.]+)/)?.[1] ?? '0');
+    // Три слота по 5 долей шкалы, два зазора по 1 и боковые отступы 4.
+    expect(width).toBe(3 * 5 + 2 * 1 + 4);
+  });
+
+  it('даёт каждому образцу слот фиксированного размера', () => {
+    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
+
+    // Слот не зависит от наведения и выбора: иначе соседи переставлялись бы.
+    for (const color of COLORS) {
+      const slot = screen.getByTestId(`color-${color.id}`);
+      expect(slot.className).toContain('size-5');
+      expect(slot.className).not.toContain('grow');
+      expect(slot.className).not.toContain('flex-1');
+    }
+  });
+
+  it('рисует невыбранный цвет кругом, который при наведении заполняет слот', () => {
+    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
+
+    const shape = figure('green');
+    expect(shape.className).toContain('rounded-full');
+    expect(shape.className).toContain('size-[60%]');
+    // Наведение даёт самый крупный размер — тот же, что у выбранного.
+    expect(shape.className).toContain('group-hover:size-full');
+    expect(shape.className).not.toContain('group-hover:size-[80%]');
+  });
+
+  it('берёт фон палитры из самой светлой ступени палитры', () => {
+    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
+
+    const picker = screen.getByTestId('color-picker');
+    // Не `--control-surface` (фон страницы): на нём светлые оттенки сливались.
+    expect(picker.className).toContain('bg-[var(--picker-surface)]');
+    expect(picker.className).not.toContain('bg-[var(--control-surface)]');
+  });
+
+  it('делает выбранный цвет квадратом с закруглёнными углами', () => {
+    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
+
+    const shape = figure('yellow');
+    expect(shape.className).toContain('rounded-[0.25rem]');
+    expect(shape.className).toContain('size-full');
+    expect(shape.className).not.toContain('rounded-full');
+  });
+
   it('имеет высоту базового контрола, чтобы стоять вровень с кнопками', () => {
     render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
 
@@ -45,25 +100,5 @@ describe('ColorPicker', () => {
     const picker = screen.getByTestId('color-picker');
     // Контур спорил бы с обводкой всплывающего меню, внутри которого палитра живёт.
     expect(picker.className).not.toContain('border');
-  });
-
-  it('ширина блока вмещает расширенный выбранный образец', () => {
-    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
-
-    const picker = screen.getByTestId('color-picker');
-    const width = Number.parseFloat(picker.style.width.match(/\*\s*([\d.]+)/)?.[1] ?? '0');
-    const swatches = COLORS.length;
-    // Базовая ширина невыбранного образца — 4 доли шкалы, зазоры по 0.75,
-    // отступы 4, выбранный образец шире в 1.8 раза.
-    expect(width).toBeGreaterThanOrEqual(swatches * 4 + (swatches - 1) * 0.75);
-  });
-
-  it('отделяет крайние образцы от границ так же, как сверху и снизу', () => {
-    render(ColorPicker, { props: { colors: COLORS, onpick: vi.fn() } });
-
-    const picker = screen.getByTestId('color-picker');
-    // Боковой отступ равен вертикальному: 8 px до края, как и до плашки сверху.
-    expect(picker.className).toContain('px-2');
-    expect(picker.className).toContain('py-1');
   });
 });

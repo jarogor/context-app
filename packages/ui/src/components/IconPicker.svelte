@@ -47,7 +47,7 @@
 -->
 <div
   class={cn(
-    'flex max-w-[calc(var(--spacing)*45)] flex-wrap items-center gap-1 rounded-[var(--radius)] bg-[var(--control-surface)] p-1',
+    'flex max-w-[calc(var(--spacing)*45)] flex-wrap items-center gap-1 rounded-[var(--radius)] bg-[var(--picker-surface)] p-1',
     className,
   )}
   role="group"

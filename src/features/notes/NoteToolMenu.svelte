@@ -151,7 +151,7 @@
 
   {#if open}
     <div
-      class="flex w-[13rem] flex-col gap-2 rounded-[var(--radius)] bg-[var(--reader-surface)] p-2 text-[var(--reader-foreground)] shadow-overlay [--control-surface:var(--reader-control-surface)] [--foreground:var(--reader-foreground)] [--muted-foreground:var(--reader-muted-foreground)] [--primary:var(--reader-accent)] [--primary-foreground:var(--reader-accent-ink)] [--surface-hover:var(--reader-hover)] [--surface-selected:var(--reader-selected)]"
+      class="flex w-[13rem] flex-col gap-2 rounded-[var(--radius)] bg-[var(--reader-surface)] p-2 text-[var(--reader-foreground)] shadow-overlay [--control-surface:var(--reader-control-surface)] [--foreground:var(--reader-foreground)] [--muted-foreground:var(--reader-muted-foreground)] [--picker-surface:var(--reader-background)] [--primary:var(--reader-accent)] [--primary-foreground:var(--reader-accent-ink)] [--surface-hover:var(--reader-hover)] [--surface-selected:var(--reader-selected)]"
       data-testid="note-tool-menu"
       role="dialog"
       aria-label={t('app.bookBar.tool')}
