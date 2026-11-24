@@ -9,6 +9,8 @@ import { reportState, scheduleWindowRefresh } from './render';
 import { showMoveGuide } from './note-ops';
 import { editor } from './editing-state';
 import { state } from './state';
+import { flashNote as flashElements } from './flash';
+import { NOTE_SHAPE_CLASS } from './dom';
 
 /** Страница, находящаяся у верха области чтения. */
 export function pageAtTop(): number {
@@ -104,10 +106,9 @@ export function gotoNote(noteId: string | undefined, attempt = 0): void {
     return;
   }
   const viewerBounds = viewer.getBoundingClientRect();
-  const target =
-    element.classList.contains('note-shape')
-      ? element.querySelector('line,rect,ellipse') || element
-      : element;
+  const target = element.classList.contains('note-shape')
+    ? element.querySelector('line,rect,ellipse') || element
+    : element;
   const bounds = target.getBoundingClientRect();
   // Полоса заметки — на строку ниже верха области: она видна, но над ней
   // остаётся контекст соседних строк.
@@ -142,10 +143,16 @@ export function flashNote(noteId: string | undefined, attempt = 0): void {
     }
     return;
   }
-  for (const element of elements) {
-    (element as HTMLElement).dataset.flash = 'true';
-    setTimeout(() => {
-      delete (element as HTMLElement).dataset.flash;
-    }, 300);
-  }
+  // Вспышка двойная: одиночное приглушение на пёстрой странице почти незаметно.
+  // Фигуры дополнительно получают рамку области: линия цвета заметки на белой
+  // бумаге видна плохо, и мигание её не спасает.
+  const list = Array.from(elements);
+  flashElements(
+    list.filter((element) => !element.classList.contains(NOTE_SHAPE_CLASS)),
+    list.filter((element) => element.classList.contains(NOTE_SHAPE_CLASS)),
+    (element) => ((element as HTMLElement).dataset.flash = 'true'),
+    (element) => delete (element as HTMLElement).dataset.flash,
+    (element) => ((element as HTMLElement).dataset.flashFrame = 'true'),
+    (element) => delete (element as HTMLElement).dataset.flashFrame,
+  );
 }

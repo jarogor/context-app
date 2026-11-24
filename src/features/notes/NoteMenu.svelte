@@ -82,8 +82,14 @@
   <!--
     Действия над заметкой — одной группой: у них общая подложка, поэтому они не
     выглядят рядом независимых кнопок с отступами между ними.
+    Оформление — общее для меню приложения: подложка, тень и цвета берутся из
+    темы интерфейса, как у остальных меню.
   -->
-  <ActionGroup ariaLabel={t('app.note.menu.label')} testId="note-menu-actions" class="bg-[var(--menu-surface)] shadow-overlay">
+  <ActionGroup
+    ariaLabel={t('app.note.menu.label')}
+    testId="note-menu-actions"
+    class="bg-[var(--menu-surface)] shadow-overlay"
+  >
     {#if type === 'quote'}
       <Button
         variant="ghost"

@@ -21,6 +21,8 @@ export const FLASH_CLASS = 'context-note-flash';
 export const FOOTNOTE_FLASH_CLASS = 'context-footnote-flash';
 /** Класс превью подсветки при правке границ цитаты. */
 export const NOTE_PREVIEW_CLASS = 'context-resize-preview';
+/** Класс временной рамки области фигуры при переходе к заметке. */
+export const SHAPE_FRAME_CLASS = 'context-shape-frame';
 /** Класс слоя активного выделения текста. */
 export const SELECTION_LAYER_CLASS = 'context-selection-layer';
 /** Класс полосы активного выделения. */
@@ -138,7 +140,14 @@ const BASE_STYLE = [
   `.${SEARCH_CLASS}{border-radius:2px;background:var(--rt-search);`,
   'color:inherit;box-decoration-break:clone;-webkit-box-decoration-break:clone;}',
   `.${SEARCH_CLASS}.${SEARCH_ACTIVE_CLASS}{background:var(--rt-search-active);}`,
+  // Вспышка гасит наложение; импульсов два, и каждый гасится и возвращается.
   `.context-overlay.${FLASH_CLASS}{opacity:0.4;}`,
+  // Рамка области фигуры: пунктирный контрастный контур поверх бумаги. Фигура
+  // лежит на тексте умножением, поэтому свой цвет у неё слабый; рамка рисуется
+  // в нормальном режиме и видна на любой странице.
+  `.context-overlay.${SHAPE_FRAME_CLASS}{mix-blend-mode:normal;`,
+  'outline:2px dashed var(--rt-link,#1d4ed8);outline-offset:2px;',
+  'border-radius:2px;pointer-events:none;}',
   `.${FOOTNOTE_FLASH_CLASS}{background:#f59e0b;border-radius:2px;}`,
   `.${FOOTNOTE_BACK_CLASS}{font-size:0.85em;margin-left:0.35em;text-decoration:none;`,
   'vertical-align:super;line-height:0;opacity:0.65;}',

@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { Button, Icon, readerOverlayTokens, type PaletteId, type ReaderThemeId } from '@context/ui';
+  import { Button, Icon } from '@context/ui';
   import { t } from '@context/i18n';
 
   /** Меню сноски книги, общее для областей текучего чтения.
    *
    * Рисуется оболочкой поверх области чтения, а не внутри документа книги: так
    * меню принадлежит приложению и не дублирует разметку в `srcdoc`. Оформление
-   * берётся из темы области чтения (`readerOverlayTokens`), а не из темы
-   * интерфейса: меню относится к книге и обязано менять сторону вместе с ней.
-   * Длинная сноска ограничивается по высоте и прокручивается.
+   * общее для меню приложения — подложка, текст и тень берутся из темы
+   * интерфейса. Длинная сноска ограничивается по высоте и прокручивается.
    */
 
   interface Props {
@@ -18,38 +17,19 @@
     at: { left: number; top: number; bottom: number };
     /** Размеры области чтения для удержания меню внутри неё. */
     area: { width: number; height: number };
-    /** Палитра оформления: общий реестр дизайн-системы. */
-    palette: PaletteId;
-    /** Сторона темы области чтения. */
-    readerTheme: ReaderThemeId;
     /** Переход к сноске в книге. */
     onGoto: () => void;
     /** Закрытие меню. */
     onClose: () => void;
   }
 
-  let { html, at, area, palette, readerTheme, onGoto, onClose }: Props = $props();
+  let { html, at, area, onGoto, onClose }: Props = $props();
 
   /** Оценочные размеры меню для удержания внутри области чтения. */
   const MENU_WIDTH = 320;
   const MENU_HEIGHT = 220;
 
-  /** Токены слоя по теме области чтения. */
-  const tones = $derived(readerOverlayTokens(palette, readerTheme));
-
-  /** Кнопки меню — те же компоненты системы, но на токенах чтения.
-   *
-   * Значения темы области чтения приходят данными, поэтому передаются кнопкам
-   * переменными: классы системы снимают собственные цвета и берут эти.
-   */
-  const actionClass = $derived(
-    [
-      'bg-transparent text-[var(--fn-text)]',
-      'hover:bg-[var(--fn-hover)] hover:text-[var(--fn-text)]',
-    ].join(' '),
-  );
-
-  /** Стиль позиции и цвета: под маркером, при нехватке места — над ним. */
+  /** Стиль позиции: под маркером, при нехватке места — над ним. */
   const style = $derived.by(() => {
     const x = Math.max(8, Math.min(at.left, Math.max(8, area.width - MENU_WIDTH - 8)));
     const below = at.bottom + 6;
@@ -57,23 +37,14 @@
       area.height > 0 && below + MENU_HEIGHT > area.height
         ? Math.max(8, at.top - MENU_HEIGHT - 6)
         : below;
-    return [
-      `left: ${x}px`,
-      `top: ${y}px`,
-      `width: ${MENU_WIDTH}px`,
-      `background: ${tones.surface}`,
-      `color: ${tones.text}`,
-      `--fn-text: ${tones.text}`,
-      `--fn-hover: ${tones.hover}`,
-    ].join('; ');
+    return `left: ${x}px; top: ${y}px; width: ${MENU_WIDTH}px;`;
   });
 </script>
 
 <div
-  class="absolute z-[var(--layer-popup)] flex flex-col gap-1 rounded-[var(--radius)] p-1 shadow-overlay"
+  class="absolute z-[var(--layer-popup)] flex flex-col gap-1 rounded-[var(--radius)] bg-[var(--menu-surface)] p-1 text-[var(--foreground)] shadow-overlay"
   data-testid="footnote-menu"
-  data-reader-theme={readerTheme}
-  style={style}
+  {style}
 >
   <!-- Содержимое сноски приходит из документа книги уже очищенным: без
        скриптов, обработчиков и внешних ресурсов (см. `footnote.ts`). -->
@@ -87,7 +58,6 @@
     <Button
       variant="secondary"
       size="icon"
-      class={actionClass}
       title={t('app.reader.footnote.goto')}
       ariaLabel={t('app.reader.footnote.goto')}
       testId="footnote-goto"
@@ -98,7 +68,6 @@
     <Button
       variant="ghost"
       size="icon"
-      class={actionClass}
       title={t('app.modal.close')}
       ariaLabel={t('app.modal.close')}
       onclick={onClose}

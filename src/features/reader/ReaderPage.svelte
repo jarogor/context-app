@@ -1302,8 +1302,6 @@
               bottom: workplaceFootnote.bottom,
             }}
             area={{ width: readerAreaWidth, height: readerAreaHeight }}
-            {palette}
-            {readerTheme}
             onGoto={() => {
               workplaceContent?.gotoAnchor(`#${workplaceFootnote?.anchor ?? ''}`);
               workplaceFootnote = null;
@@ -1332,13 +1330,18 @@
           <!--
             Меню создания заметки — одна палитра, без каркаса и без кнопки
             отмены: заметка создаётся цветом, а отказ — клик мимо меню.
+            Тень — общая для меню приложения.
           -->
           <div
             class="absolute z-[var(--layer-popup)] flex items-center"
             data-testid="quote-menu"
             style={quoteMenuStyle()}
           >
-            <NoteColorMenu labelPrefix={t('app.reader.note.createPrefix')} onpick={confirmWorkplaceQuote} />
+            <NoteColorMenu
+              labelPrefix={t('app.reader.note.createPrefix')}
+              onpick={confirmWorkplaceQuote}
+              class="shadow-overlay"
+            />
           </div>
         {/if}
         {#if pendingTextAnchor}

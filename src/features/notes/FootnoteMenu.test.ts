@@ -6,15 +6,13 @@ import FootnoteMenu from './FootnoteMenu.svelte';
 const AREA = { width: 800, height: 600 };
 const AT = { left: 100, top: 100, bottom: 120 };
 
-/** Отрисовка меню с темой области чтения по умолчанию. */
+/** Отрисовка меню. */
 function renderMenu(props: Record<string, unknown> = {}) {
   return render(FootnoteMenu, {
     props: {
       html: '<p>Сноска.</p>',
       at: AT,
       area: AREA,
-      palette: 'linen',
-      readerTheme: 'light',
       onGoto: vi.fn(),
       onClose: vi.fn(),
       ...props,
@@ -56,14 +54,13 @@ describe('меню сноски', () => {
     expect(menu.style.top).toBe(`${560 - 220 - 6}px`);
   });
 
-  it('оформление следует теме области чтения, а не интерфейса', () => {
-    renderMenu({ readerTheme: 'dark' });
-    const dark = screen.getByTestId('footnote-menu') as HTMLElement;
+  it('берёт подложку из общего оформления меню интерфейса', () => {
+    renderMenu();
 
-    renderMenu({ readerTheme: 'light' });
-    const lights = screen.getAllByTestId('footnote-menu') as HTMLElement[];
-
-    expect(dark.style.background).not.toBe(lights[1].style.background);
-    expect(dark.dataset.readerTheme).toBe('dark');
+    const menu = screen.getByTestId('footnote-menu');
+    // Меню приложения: подложка и тень — интерфейсные, не тема книги.
+    expect(menu.className).toContain('bg-[var(--menu-surface)]');
+    expect(menu.className).toContain('shadow-overlay');
+    expect(menu.getAttribute('data-reader-theme')).toBeNull();
   });
 });

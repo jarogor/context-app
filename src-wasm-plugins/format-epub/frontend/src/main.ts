@@ -19,6 +19,7 @@ import {
 import { clearNoteMarks, highlightTextRange } from './highlight';
 import {
   NOTE_OVERLAY_CLASS,
+  NOTE_SHAPE_CLASS,
   clearNoteOverlays,
   parseGeometry,
   renderShape,
@@ -35,6 +36,7 @@ import {
   installFootnoteReturns,
 } from './footnote';
 import { clearSelectionLayer, renderSelectionLayer } from './selection';
+import { flashNote } from './flash';
 import {
   clearSearchHighlights,
   highlightSearchHits,
@@ -43,7 +45,7 @@ import {
 } from './search-mark';
 import { searchBook, type SearchHit } from './search';
 import { setViewerLocale, viewerText } from './locale';
-import { NOTE_CLASS, FLASH_CLASS, FOOTNOTE_FLASH_CLASS } from './document';
+import { NOTE_CLASS, FLASH_CLASS, FOOTNOTE_FLASH_CLASS, SHAPE_FRAME_CLASS } from './document';
 import { decodeText, parseIncoming, post, type ViewerBinding, type ViewerNote, type ViewerTool } from './protocol';
 
 /** Состояние чтения плагина. */
@@ -266,18 +268,24 @@ function gotoAnchor(note: ViewerNote): void {
   } else if (anchor && anchor.percent > 0) {
     gotoPercent(anchor.percent);
   }
-  for (const mark of Array.from(
+  // Двойная вспышка: цитаты гасятся, фигуры ещё и получают рамку области —
+  // жёлтая линия на белой бумаге видна плохо.
+  const marks = Array.from(
     bookDocument().querySelectorAll(`mark.${NOTE_CLASS}[data-note-id="${note.id}"]`),
-  )) {
-    mark.classList.add(FLASH_CLASS);
-    setTimeout(() => mark.classList.remove(FLASH_CLASS), 300);
-  }
-  for (const overlay of Array.from(
+  );
+  const overlays = Array.from(
     bookDocument().querySelectorAll(`.${NOTE_OVERLAY_CLASS}[data-note-id="${note.id}"]`),
-  )) {
-    overlay.classList.add(FLASH_CLASS);
-    setTimeout(() => overlay.classList.remove(FLASH_CLASS), 300);
-  }
+  );
+  const shapes = overlays.filter((element) => element.classList.contains(NOTE_SHAPE_CLASS));
+  const cards = overlays.filter((element) => !element.classList.contains(NOTE_SHAPE_CLASS));
+  flashNote(
+    [...marks, ...cards],
+    shapes,
+    (element) => element.classList.add(FLASH_CLASS),
+    (element) => element.classList.remove(FLASH_CLASS),
+    (element) => element.classList.add(SHAPE_FRAME_CLASS),
+    (element) => element.classList.remove(SHAPE_FRAME_CLASS),
+  );
 }
 
 /** Переход к главе из панели содержания. */

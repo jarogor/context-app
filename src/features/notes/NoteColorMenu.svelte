@@ -7,9 +7,11 @@
     onpick: (color: NoteColor) => void;
     /** Тексты подсказок цветов (для доступности и тестов). */
     labelPrefix?: string;
+    /** Дополнительные классы палитры (подложка и тень в меню над книгой). */
+    class?: string;
   }
 
-  let { onpick, labelPrefix }: Props = $props();
+  let { onpick, labelPrefix, class: className }: Props = $props();
 
   /** Образцы палитры с подписями выбранного контекста. */
   const swatches = $derived<ColorSwatch[]>(
@@ -26,4 +28,5 @@
   onpick={(id) => onpick(id as NoteColor)}
   ariaLabel={labelPrefix}
   testIdPrefix="note-color"
+  class={className}
 />

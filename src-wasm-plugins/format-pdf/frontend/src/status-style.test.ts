@@ -26,3 +26,16 @@ describe('надпись о состоянии чтения', () => {
     expect(rule).not.toMatch(/color:\s*#[0-9a-f]{3,8}/i);
   });
 });
+
+describe('рамка области фигуры при переходе к заметке', () => {
+  it('рисует пунктирный контрастный контур в нормальном режиме наложения', () => {
+    // Фигура лежит на странице умножением, и её цвет на белой бумаге слабый.
+    // Рамка обязана рисоваться в нормальном режиме и быть пунктирной, иначе
+    // жёлтая линия остаётся незаметной даже во время вспышки.
+    expect(style).toContain(".overlay .note-shape[data-flash-frame='true']");
+    const index = style.indexOf("[data-flash-frame='true']");
+    const rule = style.slice(index, style.indexOf('}', index));
+    expect(rule).toContain('mix-blend-mode: normal');
+    expect(rule).toContain('outline: 2px dashed');
+  });
+});

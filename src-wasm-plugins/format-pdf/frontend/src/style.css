@@ -190,6 +190,17 @@ body {
 .overlay .note-shape[data-flash='true'] {
   opacity: 0.4;
 }
+/* Рамка области фигуры на время вспышки при переходе к заметке.
+   Фигура лежит на странице умножением, и её собственный цвет на светлой бумаге
+   слабый: пунктирный контрастный контур рисуется в нормальном режиме и виден на
+   любой странице. */
+.overlay .note-shape[data-flash-frame='true'] {
+  mix-blend-mode: normal;
+  outline: 2px dashed var(--reader-link, #1d4ed8);
+  outline-offset: 2px;
+  border-radius: 2px;
+  pointer-events: none;
+}
 /* Рамка предпросмотра фигуры во время протяжки. */
 .overlay .note-preview {
   position: absolute;

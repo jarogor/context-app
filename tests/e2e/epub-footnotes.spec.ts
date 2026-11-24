@@ -178,33 +178,28 @@ test('возврат к месту ссылки есть у каждой сно�
     .toBeLessThan(500);
 });
 
-test('меню сноски меняет оформление вместе с темой области чтения', async ({ page }) => {
+test('меню сноски следует теме интерфейса, а не теме книги', async ({ page }) => {
   await openBook(page);
 
-  /** Фон и цвет текста меню, открытого на текущей теме чтения. */
-  async function menuColors() {
+  /** Фон меню, открытого на текущей теме чтения. */
+  async function menuBackground() {
     await content(page).locator('a[epub\\:type="noteref"]').click();
     const menu = page.getByTestId('footnote-menu');
     await expect(menu).toBeVisible();
-    const colors = await menu.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return { background: style.backgroundColor, color: style.color };
-    });
+    const background = await menu.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
     await page.getByTestId('footnote-menu').getByRole('button', { name: 'Закрыть' }).click();
     await expect(menu).toHaveCount(0);
-    return colors;
+    return background;
   }
 
-  const light = await menuColors();
+  const before = await menuBackground();
 
-  // Тема области чтения переключается в панели чтения.
+  // Смена темы книги не меняет меню: оформление принадлежит интерфейсу.
   await page.getByTestId('reader-theme-toggle').click();
   await expect(content(page).locator('html')).toHaveAttribute('data-reader-theme', 'dark');
 
-  const dark = await menuColors();
-
-  // Меню относится к книге: фон и текст следуют стороне темы чтения, а не
-  // теме интерфейса.
-  expect(dark.background).not.toBe(light.background);
-  expect(dark.color).not.toBe(light.color);
+  const after = await menuBackground();
+  expect(after).toBe(before);
 });
