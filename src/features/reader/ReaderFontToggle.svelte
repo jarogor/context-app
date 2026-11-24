@@ -23,12 +23,23 @@
   const title = $derived(
     readerFont === 'serif' ? t('app.font.switchToSans') : t('app.font.switchToSerif'),
   );
+
+  /**
+   * Оформление кнопки — по теме области чтения, а не интерфейса.
+   *
+   * Кнопка «висит» над книгой и относится к чтению: при тёмной книге в светлом
+   * интерфейсе она обязана быть тёмной вместе с ней. Поэтому цвета берутся из
+   * `--reader-accent`, который выводится из токенов области чтения.
+   */
+  const buttonClass =
+    'bg-[var(--reader-accent)] text-[var(--reader-accent-ink)] hover:brightness-110';
 </script>
 
 <div class="absolute left-2 top-2 z-[calc(var(--layer-panel)-1)]" data-testid="note-tool">
   <Button
     variant="primary"
     size="icon"
+    class={buttonClass}
     title={title}
     ariaLabel={title}
     testId="reader-font-toggle"

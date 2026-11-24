@@ -118,4 +118,53 @@ describe('токены оформления', () => {
       expect(match[1], 'палитра не переопределяет подложку кода').not.toContain('--code-surface:');
     }
   });
+
+  it('берёт акцент кнопок над книгой из токенов области чтения', () => {
+    // Кнопка шрифта и инструмента заметок стоит поверх книги и относится к
+    // чтению. Пока она брала `--primary`, при тёмной книге в светлом интерфейсе
+    // она оставалась светлой и выпадала из оформления области чтения.
+    const accent = tokens.match(/--reader-accent:\s*([^;]+);/);
+    expect(accent).toBeTruthy();
+    expect(accent?.[1].trim()).toBe('var(--reader-link)');
+
+    const ink = tokens.match(/--reader-accent-ink:\s*([^;]+);/);
+    expect(ink).toBeTruthy();
+    expect(ink?.[1].trim()).toBe('var(--reader-background)');
+
+    // Ни одна палитра не переопределяет пару своими значениями: она обязана
+    // следовать за токенами области чтения, которые уже разведены по палитрам
+    // и сторонам темы.
+    for (const match of tokens.matchAll(
+      /:root\[data-palette='[a-z]+'\]\[data-reader-theme='(?:light|dark)'\]\s*\{([\s\S]*?)\n\}/g,
+    )) {
+      expect(match[1], 'палитра не переопределяет акцент области чтения').not.toContain(
+        '--reader-accent:',
+      );
+    }
+  });
+
+  it('строит поверхность меню над книгой из токенов области чтения', () => {
+    // Меню инструмента заметок стоит поверх книги. Пока оно брало `--menu-surface`
+    // и `--surface-hover` интерфейса, при тёмной книге в светлом интерфейсе оно
+    // оставалось светлым и выпадало из оформления чтения.
+    for (const name of [
+      '--reader-surface',
+      '--reader-control-surface',
+      '--reader-hover',
+      '--reader-selected',
+    ]) {
+      const value = tokens.match(new RegExp(`${name}:\\s*([^;]+);`));
+      expect(value, name).toBeTruthy();
+      expect(value?.[1], name).toContain('color-mix');
+      expect(value?.[1], name).toContain('var(--reader-');
+    }
+
+    // Палитры в это правило не вмешиваются: сторона и палитра чтения уже заданы
+    // своими блоками, и повторное значение снова развело бы оформление.
+    for (const match of tokens.matchAll(
+      /:root\[data-palette='[a-z]+'\]\[data-reader-theme='(?:light|dark)'\]\s*\{([\s\S]*?)\n\}/g,
+    )) {
+      expect(match[1], 'палитра не переопределяет слой чтения').not.toContain('--reader-surface:');
+    }
+  });
 });

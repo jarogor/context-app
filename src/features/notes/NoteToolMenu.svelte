@@ -53,6 +53,16 @@
   /** Открыто ли меню выбора типа. */
   let open = $state(false);
 
+  /**
+   * Оформление кнопки — по теме области чтения, а не интерфейса.
+   *
+   * Кнопка «висит» над книгой и относится к чтению: при тёмной книге в светлом
+   * интерфейсе она обязана быть тёмной вместе с ней. Поэтому цвета берутся из
+   * `--reader-accent`, который выводится из токенов области чтения.
+   */
+  const buttonClass =
+    'bg-[var(--reader-accent)] text-[var(--reader-accent-ink)] hover:brightness-110';
+
   /** Типы заметок в общем порядке: только доступные формату. */
   const typeOptions = $derived(NOTE_TYPES.filter((type) => allowedTypes.includes(type)));
 
@@ -118,6 +128,9 @@
   слева одинаковый — кнопка «висит» в левом верхнем углу.
   Кнопка на основной поверхности, а не на фоне меню: полупрозрачная подложка
   сливалась со страницей книги, и кнопку было не найти.
+  Меню оформлено токенами области чтения: его поверхность, наведение, выбор и
+  акцент подменяются на контейнере меню, поэтому вложенные `Menu`, `Menu`-пункты,
+  переключатель фигуры и палитра цветов следуют за книгой, а не за интерфейсом.
 -->
 <div
   class="absolute left-2 top-2 z-[calc(var(--layer-panel)-1)] flex flex-col items-start gap-1"
@@ -126,6 +139,7 @@
   <Button
     variant="primary"
     size="icon"
+    class={buttonClass}
     title={open ? t('app.modal.close') : t('app.bookBar.tool')}
     ariaLabel={open ? t('app.modal.close') : t('app.bookBar.tool')}
     ariaPressed={open}
@@ -137,7 +151,7 @@
 
   {#if open}
     <div
-      class="flex w-[13rem] flex-col gap-2 rounded-[var(--radius)] bg-[var(--menu-surface)] p-2 shadow-overlay"
+      class="flex w-[13rem] flex-col gap-2 rounded-[var(--radius)] bg-[var(--reader-surface)] p-2 text-[var(--reader-foreground)] shadow-overlay [--control-surface:var(--reader-control-surface)] [--foreground:var(--reader-foreground)] [--muted-foreground:var(--reader-muted-foreground)] [--primary:var(--reader-accent)] [--primary-foreground:var(--reader-accent-ink)] [--surface-hover:var(--reader-hover)] [--surface-selected:var(--reader-selected)]"
       data-testid="note-tool-menu"
       role="dialog"
       aria-label={t('app.bookBar.tool')}
