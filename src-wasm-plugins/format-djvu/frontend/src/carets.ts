@@ -18,8 +18,53 @@ export function edgeRects(
   return { first: sorted[0], last: sorted[sorted.length - 1] };
 }
 
-/** Позиция каретки в текстовом слое страницы по координатам указателя. */
-export function caretAtPoint(
+/** Строка текстового слоя: span, его текстовый узел и экранные границы. */
+interface TextLine {
+  /** Элемент строки в текстовом слое. */
+  span: Element;
+  /** Текстовый узел строки. */
+  text: Text;
+  /** Экранные границы строки. */
+  bounds: DOMRect;
+}
+
+/** Строки текстового слоя в порядке чтения. */
+function textLines(layer: Element): TextLine[] {
+  return Array.from(layer.querySelectorAll('span'))
+    .filter((span) => span.firstChild && span.firstChild.nodeType === Node.TEXT_NODE)
+    .map((span) => ({
+      span,
+      text: span.firstChild as Text,
+      bounds: span.getBoundingClientRect(),
+    }))
+    .filter((line) => line.bounds.width > 0 && line.bounds.height > 0)
+    .sort((a, b) => a.bounds.top - b.bounds.top || a.bounds.left - b.bounds.left);
+}
+
+/** Строка, к которой относится точка: ближайшая по вертикали. */
+function lineAt(lines: TextLine[], clientY: number): TextLine | null {
+  let best: TextLine | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const line of lines) {
+    const distance =
+      clientY < line.bounds.top
+        ? line.bounds.top - clientY
+        : clientY > line.bounds.bottom
+          ? clientY - line.bounds.bottom
+          : 0;
+    if (distance < bestDistance) {
+      best = line;
+      bestDistance = distance;
+    }
+    if (distance === 0) {
+      break;
+    }
+  }
+  return best;
+}
+
+/** Каретка от движка по координатам указателя, если он её отдал. */
+function caretFromEngine(
   pageEl: HTMLElement,
   clientX: number,
   clientY: number,
@@ -43,19 +88,64 @@ export function caretAtPoint(
           }
         : null;
   const range = caretRangeFromPoint ? caretRangeFromPoint(pointX, pointY) : null;
-  if (!range) {
+  const node = range?.startContainer;
+  if (!range || !node || node.nodeType !== Node.TEXT_NODE) {
     return null;
   }
-  const layer = elementOf(range.startContainer)?.closest(`.${TEXT_LAYER_CLASS}`);
+  const layer = elementOf(node)?.closest(`.${TEXT_LAYER_CLASS}`);
   if (!layer || !pageEl.contains(layer)) {
     return null;
   }
-  return { node: range.startContainer, offset: range.startOffset, layer };
+  return { node, offset: range.startOffset, layer };
+}
+
+/** Позиция каретки в текстовом слое страницы по координатам указателя.
+ *
+ * Строка выбирается по геометрии слоя, а не по ответу движка: для точки между
+ * строк, в поле страницы или ниже текста он отдаёт ближайший текст по-своему и
+ * нередко строкой выше. Из-за этого конец цитаты прыгал на предыдущую строку,
+ * и правка «не шла» дальше неё. Здесь строка определяется по вертикали, а
+ * позиция внутри строки — по горизонтали; ответ движка берётся только тогда,
+ * когда он попал в ту же строку (тогда смещение точнее нашего расчёта).
+ */
+export function caretAtPoint(
+  pageEl: HTMLElement,
+  clientX: number,
+  clientY: number,
+): Caret | null {
+  const layer = pageEl.querySelector(`.${TEXT_LAYER_CLASS}`);
+  if (!layer) {
+    return null;
+  }
+  const lines = textLines(layer);
+  if (lines.length === 0) {
+    return null;
+  }
+  const line = lineAt(lines, clientY);
+  if (!line) {
+    return null;
+  }
+  const exact = caretFromEngine(pageEl, clientX, clientY);
+  if (exact && line.span.contains(exact.node)) {
+    return exact;
+  }
+  const ratio = line.bounds.width > 0 ? (clientX - line.bounds.left) / line.bounds.width : 0;
+  const offset = Math.max(
+    0,
+    Math.min(line.text.data.length, Math.round(ratio * line.text.data.length)),
+  );
+  return { node: line.text, offset, layer };
 }
 
 /** Диапазон между двумя позициями каретки независимо от их порядка. */
 export function rangeBetweenCarets(startCaret: Caret, endCaret: Caret): Range | null {
   const build = (from: Caret, to: Caret): Range | null => {
+    /* Диапазон строится только по текстовым позициям: у элемента смещение
+       относится к дочерним узлам, и граница встала бы не по курсору, а на краю
+       слоя. */
+    if (from.node.nodeType !== Node.TEXT_NODE || to.node.nodeType !== Node.TEXT_NODE) {
+      return null;
+    }
     const range = document.createRange();
     try {
       range.setStart(from.node, from.offset);

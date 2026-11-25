@@ -196,8 +196,14 @@ async function handleMessage(event: MessageEvent): Promise<void> {
       break;
     }
     case 'note-menu-action': {
-      // Команда меню оболочки: перемещение заметки или правка границ цитаты.
+      // Команда меню оболочки: перемещение заметки, правка границ цитаты или
+      // отмена правки по Escape.
       const value = message.value || {};
+      if (value.action === 'cancel') {
+        stopEditing();
+        post({ type: 'note-edit-end' });
+        break;
+      }
       const note = value.noteId ? noteById(state.notes, value.noteId) : null;
       closeNoteMenu();
       if (!note) {

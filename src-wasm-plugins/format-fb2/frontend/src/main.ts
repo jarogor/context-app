@@ -461,7 +461,11 @@ function handleMessage(event: MessageEvent): void {
     }
     case 'note-menu-action':
       // Правка заметки принадлежит оболочке: плагин лишь исполняет команду над
-      // своим документом — перемещение или сдвиг границ цитаты.
+      // своим документом — перемещение, сдвиг границ цитаты или отмену.
+      if (message.value.action === 'cancel') {
+        cancelNoteEditing();
+        break;
+      }
       runNoteMenuAction(message.value.noteId, message.value.action);
       break;
     case 'notes': {
@@ -709,6 +713,16 @@ function handleClick(event: MouseEvent): void {
   }
   const element = target?.closest?.(`mark.${NOTE_CLASS}, .${NOTE_OVERLAY_CLASS}`) as Element | null;
   const noteId = (element as HTMLElement | null)?.dataset.noteId;
+  // Во время правки щелчок по самой заметке ничего не открывает: режим уже
+  // занят ею, а меню поверх правки перехватывало бы Escape у самого режима.
+  if (noteId && resizeEditing) {
+    return;
+  }
+  if (!noteId) {
+    // Щелчок мимо заметки выходит из правки границ: режим относится к
+    // конкретной заметке, и без выхода маркеры висели бы на странице.
+    cancelNoteEditing();
+  }
   if (noteId && element) {
     const shape = element.querySelector('line,rect,ellipse');
     const rect = (shape ?? element).getBoundingClientRect();
@@ -763,6 +777,13 @@ function beginResizeDrag(event: MouseEvent): boolean {
       ...editing,
       anchor: createAnchor({ ...editing.anchor, start, end, quote }),
     };
+    /* Подсветка перерисовывается по текущему якорю правки: без этого цитата
+       стояла бы на месте до отпускания, и правка выглядела бы неработающей. */
+    const note = state.notes.find((candidate) => candidate.id === editing.noteId);
+    if (note) {
+      clearNote(note.id);
+      highlightNote(note, resizeEditing.anchor);
+    }
     renderResizeHandles();
   };
   const up = () => {
@@ -785,6 +806,13 @@ function beginResizeDrag(event: MouseEvent): boolean {
 function handlePointerDown(event: MouseEvent): void {
   // Правка границ важнее создания новой заметки.
   if (beginResizeDrag(event)) {
+    return;
+  }
+  if (resizeEditing) {
+    /* Во время правки нажатие мимо маркера не должно начинать выделение
+       браузера: иначе протяжка рядом с маркером тянула бы текст, а меню
+       создания заметки открывалось бы поверх режима. */
+    event.preventDefault();
     return;
   }
   if (state.tool.type !== 'text' && state.tool.type !== 'shape') {
@@ -899,6 +927,70 @@ function runNoteMenuAction(noteId: string, action: string): void {
   }
 }
 
+/** Выход из режима правки заметки без сохранения.
+ *
+ * Маркеры границ принадлежат конкретной заметке: без явного выхода они
+ * остались бы висеть на странице после Escape или щелчка мимо.
+ */
+function cancelNoteEditing(): void {
+  if (!resizeEditing) {
+    return;
+  }
+  resizeEditing = null;
+  clearResizeHandles();
+  post({ type: 'note-edit-end' });
+}
+
+/** Ближайшая текстовая позиция к точке внутри раздела главы.
+ *
+ * Между строк и в поле главы движок отдаёт каретку на элементе, а не на тексте.
+ * Смещение `0` у такого узла — это начало раздела, а не место под указателем:
+ * конец цитаты прыгал в начало главы, и выделение тянулось на весь текст выше.
+ * Поэтому такая каретка заменяется позицией на ближайшей строке.
+ */
+function nearestTextPoint(
+  section: Element,
+  clientX: number,
+  clientY: number,
+): { node: Text; offset: number } | null {
+  const walker = (section.ownerDocument ?? document).createTreeWalker(section, NodeFilter.SHOW_TEXT);
+  let best: { node: Text; vertical: number; horizontal: number } | null = null;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node as Text;
+    if (text.data.trim().length === 0) {
+      continue;
+    }
+    const range = (section.ownerDocument ?? document).createRange();
+    range.selectNodeContents(text);
+    const bounds = range.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) {
+      continue;
+    }
+    const vertical =
+      clientY < bounds.top ? bounds.top - clientY : clientY > bounds.bottom ? clientY - bounds.bottom : 0;
+    const horizontal =
+      clientX < bounds.left ? bounds.left - clientX : clientX > bounds.right ? clientX - bounds.right : 0;
+    if (
+      !best ||
+      vertical < best.vertical ||
+      (vertical === best.vertical && horizontal < best.horizontal)
+    ) {
+      best = { node: text, vertical, horizontal };
+    }
+  }
+  if (!best) {
+    return null;
+  }
+  const range = (section.ownerDocument ?? document).createRange();
+  range.selectNodeContents(best.node);
+  const bounds = range.getBoundingClientRect();
+  const ratio = bounds.width > 0 ? (clientX - bounds.left) / bounds.width : 0;
+  return {
+    node: best.node,
+    offset: Math.max(0, Math.min(best.node.data.length, Math.round(ratio * best.node.data.length))),
+  };
+}
+
 /** Смещение символа в главе по координатам указателя. */
 function offsetAtPoint(section: Element, clientX: number, clientY: number): number | null {
   const doc = bookDocument() as Document & {
@@ -917,7 +1009,14 @@ function offsetAtPoint(section: Element, clientX: number, clientY: number): numb
   if (element(range.startContainer)?.closest(`.${CHAPTER_CLASS}`) !== section) {
     return null;
   }
-  return charOffset(section, range.startContainer, range.startOffset);
+  // Каретка на элементе (между строк, в поле главы) смещения по тексту не даёт:
+  // её нулевое смещение читалось бы как начало раздела, и цитата прыгала бы на
+  // весь текст выше. Такая точка заменяется ближайшей текстовой позицией.
+  if (range.startContainer.nodeType === Node.TEXT_NODE) {
+    return charOffset(section, range.startContainer, range.startOffset);
+  }
+  const nearest = nearestTextPoint(section, clientX, clientY);
+  return nearest ? charOffset(section, nearest.node, nearest.offset) : null;
 }
 
 /** Завершение правки границ: новый якорь уходит оболочке. */
@@ -934,6 +1033,7 @@ function finishResize(): void {
       },
     });
   }
+  post({ type: 'note-edit-end' });
 }
 
 /** Начальная загрузка модуля. */

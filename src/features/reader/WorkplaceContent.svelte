@@ -89,6 +89,8 @@
     onNoteMenu?: (menu: WorkplaceNoteMenu) => void;
     /** Закрытие контекстного меню заметки. */
     onNoteMenuClose?: () => void;
+    /** Правка заметки закончилась — сохранением или отменой. */
+    onNoteEditEnd?: () => void;
     /** Перемещение заметки или сдвиг границ цитаты (страничные форматы). */
     onPlaceNote?: (noteId: string, anchor: QuoteAnchor, geometry?: string) => void;
     /** Ошибка отображения содержимого. */
@@ -134,6 +136,7 @@
     onNoteClick,
     onNoteMenu,
     onNoteMenuClose,
+    onNoteEditEnd,
     onPlaceNote,
     onError,
     onSearch,
@@ -371,6 +374,9 @@
       case 'note-menu-close':
         onNoteMenuClose?.();
         break;
+      case 'note-edit-end':
+        onNoteEditEnd?.();
+        break;
       case 'place-note':
         onPlaceNote?.(message.noteId, message.anchor, message.geometry);
         break;
@@ -526,8 +532,8 @@
     post({ type: 'goto', value: { anchor, noteId } });
   }
 
-  /** Команда меню заметки плагину: перемещение или правка границ. */
-  export function noteMenuAction(noteId: string, action: 'move' | 'resize') {
+  /** Команда меню заметки плагину: перемещение, правка границ или отмена. */
+  export function noteMenuAction(noteId: string, action: 'move' | 'resize' | 'cancel') {
     post({ type: 'note-menu-action', value: { noteId, action } });
   }
 

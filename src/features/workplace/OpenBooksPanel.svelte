@@ -489,7 +489,17 @@
           aria-pressed={tab.id === activeTabId}
           aria-label={tabLabel(tab)}
           title={tabTooltip(tab)}
-          onclick={() => onSelect(tab.id)}
+          onclick={(event) => {
+            // Выбор мышью не оставляет фокус на строке: иначе следующее нажатие
+            // клавиши рисовало бы на ней обводку, а `Home`/`End` прокручивали бы
+            // список вместо книги. Выбор с клавиатуры фокус сохраняет — иначе
+            // строка теряла бы место, с которого продолжают обход списка.
+            const byPointer = event.detail > 0;
+            onSelect(tab.id);
+            if (byPointer) {
+              event.currentTarget.blur();
+            }
+          }}
         ></button>
         <div class="pointer-events-none relative z-[1] flex items-start gap-2">
           <!--

@@ -226,7 +226,7 @@
         gotoPage: (page: number) => void;
         gotoChapter: (index: number) => void;
         gotoAnchor: (anchor: string, noteId?: string) => void;
-        noteMenuAction: (noteId: string, action: 'move' | 'resize') => void;
+        noteMenuAction: (noteId: string, action: 'move' | 'resize' | 'cancel') => void;
         clearSelection: () => void;
         closeFootnote: () => void;
         search: (query: string) => void;
@@ -251,6 +251,14 @@
     top: number;
     bottom: number;
   } | null = $state(null);
+  /** Идёт правка заметки: перемещение или границы цитаты.
+   *
+   * Режим живёт в плагине — он владеет документом книги. Оболочка знает лишь,
+   * что режим включён: по Escape она просит плагин выйти из него. Щелчки внутри
+   * книги разбирает плагин сам; оболочка их не трогает, иначе правка срывалась
+   * бы на первом же нажатии.
+   */
+  let noteEditing = $state(false);
   /** Незавершённая точка создания текстовой карточки. */
   let pendingTextAnchor: QuoteAnchor | null = $state(null);
 
@@ -439,6 +447,47 @@
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
   });
 
+  /** Регистрация правки заметки слоем закрытия: Escape её отменяет. */
+  $effect(() => {
+    if (!noteEditing) {
+      return;
+    }
+    return pushDismissLayer(cancelNoteEditing);
+  });
+
+  /**
+   * Щелчок мимо книги отменяет правку заметки.
+   *
+   * Внутри книги события приходят её документу и сюда не доходят: там режим
+   * снимает сам плагин. Здесь ловится только то, что происходит в оболочке —
+   * по панели, строке книги или пустому месту. Слушается `click`, а не
+   * `pointerdown`: нажатие может начать протяжку, и отмена по нажатию рвала бы
+   * её раньше, чем плагин получил событие.
+   */
+  $effect(() => {
+    if (!noteEditing) {
+      return;
+    }
+    /** Отмена правки, если щелчок пришёлся вне области чтения. */
+    const onClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      // Кнопка меню, включающая правку, находится вне области чтения: без этой
+      // проверки режим снимался бы тем же щелчком, который его включил.
+      if (
+        target.closest('[data-testid="workplace-reading"]') ||
+        target.closest('[data-testid="note-menu"]')
+      ) {
+        return;
+      }
+      cancelNoteEditing();
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  });
+
   /** Регистрация контекстного меню заметки слоем закрытия. */
   $effect(() => {
     if (!noteMenu) {
@@ -591,8 +640,23 @@
     const menu = noteMenu;
     noteMenu = null;
     if (menu) {
+      noteEditing = true;
       workplaceContent?.noteMenuAction(menu.noteId, action);
     }
+  }
+
+  /** Выход из режима правки заметки по Escape. */
+  function cancelNoteEditing() {
+    if (!noteEditing) {
+      return;
+    }
+    noteEditing = false;
+    workplaceContent?.noteMenuAction('', 'cancel');
+  }
+
+  /** Правка закончилась: плагин сообщил о выходе из режима. */
+  function finishNoteEditing() {
+    noteEditing = false;
   }
 
   /** Открытие правки текста карточки по её контекстному меню (плагин рабочего места). */
@@ -1267,6 +1331,7 @@
           onNoteClick={(noteId) => onNoteClick?.(noteId)}
           onNoteMenu={(menu) => (noteMenu = menu)}
           onNoteMenuClose={closeNoteMenu}
+          onNoteEditEnd={finishNoteEditing}
           onPlaceNote={(noteId, anchor, geometry) => onPlaceNote?.(noteId, anchor, geometry)}
           // Ошибка чтения книги — это недоступность файла, а не сбой
           // интерфейса: вкладка предлагает указать файл заново, как и при

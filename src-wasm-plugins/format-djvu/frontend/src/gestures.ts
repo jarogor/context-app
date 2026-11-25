@@ -15,6 +15,7 @@ import {
   redrawAllNotes,
   renderResizeHandles,
   showMoveGuide,
+  stopEditing,
 } from './note-ops';
 import { noteById } from './notes';
 import { post } from './protocol';
@@ -131,6 +132,7 @@ function finishMoveDrag(event: PointerEvent): boolean {
   delete document.body.dataset.editing;
   const anchor = drag.draftAnchor || drag.anchor;
   placeNote(state.notes, drag.note, anchor, drag.draftGeometry);
+  post({ type: 'note-edit-end' });
   editor.clickSuppress = true;
   return true;
 }
@@ -222,6 +224,7 @@ function finishResizeDrag(event: PointerEvent): boolean {
     placeNote(state.notes, drag.note, anchor);
   }
   renderResizeHandles();
+  post({ type: 'note-edit-end' });
   editor.clickSuppress = true;
   return true;
 }
@@ -351,6 +354,10 @@ export function finishGesture(event: PointerEvent): void {
  */
 export function handlePointerDown(event: PointerEvent): void {
   if (editor.editing) {
+    /* Во время правки нажатие мимо маркера не должно начинать своё выделение
+       браузера: иначе протяжка рядом с маркером тянула бы текст по всему
+       документу, а подсветка цитаты прыгала бы вслед за ним. */
+    event.preventDefault();
     return;
   }
   if (state.tool.type !== 'quote') {
@@ -424,6 +431,31 @@ export function handlePagesPointerDown(event: PointerEvent): void {
   startShapeDrag(event);
 }
 
+/** Точка попала в правимую цитату (с запасом на маркеры границ).
+ *
+ * Подсветка во время правки не перехватывает указатель: по позиции курсора
+ * ищется символ текста. Поэтому щелчок по самой цитате приходит как щелчок
+ * «мимо заметки», и его нужно отличать от щелчка вне её.
+ */
+function insideEditedNote(clientX: number, clientY: number): boolean {
+  const drag = editor.resizeDrag;
+  if (!drag) {
+    return false;
+  }
+  const element = document.querySelector(`[data-note-id="${drag.note.id}"]`);
+  if (!element) {
+    return false;
+  }
+  const bounds = element.getBoundingClientRect();
+  const slack = 12;
+  return (
+    clientX >= bounds.left - slack &&
+    clientX <= bounds.right + slack &&
+    clientY >= bounds.top - slack &&
+    clientY <= bounds.bottom + slack
+  );
+}
+
 /** Клик по заметке: приложение выбирает её, а вьюер показывает меню действий. */
 export function handlePagesClick(event: MouseEvent): void {
   if (editor.clickSuppress) {
@@ -437,6 +469,13 @@ export function handlePagesClick(event: MouseEvent): void {
   // атрибутом, а не только у HTML-элемента.
   const noteId = element instanceof Element ? element.getAttribute('data-note-id') : null;
   if (!element || !noteId) {
+    // Щелчок мимо заметки закрывает меню и выходит из правки — но только вне
+    // самой цитаты: при правке её подсветка указатель не ловит, и нажатие на неё
+    // тоже приходило бы сюда, сбрасывая режим на первом же клике.
+    if (editor.editing && !insideEditedNote(event.clientX, event.clientY)) {
+      stopEditing();
+      post({ type: 'note-edit-end' });
+    }
     closeNoteMenu();
     return;
   }

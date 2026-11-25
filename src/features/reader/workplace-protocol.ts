@@ -185,6 +185,7 @@ export type ViewerMessage =
   | { type: 'note-click'; noteId: string }
   | { type: 'note-menu'; value: WorkplaceNoteMenu }
   | { type: 'note-menu-close' }
+  | { type: 'note-edit-end' }
   | { type: 'footnote'; value: WorkplaceFootnote }
   | { type: 'footnote-close' }
   | { type: 'contents'; value: FileChapter[] }
@@ -314,6 +315,8 @@ export function parseViewerMessage(data: unknown, fallback: NoteTool): ViewerMes
     }
     case 'note-menu-close':
       return { type: 'note-menu-close' };
+    case 'note-edit-end':
+      return { type: 'note-edit-end' };
     case 'footnote-close':
       return { type: 'footnote-close' };
     case 'contents': {
