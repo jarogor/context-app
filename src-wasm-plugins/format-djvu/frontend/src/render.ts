@@ -422,16 +422,20 @@ export function renderPage(
     // Растр до перекраски: подсветка на тёмной странице берётся из него, чтобы
     // цвет ложился умножением на светлую бумагу — так он остаётся цветом
     // палитры, а текст под ним тёмным.
+    // Контекст копии создаётся в режиме частого чтения, как у канваса страницы:
+    // в WebKitGTK подложка канваса без этого режима теряет содержимое, и кадр
+    // подсветок (страница рисуется из копии) оставался пустым — текст книги
+    // пропадал целиком.
     lightCanvas.width = canvas.width;
     lightCanvas.height = canvas.height;
-    lightCanvas.getContext('2d')?.drawImage(canvas, 0, 0);
+    lightCanvas.getContext('2d', { willReadFrequently: true })?.drawImage(canvas, 0, 0);
     // Перекраска растра в тёмной теме: светлый фон страницы становится тёмным,
     // тёмный текст — светлым, оттенок сохраняется.
     recolorCanvas(canvas, state.readerTheme, state.pageColors);
     // Копия чистого растра: каждый кадр подсветок начинается с неё.
     baseCanvas.width = canvas.width;
     baseCanvas.height = canvas.height;
-    baseCanvas.getContext('2d')?.drawImage(canvas, 0, 0);
+    baseCanvas.getContext('2d', { willReadFrequently: true })?.drawImage(canvas, 0, 0);
     const zones = page.text_zones_json(dpi);
     if (zones) {
       // Слова строятся прямо в слое страницы: `buildTextLayer` собирает готовый
