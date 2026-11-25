@@ -941,9 +941,14 @@ function renderResizeHandles(): void {
     const handle = doc.createElement('div');
     handle.className = 'context-note-handle';
     handle.dataset.noteHandle = edge;
+    /* Маркер добавляется в документ, а координаты прямоугольника — экранные.
+       Без прокрутки читаемая строка уезжала бы вверх на её величину, и после
+       любой прокрутки маркеры оказывались бы вне экрана — правка выглядела бы
+       невключившейся. */
+    const scroll = scrollRoot();
     const bounds = section.getBoundingClientRect();
     handle.style.left = `${rect.x + (edge === 'start' ? bounds.left : bounds.left + rect.width)}px`;
-    handle.style.top = `${rect.y + bounds.top + rect.height / 2}px`;
+    handle.style.top = `${rect.y + bounds.top + rect.height / 2 + scroll.scrollTop}px`;
     doc.body.appendChild(handle);
   }
 }
