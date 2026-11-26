@@ -8,8 +8,15 @@
  * бросает исключение и оставляет подсветку невидимой.
  */
 
-/** Снятие подсветок заметок: разметочные элементы разворачиваются обратно. */
+/** Снятие подсветок заметок: разметочные элементы разворачиваются обратно.
+ *
+ * После разворачивания соседние текстовые узлы склеиваются: `Range.surroundContents`
+ * разрезает текстовый узел на части, и без склейки каждый показ подсветки (а при
+ * правке границ — каждое движение указателя) добавлял узлы. Через сотню шагов
+ * обход текста главы замедлялся в разы, а правка «зависала».
+ */
 export function clearNoteMarks(root: ParentNode, selector: string): void {
+    const touched = new Set<Node>();
     for (const mark of Array.from(root.querySelectorAll(selector))) {
         const parent = mark.parentNode;
         if (!parent) {
@@ -19,6 +26,10 @@ export function clearNoteMarks(root: ParentNode, selector: string): void {
             parent.insertBefore(mark.firstChild, mark);
         }
         parent.removeChild(mark);
+        touched.add(parent);
+    }
+    for (const parent of touched) {
+        parent.normalize();
     }
 }
 

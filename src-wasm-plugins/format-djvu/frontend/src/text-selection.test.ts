@@ -117,14 +117,16 @@ function pointerDownOn(
 }
 
 describe('beginTextSelection', () => {
-    it('протяжка по слову помечает слой и разрешает выделение', () => {
+    it('протяжка по слову помечает слой и ведёт выделение вьюером', () => {
         const layer = layerWith('слово', 'ещё');
         const span = layer.querySelector('span') as HTMLElement;
         const event = pointerDownOn(span);
         beginTextSelection(event);
         expect(document.documentElement.hasAttribute('data-text-selecting')).toBe(true);
         expect(layer.hasAttribute('data-selecting')).toBe(true);
-        expect(event.defaultPrevented).toBe(false);
+        /* Нативное выделение не запускается: в этом режиме движок почти не
+           присылает `pointermove`, и протяжка застывала. Диапазон ставит вьюер. */
+        expect(event.defaultPrevented).toBe(true);
         endTextSelection();
     });
 
@@ -176,36 +178,37 @@ describe('clampTextSelection', () => {
         endTextSelection();
     });
 
-    it('протяжка вниз от двойного клика начинается со слова, а не со строки', () => {
+    it('протяжка вниз от двойного клика начинается со слова и идёт словами', () => {
         const layer = layerWith('первое', 'второе');
         const word = wordRange(layer, 0, 'первое'.length);
         const last = layer.querySelectorAll('span')[1];
         /* Двойной клик по слову «первое»: якорь берётся по точке нажатия. Затем
-       протяжка к третьему символу второй строки — конец ведётся за кареткой. */
+       протяжка к третьему символу второй строки — конец расширяется до целого
+       слова, а не режет его по буквам. */
         pressTwice(layer, word.startContainer, 2);
         dragTo(layer, textOf(last), 3);
         const result = document.getSelection()?.getRangeAt(0);
-        expect(result?.toString()).toBe('первое вто');
+        expect(result?.toString()).toBe('первое второе');
         expect(result?.startContainer).toBe(word.startContainer);
         expect(result?.startOffset).toBe(0);
         expect(result?.endContainer).toBe(textOf(last));
-        expect(result?.endOffset).toBe(3);
+        expect(result?.endOffset).toBe('второе'.length);
         endTextSelection();
     });
 
-    it('протяжка вверх от двойного клика ведёт выделение к каретке', () => {
+    it('протяжка вверх от двойного клика ведёт выделение к целому слову', () => {
         const layer = layerWith('первое', 'второе');
         const word = wordRange(layer, 1, 'второе'.length);
         const first = layer.querySelectorAll('span')[0];
         pressTwice(layer, word.startContainer, 3);
         dragTo(layer, textOf(first), 2);
         const result = document.getSelection()?.getRangeAt(0);
-        // Конец — начало слова-якоря: выше него выделение не поднимается.
-        expect(result?.toString()).toBe('рвое ');
+        // Начало — целое слово под кареткой, конец — конец слова-якоря.
+        expect(result?.toString()).toBe('первое второе');
         expect(result?.startContainer).toBe(textOf(first));
-        expect(result?.startOffset).toBe(2);
+        expect(result?.startOffset).toBe(0);
         expect(result?.endContainer).toBe(word.startContainer);
-        expect(result?.endOffset).toBe(0);
+        expect(result?.endOffset).toBe('второе'.length);
         endTextSelection();
     });
 

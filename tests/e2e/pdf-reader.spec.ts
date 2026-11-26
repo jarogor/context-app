@@ -1404,7 +1404,7 @@ test('выделение двойным кликом с протяжкой на�
   await page.mouse.up({ clickCount: 3 });
 });
 
-test('протяжка от двойного клика вверх кончается началом слова', async ({ page }) => {
+test('протяжка от двойного клика вверх идёт целыми словами', async ({ page }) => {
   await openPdf(page, 1, false, pdfBase64Paragraph());
   const lines = await textLayerLines(page);
   expect(lines.length).toBeGreaterThanOrEqual(2);
@@ -1417,9 +1417,10 @@ test('протяжка от двойного клика вверх кончае�
   });
 
   const selection = await currentSelection(page);
-  // Конец выделения — начало слова-якоря: выше него выделение не поднимается.
-  expect(selection.endsWith('lazy ')).toBe(true);
-  expect(selection.startsWith('own fox jumps')).toBe(true);
+  /* Каретка стоит внутри слова «brown» — выделение начинается с его начала, а не
+     с середины. Слово-якорь «dog» остаётся целым: конец выделения — за ним. */
+  expect(selection.endsWith('lazy dog')).toBe(true);
+  expect(selection.startsWith('brown fox jumps')).toBe(true);
 
   await page.mouse.up({ clickCount: 3 });
 });

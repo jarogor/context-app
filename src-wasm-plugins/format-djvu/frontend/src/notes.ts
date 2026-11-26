@@ -7,6 +7,7 @@
 import {
   NOTE_CARD_CLASS,
   NOTE_CLASS,
+  NOTE_RESIZE_DRAFT_CLASS,
   NOTE_SHAPE_CLASS,
   overlayOf,
 } from './dom';
@@ -15,7 +16,7 @@ import { parseGeometry, shapeElement, shapeHitElement } from './geometry';
 import { tileLineRects } from './lines';
 import { state, type RenderedEntry } from './state';
 import { highlightPair, parseTone } from './theme';
-import type { NoteAnchor, ViewerNote } from './types';
+import type { NoteAnchor, Rect, ViewerNote } from './types';
 
 /** Разбор якоря заметки; повреждённая строка даёт null. */
 export function anchorOf(note: ViewerNote | null | undefined): NoteAnchor | null {
@@ -42,6 +43,11 @@ export function noteById(notes: ViewerNote[], noteId: string): ViewerNote | null
  * остаётся прежним цветом, а бумага становится цветной.
  *
  * Кадр строится от чистой копии растра: повторная перерисовка не копит цвет.
+ *
+ * Правимая цитата в растр не попадает: при тяге границы растр перерисовывался
+ * бы на каждое движение указателя (`getImageData`/`putImageData` всей полосы),
+ * и страница мигала и тормозила. Её черновик рисуется слоем над текстом
+ * (`drawResizeDraft`), а в растр она попадает по отпусканию.
  */
 function paintHighlights(
   canvas: HTMLCanvasElement,
@@ -73,11 +79,10 @@ function paintHighlights(
     if (!anchor || (note.type || 'quote') !== 'quote' || anchor.page !== index) {
       continue;
     }
-    const rects =
-      editor.resizeDrag && editor.resizeDrag.note.id === note.id && editor.resizeDrag.draft
-        ? editor.resizeDrag.draft
-        : anchor.rects || [];
-    for (const rect of tileLineRects(rects)) {
+    if (editor.resizeDrag && editor.resizeDrag.note.id === note.id) {
+      continue;
+    }
+    for (const rect of tileLineRects(anchor.rects || [])) {
       const x = offsetX + rect.x * pageWidth * ratioX;
       const y = offsetY + rect.y * pageHeight * ratioY;
       const width = rect.width * pageWidth * ratioX;
@@ -207,7 +212,9 @@ export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
   // Слой фигур сохраняется: во время протяжки по нему ведётся предпросмотр,
   // а замена содержимого разрушила бы захваченный указатель.
   overlay
-    .querySelectorAll(`.${NOTE_CLASS}, .${NOTE_CARD_CLASS}, .${NOTE_SHAPE_CLASS}`)
+    .querySelectorAll(
+      `.${NOTE_CLASS}, .${NOTE_CARD_CLASS}, .${NOTE_SHAPE_CLASS}, .${NOTE_RESIZE_DRAFT_CLASS}`,
+    )
     .forEach((element) => element.remove());
   const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
   const entry = state.rendered.get(pageEl);
@@ -245,6 +252,14 @@ export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
     } else if (type === 'shape' && anchor.kind === 'point') {
       drawShape(overlay, note, geometry);
     } else if (anchor.kind === 'page') {
+      /* Правимая цитата рисуется черновиком слоем: в растр она попадает только
+         по отпусканию маркера, иначе страница перерисовывалась бы на каждое
+         движение указателя. */
+      const resizing = editor.resizeDrag && editor.resizeDrag.note.id === note.id;
+      if (resizing) {
+        drawResizeDraft(overlay, note, rects);
+        continue;
+      }
       for (const rect of tileLineRects(rects)) {
         const element = document.createElement('div');
         element.className = NOTE_CLASS;
@@ -257,4 +272,28 @@ export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
       }
     }
   }
+}
+
+/** Черновик правимой цитаты: полупрозрачные полосы поверх текста.
+ *
+ * Наложение умножением, как у подсветки: цвет берётся из темы области чтения,
+ * а буквы остаются читаемыми. В растр черновик не пишется — там подсветка
+ * появится по отпусканию, когда правка закончится.
+ */
+function drawResizeDraft(overlay: Element, note: ViewerNote, rects: Rect[]): void {
+  const pair = highlightPair(note.color);
+  const layer = document.createElement('div');
+  layer.className = NOTE_RESIZE_DRAFT_CLASS;
+  layer.dataset.noteId = note.id;
+  for (const rect of tileLineRects(rects)) {
+    const element = document.createElement('div');
+    element.className = 'note-resize-band';
+    element.style.left = rect.x * 100 + '%';
+    element.style.top = rect.y * 100 + '%';
+    element.style.width = rect.width * 100 + '%';
+    element.style.height = rect.height * 100 + '%';
+    element.style.background = pair.fill;
+    layer.appendChild(element);
+  }
+  overlay.appendChild(layer);
 }

@@ -18,31 +18,82 @@ export function edgeRects(
   return { first: sorted[0], last: sorted[sorted.length - 1] };
 }
 
-/** Строка текстового слоя: span, его текстовый узел и экранные границы. */
-interface TextLine {
-  /** Элемент строки в текстовом слое. */
+/** Кусок строки текстового слоя: span, его текстовый узел и экранные границы. */
+interface TextSpan {
+  /** Элемент куска. */
   span: Element;
-  /** Текстовый узел строки. */
+  /** Текстовый узел куска. */
   text: Text;
-  /** Экранные границы строки. */
+  /** Экранные границы куска. */
   bounds: DOMRect;
 }
 
-/** Строки текстового слоя в порядке чтения. */
+/** Строка текстового слоя: куски по порядку чтения и общие границы. */
+interface TextLine {
+  /** Куски строки слева направо. */
+  spans: TextSpan[];
+  /** Общие экранные границы строки. */
+  bounds: { top: number; bottom: number; left: number; right: number };
+}
+
+/** Строки текстового слоя в порядке чтения.
+ *
+ * В слое DjVu слова приходят отдельными `span`: без сборки строк каждый `span`
+ * считался бы строкой, и позиция по горизонтали искалась бы только внутри него.
+ * Из-за этого выделение и правка границы прыгали между словами, а страница
+ * дёргалась. Здесь куски с общим вертикальным перекрытием собираются в одну
+ * строку и упорядочиваются по левому краю — так же, как при сборке полос
+ * выделения (`tileByLine`).
+ */
 function textLines(layer: Element): TextLine[] {
-  return Array.from(layer.querySelectorAll('span'))
+  const spans: TextSpan[] = Array.from(layer.querySelectorAll('span'))
     .filter((span) => span.firstChild && span.firstChild.nodeType === Node.TEXT_NODE)
     .map((span) => ({
       span,
       text: span.firstChild as Text,
       bounds: span.getBoundingClientRect(),
     }))
-    .filter((line) => line.bounds.width > 0 && line.bounds.height > 0)
+    .filter((span) => span.bounds.width > 0 && span.bounds.height > 0)
     .sort((a, b) => a.bounds.top - b.bounds.top || a.bounds.left - b.bounds.left);
+  const lines: TextLine[] = [];
+  for (const span of spans) {
+    const line = lines[lines.length - 1];
+    const height = line ? Math.min(line.bounds.bottom - line.bounds.top, span.bounds.height) : 0;
+    const overlap = line
+      ? Math.min(line.bounds.bottom, span.bounds.bottom) -
+        Math.max(line.bounds.top, span.bounds.top)
+      : 0;
+    // Заметное вертикальное перекрытие — та же строка.
+    if (line && height > 0 && overlap > height * 0.5) {
+      line.spans.push(span);
+      line.bounds.top = Math.min(line.bounds.top, span.bounds.top);
+      line.bounds.bottom = Math.max(line.bounds.bottom, span.bounds.bottom);
+      line.bounds.left = Math.min(line.bounds.left, span.bounds.left);
+      line.bounds.right = Math.max(line.bounds.right, span.bounds.right);
+      continue;
+    }
+    lines.push({
+      spans: [span],
+      bounds: {
+        top: span.bounds.top,
+        bottom: span.bounds.bottom,
+        left: span.bounds.left,
+        right: span.bounds.right,
+      },
+    });
+  }
+  for (const line of lines) {
+    line.spans.sort((a, b) => a.bounds.left - b.bounds.left);
+  }
+  return lines;
 }
 
-/** Строка, к которой относится точка: ближайшая по вертикали. */
-function lineAt(lines: TextLine[], clientY: number): TextLine | null {
+/** Строка, к которой относится точка: ближайшая по вертикали.
+ *
+ * При равном зазоре (точка в промежутке между строками) направление протяжки
+ * решает, какая строка ближе: вперёд — нижняя, назад — верхняя.
+ */
+function lineAt(lines: TextLine[], clientY: number, forward?: boolean): TextLine | null {
   let best: TextLine | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const line of lines) {
@@ -55,12 +106,152 @@ function lineAt(lines: TextLine[], clientY: number): TextLine | null {
     if (distance < bestDistance) {
       best = line;
       bestDistance = distance;
+      continue;
+    }
+    if (distance === bestDistance && forward !== undefined && best) {
+      const earlier = line.bounds.top < best.bounds.top;
+      if (forward !== earlier) {
+        best = line;
+      }
+    }
+  }
+  return best;
+}
+
+/** Каретка на краю ближайшей к точке строки.
+ *
+ * Для точки в промежутке между строками движок даёт каретку на элементе слоя:
+ * текстовой позиции там нет. Край строки по направлению протяжки продолжает
+ * выделение естественно — строки выше целиком, строки ниже с начала.
+ */
+export function lineEdgeCaretAtPoint(
+  layer: Element,
+  clientY: number,
+  forward: boolean,
+): { node: Text; offset: number } | null {
+  const lines = textLines(layer);
+  if (lines.length === 0) {
+    return null;
+  }
+  const line = lineAt(lines, clientY, forward);
+  if (!line) {
+    return null;
+  }
+  const span = forward ? line.spans[line.spans.length - 1] : line.spans[0];
+  if (!span) {
+    return null;
+  }
+  return { node: span.text, offset: forward ? span.text.data.length : 0 };
+}
+
+/** Позиция в строке по горизонтали: кусок и смещение внутри него. */
+function positionInLine(
+  line: TextLine,
+  clientX: number,
+): { node: Text; offset: number } | null {
+  const first = line.spans[0];
+  const last = line.spans[line.spans.length - 1];
+  if (!first || !last) {
+    return null;
+  }
+  if (clientX <= first.bounds.left) {
+    return { node: first.text, offset: 0 };
+  }
+  if (clientX >= last.bounds.right) {
+    return { node: last.text, offset: last.text.data.length };
+  }
+  let best = first;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const span of line.spans) {
+    const distance =
+      clientX < span.bounds.left
+        ? span.bounds.left - clientX
+        : clientX > span.bounds.right
+          ? clientX - span.bounds.right
+          : 0;
+    if (distance < bestDistance) {
+      best = span;
+      bestDistance = distance;
     }
     if (distance === 0) {
       break;
     }
   }
-  return best;
+  const ratio = best.bounds.width > 0 ? (clientX - best.bounds.left) / best.bounds.width : 0;
+  const offset = Math.max(
+    0,
+    Math.min(best.text.data.length, Math.round(ratio * best.text.data.length)),
+  );
+  return { node: best.text, offset };
+}
+
+/** Каретка по координатам указателя штатными средствами движка. */
+function caretRangeAtPoint(clientX: number, clientY: number): Range | null {
+  if (typeof document.caretRangeFromPoint === 'function') {
+    return document.caretRangeFromPoint(clientX, clientY);
+  }
+  if (typeof document.caretPositionFromPoint === 'function') {
+    const position = document.caretPositionFromPoint(clientX, clientY);
+    if (!position) {
+      return null;
+    }
+    const range = document.createRange();
+    range.setStart(position.offsetNode, position.offset);
+    range.setEnd(position.offsetNode, position.offset);
+    return range;
+  }
+  return null;
+}
+
+/** Каретка движка в текстовом слое, если он отдал её текстовой позицией. */
+function engineCaretInLayer(
+  layer: Element,
+  clientX: number,
+  clientY: number,
+): { node: Text; offset: number } | null {
+  const range = caretRangeAtPoint(clientX, clientY);
+  const node = range?.startContainer;
+  if (!range || !node || node.nodeType !== Node.TEXT_NODE || !layer.contains(node)) {
+    return null;
+  }
+  return { node: node as Text, offset: range.startOffset };
+}
+
+/** Каретка в текстовом слое по геометрии строк.
+ *
+ * Нужна жестам, когда ответ движка бесполезен: точка между строк, в поле
+ * страницы, ниже текста. Строка выбирается по вертикали, позиция внутри неё — по
+ * горизонтали. Поле `inside` говорит, попала ли точка в полосу строки: над щелью
+ * между строками позиции по тексту нет, и там нужен край строки.
+ *
+ * Ответ движка не отбрасывается: он точнее расчёта по ширине куска, но только
+ * когда попал в ту же строку, что и точка.
+ */
+export function layerCaretAtPoint(
+  layer: Element,
+  clientX: number,
+  clientY: number,
+  forward = true,
+): { node: Text; offset: number; inside: boolean } | null {
+  const lines = textLines(layer);
+  if (lines.length === 0) {
+    const engine = engineCaretInLayer(layer, clientX, clientY);
+    return engine ? { ...engine, inside: true } : null;
+  }
+  const line = lineAt(lines, clientY, forward);
+  if (!line) {
+    return null;
+  }
+  const inside = clientY >= line.bounds.top && clientY <= line.bounds.bottom;
+  const engine = engineCaretInLayer(layer, clientX, clientY);
+  if (engine && line.spans.some((span) => span.span.contains(engine.node))) {
+    return { ...engine, inside };
+  }
+  const position = positionInLine(line, clientX);
+  if (!position) {
+    return null;
+  }
+  return { ...position, inside };
 }
 
 /** Каретка от движка по координатам указателя, если он её отдал. */
@@ -72,22 +263,7 @@ function caretFromEngine(
   const bounds = pageEl.getBoundingClientRect();
   const pointX = Math.max(bounds.left + 1, Math.min(bounds.right - 1, clientX));
   const pointY = Math.max(bounds.top + 1, Math.min(bounds.bottom - 1, clientY));
-  const caretRangeFromPoint: ((x: number, y: number) => Range | null) | null =
-    typeof document.caretRangeFromPoint === 'function'
-      ? document.caretRangeFromPoint.bind(document)
-      : typeof document.caretPositionFromPoint === 'function'
-        ? (x: number, y: number) => {
-            const position = document.caretPositionFromPoint(x, y);
-            if (!position) {
-              return null;
-            }
-            const range = document.createRange();
-            range.setStart(position.offsetNode, position.offset);
-            range.setEnd(position.offsetNode, position.offset);
-            return range;
-          }
-        : null;
-  const range = caretRangeFromPoint ? caretRangeFromPoint(pointX, pointY) : null;
+  const range = caretRangeAtPoint(pointX, pointY);
   const node = range?.startContainer;
   if (!range || !node || node.nodeType !== Node.TEXT_NODE) {
     return null;
@@ -106,7 +282,7 @@ function caretFromEngine(
  * нередко строкой выше. Из-за этого конец цитаты прыгал на предыдущую строку,
  * и правка «не шла» дальше неё. Здесь строка определяется по вертикали, а
  * позиция внутри строки — по горизонтали; ответ движка берётся только тогда,
- * когда он попал в ту же строку (тогда смещение точнее нашего расчёта).
+ * когда он попал в ту же строку.
  */
 export function caretAtPoint(
   pageEl: HTMLElement,
@@ -126,15 +302,14 @@ export function caretAtPoint(
     return null;
   }
   const exact = caretFromEngine(pageEl, clientX, clientY);
-  if (exact && line.span.contains(exact.node)) {
+  if (exact && line.spans.some((span) => span.span.contains(exact.node))) {
     return exact;
   }
-  const ratio = line.bounds.width > 0 ? (clientX - line.bounds.left) / line.bounds.width : 0;
-  const offset = Math.max(
-    0,
-    Math.min(line.text.data.length, Math.round(ratio * line.text.data.length)),
-  );
-  return { node: line.text, offset, layer };
+  const position = positionInLine(line, clientX);
+  if (!position) {
+    return null;
+  }
+  return { node: position.node, offset: position.offset, layer };
 }
 
 /** Диапазон между двумя позициями каретки независимо от их порядка. */

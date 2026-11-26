@@ -37,6 +37,8 @@ export const NOTE_HANDLE_CLASS = 'note-handle';
 export const MOVE_GUIDE_CLASS = 'note-move-guide';
 /** Класс рамки предпросмотра фигуры. */
 export const NOTE_PREVIEW_CLASS = 'note-preview';
+/** Класс слоя черновика правимой цитаты. */
+export const NOTE_RESIZE_DRAFT_CLASS = 'note-resize-draft';
 
 /** Наложение заметок страницы. */
 export function overlayOf(pageEl: Element): Element | null {

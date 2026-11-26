@@ -922,14 +922,42 @@ function renderResizeHandles(): void {
 /** Исполнение команды меню заметки. */
 function runNoteMenuAction(noteId: string, action: string): void {
   const note = state.notes.find((candidate) => candidate.id === noteId);
-  const anchor = note ? parseAnchor(note.anchor ?? '') : null;
-  if (!note || !anchor) {
+  if (!note || action !== 'resize') {
     return;
   }
-  if (action === 'resize') {
-    resizeEditing = { noteId, anchor, marker: null };
-    renderResizeHandles();
+  const anchor = editingAnchorOf(note);
+  if (!anchor) {
+    return;
   }
+  resizeEditing = { noteId, anchor, marker: null };
+  renderResizeHandles();
+}
+
+/** Якорь заметки в координатах текущего текста книги.
+ *
+ * Правка границ меняет смещения текста, а сохранённый якорь может разойтись с
+ * книгой: её разобрали иначе или смещения сдвинулись подсветкой. Место цитаты
+ * ищется тем же способом, что и для подсветки (`resolveQuotePlace`), и режим
+ * получает якорь по этому месту. Иначе `rangeFromOffsets` не даёт диапазон, и
+ * маркеры не строятся вовсе — правка выглядела невключившейся.
+ */
+function editingAnchorOf(note: ViewerNote): QuoteAnchor | null {
+  const anchor = parseAnchor(note.anchor ?? '');
+  if (!anchor) {
+    return null;
+  }
+  const place = resolveQuotePlace(anchor);
+  if (!place) {
+    return anchor;
+  }
+  const chapter = Number((place.section as HTMLElement).dataset.chapter ?? anchor.chapter);
+  return createAnchor({
+    ...anchor,
+    chapter: Number.isFinite(chapter) ? chapter : anchor.chapter,
+    start: place.start,
+    end: place.end,
+    quote: place.range.toString().replace(/\s+/g, ' ').trim() || anchor.quote,
+  });
 }
 
 /** Выход из режима правки заметки без сохранения.

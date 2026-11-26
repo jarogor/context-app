@@ -183,6 +183,23 @@ body {
   border: 1px dashed #2563eb;
   pointer-events: none;
 }
+/* Черновик правимой цитаты: полосы поверх текста, пока тянется маркер.
+   Наложение умножением — как у подсветки в растре: буквы остаются читаемыми,
+   а страница не перерисовывается на каждое движение указателя. */
+.overlay .note-resize-draft {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.65;
+}
+html[data-reader-theme='dark'] .overlay .note-resize-draft {
+  mix-blend-mode: screen;
+}
+.overlay .note-resize-band {
+  position: absolute;
+  border-radius: 2px;
+}
 /* Контекстное меню заметки на странице. */
 .overlay .note-menu {
   position: absolute;
