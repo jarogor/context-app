@@ -271,6 +271,30 @@
   /** Заметки книги активной вкладки для подсветки. */
   const tabNotes = $derived(tabItems.map((item) => item.note));
 
+  /**
+   * Страницы вкладок в постоянном порядке.
+   *
+   * Порядок задаётся порядком открытия, а не местом вкладки в списке:
+   * перестановка вкладок не должна переставлять их контейнеры в DOM. В
+   * контейнере живёт `<iframe>` читалки, а перемещение iframe по документу
+   * перезагружает его — книга теряла загруженное состояние и навсегда
+   * оставалась с надписью «Открытие книги…». Видима всегда одна страница,
+   * поэтому порядок контейнеров в разметке ни на что не влияет.
+   */
+  const pageTabs = $derived.by(() => {
+    const byId = new Map((workspace?.tabs ?? []).map((item) => [item.id, item]));
+    const ids = [...openedTabIds];
+    const activeId = workspace?.activeTabId ?? null;
+    // Активная вкладка монтируется сразу, ещё до срабатывания эффекта, который
+    // добавляет её в набор открытых.
+    if (activeId && !ids.includes(activeId) && byId.has(activeId)) {
+      ids.push(activeId);
+    }
+    return ids.flatMap((id) => {
+      const item = byId.get(id);
+      return item ? [item] : [];
+    });
+  });
 
   /** Заметки каждой открытой книги рабочего места по идентификатору вкладки. */
   const notesByTab = $derived.by(() => {
@@ -795,7 +819,7 @@
             Открытая вкладка не пересоздаётся при переключении: её документ книги
             уже прочитан и просто становится видимым.
           -->
-          {#each workspace.tabs as item (item.id)}
+          {#each pageTabs as item (item.id)}
             {@const mounted =
               item.id === workspace.activeTabId || openedTabIds.includes(item.id)}
             <div

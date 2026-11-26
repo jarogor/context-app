@@ -731,6 +731,68 @@ test('двойной щелчок по слову выделяет слово в
   await expect(content(page).locator('.selection-layer')).toHaveCount(1);
 });
 
+// Правка границы цитаты меняет только наложение: растр страницы не
+// перерисовывается на каждое движение указателя. Перерисовка — это `clearRect` и
+// `drawImage` всей страницы, поэтому текст на кадр гас и моргал.
+test('правка границы цитаты DjVu не перерисовывает растр страницы', async ({ page }) => {
+  await page.addInitScript(() => {
+    const counters = { paints: 0 };
+    (window as unknown as { __paintCounters?: typeof counters }).__paintCounters = counters;
+    const proto = CanvasRenderingContext2D.prototype;
+    const drawImage = proto.drawImage;
+    proto.drawImage = function (this: CanvasRenderingContext2D, ...args: unknown[]) {
+      counters.paints += 1;
+      return (drawImage as (...a: unknown[]) => void).apply(this, args);
+    };
+  });
+  await openDjvu(page);
+  await page.getByTestId('workplace-notes-toggle').click();
+
+  // Цитата по первому слову страницы.
+  await content(page)
+    .locator('.page')
+    .first()
+    .locator('.textLayer span')
+    .first()
+    .evaluate((span) => {
+      const doc = span.ownerDocument;
+      const range = doc.createRange();
+      range.selectNodeContents(span);
+      const selection = doc.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      span.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+  await page.getByTestId('quote-menu').getByTestId('note-color-yellow').click();
+  await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+  await content(page).locator('.overlay .note').first().click();
+  await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить выделение' }).click();
+  const handle = content(page).locator('.note-handle').nth(1);
+  const box = await handle.boundingBox();
+  expect(box).not.toBeNull();
+
+  const paints = () =>
+    content(page)
+      .locator('#viewer')
+      .evaluate(() => (window as unknown as { __paintCounters?: { paints: number } }).__paintCounters?.paints ?? -1);
+
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  const before = await paints();
+  for (let step = 1; step <= 12; step += 1) {
+    await page.mouse.move(box!.x + box!.width / 2 + step * 5, box!.y + box!.height / 2);
+  }
+  const after = await paints();
+  // Черновик при этом показывает новое место цитаты.
+  await expect(content(page).locator('.note-resize-draft')).toHaveCount(1);
+  await page.mouse.up();
+
+  // За всю протяжку растр не нарисован ни разу.
+  expect(before).toBeGreaterThanOrEqual(0);
+  expect(after).toBe(before);
+});
+
 // Клавиши в книге формата пересылаются в приложение: собственной навигации у
 // плагина нет, распознанная комбинация становится действием единого реестра.
 test('клавиши книги DjVu обрабатывает реестр приложения', async ({ page }) => {

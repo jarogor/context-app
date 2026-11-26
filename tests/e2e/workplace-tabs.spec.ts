@@ -437,6 +437,57 @@ test('перетаскивание в списке меняет порядок �
   await expect(page.locator('html')).not.toHaveAttribute('data-dragging');
 });
 
+test('перестановка вкладок не перезагружает книги', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await addBook(page, 'Демо-книга');
+  await duplicateActive(page, 1);
+  const panel = booksPanel(page);
+  const items = panel.getByTestId('open-books-item');
+  await expect(items).toHaveCount(2);
+  // Обе книги прочитаны: текст на месте до перестановки.
+  const framesBefore = page.locator('[data-testid="workplace-tab-page"] iframe');
+  await expect(framesBefore).toHaveCount(2);
+  for (let index = 0; index < 2; index += 1) {
+    const handle = await framesBefore.nth(index).elementHandle();
+    const child = await handle?.contentFrame();
+    expect(child).not.toBeNull();
+    await expect(child!.locator('body')).toContainText('Первый абзац книги.');
+  }
+
+  /* Место вкладки меняют переносом строки в панели. Пока контейнеры вкладок
+     следовали за местом в списке, Svelte переставлял их в DOM, а перемещение
+     `iframe` перезагружает документ: книга оставалась с надписью «Открытие
+     книги…» и больше не открывалась. */
+  const from = await items.nth(0).boundingBox();
+  const to = await items.nth(1).boundingBox();
+  if (!from || !to) {
+    throw new Error('строки не найдены');
+  }
+  const ids = await items.evaluateAll((elements) =>
+    elements.map((element) => (element as HTMLElement).dataset.tabId ?? ''),
+  );
+  await page.mouse.move(from.x + 40, from.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 40, to.y + 20, { steps: 10 });
+  await page.mouse.up();
+  await expect
+    .poll(async () =>
+      items.evaluateAll((elements) => elements.map((element) => (element as HTMLElement).dataset.tabId)),
+    )
+    .toEqual([ids[1], ids[0]]);
+
+  // Каждая читалка по-прежнему показывает книгу, а не экран открытия.
+  const frames = page.locator('[data-testid="workplace-tab-page"] iframe');
+  await expect(frames).toHaveCount(2);
+  for (let index = 0; index < 2; index += 1) {
+    const handle = await frames.nth(index).elementHandle();
+    const child = await handle?.contentFrame();
+    expect(child).not.toBeNull();
+    await expect(child!.locator('body')).toContainText('Первый абзац книги.');
+  }
+});
+
 test('случайный сдвиг не начинает перенос и не оставляет строку серой', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');

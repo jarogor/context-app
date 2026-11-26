@@ -16,12 +16,8 @@
  * указателем целыми словами, а прежнее выделение не расширяется вверх.
  */
 import { TEXT_LAYER_CLASS, elementOf } from './dom';
-import { layerCaretAtPoint, lineEdgeCaretAtPoint } from './carets';
+import { layerCaretAtPoint, lineEdgeCaretAtPoint, lineRangeAtPoint } from './carets';
 
-/** Признак идущей протяжки выделения на корне документа. */
-const TEXT_SELECTING_ATTR = 'data-text-selecting';
-/** Признак слоя, с которого начата протяжка выделения. */
-const TEXT_ANCHOR_ATTR = 'data-selecting';
 /** Предел между нажатиями одного двойного клика, мс. */
 const DOUBLE_PRESS_MILLIS = 500;
 /** Допуск положения между нажатиями одного жеста, px. */
@@ -45,15 +41,6 @@ let anchorWord: Range | null = null;
 
 /** Каретка нажатия при свободной протяжке: начало выделения. */
 let anchorCaret: { node: Text; offset: number } | null = null;
-
-/** Последнее слово, которое движок выделил двойным кликом.
- *
- * Запоминается на `selectionchange`, когда выделение ещё не растянуто:
- * WebKit применяет выбор блока (всю строку) раньше, чем доходит до обработчика
- * нажатия, поэтому в момент начала протяжки выделение брать нельзя — оно уже
- * испорчено. Живое слово остаётся здесь до следующего выделения.
- */
-let lastDoubleClickedWord: Range | null = null;
 
 /** Точка нажатия, продолжающего двойной клик, пока протяжка не началась. */
 let anchorPress: { x: number; y: number } | null = null;
@@ -140,14 +127,6 @@ function clearSelection(): void {
         selection.removeAllRanges();
     } finally {
         clamping = false;
-    }
-}
-
-/** Отметки протяжки: корень документа и слой, с которого она началась. */
-function mark(layer: Element | null): void {
-    document.documentElement.setAttribute(TEXT_SELECTING_ATTR, '');
-    if (layer) {
-        layer.setAttribute(TEXT_ANCHOR_ATTR, '');
     }
 }
 
@@ -244,44 +223,50 @@ export function beginTextSelection(event: PointerEvent): void {
     const layer = anchorOf(event.target);
     if (layer) {
         anchorLayer = layer;
-        if (count > 1) {
-            /* Якорь — слово, выделенное двойным кликом. Сначала берётся точка нажатия:
-         она не зависит от порядка событий движка. Если каретки по точке нет,
-         используется слово, запомненное в момент его выделения. Текущее
-         выделение в этот момент уже может быть растянуто на строку. */
-            anchorWord =
-                wordAtPoint(layer, event.clientX, event.clientY) ??
-                (lastDoubleClickedWord && layer.contains(lastDoubleClickedWord.startContainer)
-                    ? lastDoubleClickedWord.cloneRange()
-                    : null);
-            anchorPress = { x: event.clientX, y: event.clientY };
-        } else {
-            /* Свободная протяжка тоже ведётся вьюером. Браузер для точки в
-               промежутке между строками или в поле страницы достраивает диапазон
-               до края ближайшего текста: начало выделения уезжало на слово выше,
-               а весь блок тянулся к началу страницы. Якорь — каретка нажатия, и
-               дальше конец считается по геометрии слоя. */
+        /* Точка нажатия нужна на любом нажатии: по ней отличается клик от
+           протяжки. */
+        anchorPress = { x: event.clientX, y: event.clientY };
+        /* Нативное выделение не запускается ни на одном нажатии: выделение
+           целиком ведёт вьюер. В WebKit его запускает `mousedown`, а не
+           `pointerdown`, и на слое, где начата протяжка, оно разрешалось
+           правилом `user-select` — движок тянул своё выделение поверх нашего.
+           Отсюда рывки: на шаге в пустоте его выделение пропадало, а на
+           следующем шаге захватывало весь документ. */
+        if (event.pointerType !== 'touch') {
+            event.preventDefault();
+            /* Отмена нажатия отбирает и переход фокуса в область книги, а без
+               фокуса не работают клавиши: Ctrl+A выделял текст страницы
+               документа, а не книги. Фокус ставится вручную — как это делало
+               само нажатие. */
+            window.focus();
+            /* Прежнее выделение снимается нажатием, как это делал движок:
+               иначе меню прошлой цитаты оставалось бы висеть. */
+            clearSelection();
+        }
+        if (count === 1) {
+            /* Свободная протяжка: якорь — каретка нажатия, дальше конец
+               считается по геометрии слоя. Браузер для точки в промежутке между
+               строками достраивал диапазон до края ближайшего текста, и начало
+               выделения уезжало на слово выше. */
             anchorCaret = layerCaretAtPoint(layer, event.clientX, event.clientY);
-            anchorPress = { x: event.clientX, y: event.clientY };
-            /* Свободная протяжка ведётся вьюером целиком, и нативное
-               выделение не запускается: в этом режиме движок почти не присылает
-               `pointermove` (доходило два события из восьми), и протяжка
-               «застывала» на первом символе. Двойной клик остаётся движку: слово
-               он выделяет сам. */
-            if (event.pointerType !== 'touch') {
-                event.preventDefault();
-                /* Отмена нажатия отбирает и переход фокуса в область книги, а без
-                   фокуса не работают клавиши: Ctrl+A выделял текст страницы
-                   документа, а не книги. Фокус ставится вручную — как это делало
-                   само нажатие. */
-                window.focus();
-                /* Прежнее выделение снимается нажатием, как это делал движок:
-                   иначе меню прошлой цитаты оставалось бы висеть, пока протяжка
-                   не начнётся. */
-                clearSelection();
+        } else {
+            /* Повторное нажатие выделяет слово, третье — строку. Движок этого
+               уже не сделает: нажатие отменено. Якорь протяжки — слово:
+               протяжка от двойного клика растёт целыми словами, а не от начала
+               строки, иначе первый же шаг захватывал бы её целиком. */
+            const word = wordAtPoint(layer, event.clientX, event.clientY);
+            if (word) {
+                anchorWord = word;
+            }
+            if (count > 2) {
+                const line = lineRangeAtPoint(layer, event.clientY);
+                if (line) {
+                    selectRange(line);
+                }
+            } else if (word) {
+                selectRange(word);
             }
         }
-        mark(layer);
         return;
     }
     // Касанием прокручивают книгу, а средней кнопкой вставляют выделенное:
@@ -291,7 +276,6 @@ export function beginTextSelection(event: PointerEvent): void {
     }
     event.preventDefault();
     clearSelection();
-    mark(null);
 }
 
 /** Завершение протяжки выделения: ограничения снимаются. */
@@ -302,15 +286,6 @@ export function endTextSelection(): void {
     anchorPress = null;
     anchorMoved = false;
     dragPoint = null;
-    /* `lastDoubleClickedWord` здесь не сбрасывается: выделенное слово нужно
-     следующему нажатию, которое продолжает двойной клик. */
-    const root = document.documentElement;
-    if (root.hasAttribute(TEXT_SELECTING_ATTR)) {
-        root.removeAttribute(TEXT_SELECTING_ATTR);
-    }
-    for (const layer of document.querySelectorAll(`[${TEXT_ANCHOR_ATTR}]`)) {
-        layer.removeAttribute(TEXT_ANCHOR_ATTR);
-    }
 }
 
 /** Выделение от запомненного слова до каретки под указателем.
@@ -355,9 +330,6 @@ export function clampTextSelection(): void {
     if (clamping) {
         return;
     }
-    // Запоминание слова, выделенного двойным кликом, идёт до всех проверок: оно
-    // нужно и вне протяжки, когда `anchorLayer` ещё не задан.
-    rememberDoubleClickedWord();
     if (!anchorLayer) {
         return;
     }
@@ -388,29 +360,6 @@ export function clampTextSelection(): void {
     } finally {
         clamping = false;
     }
-}
-
-/** Запоминание слова, которое движок выделил двойным кликом.
- *
- * Вызывается на каждое изменение выделения. Словом считается выделение без
- * пробелов внутри текстового слоя: так запоминается результат двойного клика, а
- * растянутая на строку область (выбор блока) не запоминается. Именно это слово
- * становится якорем протяжки, если движок испортил выделение до нажатия.
- */
-function rememberDoubleClickedWord(): void {
-    const selection = document.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-        return;
-    }
-    const range = selection.getRangeAt(0);
-    const layer = elementOf(range.startContainer)?.closest(`.${TEXT_LAYER_CLASS}`);
-    if (!layer || !layer.contains(range.endContainer)) {
-        return;
-    }
-    if (range.toString().trim().length === 0 || /\s/.test(range.toString().trim())) {
-        return;
-    }
-    lastDoubleClickedWord = range.cloneRange();
 }
 
 /** Отметка сдвига указателя после нажатия, продолжающего двойной клик.
@@ -453,21 +402,11 @@ function applyFreeDrag(clientX: number, clientY: number): void {
     if (!anchor || !layer) {
         return;
     }
-    const forward = dragForward(anchor, clientY);
-    const caret = layerCaretAtPoint(layer, clientX, clientY, forward);
+    const caret = lineCaretAtPoint(layer, clientX, clientY, dragForward(anchor, clientY));
     if (!caret) {
         return;
     }
-    /* Над щелью между строками текстовой позиции нет: тогда край строки по
-       направлению протяжки. Именно эту точку браузер считал началом соседнего
-       текста, и выделение прыгало на строку. */
-    const end = caret.inside
-        ? { node: caret.node, offset: caret.offset }
-        : (lineEdgeCaretAtPoint(layer, clientY, forward) ?? {
-              node: caret.node,
-              offset: caret.offset,
-            });
-    applySelectionRange(anchor, end);
+    applySelectionRange(anchor, caret);
 }
 
 /** Ведение выделения от якоря-слова до каретки под указателем.
@@ -488,11 +427,11 @@ function applyWordDrag(clientX: number, clientY: number): void {
     if (!anchor || !layer) {
         return;
     }
-    const caret = lineCaretAtPoint(layer, anchor, clientX, clientY);
+    const start = { node: anchor.startContainer as Text, offset: anchor.startOffset };
+    const caret = lineCaretAtPoint(layer, clientX, clientY, dragForward(start, clientY));
     if (!caret || !layer.contains(caret.node)) {
         return;
     }
-    const start = { node: anchor.startContainer as Text, offset: anchor.startOffset };
     const forward = caretAfter(caret, start, dragForward(start, clientY));
     const end = wordEdge(caret, start, forward);
     applySelectionRange(start, end, anchor.endContainer as Text, anchor.endOffset);
@@ -572,6 +511,21 @@ function wordEdge(
     return forward ? wordEnd : wordStart;
 }
 
+/** Применение готового диапазона как текущего выделения. */
+function selectRange(range: Range): void {
+    const selection = document.getSelection();
+    if (!selection || range.collapsed) {
+        return;
+    }
+    clamping = true;
+    try {
+        selection.removeAllRanges();
+        selection.addRange(range);
+    } finally {
+        clamping = false;
+    }
+}
+
 /** Применение выделения от начала до конца с учётом их порядка.
  *
  * `endNode`/`endOffset` задают конец, когда протяжка идёт вверх: тогда концом
@@ -628,32 +582,34 @@ function dragForward(anchor: { node: Text; offset: number }, clientY: number): b
     return bounds ? clientY > bounds.top + bounds.height / 2 : true;
 }
 
-/** Положение каретки под указателем для протяжки от слова.
+/** Положение каретки под указателем.
  *
- * Внутри строки позиция ведётся по горизонтали (`layerCaretAtPoint`): выделение
- * идёт по буквам независимо от разбиения строки на куски. Над щелью между
- * строками текстовой позиции нет — движок отдаёт каретку на элементе слоя, и
- * выделение схлопывалось. Там берётся край ближайшей строки по направлению
- * протяжки: строки выше выделяются целиком, строки ниже начинаются с начала.
+ * Внутри строки и в промежутке между строками позиция ведётся по геометрии:
+ * строка выбирается по вертикали, позиция в ней — по горизонтали. Раньше в
+ * промежутке брался край строки, и выделение каждый раз прыгало на всю строку и
+ * обратно — стоило указателю попасть в щель между строками.
+ *
+ * В промежутке между строками зазор до соседних одинаков, и строка берётся со
+ * стороны протяжки (`forward`). Край текста нужен только за пределами блока:
+ * выше первой строки выделение доводится до её начала, ниже последней — до конца.
  */
 function lineCaretAtPoint(
     layer: Element,
-    anchor: Range,
     clientX: number,
     clientY: number,
+    forward: boolean,
 ): { node: Text; offset: number } | null {
-    const forward = dragForward(
-        { node: anchor.startContainer as Text, offset: anchor.startOffset },
-        clientY,
-    );
     const caret = layerCaretAtPoint(layer, clientX, clientY, forward);
     if (!caret) {
         return null;
     }
-    // Край строки нужен только когда точка не над строкой: над щелью между
-    // строками и в поле страницы.
     if (caret.inside) {
         return { node: caret.node, offset: caret.offset };
     }
-    return lineEdgeCaretAtPoint(layer, clientY, forward);
+    return (
+        lineEdgeCaretAtPoint(layer, clientY) ?? {
+            node: caret.node,
+            offset: caret.offset,
+        }
+    );
 }

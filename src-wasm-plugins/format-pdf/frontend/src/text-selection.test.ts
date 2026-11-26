@@ -117,15 +117,14 @@ function pointerDownOn(
 }
 
 describe('beginTextSelection', () => {
-    it('протяжка по слову помечает слой и ведёт выделение вьюером', () => {
+    it('протяжка по слову ведётся вьюером', () => {
         const layer = layerWith('слово', 'ещё');
         const span = layer.querySelector('span') as HTMLElement;
         const event = pointerDownOn(span);
         beginTextSelection(event);
-        expect(document.documentElement.hasAttribute('data-text-selecting')).toBe(true);
-        expect(layer.hasAttribute('data-selecting')).toBe(true);
         /* Нативное выделение не запускается: в этом режиме движок почти не
-           присылает `pointermove`, и протяжка застывала. Диапазон ставит вьюер. */
+           присылает `pointermove`, и протяжка застывала или дёргалась.
+           Диапазон ставит вьюер. */
         expect(event.defaultPrevented).toBe(true);
         endTextSelection();
     });
@@ -134,11 +133,11 @@ describe('beginTextSelection', () => {
         const layer = layerWith('слово', 'ещё');
         const event = pointerDownOn(layer);
         beginTextSelection(event);
-        expect(document.documentElement.hasAttribute('data-text-selecting')).toBe(true);
-        expect(layer.hasAttribute('data-selecting')).toBe(false);
         expect(event.defaultPrevented).toBe(true);
+        // Выделения нет и после нажатия, и после его завершения.
+        expect(document.getSelection()?.toString() ?? '').toBe('');
         endTextSelection();
-        expect(document.documentElement.hasAttribute('data-text-selecting')).toBe(false);
+        expect(document.getSelection()?.toString() ?? '').toBe('');
     });
 
     it('касание мимо слова не отменяется: книга прокручивается жестом', () => {
@@ -239,6 +238,13 @@ function wordRange(layer: Element, spanIndex: number, length: number): Range {
     return range;
 }
 
+/** Счётчик жестов: каждому тесту своя точка нажатия.
+ *
+ * Номер нажатия считается по времени и месту. В тестах жесты идут вплотную, и
+ * без разнесения точек второе нажатие следующего теста считалось бы третьим.
+ */
+let gesturePoint = 0;
+
 /** Два нажатия в одной точке: второе продолжает двойной клик.
  *
  * Якорь-слово берётся по точке нажатия, поэтому попадание каретки подменяется
@@ -246,10 +252,12 @@ function wordRange(layer: Element, spanIndex: number, length: number): Range {
  */
 function pressTwice(layer: Element, node: Node, offset: number): void {
     const span = layer.querySelector('span') as HTMLElement;
+    gesturePoint += 1;
+    const point = { x: 70 + gesturePoint * 100, y: 70 + gesturePoint * 100 };
     document.caretRangeFromPoint = () => pointOn(node, offset);
     try {
-        beginTextSelection(pointerDownOn(span, 0, 'mouse', { x: 70, y: 70 }));
-        beginTextSelection(pointerDownOn(span, 0, 'mouse', { x: 70, y: 70 }));
+        beginTextSelection(pointerDownOn(span, 0, 'mouse', point));
+        beginTextSelection(pointerDownOn(span, 0, 'mouse', point));
     } finally {
         delete (document as { caretRangeFromPoint?: unknown }).caretRangeFromPoint;
     }

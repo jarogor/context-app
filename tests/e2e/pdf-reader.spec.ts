@@ -1359,11 +1359,27 @@ async function doubleClickThenDrag(
   await page.mouse.move(target.x, target.y, { steps: 8 });
 }
 
-/** Текст текущего выделения во вьюере. */
+/** Текущее выделение в области содержимого. */
 async function currentSelection(page: Page) {
   return content(page)
     .locator('#viewer')
     .evaluate(() => window.getSelection()?.toString() ?? '');
+}
+
+/** Проверка, что выделение не дёргается.
+ *
+ * Конец выделения идёт за указателем, поэтому выделение только растёт: шаг назад
+ * означает, что позиция потерялась в промежутке между строками, а полное
+ * исчезновение — что выделение снято и построено заново.
+ */
+function expectsNoJump(lengths: number[]) {
+  for (let index = 1; index < lengths.length; index += 1) {
+    expect(lengths[index]).toBeGreaterThanOrEqual(lengths[index - 1]);
+  }
+  // На пути вниз выделение не пропадает: пустые шаги возможны только у начала.
+  const started = lengths.findIndex((length) => length > 0);
+  expect(started).toBeGreaterThanOrEqual(0);
+  expect(Math.min(...lengths.slice(started))).toBeGreaterThan(0);
 }
 
 test('выделение двойным кликом с протяжкой начинается со слова', async ({ page }) => {
@@ -1462,13 +1478,46 @@ test('протяжка от двойного клика в промежуток 
   });
 
   const selection = await currentSelection(page);
-  /* Конец — ближайшая строка снизу, а не конец строки с якорем: раньше в
-       промежутке движок не давал текстовой позиции, конец оставался на месте,
-       и выделение «залипало», показывая всё, что выше слова. */
+  /* Конец — позиция по горизонтали в ближайшей строке снизу, а не конец
+       строки: в промежутке позиция считается по ширине строки, поэтому выделение
+       доходит до той же доли последней строки, где стоит указатель, и не
+       захватывает её целиком. */
   expect(selection.startsWith('follows')).toBe(true);
-  expect(selection).toContain('paragraph of several lines long');
+  expect(selection).toContain('paragraph of');
+  expect(selection).not.toContain('lines long');
 
   await page.mouse.up({ clickCount: 3 });
+});
+
+test('протяжка через промежуток между строками идёт по горизонтали, без рывков', async ({
+  page,
+}) => {
+  await openPdf(page, 1, false, pdfBase64Paragraph());
+  const lines = await textLayerLines(page);
+  expect(lines.length).toBeGreaterThanOrEqual(4);
+  const first = lines[0];
+  const last = lines[3];
+
+  /* Свободная протяжка идёт от нажатия к указателю. Ведём указатель вниз мелким
+     шагом через промежутки между строками и смотрим на длину выделения: раньше
+     в промежутке брался край строки, и выделение каждый раз прыгало на целую
+     строку и обратно. */
+  const startX = first.left + first.width * 0.3;
+  await page.mouse.move(startX, first.top + first.height / 2);
+  await page.mouse.down();
+  const lengths: number[] = [];
+  const texts: string[] = [];
+  for (let y = first.top + first.height / 2; y <= last.top + last.height / 2; y += 3) {
+    await page.mouse.move(startX, y);
+    const text = await currentSelection(page);
+    texts.push(text);
+    lengths.push(text.length);
+  }
+  await page.mouse.up();
+
+  expectsNoJump(lengths);
+  // Вниз до последней строки выделение доходит до её текста.
+  expect(texts[texts.length - 1]).toContain('paragraph');
 });
 
 test('простой тройной клик без протяжки выделяет строку', async ({ page }) => {

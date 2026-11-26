@@ -90,9 +90,11 @@ function textLines(layer: Element): TextLine[] {
 
 /** Строка, к которой относится точка: ближайшая по вертикали.
  *
- * При равном зазоре (точка в промежутке между строк) направление протяжки решает,
- * какая строка ближе: вперёд — нижняя, назад — верхняя. Без этого конец
- * выделения откатывался к строке с якорем и «залипал» на месте.
+ * В промежутке между строками зазор до соседних строк одинаков, и направление
+ * протяжки решает, какая ближе: вперёд — нижняя, назад — верхняя. Без этого
+ * конец выделения откатывался к строке с якорем и «залипал» на месте.
+ * Направление нужно только для выбора строки; позиция внутри неё считается по
+ * горизонтали.
  */
 function lineAt(lines: TextLine[], clientY: number, forward?: boolean): TextLine | null {
   let best: TextLine | null = null;
@@ -119,31 +121,34 @@ function lineAt(lines: TextLine[], clientY: number, forward?: boolean): TextLine
   return best;
 }
 
-/** Каретка на краю ближайшей к точке строки.
+/** Каретка на краю текстового блока, если точка за его пределами.
  *
- * Для точки в промежутке между строками движок даёт каретку на элементе слоя:
- * текстовой позиции там нет. Край строки по направлению протяжки продолжает
- * выделение естественно — строки выше целиком, строки ниже с начала. Строки
- * здесь визуальные: куски одной строки не делят её на отдельные строки.
+ * Внутри блока и в промежутках между строками текстовой позиции нет только по
+ * вертикали, но горизонталь известна: там каретка считается по ближайшей строке
+ * (см. `layerCaretAtPoint`). Край нужен лишь когда точка ушла выше первой строки
+ * или ниже последней — тогда выделение доводится до начала или до конца текста,
+ * как это делает движок.
  */
 export function lineEdgeCaretAtPoint(
   layer: Element,
   clientY: number,
-  forward: boolean,
 ): { node: Text; offset: number } | null {
   const lines = textLines(layer);
   if (lines.length === 0) {
     return null;
   }
-  const line = lineAt(lines, clientY, forward);
-  if (!line) {
+  const first = lines[0];
+  const last = lines[lines.length - 1];
+  if (clientY >= first.bounds.top && clientY <= last.bounds.bottom) {
     return null;
   }
-  const span = forward ? line.spans[line.spans.length - 1] : line.spans[0];
+  const above = clientY < first.bounds.top;
+  const line = above ? first : last;
+  const span = above ? line.spans[0] : line.spans[line.spans.length - 1];
   if (!span) {
     return null;
   }
-  return { node: span.text, offset: forward ? span.text.data.length : 0 };
+  return { node: span.text, offset: above ? 0 : span.text.data.length };
 }
 
 /** Позиция в строке по горизонтали: кусок и смещение внутри него. */
@@ -249,15 +254,50 @@ export function layerCaretAtPoint(
     return null;
   }
   const inside = clientY >= line.bounds.top && clientY <= line.bounds.bottom;
-  const engine = engineCaretInLayer(layer, clientX, clientY);
-  if (engine && line.spans.some((span) => span.span.contains(engine.node))) {
-    return { ...engine, inside };
-  }
+  /* Позиция считается только по геометрии строки. Ответ движка точнее на глаз,
+     но расходится с расчётом по ширине куска на пару символов. Пока внутри
+     полосы брался он, а в промежутке между строками — расчёт, конец выделения
+     дрожал на этих двух символах при каждом переходе через границу полосы.
+     Геометрия даёт одну непрерывную шкалу на всю страницу. */
   const position = positionInLine(line, clientX);
   if (!position) {
     return null;
   }
   return { ...position, inside };
+}
+
+/** Диапазон визуальной строки под точкой: от начала полосы до её конца.
+ *
+ * Тройное нажатие выделяет строку — так же, как это делает движок. Выделение
+ * строится по собранным строкам слоя, поэтому строка — это все куски полосы, а
+ * не один `span` под указателем.
+ */
+export function lineRangeAtPoint(
+  layer: Element,
+  clientY: number,
+  forward = true,
+): Range | null {
+  const lines = textLines(layer);
+  if (lines.length === 0) {
+    return null;
+  }
+  const line = lineAt(lines, clientY, forward);
+  if (!line) {
+    return null;
+  }
+  const first = line.spans[0];
+  const last = line.spans[line.spans.length - 1];
+  if (!first || !last) {
+    return null;
+  }
+  const range = document.createRange();
+  try {
+    range.setStart(first.text, 0);
+    range.setEnd(last.text, last.text.data.length);
+  } catch (error) {
+    return null;
+  }
+  return range.toString().length > 0 ? range : null;
 }
 
 /** Каретка от движка по координатам указателя, если он её отдал. */

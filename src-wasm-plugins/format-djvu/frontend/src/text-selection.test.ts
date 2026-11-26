@@ -117,15 +117,14 @@ function pointerDownOn(
 }
 
 describe('beginTextSelection', () => {
-    it('протяжка по слову помечает слой и ведёт выделение вьюером', () => {
+    it('протяжка по слову ведётся вьюером', () => {
         const layer = layerWith('слово', 'ещё');
         const span = layer.querySelector('span') as HTMLElement;
         const event = pointerDownOn(span);
         beginTextSelection(event);
-        expect(document.documentElement.hasAttribute('data-text-selecting')).toBe(true);
-        expect(layer.hasAttribute('data-selecting')).toBe(true);
         /* Нативное выделение не запускается: в этом режиме движок почти не
-           присылает `pointermove`, и протяжка застывала. Диапазон ставит вьюер. */
+           присылает `pointermove`, и протяжка застывала или дёргалась.
+           Диапазон ставит вьюер. */
         expect(event.defaultPrevented).toBe(true);
         endTextSelection();
     });
@@ -134,11 +133,11 @@ describe('beginTextSelection', () => {
         const layer = layerWith('слово', 'ещё');
         const event = pointerDownOn(layer);
         beginTextSelection(event);
-        expect(document.documentElement.hasAttribute('data-text-selecting')).toBe(true);
-        expect(layer.hasAttribute('data-selecting')).toBe(false);
         expect(event.defaultPrevented).toBe(true);
+        // Выделения нет и после нажатия, и после его завершения.
+        expect(document.getSelection()?.toString() ?? '').toBe('');
         endTextSelection();
-        expect(document.documentElement.hasAttribute('data-text-selecting')).toBe(false);
+        expect(document.getSelection()?.toString() ?? '').toBe('');
     });
 
     it('касание мимо слова не отменяется: книга прокручивается жестом', () => {

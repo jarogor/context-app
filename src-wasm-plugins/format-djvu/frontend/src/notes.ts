@@ -203,6 +203,36 @@ function drawShape(
   overlay.appendChild(svg);
 }
 
+/** Подпись уже нарисованного растра по странице.
+ *
+ * Перерисовка растра — это `clearRect` и `drawImage` всей страницы: на кадр она
+ * делает страницу пустой, и текст моргает. Жест меняет только наложения: правимая
+ * цитата рисуется черновиком слоем, карточка и фигура — тоже слоем. Пока подпись
+ * та же (состав подсветок и тема), растр не трогается вовсе.
+ */
+const paintedSignature = new WeakMap<HTMLCanvasElement, string>();
+
+/** Подпись подсветок страницы: что именно нарисовано в растре. */
+function highlightSignature(pageEl: HTMLElement, notes: ViewerNote[]): string {
+  const index = Number(pageEl.dataset.page);
+  const parts: string[] = [String(state.readerTheme)];
+  for (const note of notes) {
+    if ((note.type || 'quote') !== 'quote') {
+      continue;
+    }
+    // Правимая цитата в растре не рисуется: её показывает черновик слоем.
+    if (editor.resizeDrag && editor.resizeDrag.note.id === note.id) {
+      continue;
+    }
+    const anchor = anchorOf(note);
+    if (!anchor || anchor.page !== index) {
+      continue;
+    }
+    parts.push(`${note.id}:${note.color ?? ''}:${JSON.stringify(anchor.rects || [])}`);
+  }
+  return parts.join('|');
+}
+
 /** Подсветка заметок и наложения карточек и фигур на странице. */
 export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
   const overlay = overlayOf(pageEl);
@@ -219,7 +249,11 @@ export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
   const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
   const entry = state.rendered.get(pageEl);
   if (canvas && entry) {
-    paintHighlights(canvas, entry, pageEl, notes);
+    const signature = highlightSignature(pageEl, notes);
+    if (paintedSignature.get(canvas) !== signature) {
+      paintHighlights(canvas, entry, pageEl, notes);
+      paintedSignature.set(canvas, signature);
+    }
   }
   const index = Number(pageEl.dataset.page);
   for (const note of notes) {
