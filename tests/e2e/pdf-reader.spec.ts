@@ -1200,12 +1200,15 @@ test('выделение текста ложится ровными полоса
   expect(selection).not.toBeNull();
 
   await expect(content(page).locator('.selection-layer')).toHaveCount(1);
-  // Заливка — один элемент во всю страницу, обрезанный маской: полосы не
-  // рисуются отдельными блоками, поэтому стыки не темнеют.
-  const fill = content(page).locator('.selection-fill');
-  await expect(fill).toHaveCount(1);
-  const clip = await fill.evaluate((element) => getComputedStyle(element).clipPath);
-  expect(clip).toContain('url(');
+  /* Заливка рисуется полосами по строкам, а не одним элементом с маской:
+     `clip-path` показывает заливку во всю страницу, пока браузер не разрешил
+     маску, — на кадре выделение захватывало лист, а текст темнел. */
+  const bandLocator = content(page).locator('.selection-band');
+  await expect(bandLocator.first()).toBeVisible();
+  const bandFill = await bandLocator
+    .first()
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(bandFill).not.toBe('rgba(0, 0, 0, 0)');
   // Нативное выделение прозрачно: подсветку рисует только слой.
   const native = await content(page)
     .locator('.textLayer')
@@ -1225,29 +1228,30 @@ test('выделение текста ложится ровными полоса
     .first()
     .evaluate((element) => getComputedStyle(element).mixBlendMode);
   expect(blend).toBe('multiply');
-  // Маска заливки совпадает с нативным выделением по горизонтали; по
-  // вертикали полосы приводятся к межстрочному шагу (см. `tileByLine`).
+  // Полосы совпадают с нативным выделением по горизонтали; по вертикали они
+  // приводятся к межстрочному шагу (см. `tileByLine`).
   const pageBox = await content(page).locator('.page').first().boundingBox();
   expect(pageBox).not.toBeNull();
-  const mask = await fill.locator('path').evaluate((path) => path.getAttribute('d') ?? '');
-  const boxes = mask.match(/M[-\d.eE]+ [-\d.eE]+h[-\d.eE]+v[-\d.eE]+h-[-\d.eE]+Z/g) ?? [];
-  expect(boxes.length).toBeGreaterThanOrEqual(2);
-  const bounds = boxes.reduce(
-    (acc, box) => {
-      const [x, y, width, height] = box
-        .match(/[-\d.eE]+/g)!
-        .map((value) => Number.parseFloat(value));
-      return {
-        left: Math.min(acc.left, x),
-        top: Math.min(acc.top, y),
-        right: Math.max(acc.right, x + width),
-        bottom: Math.max(acc.bottom, y + height),
-      };
-    },
-    { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
+  const selectionBoxes = await content(page)
+    .locator('.selection-band')
+    .evaluateAll((elements) => {
+      const page = elements[0]?.closest('.page') as HTMLElement;
+      const origin = page ? page.getBoundingClientRect() : { left: 0, top: 0 };
+      return elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left - origin.left, right: rect.right - origin.left };
+      });
+    });
+  const bounds = selectionBoxes.reduce(
+    (acc, box) => ({
+      left: Math.min(acc.left, box.left),
+      right: Math.max(acc.right, box.right),
+    }),
+    { left: Infinity, right: -Infinity },
   );
-  expect(Math.abs(bounds.left * pageBox!.width - selection!.native.left)).toBeLessThanOrEqual(2);
-  expect(Math.abs(bounds.right * pageBox!.width - selection!.native.right)).toBeLessThanOrEqual(2);
+  // Обе величины считались от левого края страницы.
+  expect(Math.abs(bounds.left - selection!.native.left)).toBeLessThanOrEqual(2);
+  expect(Math.abs(bounds.right - selection!.native.right)).toBeLessThanOrEqual(2);
   // По вертикали полосы приводятся к межстрочному шагу: полосы-метки (по одной
   // на строку) соседних строк стыкуются встык — без щелей и без нахлёста.
   const bands = await content(page)
@@ -1518,6 +1522,52 @@ test('протяжка через промежуток между строкам
   expectsNoJump(lengths);
   // Вниз до последней строки выделение доходит до её текста.
   expect(texts[texts.length - 1]).toContain('paragraph');
+});
+
+test('слой выделения не пересоздаётся при протяжке', async ({ page }) => {
+  await openPdf(page, 1, false, pdfBase64Paragraph());
+  await content(page)
+    .locator('#viewer')
+    .evaluate(() => {
+      const state = window as unknown as { __layerEvents: string[] };
+      state.__layerEvents = [];
+      // Снятие слоя с документа — это кадр без выделения: на нём полосы
+      // пропадают, и выделение «мерцает».
+      new MutationObserver((records) => {
+        for (const record of records) {
+          for (const node of Array.from(record.removedNodes)) {
+            if (node instanceof Element && node.classList.contains('selection-layer')) {
+              state.__layerEvents.push('removed');
+            }
+          }
+          for (const node of Array.from(record.addedNodes)) {
+            if (node instanceof Element && node.classList.contains('selection-layer')) {
+              state.__layerEvents.push('added');
+            }
+          }
+        }
+      }).observe(document.body, { childList: true, subtree: true });
+    });
+
+  const lines = await textLayerLines(page);
+  const first = lines[0];
+  const last = lines[3];
+  await page.mouse.move(first.left + first.width * 0.3, first.top + first.height / 2);
+  await page.mouse.down();
+  for (let step = 1; step <= 20; step += 1) {
+    const y = first.top + first.height / 2 + ((last.top - first.top) * step) / 20;
+    await page.mouse.move(first.left + first.width * 0.3, y);
+  }
+  const events = await content(page)
+    .locator('#viewer')
+    .evaluate(() => (window as unknown as { __layerEvents: string[] }).__layerEvents.slice());
+  await page.mouse.up();
+
+  /* За протяжку слой создаётся один раз и ни разу не снимается. Раньше он
+     снимался и создавался заново на каждое изменение выделения — за протяжку
+     это было 20+ раз, и выделение мерцало. */
+  expect(events.filter((event) => event === 'added')).toHaveLength(1);
+  expect(events).not.toContain('removed');
 });
 
 test('простой тройной клик без протяжки выделяет строку', async ({ page }) => {
@@ -2075,42 +2125,31 @@ test('полоса выделения стыкуется по межстрочн
     });
   expect(geometry).not.toBeNull();
 
-  // Заливка — один элемент, обрезанный маской по прямоугольникам диапазона.
-  const mask = await content(page)
-    .locator('.selection-fill path')
-    .evaluate((path) => path.getAttribute('d') ?? '');
-  const boxes = (mask.match(/M[-\d.eE]+ [-\d.eE]+h[-\d.eE]+v[-\d.eE]+h-[-\d.eE]+Z/g) ?? []).map(
-    (box) => {
-      const [x, y, width, height] = box
-        .match(/[-\d.eE]+/g)!
-        .map((value) => Number.parseFloat(value));
-      return { x, y, width, height, right: x + width, bottom: y + height };
-    },
-  );
-  expect(boxes.length).toBeGreaterThanOrEqual(2);
-  // Полосы соседних строк стыкуются по шагу: ни щелей, ни нахлёста. Прежний
-  // контракт «заливка = нативные прямоугольники» давал щели (низкий бокс
-  // встроенного шрифта) или нахлёст (высокий бокс запасного `monospace`).
-  // Полосы-метки — по одной на строку (в маске заливки куски строки могут
-  // повторяться, поэтому вертикальные стыки проверяются по ним).
+  /* Заливка — полосы по строкам. Их прямоугольники и проверяются: раньше
+     заливка была одним элементом с маской, и «полосами» служила только разметка
+     для меток. */
   const bands = await content(page)
     .locator('.selection-band')
     .evaluateAll((elements) =>
       elements
         .map((element) => element.getBoundingClientRect())
         .sort((a, b) => a.top - b.top)
-        .map((rect) => ({ top: rect.top, bottom: rect.bottom })),
+        .map((rect) => ({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right })),
     );
+  expect(bands.length).toBeGreaterThanOrEqual(2);
+  // Полосы соседних строк стыкуются по шагу: ни щелей, ни нахлёста. Прежний
+  // контракт «заливка = нативные прямоугольники» давал щели (низкий бокс
+  // встроенного шрифта) или нахлёст (высокий бокс запасного `monospace`).
   for (let index = 1; index < bands.length; index += 1) {
     const gap = bands[index].top - bands[index - 1].bottom;
     expect(gap).toBeLessThanOrEqual(1);
     expect(gap).toBeGreaterThanOrEqual(-1);
   }
   // Горизонталь совпадает с нативным выделением: полосы не сужаются.
-  const maskLeft = Math.min(...boxes.map((box) => box.x)) * geometry!.pageWidth;
-  const maskRight = Math.max(...boxes.map((box) => box.right)) * geometry!.pageWidth;
-  expect(Math.abs(maskLeft - geometry!.nativeLeft)).toBeLessThanOrEqual(2);
-  expect(Math.abs(maskRight - geometry!.nativeRight)).toBeLessThanOrEqual(2);
+  const maskLeft = Math.min(...bands.map((band) => band.left)) - geometry!.nativeLeft;
+  const maskRight = Math.max(...bands.map((band) => band.right)) - geometry!.nativeRight;
+  expect(Math.abs(maskLeft)).toBeLessThanOrEqual(2);
+  expect(Math.abs(maskRight)).toBeLessThanOrEqual(2);
 });
 
 // Скан с невидимым OCR-слоем: невидимый текст спозиционирован короче растра.

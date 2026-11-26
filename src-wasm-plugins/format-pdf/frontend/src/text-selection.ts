@@ -278,6 +278,16 @@ export function beginTextSelection(event: PointerEvent): void {
     clearSelection();
 }
 
+/** Идёт ли протяжка выделения прямо сейчас.
+ *
+ * Нужна слою выделения: пока протяжка идёт, снимать его нельзя даже на кадр —
+ * выделение мерцало бы и «пропадало». Диапазон в это время восстанавливается по
+ * точке указателя (см. `clampTextSelection`).
+ */
+export function selectionInProgress(): boolean {
+    return Boolean(anchorLayer && anchorMoved);
+}
+
 /** Завершение протяжки выделения: ограничения снимаются. */
 export function endTextSelection(): void {
     anchorLayer = null;
@@ -348,6 +358,20 @@ export function clampTextSelection(): void {
     }
     if (selection.rangeCount === 0 || selection.isCollapsed) {
         return;
+    }
+    /* Пока идёт протяжка, выделение ведёт вьюер. Движок может свернуть его в
+       каретку или увести за слой — тогда диапазон восстанавливается по
+       последней точке указателя, а не снимается: иначе выделение пропадало
+       посреди протяжки и появлялось снова только на «удобном» месте. */
+    if (anchorMoved && dragPoint) {
+        if (selection.isCollapsed) {
+            if (anchorWord) {
+                applyWordDrag(dragPoint.x, dragPoint.y);
+            } else {
+                applyFreeDrag(dragPoint.x, dragPoint.y);
+            }
+            return;
+        }
     }
     const clamped = clampRange(selection.getRangeAt(0), anchorLayer);
     if (!clamped) {

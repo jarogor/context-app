@@ -351,30 +351,34 @@ test('активное выделение показывает метки тол
   expect(left.width).not.toBe('0px');
   expect(Number.parseFloat(left.left)).toBeLessThan(0);
 
-  // Заливка и метки — один элемент слоя, поэтому их высоты совпадают
-  // (нативное `::selection` прозрачно: движки красят его по-разному).
-  const fill = await bookDocument(page)
+  /* Заливку рисует нативное `::selection` — оно ложится под буквы, и текст под
+     выделением не тускнеет. Полоса слоя остаётся ради меток-кареток: у неё
+     своей заливки нет. */
+  const band = await bookDocument(page)
     .locator('.context-selection-band')
     .first()
     .evaluate((element) => {
-      const band = getComputedStyle(element);
       const edge = getComputedStyle(element, '::before');
       const rect = (element as HTMLElement).getBoundingClientRect();
+      const paragraph = element.closest('p') as HTMLElement | null;
+      const native = paragraph ? getComputedStyle(paragraph, '::selection') : null;
       return {
-        background: band.backgroundColor,
+        bandBackground: getComputedStyle(element).backgroundColor,
+        nativeBackground: native ? native.backgroundColor : '',
         edgeWidth: edge.width,
         height: rect.height,
       };
     });
-  expect(fill.background).not.toBe('rgba(0, 0, 0, 0)');
-  expect(Number.parseFloat(fill.edgeWidth)).toBeGreaterThan(0);
+  expect(band.bandBackground).toBe('rgba(0, 0, 0, 0)');
+  expect(band.nativeBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(Number.parseFloat(band.edgeWidth)).toBeGreaterThan(0);
   // Полоса расширена до высоты строки — иначе между строками выделения
   // остаются пустоты, которых нет в PDF.
   const lineHeight = await bookDocument(page)
     .locator('p')
     .first()
     .evaluate((element) => Number.parseFloat(getComputedStyle(element).lineHeight));
-  expect(Math.abs(fill.height - lineHeight)).toBeLessThan(1);
+  expect(Math.abs(band.height - lineHeight)).toBeLessThan(1);
 
   // Снятие выделения убирает слой и метки.
   await bookDocument(page)

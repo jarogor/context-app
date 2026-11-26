@@ -68,13 +68,14 @@ const BASE_STYLE = [
   'body[data-tool="text"] mark.context-note,body[data-tool="shape"] mark.context-note,',
   'body[data-tool="text"] .context-note-shape path,body[data-tool="shape"] .context-note-shape path',
   '{cursor:pointer !important;}',
-  // Заливку выделения рисует собственный слой: движки красят `::selection`
-  // по-разному, и своя полоса не совпала бы с нативной.
-  '::selection{background:transparent;}',
-  `.${SELECTION_LAYER_CLASS}{position:absolute;left:0;top:0;pointer-events:none;z-index:1;`,
-  'mix-blend-mode:multiply;}',
-  `html[data-reader-theme='dark'] .${SELECTION_LAYER_CLASS}{mix-blend-mode:screen;}`,
-  `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:2px;background:var(--rt-selection);}`,
+  /* Заливку выделения рисует нативное `::selection`: оно ложится под буквы, и
+     текст под выделением остаётся того же цвета. Слой над текстом затемнял
+     глифы, а на тёмной стороне (`screen`) ещё и выбеливал их края — текст
+     выглядел выцветшим. Слой остаётся только ради меток-кареток по краям
+     выделения: `::selection` их не рисует. */
+  `::selection{background:var(--rt-selection);}`,
+  `.${SELECTION_LAYER_CLASS}{position:absolute;left:0;top:0;pointer-events:none;z-index:1;}`,
+  `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:2px;background:transparent;}`,
   `.${SELECTION_BAND_CLASS}::before,.${SELECTION_BAND_CLASS}::after{content:none;position:absolute;`,
   'top:-0.5px;bottom:-0.5px;width:var(--rt-selection-edge-width,1px);',
   'background:var(--rt-selection-edge);border-radius:calc(0.5 * var(--rt-selection-edge-width,1px));}',

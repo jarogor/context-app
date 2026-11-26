@@ -1,12 +1,17 @@
-/** Живое выделение текста: полосы, заливка и метки на странице.
+/** Живое выделение текста: полосы и метки по краям выделения.
  *
- * Нативное выделение браузера прозрачно и служит копированию; видимое выделение
- * рисует собственный слой: полосы строк и вертикальные метки у краёв всего
- * выделения. Заливка — единый элемент, обрезанный маской по сырым
- * прямоугольникам диапазона, поэтому на стыках строк она не темнеет.
+ * Видимое выделение рисует собственный слой: полосы строк и вертикальные метки
+ * у краёв всего выделения. Нативное выделение в текстовом слое прозрачно и
+ * служит только копированию.
+ *
+ * Заливка — полосы по строкам, а не один элемент с маской: `clip-path`
+ * показывает заливку во всю страницу, пока браузер не разрешил маску, и на
+ * кадре выделение захватывало лист целиком. Слой переиспользуется: полосы
+ * обновляются на месте, иначе выделение мерцало при каждой правке диапазона.
  */
 import { SELECTION_LAYER_CLASS, elementOf, overlayOf, TEXT_LAYER_CLASS } from './dom';
 import { tileByLine } from './lines';
+import { selectionInProgress } from './text-selection';
 import type { Rect } from './types';
 
 /** Прямоугольник в долях страницы, заданный рамкой. */
@@ -133,38 +138,6 @@ function spanRects(range: Range): DOMRect[] {
   return out;
 }
 
-/**
- * Маска заливки выделения: единый `clipPath` по прямоугольникам диапазона.
- *
- * Перекрывающиеся части строк объединяются одним контуром с правилом `nonzero`,
- * поэтому заливка на стыках не темнеет, а полоса не сужается до середины букв.
- * SVG лежит внутри заливаемого элемента, а `clipPath` задан в долях его рамки
- * (`objectBoundingBox`) — то есть в долях страницы.
- */
-export function applyFillMask(fill: HTMLElement, rects: Rect[], clipId: number): string {
-  const namespace = 'http://www.w3.org/2000/svg';
-  const id = 'selection-clip-' + clipId;
-  const svg = document.createElementNS(namespace, 'svg');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('width', '100%');
-  svg.setAttribute('height', '100%');
-  const clip = document.createElementNS(namespace, 'clipPath');
-  clip.setAttribute('id', id);
-  clip.setAttribute('clipPathUnits', 'objectBoundingBox');
-  const path = document.createElementNS(namespace, 'path');
-  path.setAttribute(
-    'd',
-    rects
-      .map((rect) => `M${rect.x} ${rect.y}h${rect.width}v${rect.height}h-${rect.width}Z`)
-      .join(' '),
-  );
-  clip.append(path);
-  svg.append(clip);
-  fill.style.clipPath = `url(#${id})`;
-  fill.append(svg);
-  return id;
-}
-
 /** Слой выделения на странице, к которой относится текущее выделение, или null. */
 interface SelectionTarget {
   /** Страница выделения. */
@@ -196,47 +169,62 @@ export function selectionTarget(selection: Selection | null): SelectionTarget | 
   return { pageEl, overlay, range, first: range.getClientRects()[0] };
 }
 
-/** Идентификатор маски: уникален на документ. */
-let selectionClipId = 0;
+/** Снятие слоя выделения со всех страниц. */
+function clearLayers(): void {
+  for (const stale of document.querySelectorAll(`.${SELECTION_LAYER_CLASS}`)) {
+    stale.remove();
+  }
+}
+
+/** Слой выделения страницы; создаётся при первом использовании. */
+function layerOf(target: SelectionTarget): HTMLElement {
+  const existing = target.pageEl.querySelector(`.${SELECTION_LAYER_CLASS}`);
+  if (existing instanceof HTMLElement) {
+    return existing;
+  }
+  const layer = document.createElement('div');
+  layer.className = SELECTION_LAYER_CLASS;
+  // Слой лежит поверх канваса, но под оверлеем заметок.
+  target.pageEl.insertBefore(layer, target.overlay);
+  return layer;
+}
 
 /**
  * Перерисовка слоя выделения по текущему выделению текста.
  *
- * Вертикальные метки («курсоры») ставятся только у краёв всего выделения.
- * Заливка ложится умножением (на тёмной стороне — осветлением), растр текста
- * остаётся чётким. Прежний слой всегда снимается: слоёв выделения на документ
- * не больше одного.
+ * Полосы строятся по прямоугольникам диапазона и приводятся к межстрочному шагу
+ * (см. `tileByLine`). Вертикальные метки («курсоры») ставятся только у краёв
+ * всего выделения.
  */
 export function renderSelection(): void {
-  for (const stale of document.querySelectorAll(`.${SELECTION_LAYER_CLASS}`)) {
-    stale.remove();
-  }
   const target = selectionTarget(window.getSelection());
   if (!target) {
+    /* Пока идёт протяжка, выделение восстановит `clampTextSelection` по точке
+       указателя. Снимать слой здесь — значит на кадр показать страницу без
+       выделения: оно мерцало и «пропадало» у пользователя. */
+    if (selectionInProgress()) {
+      return;
+    }
+    clearLayers();
     return;
   }
   const pageBounds = target.pageEl.getBoundingClientRect();
   const rects = selectionRects(target.range, pageBounds);
-  if (rects.length === 0) {
-    return;
-  }
-  // Полосы и заливка приводятся к межстрочному шагу (см. `tileByLine`):
-  // выделение одинаково и на цифровой странице, и на скане.
   const { merged: bands } = tileByLine(rects);
   if (bands.length === 0) {
+    clearLayers();
     return;
   }
-  const layer = document.createElement('div');
-  layer.className = SELECTION_LAYER_CLASS;
-  const fill = document.createElement('div');
-  fill.className = 'selection-fill';
-  selectionClipId += 1;
-  // Заливка — по полосам строк, а не по кускам слов: иначе между словами
-  // остаются белые щели, и блок текста не выглядит единой фигурой. Полоса
-  // строки уже покрывает промежутки между словами, но не выходит за границы
-  // выделения.
-  applyFillMask(fill, bands, selectionClipId);
-  layer.append(fill);
+  /* Слой целевой страницы не снимается: полосы обновляются на месте. Снятие и
+     пересоздание слоя на каждое изменение выделения и давало мерцание. Слои
+     других страниц убираются — выделение живёт в одном текстовом слое. */
+  const layer = layerOf(target);
+  for (const stale of document.querySelectorAll(`.${SELECTION_LAYER_CLASS}`)) {
+    if (stale !== layer) {
+      stale.remove();
+    }
+  }
+  layer.replaceChildren();
   bands.forEach((rect, index) => {
     const band = document.createElement('div');
     band.className = 'selection-band';
@@ -252,8 +240,6 @@ export function renderSelection(): void {
     band.dataset.edge = isStart && isEnd ? 'both' : isStart ? 'start' : isEnd ? 'end' : 'none';
     layer.append(band);
   });
-  // Слой лежит поверх канваса, но под оверлеем заметок.
-  target.pageEl.insertBefore(layer, target.overlay);
 }
 
 /** Прямоугольники текущего выделения в долях страницы для создания цитаты. */
