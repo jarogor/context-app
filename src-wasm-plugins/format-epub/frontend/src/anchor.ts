@@ -339,7 +339,11 @@ export function rangeFromOffsets(root: Node, start: number, end: number): Range 
     let node = walker.nextNode();
     while (node) {
         const length = node.nodeValue?.length ?? 0;
-        if (!startNode && start <= position + length) {
+        /* Смещение на стыке узлов принадлежит обоим. Начало берётся в следующем
+           узле: нулевое смещение в предыдущем ставит границу в его конец, и
+           маркер начала цитаты оказывался на предыдущем блоке текста. Конец
+           уместнее в предыдущем — так виден последний символ цитаты. */
+        if (!startNode && start < position + length) {
             startNode = node;
             startOffset = start - position;
         }
