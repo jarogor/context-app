@@ -139,10 +139,15 @@ export function resetList(): void {
   state.pending.clear();
 }
 
-/** Создание недостающих и удаление лишних страниц окна. */
-export function realizeWindow(): void {
+/** Создание недостающих и удаление лишних страниц окна.
+ *
+ * Возвращает число созданных страниц: по нему прокрутка решает, нужны ли
+ * немедленные предварительные кадры.
+ */
+export function realizeWindow(): number {
   const { first, last } = visibleRange();
   const count = state.pageCount;
+  let created = 0;
   // Удаление страниц вне окна.
   for (const [page, pageEl] of [...state.pages.entries()]) {
     if (page < first || page > last) {
@@ -169,6 +174,7 @@ export function realizeWindow(): void {
     overlay.className = OVERLAY_CLASS;
     pageEl.append(overlay);
     state.pages.set(page, pageEl);
+    created += 1;
   }
   // Порядок и распорки: сверху всё, что до окна, снизу — что после.
   const top = spacerElement('top');
@@ -193,6 +199,7 @@ export function realizeWindow(): void {
   }
   state.windowStart = first;
   state.windowEnd = last;
+  return created;
 }
 
 /** Совпадает ли текущая последовательность потомков с окном страниц. */

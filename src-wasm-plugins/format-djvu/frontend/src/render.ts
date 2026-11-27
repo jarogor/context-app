@@ -75,6 +75,10 @@ export function layoutPages(): void {
     clearTimeout(settleTimer);
     settleTimer = null;
   }
+  if (warmTimer !== null) {
+    clearTimeout(warmTimer);
+    warmTimer = null;
+  }
   rebuildMetrics();
   realizeWindow();
 }
@@ -162,6 +166,12 @@ export function releaseWindowPages(): void {
   if (fullTimer !== null) {
     clearTimeout(fullTimer);
     fullTimer = null;
+  }
+  // Прогрев предпросмотров относится к прежнему масштабу и раскраске: его кадры
+  // встали бы в страницы нового размера со старым содержимым.
+  if (warmTimer !== null) {
+    clearTimeout(warmTimer);
+    warmTimer = null;
   }
   for (const pageEl of state.pages.values()) {
     if (!preserveOldRaster(pageEl)) {
@@ -371,6 +381,10 @@ export function renderPage(
   preview.style.height = info.height + 'px';
   try {
     drawRaster(page, preview, info, viewport, Math.max(1, Math.round(dpi / 4)));
+    /* Предварительный кадр перекрашивается под тему сразу. Без этого в тёмной
+       теме он вставлялся светлым и только полный кадр делал страницу тёмной:
+       пользователь видел белую вспышку на месте каждой новой страницы. */
+    recolorCanvas(preview, state.readerTheme, state.pageColors);
   } catch {
     // Быстрый кадр не удался (например, страница без фона) — не беда: следом
     // идёт полный, и он же сообщит об ошибке, если она настоящая.
@@ -662,6 +676,8 @@ let fullTimer: ReturnType<typeof setTimeout> | null = null;
 let renderTimer: ReturnType<typeof setTimeout> | null = null;
 /** Таймер паузы после прокрутки: растр рисуется, когда прокрутка успокоилась. */
 let settleTimer: ReturnType<typeof setTimeout> | null = null;
+/** Таймер прогрева предпросмотров страниц про запас. */
+let warmTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Постановка страницы в очередь, если её ещё нет. */
 function enqueue(pageEl: HTMLElement, preserve: RenderedEntry | null = null): void {
@@ -873,7 +889,21 @@ export function scheduleWindowRefresh(): void {
 export function notifyScrolling(): void {
   // Во время прокрутки пересобирается только окно страниц (дешёвая операция):
   // место под страницы обновляется сразу, а растр рисуется после её окончания.
-  realizeWindow();
+  const realized = realizeWindow();
+  /* Новые видимые страницы получают предварительный кадр СРАЗУ, в этом же
+     кадре, до вывода на экран. Кадр в четверть разрешения стоит десятки
+     миллисекунд, а страница без него показывалась пустой: раньше он рисовался
+     отдельной задачей, и между появлением страницы и её рисунком проходил
+     кадр пустоты. Пока прокрутка идёт, полный растр не рисуется — его ставит
+     `refreshWindows` по её окончании. */
+  if (realized > 0) {
+    drawVisiblePreviews();
+  }
+  /* Страницы про запас получают предпросмотр заранее: к моменту, когда они
+     въедут в окно, разбор страницы движком уже позади, и кадр показывается в
+     том же кадре, что и страница. Прогрев не мешает прокрутке: он идёт после
+     видимых страниц и на одну задачу позже. */
+  warmNearbyPreviews();
   if (settleTimer !== null) {
     clearTimeout(settleTimer);
   }
@@ -881,6 +911,123 @@ export function notifyScrolling(): void {
     settleTimer = null;
     refreshWindows();
   }, 90);
+}
+
+/**
+ * Прогрев предпросмотров страниц про запас.
+ *
+ * Разбор страницы движком при первом обращении стоит около сотни миллисекунд,
+ * и предпросмотр видимой страницы не успевал появиться в том же кадре. Страницы
+ * окна рисуются заранее, пока прокрутка ещё не дошла до них: тогда и разбор, и
+ * кадр оказываются позади.
+ */
+function warmNearbyPreviews(): void {
+  if (warmTimer !== null || state.doc === null) {
+    return;
+  }
+  warmTimer = setTimeout(() => {
+    warmTimer = null;
+    if (!state.doc) {
+      return;
+    }
+    const viewerRect = viewer.getBoundingClientRect();
+    for (let page = state.windowStart; page <= state.windowEnd; page += 1) {
+      const pageEl = state.pages.get(page);
+      if (!pageEl || state.pending.has(pageEl) || state.rendered.has(pageEl)) {
+        continue;
+      }
+      if (pageEl.querySelector('canvas')) {
+        continue;
+      }
+      const rect = pageEl.getBoundingClientRect();
+      // Только страницы вне экрана: видимые уже получили кадр.
+      if (rect.bottom > viewerRect.top && rect.top < viewerRect.bottom) {
+        continue;
+      }
+      drawPreviewFor(pageEl, page);
+    }
+  }, 120);
+}
+
+/**
+ * Предварительные кадры видимых страниц без растра.
+ *
+ * Прокрутка не ждёт полной отрисовки: странице, въехавшей в окно, сразу
+ * рисуется кадр в четверть разрешения — он стоит десятки миллисекунд и
+ * показывает содержимое, пока полный растр не готов. Без этого страница
+ * оставалась пустой на всё время паузы после прокрутки и полной отрисовки.
+ */
+function drawVisiblePreviews(): void {
+  const doc = state.doc;
+  if (!doc) {
+    return;
+  }
+  const viewerRect = viewer.getBoundingClientRect();
+  for (let page = state.windowStart; page <= state.windowEnd; page += 1) {
+    const pageEl = state.pages.get(page);
+    if (!pageEl || state.pending.has(pageEl) || state.rendered.has(pageEl)) {
+      continue;
+    }
+    if (pageEl.querySelector('canvas')) {
+      continue;
+    }
+    const rect = pageEl.getBoundingClientRect();
+    if (!(rect.bottom > viewerRect.top && rect.top < viewerRect.bottom)) {
+      continue;
+    }
+    drawPreviewFor(pageEl, page);
+  }
+}
+
+/**
+ * Предварительный кадр одной страницы в четверть разрешения.
+ *
+ * Рисуется в собственный маленький канвас: растяжение до размера страницы
+ * делает композитор, поэтому кадр стоит десятки миллисекунд. Перекраска под
+ * тему выполняется сразу — иначе в тёмной теме страница показывалась бы светлой
+ * до полного кадра.
+ */
+function drawPreviewFor(pageEl: HTMLElement, page: number): void {
+  const doc = state.doc;
+  if (!doc) {
+    return;
+  }
+  let pageView: DjVuPage;
+  try {
+    pageView = doc.page(page - 1);
+  } catch {
+    return;
+  }
+  const viewport = pageSize(page - 1);
+  pageEl.style.width = viewport.width + 'px';
+  pageEl.style.height = viewport.height + 'px';
+  const setup = setupCanvas(pageEl, viewport, nativePixelsPerCss(pageView, viewport));
+  const preview = document.createElement('canvas');
+  const previewSide = Math.max(64, Math.round(setup.info.width / 4));
+  preview.width = Math.max(1, previewSide);
+  preview.height = Math.max(
+    1,
+    Math.round((previewSide * setup.info.height) / Math.max(1, setup.info.width)),
+  );
+  preview.style.left = setup.info.x + 'px';
+  preview.style.top = setup.info.y + 'px';
+  preview.style.width = setup.info.width + 'px';
+  preview.style.height = setup.info.height + 'px';
+  try {
+    const dpi = rasterDpi(pageView, setup.canvas);
+    drawRaster(pageView, preview, setup.info, viewport, Math.max(1, Math.round(dpi / 4)));
+    recolorCanvas(preview, state.readerTheme, state.pageColors);
+  } catch {
+    return;
+  }
+  const overlay = overlayOf(pageEl);
+  if (!overlay) {
+    return;
+  }
+  for (const stale of Array.from(pageEl.querySelectorAll('canvas'))) {
+    stale.remove();
+  }
+  pageEl.insertBefore(preview, overlay);
 }
 
 /** Пауза склейки серии нажатий, мс. */

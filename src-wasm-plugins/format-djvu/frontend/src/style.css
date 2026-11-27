@@ -342,41 +342,34 @@ html[data-reader-theme='dark'] .selection-layer {
 .selection-layer .selection-band {
   position: absolute;
   pointer-events: none;
+  /* Скругления нет: полоса служит ещё и рамкой меток, а радиус обрезал бы их
+     концы — метка стала бы короче полосы. */
+  border-radius: 0;
   /* Заливка нарисована в растре страницы (см. `notes.ts`): полоса слоем ложится
      плёнкой на буквы, и текст мутнеет. Полоса слоя — только место меток. */
   background: transparent;
 }
 /* Признак активного выделения: вертикальные метки по краям полос — «курсоры»
    выделения. Отличают живое выделение от подсветки заметки (та меток не
-   получает). Метки плотнее заливки, но того же оттенка, и лежат внутри слоя
-   с наложением, поэтому остаются чёткими на растре. */
-.selection-layer .selection-band::before,
-.selection-layer .selection-band::after {
-  content: none;
-  position: absolute;
-  /* Метка чуть выходит за строку сверху и снизу, но не «торчит» заметно:
-     по полпикселя с каждой стороны. */
-  top: -0.5px;
-  bottom: -0.5px;
-  width: var(--reader-selection-edge-width, 1px);
-  background: var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
-  /* Радиус — половина толщины: метка читается капсулой при любой ширине. */
-  border-radius: calc(0.5 * var(--reader-selection-edge-width, 1px));
+   получает).
+   Метка — внутренняя тень самой полосы, а не отдельный элемент: её высота и
+   положение берутся из того же прямоугольника, что и заливка, поэтому разойтись
+   с полосой они не могут. Отдельные элементы с собственной высотой приходилось
+   подгонять под строку, и на каждой правке они снова «торчали». */
+.selection-layer .selection-band[data-edge='start'] {
+  box-shadow: inset var(--reader-selection-edge-width, 1px) 0 0 0
+    var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
 }
-/* Метки стоят у краёв всего выделения: левая — в начале, правая — в конце.
-   У промежуточных строк меток нет, иначе они читаются как отдельные
-   выделения (особенно при строках разной длины). Метка центрируется на
-   самой границе полосы (внутрь/наружу поровну, на полширины): её середина
-   совпадает с краем выделения, и полоса не кажется шире на толщину метки. */
-.selection-layer .selection-band[data-edge='start']::before,
-.selection-layer .selection-band[data-edge='both']::before {
-  content: '';
-  left: calc(-0.5 * var(--reader-selection-edge-width, 1px));
+.selection-layer .selection-band[data-edge='end'] {
+  box-shadow: inset calc(-1 * var(--reader-selection-edge-width, 1px)) 0 0 0
+    var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
 }
-.selection-layer .selection-band[data-edge='end']::after,
-.selection-layer .selection-band[data-edge='both']::after {
-  content: '';
-  right: calc(-0.5 * var(--reader-selection-edge-width, 1px));
+.selection-layer .selection-band[data-edge='both'] {
+  box-shadow:
+    inset var(--reader-selection-edge-width, 1px) 0 0 0
+      var(--reader-selection-edge, rgba(37, 99, 235, 0.9)),
+    inset calc(-1 * var(--reader-selection-edge-width, 1px)) 0 0 0
+      var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
 }
 /* Инструменты текста и фигуры не работают с выделением: прицел вместо
    текстового курсора и запрет выделения текста под протяжкой. */

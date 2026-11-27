@@ -338,18 +338,29 @@ test('активное выделение показывает метки тол
   expect(edges[edges.length - 1]).toBe('end');
   expect(edges.slice(1, -1).every((edge) => edge === 'none')).toBe(true);
 
-  // Метка — на левом краю первой полосы, и у подсветки заметки её нет.
-  // Метка сдвинута наружу от полосы на свою ширину: тогда она попадает в
-  // промежуток между буквами, а не ложится на глиф — как в плагине PDF.
+  /* Метка — внутренняя тень самой полосы, а не отдельный элемент. Её высота и
+     положение берутся из того же прямоугольника, что и заливка, поэтому разойтись
+     с полосой они не могут: отдельную метку приходилось подгонять под строку, и
+     она снова «торчала» на каждой правке. */
   const left = await bookDocument(page)
     .locator('.context-selection-band')
     .first()
     .evaluate((element) => {
-      const edge = getComputedStyle(element, '::before');
-      return { width: edge.width, left: edge.left };
+      const style = getComputedStyle(element);
+      return {
+        shadow: style.boxShadow,
+        radius: style.borderRadius,
+        // Отдельного элемента метки больше нет: её рисует сама полоса.
+        before: getComputedStyle(element, '::before').content,
+        after: getComputedStyle(element, '::after').content,
+      };
     });
-  expect(left.width).not.toBe('0px');
-  expect(Number.parseFloat(left.left)).toBeLessThan(0);
+  expect(left.shadow).toContain('inset');
+  expect(left.shadow).not.toBe('none');
+  // Своего радиуса у полосы нет: скругление обрезало бы концы метки.
+  expect(Number.parseFloat(left.radius)).toBe(0);
+  expect(left.before).toBe('none');
+  expect(left.after).toBe('none');
 
   /* Заливку рисует нативное `::selection` — оно ложится под буквы, и текст под
      выделением не тускнеет. Полоса слоя остаётся ради меток-кареток: у неё
@@ -358,14 +369,14 @@ test('активное выделение показывает метки тол
     .locator('.context-selection-band')
     .first()
     .evaluate((element) => {
-      const edge = getComputedStyle(element, '::before');
+      const edge = getComputedStyle(element);
       const rect = (element as HTMLElement).getBoundingClientRect();
       const paragraph = element.closest('p') as HTMLElement | null;
       const native = paragraph ? getComputedStyle(paragraph, '::selection') : null;
       return {
         bandBackground: getComputedStyle(element).backgroundColor,
         nativeBackground: native ? native.backgroundColor : '',
-        edgeWidth: edge.width,
+        edgeWidth: edge.boxShadow.includes('inset') ? '1px' : '0px',
         height: rect.height,
       };
     });

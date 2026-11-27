@@ -1315,44 +1315,33 @@ test('выделение текста ложится ровными полоса
   expect(edges[edges.length - 1]).toBe('end');
   expect(edges.slice(1, -1).every((edge) => edge === 'none')).toBe(true);
 
+  /* Метка — внутренняя тень самой полосы, а не отдельный элемент: её высота и
+     положение берутся из того же прямоугольника, что и заливка, поэтому
+     разойтись с полосой они не могут. Отдельную метку приходилось подгонять под
+     строку, и она снова «торчала» на каждой правке. */
   const first = await content(page)
     .locator('.selection-band')
     .first()
     .evaluate((band) => {
-      const before = getComputedStyle(band, '::before');
-      const after = getComputedStyle(band, '::after');
+      const style = getComputedStyle(band);
       return {
-        beforeContent: before.content,
-        afterContent: after.content,
-        beforeWidth: before.width,
-        beforeLeft: before.left,
+        shadow: style.boxShadow,
+        beforeContent: getComputedStyle(band, '::before').content,
+        afterContent: getComputedStyle(band, '::after').content,
       };
     });
-  // У начала выделения метка слева есть (генерённый псевдоэлемент), справа — нет.
-  expect(first.beforeContent).not.toBe('none');
+  // У начала выделения метка слева есть, справа — нет.
+  expect(first.shadow).toContain('inset');
+  expect(first.shadow).not.toBe('none');
+  expect(first.beforeContent).toBe('none');
   expect(first.afterContent).toBe('none');
-  expect(first.beforeWidth).not.toBe('0px');
-  // Метка центрируется на границе полосы: её середина совпадает с краем
-  // выделения, поэтому сдвиг — ровно на полширины (внутрь и наружу поровну),
-  // и полоса не кажется шире на толщину метки.
-  const beforeWidth = Number.parseFloat(first.beforeWidth);
-  const beforeLeft = Number.parseFloat(first.beforeLeft);
-  expect(beforeLeft).toBeLessThan(0);
-  expect(Math.abs(beforeLeft + beforeWidth / 2)).toBeLessThanOrEqual(0.5);
 
   const last = await content(page)
     .locator('.selection-band')
     .last()
-    .evaluate((band) => ({
-      afterContent: getComputedStyle(band, '::after').content,
-      afterRight: getComputedStyle(band, '::after').right,
-      afterWidth: getComputedStyle(band, '::after').width,
-    }));
-  expect(last.afterContent).not.toBe('none');
-  const afterWidth = Number.parseFloat(last.afterWidth);
-  const afterRight = Number.parseFloat(last.afterRight);
-  expect(afterRight).toBeLessThan(0);
-  expect(Math.abs(afterRight + afterWidth / 2)).toBeLessThanOrEqual(0.5);
+    .evaluate((band) => getComputedStyle(band).boxShadow);
+  expect(last).toContain('inset');
+  expect(last).not.toBe('none');
 });
 
 /** Строки текстового слоя страницы с их местом в окне.

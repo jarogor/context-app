@@ -77,18 +77,19 @@ const BASE_STYLE = [
      выделения: `::selection` их не рисует. */
   `::selection{background:var(--rt-selection);}`,
   `.${SELECTION_LAYER_CLASS}{position:absolute;left:0;top:0;pointer-events:none;z-index:1;}`,
-  `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:2px;background:transparent;}`,
-  /* Метка ровно по высоте полосы: прокрутка и заливка `::selection` красит
-     то же место, и метка выше или ниже её читается съехавшей. */
-  `.${SELECTION_BAND_CLASS}::before,.${SELECTION_BAND_CLASS}::after{content:none;position:absolute;`,
-  'top:0;bottom:0;width:var(--rt-selection-edge-width,1px);',
-  'background:var(--rt-selection-edge);border-radius:calc(0.5 * var(--rt-selection-edge-width,1px));}',
-  `.${SELECTION_BAND_CLASS}[data-edge="start"]::before,`,
-  `.${SELECTION_BAND_CLASS}[data-edge="both"]::before{content:"";`,
-  'left:calc(-0.5 * var(--rt-selection-edge-width,1px));}',
-  `.${SELECTION_BAND_CLASS}[data-edge="end"]::after,`,
-  `.${SELECTION_BAND_CLASS}[data-edge="both"]::after{content:"";`,
-  'right:calc(-0.5 * var(--rt-selection-edge-width,1px));}',
+  /* Скругления нет: полоса служит ещё и рамкой меток, а радиус обрезал бы их
+     концы — метка стала бы короче полосы. */
+  `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:0;background:transparent;}`,
+  /* Метки по краям живого выделения — внутренняя тень самой полосы, а не
+     отдельные элементы: высота и положение берутся из того же прямоугольника,
+     что и заливка, поэтому разойтись с полосой они не могут. Отдельные метки с
+     собственной высотой приходилось подгонять под строку, и они снова
+     «торчали» на каждой правке. */
+  `.${SELECTION_BAND_CLASS}[data-edge="start"]{box-shadow:inset var(--rt-selection-edge-width,1px) 0 0 0 var(--rt-selection-edge);}`,
+  `.${SELECTION_BAND_CLASS}[data-edge="end"]{box-shadow:inset calc(-1 * var(--rt-selection-edge-width,1px)) 0 0 0 var(--rt-selection-edge);}`,
+  `.${SELECTION_BAND_CLASS}[data-edge="both"]{box-shadow:`,
+  'inset var(--rt-selection-edge-width,1px) 0 0 0 var(--rt-selection-edge),',
+  'inset calc(-1 * var(--rt-selection-edge-width,1px)) 0 0 0 var(--rt-selection-edge);}',
   // Подсветка берёт ту же пару «заливка и подпись», что метка заметки в
   // списке: цвет текста под цитатой совпадает с цветом подписи метки. Синий
   // поэтому несёт светлый текст, жёлтый и красный — тёмный.
