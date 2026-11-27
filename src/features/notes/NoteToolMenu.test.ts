@@ -5,7 +5,7 @@ import NoteToolMenu from './NoteToolMenu.svelte';
 import { DEFAULT_NOTE_TOOL, NOTE_TYPES, type NoteTool } from './notes';
 import { dismissTopLayer, resetDismissLayers } from '../hotkeys/dismiss-layer';
 
-/** Отрисовка меню с темой области чтения по умолчанию. */
+/** Отрисовка меню с инструментом по умолчанию. */
 function renderMenu(props: Record<string, unknown> = {}) {
   const onToolChange = vi.fn();
   render(NoteToolMenu, {
@@ -13,8 +13,6 @@ function renderMenu(props: Record<string, unknown> = {}) {
       tool: DEFAULT_NOTE_TOOL,
       allowedTypes: NOTE_TYPES,
       onToolChange,
-      palette: 'linen',
-      readerTheme: 'light',
       ...props,
     },
   });

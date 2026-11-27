@@ -60,7 +60,21 @@ export function mergeLineBands(rects: SelectionBand[]): SelectionBand[] {
     if (result.length > 0) {
       const previous = result[result.length - 1];
       const previousBottom = previous.y + previous.height;
-      if (top < previousBottom) {
+      /* Промежуток между строками одной заливки WebKit закрашивает: `::selection`
+         идёт сплошным блоком от верха первой строки до низа последней. Полоса,
+         обрезанная по буквам, выходила ниже нарисованного выделения — на этой
+         разнице метки по краям и читались съехавшими. Промежуток заполняется
+         только строкный: отступ между абзацами вдвое больше и заливкой не
+         покрыт, растягивать полосу на него нельзя. */
+      const overlap =
+        Math.min(previous.x + previous.width, line.right) - Math.max(previous.x, line.x);
+      const gap = line.top - previousBottom;
+      // Промежуток между строками одной заливки меньше высоты самих букв; отступ
+      // между абзацами вдвое больше строки.
+      const lineGap = Math.min(previous.height, line.bottom - line.top);
+      if (gap <= 0 || (gap < lineGap && overlap > 0)) {
+        // Строки налезают друг на друга (высокий шрифт) или идут вплотную —
+        // вторая начинается с низа первой, двойной плотности на стыке нет.
         top = previousBottom;
       }
     }

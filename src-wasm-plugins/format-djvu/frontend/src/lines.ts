@@ -93,6 +93,38 @@ export function tileByLine(
      проходит посередине между их серединами — полосы стыкуются без наложений. */
   const tops = lines.map((line) => line.top);
   const bottoms = lines.map((line) => line.bottom);
+  /* Сосед берётся по месту, а не по порядку в списке. В OCR-страницах строки
+     двух колонок чередуются по вертикали, и «предыдущая в списке» может
+     оказаться из другой колонки на той же высоте: полоса тогда обрезалась
+     серединой чужой строки и подсвечивала не ту строку. */
+  const neighbour = (index: number, direction: -1 | 1): number | null => {
+    const own = centers[index];
+    const ownLeft = lines[index].x;
+    const ownRight = lines[index].right;
+    let best: number | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let other = 0; other < lines.length; other += 1) {
+      if (other === index) {
+        continue;
+      }
+      const distance = (centers[other] - own) * direction;
+      if (!(distance > 0) || distance >= pitch * 1.5) {
+        continue;
+      }
+      // Соседняя строка — та же колонка: строки разных колонок стоят рядом по
+      // вертикали, но текстом не соседствуют.
+      const overlap =
+        Math.min(ownRight, lines[other].right) - Math.max(ownLeft, lines[other].x);
+      if (overlap <= 0) {
+        continue;
+      }
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = other;
+      }
+    }
+    return best;
+  };
   for (let index = 0; index < lines.length; index += 1) {
     const center = centers[index];
     // Шаг страницы больше бокса: полоса растягивается до строки. Меньше — это
@@ -102,11 +134,13 @@ export function tileByLine(
     const half = pitch > box ? pitch / 2 : box / 2;
     let top = center - half;
     let bottom = center + half;
-    if (index > 0) {
-      top = Math.max(top, (centers[index - 1] + center) / 2);
+    const above = neighbour(index, -1);
+    if (above !== null) {
+      top = Math.max(top, (centers[above] + center) / 2);
     }
-    if (index < lines.length - 1) {
-      bottom = Math.min(bottom, (center + centers[index + 1]) / 2);
+    const below = neighbour(index, 1);
+    if (below !== null) {
+      bottom = Math.min(bottom, (center + centers[below]) / 2);
     }
     tops[index] = top;
     bottoms[index] = bottom;

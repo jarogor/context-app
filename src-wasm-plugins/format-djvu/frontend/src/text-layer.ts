@@ -489,11 +489,36 @@ export function alignTextLayerToRaster(
     if (bucket.length === 1) {
       // Одна зона на полосе — слово, либо зона, растянутая на строку.
       const zone = bucket[0];
-      const chars = Math.max(1, (zone.span.textContent ?? '').trim().length);
-      // Растянутость определяется по числу символов: слово такой длины в разы
-      // уже зоны, растянутой на строку. Порог от одной высоты строки не годится —
-      // длинное слово тоже шире нескольких высот.
-      const stretched = zone.zoneRight - zone.zoneLeft > chars * lineHeightPx * 0.8;
+      const margin = Math.max(2, Math.round(lineHeightPx * 0.5));
+      // Участки чернил в пределах зоны.
+      let firstInZone = -1;
+      let lastInZone = -1;
+      for (let index = 0; index < runs.length; index += 1) {
+        const run = runs[index];
+        if (run.right < zone.zoneLeft - margin) {
+          continue;
+        }
+        if (run.left > zone.zoneRight + margin) {
+          break;
+        }
+        if (firstInZone < 0) {
+          firstInZone = index;
+        }
+        lastInZone = index;
+      }
+      /* Растянутость зоны видна по её чернилам: у слова, которому зона и
+         принадлежит, буквы занимают её почти целиком. Если чернила покрывают
+         лишь часть зоны, зона описывает строку, а не слово, и рамка обрезается
+         по слову. Число символов для этого не годится: длинное слово занимает
+         всю строку («обязательства.» в аннотации), и по старому порогу оно
+         считалось растянутым — рамка резалась по внутрибуквенному разрыву и
+         выходила 17 px вместо 239, а указатель попадал мимо слова. */
+      const inkLeft = firstInZone >= 0 ? runs[firstInZone].left : zone.zoneLeft;
+      const inkRight = lastInZone >= 0 ? runs[lastInZone].right : zone.zoneRight;
+      const zoneWidth = zone.zoneRight - zone.zoneLeft;
+      const covers = zoneWidth > 0 ? (inkRight - inkLeft + 1) / zoneWidth : 1;
+      const words = (zone.span.textContent ?? '').trim().split(/\s+/).filter(Boolean);
+      const stretched = words.length > 1 || covers < 0.6;
       let last = -1;
       if (stretched) {
         // Растянутая зона: берутся участки одного слова. Граница — разрыв, резко
@@ -515,22 +540,11 @@ export function alignTextLayerToRaster(
           }
         }
         last = split > 0 ? split - 1 : runs.length - 1;
-      } else {
-        // Обычная зона: участки, попавшие в её пределы. Внутри слова встречаются
-        // разреженные буквы (курсив, разрядка), и брать одну группу значило бы
-        // обрезать слово.
-        last = -1;
-        const margin = Math.max(2, Math.round(lineHeightPx * 0.5));
-        for (let index = 0; index < runs.length; index += 1) {
-          const run = runs[index];
-          if (run.right < zone.zoneLeft - margin) {
-            continue;
-          }
-          if (run.left > zone.zoneRight + margin) {
-            break;
-          }
-          last = index;
-        }
+      } else if (lastInZone >= 0) {
+        // Слово занимает зону целиком: берутся все участки в её пределах.
+        // Внутри слова встречаются разреженные буквы (курсив, разрядка), и брать
+        // одну группу значило бы обрезать слово.
+        last = lastInZone;
       }
       let first = -1;
       for (let index = 0; index <= last; index += 1) {

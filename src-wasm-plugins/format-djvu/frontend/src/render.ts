@@ -62,9 +62,14 @@ export function layoutPages(): void {
   // Новая книга: снимаем возможную паузу отрисовки и очередь прежней книги.
   state.renderToken += 1;
   renderQueue = [];
+  fullQueue = [];
   if (renderTimer !== null) {
     clearTimeout(renderTimer);
     renderTimer = null;
+  }
+  if (fullTimer !== null) {
+    clearTimeout(fullTimer);
+    fullTimer = null;
   }
   if (settleTimer !== null) {
     clearTimeout(settleTimer);
@@ -149,9 +154,14 @@ function setupCanvas(
 export function releaseWindowPages(): void {
   state.renderToken += 1;
   renderQueue = [];
+  fullQueue = [];
   if (renderTimer !== null) {
     clearTimeout(renderTimer);
     renderTimer = null;
+  }
+  if (fullTimer !== null) {
+    clearTimeout(fullTimer);
+    fullTimer = null;
   }
   for (const pageEl of state.pages.values()) {
     if (!preserveOldRaster(pageEl)) {
@@ -205,6 +215,11 @@ export function releasePage(pageEl: HTMLElement): void {
     selectionLayer.remove();
   }
   if (!entry) {
+    // От страницы мог остаться только предварительный кадр: полный ещё не
+    // пришёл. Его канвас тоже снимается, иначе он висел бы в разметке.
+    for (const stale of Array.from(pageEl.querySelectorAll('canvas'))) {
+      stale.remove();
+    }
     return;
   }
   entry.canvas.remove();
@@ -282,9 +297,14 @@ function rasterDpi(page: DjVuPage, canvas: HTMLCanvasElement): number {
 
 /** Отрисовка страницы: окно канваса, текстовый слой, подсветки заметок.
  *
- * При повторной отрисовке окна (`preserve`) новый канвас рисуется откреплённым и
- * вставляется только после готовности: старый остаётся видимым, поэтому прокрутка
- * не обнажает белый прямоугольник.
+ * Страница показывается в два кадра. Сначала рисуется растр в четверть
+ * разрешения и сразу вставляется: полный кадр 14 МП в WebKit занимает около
+ * секунды, и всё это время страница оставалась белой. Полный кадр приходит
+ * следующей задачей и заменяет предварительный в том же канвасе — страница
+ * видна всегда.
+ *
+ * При повторной отрисовке окна (`preserve`) новый кадр рисуется откреплённым и
+ * вставляется только после готовности: старый остаётся видимым.
  */
 export function renderPage(
   pageEl: HTMLElement,
@@ -337,7 +357,104 @@ export function renderPage(
     restoreRendered(pageEl, preserve);
     return;
   }
+  const dpi = rasterDpi(page, canvas);
+  // Предварительный кадр рисуется маленьким канвасом: растяжение до размера
+  // страницы делает композитор. Раньше он рисовался в полный канвас (14 МП), и
+  // одно масштабирование стоило 440–590 мс — страница всё равно белела.
+  const preview = document.createElement('canvas');
+  const previewSide = Math.max(64, Math.round(info.width / 4));
+  preview.width = Math.max(1, previewSide);
+  preview.height = Math.max(1, Math.round((previewSide * info.height) / Math.max(1, info.width)));
+  preview.style.left = info.x + 'px';
+  preview.style.top = info.y + 'px';
+  preview.style.width = info.width + 'px';
+  preview.style.height = info.height + 'px';
+  try {
+    drawRaster(page, preview, info, viewport, Math.max(1, Math.round(dpi / 4)));
+  } catch {
+    // Быстрый кадр не удался (например, страница без фона) — не беда: следом
+    // идёт полный, и он же сообщит об ошибке, если она настоящая.
+    const previewContext = preview.getContext('2d');
+    previewContext?.clearRect(0, 0, preview.width, preview.height);
+  }
+  if (token !== state.renderToken) {
+    state.pending.delete(pageEl);
+    restoreRendered(pageEl, preserve);
+    return;
+  }
+  // Предварительный кадр вставляется сразу, вместе с ним снимаются прежние
+  // канвасы: два канваса страницы дали бы двойной рисунок.
+  for (const stale of Array.from(pageEl.querySelectorAll('canvas'))) {
+    stale.remove();
+  }
+  pageEl.insertBefore(preview, overlay);
+  if (preserve) {
+    preserve.canvas.remove();
+    preserve.textLayer.remove();
+  }
 
+  // Полный кадр ставится в отдельную очередь: он стоит около секунды, и пока
+  // предварительные кадры остальных видимых страниц не нарисованы, начинать его
+  // нельзя — иначе следующая страница ждала бы целую секунду и белела.
+  fullQueue.push({ page, pageEl, info, viewport, dpi, token });
+  scheduleFullQueue();
+}
+
+/** Задание на полную отрисовку страницы после предварительного кадра. */
+interface FullJob {
+  /** Страница движка. */
+  page: DjVuPage;
+  /** Элемент страницы. */
+  pageEl: HTMLElement;
+  /** Геометрия окна. */
+  info: CanvasInfo;
+  /** Размер страницы, CSS px. */
+  viewport: { width: number; height: number };
+  /** Разрешение полной отрисовки. */
+  dpi: number;
+  /** Поколение отрисовки. */
+  token: number;
+}
+
+/** Полная отрисовка страницы: растр, подсветки, текстовый слой.
+ *
+ * Отдельная задача после предварительного кадра (см. `renderPage`).
+ */
+function renderFullPage(
+  pageEl: HTMLElement,
+  page: DjVuPage,
+  info: CanvasInfo,
+  viewport: { width: number; height: number },
+  dpi: number,
+  token: number,
+): void {
+  if (token !== state.renderToken || !pageEl.isConnected) {
+    state.pending.delete(pageEl);
+    return;
+  }
+  const overlay = overlayOf(pageEl);
+  if (!overlay) {
+    state.pending.delete(pageEl);
+    return;
+  }
+  // Полный кадр строится в собственном канвасе: предварительный остаётся
+  // видимым, пока идёт отрисовка, и снимается только вместе с вставкой нового.
+  // Иначе страница на время отрисовки снова белела бы.
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(info.width * info.ratio));
+  canvas.height = Math.max(1, Math.round(info.height * info.ratio));
+  canvas.style.left = info.x + 'px';
+  canvas.style.top = info.y + 'px';
+  canvas.style.width = info.width + 'px';
+  canvas.style.height = info.height + 'px';
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) {
+    state.pending.delete(pageEl);
+    return;
+  }
+  // Пикселей растра на CSS-пиксель страницы: для файла с неверным DPI не
+  // совпадает с плотностью окна, для обычного — совпадает.
+  const pixelsPerCss = page.width_at(dpi) / Math.max(1, viewport.width);
   const textLayerEl = document.createElement('div');
   textLayerEl.className = TEXT_LAYER_CLASS;
   const baseCanvas = document.createElement('canvas');
@@ -352,73 +469,7 @@ export function renderPage(
   };
 
   try {
-    const dpi = rasterDpi(page, canvas);
-    // Пикселей растра на CSS-пиксель страницы: для файла с неверным DPI не
-    // совпадает с плотностью окна, для обычного — совпадает.
-    const pixelsPerCss = page.width_at(dpi) / Math.max(1, viewport.width);
-    const request = renderRequest(state.module as DjVuModule, dpi);
-    const whole =
-      Math.abs(info.x) < 0.5 &&
-      Math.abs(info.y) < 0.5 &&
-      Math.abs(info.width * pixelsPerCss - page.width_at(dpi)) <= 1 &&
-      Math.abs(info.height * pixelsPerCss - page.height_at(dpi)) <= 1;
-    if (!whole) {
-      const pageWidth = page.width_at(dpi);
-      const pageHeight = page.height_at(dpi);
-      const x = Math.min(Math.max(0, Math.round(info.x * pixelsPerCss)), pageWidth - 1);
-      const y = Math.min(Math.max(0, Math.round(info.y * pixelsPerCss)), pageHeight - 1);
-      const width = Math.min(
-        Math.max(1, Math.round(info.width * pixelsPerCss)),
-        pageWidth - x,
-      );
-      const height = Math.min(
-        Math.max(1, Math.round(info.height * pixelsPerCss)),
-        pageHeight - y,
-      );
-      request.set_region(x, y, width, height);
-    }
-    const pixmap = newPixmap(state.module as DjVuModule);
-    page.render_request(request, pixmap);
-    // Растр может прийти крупнее канваса (запас детализации): рисунок сжимается
-    // до его пикселей — так штрихи шрифта выходят гладкими, а канвас стоит ровно
-    // по плотности окна.
-    const pixels = new Uint8ClampedArray(pixmap.view());
-    const source = new ImageData(pixels, pixmap.width(), pixmap.height());
-    if (pixmap.width() === canvas.width && pixmap.height() === canvas.height) {
-      context.putImageData(source, 0, 0);
-    } else {
-      // Сжатие выполняется ступенями не более чем вдвое за шаг. Однократное
-      // уменьшение в 4–5 раз (страница на 40 % рисуется в родном разрешении)
-      // теряет тонкие штрихи: браузерные движки берут далеко не все пиксели
-      // источника, и буквы выходят ступенчатыми. Пошаговое уменьшение вдвое
-      // сохраняет штрихи, потому что на каждом шаге свёртка берёт все пиксели.
-      const stage = document.createElement('canvas');
-      let width = pixmap.width();
-      let height = pixmap.height();
-      stage.width = width;
-      stage.height = height;
-      stage.getContext('2d')?.putImageData(source, 0, 0);
-      while (width > canvas.width * 2 && height > canvas.height * 2) {
-        const next = document.createElement('canvas');
-        width = Math.max(canvas.width, Math.round(width / 2));
-        height = Math.max(canvas.height, Math.round(height / 2));
-        next.width = width;
-        next.height = height;
-        const step = next.getContext('2d');
-        if (!step) {
-          break;
-        }
-        step.imageSmoothingEnabled = true;
-        step.imageSmoothingQuality = 'high';
-        step.drawImage(stage, 0, 0, width, height);
-        stage.width = width;
-        stage.height = height;
-        stage.getContext('2d')?.drawImage(next, 0, 0);
-      }
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = 'high';
-      context.drawImage(stage, 0, 0, canvas.width, canvas.height);
-    }
+    drawRaster(page, canvas, info, viewport, dpi);
     // Растр до перекраски: подсветка на тёмной странице берётся из него, чтобы
     // цвет ложился умножением на светлую бумагу — так он остаётся цветом
     // палитры, а текст под ним тёмным.
@@ -444,33 +495,26 @@ export function renderPage(
       const built = buildTextLayer(zones, pixelsPerCss, viewport);
       textLayerEl.append(...Array.from(built.childNodes));
     }
-    // Готовые слои встают одним кадром: при перерисовке окна старый канвас
-    // удерживался до этого момента, поэтому прокрутка не обнажает пустоту.
     // Отрисовка могла устареть, пока шла: масштаб сменили, и поколение другое.
-    // Тогда готовые канвас и слой не вставляются — иначе в разметке оказались бы
-    // два текстовых слоя, и выделение брало бы слова из прежнего, не совпадая с
-    // видимыми буквами.
+    // Тогда готовый слой не вставляется — иначе в разметке оказались бы два
+    // текстовых слоя, и выделение брало бы слова из прежнего.
     if (token !== state.renderToken) {
-      canvas.remove();
       textLayerEl.remove();
       return;
     }
-    // Прежние канвас и слой страницы снимаются перед вставкой: страница могла
-    // быть отрисована повторно без передачи старого канваса, и два текстовых
-    // слоя в разметке перехватывали бы выделение — его слова относятся к
-    // прежнему масштабу и не совпадают с видимыми буквами.
+    // Прежние слои страницы снимаются перед вставкой: страница могла быть
+    // отрисована повторно без передачи старого канваса, и два текстовых слоя в
+    // разметке перехватывали бы выделение.
     for (const stale of Array.from(pageEl.querySelectorAll(`.${TEXT_LAYER_CLASS}`))) {
       stale.remove();
     }
+    // Предварительный кадр снимается вместе с вставкой полного: до этого он
+    // держал картинку, а после вставки был бы двойным рисунком.
     for (const stale of Array.from(pageEl.querySelectorAll('canvas'))) {
       stale.remove();
     }
     pageEl.insertBefore(canvas, overlay);
     pageEl.insertBefore(textLayerEl, overlay);
-    if (preserve) {
-      preserve.canvas.remove();
-      preserve.textLayer.remove();
-    }
     state.rendered.set(pageEl, entry);
     pageEl.dataset.rendered = '1';
     drawNotes(pageEl, state.notes);
@@ -479,10 +523,8 @@ export function renderPage(
     markPage(pageEl);
     /* Подгонка слов по зонам и чернилам растра занимает сотни миллисекунд
        (`fitTextLayer` — 285 мс, `alignTextLayerToRaster` — 51 мс на страницу).
-       Пока она шла внутри этой задачи, растр ещё не был нарисован, и при
-       прокрутке страница показывала белый прямоугольник до её конца. Растр
-       вставляется сразу, а подгонка уходит в следующую задачу: невидимый слой
-       уже стоит по зонам и за кадр никому не мешает. */
+       Слой уже стоит в странице по зонам и за кадр никому не мешает, поэтому
+       подгонка уходит в следующую задачу. */
     setTimeout(() => finalizeTextLayer(pageEl, textLayerEl, canvas, token), 0);
   } catch (error) {
     // Неудачная отрисовка не должна навсегда помечать страницу готовой: иначе
@@ -491,12 +533,96 @@ export function renderPage(
       state.rendered.delete(pageEl);
       delete pageEl.dataset.rendered;
     }
-    canvas.remove();
     textLayerEl.remove();
-    restoreRendered(pageEl, preserve);
   } finally {
     state.pending.delete(pageEl);
   }
+}
+
+/** Отрисовка растра страницы в канвас на заданном разрешении.
+ *
+ * `dpi` — разрешение отрисовки движка; канвас всегда получает свой размер
+ * (растр крупнее канваса сжимается ступенями, мельче — растягивается).
+ */
+function drawRaster(
+  page: DjVuPage,
+  canvas: HTMLCanvasElement,
+  info: CanvasInfo,
+  viewport: { width: number; height: number },
+  dpi: number,
+): void {
+  if (!state.module) {
+    return;
+  }
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) {
+    return;
+  }
+  const pixelsPerCss = page.width_at(dpi) / Math.max(1, viewport.width);
+  const request = renderRequest(state.module as DjVuModule, dpi);
+  const whole =
+    Math.abs(info.x) < 0.5 &&
+    Math.abs(info.y) < 0.5 &&
+    Math.abs(info.width * pixelsPerCss - page.width_at(dpi)) <= 1 &&
+    Math.abs(info.height * pixelsPerCss - page.height_at(dpi)) <= 1;
+  if (!whole) {
+    const pageWidth = page.width_at(dpi);
+    const pageHeight = page.height_at(dpi);
+    const x = Math.min(Math.max(0, Math.round(info.x * pixelsPerCss)), pageWidth - 1);
+    const y = Math.min(Math.max(0, Math.round(info.y * pixelsPerCss)), pageHeight - 1);
+    const width = Math.min(
+      Math.max(1, Math.round(info.width * pixelsPerCss)),
+      pageWidth - x,
+    );
+    const height = Math.min(
+      Math.max(1, Math.round(info.height * pixelsPerCss)),
+      pageHeight - y,
+    );
+    request.set_region(x, y, width, height);
+  }
+  const pixmap = newPixmap(state.module as DjVuModule);
+  page.render_request(request, pixmap);
+  // Растр может прийти крупнее канваса (запас детализации): рисунок сжимается
+  // до его пикселей — так штрихи шрифта выходят гладкими, а канвас стоит ровно
+  // по плотности окна. Предварительный кадр наоборот мельче — растягивается.
+  const pixels = new Uint8ClampedArray(pixmap.view());
+  const source = new ImageData(pixels, pixmap.width(), pixmap.height());
+  if (pixmap.width() === canvas.width && pixmap.height() === canvas.height) {
+    context.putImageData(source, 0, 0);
+    return;
+  }
+  // Сжатие выполняется ступенями не более чем вдвое за шаг. Однократное
+  // уменьшение в 4–5 раз (страница на 40 % рисуется в родном разрешении)
+  // теряет тонкие штрихи: браузерные движки берут далеко не все пиксели
+  // источника, и буквы выходят ступенчатыми. Пошаговое уменьшение вдвое
+  // сохраняет штрихи, потому что на каждом шаге свёртка берёт все пиксели.
+  const stage = document.createElement('canvas');
+  let width = pixmap.width();
+  let height = pixmap.height();
+  stage.width = width;
+  stage.height = height;
+  stage.getContext('2d')?.putImageData(source, 0, 0);
+  while (width > canvas.width * 2 && height > canvas.height * 2) {
+    const next = document.createElement('canvas');
+    width = Math.max(canvas.width, Math.round(width / 2));
+    height = Math.max(canvas.height, Math.round(height / 2));
+    next.width = width;
+    next.height = height;
+    const step = next.getContext('2d');
+    if (!step) {
+      break;
+    }
+    step.imageSmoothingEnabled = true;
+    step.imageSmoothingQuality = 'high';
+    step.drawImage(stage, 0, 0, width, height);
+    stage.width = width;
+    stage.height = height;
+    stage.getContext('2d')?.drawImage(next, 0, 0);
+  }
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(stage, 0, 0, canvas.width, canvas.height);
 }
 
 /** Подгонка слов слоя по зонам и чернилам растра (следующей задачей).
@@ -528,6 +654,10 @@ interface QueueItem {
 }
 
 let renderQueue: QueueItem[] = [];
+/** Очередь полных кадров: после предварительных кадров видимых страниц. */
+let fullQueue: FullJob[] = [];
+/** Таймер продолжения очереди полных кадров. */
+let fullTimer: ReturnType<typeof setTimeout> | null = null;
 /** Таймер продолжения очереди отрисовки. */
 let renderTimer: ReturnType<typeof setTimeout> | null = null;
 /** Таймер паузы после прокрутки: растр рисуется, когда прокрутка успокоилась. */
@@ -571,6 +701,46 @@ function runRenderQueue(): void {
   }
   if (renderQueue.length > 0) {
     renderTimer = setTimeout(runRenderQueue, 16);
+  }
+}
+
+/** Планирование очереди полных кадров. */
+function scheduleFullQueue(): void {
+  if (fullTimer !== null || fullQueue.length === 0) {
+    return;
+  }
+  // Полные кадры идут после предварительных: пока очередь предварительных не
+  // пуста, следующий полный кадр ждёт. Так каждая видимая страница получает
+  // хоть какой-то рисунок до того, как начнётся дорогая отрисовка соседней.
+  fullTimer = setTimeout(runFullQueue, renderQueue.length > 0 ? 32 : 0);
+}
+
+/** Отрисовка полных кадров по одному за заход. */
+function runFullQueue(): void {
+  fullTimer = null;
+  if (renderQueue.length > 0) {
+    scheduleFullQueue();
+    return;
+  }
+  const token = state.renderToken;
+  while (fullQueue.length > 0) {
+    if (token !== state.renderToken) {
+      fullQueue = [];
+      return;
+    }
+    const job = fullQueue.shift() as FullJob;
+    if (!job.pageEl.isConnected || job.token !== token) {
+      continue;
+    }
+    // Страницу увели с окна — полный кадр ей уже не нужен.
+    if (state.pages.get(pageNumber(job.pageEl)) !== job.pageEl) {
+      continue;
+    }
+    renderFullPage(job.pageEl, job.page, job.info, job.viewport, job.dpi, token);
+    break;
+  }
+  if (fullQueue.length > 0) {
+    fullTimer = setTimeout(runFullQueue, 16);
   }
 }
 

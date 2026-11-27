@@ -76,8 +76,10 @@ const BASE_STYLE = [
   `::selection{background:var(--rt-selection);}`,
   `.${SELECTION_LAYER_CLASS}{position:absolute;left:0;top:0;pointer-events:none;z-index:1;}`,
   `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:2px;background:transparent;}`,
+  /* Метка ровно по высоте полосы: прокрутка и заливка `::selection` красит
+     то же место, и метка выше или ниже её читается съехавшей. */
   `.${SELECTION_BAND_CLASS}::before,.${SELECTION_BAND_CLASS}::after{content:none;position:absolute;`,
-  'top:-0.5px;bottom:-0.5px;width:var(--rt-selection-edge-width,1px);',
+  'top:0;bottom:0;width:var(--rt-selection-edge-width,1px);',
   'background:var(--rt-selection-edge);border-radius:calc(0.5 * var(--rt-selection-edge-width,1px));}',
   `.${SELECTION_BAND_CLASS}[data-edge="start"]::before,`,
   `.${SELECTION_BAND_CLASS}[data-edge="both"]::before{content:"";`,
