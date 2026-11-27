@@ -739,24 +739,22 @@ test('протяжка мышью в DjVu открывает меню созда
 });
 
 // Полоса выделения идёт по всей строке, а не по буквам: у строки без выносных
-// элементов бокс букв вдвое ниже, и крайние полосы выходили обрезанными —
-// верхняя ниже остальных, нижняя выше. Причина была в том, что прямоугольники
-// расширялись до межстрочного шага ещё до склейки строк: расширенные полосы
-// соседних строк перекрывались и слипались.
-test('полосы выделения DjVu идут по строкам ровной высоты', async ({ page }) => {
+// элементов бокс букв вдвое ниже, и выделение одной строки выходило полоской
+// высотой со строчную букву. Причина — шаг строк брался по самому выделению: у
+// одной строки он равен нулю, а при протяжке вниз рос, и верхняя полоса
+// перескакивала на полстроки. Теперь берётся шаг страницы, измеренный по всем
+// её строкам.
+test('полоса выделения DjVu идёт по строке независимо от её состава', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await openDjvu(page);
-  const bands = await content(page)
+  const result = await content(page)
     .locator('.page')
     .first()
     .evaluate((pageEl) => {
-      const spans = Array.from(pageEl.querySelectorAll('.textLayer span')).filter(
+      const layer = pageEl.querySelector('.textLayer') as HTMLElement;
+      const spans = Array.from(layer.querySelectorAll('span')).filter(
         (span) => span.firstChild && (span.textContent ?? '').trim().length > 1,
       );
-      if (spans.length < 8) {
-        return null;
-      }
-      // Выделение через несколько строк: от первого слова до слова ниже.
       const rows: number[] = [];
       for (const span of spans) {
         const top = span.getBoundingClientRect().top;
@@ -764,17 +762,13 @@ test('полосы выделения DjVu идут по строкам ровн
           rows.push(top);
         }
       }
-      if (rows.length < 4) {
-        return null;
-      }
       const rowOf = (index: number) =>
         spans
           .filter((span) => Math.abs(span.getBoundingClientRect().top - rows[index]) < 6)
           .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
-      const first = rowOf(1)[0];
-      const lastRow = rowOf(3);
-      const last = lastRow[lastRow.length - 1];
-      // Отпечаток растра до выделения: заливка обязана попасть в сам растр.
+      const pitch = Number.parseFloat(layer.dataset.linePitch ?? '');
+      /* Заливка рисуется в растре страницы: полоса слоем ложилась плёнкой на
+         буквы, и текст мутнел. Отпечаток растра до выделения это проверяет. */
       const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
       const context = canvas?.getContext('2d', { willReadFrequently: true }) ?? null;
       const raster = () => {
@@ -789,39 +783,63 @@ test('полосы выделения DjVu идут по строкам ровн
         return hash;
       };
       const before = raster();
-      const range = document.createRange();
-      range.setStart(first.firstChild as Node, 0);
-      range.setEnd(last.firstChild as Node, (last.textContent ?? '').length);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      document.dispatchEvent(new Event('selectionchange'));
       const origin = pageEl.getBoundingClientRect();
-      return {
-        bands: Array.from(pageEl.querySelectorAll('.selection-band'))
-          .map((band) => band.getBoundingClientRect())
-          .sort((a, b) => a.top - b.top)
-          .map((rect) => ({
-            top: Math.round(rect.top - origin.top),
-            height: Math.round(rect.height),
-            left: Math.round(rect.left - origin.left),
-            width: Math.round(rect.width),
-          })),
-        painted: raster() !== before,
+      /** Полоса строки: диапазон от первого до последнего слова по тексту.
+       *
+       * Концами берутся крайние по порядку в тексте узлы, а не по виду: в слое
+       * DjVu слова строки стоят в разметке не слева направо (зоны OCR идут
+       * вперемешку), и диапазон от «визуально первого» к «визуально последнему»
+       * оказывался перевёрнутым и пустым.
+       */
+      const bandOfRow = (index: number) => {
+        const row = rowOf(index);
+        const order = row
+          .map((span) => ({ span, index: spans.indexOf(span) }))
+          .sort((a, b) => a.index - b.index);
+        const range = pageEl.ownerDocument.createRange();
+        range.setStart(order[0].span.firstChild as Node, 0);
+        const tail = order[order.length - 1].span;
+        range.setEnd(tail.firstChild as Node, (tail.textContent ?? '').length);
+        const selection = pageEl.ownerDocument.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        pageEl.ownerDocument.dispatchEvent(new Event('selectionchange'));
+        const band = pageEl.querySelector('.selection-band');
+        const box = band?.getBoundingClientRect() ?? null;
+        // Буквы строки целиком внутри полосы: она не срезает верх и низ.
+        const letters = row.map((span) => span.getBoundingClientRect());
+        return box
+          ? {
+              top: Math.round(box.top - origin.top),
+              height: Math.round(box.height),
+              coversLetters: letters.every(
+                (letter) => letter.top >= box.top - 1 && letter.bottom <= box.bottom + 1,
+              ),
+              width: Math.round(box.width),
+            }
+          : { height: Number.NaN, coversLetters: false, width: 0, top: 0 };
       };
+      // Одна строка и несколько строк: высота полосы от состава не зависит.
+      const single = bandOfRow(1);
+      const several = [bandOfRow(1), bandOfRow(2), bandOfRow(3)];
+      return { single, several, pitch, painted: raster() !== before };
     });
-  expect(bands).not.toBeNull();
-  const list = bands!.bands;
-  expect(list.length).toBeGreaterThanOrEqual(2);
-  // Высота полос одинаковая: строка без выносных элементов не даёт низкую
-  // полосу, а крайние не обрезаны.
-  const heights = list.map((band) => band.height);
-  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(3);
+  // Шаг измерен страницей, а не выделением.
+  expect(result.pitch).toBeGreaterThan(20);
+  // Полоса одной строки — по всей строке: высота равна шагу (с округлением),
+  // а не высоте букв, и буквы строки не срезаются.
+  expect(result.single.height).toBeGreaterThanOrEqual(result.pitch - 2);
+  expect(result.single.coversLetters).toBe(true);
+  // Остальные строки выделения имеют ту же высоту: при протяжке вниз верхняя
+  // полоса не перескакивает.
+  for (const band of result.several) {
+    expect(Math.abs(band.height - result.single.height)).toBeLessThanOrEqual(4);
+    expect(band.coversLetters).toBe(true);
+  }
   // Полоса шире самого слова: она идёт по строке, а не по буквам.
-  expect(Math.max(...list.map((band) => band.width))).toBeGreaterThan(200);
-  // Заливка нарисована в растре страницы: иначе полоса слоем лежала бы поверх
-  // букв, и текст под выделением мутнел.
-  expect(bands!.painted).toBe(true);
+  expect(result.single.width).toBeGreaterThan(200);
+  // Заливка нарисована в растре страницы.
+  expect(result.painted).toBe(true);
 });
 
 test('двойной щелчок по слову выделяет слово в DjVu', async ({ page }) => {
@@ -878,7 +896,11 @@ test('правка границы цитаты DjVu не перерисовыв�
   const paints = () =>
     content(page)
       .locator('#viewer')
-      .evaluate(() => (window as unknown as { __paintCounters?: { paints: number } }).__paintCounters?.paints ?? -1);
+      .evaluate(
+        () =>
+          (window as unknown as { __paintCounters?: { paints: number } }).__paintCounters?.paints ??
+          -1,
+      );
 
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
   await page.mouse.down();

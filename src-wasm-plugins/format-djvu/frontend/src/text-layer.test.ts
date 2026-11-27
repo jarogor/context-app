@@ -477,6 +477,75 @@ describe('alignTextLayerToRaster', () => {
     });
   });
 
+  it('делит общую зону двух слов, когда строка не найдена', () => {
+    /* Дефект: у слов без найденной строки рамка оставалась по зоне движка, а
+       зона нередко одна на двоих (Release/Copy на титуле DjVu). Указатель
+       попадал в общий прямоугольник, выделялось чужое слово, а часть слов не
+       выделялась вовсе. Граница двух слов проходит посередине между
+       серединами их зон. */
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute;left:0;top:0;width:200px;height:200px';
+    document.body.append(host);
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    // Чернила только внизу: слову из верхней зоны своей строки не находится.
+    const pixels = new Uint8ClampedArray(200 * 200 * 4);
+    for (let index = 0; index < pixels.length; index += 4) {
+      pixels[index] = 255;
+      pixels[index + 1] = 255;
+      pixels[index + 2] = 255;
+      pixels[index + 3] = 255;
+    }
+    for (let y = 150; y <= 164; y += 1) {
+      for (let x = 20; x < 180; x += 1) {
+        const index = (y * 200 + x) * 4;
+        pixels[index] = 0;
+        pixels[index + 1] = 0;
+        pixels[index + 2] = 0;
+      }
+    }
+    const context = {
+      getImageData: () => ({ data: pixels }),
+    } as unknown as CanvasRenderingContext2D;
+    Object.defineProperty(canvas, 'getContext', { value: () => context });
+    Object.defineProperty(canvas, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, right: 200, bottom: 200, width: 200, height: 200 }),
+    });
+    host.append(canvas);
+    const layer = document.createElement('div');
+    layer.className = 'textLayer';
+    layer.style.cssText = 'position:absolute;left:0;top:0;width:200px;height:200px';
+    Object.defineProperty(layer, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, right: 200, bottom: 200, width: 200, height: 200 }),
+    });
+    host.append(layer);
+    // Два слова с ОДНОЙ зоной 20…80.
+    for (const text of ['Release', 'Copy']) {
+      const span = document.createElement('span');
+      span.textContent = `${text} `;
+      span.style.cssText =
+        'position:absolute;left:20px;top:20px;width:60px;height:16px;font-size:12px;line-height:16px;white-space:pre;color:transparent';
+      Object.defineProperty(span, 'getBoundingClientRect', {
+        value: () => ({ left: 20, top: 20, right: 80, bottom: 36, width: 60, height: 16 }),
+      });
+      layer.append(span);
+    }
+    try {
+      alignTextLayerToRaster(layer, canvas, false);
+      const lefts = (Array.from(layer.querySelectorAll('span')) as HTMLElement[]).map((span) =>
+        Number.parseFloat(span.style.left),
+      );
+      // Слова разведены: первое начинается у левого края зоны, второе — на
+      // середине между серединами зон (обе зоны 20…80, середина 50).
+      expect(lefts[0]).toBeCloseTo(20, 0);
+      expect(lefts[1]).toBeCloseTo(50, 0);
+      expect(lefts[1]).toBeGreaterThan(lefts[0]);
+    } finally {
+      host.remove();
+    }
+  });
+
   it('возвращает ноль без доступа к пикселям', () => {
     const layer = document.createElement('div');
     const fake = {

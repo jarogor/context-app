@@ -551,6 +551,35 @@ export function alignTextLayerToRaster(
     // слов — полоса режется, и рамка съезжает на соседа. Привязка к стыку зон
     // тоже не годится: стык смещён от букв, и это смещение растёт с масштабом
     // неравномерно — на 140 % настоящий разрыв между словами оставался за окном.
+    /* Все зоны строки совпадают: OCR отдал одну зону на несколько слов (так на
+       титуле DjVu пять слов делят зону 119…656). Локальное окно между серединами
+       зон вырождается в точку, и слова получают рамку чужого места: указатель
+       попадал в чужое слово, а часть слов не выделялась вовсе. Здесь границы
+       берутся по САМЫМ ШИРОКИМ разрывам чернил: межсловных разрывов ровно на
+       один меньше числа слов. */
+    const shared = bucket.length > 1 && bucket.every(
+      (word) => word.zoneLeft === bucket[0].zoneLeft && word.zoneRight === bucket[0].zoneRight,
+    );
+    if (shared && runs.length >= bucket.length) {
+      const gaps: Array<{ index: number; length: number }> = [];
+      for (let index = 1; index < runs.length; index += 1) {
+        gaps.push({ index, length: runs[index].left - runs[index - 1].right - 1 });
+      }
+      const widest = gaps
+        .slice()
+        .sort((a, b) => b.length - a.length)
+        .slice(0, bucket.length - 1)
+        .sort((a, b) => a.index - b.index);
+      const boundaries = widest.map((gap) => gap.index);
+      for (let index = 0; index < bucket.length; index += 1) {
+        const from = index === 0 ? 0 : boundaries[index - 1];
+        const to = index === bucket.length - 1 ? runs.length - 1 : boundaries[index] - 1;
+        if (to >= from) {
+          segments.set(bucket[index], { left: runs[from].left, right: runs[to].right });
+        }
+      }
+      continue;
+    }
     /** Для слова `i`: участок чернил, с которого оно начинается. */
     const startsAt = new Array<number>(bucket.length).fill(-1);
     startsAt[0] = 0;
@@ -640,6 +669,69 @@ export function alignTextLayerToRaster(
       });
     }
   }
+  /* Слова без найденной строки остаются при рамке своей зоны. Зоны движка у
+     соседних слов перекрываются, а иногда и совпадают (на титуле DjVu два слова
+     делят один прямоугольник): указатель попадал в общий прямоугольник,
+     выделялось чужое слово, а часть слов не выделялась вовсе. Граница двух слов
+     проходит посередине между серединами их зон; у совпавших зон середины тоже
+     совпадают, поэтому такая зона делится равными долями по порядку слов. */
+  const fallbackRows: PlacedWord[][] = [];
+  for (const word of placed) {
+    if (segments.has(word)) {
+      continue;
+    }
+    const center = (word.rect.top + word.rect.bottom) / 2;
+    const row = fallbackRows.find((candidate) => {
+      // Своя строка — общая вертикаль, как и у слов с найденной строкой.
+      const first = candidate[0];
+      const firstCenter = (first.rect.top + first.rect.bottom) / 2;
+      const height = Math.min(first.rect.height, word.rect.height);
+      return Math.abs(firstCenter - center) < height * 0.5;
+    });
+    if (row) {
+      row.push(word);
+    } else {
+      fallbackRows.push([word]);
+    }
+  }
+  const sharedRects = new Map<PlacedWord, { left: number; width: number }>();
+  for (const row of fallbackRows) {
+    row.sort((first, second) => first.zoneLeft - second.zoneLeft);
+    // Все зоны строки совпали: делить нечего по серединам — зона режется
+    // равными долями.
+    const identical =
+      row.length > 1 &&
+      row.every(
+        (word) =>
+          word.zoneLeft === row[0].zoneLeft && word.zoneRight === row[0].zoneRight,
+      );
+    for (let index = 0; index < row.length; index += 1) {
+      const word = row[index];
+      if (identical) {
+        const left = word.rect.left - canvasRect.left + (word.rect.width * index) / row.length;
+        sharedRects.set(word, { left, width: word.rect.width / row.length });
+        continue;
+      }
+      const center = (word.zoneLeft + word.zoneRight) / 2;
+      const previous = row[index - 1];
+      const next = row[index + 1];
+      // Начало — середина с предыдущим словом, конец — с последующим. Крайние
+      // слова берут свой край зоны: растягивать их в пустое поле некуда.
+      const previousCenter = previous
+        ? (previous.zoneLeft + previous.zoneRight) / 2
+        : null;
+      const left =
+        previousCenter === null
+          ? word.rect.left - canvasRect.left
+          : (previousCenter + center) / 2;
+      const right = next
+        ? center + ((next.zoneLeft + next.zoneRight) / 2 - center) / 2
+        : word.rect.right - canvasRect.left;
+      if (right - left >= 1) {
+        sharedRects.set(word, { left, width: right - left });
+      }
+    }
+  }
   const measured: Array<{
     span: HTMLElement;
     left: number;
@@ -649,6 +741,7 @@ export function alignTextLayerToRaster(
   }> = [];
   for (const word of placed) {
     const segment = segments.get(word);
+    const shared = sharedRects.get(word);
     const left = segment ? segment.left : -1;
     const right = segment ? segment.right : -1;
     measured.push({
@@ -656,12 +749,16 @@ export function alignTextLayerToRaster(
       left:
         left >= 0 && right - left >= 1
           ? canvasRect.left - layerRect.left + left / ratio
-          : word.rect.left - layerRect.left,
+          : shared
+            ? shared.left
+            : word.rect.left - layerRect.left,
       top: word.rect.top - layerRect.top + word.top - (word.rect.top - canvasRect.top),
       width:
         left >= 0 && right - left >= 1
           ? (right - left + 1) / ratio
-          : word.rect.width,
+          : shared
+            ? shared.width
+            : word.rect.width,
       height: word.bottom - word.top,
     });
   }

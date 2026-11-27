@@ -54,3 +54,38 @@ describe('tileLineRects', () => {
     expect(tileLineRects([{ x: 0, y: 0, width: 0.5, height: 0.02 }])).toHaveLength(1);
   });
 });
+
+describe('шаг строк страницы', () => {
+  it('одна строка выделяется полосой на высоту шага, а не букв', () => {
+    // Дефект: шаг брался по самому выделению. У одной строки он равен нулю, и
+    // полоса выходила высотой с бокс букв — у строки без выносных элементов
+    // всего 7 px вместо 47.
+    const { merged } = tileByLine([{ x: 0, y: 0.2, width: 0.5, height: 0.01 }], 0.05);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].height).toBeCloseTo(0.05, 5);
+    // Полоса центрирована по строке: верх и низ отстоят на полшага от её
+    // середины (бокс 0.2..0.21, середина 0.205).
+    expect(merged[0].y).toBeCloseTo(0.18, 5);
+  });
+
+  it('высота строки не меняется от протяжки вниз', () => {
+    // Дефект: при протяжке вниз шаг, посчитанный по выделению, рос, и верхняя
+    // полоса перескакивала на полстроки (23 px → 35 px).
+    const rows = [
+      { x: 0, y: 0.2, width: 0.5, height: 0.01 },
+      { x: 0, y: 0.25, width: 0.5, height: 0.01 },
+      { x: 0, y: 0.3, width: 0.5, height: 0.01 },
+    ];
+    const one = tileByLine(rows.slice(0, 1), 0.05).merged[0];
+    const three = tileByLine(rows, 0.05).merged;
+    // Верхняя полоса стоит на месте: тот же верх и та же высота.
+    expect(three[0].y).toBeCloseTo(one.y, 5);
+    expect(three[0].height).toBeCloseTo(one.height, 5);
+    expect(three).toHaveLength(3);
+  });
+
+  it('без шага страницы полоса остаётся по боксу', () => {
+    const { merged } = tileByLine([{ x: 0, y: 0.2, width: 0.5, height: 0.01 }]);
+    expect(merged[0].height).toBeCloseTo(0.01, 5);
+  });
+});

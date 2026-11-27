@@ -76,16 +76,6 @@ export function mergeLineBands(rects: SelectionBand[]): SelectionBand[] {
   return result;
 }
 
-/** Высота строки текста в пикселях, если её удаётся получить из стиля. */
-function resolveLineHeight(style: CSSStyleDeclaration | null): number | null {
-  const value = style?.lineHeight;
-  if (!value || value === 'normal') {
-    return null;
-  }
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 /** Сбор прямоугольников строк диапазона по его текстовым узлам.
  *
  * `Range.getClientRects()` для **целиком попавшего в выделение блочного элемента**
@@ -95,12 +85,10 @@ function resolveLineHeight(style: CSSStyleDeclaration | null): number | null {
  * со строками текста. Координаты переводятся в координаты документа, поэтому
  * полосы следуют за прокруткой.
  *
- * Прямоугольник текстового узла — рамка глифов, она ниже строки (`line-height`),
- * поэтому каждая полоса расширяется до высоты строки вокруг центра глифов: иначе
- * между строками выделения остаются пустоты, а у PDF их нет (там прямоугольники
- * текстового слоя уже включают межстрочный интервал). Соседние строки отстоят на
- * `line-height`, поэтому расширенные полосы стыкуются встык. Если `line-height`
- * не выражен числом (`normal`), полоса остаётся по рамке глифов.
+ * Полоса идёт по **рамке глифов**, как нативная заливка `::selection`: оно
+ * ложится под буквы и не выходит за них. Пока полоса растягивалась до
+ * `line-height`, она была выше заливки на разницу между строкой и глифами
+ * (около 9 px), и метки-курсоры по краям вставали ниже видимой заливки.
  */
 function collectSelectionRects(
   doc: Document,
@@ -127,22 +115,15 @@ function collectSelectionRects(
         const sub = doc.createRange();
         sub.setStart(text, start);
         sub.setEnd(text, end);
-        const lineHeight =
-          view && text.parentElement
-            ? resolveLineHeight(view.getComputedStyle(text.parentElement))
-            : null;
         for (const bounds of Array.from(sub.getClientRects())) {
           if (bounds.width <= 0 || bounds.height <= 0) {
             continue;
           }
-          const glyphHeight = bounds.height;
-          const glyphTop = bounds.top + scrollY;
-          const expanded = lineHeight !== null && lineHeight > glyphHeight;
           rects.push({
             x: bounds.left + scrollX,
-            y: expanded ? glyphTop + glyphHeight / 2 - lineHeight / 2 : glyphTop,
+            y: bounds.top + scrollY,
             width: bounds.width,
-            height: expanded ? lineHeight : glyphHeight,
+            height: bounds.height,
           });
         }
       }

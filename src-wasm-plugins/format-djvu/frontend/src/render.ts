@@ -467,11 +467,6 @@ export function renderPage(
     }
     pageEl.insertBefore(canvas, overlay);
     pageEl.insertBefore(textLayerEl, overlay);
-    // После вставки измеряется ширина текста: слой подгоняет слова по зонам,
-    // а затем зоны ставятся по фактическим чернилам растра — иначе выделение
-    // расходится с видимым текстом.
-    fitTextLayer(textLayerEl);
-    alignTextLayerToRaster(textLayerEl, canvas, state.readerTheme === 'dark');
     if (preserve) {
       preserve.canvas.remove();
       preserve.textLayer.remove();
@@ -482,9 +477,13 @@ export function renderPage(
     // Найденное поиском отмечается на каждой отрисованной странице: поиск
     // может идти по книге параллельно с чтением.
     markPage(pageEl);
-    // Слой выделения строится по положению текста: после отрисовки он
-    // восстанавливается, если выделение ещё живо.
-    renderSelection();
+    /* Подгонка слов по зонам и чернилам растра занимает сотни миллисекунд
+       (`fitTextLayer` — 285 мс, `alignTextLayerToRaster` — 51 мс на страницу).
+       Пока она шла внутри этой задачи, растр ещё не был нарисован, и при
+       прокрутке страница показывала белый прямоугольник до её конца. Растр
+       вставляется сразу, а подгонка уходит в следующую задачу: невидимый слой
+       уже стоит по зонам и за кадр никому не мешает. */
+    setTimeout(() => finalizeTextLayer(pageEl, textLayerEl, canvas, token), 0);
   } catch (error) {
     // Неудачная отрисовка не должна навсегда помечать страницу готовой: иначе
     // она останется белой и повторный рендер не запустится.
@@ -498,6 +497,26 @@ export function renderPage(
   } finally {
     state.pending.delete(pageEl);
   }
+}
+
+/** Подгонка слов слоя по зонам и чернилам растра (следующей задачей).
+ *
+ * Слой уже стоит в странице видимым по зонам: до подгонки он прозрачен, поэтому
+ * кадр с растром показывается сразу. Здесь слова ставятся точно, а затем
+ * восстанавливается слой выделения — его полосы строятся по положению текста.
+ */
+function finalizeTextLayer(
+  pageEl: HTMLElement,
+  textLayerEl: HTMLElement,
+  canvas: HTMLCanvasElement,
+  token: number,
+): void {
+  if (token !== state.renderToken || !pageEl.isConnected) {
+    return;
+  }
+  fitTextLayer(textLayerEl);
+  alignTextLayerToRaster(textLayerEl, canvas, state.readerTheme === 'dark');
+  renderSelection();
 }
 
 /** Очередь страниц на отрисовку: видимые впереди, соседние — следом. */

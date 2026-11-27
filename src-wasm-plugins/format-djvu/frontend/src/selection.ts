@@ -156,6 +156,19 @@ export function selectionTarget(selection: Selection | null): SelectionTarget | 
   return { pageEl, overlay, range, first: range.getClientRects()[0] };
 }
 
+/** Межстрочный шаг страницы в CSS-пикселях; 0 — шаг неизвестен.
+ *
+ * Шаг измерен слоем по всем строкам страницы (`data-line-pitch`) и не зависит
+ * от состава выделения. Брать его из самого выделения нельзя: у одной строки он
+ * равен нулю, и полоса выходила высотой с буквы, а при протяжке вниз шаг рос и
+ * верхняя полоса перескакивала на полстроки.
+ */
+function pagePitch(pageEl: HTMLElement): number {
+  const layer = pageEl.querySelector<HTMLElement>(`.${TEXT_LAYER_CLASS}`);
+  const value = layer ? Number.parseFloat(layer.dataset.linePitch ?? '') : Number.NaN;
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
 /** Снятие полос выделения со всех страниц и перерисовка их растров. */
 function clearBands(): void {
   for (const change of clearSelectionBands()) {
@@ -205,7 +218,10 @@ export function renderSelection(): void {
   }
   const pageBounds = target.pageEl.getBoundingClientRect();
   const rects = selectionRects(target.range, pageBounds);
-  const { merged: bands } = tileByLine(rects);
+  // Полосы — в долях страницы, а шаг измерен в CSS-пикселях: перед передачей
+  // он приводится к тем же долям.
+  const pitchFraction = pageBounds.height > 0 ? pagePitch(target.pageEl) / pageBounds.height : 0;
+  const { merged: bands } = tileByLine(rects, pitchFraction);
   if (bands.length === 0) {
     clearLayers();
     clearBands();

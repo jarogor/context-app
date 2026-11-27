@@ -4,7 +4,7 @@
  * не по межстрочному шагу. У встроенного шрифта цифровой страницы бокс чуть
  * ниже шага — между полосами появляются щели; у запасного `monospace` на сканах
  * бокс заметно выше шага — полосы залезают на соседние строки. Здесь куски
- * строк сливаются, а вертикаль приводится к межстрочному шагу.
+ * строк сливаются, а вертикаль приводится к межстрочному шагу страницы.
  */
 import type { Rect } from './types';
 
@@ -32,13 +32,18 @@ interface Line {
  * Слияние прямоугольников в строки и приведение их к межстрочному шагу.
  *
  * Куски одной строки (несколько span'ов) сливаются по заметному вертикальному
- * перекрытию. У строк одного блока (абзаца) базовые линии отстоят ровно на шаг,
- * поэтому соседние полосы внутри блока тайлятся по серединам: их общая граница
- * проходит посередине между серединами строк, и полосы стыкуются встык при
- * любой высоте бокса. Разрыв больше шага (отступ между абзацами) границей не
- * перекрывается — промежуток сохраняется.
+ * перекрытию. Вертикаль полосы берётся по шагу строк **страницы** (`linePitch`),
+ * а не по составу выделения: шаг, посчитанный по самому выделению, у одной
+ * строки равен нулю, и полоса выходила высотой с буквы — а при протяжке вниз
+ * шаг рос, и верхняя полоса перескакивала на полстроки. Шаг страницы при этом
+ * не меняется: слой уже измерил его по всем строкам (см. `data-line-pitch`).
+ *
+ * Без шага (страница без слоя) полоса остаётся по высоте бокса.
  */
-export function tileByLine(rects: Rect[] | null | undefined): LineTiles {
+export function tileByLine(
+  rects: Rect[] | null | undefined,
+  linePitch = 0,
+): LineTiles {
   const items = (rects || [])
     .filter((rect) => rect.width > 0 && rect.height > 0)
     .sort((a, b) => a.y + a.height / 2 - (b.y + b.height / 2) || a.x - b.x);
@@ -70,14 +75,17 @@ export function tileByLine(rects: Rect[] | null | undefined): LineTiles {
     lineOf.push(created);
   }
   const centers = lines.map((line) => (line.top + line.bottom) / 2);
-  // Шаг строк: медиана расстояний между серединами соседних полос. Медиана
-  // устойчива к случайному пропуску строки и к абзацному отступу.
-  const steps: number[] = [];
-  for (let index = 1; index < centers.length; index += 1) {
-    steps.push(centers[index] - centers[index - 1]);
+  // Шаг строк: измеренный по странице, а без него — медиана расстояний между
+  // серединами соседних полос.
+  let pitch = linePitch > 0 ? linePitch : 0;
+  if (!(pitch > 0)) {
+    const steps: number[] = [];
+    for (let index = 1; index < centers.length; index += 1) {
+      steps.push(centers[index] - centers[index - 1]);
+    }
+    steps.sort((a, b) => a - b);
+    pitch = steps.length > 0 ? steps[Math.floor(steps.length / 2)] : 0;
   }
-  steps.sort((a, b) => a - b);
-  const pitch = steps.length > 0 ? steps[Math.floor(steps.length / 2)] : 0;
   /* Полосы доводятся до высоты строки: у слоя скана бокс равен высоте букв, и
      без этого полоса шла бы только по буквам — у строк без выносных элементов
      она вдвое ниже, а у первой и последней обрезана. Центр строки сохраняется,
@@ -87,7 +95,11 @@ export function tileByLine(rects: Rect[] | null | undefined): LineTiles {
   const bottoms = lines.map((line) => line.bottom);
   for (let index = 0; index < lines.length; index += 1) {
     const center = centers[index];
-    const half = pitch > 0 ? pitch / 2 : (lines[index].bottom - lines[index].top) / 2;
+    // Шаг страницы больше бокса: полоса растягивается до строки. Меньше — это
+    // не шаг строки, а плотный набор, где строки уже бокса; тогда высота берётся
+    // по боксу, иначе полосы начали бы терять буквы.
+    const box = lines[index].bottom - lines[index].top;
+    const half = pitch > box ? pitch / 2 : box / 2;
     let top = center - half;
     let bottom = center + half;
     if (index > 0) {
@@ -129,6 +141,9 @@ export function tileByLine(rects: Rect[] | null | undefined): LineTiles {
 }
 
 /** Приведение прямоугольников цитаты к полосам строк без наложений. */
-export function tileLineRects(rects: Rect[] | null | undefined): Rect[] {
-  return tileByLine(rects).merged;
+export function tileLineRects(
+  rects: Rect[] | null | undefined,
+  linePitch = 0,
+): Rect[] {
+  return tileByLine(rects, linePitch).merged;
 }

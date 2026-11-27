@@ -372,13 +372,20 @@ test('активное выделение показывает метки тол
   expect(band.bandBackground).toBe('rgba(0, 0, 0, 0)');
   expect(band.nativeBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(Number.parseFloat(band.edgeWidth)).toBeGreaterThan(0);
-  // Полоса расширена до высоты строки — иначе между строками выделения
-  // остаются пустоты, которых нет в PDF.
-  const lineHeight = await bookDocument(page)
+  /* Полоса идёт по рамке глифов — той же, что заливка `::selection`. Пока она
+     растягивалась до `line-height`, метки-курсоры по краям стояли ниже видимой
+     заливки на разницу между строкой и глифами (около 9 px). */
+  const glyphs = await bookDocument(page)
     .locator('p')
     .first()
-    .evaluate((element) => Number.parseFloat(getComputedStyle(element).lineHeight));
-  expect(Math.abs(band.height - lineHeight)).toBeLessThan(1);
+    .evaluate((element) => {
+      const range = element.ownerDocument.createRange();
+      range.selectNodeContents(element);
+      const rect = range.getClientRects()[0];
+      return rect ? { top: rect.top, height: rect.height } : null;
+    });
+  expect(glyphs).not.toBeNull();
+  expect(Math.abs(band.height - glyphs!.height)).toBeLessThan(1);
 
   // Снятие выделения убирает слой и метки.
   await bookDocument(page)

@@ -14,6 +14,7 @@ import {
 import { editor } from './editing-state';
 import { parseGeometry, shapeElement, shapeHitElement } from './geometry';
 import { tileLineRects } from './lines';
+import { TEXT_LAYER_CLASS } from './dom';
 import { state, type RenderedEntry } from './state';
 import { highlightPair, parseTone } from './theme';
 import type { NoteAnchor, Rect, ViewerNote } from './types';
@@ -177,6 +178,20 @@ function canvasBox(
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
+/** Межстрочный шаг страницы в CSS-пикселях; 0 — шаг неизвестен.
+ *
+ * Шаг измерен слоем по всем строкам страницы (`data-line-pitch`) и не зависит
+ * от состава выделения: полосы цитаты, как и живого выделения, должны идти по
+ * строке, а не по высоте букв.
+ */
+function pageLinePitch(pageEl: HTMLElement): number {
+  const layer = pageEl.querySelector<HTMLElement>(`.${TEXT_LAYER_CLASS}`);
+  const value = layer ? Number.parseFloat(layer.dataset.linePitch ?? '') : Number.NaN;
+  // Полосы цитат заданы долями страницы: шаг из CSS-пикселей приводится к ним.
+  const height = pageEl.clientHeight;
+  return Number.isFinite(value) && value > 0 && height > 0 ? value / height : 0;
+}
+
 /** Перерисовка растра страницы с подсветками цитат.
  *
  * Подсветка накладывается **в растре** (`multiply` на канвасе), а не слоем над
@@ -265,7 +280,7 @@ function paintHighlights(
     if (editor.resizeDrag && editor.resizeDrag.note.id === note.id) {
       continue;
     }
-    for (const rect of tileLineRects(anchor.rects || [])) {
+    for (const rect of tileLineRects(anchor.rects || [], pageLinePitch(pageEl))) {
       const x = offsetX + rect.x * pageWidth * ratioX;
       const y = offsetY + rect.y * pageHeight * ratioY;
       const width = rect.width * pageWidth * ratioX;
@@ -495,10 +510,10 @@ export function drawNotes(
          движение указателя. */
       const resizing = editor.resizeDrag && editor.resizeDrag.note.id === note.id;
       if (resizing) {
-        drawResizeDraft(overlay, note, rects);
+        drawResizeDraft(overlay, note, rects, pageLinePitch(pageEl));
         continue;
       }
-      for (const rect of tileLineRects(rects)) {
+      for (const rect of tileLineRects(rects, pageLinePitch(pageEl))) {
         const element = document.createElement('div');
         element.className = NOTE_CLASS;
         element.dataset.noteId = note.id;
@@ -518,12 +533,17 @@ export function drawNotes(
  * а буквы остаются читаемыми. В растр черновик не пишется — там подсветка
  * появится по отпусканию, когда правка закончится.
  */
-function drawResizeDraft(overlay: Element, note: ViewerNote, rects: Rect[]): void {
+function drawResizeDraft(
+  overlay: Element,
+  note: ViewerNote,
+  rects: Rect[],
+  pitch: number,
+): void {
   const pair = highlightPair(note.color);
   const layer = document.createElement('div');
   layer.className = NOTE_RESIZE_DRAFT_CLASS;
   layer.dataset.noteId = note.id;
-  for (const rect of tileLineRects(rects)) {
+  for (const rect of tileLineRects(rects, pitch)) {
     const element = document.createElement('div');
     element.className = 'note-resize-band';
     element.style.left = rect.x * 100 + '%';
