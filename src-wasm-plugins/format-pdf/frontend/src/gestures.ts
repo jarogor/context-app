@@ -360,6 +360,7 @@ export function finishGesture(event: PointerEvent): void {
  * выделение не начинают вовсе.
  */
 export function handlePointerDown(event: PointerEvent): void {
+  resetGestureHandled();
   if (editor.editing) {
     /* Во время правки нажатие мимо маркера не должно начинать своё выделение
        браузера: иначе протяжка рядом с маркером тянула бы текст по всему
@@ -400,8 +401,38 @@ export function handleSelection(): void {
   });
 }
 
+/** Обработан ли конец жеста на `pointerup`.
+ *
+ * Нажатие отменяется (выделение ведёт вьюер), и после отмены движок `mouseup`
+ * не присылает: цитата создавалась бы только по нему и не создавалась вовсе.
+ * Но `mouseup` остаётся нужен для событий, отправленных без указателя (например,
+ * из теста или расширения), поэтому слушаются оба, а повтор отсекается флагом.
+ */
+let pointerGestureHandled = false;
+
+/** Начало жеста: следующий `mouseup` уже не должен повторять обработку. */
+export function resetGestureHandled(): void {
+  pointerGestureHandled = false;
+}
+
+/** Конец жеста по указателю: цитата создаётся здесь. */
+export function handleSelectionPointer(): void {
+  pointerGestureHandled = true;
+  if (editor.editing) {
+    return;
+  }
+  if (state.tool.type === 'quote') {
+    handleSelection();
+  }
+}
+
 /** Выделение цитаты выполняется только инструментом «цитата». */
 export function handleSelectionOrGesture(): void {
+  /* `mouseup` после уже обработанного `pointerup` — повтор того же жеста. */
+  if (pointerGestureHandled) {
+    pointerGestureHandled = false;
+    return;
+  }
   if (editor.editing) {
     return;
   }

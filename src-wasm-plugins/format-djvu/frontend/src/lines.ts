@@ -78,41 +78,26 @@ export function tileByLine(rects: Rect[] | null | undefined): LineTiles {
   }
   steps.sort((a, b) => a - b);
   const pitch = steps.length > 0 ? steps[Math.floor(steps.length / 2)] : 0;
-  // Строки одного абзаца стоят на ровном шаге. Признак «вплотную» берётся от
-  // шага и от промежутка между боксами: у слоя скана бокс равен высоте букв, и
-  // промежуток между строками больше бокса — по одному боксу строки абзаца
-  // никогда не считались бы соседними, и полосы шли бы с щелями. Абзацный отступ
-  // оставляет промежуток в разы больше бокса — там полосы не стыкуются.
-  const joined = new Array<boolean>(Math.max(lines.length - 1, 0)).fill(false);
-  for (let index = 1; index < lines.length; index += 1) {
-    const distance = centers[index] - centers[index - 1];
-    const gap = lines[index].top - lines[index - 1].bottom;
-    const box = Math.min(
-      lines[index - 1].bottom - lines[index - 1].top,
-      lines[index].bottom - lines[index].top,
-    );
-    joined[index - 1] =
-      pitch > 0 && distance > 0 && distance <= pitch * 1.35 && gap <= box * 1.8;
-  }
+  /* Полосы доводятся до высоты строки: у слоя скана бокс равен высоте букв, и
+     без этого полоса шла бы только по буквам — у строк без выносных элементов
+     она вдвое ниже, а у первой и последней обрезана. Центр строки сохраняется,
+     вертикаль берётся по межстрочному шагу, а граница с соседней строкой
+     проходит посередине между их серединами — полосы стыкуются без наложений. */
   const tops = lines.map((line) => line.top);
   const bottoms = lines.map((line) => line.bottom);
   for (let index = 0; index < lines.length; index += 1) {
     const center = centers[index];
-    // Внутри абзаца полоса тянется до середины промежутка с соседней строкой:
-    // полосы стыкуются встык, и блок текста выглядит единой фигурой, как в PDF.
-    if (index > 0 && joined[index - 1]) {
-      tops[index] = (centers[index - 1] + center) / 2;
-    } else {
-      // Крайняя строка выделения или строка после абзацного отступа: растягивать
-      // её в промежуток некуда — иначе полоса выходит за буквы и цепляет чужой
-      // абзац. Край остаётся по фактической границе строки.
-      tops[index] = lines[index].top;
+    const half = pitch > 0 ? pitch / 2 : (lines[index].bottom - lines[index].top) / 2;
+    let top = center - half;
+    let bottom = center + half;
+    if (index > 0) {
+      top = Math.max(top, (centers[index - 1] + center) / 2);
     }
-    if (index < lines.length - 1 && joined[index]) {
-      bottoms[index] = (center + centers[index + 1]) / 2;
-    } else {
-      bottoms[index] = lines[index].bottom;
+    if (index < lines.length - 1) {
+      bottom = Math.min(bottom, (center + centers[index + 1]) / 2);
     }
+    tops[index] = top;
+    bottoms[index] = bottom;
   }
   const merged: Rect[] = [];
   for (let index = 0; index < lines.length; index += 1) {

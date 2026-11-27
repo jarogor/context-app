@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { anchorOf, drawNotes, noteById } from './notes';
+import {
+  anchorOf,
+  clearSelectionBands,
+  drawNotes,
+  noteById,
+  selectionBandsOf,
+  setSelectionBands,
+} from './notes';
 import { editor } from './editing-state';
 import type { NoteAnchor, ViewerNote } from './types';
 
@@ -151,5 +158,53 @@ describe('drawNotes', () => {
     } finally {
       editor.moveDrag = null;
     }
+  });
+});
+
+describe('полосы живого выделения', () => {
+  it('изменение полос сообщается один раз', () => {
+    // Растр перерисовывается только по изменению: на каждом движении указателя
+    // это была бы лишняя работа, а на неизменных полосах — перерисовка впустую.
+    const el = document.createElement('div');
+    const bands = [{ x: 0.1, y: 0.2, width: 0.3, height: 0.05 }];
+    const first = setSelectionBands(el, bands);
+    expect(first.map((change) => change.pageEl)).toEqual([el]);
+    expect(first[0].region?.x).toBeCloseTo(0.1);
+    expect(first[0].region?.y).toBeCloseTo(0.2);
+    expect(first[0].region?.width).toBeCloseTo(0.3);
+    expect(first[0].region?.height).toBeCloseTo(0.05);
+    expect(
+      setSelectionBands(
+        el,
+        bands.map((rect) => ({ ...rect })),
+      ),
+    ).toEqual([]);
+    // Перерисовывается только место, где полосы были и где стали: вся страница
+    // в WebKit стоит около десяти миллисекунд на каждое движение указателя.
+    const moved = setSelectionBands(el, [{ x: 0.1, y: 0.3, width: 0.3, height: 0.05 }]);
+    expect(moved.map((change) => change.pageEl)).toEqual([el]);
+    expect(moved[0].region?.y).toBeCloseTo(0.2);
+    expect(moved[0].region?.height).toBeCloseTo(0.15);
+  });
+
+  it('снятие полос убирает их со всех страниц', () => {
+    const el = document.createElement('div');
+    setSelectionBands(el, [{ x: 0.1, y: 0.2, width: 0.3, height: 0.05 }]);
+    const cleared = clearSelectionBands();
+    expect(cleared.map((change) => change.pageEl)).toEqual([el]);
+    expect(cleared[0].region?.y).toBeCloseTo(0.2);
+    expect(selectionBandsOf(el)).toEqual([]);
+    expect(clearSelectionBands()).toEqual([]);
+  });
+
+  it('уход выделения на другую страницу снимает прежние полосы', () => {
+    // Иначе полосы остались бы на странице, где выделение было раньше.
+    const first = document.createElement('div');
+    const second = document.createElement('div');
+    const bands = [{ x: 0.1, y: 0.2, width: 0.3, height: 0.05 }];
+    setSelectionBands(first, bands);
+    const changes = setSelectionBands(second, bands);
+    expect(changes.map((change) => change.pageEl)).toEqual([second, first]);
+    expect(selectionBandsOf(first)).toEqual([]);
   });
 });

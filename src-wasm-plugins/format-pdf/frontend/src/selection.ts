@@ -15,6 +15,8 @@
  */
 import { SELECTION_LAYER_CLASS, elementOf, overlayOf, TEXT_LAYER_CLASS } from './dom';
 import { tileByLine } from './lines';
+import { clearSelectionBands, drawNotes, setSelectionBands } from './notes';
+import { state } from './state';
 import { selectionInProgress } from './text-selection';
 import type { Rect } from './types';
 
@@ -71,6 +73,13 @@ export function selectionTarget(selection: Selection | null): SelectionTarget | 
   return { pageEl, overlay, range, first: range.getClientRects()[0] };
 }
 
+/** Снятие полос выделения со всех страниц и перерисовка их растров. */
+function clearBands(): void {
+  for (const change of clearSelectionBands()) {
+    drawNotes(change.pageEl, state.notes, change.region);
+  }
+}
+
 /** Снятие слоя выделения со всех страниц. */
 function clearLayers(): void {
   for (const stale of document.querySelectorAll(`.${SELECTION_LAYER_CLASS}`)) {
@@ -108,6 +117,7 @@ export function renderSelection(): void {
       return;
     }
     clearLayers();
+    clearBands();
     return;
   }
   const pageBounds = target.pageEl.getBoundingClientRect();
@@ -115,7 +125,14 @@ export function renderSelection(): void {
   const { merged: bands } = tileByLine(rects);
   if (bands.length === 0) {
     clearLayers();
+    clearBands();
     return;
+  }
+  /* Заливка — в растре страницы: полоса слоем ложится плёнкой на буквы, и
+     текст мутнеет. Растр перерисовывается, только когда полосы изменились:
+     на каждом движении указателя это была бы лишняя работа. */
+  for (const change of setSelectionBands(target.pageEl, bands)) {
+    drawNotes(change.pageEl, state.notes, change.region);
   }
   /* Слой целевой страницы не снимается: полосы обновляются на месте. Снятие и
      пересоздание слоя на каждое изменение выделения и давало мерцание. Слои

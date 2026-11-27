@@ -11,6 +11,8 @@
  */
 import { SELECTION_LAYER_CLASS, elementOf, overlayOf, TEXT_LAYER_CLASS } from './dom';
 import { tileByLine } from './lines';
+import { clearSelectionBands, drawNotes, setSelectionBands } from './notes';
+import { state } from './state';
 import { selectionInProgress } from './text-selection';
 import type { Rect } from './types';
 
@@ -35,33 +37,18 @@ export function fractionRect(bounds: DOMRect, pageBounds: DOMRect): Rect {
  */
 export function selectionRects(range: Range, pageBounds: DOMRect): Rect[] {
   const rects: Rect[] = [];
-  const pitch = pagePitch(range);
+  /* Высота — по фактическому боксу букв. Расширять её до межстрочного шага
+     здесь нельзя: расширенные полосы соседних строк перекрываются, и `tileByLine`
+     склеивает их в одну. Строки в середине выделения сливались, а крайние
+     оставались по буквам — верхняя полоса выходила ниже остальных, нижняя выше.
+     До шага полосы доводит уже `tileByLine`. */
   for (const bounds of spanRects(range)) {
     if (bounds.width <= 0 || bounds.height <= 0) {
-      continue;
-    }
-    // Вертикаль полосы — по межстрочному шагу страницы (см. `tileByLine`): так
-    // одиночное слово и блок выделяются одинаково, полосой на высоту строки.
-    if (pitch > 0) {
-      const center = bounds.top + bounds.height / 2;
-      rects.push({
-        x: (bounds.left - pageBounds.left) / pageBounds.width,
-        y: (center - pitch / 2 - pageBounds.top) / pageBounds.height,
-        width: bounds.width / pageBounds.width,
-        height: pitch / pageBounds.height,
-      });
       continue;
     }
     rects.push(fractionRect(bounds, pageBounds));
   }
   return rects;
-}
-
-/** Межстрочный шаг страницы выделения в CSS-пикселях; 0 — шаг неизвестен. */
-function pagePitch(range: Range): number {
-  const startLayer = elementOf(range.startContainer)?.closest<HTMLElement>(`.${TEXT_LAYER_CLASS}`);
-  const value = startLayer ? Number.parseFloat(startLayer.dataset.linePitch ?? '') : Number.NaN;
-  return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 /**
@@ -169,6 +156,13 @@ export function selectionTarget(selection: Selection | null): SelectionTarget | 
   return { pageEl, overlay, range, first: range.getClientRects()[0] };
 }
 
+/** Снятие полос выделения со всех страниц и перерисовка их растров. */
+function clearBands(): void {
+  for (const change of clearSelectionBands()) {
+    drawNotes(change.pageEl, state.notes, change.region);
+  }
+}
+
 /** Снятие слоя выделения со всех страниц. */
 function clearLayers(): void {
   for (const stale of document.querySelectorAll(`.${SELECTION_LAYER_CLASS}`)) {
@@ -206,6 +200,7 @@ export function renderSelection(): void {
       return;
     }
     clearLayers();
+    clearBands();
     return;
   }
   const pageBounds = target.pageEl.getBoundingClientRect();
@@ -213,7 +208,14 @@ export function renderSelection(): void {
   const { merged: bands } = tileByLine(rects);
   if (bands.length === 0) {
     clearLayers();
+    clearBands();
     return;
+  }
+  /* Заливка — в растре страницы: полоса слоем ложится плёнкой на буквы, и
+     текст мутнеет. Растр перерисовывается, только когда полосы изменились:
+     на каждом движении указателя это была бы лишняя работа. */
+  for (const change of setSelectionBands(target.pageEl, bands)) {
+    drawNotes(change.pageEl, state.notes, change.region);
   }
   /* Слой целевой страницы не снимается: полосы обновляются на месте. Снятие и
      пересоздание слоя на каждое изменение выделения и давало мерцание. Слои

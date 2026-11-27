@@ -1200,15 +1200,51 @@ test('выделение текста ложится ровными полоса
   expect(selection).not.toBeNull();
 
   await expect(content(page).locator('.selection-layer')).toHaveCount(1);
-  /* Заливка рисуется полосами по строкам, а не одним элементом с маской:
-     `clip-path` показывает заливку во всю страницу, пока браузер не разрешил
-     маску, — на кадре выделение захватывало лист, а текст темнел. */
+  /* Заливка нарисована в растре страницы полосами строк: полоса слоем ложилась
+     плёнкой на буквы, и текст мутнел. Слой остаётся ради меток-кареток, поэтому
+     его полосы прозрачны. */
   const bandLocator = content(page).locator('.selection-band');
   await expect(bandLocator.first()).toBeVisible();
   const bandFill = await bandLocator
     .first()
     .evaluate((element) => getComputedStyle(element).backgroundColor);
-  expect(bandFill).not.toBe('rgba(0, 0, 0, 0)');
+  expect(bandFill).toBe('rgba(0, 0, 0, 0)');
+  // Бумага под выделением перекрашена в растре: пиксель полосы отличается от
+  // бумаги рядом.
+  const painted = await content(page)
+    .locator('.page')
+    .first()
+    .evaluate((pageEl) => {
+      const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
+      const band = pageEl.querySelector('.selection-band') as HTMLElement | null;
+      if (!canvas || !band) {
+        return null;
+      }
+      const context = canvas.getContext('2d');
+      const canvasBox = canvas.getBoundingClientRect();
+      const bandBox = band.getBoundingClientRect();
+      if (!context || canvasBox.width <= 0) {
+        return null;
+      }
+      const ratio = canvas.width / canvasBox.width;
+      // Точка внутри полосы, но между буквами: у левого края полосы.
+      const x = Math.round((bandBox.left - canvasBox.left + 1) * ratio);
+      const y = Math.round((bandBox.top - canvasBox.top + bandBox.height / 2) * ratio);
+      const bandPixel = context.getImageData(x, y, 1, 1).data;
+      // Бумага над полосой — вне выделения.
+      const above = context.getImageData(
+        x,
+        Math.max(0, Math.round(y - bandBox.height * ratio)),
+        1,
+        1,
+      ).data;
+      return {
+        band: [bandPixel[0], bandPixel[1], bandPixel[2]],
+        paper: [above[0], above[1], above[2]],
+      };
+    });
+  expect(painted).not.toBeNull();
+  expect(painted!.band).not.toEqual(painted!.paper);
   // Нативное выделение прозрачно: подсветку рисует только слой.
   const native = await content(page)
     .locator('.textLayer')
@@ -1568,6 +1604,25 @@ test('слой выделения не пересоздаётся при про�
      это было 20+ раз, и выделение мерцало. */
   expect(events.filter((event) => event === 'added')).toHaveLength(1);
   expect(events).not.toContain('removed');
+});
+
+test('протяжка мышью открывает меню создания цитаты', async ({ page }) => {
+  await openPdf(page, 1, false, pdfBase64Paragraph());
+  const lines = await textLayerLines(page);
+  const first = lines[0];
+
+  /* Меню открывается по концу протяжки. Нажатие отменяется (выделение ведёт
+     вьюер), и после отмены движок не присылает `mouseup` — на нём меню раньше и
+     висело, поэтому не открывалось вовсе. */
+  await page.mouse.move(first.left + first.width * 0.3, first.top + first.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(first.left + first.width * 0.7, first.top + first.height / 2, {
+    steps: 8,
+  });
+  await page.mouse.up();
+
+  await expect(page.getByTestId('quote-menu')).toBeVisible();
+  await expect(page.getByTestId('quote-menu').getByTestId('note-color-yellow')).toBeVisible();
 });
 
 test('простой тройной клик без протяжки выделяет строку', async ({ page }) => {

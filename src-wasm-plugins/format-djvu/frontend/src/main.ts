@@ -13,6 +13,7 @@ import {
   handlePointerMove,
   handleSelectionChange,
   handleSelectionOrGesture,
+  handleSelectionPointer,
 } from './gestures';
 import { closeNoteMenu, redrawAllNotes, startMove, startResize, stopEditing } from './note-ops';
 import { noteById } from './notes';
@@ -270,6 +271,10 @@ async function handleMessage(event: MessageEvent): Promise<void> {
 /** Навешивание обработчиков указателя, прокрутки, выделения и размера. */
 function bindEvents(): void {
   viewer.addEventListener('scroll', handleScroll, { passive: true });
+  /* Создание цитаты — на `pointerup`: нажатие отменяется (выделение ведёт
+     вьюер), и после отмены движок `mouseup` не присылает. `mouseup` остаётся для
+     событий без указателя; повтор одного жеста отсекается флагом. */
+  pagesEl.addEventListener('pointerup', handleSelectionPointer);
   viewer.addEventListener('mouseup', handleSelectionOrGesture);
   viewer.addEventListener('pointerdown', handlePointerDown);
   pagesEl.addEventListener('pointerdown', handlePagesPointerDown);

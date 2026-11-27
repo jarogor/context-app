@@ -497,6 +497,11 @@ function handleMessage(event: MessageEvent): void {
       setViewerLocale(message.value);
       break;
     case 'show':
+      /* Вкладку показали снова. WebKitGTK после того, как скрытый документ
+         вернулся в показ, не перерисовывает текст до следующего изменения
+         разметки — книга оставалась пустой, пока не тронешь прокрутку. Тот же
+         сигнал, что даёт прокрутка, доводит кадр. */
+      forceRepaint(bookDocument().documentElement);
       reportProgress();
       break;
     case 'footnote-close':

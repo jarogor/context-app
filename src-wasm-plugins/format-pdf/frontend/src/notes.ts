@@ -10,7 +10,7 @@ import { editor } from './editing-state';
 import { parseGeometry, shapeElement, shapeHitElement } from './geometry';
 import { tileLineRects } from './lines';
 import { highlightPair, parseTone } from './theme';
-import type { NoteAnchor, ViewerNote } from './types';
+import type { NoteAnchor, Rect, ViewerNote } from './types';
 
 /** Разбор якоря заметки; повреждённая строка даёт null. */
 export function anchorOf(note: ViewerNote | null | undefined): NoteAnchor | null {
@@ -29,12 +29,158 @@ export function noteById(notes: ViewerNote[], noteId: string): ViewerNote | null
   return notes.find((note) => note.id === noteId) || null;
 }
 
+/** Полосы живого выделения по страницам, в долях страницы.
+ *
+ * Заливка рисуется в растре страницы, а не слоем над текстом: полоса слоем
+ * ложится плёнкой на буквы, и текст мутнеет — на тёмной стороне это особенно
+ * заметно. Хранятся здесь, потому что здесь же и рисуются.
+ */
+const selectionBands = new Map<HTMLElement, Rect[]>();
+
+/** Полосы живого выделения страницы, в долях страницы. */
+export function selectionBandsOf(pageEl: HTMLElement): Rect[] {
+  return selectionBands.get(pageEl) ?? [];
+}
+
+/** Совпадают ли полосы: тогда растр страницы не нужно перерисовывать. */
+function sameBands(left: Rect[], right: Rect[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((rect, index) => {
+    const other = right[index];
+    return (
+      rect.x === other.x &&
+      rect.y === other.y &&
+      rect.width === other.width &&
+      rect.height === other.height
+    );
+  });
+}
+
+/** Участок растра, который нужно перерисовать после смены полос.
+ *
+ * Перерисовка всей страницы стоит около десяти миллисекунд (WebKit), а полосы
+ * выделения меняются на каждом движении указателя — с такой ценой протяжка
+ * тормозила бы. Достаточно перерисовать место, где полосы были и где стали.
+ */
+export interface BandsChange {
+  /** Страница. */
+  pageEl: HTMLElement;
+  /** Участок в долях страницы; `null` — вся страница. */
+  region: Rect | null;
+}
+
+/** Объединение полос в один прямоугольник, в долях страницы. */
+function unionOf(bands: Rect[]): Rect {
+  let x = Number.POSITIVE_INFINITY;
+  let y = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+  for (const rect of bands) {
+    x = Math.min(x, rect.x);
+    y = Math.min(y, rect.y);
+    right = Math.max(right, rect.x + rect.width);
+    bottom = Math.max(bottom, rect.y + rect.height);
+  }
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+/** Запись полос живого выделения страницы.
+ *
+ * Полосы живут только на одной странице: выделение не переходит через разрыв
+ * между листами (оно живёт в одном текстовом слое), но прежние полосы со
+ * страницы, где выделение было, нужно снять.
+ *
+ * Возвращает страницы, чей растр нужно перерисовать, и участок: их полосы
+ * изменились. Неизменённые полосы перерисовки не требуют — на каждом движении
+ * указателя это была бы лишняя работа.
+ */
+export function setSelectionBands(pageEl: HTMLElement, bands: Rect[] | null): BandsChange[] {
+  const changed: BandsChange[] = [];
+  for (const other of [...selectionBands.keys()]) {
+    if (other !== pageEl) {
+      const stale = selectionBands.get(other) ?? [];
+      selectionBands.delete(other);
+      if (stale.length > 0) {
+        changed.push({ pageEl: other, region: unionOf(stale) });
+      }
+    }
+  }
+  const current = selectionBands.get(pageEl) ?? [];
+  const next = bands ?? [];
+  if (sameBands(current, next)) {
+    return changed;
+  }
+  if (next.length === 0) {
+    selectionBands.delete(pageEl);
+  } else {
+    selectionBands.set(pageEl, next);
+  }
+  const touched = [...current, ...next];
+  changed.unshift({ pageEl, region: touched.length > 0 ? unionOf(touched) : null });
+  return changed;
+}
+
+/** Снятие полос живого выделения со всех страниц и их прежние участки. */
+export function clearSelectionBands(): BandsChange[] {
+  const pages: BandsChange[] = [];
+  for (const [pageEl, bands] of selectionBands) {
+    if (bands.length > 0) {
+      pages.push({ pageEl, region: unionOf(bands) });
+    }
+  }
+  selectionBands.clear();
+  return pages;
+}
+
+/** Участок канваса под участком страницы, в пикселях растра.
+ *
+ * Доли страницы переводятся в пиксели канваса так же, как полосы выделения:
+ * через плотность растра и смещение окна страницы при сильном увеличении.
+ * Пиксель запаса по краям убирает щель от округления долей.
+ */
+function canvasBox(
+  region: Rect,
+  canvas: HTMLCanvasElement,
+  pageEl: HTMLElement,
+  entry: RenderedEntry,
+): { x: number; y: number; width: number; height: number } | null {
+  const pageWidth = pageEl.clientWidth;
+  const pageHeight = pageEl.clientHeight;
+  if (!pageWidth || !pageHeight) {
+    return null;
+  }
+  const ratioX = canvas.width / entry.info.width;
+  const ratioY = canvas.height / entry.info.height;
+  const offsetX = -entry.info.x * ratioX;
+  const offsetY = -entry.info.y * ratioY;
+  const left = Math.max(0, Math.floor(offsetX + region.x * pageWidth * ratioX) - 1);
+  const top = Math.max(0, Math.floor(offsetY + region.y * pageHeight * ratioY) - 1);
+  const right = Math.min(
+    canvas.width,
+    Math.ceil(offsetX + (region.x + region.width) * pageWidth * ratioX) + 1,
+  );
+  const bottom = Math.min(
+    canvas.height,
+    Math.ceil(offsetY + (region.y + region.height) * pageHeight * ratioY) + 1,
+  );
+  if (right <= left || bottom <= top) {
+    return null;
+  }
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
 /** Перерисовка растра страницы с подсветками цитат.
  *
  * Подсветка накладывается **в растре** (`multiply` на канвасе), а не слоем над
  * текстом: в WebKitGTK CSS-наложение не применяется, и непрозрачная подсветка
  * закрывала строку целиком. В канвасе умножение работает всегда, поэтому текст
  * остаётся прежним цветом, а бумага становится цветной.
+ *
+ * Живое выделение рисуется здесь же и по той же причине: полоса слоем над
+ * текстом ложится плёнкой на буквы, и текст под выделением мутнеет — на тёмной
+ * стороне это особенно заметно. В растре перекрашивается только бумага.
  *
  * Кадр строится от чистой копии растра: повторная перерисовка не копит цвет.
  */
@@ -43,14 +189,33 @@ function paintHighlights(
   entry: RenderedEntry,
   pageEl: HTMLElement,
   notes: ViewerNote[],
+  region: Rect | null = null,
 ): void {
   const context = canvas.getContext('2d');
   if (!context) {
     return;
   }
   context.globalCompositeOperation = 'source-over';
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(entry.base, 0, 0);
+  // Кадр строится от чистой копии растра: рисуется вся страница или только
+  // участок, который затронуло изменение полос.
+  const box = region ? canvasBox(region, canvas, pageEl, entry) : null;
+  if (box) {
+    context.clearRect(box.x, box.y, box.width, box.height);
+    context.drawImage(
+      entry.base,
+      box.x,
+      box.y,
+      box.width,
+      box.height,
+      box.x,
+      box.y,
+      box.width,
+      box.height,
+    );
+  } else {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(entry.base, 0, 0);
+  }
 
   const index = Number(pageEl.dataset.page);
   // Размеры страницы в CSS-пикселях и плотность растра: подсветка задана долями
@@ -65,6 +230,28 @@ function paintHighlights(
   const ratioY = canvas.height / entry.info.height;
   const offsetX = -entry.info.x * ratioX;
   const offsetY = -entry.info.y * ratioY;
+
+  /* Живое выделение — первым слоем, заметки поверх. Заливка рисуется здесь, в
+     растре: полоса слоем над текстом ложится плёнкой на буквы, и текст мутнеет.
+     Наложение делает канвас (`multiply` на светлой стороне, `screen` на тёмной):
+     бумага получает тон, а буквы остаются прежними — на тёмной стороне `screen`
+     не осветляет то, что ярче тона. Попиксельный цикл не нужен: он стоил около
+     десяти миллисекунд на каждое движение указателя. */
+  const selection = selectionBandsOf(pageEl);
+  if (selection.length > 0) {
+    const color = selectionColor();
+    context.globalCompositeOperation = state.readerTheme === 'dark' ? 'screen' : 'multiply';
+    context.fillStyle = color;
+    for (const rect of selection) {
+      context.fillRect(
+        offsetX + rect.x * pageWidth * ratioX,
+        offsetY + rect.y * pageHeight * ratioY,
+        rect.width * pageWidth * ratioX,
+        rect.height * pageHeight * ratioY,
+      );
+    }
+    context.globalCompositeOperation = 'source-over';
+  }
 
   for (const note of notes) {
     const anchor = anchorOf(note);
@@ -90,6 +277,14 @@ function paintHighlights(
     }
   }
   context.globalCompositeOperation = 'source-over';
+}
+
+/** Цвет живой полосы выделения: токен темы или запасной тон. */
+function selectionColor(): string {
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue('--reader-selection')
+    .trim();
+  return value || 'rgba(37, 99, 235, 0.35)';
 }
 
 /** Перекраска участка страницы в пару «заливка и подпись».
@@ -195,8 +390,16 @@ function drawShape(
   overlay.appendChild(svg);
 }
 
-/** Подсветка заметок и наложения карточек и фигур на странице. */
-export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
+/** Подсветка заметок и наложения карточек и фигур на странице.
+ *
+ * `region` — участок страницы, который затронуло изменение: тогда растр
+ * перерисовывается только в нём (см. `setSelectionBands`). `null` — вся страница.
+ */
+export function drawNotes(
+  pageEl: HTMLElement,
+  notes: ViewerNote[],
+  region: Rect | null = null,
+): void {
   const overlay = overlayOf(pageEl);
   if (!overlay) {
     return;
@@ -204,7 +407,7 @@ export function drawNotes(pageEl: HTMLElement, notes: ViewerNote[]): void {
   const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
   const entry = state.rendered.get(pageEl);
   if (canvas && entry) {
-    paintHighlights(canvas, entry, pageEl, notes);
+    paintHighlights(canvas, entry, pageEl, notes, region);
   }
   // Слой фигур сохраняется: во время протяжки по нему ведётся предпросмотр,
   // а замена содержимого разрушила бы захваченный указатель.
