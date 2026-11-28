@@ -151,32 +151,20 @@ function pressCount(event: PointerEvent): number {
  * выделения: WebKit применяет выбор блока раньше обработчика нажатия, и
  * выделение в документе к этому моменту уже растянуто на всю строку.
  *
- * Каретка по точке встаёт на границу слов — на пробел или сразу за последней
- * буквой. Якорь не теряется: берётся ближайшее к каретке слово, а при равенстве
- * зазоров — то, что левее (в него целятся двойным кликом чаще).
+ * Позиция считается по геометрии строк слоя, как и каретка протяжки
+ * (`layerCaretAtPoint`), а не по ответу движка. Каретка движка встаёт на первый
+ * по порядку в DOM спан, чей прямоугольник накрывает точку, а спаны DjVu идут
+ * в порядке зон OCR, а не чтения: у двух слов на одной высоте (например, строка
+ * текста и осколок зоны или колонтитул) движок возвращал чужое слово. Отсюда
+ * расхождение видимого выделения и скопированного текста: под указателем
+ * «гуманитарной», а в каретке — «XX» из другой части страницы.
  */
 function wordAtPoint(layer: Element, clientX: number, clientY: number): Range | null {
-    const caretRangeFromPoint: ((x: number, y: number) => Range | null) | null =
-        typeof document.caretRangeFromPoint === 'function'
-            ? document.caretRangeFromPoint.bind(document)
-            : typeof document.caretPositionFromPoint === 'function'
-              ? (x: number, y: number) => {
-                    const position = document.caretPositionFromPoint(x, y);
-                    if (!position) {
-                        return null;
-                    }
-                    const range = document.createRange();
-                    range.setStart(position.offsetNode, position.offset);
-                    range.setEnd(position.offsetNode, position.offset);
-                    return range;
-                }
-              : null;
-    const caret = caretRangeFromPoint ? caretRangeFromPoint(clientX, clientY) : null;
-    const node = caret?.startContainer;
-    if (!node || node.nodeType !== Node.TEXT_NODE || !layer.contains(node)) {
+    const caret = layerCaretAtPoint(layer, clientX, clientY);
+    if (!caret || !layer.contains(caret.node)) {
         return null;
     }
-    const text = node as Text;
+    const text = caret.node;
     const value = text.data;
     if (value.length === 0) {
         return null;
@@ -205,7 +193,7 @@ function wordAtPoint(layer: Element, clientX: number, clientY: number): Range | 
         range.setEnd(text, end);
         return range;
     };
-    return wordRangeAt(caret.startOffset) ?? wordRangeAt(caret.startOffset - 1);
+    return wordRangeAt(caret.offset) ?? wordRangeAt(caret.offset - 1);
 }
 
 /** Начало протяжки выделения по указателю.

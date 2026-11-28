@@ -556,4 +556,64 @@ describe('alignTextLayerToRaster', () => {
     } as unknown as HTMLCanvasElement;
     expect(alignTextLayerToRaster(layer, fake, false)).toBe(0);
   });
+
+  it('не переносит слово на чужую строку, если полоса слиплась', () => {
+    /* Дефект страницы 5 книги Рикёра: вторая и третья строки абзаца попали в
+       одну полосу растра. Слова третьей получали вертикаль второй и физически
+       ложились на неё — любой клик по второй строке выделял слова третьей.
+       Выравнивание уточняет вертикаль на несколько пикселей, но не переносит
+       слово на строку, далёкую от его зоны. */
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute;left:0;top:0;width:400px;height:400px';
+    document.body.append(host);
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    Object.defineProperty(canvas, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, right: 400, bottom: 400, width: 400, height: 400 }),
+    });
+    /* Чернила двух строк: 100…140 и 160…200. Между ними широкий просвет, но
+       профиль в нём не нулевой (выносные элементы), поэтому порог не рвёт —
+       полосы задаются здесь прямо как одна слипшаяся 100…200. */
+    const pixels = new Uint8ClampedArray(400 * 400 * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = 255;
+      pixels[i + 1] = 255;
+      pixels[i + 2] = 255;
+      pixels[i + 3] = 255;
+    }
+    for (let y = 100; y < 200; y += 1) {
+      for (let x = 20; x < 380; x += 1) {
+        const index = (y * 400 + x) * 4;
+        pixels[index] = 0;
+        pixels[index + 1] = 0;
+        pixels[index + 2] = 0;
+      }
+    }
+    Object.defineProperty(canvas, 'getContext', {
+      value: () => ({ getImageData: () => ({ data: pixels }) }) as unknown as CanvasRenderingContext2D,
+    });
+    host.append(canvas);
+    const layer = document.createElement('div');
+    layer.className = 'textLayer';
+    Object.defineProperty(layer, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, right: 400, bottom: 400, width: 400, height: 400 }),
+    });
+    // Слово третьей строки: зона 180…200, то есть ниже второй строки.
+    const span = document.createElement('span');
+    span.textContent = 'XX ';
+    span.style.cssText = 'position:absolute;left:20px;top:180px;width:40px;height:20px;white-space:pre';
+    Object.defineProperty(span, 'getBoundingClientRect', {
+      value: () => ({ left: 20, top: 180, right: 60, bottom: 200, width: 40, height: 20 }),
+    });
+    layer.append(span);
+    host.append(layer);
+    try {
+      alignTextLayerToRaster(layer, canvas, false);
+      // Слово остаётся у своей зоны, а не прыгает на верх слипшейся полосы.
+      expect(parseFloat(span.style.top)).toBeGreaterThanOrEqual(170);
+    } finally {
+      host.remove();
+    }
+  });
 });

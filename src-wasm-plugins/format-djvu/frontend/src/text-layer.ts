@@ -393,7 +393,19 @@ export function alignTextLayerToRaster(
     }
     let top = rect.top - canvasRect.top;
     let bottom = rect.bottom - canvasRect.top;
-    if (row >= 0 && nearestDistance <= pitch) {
+    /* Слово не может уехать от своей зоны дальше доли шага. Выравнивание —
+       уточнение на несколько пикселей: зоны движка уже стоят по строкам. Если
+       ближайшая строка растра оказалась дальше, это чужая строка: на этой
+       странице вторая и третья строки получили одну полосу растра, и слова
+       третьей вставали на вертикаль второй — две строки физически ложились
+       одна на другую, поэтому любой клик по второй строке выделял слова
+       третьей. Тогда остаётся вертикаль своей зоны. */
+    const zoneTop = rect.top - canvasRect.top;
+    // Шаг строки приводится к CSS-пикселям: он измерен в пикселях растра.
+    const pitchCss = pitch > 0 ? pitch / ratio : 0;
+    const limit = pitchCss > 0 ? pitchCss * 0.5 : (rect.height || 1) * 0.5;
+    const rowTop = row >= 0 ? rows[row].top / ratio : Number.NaN;
+    if (row >= 0 && nearestDistance <= pitch && Math.abs(rowTop - zoneTop) <= limit) {
       top = rows[row].top / ratio;
       bottom = (rows[row].bottom + 1) / ratio;
     } else {
