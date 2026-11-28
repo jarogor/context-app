@@ -68,26 +68,16 @@ const BASE_STYLE = [
   'body[data-tool="text"] mark.context-note,body[data-tool="shape"] mark.context-note,',
   'body[data-tool="text"] .context-note-shape path,body[data-tool="shape"] .context-note-shape path',
   '{cursor:pointer !important;}',
-  /* Заливку выделения рисует нативное `::selection`: оно ложится под буквы, и
-     текст под выделением остаётся того же цвета. Слой над текстом затемнял
-     глифы, а на тёмной стороне (`screen`) ещё и выбеливал их края — текст
-     выглядел выцветшим. Слой остаётся только ради меток-кареток по краям
-     выделения: `::selection` их не рисует. */
-  `::selection{background:var(--rt-selection);}`,
+  /* Заливку и обводку краёв выделения рисует слой (`@context/selection`):
+     заливка и обводка лежат на одном элементе, и их высота совпадает по
+     построению. Нативное `::selection` оставлено прозрачным — оно только
+     средство копирования, и его заливка от движка шла своим прямоугольником,
+     не совпадая с полосой слоя. */
+  `::selection{background:transparent;}`,
   `.${SELECTION_LAYER_CLASS}{position:absolute;left:0;top:0;pointer-events:none;z-index:1;}`,
-  /* Скругления нет: полоса служит ещё и рамкой меток, а радиус обрезал бы их
-     концы — метка стала бы короче полосы. */
-  `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:0;background:transparent;}`,
-  /* Метки по краям живого выделения — внутренняя тень самой полосы, а не
-     отдельные элементы: высота и положение берутся из того же прямоугольника,
-     что и заливка, поэтому разойтись с полосой они не могут. Отдельные метки с
-     собственной высотой приходилось подгонять под строку, и они снова
-     «торчали» на каждой правке. */
-  `.${SELECTION_BAND_CLASS}[data-edge="start"]{box-shadow:inset var(--rt-selection-edge-width,1px) 0 0 0 var(--rt-selection-edge);}`,
-  `.${SELECTION_BAND_CLASS}[data-edge="end"]{box-shadow:inset calc(-1 * var(--rt-selection-edge-width,1px)) 0 0 0 var(--rt-selection-edge);}`,
-  `.${SELECTION_BAND_CLASS}[data-edge="both"]{box-shadow:`,
-  'inset var(--rt-selection-edge-width,1px) 0 0 0 var(--rt-selection-edge),',
-  'inset calc(-1 * var(--rt-selection-edge-width,1px)) 0 0 0 var(--rt-selection-edge);}',
+  /* Скругления нет: полоса служит ещё и рамкой обводки, а радиус обрезал бы
+     её концы. */
+  `.${SELECTION_BAND_CLASS}{position:absolute;border-radius:0;}`,
   // Подсветка берёт ту же пару «заливка и подпись», что метка заметки в
   // списке: цвет текста под цитатой совпадает с цветом подписи метки. Синий
   // поэтому несёт светлый текст, жёлтый и красный — тёмный.

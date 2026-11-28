@@ -35,7 +35,7 @@ import {
   footnoteContentHtml,
   installFootnoteReturns,
 } from './footnote';
-import { clearSelectionLayer, renderSelectionLayer } from './selection';
+import { clearSelectionLayer, renderSelection, selectionStyleOf } from './selection';
 import { flashNote } from './flash';
 import {
   clearSearchHighlights,
@@ -68,6 +68,8 @@ const state = {
   query: '',
   /** Привязки клавиш приложения. */
   bindings: [] as ViewerBinding[],
+  /** Оформление слоя выделения: заливка и обводка краёв. */
+  selectionStyle: selectionStyleOf({}),
   /** Признак загруженной книги. */
   opened: false,
   /** Название книги. */
@@ -518,6 +520,7 @@ function handleMessage(event: MessageEvent): void {
       state.theme = message.value;
       const root = bookDocument().documentElement;
       holdTopLine(() => applyReaderTheme(root, message.value));
+      state.selectionStyle = selectionStyleOf(message.value.tokens ?? {});
       // Тема применена к уже показанному тексту: движок перерисовывает его
       // только по внешнему сигналу, иначе книга остаётся пустой до прокрутки.
       forceRepaint(root);
@@ -545,7 +548,7 @@ function handleMessage(event: MessageEvent): void {
       // оболочке, иначе слой выделения остался бы на странице.
       const doc = bookDocument();
       doc.getSelection()?.removeAllRanges();
-      renderSelectionLayer(doc, null);
+      clearSelectionLayer(doc);
       break;
     }
     case 'search':
@@ -624,11 +627,12 @@ function handleSelectionEnd(): void {
   const selection = doc.getSelection();
   // Слой активного выделения рисуется здесь же: событие `selectionchange` в
   // программно выставленном диапазоне приходит не всегда, а выделение уже есть.
-  renderSelectionLayer(
+  renderSelection(
     doc,
     selection && !selection.isCollapsed && selection.rangeCount > 0
       ? selection.getRangeAt(0)
       : null,
+    state.selectionStyle,
   );
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
     post({ type: 'selection-cleared' });
@@ -1125,7 +1129,7 @@ function start(): void {
       selection && !selection.isCollapsed && selection.rangeCount > 0
         ? selection.getRangeAt(0)
         : null;
-    renderSelectionLayer(bookDocument(), range);
+    renderSelection(bookDocument(), range, state.selectionStyle);
     // Снятие выделения закрывает меню оболочки: иначе оно осталось бы висеть
     // над пустым местом и создало заметку без якоря.
     if (!range) {

@@ -13,6 +13,7 @@
  * слой снимался и создавался заново на каждое изменение выделения — за одну
  * протяжку это 20+ раз, и выделение мерцало.
  */
+import { fillBands, type SelectionStyle } from '@context/selection';
 import { SELECTION_LAYER_CLASS, elementOf, overlayOf, TEXT_LAYER_CLASS } from './dom';
 import { tileByLine } from './lines';
 import { clearSelectionBands, drawNotes, setSelectionBands } from './notes';
@@ -143,22 +144,29 @@ export function renderSelection(): void {
       stale.remove();
     }
   }
-  layer.replaceChildren();
-  bands.forEach((rect, index) => {
-    const band = document.createElement('div');
-    band.className = 'selection-band';
-    band.style.left = rect.x * 100 + '%';
-    band.style.top = rect.y * 100 + '%';
-    band.style.width = rect.width * 100 + '%';
-    band.style.height = rect.height * 100 + '%';
-    // Метки — только у краёв всего выделения: левая в его начале, правая в
-    // конце. У промежуточных строк меток нет, иначе они читаются как отдельные
-    // выделения (особенно при строках разной длины).
-    const isStart = index === 0;
-    const isEnd = index === bands.length - 1;
-    band.dataset.edge = isStart && isEnd ? 'both' : isStart ? 'start' : isEnd ? 'end' : 'none';
-    layer.append(band);
-  });
+  /* Заливка и обводка краёв — на одном элементе общего слоя: их высота берётся
+     из одного прямоугольника и разойтись не может. */
+  fillBands(layer, bands, selectionStyle(), (rect) => ({
+    left: rect.x * 100 + '%',
+    top: rect.y * 100 + '%',
+    width: rect.width * 100 + '%',
+    height: rect.height * 100 + '%',
+  }));
+}
+
+/** Оформление слоя выделения из токенов темы страницы. */
+function selectionStyle(): SelectionStyle {
+  const root = getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string): string =>
+    root.getPropertyValue(name).trim() || fallback;
+  const width = Number.parseFloat(read('--reader-selection-edge-width', '1'));
+  return {
+    /* Заливка страницы нарисована в растре (`notes.ts`): слой несёт только
+       обводку краёв, иначе заливка легла бы дважды и текст под ней потемнел. */
+    fill: 'transparent',
+    edge: read('--reader-selection-edge', 'rgba(37, 99, 235, 0.9)'),
+    edgeWidth: Number.isFinite(width) && width > 0 ? width : 1,
+  };
 }
 
 /** Прямоугольники текущего выделения в долях страницы для создания цитаты. */

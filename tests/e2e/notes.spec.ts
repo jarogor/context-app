@@ -362,41 +362,36 @@ test('активное выделение показывает метки тол
   expect(left.before).toBe('none');
   expect(left.after).toBe('none');
 
-  /* Заливку рисует нативное `::selection` — оно ложится под буквы, и текст под
-     выделением не тускнеет. Полоса слоя остаётся ради меток-кареток: у неё
-     своей заливки нет. */
+  /* Заливку и обводку краёв рисует один элемент слоя: их высота и положение
+     берутся из одного прямоугольника, поэтому разойтись им нечем. Раньше
+     заливку давало нативное `::selection` своим прямоугольником от движка, и на
+     каждой правке обводка оказывалась другой высоты. */
   const band = await bookDocument(page)
     .locator('.context-selection-band')
     .first()
     .evaluate((element) => {
-      const edge = getComputedStyle(element);
+      const style = getComputedStyle(element);
       const rect = (element as HTMLElement).getBoundingClientRect();
-      const paragraph = element.closest('p') as HTMLElement | null;
+      // Слой лежит в корне документа, а не внутри абзаца: нативную заливку
+      // читаем с самого абзаца книги, иначе получили бы пустое значение и тест
+      // проходил бы при любом оформлении.
+      const paragraph = element.ownerDocument.querySelector('.context-chapter p');
       const native = paragraph ? getComputedStyle(paragraph, '::selection') : null;
       return {
-        bandBackground: getComputedStyle(element).backgroundColor,
+        bandBackground: style.backgroundColor,
         nativeBackground: native ? native.backgroundColor : '',
-        edgeWidth: edge.boxShadow.includes('inset') ? '1px' : '0px',
+        edgeWidth: style.boxShadow.includes('inset') ? '1px' : '0px',
         height: rect.height,
       };
     });
-  expect(band.bandBackground).toBe('rgba(0, 0, 0, 0)');
-  expect(band.nativeBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(band.bandBackground).not.toBe('rgba(0, 0, 0, 0)');
+  // Нативное выделение прозрачно: иначе заливка легла бы дважды своим
+  // прямоугольником от движка, и обводка края расходилась бы с ней по высоте.
+  expect(band.nativeBackground).toBe('rgba(0, 0, 0, 0)');
   expect(Number.parseFloat(band.edgeWidth)).toBeGreaterThan(0);
-  /* Полоса идёт по рамке глифов — той же, что заливка `::selection`. Пока она
-     растягивалась до `line-height`, метки-курсоры по краям стояли ниже видимой
-     заливки на разницу между строкой и глифами (около 9 px). */
-  const glyphs = await bookDocument(page)
-    .locator('p')
-    .first()
-    .evaluate((element) => {
-      const range = element.ownerDocument.createRange();
-      range.selectNodeContents(element);
-      const rect = range.getClientRects()[0];
-      return rect ? { top: rect.top, height: rect.height } : null;
-    });
-  expect(glyphs).not.toBeNull();
-  expect(Math.abs(band.height - glyphs!.height)).toBeLessThan(1);
+  /* Полоса идёт по строке: обводка на её краю той же высоты, что и заливка,
+     потому что это один элемент. */
+  expect(band.height).toBeGreaterThan(0);
 
   // Снятие выделения убирает слой и метки.
   await bookDocument(page)

@@ -330,46 +330,21 @@ html[data-reader-theme='dark'] .search-layer {
    Наложение задаётся на самом слое, а не на полосах внутри него: в WebKit
    `mix-blend-mode` не действует на дочерних элементах слоя, и заливка ложилась
    плёнкой поверх букв — текст под выделением тускнел. */
-.selection-layer {
+.context-selection-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
   mix-blend-mode: multiply;
 }
-html[data-reader-theme='dark'] .selection-layer {
+html[data-reader-theme='dark'] .context-selection-layer {
   mix-blend-mode: screen;
 }
-.selection-layer .selection-band {
+.context-selection-layer .context-selection-band {
   position: absolute;
   pointer-events: none;
-  /* Скругления нет: полоса служит ещё и рамкой меток, а радиус обрезал бы их
-     концы — метка стала бы короче полосы. */
+  /* Скругления нет: полоса служит ещё и рамкой обводки, а радиус обрезал бы
+     её концы. */
   border-radius: 0;
-  /* Заливка нарисована в растре страницы (см. `notes.ts`): полоса слоем ложится
-     плёнкой на буквы, и текст мутнеет. Полоса слоя — только место меток. */
-  background: transparent;
-}
-/* Признак активного выделения: вертикальные метки по краям полос — «курсоры»
-   выделения. Отличают живое выделение от подсветки заметки (та меток не
-   получает).
-   Метка — внутренняя тень самой полосы, а не отдельный элемент: её высота и
-   положение берутся из того же прямоугольника, что и заливка, поэтому разойтись
-   с полосой они не могут. Отдельные элементы с собственной высотой приходилось
-   подгонять под строку, и на каждой правке они снова «торчали». */
-.selection-layer .selection-band[data-edge='start'] {
-  box-shadow: inset var(--reader-selection-edge-width, 1px) 0 0 0
-    var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
-}
-.selection-layer .selection-band[data-edge='end'] {
-  box-shadow: inset calc(-1 * var(--reader-selection-edge-width, 1px)) 0 0 0
-    var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
-}
-.selection-layer .selection-band[data-edge='both'] {
-  box-shadow:
-    inset var(--reader-selection-edge-width, 1px) 0 0 0
-      var(--reader-selection-edge, rgba(37, 99, 235, 0.9)),
-    inset calc(-1 * var(--reader-selection-edge-width, 1px)) 0 0 0
-      var(--reader-selection-edge, rgba(37, 99, 235, 0.9));
 }
 /* Инструменты текста и фигуры не работают с выделением: прицел вместо
    текстового курсора и запрет выделения текста под протяжкой. */

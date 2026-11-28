@@ -329,7 +329,7 @@ test('выделение слов совпадает с видимым текс�
       selection.removeAllRanges();
       selection.addRange(range);
       document.dispatchEvent(new Event('selectionchange'));
-      const bands = [...pageEl.querySelectorAll('.selection-band')];
+      const bands = [...pageEl.querySelectorAll('.context-selection-band')];
       // Чернила каждого выделенного слова и их попадание в его полосу.
       // Слово засчитывается той полосе, в чей вертикальный промежуток
       // попадает его центр — так строки не смешиваются.
@@ -804,7 +804,7 @@ test('полоса выделения DjVu идёт по строке незав
         selection?.removeAllRanges();
         selection?.addRange(range);
         pageEl.ownerDocument.dispatchEvent(new Event('selectionchange'));
-        const band = pageEl.querySelector('.selection-band');
+        const band = pageEl.querySelector('.context-selection-band');
         const box = band?.getBoundingClientRect() ?? null;
         // Буквы строки целиком внутри полосы: она не срезает верх и низ.
         const letters = row.map((span) => span.getBoundingClientRect());
@@ -849,7 +849,7 @@ test('двойной щелчок по слову выделяет слово в
   const iframe = await page.locator('iframe[title="Содержимое книги"]').boundingBox();
   await page.mouse.dblclick(iframe!.x + geometry!.word.x + 8, iframe!.y + geometry!.word.middle);
   expect((await selectedText(page)).trim().length).toBeGreaterThan(0);
-  await expect(content(page).locator('.selection-layer')).toHaveCount(1);
+  await expect(content(page).locator('.context-selection-layer')).toHaveCount(1);
 });
 
 // Правка границы цитаты меняет только наложение: растр страницы не

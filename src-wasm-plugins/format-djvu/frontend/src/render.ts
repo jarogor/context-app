@@ -6,7 +6,7 @@
  * рисуются заново лишь страницы окна.
  */
 import { newPixmap, renderRequest, type DjVuModule, type DjVuPage } from './engine';
-import { TEXT_LAYER_CLASS, overlayOf, scrollProgress, viewer } from './dom';
+import { SELECTION_LAYER_CLASS, TEXT_LAYER_CLASS, overlayOf, scrollProgress, viewer } from './dom';
 import {
   listHeight,
   pageOffset,
@@ -220,7 +220,7 @@ export function releasePage(pageEl: HTMLElement): void {
   delete pageEl.dataset.rendered;
   // Слой выделения привязан к положению текста: вместе с канвасом он снимается и
   // будет построен заново, когда страница отрисуется.
-  const selectionLayer = pageEl.querySelector('.selection-layer');
+  const selectionLayer = pageEl.querySelector(`.${SELECTION_LAYER_CLASS}`);
   if (selectionLayer) {
     selectionLayer.remove();
   }

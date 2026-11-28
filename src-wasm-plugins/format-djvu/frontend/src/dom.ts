@@ -24,7 +24,9 @@ export const OVERLAY_CLASS = 'overlay';
 /** Класс невидимого текстового слоя страницы. */
 export const TEXT_LAYER_CLASS = 'textLayer';
 /** Класс слоя активного выделения. */
-export const SELECTION_LAYER_CLASS = 'selection-layer';
+/* Имя класса общее для всех модулей рисования: слой выделения один
+   (`@context/selection`), поэтому и класс у него один. */
+export const SELECTION_LAYER_CLASS = 'context-selection-layer';
 /** Класс подсветки заметки-цитаты. */
 export const NOTE_CLASS = 'note';
 /** Класс текстовой карточки заметки. */

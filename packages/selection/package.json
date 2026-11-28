@@ -1,0 +1,21 @@
+{
+  "name": "@context/selection",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Слой выделения текста, общий для всех модулей рисования плагинов формата: полосы строк и обводка крайних полос одним прямоугольником.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.2"
+  }
+}

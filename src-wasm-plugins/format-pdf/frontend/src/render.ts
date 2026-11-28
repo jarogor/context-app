@@ -6,7 +6,15 @@
  * слой выделения.
  */
 import { engine, type PdfJsModule, type PdfPage, type PdfTextContent } from './engine';
-import { OVERLAY_CLASS, TEXT_LAYER_CLASS, overlayOf, pagesEl, scrollProgress, viewer } from './dom';
+import {
+  OVERLAY_CLASS,
+  SELECTION_LAYER_CLASS,
+  TEXT_LAYER_CLASS,
+  overlayOf,
+  pagesEl,
+  scrollProgress,
+  viewer,
+} from './dom';
 import { clearLinkLayer, renderLinks } from './links';
 import { drawNotes } from './notes';
 import { post } from './protocol';
@@ -143,7 +151,7 @@ export function releasePage(pageEl: HTMLElement): void {
   delete pageEl.dataset.rendered;
   // Слой выделения привязан к положению текста: вместе с канвасом он снимается и
   // будет построен заново, когда страница отрисуется.
-  const selectionLayer = pageEl.querySelector('.selection-layer');
+  const selectionLayer = pageEl.querySelector(`.${SELECTION_LAYER_CLASS}`);
   if (selectionLayer) {
     selectionLayer.remove();
   }

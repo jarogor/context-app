@@ -1199,11 +1199,11 @@ test('выделение текста ложится ровными полоса
     });
   expect(selection).not.toBeNull();
 
-  await expect(content(page).locator('.selection-layer')).toHaveCount(1);
+  await expect(content(page).locator('.context-selection-layer')).toHaveCount(1);
   /* Заливка нарисована в растре страницы полосами строк: полоса слоем ложилась
      плёнкой на буквы, и текст мутнел. Слой остаётся ради меток-кареток, поэтому
      его полосы прозрачны. */
-  const bandLocator = content(page).locator('.selection-band');
+  const bandLocator = content(page).locator('.context-selection-band');
   await expect(bandLocator.first()).toBeVisible();
   const bandFill = await bandLocator
     .first()
@@ -1216,7 +1216,7 @@ test('выделение текста ложится ровными полоса
     .first()
     .evaluate((pageEl) => {
       const canvas = pageEl.querySelector('canvas') as HTMLCanvasElement | null;
-      const band = pageEl.querySelector('.selection-band') as HTMLElement | null;
+      const band = pageEl.querySelector('.context-selection-band') as HTMLElement | null;
       if (!canvas || !band) {
         return null;
       }
@@ -1260,7 +1260,7 @@ test('выделение текста ложится ровными полоса
   // дочерних элементах слоя в WebKit режим не применяется, и заливка ложилась
   // плёнкой поверх букв.
   const blend = await content(page)
-    .locator('.selection-layer')
+    .locator('.context-selection-layer')
     .first()
     .evaluate((element) => getComputedStyle(element).mixBlendMode);
   expect(blend).toBe('multiply');
@@ -1269,7 +1269,7 @@ test('выделение текста ложится ровными полоса
   const pageBox = await content(page).locator('.page').first().boundingBox();
   expect(pageBox).not.toBeNull();
   const selectionBoxes = await content(page)
-    .locator('.selection-band')
+    .locator('.context-selection-band')
     .evaluateAll((elements) => {
       const page = elements[0]?.closest('.page') as HTMLElement;
       const origin = page ? page.getBoundingClientRect() : { left: 0, top: 0 };
@@ -1291,7 +1291,7 @@ test('выделение текста ложится ровными полоса
   // По вертикали полосы приводятся к межстрочному шагу: полосы-метки (по одной
   // на строку) соседних строк стыкуются встык — без щелей и без нахлёста.
   const bands = await content(page)
-    .locator('.selection-band')
+    .locator('.context-selection-band')
     .evaluateAll((elements) =>
       elements
         .map((element) => element.getBoundingClientRect())
@@ -1308,7 +1308,7 @@ test('выделение текста ложится ровными полоса
   // нет, иначе они читаются как отдельные выделения (особенно при строках
   // разной длины). Так же ведёт себя встроенное чтение EPUB.
   const edges = await content(page)
-    .locator('.selection-band')
+    .locator('.context-selection-band')
     .evaluateAll((elements) => elements.map((element) => (element as HTMLElement).dataset.edge));
   expect(edges.length).toBeGreaterThanOrEqual(2);
   expect(edges[0]).toBe('start');
@@ -1320,7 +1320,7 @@ test('выделение текста ложится ровными полоса
      разойтись с полосой они не могут. Отдельную метку приходилось подгонять под
      строку, и она снова «торчала» на каждой правке. */
   const first = await content(page)
-    .locator('.selection-band')
+    .locator('.context-selection-band')
     .first()
     .evaluate((band) => {
       const style = getComputedStyle(band);
@@ -1337,7 +1337,7 @@ test('выделение текста ложится ровными полоса
   expect(first.afterContent).toBe('none');
 
   const last = await content(page)
-    .locator('.selection-band')
+    .locator('.context-selection-band')
     .last()
     .evaluate((band) => getComputedStyle(band).boxShadow);
   expect(last).toContain('inset');
@@ -1432,7 +1432,7 @@ test('выделение двойным кликом с протяжкой на�
   const bands = await content(page)
     .locator('.page')
     .first()
-    .locator('.selection-band')
+    .locator('.context-selection-band')
     .evaluateAll((elements) =>
       elements.map((element) => {
         const style = (element as HTMLElement).style;
@@ -1561,12 +1561,12 @@ test('слой выделения не пересоздаётся при про�
       new MutationObserver((records) => {
         for (const record of records) {
           for (const node of Array.from(record.removedNodes)) {
-            if (node instanceof Element && node.classList.contains('selection-layer')) {
+            if (node instanceof Element && node.classList.contains('context-selection-layer')) {
               state.__layerEvents.push('removed');
             }
           }
           for (const node of Array.from(record.addedNodes)) {
-            if (node instanceof Element && node.classList.contains('selection-layer')) {
+            if (node instanceof Element && node.classList.contains('context-selection-layer')) {
               state.__layerEvents.push('added');
             }
           }
@@ -2173,7 +2173,7 @@ test('полоса выделения стыкуется по межстрочн
      заливка была одним элементом с маской, и «полосами» служила только разметка
      для меток. */
   const bands = await content(page)
-    .locator('.selection-band')
+    .locator('.context-selection-band')
     .evaluateAll((elements) =>
       elements
         .map((element) => element.getBoundingClientRect())
@@ -2328,7 +2328,7 @@ test('полосы выделения стыкуются по межстрочн
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             const pageBox = element.getBoundingClientRect();
-            const bands = Array.from(element.querySelectorAll('.selection-band'))
+            const bands = Array.from(element.querySelectorAll('.context-selection-band'))
               .map((band) => {
                 const rect = band.getBoundingClientRect();
                 return {
