@@ -467,30 +467,55 @@ export function handlePagesPointerDown(event: PointerEvent): void {
  * Подсветка во время правки не перехватывает указатель: по позиции курсора
  * ищется символ текста. Поэтому щелчок по самой цитате приходит как щелчок
  * «мимо заметки», и его нужно отличать от щелчка вне её.
+ *
+ * Попадание считается по прямоугольникам цитаты, а не по элементу с
+ * `data-note-id`: во время правки границ подсветка заменена черновиком, а он
+ * лежит на всю страницу. По его рамке любая точка страницы оказывалась «внутри»
+ * цитаты, и клик мимо не выходил из правки.
  */
 function insideEditedNote(clientX: number, clientY: number): boolean {
   const drag = editor.resizeDrag;
   if (!drag) {
     return false;
   }
-  const element = document.querySelector(`[data-note-id="${drag.note.id}"]`);
-  if (!element) {
+  const pageEl =
+    drag.pageEl && drag.pageEl.isConnected
+      ? drag.pageEl
+      : (pagesEl.querySelector(`.page[data-page="${drag.anchor.page}"]`) as HTMLElement | null);
+  const rects = drag.draft || drag.anchor.rects || [];
+  if (!pageEl || rects.length === 0) {
     return false;
   }
-  const bounds = element.getBoundingClientRect();
+  const bounds = pageEl.getBoundingClientRect();
   const slack = 12;
-  return (
-    clientX >= bounds.left - slack &&
-    clientX <= bounds.right + slack &&
-    clientY >= bounds.top - slack &&
-    clientY <= bounds.bottom + slack
-  );
+  return rects.some((rect) => {
+    const left = bounds.left + rect.x * bounds.width;
+    const top = bounds.top + rect.y * bounds.height;
+    return (
+      clientX >= left - slack &&
+      clientX <= left + rect.width * bounds.width + slack &&
+      clientY >= top - slack &&
+      clientY <= top + rect.height * bounds.height + slack
+    );
+  });
 }
 
 /** Клик по заметке: приложение выбирает её, а вьюер показывает меню действий. */
 export function handlePagesClick(event: MouseEvent): void {
   if (editor.clickSuppress) {
     editor.clickSuppress = false;
+    return;
+  }
+  /* Правка цитаты: клик вне её прямоугольников выходит из режима. Проверка идёт
+     до поиска заметки, потому что во время правки цитата заменена черновиком с
+     тем же `data-note-id`, и он лежал на всю страницу: клик мимо попадал в
+     черновик и считался кликом по заметке, а режим не снимался. */
+  if (editor.editing) {
+    closeNoteMenu();
+    if (!insideEditedNote(event.clientX, event.clientY)) {
+      stopEditing();
+      post({ type: 'note-edit-end' });
+    }
     return;
   }
   const target = event.target;
@@ -500,13 +525,6 @@ export function handlePagesClick(event: MouseEvent): void {
   // атрибутом, а не только у HTML-элемента.
   const noteId = element instanceof Element ? element.getAttribute('data-note-id') : null;
   if (!element || !noteId) {
-    // Щелчок мимо заметки закрывает меню и выходит из правки — но только вне
-    // самой цитаты: при правке её подсветка указатель не ловит, и нажатие на неё
-    // тоже приходило бы сюда, сбрасывая режим на первом же клике.
-    if (editor.editing && !insideEditedNote(event.clientX, event.clientY)) {
-      stopEditing();
-      post({ type: 'note-edit-end' });
-    }
     closeNoteMenu();
     return;
   }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { redrawAllNotes } from './note-ops';
+import { redrawAllNotes, stopEditing } from './note-ops';
+import { editor } from './editing-state';
+import { state } from './state';
 import { pagesEl } from './dom';
 import type { ViewerNote } from './types';
 
@@ -67,3 +69,34 @@ describe('redrawAllNotes', () => {
     expect(pagesEl.children[0].querySelectorAll('.note').length).toBe(0);
   });
 });
+
+  it('выход из правки границ возвращает мишени цитаты', () => {
+    /* Правимая цитата заменяется черновиком на всю страницу, а настоящие
+       мишени `.note` из наложения убираются. `stopEditing` снимал состояние, но
+       не перерисовывал заметки: черновик оставался, мишень не возвращалась, и
+       цитата после Escape не открывала меню и не правилась. */
+    pagesEl.replaceChildren();
+    const pageEl = page(1);
+    const notes = [quoteNote('q1', 1)];
+    // Заметки книги живут в общем состоянии: по нему идёт перерисовка.
+    state.notes = notes;
+    redrawAllNotes(notes);
+    expect(pageEl.querySelectorAll('.note').length).toBe(1);
+
+    editor.editing = { noteId: 'q1', mode: 'resize' };
+    editor.resizeDrag = {
+      note: notes[0],
+      anchor: JSON.parse(notes[0].anchor ?? '{}'),
+      edge: 'start',
+      draft: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.05 }],
+    };
+    redrawAllNotes(notes);
+    expect(pageEl.querySelectorAll('.note-resize-draft').length).toBe(1);
+    expect(pageEl.querySelectorAll('.note').length).toBe(0);
+
+    stopEditing();
+
+    expect(editor.editing).toBeNull();
+    expect(pageEl.querySelectorAll('.note-resize-draft').length).toBe(0);
+    expect(pageEl.querySelectorAll('.note').length).toBe(1);
+  });

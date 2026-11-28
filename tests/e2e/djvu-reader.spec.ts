@@ -918,6 +918,58 @@ test('правка границы цитаты DjVu не перерисовыв�
   expect(after).toBe(before);
 });
 
+// Правка цитаты завершается кликом мимо неё и по Escape, и после этого цитата
+// снова выбирается и открывает меню. Во время правки подсветка заменена
+// черновиком на всю страницу с тем же идентификатором заметки: клик мимо
+// считался кликом по заметке, а после выхода черновик оставался и закрывал
+// настоящую мишень.
+test('правка цитаты DjVu: клик мимо и Escape возвращают заметку в работу', async ({ page }) => {
+  await openDjvu(page);
+  await page.getByTestId('workplace-notes-toggle').click();
+
+  await content(page)
+    .locator('.page')
+    .first()
+    .locator('.textLayer span')
+    .first()
+    .evaluate((span) => {
+      const doc = span.ownerDocument;
+      const range = doc.createRange();
+      range.selectNodeContents(span);
+      const selection = doc.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      span.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+  await page.getByTestId('quote-menu').getByTestId('note-color-yellow').click();
+  await expect(page.getByTestId('notes-item')).toHaveCount(1);
+
+  const startResize = async () => {
+    await content(page).locator('.overlay .note').first().click();
+    await page.getByTestId('note-menu').getByRole('button', { name: 'Изменить выделение' }).click();
+    await expect(content(page).locator('.note-resize-draft')).toHaveCount(1);
+  };
+
+  // Клик в пустое место страницы, далеко от цитаты.
+  await startResize();
+  const pageBox = (await content(page).locator('.page').first().boundingBox())!;
+  await page.mouse.click(pageBox.x + pageBox.width / 2, pageBox.y + pageBox.height - 20);
+  await expect(content(page).locator('.note-resize-draft')).toHaveCount(0);
+
+  // Цитата снова выбирается: мишень на месте и меню открывается.
+  await content(page).locator('.overlay .note').first().click();
+  await expect(page.getByTestId('note-menu')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('note-menu')).toHaveCount(0);
+
+  // Escape выходит из правки, и цитата остаётся кликабельной.
+  await startResize();
+  await page.keyboard.press('Escape');
+  await expect(content(page).locator('.note-resize-draft')).toHaveCount(0);
+  await content(page).locator('.overlay .note').first().click();
+  await expect(page.getByTestId('note-menu')).toHaveCount(1);
+});
+
 // Клавиши в книге формата пересылаются в приложение: собственной навигации у
 // плагина нет, распознанная комбинация становится действием единого реестра.
 test('клавиши книги DjVu обрабатывает реестр приложения', async ({ page }) => {

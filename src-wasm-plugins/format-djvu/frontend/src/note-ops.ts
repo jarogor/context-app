@@ -12,6 +12,7 @@ import { edgeRects } from './carets';
 import { parseGeometry } from './geometry';
 import { anchorOf, drawNotes } from './notes';
 import { post } from './protocol';
+import { state } from './state';
 import type { NoteAnchor, ViewerNote } from './types';
 
 /** Перерисовка заметок на всех страницах книги. */
@@ -175,12 +176,19 @@ export function startResize(note: ViewerNote, notes: ViewerNote[]): void {
 
 /** Выход из режима правки заметки. */
 export function stopEditing(): void {
+  const wasResizing = editor.editing !== null && editor.editing.mode === 'resize';
   editor.editing = null;
   editor.moveDrag = null;
   editor.resizeDrag = null;
   clearMoveGuide();
   delete document.body.dataset.editing;
   renderResizeHandles();
+  /* Правимая цитата была заменена черновиком: без перерисовки он оставался в
+     наложении, и настоящей мишени цитаты не было — по ней приходит клик и
+     открывается меню. После Escape цитата становилась некликабельной. */
+  if (wasResizing) {
+    redrawAllNotes(state.notes);
+  }
 }
 
 /** Отрисовка маркеров границ цитаты в DjVu. */
